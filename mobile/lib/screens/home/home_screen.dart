@@ -11,6 +11,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
+import '../../widgets/common/commune_picker_sheet.dart';
+import '../../widgets/common/commune_pill.dart';
 import '../../widgets/home/announcement_stories.dart';
 import '../../widgets/home/category_chips.dart';
 import '../../widgets/home/search_bar.dart';
@@ -34,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<ProviderProvider>(context, listen: false);
       provider.loadFeaturedProviders();
-      provider.loadProviders();
+      provider.restoreSelectedCommune().whenComplete(provider.loadProviders);
 
       // Load favorites if user is authenticated
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -49,6 +51,15 @@ class _HomeScreenState extends State<HomeScreen> {
         appointmentProvider.loadAppointments();
       }
     });
+  }
+
+  Future<void> _openCommunePicker(ProviderProvider provider) async {
+    final choice = await showCommunePicker(
+      context,
+      selected: provider.selectedCommune,
+    );
+    if (choice == null) return;
+    await provider.setCommune(choice.commune);
   }
 
   @override
@@ -108,6 +119,26 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              // Commune location pill
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.spacingM,
+                    0,
+                    AppTheme.spacingM,
+                    AppTheme.spacingS,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Consumer<ProviderProvider>(
+                      builder: (context, provider, _) => CommunePill(
+                        commune: provider.selectedCommune,
+                        onTap: () => _openCommunePicker(provider),
+                      ),
+                    ),
                   ),
                 ),
               ),

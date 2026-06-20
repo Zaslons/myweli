@@ -11,6 +11,7 @@ class Provider extends Equatable {
   final String description;
   final String address;
   final String? city;
+  final String? commune;
   final double? latitude;
   final double? longitude;
   final List<String> imageUrls;
@@ -30,6 +31,7 @@ class Provider extends Equatable {
     required this.description,
     required this.address,
     this.city,
+    this.commune,
     this.latitude,
     this.longitude,
     required this.imageUrls,
@@ -51,6 +53,7 @@ class Provider extends Equatable {
         description,
         address,
         city,
+        commune,
         latitude,
         longitude,
         imageUrls,
@@ -71,6 +74,7 @@ class Provider extends Equatable {
     String? description,
     String? address,
     String? city,
+    String? commune,
     double? latitude,
     double? longitude,
     List<String>? imageUrls,
@@ -90,6 +94,7 @@ class Provider extends Equatable {
       description: description ?? this.description,
       address: address ?? this.address,
       city: city ?? this.city,
+      commune: commune ?? this.commune,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       imageUrls: imageUrls ?? this.imageUrls,
@@ -112,6 +117,7 @@ class Provider extends Equatable {
       'description': description,
       'address': address,
       'city': city,
+      'commune': commune,
       'latitude': latitude,
       'longitude': longitude,
       'imageUrls': imageUrls,
@@ -134,6 +140,7 @@ class Provider extends Equatable {
       description: json['description'] as String,
       address: json['address'] as String,
       city: json['city'] as String?,
+      commune: json['commune'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       imageUrls: List<String>.from(json['imageUrls'] as List),
