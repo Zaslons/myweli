@@ -29,6 +29,18 @@ If a rule below is ambiguous or a situation isn't covered, check these two docs 
 
 ## The development loop: before → during → after
 
+### UX first — design the experience before building (user-facing work)
+For anything a user touches — a screen, a flow, a state, a control — **plan the UX in detail and align with the user before writing code.** Efficient and intuitive UX is a first-order goal here, not a polish pass at the end. Produce a short written UX plan and get agreement *first*; it must cover:
+- **Goal & entry points** — what the user is trying to accomplish, and every place they arrive from.
+- **The flow** — the happy path step by step, plus the branches; minimize taps-to-done.
+- **All states** — loading, empty, error, success, offline, permission-denied, auth-gated.
+- **Edge cases** — bad/slow network, slow or failed Mobile Money, missing data, long French strings, low-end Android.
+- **Interaction detail** — what each control does, validation, feedback, back/navigation behavior, `returnTo` continuity.
+- **Copy** — the French microcopy for labels, errors, and empty states.
+- **Fit** — reuses existing components/patterns and respects the CI context (commune, FCFA, à domicile, WhatsApp).
+
+Only once the UX plan is agreed do you move to the steps below. Do not jump straight to code on user-facing work.
+
 ### Before writing code
 1. **Locate it in the plan.** Which PRD requirement and phase is this? If it's **V2 or V3** (e.g. the 8 `screens/provider/features/` modules, loyalty/membership UI, ERP), **stop and confirm with the user** — default is **V1 only**. Building screens we may cut is the top way "frontend-first" wastes time (ROADMAP §2.2).
 2. **Find the existing pattern to copy.** Match the surrounding code's idiom rather than inventing a new one. Reference implementations:
@@ -67,7 +79,7 @@ Treat any unchecked box as "not done."
 
 ### Before a commit / PR
 - `analyze` = 0, tests green, format clean, coverage not decreased, dependency scan clean (ROADMAP §7 gates).
-- Conventional commit message; end the commit with the co-author trailer.
+- Conventional commit message, authored as the user — **no Claude author or `Co-Authored-By` trailer** (see memory `git-no-claude-attribution`).
 - Never commit secrets, `.env`, build artifacts, or `build/` / `.dart_tool/`.
 - This repo must be under git with CI — if it somehow isn't yet, that's the first thing to fix (ROADMAP §1.7).
 
