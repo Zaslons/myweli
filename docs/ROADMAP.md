@@ -127,6 +127,15 @@ Each phase lists its work, its **exit criteria** (Definition of Done), and the t
 
 **Exit:** CI green on a real PR; analyze = 0; ≥1 unit + ≥1 widget + ≥1 golden test running in CI; crash reporting receiving events; budgets documented.
 
+**Status (2026-06-20) — Phase 0 substantially complete:**
+- ✅ Git + private GitHub remote (`Zaslons/myweli`); CI (format + strict analyze `--fatal-infos --fatal-warnings` + tests with coverage) green.
+- ✅ Analyzer cleared to 0 under a **stricter ruleset** (added `unawaited_futures`, `avoid_dynamic_calls`, `cancel_subscriptions`, `prefer_single_quotes`, etc.); real fixes (async-gap, fire-and-forget, dynamic-call, dead code), not suppression.
+- ✅ One-time `dart format` applied; CI enforces formatting.
+- ✅ Test tooling: `mocktail` + first unit/widget/provider tests; coverage uploaded as a CI artifact.
+- ✅ Error/observability **seam**: `AppLogger` + `runZonedGuarded` + `FlutterError.onError` in both entrypoints (ready for Sentry/Crashlytics).
+- ✅ Dependabot (pub + github-actions).
+- ⏳ **Deferred (need a decision or external account):** crash-reporting SDK wiring (needs Sentry DSN / Firebase project — seam is ready); **golden + integration tests** (cross-platform golden rendering needs a pinned-platform CI job; integration needs an emulator job); **branch protection** (would block our current direct-push-to-`main` flow — enable when we move to PR-based work); dependency **CVE gate** beyond Dependabot (OSV-Scanner) and `strict-casts`/`strict-raw-types` language modes (larger cleanup).
+
 ### Phase 1 — Finish the V1 frontend (on mocks)
 **Goal:** every V1 screen complete, accessible, fast, and tested — using mock services.
 Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop. For **each screen/flow**, the Definition of Done is in Part 7. Suggested order:
