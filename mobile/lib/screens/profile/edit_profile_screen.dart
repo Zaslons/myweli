@@ -138,7 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       vertical: AppTheme.spacingM,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant.withOpacity(0.5),
+                      color: AppColors.surfaceVariant.withValues(alpha: 0.5),
                       borderRadius:
                           BorderRadius.circular(AppTheme.radiusLarge),
                       border: Border.all(color: AppColors.border),

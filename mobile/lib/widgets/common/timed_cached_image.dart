@@ -165,7 +165,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
         wrapped,
         Positioned.fill(
           child: Container(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             alignment: Alignment.center,
             child: TextButton.icon(
               onPressed: _retry,

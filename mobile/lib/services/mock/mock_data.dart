@@ -135,7 +135,7 @@ class MockData {
   static List<Service> getServicesForProvider(String providerId) {
     if (providerId == 'provider1') {
       return [
-        Service(
+        const Service(
           id: 'service1',
           name: 'Coupe Homme',
           description: 'Coupe de cheveux pour homme',
@@ -144,7 +144,7 @@ class MockData {
           providerId: 'provider1',
           artistIds: ['artist1', 'artist2'], // Both artists can do this
         ),
-        Service(
+        const Service(
           id: 'service2',
           name: 'Rasage',
           description: 'Rasage complet avec tondeuse',
@@ -153,7 +153,7 @@ class MockData {
           providerId: 'provider1',
           artistIds: ['artist1'], // Only artist1 can do this
         ),
-        Service(
+        const Service(
           id: 'service3',
           name: 'Coupe + Rasage',
           description: 'Coupe et rasage complet',
@@ -165,7 +165,7 @@ class MockData {
       ];
     } else if (providerId == 'provider2') {
       return [
-        Service(
+        const Service(
           id: 'service4',
           name: 'Tissage',
           description: 'Tissage de cheveux',
@@ -174,7 +174,7 @@ class MockData {
           providerId: 'provider2',
           artistIds: ['artist3', 'artist5'], // Only these two can do this
         ),
-        Service(
+        const Service(
           id: 'service5',
           name: 'Coloration',
           description: 'Coloration complète',
@@ -183,7 +183,7 @@ class MockData {
           providerId: 'provider2',
           artistIds: ['artist3', 'artist4'], // These two can do this
         ),
-        Service(
+        const Service(
           id: 'service6',
           name: 'Lissage',
           description: 'Lissage brésilien',
@@ -195,7 +195,7 @@ class MockData {
       ];
     } else {
       return [
-        Service(
+        const Service(
           id: 'service7',
           name: 'Massage Relaxant',
           description: 'Massage complet du corps',
@@ -204,7 +204,7 @@ class MockData {
           providerId: 'provider3',
           artistIds: ['artist6'], // Only artist6 can do this
         ),
-        Service(
+        const Service(
           id: 'service8',
           name: 'Manucure',
           description: 'Soin des ongles',
@@ -227,7 +227,7 @@ class MockData {
       city: 'Abidjan',
       latitude: 5.3600,
       longitude: -4.0083,
-      imageUrls: [
+      imageUrls: const [
         'asset:assets/images/providers/salon_excellence_photo.png',
         'asset:assets/images/providers/spa_relax_photo.png',
       ],
@@ -238,15 +238,15 @@ class MockData {
       availability: Availability(
         providerId: 'provider1',
         weeklySchedule: {
-          0: [], // Monday closed
+          0: const [], // Monday closed
           1: _generateTimeSlots('provider1', 9, 18), // Tuesday
           2: _generateTimeSlots('provider1', 9, 18), // Wednesday
           3: _generateTimeSlots('provider1', 9, 18), // Thursday
           4: _generateTimeSlots('provider1', 9, 18), // Friday
           5: _generateTimeSlots('provider1', 9, 16), // Saturday
-          6: [], // Sunday closed
+          6: const [], // Sunday closed
         },
-        blockedDates: [],
+        blockedDates: const [],
       ),
       phoneNumber: '+225 07 11 22 33 44',
       category: 'barber',
@@ -259,7 +259,7 @@ class MockData {
       city: 'Abidjan',
       latitude: 5.2800,
       longitude: -4.0500,
-      imageUrls: [
+      imageUrls: const [
         'asset:assets/images/providers/beaute_divine_photo.png',
       ],
       rating: 4.8,
@@ -275,9 +275,9 @@ class MockData {
           3: _generateTimeSlots('provider2', 8, 17),
           4: _generateTimeSlots('provider2', 8, 17),
           5: _generateTimeSlots('provider2', 9, 15),
-          6: [],
+          6: const [],
         },
-        blockedDates: [],
+        blockedDates: const [],
       ),
       phoneNumber: '+225 05 44 55 66 77',
       category: 'salon',
@@ -290,7 +290,7 @@ class MockData {
       city: 'Abidjan',
       latitude: 5.3200,
       longitude: -4.0800,
-      imageUrls: [
+      imageUrls: const [
         'asset:assets/images/providers/spa_relax_photo.png',
       ],
       rating: 4.7,
@@ -308,7 +308,7 @@ class MockData {
           5: _generateTimeSlots('provider3', 10, 18),
           6: _generateTimeSlots('provider3', 12, 17),
         },
-        blockedDates: [],
+        blockedDates: const [],
       ),
       phoneNumber: '+225 01 22 33 44 55',
       category: 'spa',
@@ -321,12 +321,12 @@ class MockData {
       city: 'Abidjan',
       latitude: 5.3200,
       longitude: -4.0300,
-      imageUrls: [
+      imageUrls: const [
         'asset:assets/images/providers/barber_shop_pro_photo.png',
       ],
       rating: 4.6,
       reviewCount: 203,
-      services: [
+      services: const [
         Service(
           id: 'service9',
           name: 'Coupe Classique',
@@ -350,15 +350,15 @@ class MockData {
       availability: Availability(
         providerId: 'provider4',
         weeklySchedule: {
-          0: [],
+          0: const [],
           1: _generateTimeSlots('provider4', 8, 19),
           2: _generateTimeSlots('provider4', 8, 19),
           3: _generateTimeSlots('provider4', 8, 19),
           4: _generateTimeSlots('provider4', 8, 19),
           5: _generateTimeSlots('provider4', 8, 18),
-          6: [],
+          6: const [],
         },
-        blockedDates: [],
+        blockedDates: const [],
       ),
       phoneNumber: '+225 07 88 99 00 11',
       category: 'barber',
@@ -438,7 +438,7 @@ class MockData {
       id: 'appointment1',
       userId: 'user1',
       providerId: 'provider1',
-      serviceIds: ['service1'],
+      serviceIds: const ['service1'],
       appointmentDate: DateTime.now().add(const Duration(days: 2)),
       status: AppointmentStatus.confirmed,
       totalPrice: 5000,
@@ -448,7 +448,7 @@ class MockData {
       id: 'appointment2',
       userId: 'user1',
       providerId: 'provider2',
-      serviceIds: ['service4'],
+      serviceIds: const ['service4'],
       appointmentDate: DateTime.now().add(const Duration(days: 5)),
       status: AppointmentStatus.pending,
       totalPrice: 15000,
@@ -459,7 +459,7 @@ class MockData {
       id: 'appointment_completed1',
       userId: 'user1',
       providerId: 'provider1',
-      serviceIds: ['service1'],
+      serviceIds: const ['service1'],
       appointmentDate: DateTime.now().subtract(const Duration(days: 10)),
       status: AppointmentStatus.completed,
       totalPrice: 5000,
@@ -470,7 +470,7 @@ class MockData {
       id: 'appointment_completed2',
       userId: 'user2',
       providerId: 'provider2',
-      serviceIds: ['service4'],
+      serviceIds: const ['service4'],
       appointmentDate: DateTime.now().subtract(const Duration(days: 7)),
       status: AppointmentStatus.completed,
       totalPrice: 15000,

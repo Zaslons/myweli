@@ -166,7 +166,7 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
                                   end: Alignment.bottomCenter,
                                   colors: [
                                     Colors.transparent,
-                                    Colors.black.withOpacity(0.55),
+                                    Colors.black.withValues(alpha: 0.55),
                                   ],
                                 ),
                               ),

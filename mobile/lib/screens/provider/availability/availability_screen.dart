@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:table_calendar/table_calendar.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
 import '../../../models/availability.dart';
@@ -334,7 +333,6 @@ class _DayScheduleEditScreen extends StatefulWidget {
 
 class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
   late List<TimeSlot> _slots;
-  final Availability? _currentAvailability = null;
 
   @override
   void initState() {

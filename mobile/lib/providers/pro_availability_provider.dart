@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/pro_service_interface.dart';
-import '../models/api_response.dart';
 import '../models/availability.dart';
 
 class ProAvailabilityProvider extends ChangeNotifier {

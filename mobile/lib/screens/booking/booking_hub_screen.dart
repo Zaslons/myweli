@@ -681,7 +681,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total', style: AppTextStyles.titleMedium),
+                          const Text('Total', style: AppTextStyles.titleMedium),
                           Text(
                             Formatters.formatCurrency(totalPrice),
                             style: AppTextStyles.titleLarge.copyWith(color: AppColors.primary),

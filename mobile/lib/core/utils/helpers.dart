@@ -145,7 +145,7 @@ class Helpers {
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingM),
-                Text(
+                const Text(
                   'Ouvrir avec',
                   style: AppTextStyles.titleMedium,
                 ),

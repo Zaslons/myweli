@@ -49,17 +49,17 @@ class PayrollCalculationScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _RuleItem(
+                  const _RuleItem(
                     label: 'Salaire de base',
                     value: '50% des revenus',
                   ),
                   const Divider(),
-                  _RuleItem(
+                  const _RuleItem(
                     label: 'Commission',
                     value: '30% par rendez-vous',
                   ),
                   const Divider(),
-                  _RuleItem(
+                  const _RuleItem(
                     label: 'Bonus performance',
                     value: '10% si objectif atteint',
                   ),
@@ -74,7 +74,7 @@ class PayrollCalculationScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _EmployeePayrollCard(
+            const _EmployeePayrollCard(
               name: 'Kouassi Jean',
               baseSalary: '250,000 FCFA',
               commission: '180,000 FCFA',
@@ -83,7 +83,7 @@ class PayrollCalculationScreen extends StatelessWidget {
               appointments: 60,
             ),
             const SizedBox(height: 8),
-            _EmployeePayrollCard(
+            const _EmployeePayrollCard(
               name: 'Marie Kouassi',
               baseSalary: '250,000 FCFA',
               commission: '144,000 FCFA',
@@ -92,7 +92,7 @@ class PayrollCalculationScreen extends StatelessWidget {
               appointments: 48,
             ),
             const SizedBox(height: 8),
-            _EmployeePayrollCard(
+            const _EmployeePayrollCard(
               name: 'Fatou Diallo',
               baseSalary: '200,000 FCFA',
               commission: '123,000 FCFA',
@@ -104,9 +104,9 @@ class PayrollCalculationScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingM),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -144,13 +144,13 @@ class PayrollCalculationScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _PaymentHistoryItem(
+            const _PaymentHistoryItem(
               month: 'Novembre 2024',
               amount: '1,150,000 FCFA',
               status: 'Payé',
             ),
             const SizedBox(height: 8),
-            _PaymentHistoryItem(
+            const _PaymentHistoryItem(
               month: 'Octobre 2024',
               amount: '1,080,000 FCFA',
               status: 'Payé',
@@ -370,7 +370,7 @@ class _PaymentHistoryItem extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                 ),
                 child: Text(

@@ -91,7 +91,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 32),
-                Icon(
+                const Icon(
                   Icons.business_center,
                   size: 100,
                   color: AppColors.primary,
@@ -127,7 +127,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<BusinessType>(
-                  value: _selectedBusinessType,
+                  initialValue: _selectedBusinessType,
                   decoration: InputDecoration(
                     labelText: 'Type d\'entreprise',
                     prefixIcon: const Icon(Icons.category),

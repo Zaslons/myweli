@@ -9,7 +9,6 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/utils/validators.dart';
 import '../../core/utils/helpers.dart';
 import '../../widgets/common/app_button.dart';
 
@@ -72,12 +71,6 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   void _onOtpChanged(int index, String value) {
     if (value.isNotEmpty && index < 5) {
       _focusNodes[index + 1].requestFocus();
-    }
-  }
-
-  void _onBackspace(int index) {
-    if (_controllers[index].text.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
     }
   }
 
@@ -157,7 +150,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 32),
-              Icon(
+              const Icon(
                 Icons.lock_outline,
                 size: 80,
                 color: AppColors.primary,
@@ -232,7 +225,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       onChanged: (value) => _onOtpChanged(index, value),
                       onTap: () {
                         if (_controllers[index].text.isEmpty) {
-                          _controllers[index].selection = TextSelection.collapsed(
+                          _controllers[index].selection = const TextSelection.collapsed(
                             offset: 0,
                           );
                         }

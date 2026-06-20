@@ -75,7 +75,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               children: [
                 const SizedBox(height: 32),
                 // Icon
-                Icon(
+                const Icon(
                   Icons.business,
                   size: 120,
                   color: AppColors.primary,

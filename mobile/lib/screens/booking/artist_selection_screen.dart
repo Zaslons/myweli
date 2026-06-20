@@ -5,7 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/provider_provider.dart';
 import '../../providers/appointment_provider.dart';
 import '../../models/artist.dart';
-import '../../models/service.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/theme/app_theme.dart';
@@ -179,7 +178,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.person_off,
                       size: 64,
                       color: AppColors.textTertiary,
@@ -226,7 +225,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.info_outline,
                             color: AppColors.primary,
                             size: 20,

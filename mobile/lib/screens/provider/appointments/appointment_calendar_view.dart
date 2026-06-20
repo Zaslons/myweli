@@ -54,14 +54,6 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
     }).toList();
   }
 
-  List<Appointment> _getAppointmentsForMonth(DateTime month) {
-    return widget.appointments.where((appointment) {
-      final appointmentDate = appointment.appointmentDate;
-      return appointmentDate.year == month.year &&
-          appointmentDate.month == month.month;
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -83,7 +75,7 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
             calendarFormat: CalendarFormat.month,
             startingDayOfWeek: StartingDayOfWeek.monday,
             calendarStyle: CalendarStyle(
-              selectedDecoration: BoxDecoration(
+              selectedDecoration: const BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/pro_service_interface.dart';
-import '../models/api_response.dart';
 import '../models/appointment.dart';
 
 class ProAppointmentProvider extends ChangeNotifier {
@@ -10,7 +9,6 @@ class ProAppointmentProvider extends ChangeNotifier {
   List<Appointment> _appointments = [];
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
 
   List<Appointment> get appointments => _appointments;
   bool get isLoading => _isLoading;
@@ -24,7 +22,6 @@ class ProAppointmentProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
-    _currentProviderId = providerId;
     notifyListeners();
 
     try {

@@ -142,14 +142,14 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Icon(Icons.star, size: 14, color: Colors.amber),
+                                const Icon(Icons.star, size: 14, color: Colors.amber),
                                 const SizedBox(width: 8),
                                 SizedBox(
                                   width: 100,
                                   child: LinearProgressIndicator(
                                     value: percentage,
                                     backgroundColor: AppColors.surface,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
                                   ),
                                 ),
                                 const SizedBox(width: 8),

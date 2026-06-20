@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/pro_service_interface.dart';
-import '../models/api_response.dart';
 
 class ProEarningsProvider extends ChangeNotifier {
   final ProServiceInterface _proService = serviceLocator.proService;
@@ -9,7 +8,6 @@ class ProEarningsProvider extends ChangeNotifier {
   EarningsData? _earnings;
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
 
   EarningsData? get earnings => _earnings;
   bool get isLoading => _isLoading;
@@ -22,7 +20,6 @@ class ProEarningsProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
-    _currentProviderId = providerId;
     notifyListeners();
 
     try {
@@ -49,7 +46,6 @@ class ProEarningsProvider extends ChangeNotifier {
 
   void clearEarnings() {
     _earnings = null;
-    _currentProviderId = null;
     _error = null;
     notifyListeners();
   }

@@ -5,7 +5,6 @@ import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/text_styles.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/booking/appointment_card.dart';
@@ -130,7 +129,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
 
     if (appointments.isEmpty) {
-      return EmptyState(
+      return const EmptyState(
         icon: Icons.calendar_today,
         title: 'Aucun rendez-vous',
         description: 'Vous n\'avez pas de rendez-vous dans cette catégorie',

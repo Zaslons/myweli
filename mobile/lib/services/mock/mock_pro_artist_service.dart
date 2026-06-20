@@ -49,11 +49,9 @@ class MockProArtistService implements ProArtistServiceInterface {
   ) async {
     await Future.delayed(AppConstants.mockDelay);
     Artist? found;
-    String? providerId;
     for (final entry in _store.entries) {
       final idx = entry.value.indexWhere((a) => a.id == artistId);
       if (idx != -1) {
-        providerId = entry.key;
         final a = entry.value[idx];
         found = a.copyWith(
           name: data['name'] as String? ?? a.name,

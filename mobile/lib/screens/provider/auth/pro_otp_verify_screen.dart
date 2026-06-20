@@ -140,7 +140,7 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 32),
-              Icon(
+              const Icon(
                 Icons.lock_outline,
                 size: 80,
                 color: AppColors.primary,
@@ -215,7 +215,7 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                       onChanged: (value) => _onOtpChanged(index, value),
                       onTap: () {
                         if (_controllers[index].text.isEmpty) {
-                          _controllers[index].selection = TextSelection.collapsed(
+                          _controllers[index].selection = const TextSelection.collapsed(
                             offset: 0,
                           );
                         }

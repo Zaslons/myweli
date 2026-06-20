@@ -75,21 +75,21 @@ class ReportsAnalyticsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _PopularItem(
+            const _PopularItem(
               name: 'Coupe + Coloration',
               count: 45,
               revenue: '675,000 FCFA',
               percentage: 0.85,
             ),
             const SizedBox(height: 8),
-            _PopularItem(
+            const _PopularItem(
               name: 'Manucure',
               count: 32,
               revenue: '480,000 FCFA',
               percentage: 0.65,
             ),
             const SizedBox(height: 8),
-            _PopularItem(
+            const _PopularItem(
               name: 'Massage',
               count: 28,
               revenue: '560,000 FCFA',
@@ -104,21 +104,21 @@ class ReportsAnalyticsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _EmployeeStatCard(
+            const _EmployeeStatCard(
               name: 'Kouassi Jean',
               appointments: 52,
               revenue: '780,000 FCFA',
               rating: 4.8,
             ),
             const SizedBox(height: 8),
-            _EmployeeStatCard(
+            const _EmployeeStatCard(
               name: 'Marie Kouassi',
               appointments: 48,
               revenue: '720,000 FCFA',
               rating: 4.9,
             ),
             const SizedBox(height: 8),
-            _EmployeeStatCard(
+            const _EmployeeStatCard(
               name: 'Fatou Diallo',
               appointments: 41,
               revenue: '615,000 FCFA',
@@ -129,13 +129,13 @@ class ReportsAnalyticsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingM),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.trending_up, color: Colors.green, size: 32),
+                  const Icon(Icons.trending_up, color: Colors.green, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -218,7 +218,7 @@ class _PopularItem extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: percentage,
                     backgroundColor: AppColors.surface,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                     minHeight: 8,
                   ),
                 ),
@@ -285,7 +285,7 @@ class _EmployeeStatCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.star, size: 14, color: Colors.amber),
+                    const Icon(Icons.star, size: 14, color: Colors.amber),
                     const SizedBox(width: 4),
                     Text(
                       rating.toStringAsFixed(1),
@@ -326,7 +326,7 @@ class _LineChartPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final fillPaint = Paint()
-      ..color = AppColors.primary.withOpacity(0.1)
+      ..color = AppColors.primary.withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
 
     final path = Path();

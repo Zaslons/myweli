@@ -18,7 +18,7 @@ class MockAuthService implements AuthServiceInterface {
     await Future.delayed(AppConstants.mockDelay);
 
     // Generate a simple OTP (for demo: always "123456")
-    final otp = '123456';
+    const otp = '123456';
     _otpStore[phoneNumber] = otp;
 
     return ApiResponse.success(otp, message: 'Code OTP envoyé avec succès');
@@ -92,7 +92,7 @@ class MockAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
     await Future.delayed(AppConstants.mockDelay);
-    final otp = '123456';
+    const otp = '123456';
     _providerOtpStore[phoneNumber] = otp;
     return ApiResponse.success(otp, message: 'Code OTP envoyé avec succès');
   }
@@ -149,7 +149,7 @@ class MockAuthService implements AuthServiceInterface {
     MockData.providerUsers.add(providerUser);
     
     // Send OTP
-    final otp = '123456';
+    const otp = '123456';
     _providerOtpStore[phoneNumber] = otp;
 
     return ApiResponse.success(providerUser, message: 'Inscription réussie. Code OTP envoyé.');

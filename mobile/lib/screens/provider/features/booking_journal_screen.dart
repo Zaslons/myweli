@@ -38,7 +38,7 @@ class BookingJournalScreen extends StatelessWidget {
                 firstDay: DateTime.now(),
                 lastDay: DateTime.now().add(const Duration(days: 90)),
                 focusedDay: DateTime.now(),
-                calendarStyle: CalendarStyle(
+                calendarStyle: const CalendarStyle(
                   selectedDecoration: BoxDecoration(
                     color: AppColors.primary,
                     shape: BoxShape.circle,
@@ -49,7 +49,7 @@ class BookingJournalScreen extends StatelessWidget {
                   ),
                   outsideDaysVisible: false,
                 ),
-                headerStyle: HeaderStyle(
+                headerStyle: const HeaderStyle(
                   formatButtonVisible: false,
                   titleCentered: true,
                 ),
@@ -70,7 +70,7 @@ class BookingJournalScreen extends StatelessWidget {
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               childAspectRatio: 1.5,
-              children: [
+              children: const [
                 _QuickAccessCard(
                   title: 'Fiche client',
                   icon: Icons.person,
@@ -102,21 +102,21 @@ class BookingJournalScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _AppointmentCard(
+            const _AppointmentCard(
               clientName: 'Marie Kouassi',
               service: 'Coupe + Coloration',
               time: '10:00',
               artist: 'Kouassi Jean',
             ),
             const SizedBox(height: 8),
-            _AppointmentCard(
+            const _AppointmentCard(
               clientName: 'Aminata Diallo',
               service: 'Manucure',
               time: '14:30',
               artist: 'Fatou Diallo',
             ),
             const SizedBox(height: 8),
-            _AppointmentCard(
+            const _AppointmentCard(
               clientName: 'Sophie Traoré',
               service: 'Massage',
               time: '16:00',
@@ -220,7 +220,7 @@ class _AppointmentCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.person_outline, size: 14, color: AppColors.textTertiary),
+                    const Icon(Icons.person_outline, size: 14, color: AppColors.textTertiary),
                     const SizedBox(width: 4),
                     Text(
                       artist,

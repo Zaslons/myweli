@@ -6,7 +6,6 @@ import '../../providers/auth_provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/formatters.dart';
 import '../common/timed_cached_image.dart';
 import 'package:go_router/go_router.dart';
 
@@ -120,7 +119,7 @@ class ProviderCard extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.9),
+                                color: AppColors.secondary.withValues(alpha: 0.9),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -265,7 +264,7 @@ class ProviderCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: AppColors.secondary.withOpacity(0.9),
+                            color: AppColors.secondary.withValues(alpha: 0.9),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(

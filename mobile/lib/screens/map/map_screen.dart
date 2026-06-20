@@ -43,6 +43,7 @@ class _MapScreenState extends State<MapScreen> {
       final providerProvider =
           Provider.of<ProviderProvider>(context, listen: false);
       await providerProvider.loadProviders();
+      if (!mounted) return;
 
       // Load favorites if user is authenticated (for heart markers)
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -166,9 +167,9 @@ class _MapScreenState extends State<MapScreen> {
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.secondary,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
           ),
           child: SafeArea(
             top: false,
@@ -374,10 +375,10 @@ class _MapScreenState extends State<MapScreen> {
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: MapOptions(
+            options: const MapOptions(
               initialCenter: _defaultCenter,
               initialZoom: _defaultZoom,
-              interactionOptions: const InteractionOptions(
+              interactionOptions: InteractionOptions(
                 flags: InteractiveFlag.all,
               ),
             ),

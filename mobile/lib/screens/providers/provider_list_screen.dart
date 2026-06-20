@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/text_styles.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/provider/provider_card.dart';
 import '../../widgets/common/empty_state.dart';
@@ -53,7 +52,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
           }
 
           if (provider.providers.isEmpty) {
-            return EmptyState(
+            return const EmptyState(
               icon: Icons.search_off,
               title: 'Aucun salon trouvé',
               description: 'Essayez de modifier vos critères de recherche',

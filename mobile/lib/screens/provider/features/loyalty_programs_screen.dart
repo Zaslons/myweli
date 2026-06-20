@@ -26,7 +26,7 @@ class LoyaltyProgramsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             // Programs Overview
-            Row(
+            const Row(
               children: [
                 Expanded(
                   child: _ProgramCard(
@@ -37,7 +37,7 @@ class LoyaltyProgramsScreen extends StatelessWidget {
                     color: Colors.amber,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: _ProgramCard(
                     title: 'Cashback',
@@ -57,14 +57,14 @@ class LoyaltyProgramsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _LoyaltyProgramItem(
+            const _LoyaltyProgramItem(
               title: 'Programme Points',
               description: '1 point pour chaque 1000 FCFA dépensés',
               discount: '10% après 100 points',
               isActive: true,
             ),
             const SizedBox(height: 12),
-            _LoyaltyProgramItem(
+            const _LoyaltyProgramItem(
               title: 'Cashback Mensuel',
               description: '5% de remise en cashback chaque mois',
               discount: 'Maximum 10,000 FCFA/mois',
@@ -78,14 +78,14 @@ class LoyaltyProgramsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _CertificateCard(
+            const _CertificateCard(
               title: 'Abonnement Mensuel',
               price: '50,000 FCFA',
               description: 'Accès illimité aux services de base',
               sold: 12,
             ),
             const SizedBox(height: 12),
-            _CertificateCard(
+            const _CertificateCard(
               title: 'Certificat Cadeau',
               price: '25,000 FCFA',
               description: 'Cadeau parfait pour vos proches',
@@ -226,7 +226,7 @@ class _LoyaltyProgramItem extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                   ),
                   child: Text(
@@ -278,10 +278,10 @@ class _CertificateCard extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.card_giftcard,
               color: AppColors.primary,
               size: 32,

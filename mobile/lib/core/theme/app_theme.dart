@@ -23,7 +23,7 @@ class AppTheme {
   // Elevation/Shadows
   static List<BoxShadow> get elevation1 => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: 2,
           offset: const Offset(0, 1),
         ),
@@ -31,12 +31,12 @@ class AppTheme {
 
   static List<BoxShadow> get elevation2 => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: 3,
           offset: const Offset(0, 1),
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.06),
+          color: Colors.black.withValues(alpha: 0.06),
           blurRadius: 2,
           offset: const Offset(0, 1),
         ),
@@ -44,12 +44,12 @@ class AppTheme {
 
   static List<BoxShadow> get elevation3 => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: 6,
           offset: const Offset(0, 4),
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.06),
+          color: Colors.black.withValues(alpha: 0.06),
           blurRadius: 4,
           offset: const Offset(0, 2),
         ),
@@ -57,12 +57,12 @@ class AppTheme {
 
   static List<BoxShadow> get elevation4 => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: 15,
           offset: const Offset(0, 10),
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: 6,
           offset: const Offset(0, 4),
         ),
@@ -71,16 +71,14 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.surface,
-        background: AppColors.background,
         error: AppColors.error,
         onPrimary: AppColors.secondary,
         onSecondary: AppColors.primary,
         onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
         onError: AppColors.secondary,
       ),
       scaffoldBackgroundColor: AppColors.background,
@@ -196,7 +194,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusXL),
         ),
-        shadowColor: Colors.black.withOpacity(0.05),
+        shadowColor: Colors.black.withValues(alpha: 0.05),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,

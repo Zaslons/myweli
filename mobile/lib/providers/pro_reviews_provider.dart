@@ -1,14 +1,9 @@
 import 'package:flutter/foundation.dart';
-import '../core/di/dependency_injection.dart';
-import '../services/interfaces/pro_service_interface.dart';
-import '../models/api_response.dart';
 import '../models/review.dart';
 import '../services/mock/mock_data.dart';
 import '../core/constants/app_constants.dart';
 
 class ProReviewsProvider extends ChangeNotifier {
-  final ProServiceInterface _proService = serviceLocator.proService;
-
   List<Review> _reviews = [];
   bool _isLoading = false;
   String? _error;
@@ -29,8 +24,8 @@ class ProReviewsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // For now, use mock data directly
-      // In the future, this should call _proService.getProviderReviews(providerId)
+      // For now, use mock data directly.
+      // TODO(reviews): inject ProServiceInterface and call getProviderReviews(providerId).
       await Future.delayed(AppConstants.mockDelay);
       _reviews = MockData.reviews.where((r) => r.providerId == providerId).toList();
       _reviews.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Most recent first

@@ -5,7 +5,6 @@ import '../../providers/auth_provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/utils/validators.dart';
 import '../../core/utils/formatters.dart';
 import '../../widgets/common/app_button.dart';
@@ -76,7 +75,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               children: [
                 const SizedBox(height: 32),
                 // Icon
-                Icon(
+                const Icon(
                   Icons.phone_android,
                   size: 120,
                   color: AppColors.primary,

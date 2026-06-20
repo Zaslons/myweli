@@ -50,7 +50,7 @@ class _ProAppointmentDetailScreenState extends State<ProAppointmentDetailScreen>
                   id: widget.appointmentId,
                   userId: '',
                   providerId: '',
-                  serviceIds: [],
+                  serviceIds: const [],
                   appointmentDate: DateTime.now(),
                   status: AppointmentStatus.pending,
                   totalPrice: 0,

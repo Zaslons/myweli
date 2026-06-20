@@ -58,7 +58,6 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
     final artistProvider = Provider.of<ProArtistProvider>(context, listen: false);
     final providerId = _resolvedProviderId(context);
 

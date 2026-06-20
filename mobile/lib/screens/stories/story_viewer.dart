@@ -181,7 +181,7 @@ class _StoryViewerState extends State<StoryViewer> with TickerProviderStateMixin
                         borderRadius: BorderRadius.circular(999),
                         child: Container(
                           height: 3,
-                          color: Colors.white.withOpacity(0.25),
+                          color: Colors.white.withValues(alpha: 0.25),
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: AnimatedBuilder(

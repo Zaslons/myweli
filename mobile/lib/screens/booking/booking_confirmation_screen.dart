@@ -232,7 +232,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'Total:',
                             style: AppTextStyles.titleMedium,
                           ),

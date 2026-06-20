@@ -91,7 +91,7 @@ class HighlightStories extends StatelessWidget {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                accent.withOpacity(0.14),
+                                accent.withValues(alpha: 0.14),
                                 AppColors.surface,
                               ],
                             ),
@@ -103,7 +103,7 @@ class HighlightStories extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.secondary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: accent.withOpacity(0.35)),
+                                border: Border.all(color: accent.withValues(alpha: 0.35)),
                               ),
                               child: Icon(icon, color: accent),
                             ),

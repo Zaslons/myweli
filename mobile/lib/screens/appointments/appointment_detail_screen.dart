@@ -33,6 +33,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   Future<void> _handleCancel() async {
+    final provider = Provider.of<AppointmentProvider>(context, listen: false);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -53,7 +54,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     if (confirmed != true) return;
 
-    final provider = Provider.of<AppointmentProvider>(context, listen: false);
     final success = await provider.cancelAppointment(widget.appointmentId);
 
     if (!mounted) return;
@@ -124,7 +124,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Informations du rendez-vous',
                         style: AppTextStyles.titleLarge,
                       ),

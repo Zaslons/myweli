@@ -22,9 +22,9 @@ class OnlineBookingScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingM),
               decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.1),
+                color: Colors.amber.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -79,7 +79,7 @@ class OnlineBookingScreen extends StatelessWidget {
                     height: 120,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
+                        colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.7)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -161,7 +161,7 @@ class OnlineBookingScreen extends StatelessWidget {
                                 color: AppColors.primary,
                               ),
                             ),
-                            Icon(Icons.check_circle, color: Colors.green, size: 20),
+                            const Icon(Icons.check_circle, color: Colors.green, size: 20),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -173,16 +173,16 @@ class OnlineBookingScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         // Service Categories
-                        SingleChildScrollView(
+                        const SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
                             children: [
                               _CategoryChip('Coupe', isSelected: true),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               _CategoryChip('Coloration'),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               _CategoryChip('Manucure'),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               _CategoryChip('Massage'),
                             ],
                           ),
@@ -197,7 +197,7 @@ class OnlineBookingScreen extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.card_giftcard, color: AppColors.secondary),
+                              const Icon(Icons.card_giftcard, color: AppColors.secondary),
                               const SizedBox(width: 8),
                               Text(
                                 'Acheter un certificat ou abonnement',
@@ -206,7 +206,7 @@ class OnlineBookingScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Icon(Icons.arrow_forward, color: AppColors.secondary, size: 16),
+                              const Icon(Icons.arrow_forward, color: AppColors.secondary, size: 16),
                             ],
                           ),
                         ),

@@ -28,13 +28,13 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingM),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.trending_down, color: Colors.green, size: 32),
+                  const Icon(Icons.trending_down, color: Colors.green, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -97,25 +97,25 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _NotificationSettingItem(
+            const _NotificationSettingItem(
               title: 'Rappel de rendez-vous',
               description: 'Envoyer 24h avant le rendez-vous',
               isEnabled: true,
             ),
             const SizedBox(height: 8),
-            _NotificationSettingItem(
+            const _NotificationSettingItem(
               title: 'Confirmation de réservation',
               description: 'Envoyer immédiatement après réservation',
               isEnabled: true,
             ),
             const SizedBox(height: 8),
-            _NotificationSettingItem(
+            const _NotificationSettingItem(
               title: 'Invitation de retour',
               description: 'Envoyer 7 jours après la dernière visite',
               isEnabled: true,
             ),
             const SizedBox(height: 8),
-            _NotificationSettingItem(
+            const _NotificationSettingItem(
               title: 'Message d\'anniversaire',
               description: 'Envoyer le jour de l\'anniversaire',
               isEnabled: false,
@@ -129,13 +129,13 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _MessageTemplateCard(
+            const _MessageTemplateCard(
               title: 'Rappel de rendez-vous',
               message: 'Bonjour ! Vous avez un rendez-vous demain à 16:00. Nous vous attendons ✨. Détails: Coupe + Coloration',
               time: '6 septembre 2024',
             ),
             const SizedBox(height: 12),
-            _MessageTemplateCard(
+            const _MessageTemplateCard(
               title: 'Offre promotionnelle',
               message: 'Complexe classique pour seulement 3,000 FCFA. Manicure 💅, pédicure 🦶, vernis...',
               time: '11:00',
@@ -205,7 +205,7 @@ class _NotificationSettingItem extends StatelessWidget {
           Switch(
             value: isEnabled,
             onChanged: (_) {},
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
           ),
         ],
       ),

@@ -95,7 +95,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
           // Empty state
           if (favoriteProviders.isEmpty) {
-            return EmptyState(
+            return const EmptyState(
               icon: Icons.favorite_border,
               title: 'Aucun favori',
               description: 'Ajoutez des salons à vos favoris pour les retrouver facilement',

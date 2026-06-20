@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../models/service.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/theme/app_theme.dart';
@@ -159,7 +160,7 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           'Total:',
                           style: AppTextStyles.titleMedium,
                         ),
@@ -188,7 +189,7 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
 }
 
 class _ServiceCard extends StatelessWidget {
-  final service;
+  final Service service;
   final bool isSelected;
   final bool isDisabled;
   final VoidCallback onTap;

@@ -32,7 +32,7 @@ class InventoryManagementScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             // Summary Cards
-            Row(
+            const Row(
               children: [
                 Expanded(
                   child: _SummaryCard(
@@ -42,7 +42,7 @@ class InventoryManagementScreen extends StatelessWidget {
                     color: Colors.blue,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: _SummaryCard(
                     title: 'Alertes',
@@ -68,7 +68,7 @@ class InventoryManagementScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             // Product List
-            _ProductItem(
+            const _ProductItem(
               name: 'Shampooing Professionnel',
               category: 'Produit capillaire',
               stock: 15,
@@ -77,7 +77,7 @@ class InventoryManagementScreen extends StatelessWidget {
               status: StockStatus.normal,
             ),
             const SizedBox(height: 8),
-            _ProductItem(
+            const _ProductItem(
               name: 'Vernis à ongles',
               category: 'Manucure',
               stock: 5,
@@ -86,7 +86,7 @@ class InventoryManagementScreen extends StatelessWidget {
               status: StockStatus.low,
             ),
             const SizedBox(height: 8),
-            _ProductItem(
+            const _ProductItem(
               name: 'Cire épilatoire',
               category: 'Épilation',
               stock: 8,
@@ -95,7 +95,7 @@ class InventoryManagementScreen extends StatelessWidget {
               status: StockStatus.low,
             ),
             const SizedBox(height: 8),
-            _ProductItem(
+            const _ProductItem(
               name: 'Serviettes',
               category: 'Consommable',
               stock: 45,
@@ -104,7 +104,7 @@ class InventoryManagementScreen extends StatelessWidget {
               status: StockStatus.normal,
             ),
             const SizedBox(height: 8),
-            _ProductItem(
+            const _ProductItem(
               name: 'Masque facial',
               category: 'Soin',
               stock: 2,
@@ -219,7 +219,7 @@ class _ProductItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.radiusXL),
         boxShadow: AppTheme.elevation1,
         border: Border.all(
-          color: _statusColor.withOpacity(0.3),
+          color: _statusColor.withValues(alpha: 0.3),
           width: status != StockStatus.normal ? 2 : 1,
         ),
       ),
@@ -229,7 +229,7 @@ class _ProductItem extends StatelessWidget {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: _statusColor.withOpacity(0.1),
+              color: _statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             ),
             child: Icon(

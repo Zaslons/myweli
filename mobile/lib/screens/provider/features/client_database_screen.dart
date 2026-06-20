@@ -42,17 +42,17 @@ class ClientDatabaseScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           // Filter Chips
-          SingleChildScrollView(
+          const SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+            padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
             child: Row(
               children: [
                 _FilterChip('Tous', isSelected: true),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 _FilterChip('VIP'),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 _FilterChip('Nouveaux'),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 _FilterChip('Inactifs'),
               ],
             ),
@@ -62,7 +62,7 @@ class ClientDatabaseScreen extends StatelessWidget {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
-              children: [
+              children: const [
                 _ClientCard(
                   name: 'Marie Kouassi',
                   phone: '+225 07 12 34 56 78',
@@ -70,7 +70,7 @@ class ClientDatabaseScreen extends StatelessWidget {
                   bonus: 450,
                   lastVisit: 'Il y a 3 jours',
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _ClientCard(
                   name: 'Aminata Diallo',
                   phone: '+225 05 98 76 54 32',
@@ -78,7 +78,7 @@ class ClientDatabaseScreen extends StatelessWidget {
                   bonus: 280,
                   lastVisit: 'Il y a 1 semaine',
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _ClientCard(
                   name: 'Sophie Traoré',
                   phone: '+225 01 23 45 67 89',
@@ -87,7 +87,7 @@ class ClientDatabaseScreen extends StatelessWidget {
                   lastVisit: 'Hier',
                   isVip: true,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _ClientCard(
                   name: 'Fatou Camara',
                   phone: '+225 07 88 99 00 11',
@@ -116,7 +116,7 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) {},
-      selectedColor: AppColors.primary.withOpacity(0.2),
+      selectedColor: AppColors.primary.withValues(alpha: 0.2),
       checkmarkColor: AppColors.primary,
     );
   }
@@ -178,7 +178,7 @@ class _ClientCard extends StatelessWidget {
                         ),
                         if (isVip) ...[
                           const SizedBox(width: 8),
-                          Icon(Icons.star, color: Colors.amber, size: 16),
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
                         ],
                       ],
                     ),

@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import '../models/provider_user.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/auth_service_interface.dart';
-import '../models/api_response.dart';
 
 class ProAuthProvider extends ChangeNotifier {
   final AuthServiceInterface _authService = serviceLocator.authService;

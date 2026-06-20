@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../core/theme/colors.dart';
@@ -157,7 +156,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                           day.day == _selectedDate.day;
                     },
                     onDaySelected: _onDateSelected,
-                    calendarStyle: CalendarStyle(
+                    calendarStyle: const CalendarStyle(
                       selectedDecoration: BoxDecoration(
                         color: AppColors.primary,
                         shape: BoxShape.circle,
@@ -168,14 +167,14 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                       ),
                       outsideDaysVisible: false,
                     ),
-                    headerStyle: HeaderStyle(
+                    headerStyle: const HeaderStyle(
                       formatButtonVisible: false,
                       titleCentered: true,
                     ),
                   ),
                   const SizedBox(height: 24),
                   // Time Slots
-                  Text(
+                  const Text(
                     'Heures disponibles',
                     style: AppTextStyles.titleLarge,
                   ),

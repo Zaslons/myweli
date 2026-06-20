@@ -28,7 +28,7 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 24),
                 // Avatar
-                CircleAvatar(
+                const CircleAvatar(
                   radius: 40,
                   backgroundColor: AppColors.surface,
                   child: Icon(
@@ -99,10 +99,10 @@ class ProfileScreen extends StatelessWidget {
                     );
                   },
                 ),
-                _SettingsItem(
+                const _SettingsItem(
                   icon: Icons.info_outline,
                   title: 'À propos',
-                  trailing: const Text('Version 1.0.0'),
+                  trailing: Text('Version 1.0.0'),
                 ),
                 const SizedBox(height: 32),
                 // Logout Button (only show if authenticated)

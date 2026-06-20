@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 
 enum AppButtonType { primary, secondary, text }
@@ -82,7 +81,7 @@ class AppButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
-        disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
+        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
         minimumSize: isFullWidth
             ? const Size(double.infinity, 48)
             : const Size(0, 48),

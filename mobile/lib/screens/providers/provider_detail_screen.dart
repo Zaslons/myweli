@@ -621,7 +621,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons.star_border,
                                           size: 28,
                                           color: AppColors.textTertiary,
@@ -995,7 +995,7 @@ class _SalonLogo extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       alignment: Alignment.center,
-      child: Icon(Icons.store_outlined, size: 36, color: AppColors.textTertiary),
+      child: const Icon(Icons.store_outlined, size: 36, color: AppColors.textTertiary),
     );
   }
 }
