@@ -59,7 +59,6 @@ flutter:
 
   assets:
     - assets/images/
-    - assets/icons/
     - assets/images/providers/
     - assets/images/stories/
 
