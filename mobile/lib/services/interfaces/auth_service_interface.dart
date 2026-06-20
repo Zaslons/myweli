@@ -1,0 +1,26 @@
+import '../../models/user.dart';
+import '../../models/provider_user.dart';
+import '../../models/api_response.dart';
+
+abstract class AuthServiceInterface {
+  Future<ApiResponse<String>> sendOtp(String phoneNumber);
+  Future<ApiResponse<User>> verifyOtp(String phoneNumber, String otp);
+  Future<void> logout();
+  Future<User?> getCurrentUser();
+  Future<ApiResponse<User>> updateUser({String? name, String? email});
+  
+  // Provider methods
+  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber);
+  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(String phoneNumber, String otp);
+  Future<ApiResponse<ProviderUser>> registerProvider({
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+  });
+  Future<ProviderUser?> getCurrentProvider();
+  Future<void> logoutProvider();
+}
+
+
+

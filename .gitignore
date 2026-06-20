@@ -1,0 +1,38 @@
+# ── macOS ──────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+
+# ── Flutter / Dart build artifacts (safety net; mobile/.gitignore also covers these) ──
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/generated_plugin_registrant.*
+
+# ── IDE / editor ───────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+
+# ── Secrets / signing (never commit) ───────────────────
+*.env
+.env
+.env.*
+**/key.properties
+**/*.keystore
+**/*.jks
+**/*.p12
+**/*.mobileprovision
+**/secrets*.json
+**/service-account*.json
+
+# ── Claude Code local config (keep .claude/skills/ tracked) ──
+.claude/settings.local.json
+.claude/*.local.json
+.claude/.session*

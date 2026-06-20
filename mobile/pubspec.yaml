@@ -1,0 +1,68 @@
+name: myweli
+description: Myweli - Beauty and wellness booking app for Côte d'Ivoire
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.1
+
+  # Navigation
+  go_router: ^13.0.0
+
+  # Maps & Location
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  geolocator: ^13.0.2
+
+  # Image caching (direct dep; used by TimedCachedImage)
+  flutter_cache_manager: ^3.4.1
+
+  # HTTP Client
+  dio: ^5.4.0
+  http: ^1.2.0
+
+  # Local Storage
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+
+  # UI Components
+  cached_network_image: ^3.3.1
+  flutter_svg: ^2.0.9
+  intl: ^0.19.0
+
+  # Calendar & Date Picker
+  table_calendar: ^3.0.9
+  flutter_datetime_picker_plus: ^2.1.0
+
+  # Utilities
+  uuid: ^4.2.1
+  equatable: ^2.0.5
+
+  # Icons
+  cupertino_icons: ^1.0.6
+  url_launcher: ^6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/images/providers/
+    - assets/images/stories/
+
+  # Fonts will use system defaults (SF Pro on iOS, Roboto on Android)
+  # To add custom Inter font later, download from https://fonts.google.com/specimen/Inter
+

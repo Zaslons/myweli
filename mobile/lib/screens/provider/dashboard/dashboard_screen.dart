@@ -1,0 +1,333 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_dashboard_provider.dart';
+import '../../../core/theme/colors.dart';
+import '../../../core/theme/text_styles.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  String _resolvedProviderId(BuildContext context) {
+    final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
+    return authProvider.provider?.providerId ?? authProvider.provider?.id ?? '';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
+      if (authProvider.isAuthenticated && authProvider.provider != null) {
+        final dashboardProvider = Provider.of<ProDashboardProvider>(context, listen: false);
+        dashboardProvider.loadDashboardStats(_resolvedProviderId(context));
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Tableau de bord'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            onPressed: () => context.push('/pro/profile'),
+          ),
+        ],
+      ),
+      body: Consumer2<ProAuthProvider, ProDashboardProvider>(
+        builder: (context, authProvider, dashboardProvider, _) {
+          if (!authProvider.isAuthenticated) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.lock_outline, size: 64, color: AppColors.textSecondary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Veuillez vous connecter',
+                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => context.go('/pro/login'),
+                    child: const Text('Se connecter'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (dashboardProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final stats = dashboardProvider.stats;
+          if (stats == null) {
+            return Center(
+              child: Text(
+                dashboardProvider.error ?? 'Aucune donnée disponible',
+                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              if (authProvider.provider != null) {
+                await dashboardProvider.loadDashboardStats(_resolvedProviderId(context));
+              }
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bienvenue, ${authProvider.provider?.businessName ?? ""}',
+                    style: AppTextStyles.headlineMedium.copyWith(color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 24),
+                  // Stats Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          title: 'Aujourd\'hui',
+                          value: stats.todayAppointments.toString(),
+                          subtitle: 'Rendez-vous',
+                          icon: Icons.calendar_today,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StatCard(
+                          title: 'En attente',
+                          value: stats.pendingRequests.toString(),
+                          subtitle: 'Demandes',
+                          icon: Icons.pending,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          title: 'Aujourd\'hui',
+                          value: Formatters.formatCurrency(stats.todayRevenue),
+                          subtitle: 'Revenus',
+                          icon: Icons.attach_money,
+                          color: Colors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StatCard(
+                          title: 'Ce mois',
+                          value: Formatters.formatCurrency(stats.monthRevenue),
+                          subtitle: 'Revenus',
+                          icon: Icons.trending_up,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // Daily Operations Section
+                  Text(
+                    'Opérations quotidiennes',
+                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.1,
+                    children: [
+                      _ActionCard(
+                        title: 'Rendez-vous',
+                        icon: Icons.calendar_today,
+                        onTap: () => context.push('/pro/appointments'),
+                      ),
+                      _ActionCard(
+                        title: 'Disponibilité',
+                        icon: Icons.access_time,
+                        onTap: () => context.push('/pro/availability'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // Business Setup Section
+                  Text(
+                    'Configuration',
+                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.1,
+                    children: [
+                      _ActionCard(
+                        title: 'Services',
+                        icon: Icons.build,
+                        onTap: () => context.push('/pro/services'),
+                      ),
+                      _ActionCard(
+                        title: 'Employés',
+                        icon: Icons.people,
+                        onTap: () => context.push('/pro/artists'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // Insights Section
+                  Text(
+                    'Analyses',
+                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.1,
+                    children: [
+                      _ActionCard(
+                        title: 'Revenus',
+                        icon: Icons.attach_money,
+                        onTap: () => context.push('/pro/earnings'),
+                      ),
+                      _ActionCard(
+                        title: 'Avis',
+                        icon: Icons.star,
+                        onTap: () => context.push('/pro/reviews'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppColors.secondary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+        boxShadow: AppTheme.elevation1,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+              ),
+              Icon(icon, color: color, size: 20),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),
+          ),
+          Text(
+            subtitle,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ActionCard({
+    required this.title,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        decoration: BoxDecoration(
+          color: AppColors.secondary,
+          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+          boxShadow: AppTheme.elevation1,
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: AppColors.primary),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

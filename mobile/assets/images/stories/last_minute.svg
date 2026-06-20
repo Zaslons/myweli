@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280" viewBox="0 0 720 1280">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1C0B2A"/>
+      <stop offset="1" stop-color="#3A1356"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD54F"/>
+      <stop offset="1" stop-color="#FFF3C2"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="1280" fill="url(#bg)"/>
+  <circle cx="600" cy="260" r="260" fill="url(#accent)" opacity="0.20"/>
+  <circle cx="140" cy="1030" r="320" fill="url(#accent)" opacity="0.14"/>
+
+  <text x="360" y="340" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="44" font-weight="800" fill="#FFFFFF">Dernière minute</text>
+  <text x="360" y="400" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#F6E9FF">Créneaux dispo aujourd’hui</text>
+
+  <g transform="translate(110 520)">
+    <rect width="500" height="420" rx="38" fill="#FFFFFF" opacity="0.10"/>
+    <g transform="translate(250 160)">
+      <circle r="76" fill="url(#accent)" opacity="0.95"/>
+      <path d="M0 -44a44 44 0 1 1 0 88a44 44 0 1 1 0-88z" fill="#1C0B2A" opacity="0.12"/>
+      <path d="M0 -30v34l22 14" stroke="#1C0B2A" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="250" y="300" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="800" fill="#FFFFFF">Réservez vite</text>
+    <text x="250" y="340" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#F6E9FF">Choisissez un salon et un horaire</text>
+    <rect x="140" y="360" width="220" height="56" rx="28" fill="url(#accent)"/>
+    <text x="250" y="397" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#1C0B2A">Voir</text>
+  </g>
+</svg>
+

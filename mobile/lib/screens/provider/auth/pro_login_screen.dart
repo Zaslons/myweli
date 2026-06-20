@@ -1,0 +1,149 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../core/theme/colors.dart';
+import '../../../core/theme/text_styles.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/validators.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_text_field.dart';
+
+class ProLoginScreen extends StatefulWidget {
+  final String? returnTo;
+  
+  const ProLoginScreen({super.key, this.returnTo});
+
+  @override
+  State<ProLoginScreen> createState() => _ProLoginScreenState();
+}
+
+class _ProLoginScreenState extends State<ProLoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _phoneController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleContinue() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final phoneNumber = _phoneController.text.trim();
+    final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
+
+    final success = await authProvider.sendOtp(phoneNumber);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
+      final returnToParam = widget.returnTo != null 
+          ? '&returnTo=${Uri.encodeComponent(widget.returnTo!)}' 
+          : '';
+      context.push('/pro/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error ?? 'Erreur lors de l\'envoi du code'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Connexion Pro'),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppTheme.spacingL),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 32),
+                // Icon
+                Icon(
+                  Icons.business,
+                  size: 120,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'Bienvenue sur Myweli Pro',
+                  style: AppTextStyles.headlineLarge.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Connectez-vous pour gérer votre entreprise',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                AppTextField(
+                  label: 'Numéro de téléphone',
+                  hint: '+225 XX XX XX XX',
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: const Icon(Icons.phone),
+                  validator: Validators.phoneNumber,
+                  onChanged: (value) {
+                    // Auto-format phone number
+                    final formatted = Formatters.formatPhoneNumber(value);
+                    if (formatted != value) {
+                      _phoneController.value = TextEditingValue(
+                        text: formatted,
+                        selection: TextSelection.collapsed(
+                          offset: formatted.length,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 24),
+                AppButton(
+                  text: 'Continuer',
+                  onPressed: _isLoading ? null : _handleContinue,
+                  isLoading: _isLoading,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Pas encore de compte ? ',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/pro/register'),
+                      child: const Text('S\'inscrire'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
