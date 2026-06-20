@@ -84,4 +84,3 @@ class _StreamedResponseFileServiceResponse implements FileServiceResponse {
   @override
   String get fileExtension => '';
 }
-

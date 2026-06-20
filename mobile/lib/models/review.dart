@@ -20,7 +20,8 @@ class Review extends Equatable {
   });
 
   @override
-  List<Object?> get props => [id, providerId, userId, userName, rating, text, createdAt];
+  List<Object?> get props =>
+      [id, providerId, userId, userName, rating, text, createdAt];
 
   Map<String, dynamic> toJson() {
     return {

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../models/provider_user.dart';
+
 import '../core/di/dependency_injection.dart';
+import '../models/provider_user.dart';
 import '../services/interfaces/auth_service_interface.dart';
 
 class ProAuthProvider extends ChangeNotifier {
@@ -63,7 +64,8 @@ class ProAuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _authService.verifyOtpForProvider(phoneNumber, otp);
+      final response =
+          await _authService.verifyOtpForProvider(phoneNumber, otp);
       if (response.success && response.data != null) {
         _provider = response.data;
         _error = null;

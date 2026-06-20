@@ -1,9 +1,11 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../theme/app_theme.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
-import '../theme/app_theme.dart';
 
 class _NavApp {
   final String name;
@@ -37,10 +39,12 @@ class Helpers {
 
     // --- Google Maps ---
     final gmapsUri = Platform.isIOS
-        ? Uri.parse('comgooglemaps://?daddr=$latitude,$longitude&directionsmode=driving')
+        ? Uri.parse(
+            'comgooglemaps://?daddr=$latitude,$longitude&directionsmode=driving')
         : Uri.parse(
             'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
-    final gmapsProbe = Platform.isIOS ? Uri.parse('comgooglemaps://') : gmapsUri;
+    final gmapsProbe =
+        Platform.isIOS ? Uri.parse('comgooglemaps://') : gmapsUri;
     if (await canLaunchUrl(gmapsProbe)) {
       available.add(_NavApp(
         name: 'Google Maps',
@@ -65,8 +69,10 @@ class Helpers {
 
     // --- 2GIS ---
     final dgisUri = Platform.isIOS
-        ? Uri.parse('dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude')
-        : Uri.parse('dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude');
+        ? Uri.parse(
+            'dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude')
+        : Uri.parse(
+            'dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude');
     final dgisProbe = Uri.parse('dgis://');
     if (await canLaunchUrl(dgisProbe)) {
       available.add(_NavApp(
@@ -114,16 +120,18 @@ class Helpers {
 
     // If only one option, launch directly.
     if (available.length == 1) {
-      await launchUrl(available.first.uri, mode: LaunchMode.externalApplication);
+      await launchUrl(available.first.uri,
+          mode: LaunchMode.externalApplication);
       return;
     }
 
     // Show a bottom sheet picker.
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.secondary,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
       ),
       builder: (sheetContext) {
         return SafeArea(
@@ -154,11 +162,13 @@ class Helpers {
                       leading: Icon(app.icon, color: AppColors.primary),
                       title: Text(app.name, style: AppTextStyles.bodyMedium),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusLarge),
                       ),
                       onTap: () {
                         Navigator.of(sheetContext).pop();
-                        launchUrl(app.uri, mode: LaunchMode.externalApplication);
+                        launchUrl(app.uri,
+                            mode: LaunchMode.externalApplication);
                       },
                     )),
                 const SizedBox(height: AppTheme.spacingS),
@@ -171,7 +181,8 @@ class Helpers {
   }
 
   /// Show snackbar with message
-  static void showSnackBar(BuildContext context, String message, {bool isError = false}) {
+  static void showSnackBar(BuildContext context, String message,
+      {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -212,6 +223,3 @@ class Helpers {
     return phone;
   }
 }
-
-
-

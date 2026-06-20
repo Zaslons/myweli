@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
+
+import '../core/di/dependency_injection.dart';
 import '../models/provider.dart';
 import '../models/review.dart';
-import '../core/di/dependency_injection.dart';
 import '../services/interfaces/provider_service_interface.dart';
 
 class ProviderProvider extends ChangeNotifier {
-  final ProviderServiceInterface _providerService = serviceLocator.providerService;
+  final ProviderServiceInterface _providerService =
+      serviceLocator.providerService;
 
   List<Provider> _providers = [];
   List<Provider> _featuredProviders = [];
@@ -106,6 +108,3 @@ class ProviderProvider extends ChangeNotifier {
     }
   }
 }
-
-
-

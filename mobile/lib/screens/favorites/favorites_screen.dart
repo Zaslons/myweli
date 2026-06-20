@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../providers/favorites_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/provider_provider.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
-import '../../widgets/provider/provider_card.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
+import '../../providers/provider_provider.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/provider/provider_card.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -24,7 +25,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Check if user is authenticated
       if (!authProvider.isAuthenticated || authProvider.user == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -40,9 +41,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       }
 
       // Load favorites and providers
-      final favoritesProvider = Provider.of<FavoritesProvider>(context, listen: false);
-      final providerProvider = Provider.of<ProviderProvider>(context, listen: false);
-      
+      final favoritesProvider =
+          Provider.of<FavoritesProvider>(context, listen: false);
+      final providerProvider =
+          Provider.of<ProviderProvider>(context, listen: false);
+
       favoritesProvider.loadFavorites(authProvider.user!.id);
       providerProvider.loadProviders();
     });
@@ -56,14 +59,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         title: const Text('Mes favoris'),
       ),
       body: Consumer3<FavoritesProvider, AuthProvider, ProviderProvider>(
-        builder: (context, favoritesProvider, authProvider, providerProvider, _) {
+        builder:
+            (context, favoritesProvider, authProvider, providerProvider, _) {
           // Check authentication
           if (!authProvider.isAuthenticated || authProvider.user == null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.favorite_border, size: 64, color: AppColors.textTertiary),
+                  const Icon(Icons.favorite_border,
+                      size: 64, color: AppColors.textTertiary),
                   const SizedBox(height: 16),
                   Text(
                     'Connectez-vous pour voir vos favoris',
@@ -74,7 +79,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () {
-                      context.go('/login?returnTo=${Uri.encodeComponent('/favorites')}');
+                      context.go(
+                          '/login?returnTo=${Uri.encodeComponent('/favorites')}');
                     },
                     child: const Text('Se connecter'),
                   ),
@@ -84,7 +90,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           }
 
           // Loading state
-          if (favoritesProvider.isLoading && favoritesProvider.favoriteProviderIds.isEmpty) {
+          if (favoritesProvider.isLoading &&
+              favoritesProvider.favoriteProviderIds.isEmpty) {
             return const LoadingIndicator();
           }
 
@@ -98,7 +105,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             return const EmptyState(
               icon: Icons.favorite_border,
               title: 'Aucun favori',
-              description: 'Ajoutez des salons à vos favoris pour les retrouver facilement',
+              description:
+                  'Ajoutez des salons à vos favoris pour les retrouver facilement',
             );
           }
 

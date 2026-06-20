@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
+
 import '../core/di/dependency_injection.dart';
-import '../services/interfaces/pro_artist_service_interface.dart';
 import '../models/artist.dart';
+import '../services/interfaces/pro_artist_service_interface.dart';
 
 class ProArtistProvider extends ChangeNotifier {
-  final ProArtistServiceInterface _artistService = serviceLocator.proArtistService;
+  final ProArtistServiceInterface _artistService =
+      serviceLocator.proArtistService;
 
   List<Artist> _artists = [];
   bool _isLoading = false;
@@ -37,7 +39,8 @@ class ProArtistProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createArtist(String providerId, Map<String, dynamic> data) async {
+  Future<bool> createArtist(
+      String providerId, Map<String, dynamic> data) async {
     _isLoading = true;
     notifyListeners();
 

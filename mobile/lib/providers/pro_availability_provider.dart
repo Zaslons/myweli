@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
+
 import '../core/di/dependency_injection.dart';
-import '../services/interfaces/pro_service_interface.dart';
 import '../models/availability.dart';
+import '../services/interfaces/pro_service_interface.dart';
 
 class ProAvailabilityProvider extends ChangeNotifier {
   final ProServiceInterface _proService = serviceLocator.proService;
@@ -16,7 +17,9 @@ class ProAvailabilityProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadAvailability(String providerId) async {
-    if (_currentProviderId == providerId && _availability != null && !_isLoading) {
+    if (_currentProviderId == providerId &&
+        _availability != null &&
+        !_isLoading) {
       return;
     }
 
@@ -31,7 +34,8 @@ class ProAvailabilityProvider extends ChangeNotifier {
         _availability = response.data;
         _error = null;
       } else {
-        _error = response.error ?? 'Erreur lors du chargement de la disponibilité';
+        _error =
+            response.error ?? 'Erreur lors du chargement de la disponibilité';
         _availability = null;
       }
     } catch (e) {
@@ -43,12 +47,14 @@ class ProAvailabilityProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateAvailability(String providerId, Availability availability) async {
+  Future<bool> updateAvailability(
+      String providerId, Availability availability) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final response = await _proService.updateAvailability(providerId, availability);
+      final response =
+          await _proService.updateAvailability(providerId, availability);
       if (response.success && response.data != null) {
         _availability = response.data;
         _error = null;

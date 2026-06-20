@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 
 class ClientDatabaseScreen extends StatelessWidget {
   const ClientDatabaseScreen({super.key});
@@ -61,7 +62,8 @@ class ClientDatabaseScreen extends StatelessWidget {
           // Client List
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
               children: const [
                 _ClientCard(
                   name: 'Marie Kouassi',

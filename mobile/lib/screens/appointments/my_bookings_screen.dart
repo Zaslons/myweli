@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/colors.dart';
+import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
-import '../../core/theme/colors.dart';
-import '../../core/theme/app_theme.dart';
-import '../../widgets/common/empty_state.dart';
 import '../../widgets/booking/appointment_card.dart';
+import '../../widgets/common/empty_state.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -26,13 +28,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Check if user is authenticated, if not redirect to login
       if (!authProvider.isAuthenticated) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Veuillez vous connecter pour voir vos rendez-vous'),
+              content:
+                  Text('Veuillez vous connecter pour voir vos rendez-vous'),
               duration: Duration(seconds: 2),
             ),
           );
@@ -40,10 +43,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         });
         return;
       }
-      
-      final appointmentProvider = Provider.of<AppointmentProvider>(context, listen: false);
-      final providerProvider = Provider.of<ProviderProvider>(context, listen: false);
-      
+
+      final appointmentProvider =
+          Provider.of<AppointmentProvider>(context, listen: false);
+      final providerProvider =
+          Provider.of<ProviderProvider>(context, listen: false);
+
       // Load appointments and providers
       appointmentProvider.loadAppointments();
       if (providerProvider.providers.isEmpty) {
@@ -123,7 +128,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  Widget _buildAppointmentsList(List appointments, bool isLoading) {
+  Widget _buildAppointmentsList(
+      List<Appointment> appointments, bool isLoading) {
     if (isLoading && appointments.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -138,7 +144,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
     return RefreshIndicator(
       onRefresh: () async {
-        final provider = Provider.of<AppointmentProvider>(context, listen: false);
+        final provider =
+            Provider.of<AppointmentProvider>(context, listen: false);
         await provider.loadAppointments();
       },
       child: ListView.builder(
@@ -158,6 +165,3 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 }
-
-
-

@@ -1,5 +1,5 @@
-import '../../models/provider.dart';
 import '../../models/api_response.dart';
+import '../../models/provider.dart';
 
 abstract class ProviderServiceInterface {
   Future<ApiResponse<List<Provider>>> getProviders({
@@ -15,6 +15,3 @@ abstract class ProviderServiceInterface {
     double? longitude,
   });
 }
-
-
-

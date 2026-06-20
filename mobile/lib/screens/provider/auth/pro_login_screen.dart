@@ -1,18 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/pro_auth_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/validators.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/validators.dart';
+import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 
 class ProLoginScreen extends StatefulWidget {
   final String? returnTo;
-  
+
   const ProLoginScreen({super.key, this.returnTo});
 
   @override
@@ -44,14 +47,16 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      final returnToParam = widget.returnTo != null 
-          ? '&returnTo=${Uri.encodeComponent(widget.returnTo!)}' 
+      final returnToParam = widget.returnTo != null
+          ? '&returnTo=${Uri.encodeComponent(widget.returnTo!)}'
           : '';
-      context.push('/pro/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam');
+      unawaited(context.push(
+          '/pro/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam'));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.error ?? 'Erreur lors de l\'envoi du code'),
+          content:
+              Text(authProvider.error ?? 'Erreur lors de l\'envoi du code'),
           backgroundColor: AppColors.error,
         ),
       );

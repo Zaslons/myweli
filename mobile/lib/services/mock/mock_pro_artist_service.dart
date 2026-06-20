@@ -1,6 +1,6 @@
+import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
 import '../../models/artist.dart';
-import '../../core/constants/app_constants.dart';
 import '../interfaces/pro_artist_service_interface.dart';
 import 'mock_data.dart';
 
@@ -9,7 +9,8 @@ class MockProArtistService implements ProArtistServiceInterface {
 
   List<Artist> _getOrInit(String providerId) {
     if (!_store.containsKey(providerId)) {
-      _store[providerId] = List.from(MockData.getArtistsForProvider(providerId));
+      _store[providerId] =
+          List.from(MockData.getArtistsForProvider(providerId));
     }
     return _store[providerId]!;
   }

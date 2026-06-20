@@ -20,7 +20,8 @@ class Service extends Equatable {
   });
 
   @override
-  List<Object?> get props => [id, name, description, price, durationMinutes, providerId, artistIds];
+  List<Object?> get props =>
+      [id, name, description, price, durationMinutes, providerId, artistIds];
 
   Service copyWith({
     String? id,
@@ -68,6 +69,3 @@ class Service extends Equatable {
     );
   }
 }
-
-
-

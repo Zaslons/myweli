@@ -1,11 +1,11 @@
-import '../../models/user.dart';
-import '../../models/provider_user.dart';
+import '../../models/appointment.dart';
+import '../../models/artist.dart';
+import '../../models/availability.dart';
 import '../../models/provider.dart';
+import '../../models/provider_user.dart';
 import '../../models/review.dart';
 import '../../models/service.dart';
-import '../../models/appointment.dart';
-import '../../models/availability.dart';
-import '../../models/artist.dart';
+import '../../models/user.dart';
 
 class MockData {
   // Sample Users
@@ -488,19 +488,20 @@ class MockData {
   ) {
     final slots = <TimeSlot>[];
     final now = DateTime.now();
-    
+
     // Generate 30-minute slots from startHour to endHour
     for (int hour = startHour; hour < endHour; hour++) {
       for (int minute = 0; minute < 60; minute += 30) {
         final start = DateTime(now.year, now.month, now.day, hour, minute);
         final end = start.add(const Duration(minutes: 30));
-        
+
         // Make most slots available (≈90%) for better UX in mock.
         // IMPORTANT: don't use "% 10" on hour/minute (0/30) or everything becomes unavailable.
         // Use a deterministic pattern based on total minutes since midnight.
         final totalMinutes = hour * 60 + minute;
-        final isAvailable = totalMinutes % 13 != 0; // ~92% available, stable across runs
-        
+        final isAvailable =
+            totalMinutes % 13 != 0; // ~92% available, stable across runs
+
         slots.add(TimeSlot(
           startTime: start,
           endTime: end,
@@ -508,9 +509,7 @@ class MockData {
         ));
       }
     }
-    
+
     return slots;
   }
 }
-
-

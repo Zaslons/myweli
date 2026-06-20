@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/pro_auth_provider.dart';
-import '../../../models/provider_user.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../models/provider_user.dart';
+import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 
 class ProProfileScreen extends StatelessWidget {
@@ -39,44 +40,52 @@ class ProProfileScreen extends StatelessWidget {
                       children: [
                         Text(
                           'Nom de l\'entreprise',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.titleMedium
+                              .copyWith(color: AppColors.textPrimary),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           provider.businessName,
-                          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodyLarge
+                              .copyWith(color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'Type d\'entreprise',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.titleMedium
+                              .copyWith(color: AppColors.textPrimary),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           _getBusinessTypeLabel(provider.businessType),
-                          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodyLarge
+                              .copyWith(color: AppColors.textSecondary),
                         ),
                         if (provider.address != null) ...[
                           const SizedBox(height: 16),
                           Text(
                             'Adresse',
-                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+                            style: AppTextStyles.titleMedium
+                                .copyWith(color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             provider.address!,
-                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.bodyLarge
+                                .copyWith(color: AppColors.textSecondary),
                           ),
                         ],
                         const SizedBox(height: 16),
                         Text(
                           'Téléphone',
-                          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.titleMedium
+                              .copyWith(color: AppColors.textPrimary),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           provider.phoneNumber,
-                          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodyLarge
+                              .copyWith(color: AppColors.textSecondary),
                         ),
                       ],
                     ),

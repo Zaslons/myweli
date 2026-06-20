@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/colors.dart';
+import '../../../core/theme/text_styles.dart';
 import '../../../models/service.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
-import '../../../core/theme/colors.dart';
-import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 
@@ -33,7 +34,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.serviceId != null && !_prefillDone) {
-      final serviceProvider = Provider.of<ProServiceProvider>(context, listen: false);
+      final serviceProvider =
+          Provider.of<ProServiceProvider>(context, listen: false);
       Service? service;
       for (final s in serviceProvider.services) {
         if (s.id == widget.serviceId) {
@@ -64,14 +66,16 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    final serviceProvider = Provider.of<ProServiceProvider>(context, listen: false);
+    final serviceProvider =
+        Provider.of<ProServiceProvider>(context, listen: false);
 
     final serviceData = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
       'price': double.parse(_priceController.text.trim()),
       'durationMinutes': int.parse(_durationController.text.trim()),
-      'providerId': authProvider.provider?.providerId ?? authProvider.provider?.id ?? '',
+      'providerId':
+          authProvider.provider?.providerId ?? authProvider.provider?.id ?? '',
     };
 
     final success = widget.serviceId != null
@@ -94,7 +98,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(serviceProvider.error ?? 'Erreur lors de la sauvegarde'),
+          content:
+              Text(serviceProvider.error ?? 'Erreur lors de la sauvegarde'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -125,7 +130,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    final serviceProvider = Provider.of<ProServiceProvider>(context, listen: false);
+    final serviceProvider =
+        Provider.of<ProServiceProvider>(context, listen: false);
     final success = await serviceProvider.deleteService(widget.serviceId!);
 
     if (!mounted) return;
@@ -141,7 +147,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(serviceProvider.error ?? 'Erreur lors de la suppression'),
+          content:
+              Text(serviceProvider.error ?? 'Erreur lors de la suppression'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -153,7 +160,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.serviceId != null ? 'Modifier le service' : 'Nouveau service'),
+        title: Text(widget.serviceId != null
+            ? 'Modifier le service'
+            : 'Nouveau service'),
       ),
       body: Consumer<ProServiceProvider>(
         builder: (context, serviceProvider, _) {
@@ -214,13 +223,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: _durationPresets.map((minutes) {
-                      final isSelected = _durationController.text == minutes.toString();
+                      final isSelected =
+                          _durationController.text == minutes.toString();
                       return ChoiceChip(
                         label: Text('$minutes min'),
                         selected: isSelected,
                         onSelected: (selected) {
                           if (selected) {
-                            setState(() => _durationController.text = minutes.toString());
+                            setState(() =>
+                                _durationController.text = minutes.toString());
                           }
                         },
                       );
@@ -254,8 +265,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   if (widget.serviceId != null) ...[
                     const SizedBox(height: AppTheme.spacingM),
                     TextButton(
-                      onPressed: serviceProvider.isLoading ? null : _handleDelete,
-                      style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                      onPressed:
+                          serviceProvider.isLoading ? null : _handleDelete,
+                      style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error),
                       child: const Text('Supprimer le service'),
                     ),
                   ],

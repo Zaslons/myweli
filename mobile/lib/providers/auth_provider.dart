@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../models/user.dart';
+
 import '../core/di/dependency_injection.dart';
+import '../models/user.dart';
 import '../services/interfaces/auth_service_interface.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -121,6 +122,3 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 }
-
-
-

@@ -49,7 +49,8 @@ class HighlightStories extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
           child: Text(
             'Découvrir',
-            style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+            style:
+                AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
           ),
         ),
         const SizedBox(height: AppTheme.spacingS),
@@ -59,7 +60,8 @@ class HighlightStories extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppTheme.spacingS),
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: AppTheme.spacingS),
             itemBuilder: (context, index) {
               final item = items[index];
               final id = item['id'] as String;
@@ -103,7 +105,8 @@ class HighlightStories extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.secondary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: accent.withValues(alpha: 0.35)),
+                                border: Border.all(
+                                    color: accent.withValues(alpha: 0.35)),
                               ),
                               child: Icon(icon, color: accent),
                             ),
@@ -133,4 +136,3 @@ class HighlightStories extends StatelessWidget {
     );
   }
 }
-

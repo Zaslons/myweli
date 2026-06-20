@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../providers/provider_provider.dart';
-import '../../providers/favorites_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/appointment_provider.dart';
-import '../../models/service.dart';
-import '../../models/availability.dart';
-import '../../models/review.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../models/availability.dart';
+import '../../models/review.dart';
+import '../../models/service.dart';
+import '../../providers/appointment_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
+import '../../providers/provider_provider.dart';
+import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
-import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
 class ProviderDetailScreen extends StatefulWidget {
@@ -44,7 +45,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
-        final favoritesProvider = Provider.of<FavoritesProvider>(context, listen: false);
+        final favoritesProvider =
+            Provider.of<FavoritesProvider>(context, listen: false);
         favoritesProvider.loadFavorites(authProvider.user!.id);
         final appointmentProvider =
             Provider.of<AppointmentProvider>(context, listen: false);
@@ -80,7 +82,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
       } else {
         final first = available.first.startTime;
         final last = available.last.endTime;
-        lines.add('${dayNames[day]}: ${Formatters.formatTimeShort(first)}-${Formatters.formatTimeShort(last)}');
+        lines.add(
+            '${dayNames[day]}: ${Formatters.formatTimeShort(first)}-${Formatters.formatTimeShort(last)}');
       }
     }
     return lines;
@@ -102,7 +105,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                  const Icon(Icons.error_outline,
+                      size: 64, color: AppColors.error),
                   const SizedBox(height: 16),
                   Text(
                     provider.error ?? 'Salon introuvable',
@@ -143,20 +147,26 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           if (!authProvider.isAuthenticated) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Connectez-vous pour ajouter aux favoris'),
+                                content: Text(
+                                    'Connectez-vous pour ajouter aux favoris'),
                                 duration: Duration(seconds: 2),
                               ),
                             );
-                            final currentPath = GoRouterState.of(context).uri.toString();
-                            context.go('/login?returnTo=${Uri.encodeComponent(currentPath)}');
+                            final currentPath =
+                                GoRouterState.of(context).uri.toString();
+                            context.go(
+                                '/login?returnTo=${Uri.encodeComponent(currentPath)}');
                             return;
                           }
-                          await favoritesProvider.toggleFavorite(userId, widget.providerId);
+                          await favoritesProvider.toggleFavorite(
+                              userId, widget.providerId);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+                                  isFavorite
+                                      ? 'Retiré des favoris'
+                                      : 'Ajouté aux favoris',
                                 ),
                                 duration: const Duration(seconds: 1),
                               ),
@@ -191,7 +201,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 children: [
                                   Text(
                                     p.name,
-                                    style: AppTextStyles.headlineMedium.copyWith(
+                                    style:
+                                        AppTextStyles.headlineMedium.copyWith(
                                       color: AppColors.textPrimary,
                                     ),
                                     maxLines: 2,
@@ -201,12 +212,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   Row(
                                     children: [
                                       const Icon(Icons.location_on_outlined,
-                                          size: 14, color: AppColors.textTertiary),
+                                          size: 14,
+                                          color: AppColors.textTertiary),
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
                                           p.city ?? p.address,
-                                          style: AppTextStyles.bodySmall.copyWith(
+                                          style:
+                                              AppTextStyles.bodySmall.copyWith(
                                             color: AppColors.textSecondary,
                                           ),
                                           maxLines: 1,
@@ -218,7 +231,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                                      const Icon(Icons.star,
+                                          size: 16, color: Colors.amber),
                                       const SizedBox(width: 4),
                                       Text(
                                         p.rating.toStringAsFixed(1),
@@ -258,405 +272,445 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                     children: [
                       // Section: Vos rendez-vous ici
                       _SectionCard(
-                      title: 'Vos rendez-vous ici',
-                      trailing: TextButton(
-                        onPressed: () => context.push('/bookings'),
-                        child: const Text('Voir tout'),
-                      ),
-                      child: Consumer2<AuthProvider, AppointmentProvider>(
-                        builder: (context, authProvider, appointmentProvider, _) {
-                          if (!authProvider.isAuthenticated) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
-                              child: Text(
-                                'Connectez-vous pour voir vos rendez-vous.',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            );
-                          }
-                          final atThisSalon = appointmentProvider.appointments
-                              .where((a) => a.providerId == widget.providerId)
-                              .toList()
-                            ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
-                          if (atThisSalon.isEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
-                              child: Text(
-                                'Aucun rendez-vous dans ce salon.',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            );
-                          }
-                          final top = atThisSalon.take(5).toList();
-                          return SizedBox(
-                            height: 100,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: top.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: AppTheme.spacingS),
-                              itemBuilder: (context, i) {
-                                final a = top[i];
-                                final w = MediaQuery.of(context).size.width;
-                                final cardWidth = (w * 0.75).clamp(260.0, 340.0);
-                                return SizedBox(
-                                  width: cardWidth,
-                                  child: CompactAppointmentTile(
-                                    appointment: a,
-                                    providerName: p.name,
-                                    providerImageUrl: p.imageUrls.isNotEmpty
-                                        ? p.imageUrls.first
-                                        : null,
-                                    onTap: () => context.push('/appointment/${a.id}'),
+                        title: 'Vos rendez-vous ici',
+                        trailing: TextButton(
+                          onPressed: () => context.push('/bookings'),
+                          child: const Text('Voir tout'),
+                        ),
+                        child: Consumer2<AuthProvider, AppointmentProvider>(
+                          builder:
+                              (context, authProvider, appointmentProvider, _) {
+                            if (!authProvider.isAuthenticated) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS),
+                                child: Text(
+                                  'Connectez-vous pour voir vos rendez-vous.',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
                                   ),
-                                );
-                              },
-                            ),
-                          );
-                        },
+                                ),
+                              );
+                            }
+                            final atThisSalon = appointmentProvider.appointments
+                                .where((a) => a.providerId == widget.providerId)
+                                .toList()
+                              ..sort((a, b) => b.appointmentDate
+                                  .compareTo(a.appointmentDate));
+                            if (atThisSalon.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS),
+                                child: Text(
+                                  'Aucun rendez-vous dans ce salon.',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                  ),
+                                ),
+                              );
+                            }
+                            final top = atThisSalon.take(5).toList();
+                            return SizedBox(
+                              height: 100,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: top.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: AppTheme.spacingS),
+                                itemBuilder: (context, i) {
+                                  final a = top[i];
+                                  final w = MediaQuery.of(context).size.width;
+                                  final cardWidth =
+                                      (w * 0.75).clamp(260.0, 340.0);
+                                  return SizedBox(
+                                    width: cardWidth,
+                                    child: CompactAppointmentTile(
+                                      appointment: a,
+                                      providerName: p.name,
+                                      providerImageUrl: p.imageUrls.isNotEmpty
+                                          ? p.imageUrls.first
+                                          : null,
+                                      onTap: () =>
+                                          context.push('/appointment/${a.id}'),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
 
-                    // Section: Services (expandable)
-                    _SectionCard(
-                      title: 'Services',
-                      trailing: Icon(
-                        _servicesExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: AppColors.textSecondary,
+                      // Section: Services (expandable)
+                      _SectionCard(
+                        title: 'Services',
+                        trailing: Icon(
+                          _servicesExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          color: AppColors.textSecondary,
+                        ),
+                        onHeaderTap: () {
+                          setState(
+                              () => _servicesExpanded = !_servicesExpanded);
+                        },
+                        child: AnimatedCrossFade(
+                          duration: const Duration(milliseconds: 200),
+                          crossFadeState: _servicesExpanded
+                              ? CrossFadeState.showFirst
+                              : CrossFadeState.showSecond,
+                          firstChild: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (p.services.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: AppTheme.spacingM),
+                                  child: Text(
+                                    'Aucun service pour le moment.',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textTertiary,
+                                    ),
+                                  ),
+                                )
+                              else
+                                ...p.services.map(
+                                  (service) => _ServiceTile(service: service),
+                                ),
+                            ],
+                          ),
+                          secondChild: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: AppTheme.spacingS),
+                            child: Text(
+                              '${p.services.length} service${p.services.length > 1 ? 's' : ''} • Voir les tarifs',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      onHeaderTap: () {
-                        setState(() => _servicesExpanded = !_servicesExpanded);
-                      },
-                      child: AnimatedCrossFade(
-                        duration: const Duration(milliseconds: 200),
-                        crossFadeState: _servicesExpanded
-                            ? CrossFadeState.showFirst
-                            : CrossFadeState.showSecond,
-                        firstChild: Column(
+
+                      // Section: Contact
+                      _SectionCard(
+                        title: 'Contact',
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (p.services.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+                            // Address + map
+                            InkWell(
+                              onTap: () {
+                                if (p.latitude == null || p.longitude == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Localisation non disponible'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                context.push('/favorites?providerId=${p.id}');
+                              },
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusLarge),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.map_outlined,
+                                        size: 20,
+                                        color: AppColors.textTertiary),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            p.address,
+                                            style: AppTextStyles.bodyMedium
+                                                .copyWith(
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Voir sur la carte',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (p.latitude != null &&
+                                        p.longitude != null)
+                                      IconButton(
+                                        icon: const Icon(Icons.directions,
+                                            color: AppColors.primary),
+                                        onPressed: () {
+                                          Helpers.launchNavigation(
+                                            latitude: p.latitude!,
+                                            longitude: p.longitude!,
+                                            label: p.name,
+                                            context: context,
+                                          );
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const _Divider(),
+                            // Phone
+                            InkWell(
+                              onTap: () async {
+                                final uri = Uri.parse(
+                                    'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri);
+                                }
+                              },
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusLarge),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.phone_outlined,
+                                        size: 20,
+                                        color: AppColors.textTertiary),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      Formatters.formatPhoneNumber(
+                                          p.phoneNumber),
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Working hours
+                            const _Divider(),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.schedule_outlined,
+                                      size: 20, color: AppColors.textTertiary),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children:
+                                          _formatWorkingHours(p.availability)
+                                              .map((line) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            bottom: 2),
+                                                    child: Text(
+                                                      line,
+                                                      style: AppTextStyles
+                                                          .bodySmall
+                                                          .copyWith(
+                                                        color: AppColors
+                                                            .textSecondary,
+                                                      ),
+                                                    ),
+                                                  ))
+                                              .toList(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Section: Photos (always shown, even with one picture)
+                      _SectionCard(
+                        title: 'Photos',
+                        child: p.imageUrls.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS),
                                 child: Text(
-                                  'Aucun service pour le moment.',
+                                  'Aucune photo pour le moment.',
                                   style: AppTextStyles.bodySmall.copyWith(
                                     color: AppColors.textTertiary,
                                   ),
                                 ),
                               )
-                            else
-                              ...p.services.map(
-                                (service) => _ServiceTile(service: service),
-                              ),
-                          ],
-                        ),
-                        secondChild: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
-                          child: Text(
-                            '${p.services.length} service${p.services.length > 1 ? 's' : ''} • Voir les tarifs',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Section: Contact
-                    _SectionCard(
-                      title: 'Contact',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Address + map
-                          InkWell(
-                            onTap: () {
-                              if (p.latitude == null || p.longitude == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Localisation non disponible'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                                return;
-                              }
-                              context.push('/favorites?providerId=${p.id}');
-                            },
-                            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.map_outlined,
-                                      size: 20, color: AppColors.textTertiary),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          p.address,
-                                          style: AppTextStyles.bodyMedium.copyWith(
-                                            color: AppColors.textPrimary,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Voir sur la carte',
-                                          style: AppTextStyles.bodySmall.copyWith(
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (p.latitude != null && p.longitude != null)
-                                    IconButton(
-                                      icon: const Icon(Icons.directions,
-                                          color: AppColors.primary),
-                                      onPressed: () {
-                                        Helpers.launchNavigation(
-                                          latitude: p.latitude!,
-                                          longitude: p.longitude!,
-                                          label: p.name,
-                                          context: context,
-                                        );
-                                      },
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const _Divider(),
-                          // Phone
-                          InkWell(
-                            onTap: () async {
-                              final uri = Uri.parse('tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.phone_outlined,
-                                      size: 20, color: AppColors.textTertiary),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    Formatters.formatPhoneNumber(p.phoneNumber),
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Working hours
-                          const _Divider(),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.schedule_outlined,
-                                    size: 20, color: AppColors.textTertiary),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: _formatWorkingHours(p.availability)
-                                        .map((line) => Padding(
-                                              padding: const EdgeInsets.only(bottom: 2),
-                                              child: Text(
-                                                line,
-                                                style: AppTextStyles.bodySmall.copyWith(
-                                                  color: AppColors.textSecondary,
-                                                ),
-                                              ),
-                                            ))
-                                        .toList(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Section: Photos (always shown, even with one picture)
-                    _SectionCard(
-                      title: 'Photos',
-                      child: p.imageUrls.isEmpty
-                          ? Padding(
-                              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
-                              child: Text(
-                                'Aucune photo pour le moment.',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            )
-                          : SizedBox(
-                              height: 120,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: p.imageUrls.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: AppTheme.spacingS),
-                                itemBuilder: (context, i) {
-                                  return GestureDetector(
-                                    onTap: () => _showFullScreenPhoto(
-                                      context,
-                                      p.imageUrls,
-                                      i,
-                                    ),
-                                    child: SizedBox(
-                                      width: 160,
-                                      height: 120,
-                                      child: ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(AppTheme.radiusLarge),
-                                        child: TimedCachedImage(
-                                          imageUrl: p.imageUrls[i],
-                                          width: 160,
-                                          height: 120,
-                                          fit: BoxFit.cover,
-                                        ),
+                            : SizedBox(
+                                height: 120,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: p.imageUrls.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(width: AppTheme.spacingS),
+                                  itemBuilder: (context, i) {
+                                    return GestureDetector(
+                                      onTap: () => _showFullScreenPhoto(
+                                        context,
+                                        p.imageUrls,
+                                        i,
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                    ),
-
-                    // Section: Avis (rating summary + reviews list + conditional CTA)
-                    _SectionCard(
-                      title: 'Avis',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.star, size: 28, color: Colors.amber),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    p.rating.toStringAsFixed(1),
-                                    style: AppTextStyles.titleLarge.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${p.reviewCount} avis',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.textTertiary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          if (p.reviews.isNotEmpty) ...[
-                            const SizedBox(height: AppTheme.spacingM),
-                            ...p.reviews.take(5).map(
-                                  (review) => Padding(
-                                    padding: const EdgeInsets.only(
-                                        bottom: AppTheme.spacingS),
-                                    child: _ReviewTile(review: review),
-                                  ),
-                                ),
-                          ],
-                          Consumer2<AuthProvider, AppointmentProvider>(
-                            builder: (context, authProvider, appointmentProvider, _) {
-                              final isAuthenticated = authProvider.isAuthenticated &&
-                                  authProvider.user != null;
-                              final hasCompletedBooking = isAuthenticated &&
-                                  appointmentProvider.hasCompletedBookingAt(
-                                    widget.providerId,
-                                    authProvider.user!.id,
-                                  );
-                              if (!hasCompletedBooking) return const SizedBox.shrink();
-                              return Padding(
-                                padding: const EdgeInsets.only(top: AppTheme.spacingM),
-                                child: InkWell(
-                                  onTap: () {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      builder: (ctx) => Padding(
-                                        padding: EdgeInsets.only(
-                                          bottom: MediaQuery.of(ctx)
-                                              .viewInsets
-                                              .bottom,
-                                        ),
-                                        child: SubmitReviewSheet(
-                                          providerId: widget.providerId,
+                                      child: SizedBox(
+                                        width: 160,
+                                        height: 120,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                              AppTheme.radiusLarge),
+                                          child: TimedCachedImage(
+                                            imageUrl: p.imageUrls[i],
+                                            width: 160,
+                                            height: 120,
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
                                       ),
                                     );
                                   },
-                                  borderRadius:
-                                      BorderRadius.circular(AppTheme.radiusLarge),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: AppTheme.spacingM,
-                                      horizontal: AppTheme.spacingS,
+                                ),
+                              ),
+                      ),
+
+                      // Section: Avis (rating summary + reviews list + conditional CTA)
+                      _SectionCard(
+                        title: 'Avis',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.star,
+                                    size: 28, color: Colors.amber),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p.rating.toStringAsFixed(1),
+                                      style: AppTextStyles.titleLarge.copyWith(
+                                        color: AppColors.textPrimary,
+                                      ),
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surface,
-                                      borderRadius:
-                                          BorderRadius.circular(AppTheme.radiusLarge),
-                                      border: Border.all(color: AppColors.border),
+                                    Text(
+                                      '${p.reviewCount} avis',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppColors.textTertiary,
+                                      ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.star_border,
-                                          size: 28,
-                                          color: AppColors.textTertiary,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          'Donner mon avis',
-                                          style: AppTextStyles.titleSmall.copyWith(
-                                            color: AppColors.textPrimary,
-                                          ),
-                                        ),
-                                      ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                            if (p.reviews.isNotEmpty) ...[
+                              const SizedBox(height: AppTheme.spacingM),
+                              ...p.reviews.take(5).map(
+                                    (review) => Padding(
+                                      padding: const EdgeInsets.only(
+                                          bottom: AppTheme.spacingS),
+                                      child: _ReviewTile(review: review),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Description
-                    if (p.description.isNotEmpty)
-                      _SectionCard(
-                        title: 'À propos',
-                        child: Text(
-                          p.description,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                            ],
+                            Consumer2<AuthProvider, AppointmentProvider>(
+                              builder: (context, authProvider,
+                                  appointmentProvider, _) {
+                                final isAuthenticated =
+                                    authProvider.isAuthenticated &&
+                                        authProvider.user != null;
+                                final hasCompletedBooking = isAuthenticated &&
+                                    appointmentProvider.hasCompletedBookingAt(
+                                      widget.providerId,
+                                      authProvider.user!.id,
+                                    );
+                                if (!hasCompletedBooking) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: AppTheme.spacingM),
+                                  child: InkWell(
+                                    onTap: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        builder: (ctx) => Padding(
+                                          padding: EdgeInsets.only(
+                                            bottom: MediaQuery.of(ctx)
+                                                .viewInsets
+                                                .bottom,
+                                          ),
+                                          child: SubmitReviewSheet(
+                                            providerId: widget.providerId,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(
+                                        AppTheme.radiusLarge),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: AppTheme.spacingM,
+                                        horizontal: AppTheme.spacingS,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        borderRadius: BorderRadius.circular(
+                                            AppTheme.radiusLarge),
+                                        border:
+                                            Border.all(color: AppColors.border),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.star_border,
+                                            size: 28,
+                                            color: AppColors.textTertiary,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Donner mon avis',
+                                            style: AppTextStyles.titleSmall
+                                                .copyWith(
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
 
-                    const SizedBox(height: 100),
+                      // Description
+                      if (p.description.isNotEmpty)
+                        _SectionCard(
+                          title: 'À propos',
+                          child: Text(
+                            p.description,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 100),
                     ],
                   ),
                 ),
@@ -736,7 +790,8 @@ class _FullScreenPhotoGallery extends StatefulWidget {
   });
 
   @override
-  State<_FullScreenPhotoGallery> createState() => _FullScreenPhotoGalleryState();
+  State<_FullScreenPhotoGallery> createState() =>
+      _FullScreenPhotoGalleryState();
 }
 
 class _FullScreenPhotoGalleryState extends State<_FullScreenPhotoGallery> {
@@ -835,7 +890,8 @@ class PageViewIndicator extends StatelessWidget {
             color: Colors.white,
             fontSize: 14,
             shadows: [
-              Shadow(color: Colors.black54, offset: Offset(0, 1), blurRadius: 2),
+              Shadow(
+                  color: Colors.black54, offset: Offset(0, 1), blurRadius: 2),
             ],
           ),
         );
@@ -851,9 +907,8 @@ class _ReviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = review.userName.isNotEmpty
-        ? review.userName[0].toUpperCase()
-        : '?';
+    final initial =
+        review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -882,11 +937,13 @@ class _ReviewTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ...List.generate(5, (i) => Icon(
-                        i < review.rating ? Icons.star : Icons.star_border,
-                        size: 14,
-                        color: Colors.amber,
-                      )),
+                  ...List.generate(
+                      5,
+                      (i) => Icon(
+                            i < review.rating ? Icons.star : Icons.star_border,
+                            size: 14,
+                            color: Colors.amber,
+                          )),
                 ],
               ),
               const SizedBox(height: 2),
@@ -995,7 +1052,8 @@ class _SalonLogo extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.store_outlined, size: 36, color: AppColors.textTertiary),
+      child: const Icon(Icons.store_outlined,
+          size: 36, color: AppColors.textTertiary),
     );
   }
 }

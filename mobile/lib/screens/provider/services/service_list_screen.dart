@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/colors.dart';
+import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../models/service.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
-import '../../../core/theme/colors.dart';
-import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/formatters.dart';
 import '../../../widgets/common/app_button.dart';
 
 class ServiceListScreen extends StatefulWidget {
@@ -29,7 +30,8 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final serviceProvider = Provider.of<ProServiceProvider>(context, listen: false);
+        final serviceProvider =
+            Provider.of<ProServiceProvider>(context, listen: false);
         serviceProvider.loadServices(_resolvedProviderId(context));
       }
     });
@@ -64,7 +66,8 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.build, size: 64, color: AppColors.textSecondary),
+                    const Icon(Icons.build,
+                        size: 64, color: AppColors.textSecondary),
                     const SizedBox(height: 16),
                     Text(
                       'Aucun service pour le moment',
@@ -96,7 +99,8 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           return RefreshIndicator(
             onRefresh: () async {
               if (authProvider.provider != null) {
-                await serviceProvider.loadServices(_resolvedProviderId(context));
+                await serviceProvider
+                    .loadServices(_resolvedProviderId(context));
               }
             },
             child: ListView.builder(
@@ -109,7 +113,8 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
                   child: _ServiceCard(
                     service: service,
-                    onTap: () => context.push('/pro/service/${service.id}/edit'),
+                    onTap: () =>
+                        context.push('/pro/service/${service.id}/edit'),
                   ),
                 );
               },

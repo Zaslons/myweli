@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart' as provider_package;
-import '../../models/provider.dart' as models;
-import '../../providers/favorites_provider.dart';
-import '../../providers/auth_provider.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
+import '../../models/provider.dart' as models;
+import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../common/timed_cached_image.dart';
-import 'package:go_router/go_router.dart';
 
 class ProviderCard extends StatelessWidget {
   final models.Provider provider;
@@ -32,7 +33,7 @@ class ProviderCard extends StatelessWidget {
   Widget _buildGridCard(BuildContext context) {
     return provider_package.Consumer2<FavoritesProvider, AuthProvider>(
       builder: (context, favoritesProvider, authProvider, _) {
-        final isFavorite = authProvider.isAuthenticated 
+        final isFavorite = authProvider.isAuthenticated
             ? favoritesProvider.isFavorite(provider.id)
             : false;
         final userId = authProvider.user?.id ?? '';
@@ -48,9 +49,8 @@ class ProviderCard extends StatelessWidget {
               // When used inside a tight grid cell, avoid fixed 180px image height
               // which can overflow the card content vertically.
               final compact = maxH < 260;
-              final imageHeight = compact
-                  ? (maxH * 0.56).clamp(110.0, 150.0)
-                  : 180.0;
+              final imageHeight =
+                  compact ? (maxH * 0.56).clamp(110.0, 150.0) : 180.0;
               final contentPadding =
                   compact ? AppTheme.spacingS : AppTheme.spacingM;
 
@@ -90,41 +90,50 @@ class ProviderCard extends StatelessWidget {
                           right: 8,
                           child: GestureDetector(
                             onTap: () async {
-                          if (!authProvider.isAuthenticated) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Connectez-vous pour ajouter aux favoris'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                            final currentPath = GoRouterState.of(context).uri.toString();
-                            context.go('/login?returnTo=${Uri.encodeComponent(currentPath)}');
-                            return;
-                          }
+                              if (!authProvider.isAuthenticated) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Connectez-vous pour ajouter aux favoris'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                final currentPath =
+                                    GoRouterState.of(context).uri.toString();
+                                context.go(
+                                    '/login?returnTo=${Uri.encodeComponent(currentPath)}');
+                                return;
+                              }
 
-                          await favoritesProvider.toggleFavorite(userId, provider.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isFavorite 
-                                      ? 'Retiré des favoris' 
-                                      : 'Ajouté aux favoris',
-                                ),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          }
-                        },
+                              await favoritesProvider.toggleFavorite(
+                                  userId, provider.id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isFavorite
+                                          ? 'Retiré des favoris'
+                                          : 'Ajouté aux favoris',
+                                    ),
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            },
                             child: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary.withValues(alpha: 0.9),
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.9),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
-                                isFavorite ? Icons.favorite : Icons.favorite_border,
-                                color: isFavorite ? Colors.red : AppColors.textPrimary,
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isFavorite
+                                    ? Colors.red
+                                    : AppColors.textPrimary,
                                 size: 20,
                               ),
                             ),
@@ -148,7 +157,8 @@ class ProviderCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.star, size: 16, color: Colors.amber),
+                              const Icon(Icons.star,
+                                  size: 16, color: Colors.amber),
                               const SizedBox(width: 4),
                               Text(
                                 provider.rating.toStringAsFixed(1),
@@ -199,7 +209,7 @@ class ProviderCard extends StatelessWidget {
   Widget _buildListCard(BuildContext context) {
     return provider_package.Consumer2<FavoritesProvider, AuthProvider>(
       builder: (context, favoritesProvider, authProvider, _) {
-        final isFavorite = authProvider.isAuthenticated 
+        final isFavorite = authProvider.isAuthenticated
             ? favoritesProvider.isFavorite(provider.id)
             : false;
         final userId = authProvider.user?.id ?? '';
@@ -238,22 +248,26 @@ class ProviderCard extends StatelessWidget {
                           if (!authProvider.isAuthenticated) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Connectez-vous pour ajouter aux favoris'),
+                                content: Text(
+                                    'Connectez-vous pour ajouter aux favoris'),
                                 duration: Duration(seconds: 2),
                               ),
                             );
-                            final currentPath = GoRouterState.of(context).uri.toString();
-                            context.go('/login?returnTo=${Uri.encodeComponent(currentPath)}');
+                            final currentPath =
+                                GoRouterState.of(context).uri.toString();
+                            context.go(
+                                '/login?returnTo=${Uri.encodeComponent(currentPath)}');
                             return;
                           }
 
-                          await favoritesProvider.toggleFavorite(userId, provider.id);
+                          await favoritesProvider.toggleFavorite(
+                              userId, provider.id);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  isFavorite 
-                                      ? 'Retiré des favoris' 
+                                  isFavorite
+                                      ? 'Retiré des favoris'
                                       : 'Ajouté aux favoris',
                                 ),
                                 duration: const Duration(seconds: 1),
@@ -269,7 +283,8 @@ class ProviderCard extends StatelessWidget {
                           ),
                           child: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : AppColors.textPrimary,
+                            color:
+                                isFavorite ? Colors.red : AppColors.textPrimary,
                             size: 16,
                           ),
                         ),
@@ -294,7 +309,8 @@ class ProviderCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(Icons.star, size: 16, color: Colors.amber),
+                            const Icon(Icons.star,
+                                size: 16, color: Colors.amber),
                             const SizedBox(width: 4),
                             Text(
                               provider.rating.toStringAsFixed(1),
@@ -314,7 +330,8 @@ class ProviderCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(Icons.location_on, size: 14, color: AppColors.textTertiary),
+                            const Icon(Icons.location_on,
+                                size: 14, color: AppColors.textTertiary),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
@@ -340,6 +357,3 @@ class ProviderCard extends StatelessWidget {
     );
   }
 }
-
-
-

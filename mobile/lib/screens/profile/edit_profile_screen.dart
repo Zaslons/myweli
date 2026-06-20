@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
@@ -93,8 +94,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 24),
                   AppButton(
                     text: 'Se connecter',
-                    onPressed: () =>
-                        context.go('/login?returnTo=${Uri.encodeComponent('/profile/edit')}'),
+                    onPressed: () => context.go(
+                        '/login?returnTo=${Uri.encodeComponent('/profile/edit')}'),
                     isFullWidth: false,
                   ),
                 ],
@@ -139,8 +140,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceVariant.withValues(alpha: 0.5),
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusLarge),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Text(

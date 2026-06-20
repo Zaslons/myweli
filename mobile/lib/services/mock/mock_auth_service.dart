@@ -1,8 +1,9 @@
 import 'dart:async';
-import '../../models/user.dart';
-import '../../models/provider_user.dart';
-import '../../models/api_response.dart';
+
 import '../../core/constants/app_constants.dart';
+import '../../models/api_response.dart';
+import '../../models/provider_user.dart';
+import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import 'mock_data.dart';
 
@@ -73,9 +74,8 @@ class MockAuthService implements AuthServiceInterface {
 
     final updatedUser = _currentUser!.copyWith(
       name: (name != null && name.isNotEmpty) ? name : _currentUser!.name,
-      email: email == null
-          ? _currentUser!.email
-          : (email.isEmpty ? null : email),
+      email:
+          email == null ? _currentUser!.email : (email.isEmpty ? null : email),
     );
 
     _currentUser = updatedUser;
@@ -98,7 +98,8 @@ class MockAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(String phoneNumber, String otp) async {
+  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
+      String phoneNumber, String otp) async {
     await Future.delayed(AppConstants.mockDelay);
     final storedOtp = _providerOtpStore[phoneNumber];
     if (storedOtp == null || storedOtp != otp) {
@@ -147,12 +148,13 @@ class MockAuthService implements AuthServiceInterface {
     );
 
     MockData.providerUsers.add(providerUser);
-    
+
     // Send OTP
     const otp = '123456';
     _providerOtpStore[phoneNumber] = otp;
 
-    return ApiResponse.success(providerUser, message: 'Inscription réussie. Code OTP envoyé.');
+    return ApiResponse.success(providerUser,
+        message: 'Inscription réussie. Code OTP envoyé.');
   }
 
   @override
@@ -167,6 +169,3 @@ class MockAuthService implements AuthServiceInterface {
     _currentProvider = null;
   }
 }
-
-
-

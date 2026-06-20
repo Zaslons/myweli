@@ -21,7 +21,8 @@ class NotificationsScreen extends StatelessWidget {
         child: EmptyState(
           icon: Icons.notifications_none,
           title: 'Aucune notification',
-          description: 'Vos confirmations de rendez-vous et nouveautés apparaîtront ici.',
+          description:
+              'Vos confirmations de rendez-vous et nouveautés apparaîtront ici.',
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -55,4 +56,3 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 }
-

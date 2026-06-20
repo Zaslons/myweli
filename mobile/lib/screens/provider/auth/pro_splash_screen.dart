@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/pro_auth_provider.dart';
+
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../providers/pro_auth_provider.dart';
 
 class ProSplashScreen extends StatefulWidget {
   const ProSplashScreen({super.key});

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/pro_auth_provider.dart';
-import '../../../providers/pro_appointment_provider.dart';
-import '../../../models/appointment.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/appointment.dart';
+import '../../../providers/pro_appointment_provider.dart';
+import '../../../providers/pro_auth_provider.dart';
 import 'appointment_calendar_view.dart';
 
 class AppointmentListScreen extends StatefulWidget {
@@ -31,7 +32,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final appointmentProvider = Provider.of<ProAppointmentProvider>(context, listen: false);
+        final appointmentProvider =
+            Provider.of<ProAppointmentProvider>(context, listen: false);
         // Load all appointments for calendar view
         appointmentProvider.loadAppointments(authProvider.provider!.id);
       }
@@ -41,10 +43,13 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
   void _onMainTabChanged() {
     if (!_mainTabController.indexIsChanging) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-      if (!authProvider.isAuthenticated || authProvider.provider == null) return;
+      if (!authProvider.isAuthenticated || authProvider.provider == null) {
+        return;
+      }
 
-      final appointmentProvider = Provider.of<ProAppointmentProvider>(context, listen: false);
-      
+      final appointmentProvider =
+          Provider.of<ProAppointmentProvider>(context, listen: false);
+
       if (_mainTabController.index == 0) {
         // Calendar view - load all appointments
         appointmentProvider.loadAppointments(authProvider.provider!.id);
@@ -66,7 +71,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
     if (!authProvider.isAuthenticated || authProvider.provider == null) return;
 
-    final appointmentProvider = Provider.of<ProAppointmentProvider>(context, listen: false);
+    final appointmentProvider =
+        Provider.of<ProAppointmentProvider>(context, listen: false);
     AppointmentStatus? status;
 
     switch (index) {
@@ -119,7 +125,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (appointmentProvider.isLoading && appointmentProvider.appointments.isEmpty) {
+          if (appointmentProvider.isLoading &&
+              appointmentProvider.appointments.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -132,7 +139,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
               RefreshIndicator(
                 onRefresh: () async {
                   if (authProvider.provider != null) {
-                    await appointmentProvider.loadAppointments(authProvider.provider!.id);
+                    await appointmentProvider
+                        .loadAppointments(authProvider.provider!.id);
                   }
                 },
                 child: appointments.isEmpty
@@ -140,7 +148,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.event_busy, size: 64, color: AppColors.textSecondary),
+                            const Icon(Icons.event_busy,
+                                size: 64, color: AppColors.textSecondary),
                             const SizedBox(height: 16),
                             Text(
                               'Aucun rendez-vous',
@@ -195,7 +204,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                                 final appointment = appointments[index];
                                 return _AppointmentCard(
                                   appointment: appointment,
-                                  onTap: () => context.push('/pro/appointment/${appointment.id}'),
+                                  onTap: () => context.push(
+                                      '/pro/appointment/${appointment.id}'),
                                 );
                               },
                             ),
@@ -254,7 +264,8 @@ class _AppointmentCard extends StatelessWidget {
         onTap: onTap,
         title: Text(
           Formatters.formatDateTime(appointment.appointmentDate),
-          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          style:
+              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

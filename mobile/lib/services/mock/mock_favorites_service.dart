@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../models/api_response.dart';
+
 import '../../core/constants/app_constants.dart';
+import '../../models/api_response.dart';
 import '../interfaces/favorites_service_interface.dart';
 
 class MockFavoritesService implements FavoritesServiceInterface {
@@ -10,7 +12,8 @@ class MockFavoritesService implements FavoritesServiceInterface {
   String _getKey(String userId) => '$_favoritesKeyPrefix$userId';
 
   @override
-  Future<ApiResponse<List<String>>> getFavoriteProviderIds(String userId) async {
+  Future<ApiResponse<List<String>>> getFavoriteProviderIds(
+      String userId) async {
     await Future.delayed(AppConstants.mockDelay);
 
     try {
@@ -23,16 +26,19 @@ class MockFavoritesService implements FavoritesServiceInterface {
       }
 
       final List<dynamic> favoritesList = json.decode(favoritesJson);
-      final List<String> providerIds = favoritesList.map((id) => id.toString()).toList();
-      
+      final List<String> providerIds =
+          favoritesList.map((id) => id.toString()).toList();
+
       return ApiResponse.success(providerIds);
     } catch (e) {
-      return ApiResponse.error('Erreur lors du chargement des favoris: ${e.toString()}');
+      return ApiResponse.error(
+          'Erreur lors du chargement des favoris: ${e.toString()}');
     }
   }
 
   @override
-  Future<ApiResponse<bool>> addFavorite(String userId, String providerId) async {
+  Future<ApiResponse<bool>> addFavorite(
+      String userId, String providerId) async {
     await Future.delayed(AppConstants.mockDelay);
 
     try {
@@ -57,12 +63,14 @@ class MockFavoritesService implements FavoritesServiceInterface {
 
       return ApiResponse.success(true, message: 'Déjà dans les favoris');
     } catch (e) {
-      return ApiResponse.error('Erreur lors de l\'ajout aux favoris: ${e.toString()}');
+      return ApiResponse.error(
+          'Erreur lors de l\'ajout aux favoris: ${e.toString()}');
     }
   }
 
   @override
-  Future<ApiResponse<bool>> removeFavorite(String userId, String providerId) async {
+  Future<ApiResponse<bool>> removeFavorite(
+      String userId, String providerId) async {
     await Future.delayed(AppConstants.mockDelay);
 
     try {
@@ -75,7 +83,8 @@ class MockFavoritesService implements FavoritesServiceInterface {
       }
 
       final List<dynamic> favoritesList = json.decode(favoritesJson);
-      final List<String> favorites = favoritesList.map((id) => id.toString()).toList();
+      final List<String> favorites =
+          favoritesList.map((id) => id.toString()).toList();
 
       if (favorites.remove(providerId)) {
         await prefs.setString(key, json.encode(favorites));
@@ -84,7 +93,8 @@ class MockFavoritesService implements FavoritesServiceInterface {
 
       return ApiResponse.success(false, message: 'Non trouvé dans les favoris');
     } catch (e) {
-      return ApiResponse.error('Erreur lors de la suppression des favoris: ${e.toString()}');
+      return ApiResponse.error(
+          'Erreur lors de la suppression des favoris: ${e.toString()}');
     }
   }
 
@@ -102,11 +112,13 @@ class MockFavoritesService implements FavoritesServiceInterface {
       }
 
       final List<dynamic> favoritesList = json.decode(favoritesJson);
-      final List<String> favorites = favoritesList.map((id) => id.toString()).toList();
-      
+      final List<String> favorites =
+          favoritesList.map((id) => id.toString()).toList();
+
       return ApiResponse.success(favorites.contains(providerId));
     } catch (e) {
-      return ApiResponse.error('Erreur lors de la vérification: ${e.toString()}');
+      return ApiResponse.error(
+          'Erreur lors de la vérification: ${e.toString()}');
     }
   }
 }

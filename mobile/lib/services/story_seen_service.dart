@@ -22,4 +22,3 @@ class StorySeenService {
     await _prefs.setStringList(_key, set.toList());
   }
 }
-

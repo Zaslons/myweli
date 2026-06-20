@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../providers/provider_provider.dart';
-import '../../core/theme/colors.dart';
+
 import '../../core/theme/app_theme.dart';
-import '../../widgets/provider/provider_card.dart';
+import '../../core/theme/colors.dart';
+import '../../providers/provider_provider.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/provider/provider_card.dart';
 
 class ProviderListScreen extends StatefulWidget {
   final String? category;
@@ -105,6 +106,3 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     );
   }
 }
-
-
-

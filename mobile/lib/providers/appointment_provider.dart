@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
-import '../models/appointment.dart';
+
 import '../core/di/dependency_injection.dart';
+import '../models/appointment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
 
 class AppointmentProvider extends ChangeNotifier {
-  final AppointmentServiceInterface _appointmentService = serviceLocator.appointmentService;
+  final AppointmentServiceInterface _appointmentService =
+      serviceLocator.appointmentService;
 
   List<Appointment> _appointments = [];
   Appointment? _selectedAppointment;
@@ -28,9 +30,7 @@ class AppointmentProvider extends ChangeNotifier {
 
   List<Appointment> get pastAppointments {
     final now = DateTime.now();
-    return _appointments
-        .where((a) => a.appointmentDate.isBefore(now))
-        .toList()
+    return _appointments.where((a) => a.appointmentDate.isBefore(now)).toList()
       ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
   }
 
@@ -54,7 +54,8 @@ class AppointmentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _appointmentService.getUserAppointments(status: status);
+      final response =
+          await _appointmentService.getUserAppointments(status: status);
       if (response.success && response.data != null) {
         _appointments = response.data!;
         _error = null;
@@ -183,6 +184,3 @@ class AppointmentProvider extends ChangeNotifier {
     }
   }
 }
-
-
-

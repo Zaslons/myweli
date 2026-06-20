@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../../providers/appointment_provider.dart';
-import '../../providers/provider_provider.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../providers/appointment_provider.dart';
+import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_button.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
@@ -29,7 +30,8 @@ class DateTimeSelectionScreen extends StatefulWidget {
   });
 
   @override
-  State<DateTimeSelectionScreen> createState() => _DateTimeSelectionScreenState();
+  State<DateTimeSelectionScreen> createState() =>
+      _DateTimeSelectionScreenState();
 }
 
 class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
@@ -124,7 +126,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     }
 
     final serviceIds = widget.serviceIds.join(',');
-    final artistParam = widget.artistId != null ? '&artistId=${widget.artistId}' : '';
+    final artistParam =
+        widget.artistId != null ? '&artistId=${widget.artistId}' : '';
     context.push(
       '/booking/confirm?providerId=${widget.providerId}&serviceIds=$serviceIds&dateTime=${dateTime.toIso8601String()}$artistParam',
     );
@@ -205,10 +208,15 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                             width: 80,
                             height: 48,
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary : AppColors.secondary,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.secondary,
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusMedium),
                               border: Border.all(
-                                color: isSelected ? AppColors.primary : AppColors.border,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.border,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
@@ -216,7 +224,9 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                               child: Text(
                                 Formatters.formatTime(slot),
                                 style: AppTextStyles.bodyMedium.copyWith(
-                                  color: isSelected ? AppColors.secondary : AppColors.textPrimary,
+                                  color: isSelected
+                                      ? AppColors.secondary
+                                      : AppColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -245,4 +255,3 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     );
   }
 }
-

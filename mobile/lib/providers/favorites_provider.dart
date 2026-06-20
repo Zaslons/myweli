@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
-import '../models/provider.dart';
-import '../models/api_response.dart';
+
 import '../core/di/dependency_injection.dart';
+import '../models/api_response.dart';
+import '../models/provider.dart';
 import '../services/interfaces/favorites_service_interface.dart';
 
 class FavoritesProvider extends ChangeNotifier {
-  final FavoritesServiceInterface _favoritesService = serviceLocator.favoritesService;
+  final FavoritesServiceInterface _favoritesService =
+      serviceLocator.favoritesService;
 
   List<String> _favoriteProviderIds = [];
   bool _isLoading = false;
@@ -60,7 +62,7 @@ class FavoritesProvider extends ChangeNotifier {
     }
 
     final isCurrentlyFavorite = _favoriteProviderIds.contains(providerId);
-    
+
     _isLoading = true;
     notifyListeners();
 
@@ -106,7 +108,9 @@ class FavoritesProvider extends ChangeNotifier {
 
   /// Get full provider objects from list of all providers
   List<Provider> getFavoriteProviders(List<Provider> allProviders) {
-    return allProviders.where((provider) => _favoriteProviderIds.contains(provider.id)).toList();
+    return allProviders
+        .where((provider) => _favoriteProviderIds.contains(provider.id))
+        .toList();
   }
 
   /// Clear favorites (e.g., on logout)

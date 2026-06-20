@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
+
 import '../core/di/dependency_injection.dart';
-import '../services/interfaces/pro_service_interface.dart';
 import '../models/appointment.dart';
+import '../services/interfaces/pro_service_interface.dart';
 
 class ProAppointmentProvider extends ChangeNotifier {
   final ProServiceInterface _proService = serviceLocator.proService;
@@ -84,7 +85,8 @@ class ProAppointmentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _proService.rejectAppointment(appointmentId, reason);
+      final response =
+          await _proService.rejectAppointment(appointmentId, reason);
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -146,7 +148,8 @@ class ProAppointmentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _proService.rescheduleAppointment(appointmentId, newDateTime);
+      final response =
+          await _proService.rescheduleAppointment(appointmentId, newDateTime);
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {

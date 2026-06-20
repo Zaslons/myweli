@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/colors.dart';
+import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
-import '../../core/theme/colors.dart';
-import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/utils/formatters.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
@@ -26,7 +27,8 @@ class BookingConfirmationScreen extends StatefulWidget {
   });
 
   @override
-  State<BookingConfirmationScreen> createState() => _BookingConfirmationScreenState();
+  State<BookingConfirmationScreen> createState() =>
+      _BookingConfirmationScreenState();
 }
 
 class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
@@ -38,7 +40,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Check if user is authenticated, if not redirect to login
       if (!authProvider.isAuthenticated) {
         // Build return URL with booking details
@@ -51,21 +53,23 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             if (widget.artistId != null) 'artistId': widget.artistId!,
           },
         );
-        
+
         // Show a message that they need to sign in
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Veuillez vous connecter pour confirmer votre réservation'),
+              content: Text(
+                  'Veuillez vous connecter pour confirmer votre réservation'),
               duration: Duration(seconds: 2),
             ),
           );
         });
-        
-        context.go('/login?returnTo=${Uri.encodeComponent(returnUrl.toString())}');
+
+        context
+            .go('/login?returnTo=${Uri.encodeComponent(returnUrl.toString())}');
         return;
       }
-      
+
       final provider = Provider.of<ProviderProvider>(context, listen: false);
       provider.loadProviderById(widget.providerId);
     });
@@ -80,7 +84,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   Future<void> _handleConfirm() async {
     setState(() => _isLoading = true);
 
-    final appointmentProvider = Provider.of<AppointmentProvider>(context, listen: false);
+    final appointmentProvider =
+        Provider.of<AppointmentProvider>(context, listen: false);
     final success = await appointmentProvider.bookAppointment(
       providerId: widget.providerId,
       serviceIds: widget.serviceIds,
@@ -103,7 +108,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(appointmentProvider.error ?? 'Erreur lors de la réservation'),
+          content: Text(
+              appointmentProvider.error ?? 'Erreur lors de la réservation'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -148,7 +154,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       // Provider
                       Row(
                         children: [
-                          const Icon(Icons.store, color: AppColors.textSecondary),
+                          const Icon(Icons.store,
+                              color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -191,7 +198,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                             );
                             return Row(
                               children: [
-                                const Icon(Icons.person, size: 16, color: AppColors.textSecondary),
+                                const Icon(Icons.person,
+                                    size: 16, color: AppColors.textSecondary),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -208,10 +216,12 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       // Date & Time
                       Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 16, color: AppColors.textSecondary),
+                          const Icon(Icons.calendar_today,
+                              size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Text(
-                            Formatters.formatDateShort(widget.appointmentDateTime),
+                            Formatters.formatDateShort(
+                                widget.appointmentDateTime),
                             style: AppTextStyles.bodyMedium,
                           ),
                         ],
@@ -219,7 +229,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                          const Icon(Icons.access_time,
+                              size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Text(
                             Formatters.formatTime(widget.appointmentDateTime),
@@ -277,6 +288,3 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     );
   }
 }
-
-
-

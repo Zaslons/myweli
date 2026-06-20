@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 
 class BookingJournalScreen extends StatelessWidget {
   const BookingJournalScreen({super.key});
@@ -220,7 +221,8 @@ class _AppointmentCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.person_outline, size: 14, color: AppColors.textTertiary),
+                    const Icon(Icons.person_outline,
+                        size: 14, color: AppColors.textTertiary),
                     const SizedBox(width: 4),
                     Text(
                       artist,

@@ -1,8 +1,9 @@
 import 'package:equatable/equatable.dart';
-import 'service.dart';
-import 'availability.dart';
+
 import 'artist.dart';
+import 'availability.dart';
 import 'review.dart';
+import 'service.dart';
 
 class Provider extends Equatable {
   final String id;
@@ -147,7 +148,8 @@ class Provider extends Equatable {
               .map((a) => Artist.fromJson(a as Map<String, dynamic>))
               .toList()
           : [],
-      availability: Availability.fromJson(json['availability'] as Map<String, dynamic>),
+      availability:
+          Availability.fromJson(json['availability'] as Map<String, dynamic>),
       phoneNumber: json['phoneNumber'] as String,
       category: json['category'] as String,
       reviews: json['reviews'] != null
@@ -158,6 +160,3 @@ class Provider extends Equatable {
     );
   }
 }
-
-
-

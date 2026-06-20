@@ -1,13 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../providers/provider_provider.dart';
-import '../../providers/appointment_provider.dart';
-import '../../models/artist.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
+import '../../models/artist.dart';
+import '../../providers/appointment_provider.dart';
+import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 
@@ -55,15 +56,15 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
     if (p == null || p.artists.isEmpty) return [];
 
     // Get all services that are selected
-    final selectedServices = p.services
-        .where((s) => widget.serviceIds.contains(s.id))
-        .toList();
+    final selectedServices =
+        p.services.where((s) => widget.serviceIds.contains(s.id)).toList();
 
     // If no services chosen yet, show all artists (user can pick artist first).
     if (selectedServices.isEmpty) return p.artists;
 
     // If any service has no artistIds (empty list), all artists are available
-    final hasUnrestrictedService = selectedServices.any((s) => s.artistIds.isEmpty);
+    final hasUnrestrictedService =
+        selectedServices.any((s) => s.artistIds.isEmpty);
 
     if (hasUnrestrictedService) {
       // All artists are available
@@ -73,7 +74,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
     // Find artists that can perform ALL selected services
     // An artist is available if they are in the artistIds list of ALL selected services
     final availableArtistIds = <String>{};
-    
+
     // Start with artists from the first service
     if (selectedServices.isNotEmpty) {
       availableArtistIds.addAll(selectedServices.first.artistIds);
@@ -85,20 +86,27 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
         // If a service has no restrictions, all artists are available
         return p.artists;
       }
-      availableArtistIds.removeWhere((artistId) => !service.artistIds.contains(artistId));
+      availableArtistIds
+          .removeWhere((artistId) => !service.artistIds.contains(artistId));
     }
 
     // Return only the artists that are available for all services
-    return p.artists.where((artist) => availableArtistIds.contains(artist.id)).toList();
+    return p.artists
+        .where((artist) => availableArtistIds.contains(artist.id))
+        .toList();
   }
 
-  Future<void> _loadArtistsAvailableForSelectedTime(List<Artist> candidates) async {
+  Future<void> _loadArtistsAvailableForSelectedTime(
+      List<Artist> candidates) async {
     final selected = widget.initialDateTime;
     if (selected == null) return;
-    if (_artistIdsAvailableForSelectedTime != null || _loadingTimeFilter) return;
+    if (_artistIdsAvailableForSelectedTime != null || _loadingTimeFilter) {
+      return;
+    }
 
     setState(() => _loadingTimeFilter = true);
-    final apptProvider = Provider.of<AppointmentProvider>(context, listen: false);
+    final apptProvider =
+        Provider.of<AppointmentProvider>(context, listen: false);
     final duration = widget.durationMinutes ?? 30;
     final day = DateTime(selected.year, selected.month, selected.day);
 
@@ -136,7 +144,8 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
     final serviceIds = widget.serviceIds.join(',');
     final artistParam =
         _selectedArtistId != null ? '&artistId=$_selectedArtistId' : '';
-    context.push('/booking/date-time?providerId=${widget.providerId}&serviceIds=$serviceIds$artistParam');
+    context.push(
+        '/booking/date-time?providerId=${widget.providerId}&serviceIds=$serviceIds$artistParam');
   }
 
   @override
@@ -168,7 +177,8 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
           final filteredArtists = (_artistIdsAvailableForSelectedTime == null)
               ? availableArtists
               : availableArtists
-                  .where((a) => _artistIdsAvailableForSelectedTime!.contains(a.id))
+                  .where(
+                      (a) => _artistIdsAvailableForSelectedTime!.contains(a.id))
                   .toList();
 
           if (availableArtists.isEmpty) {
@@ -221,7 +231,8 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       padding: const EdgeInsets.all(AppTheme.spacingM),
                       decoration: BoxDecoration(
                         color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusLarge),
                       ),
                       child: Row(
                         children: [
@@ -245,7 +256,8 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                     const SizedBox(height: 16),
                     if (_loadingTimeFilter)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+                        padding:
+                            const EdgeInsets.only(bottom: AppTheme.spacingM),
                         child: Row(
                           children: [
                             const SizedBox(
@@ -349,33 +361,35 @@ class _ArtistCard extends StatelessWidget {
                       width: 60,
                       height: 60,
                       color: AppColors.surface,
-                      child: const Icon(Icons.shuffle, size: 26, color: AppColors.textTertiary),
+                      child: const Icon(Icons.shuffle,
+                          size: 26, color: AppColors.textTertiary),
                     )
                   : artist.imageUrl != null && artist.imageUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: artist.imageUrl!,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        width: 60,
-                        height: 60,
-                        color: AppColors.surface,
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        width: 60,
-                        height: 60,
-                        color: AppColors.surface,
-                        child: const Icon(Icons.person, size: 30),
-                      ),
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      color: AppColors.surface,
-                      child: const Icon(Icons.person, size: 30),
-                    ),
+                      ? CachedNetworkImage(
+                          imageUrl: artist.imageUrl!,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 60,
+                            height: 60,
+                            color: AppColors.surface,
+                            child: const Center(
+                                child: CircularProgressIndicator()),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            width: 60,
+                            height: 60,
+                            color: AppColors.surface,
+                            child: const Icon(Icons.person, size: 30),
+                          ),
+                        )
+                      : Container(
+                          width: 60,
+                          height: 60,
+                          color: AppColors.surface,
+                          child: const Icon(Icons.person, size: 30),
+                        ),
             ),
             const SizedBox(width: 12),
             Expanded(

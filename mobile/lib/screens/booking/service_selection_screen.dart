@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../providers/provider_provider.dart';
-import '../../models/service.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../models/service.dart';
+import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 
@@ -54,7 +55,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
   void _handleContinue() {
     if (_selectedServiceIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner au moins un service')),
+        const SnackBar(
+            content: Text('Veuillez sélectionner au moins un service')),
       );
       return;
     }
@@ -65,7 +67,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
     }
 
     final serviceIds = _selectedServiceIds.toList().join(',');
-    context.push('/booking/artist?providerId=${widget.providerId}&serviceIds=$serviceIds');
+    context.push(
+        '/booking/artist?providerId=${widget.providerId}&serviceIds=$serviceIds');
   }
 
   @override
@@ -97,7 +100,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                       padding: const EdgeInsets.all(AppTheme.spacingM),
                       decoration: BoxDecoration(
                         color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusLarge),
                       ),
                       child: Row(
                         children: [
@@ -125,7 +129,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                     const SizedBox(height: 16),
                     // Services List
                     ...p.services.map((service) {
-                      final isSelected = _selectedServiceIds.contains(service.id);
+                      final isSelected =
+                          _selectedServiceIds.contains(service.id);
                       final disabled = widget.artistId != null &&
                           service.artistIds.isNotEmpty &&
                           !service.artistIds.contains(widget.artistId);
@@ -175,7 +180,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                     const SizedBox(height: 16),
                     AppButton(
                       text: 'Continuer',
-                      onPressed: _selectedServiceIds.isEmpty ? null : _handleContinue,
+                      onPressed:
+                          _selectedServiceIds.isEmpty ? null : _handleContinue,
                     ),
                   ],
                 ),
@@ -231,14 +237,18 @@ class _ServiceCard extends StatelessWidget {
                   Text(
                     service.name,
                     style: AppTextStyles.titleMedium.copyWith(
-                      color: isDisabled ? AppColors.textTertiary : AppColors.textPrimary,
+                      color: isDisabled
+                          ? AppColors.textTertiary
+                          : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     service.description,
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: isDisabled ? AppColors.textTertiary : AppColors.textSecondary,
+                      color: isDisabled
+                          ? AppColors.textTertiary
+                          : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -263,6 +273,3 @@ class _ServiceCard extends StatelessWidget {
     );
   }
 }
-
-
-

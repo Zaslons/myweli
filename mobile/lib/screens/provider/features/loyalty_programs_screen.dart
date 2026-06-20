@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 
 class LoyaltyProgramsScreen extends StatelessWidget {
   const LoyaltyProgramsScreen({super.key});

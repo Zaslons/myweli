@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/pro_auth_provider.dart';
-import '../../../providers/pro_dashboard_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_dashboard_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,7 +28,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final dashboardProvider = Provider.of<ProDashboardProvider>(context, listen: false);
+        final dashboardProvider =
+            Provider.of<ProDashboardProvider>(context, listen: false);
         dashboardProvider.loadDashboardStats(_resolvedProviderId(context));
       }
     });
@@ -57,11 +59,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.lock_outline, size: 64, color: AppColors.textSecondary),
+                  const Icon(Icons.lock_outline,
+                      size: 64, color: AppColors.textSecondary),
                   const SizedBox(height: 16),
                   Text(
                     'Veuillez vous connecter',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.titleLarge
+                        .copyWith(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -82,7 +86,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Center(
               child: Text(
                 dashboardProvider.error ?? 'Aucune donnée disponible',
-                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyLarge
+                    .copyWith(color: AppColors.textSecondary),
               ),
             );
           }
@@ -90,7 +95,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return RefreshIndicator(
             onRefresh: () async {
               if (authProvider.provider != null) {
-                await dashboardProvider.loadDashboardStats(_resolvedProviderId(context));
+                await dashboardProvider
+                    .loadDashboardStats(_resolvedProviderId(context));
               }
             },
             child: SingleChildScrollView(
@@ -101,7 +107,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Text(
                     'Bienvenue, ${authProvider.provider?.businessName ?? ""}',
-                    style: AppTextStyles.headlineMedium.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.headlineMedium
+                        .copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 24),
                   // Stats Cards
@@ -156,7 +163,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Daily Operations Section
                   Text(
                     'Opérations quotidiennes',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge
+                        .copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 12),
                   GridView.count(
@@ -183,7 +191,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Business Setup Section
                   Text(
                     'Configuration',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge
+                        .copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 12),
                   GridView.count(
@@ -210,7 +219,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Insights Section
                   Text(
                     'Analyses',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge
+                        .copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 12),
                   GridView.count(
@@ -275,7 +285,8 @@ class _StatCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.textSecondary),
               ),
               Icon(icon, color: color, size: 20),
             ],
@@ -283,11 +294,13 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),
+            style: AppTextStyles.headlineSmall
+                .copyWith(color: AppColors.textPrimary),
           ),
           Text(
             subtitle,
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ),
@@ -323,7 +336,8 @@ class _ActionCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               title,
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: AppColors.textPrimary),
             ),
           ],
         ),

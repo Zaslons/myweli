@@ -1,64 +1,57 @@
+import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
-import '../../models/service.dart';
 import '../../models/availability.dart';
-import '../../core/constants/app_constants.dart';
+import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
 
 class MockProService implements ProServiceInterface {
   @override
-  Future<ApiResponse<DashboardStats>> getDashboardStats(String providerId) async {
+  Future<ApiResponse<DashboardStats>> getDashboardStats(
+      String providerId) async {
     await Future.delayed(AppConstants.mockDelay);
-    
-    final appointments = MockData.appointments
-        .where((a) => a.providerId == providerId)
-        .toList();
-    
+
+    final appointments =
+        MockData.appointments.where((a) => a.providerId == providerId).toList();
+
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
     final todayEnd = todayStart.add(const Duration(days: 1));
-    
+
     final todayAppointments = appointments.where((a) {
       final appDate = a.appointmentDate;
       return appDate.isAfter(todayStart) && appDate.isBefore(todayEnd);
     }).length;
-    
-    final pendingRequests = appointments
-        .where((a) => a.status == AppointmentStatus.pending)
-        .length;
-    
-    final todayRevenue = appointments
-        .where((a) {
-          final appDate = a.appointmentDate;
-          return appDate.isAfter(todayStart) && 
-                 appDate.isBefore(todayEnd) &&
-                 a.status == AppointmentStatus.confirmed;
-        })
-        .fold<double>(0, (sum, a) => sum + a.totalPrice);
-    
+
+    final pendingRequests =
+        appointments.where((a) => a.status == AppointmentStatus.pending).length;
+
+    final todayRevenue = appointments.where((a) {
+      final appDate = a.appointmentDate;
+      return appDate.isAfter(todayStart) &&
+          appDate.isBefore(todayEnd) &&
+          a.status == AppointmentStatus.confirmed;
+    }).fold<double>(0, (sum, a) => sum + a.totalPrice);
+
     final weekStart = todayStart.subtract(Duration(days: today.weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 7));
-    final weekRevenue = appointments
-        .where((a) {
-          final appDate = a.appointmentDate;
-          return appDate.isAfter(weekStart) && 
-                 appDate.isBefore(weekEnd) &&
-                 a.status == AppointmentStatus.confirmed;
-        })
-        .fold<double>(0, (sum, a) => sum + a.totalPrice);
-    
+    final weekRevenue = appointments.where((a) {
+      final appDate = a.appointmentDate;
+      return appDate.isAfter(weekStart) &&
+          appDate.isBefore(weekEnd) &&
+          a.status == AppointmentStatus.confirmed;
+    }).fold<double>(0, (sum, a) => sum + a.totalPrice);
+
     final monthStart = DateTime(today.year, today.month, 1);
     final monthEnd = DateTime(today.year, today.month + 1, 1);
-    final monthRevenue = appointments
-        .where((a) {
-          final appDate = a.appointmentDate;
-          return appDate.isAfter(monthStart) && 
-                 appDate.isBefore(monthEnd) &&
-                 a.status == AppointmentStatus.confirmed;
-        })
-        .fold<double>(0, (sum, a) => sum + a.totalPrice);
-    
+    final monthRevenue = appointments.where((a) {
+      final appDate = a.appointmentDate;
+      return appDate.isAfter(monthStart) &&
+          appDate.isBefore(monthEnd) &&
+          a.status == AppointmentStatus.confirmed;
+    }).fold<double>(0, (sum, a) => sum + a.totalPrice);
+
     final stats = DashboardStats(
       todayAppointments: todayAppointments,
       pendingRequests: pendingRequests,
@@ -67,7 +60,7 @@ class MockProService implements ProServiceInterface {
       monthRevenue: monthRevenue,
       totalAppointments: appointments.length,
     );
-    
+
     return ApiResponse.success(stats);
   }
 
@@ -79,31 +72,32 @@ class MockProService implements ProServiceInterface {
     DateTime? endDate,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
-    
-    var appointments = MockData.appointments
-        .where((a) => a.providerId == providerId)
-        .toList();
-    
+
+    var appointments =
+        MockData.appointments.where((a) => a.providerId == providerId).toList();
+
     if (status != null) {
       appointments = appointments.where((a) => a.status == status).toList();
     }
-    
+
     if (startDate != null) {
       appointments = appointments
-          .where((a) => a.appointmentDate.isAfter(startDate) || 
-                       a.appointmentDate.isAtSameMomentAs(startDate))
+          .where((a) =>
+              a.appointmentDate.isAfter(startDate) ||
+              a.appointmentDate.isAtSameMomentAs(startDate))
           .toList();
     }
-    
+
     if (endDate != null) {
       appointments = appointments
-          .where((a) => a.appointmentDate.isBefore(endDate) || 
-                       a.appointmentDate.isAtSameMomentAs(endDate))
+          .where((a) =>
+              a.appointmentDate.isBefore(endDate) ||
+              a.appointmentDate.isAtSameMomentAs(endDate))
           .toList();
     }
-    
+
     appointments.sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
-    
+
     return ApiResponse.success(appointments);
   }
 
@@ -115,14 +109,16 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> rejectAppointment(String appointmentId, String? reason) async {
+  Future<ApiResponse<bool>> rejectAppointment(
+      String appointmentId, String? reason) async {
     await Future.delayed(AppConstants.mockDelay);
     // In real implementation, update appointment status
     return ApiResponse.success(true);
   }
 
   @override
-  Future<ApiResponse<bool>> markAppointmentComplete(String appointmentId) async {
+  Future<ApiResponse<bool>> markAppointmentComplete(
+      String appointmentId) async {
     await Future.delayed(AppConstants.mockDelay);
     // In real implementation, update appointment status
     return ApiResponse.success(true);
@@ -139,7 +135,8 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<List<Service>>> getProviderServices(String providerId) async {
+  Future<ApiResponse<List<Service>>> getProviderServices(
+      String providerId) async {
     await Future.delayed(AppConstants.mockDelay);
     final services = MockData.getServicesForProvider(providerId);
     return ApiResponse.success(services);
@@ -194,7 +191,8 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<Availability>> getProviderAvailability(String providerId) async {
+  Future<ApiResponse<Availability>> getProviderAvailability(
+      String providerId) async {
     await Future.delayed(AppConstants.mockDelay);
     final provider = MockData.providers.firstWhere(
       (p) => p.id == providerId,
@@ -219,29 +217,30 @@ class MockProService implements ProServiceInterface {
     DateTime? endDate,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
-    
-    var appointments = MockData.appointments
-        .where((a) => a.providerId == providerId)
-        .toList();
-    
+
+    var appointments =
+        MockData.appointments.where((a) => a.providerId == providerId).toList();
+
     if (startDate != null) {
       appointments = appointments
-          .where((a) => a.appointmentDate.isAfter(startDate) || 
-                       a.appointmentDate.isAtSameMomentAs(startDate))
+          .where((a) =>
+              a.appointmentDate.isAfter(startDate) ||
+              a.appointmentDate.isAtSameMomentAs(startDate))
           .toList();
     }
-    
+
     if (endDate != null) {
       appointments = appointments
-          .where((a) => a.appointmentDate.isBefore(endDate) || 
-                       a.appointmentDate.isAtSameMomentAs(endDate))
+          .where((a) =>
+              a.appointmentDate.isBefore(endDate) ||
+              a.appointmentDate.isAtSameMomentAs(endDate))
           .toList();
     }
-    
+
     final totalEarnings = appointments
         .where((a) => a.status == AppointmentStatus.completed)
         .fold<double>(0, (sum, a) => sum + a.totalPrice);
-    
+
     final transactions = appointments
         .where((a) => a.status == AppointmentStatus.completed)
         .map((a) => EarningsTransaction(
@@ -252,7 +251,7 @@ class MockProService implements ProServiceInterface {
               status: 'completed',
             ))
         .toList();
-    
+
     return ApiResponse.success(EarningsData(
       totalEarnings: totalEarnings,
       transactions: transactions,

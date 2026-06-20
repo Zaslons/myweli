@@ -1,7 +1,7 @@
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
-import '../../models/service.dart';
 import '../../models/availability.dart';
+import '../../models/service.dart';
 
 // Dashboard stats model
 class DashboardStats {
@@ -52,7 +52,7 @@ class EarningsTransaction {
 abstract class ProServiceInterface {
   // Dashboard
   Future<ApiResponse<DashboardStats>> getDashboardStats(String providerId);
-  
+
   // Appointments
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
     String providerId, {
@@ -61,27 +61,30 @@ abstract class ProServiceInterface {
     DateTime? endDate,
   });
   Future<ApiResponse<bool>> acceptAppointment(String appointmentId);
-  Future<ApiResponse<bool>> rejectAppointment(String appointmentId, String? reason);
+  Future<ApiResponse<bool>> rejectAppointment(
+      String appointmentId, String? reason);
   Future<ApiResponse<bool>> markAppointmentComplete(String appointmentId);
   Future<ApiResponse<bool>> rescheduleAppointment(
     String appointmentId,
     DateTime newDateTime,
   );
-  
+
   // Services
   Future<ApiResponse<List<Service>>> getProviderServices(String providerId);
-  Future<ApiResponse<Service>> createService(String providerId, Map<String, dynamic> serviceData);
-  Future<ApiResponse<Service>> updateService(String serviceId, Map<String, dynamic> serviceData);
+  Future<ApiResponse<Service>> createService(
+      String providerId, Map<String, dynamic> serviceData);
+  Future<ApiResponse<Service>> updateService(
+      String serviceId, Map<String, dynamic> serviceData);
   Future<ApiResponse<bool>> deleteService(String serviceId);
   Future<ApiResponse<bool>> toggleServiceAvailability(String serviceId);
-  
+
   // Availability
   Future<ApiResponse<Availability>> getProviderAvailability(String providerId);
   Future<ApiResponse<Availability>> updateAvailability(
     String providerId,
     Availability availability,
   );
-  
+
   // Earnings
   Future<ApiResponse<EarningsData>> getEarnings(
     String providerId, {

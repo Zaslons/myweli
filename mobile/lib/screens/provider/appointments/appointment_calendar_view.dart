@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../../../models/appointment.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/appointment.dart';
 
 class AppointmentCalendarView extends StatefulWidget {
   final List<Appointment> appointments;
@@ -16,7 +17,8 @@ class AppointmentCalendarView extends StatefulWidget {
   });
 
   @override
-  State<AppointmentCalendarView> createState() => _AppointmentCalendarViewState();
+  State<AppointmentCalendarView> createState() =>
+      _AppointmentCalendarViewState();
 }
 
 class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
@@ -28,14 +30,16 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
   void initState() {
     super.initState();
     _selectedDay = DateTime.now();
-    _selectedAppointments = ValueNotifier(_getAppointmentsForDay(_selectedDay!));
+    _selectedAppointments =
+        ValueNotifier(_getAppointmentsForDay(_selectedDay!));
   }
 
   @override
   void didUpdateWidget(AppointmentCalendarView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.appointments != widget.appointments) {
-      _selectedAppointments.value = _getAppointmentsForDay(_selectedDay ?? DateTime.now());
+      _selectedAppointments.value =
+          _getAppointmentsForDay(_selectedDay ?? DateTime.now());
     }
   }
 
@@ -102,7 +106,8 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
                 setState(() {
                   _selectedDay = selectedDay;
                   _focusedDay = focusedDay;
-                  _selectedAppointments.value = _getAppointmentsForDay(selectedDay);
+                  _selectedAppointments.value =
+                      _getAppointmentsForDay(selectedDay);
                 });
               }
             },
@@ -139,7 +144,8 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.event_busy, size: 64, color: AppColors.textSecondary),
+                      const Icon(Icons.event_busy,
+                          size: 64, color: AppColors.textSecondary),
                       const SizedBox(height: 16),
                       Text(
                         'Aucun rendez-vous',
@@ -162,13 +168,15 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
               }
 
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
                 itemCount: appointments.length,
                 itemBuilder: (context, index) {
                   final appointment = appointments[index];
                   return _AppointmentCard(
                     appointment: appointment,
-                    onTap: () => context.push('/pro/appointment/${appointment.id}'),
+                    onTap: () =>
+                        context.push('/pro/appointment/${appointment.id}'),
                   );
                 },
               );
@@ -222,7 +230,8 @@ class _AppointmentCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(
-          backgroundColor: _getStatusColor(appointment.status).withValues(alpha: 0.2),
+          backgroundColor:
+              _getStatusColor(appointment.status).withValues(alpha: 0.2),
           child: Icon(
             Icons.calendar_today,
             color: _getStatusColor(appointment.status),
@@ -231,7 +240,8 @@ class _AppointmentCard extends StatelessWidget {
         ),
         title: Text(
           Formatters.formatTime(appointment.appointmentDate),
-          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          style:
+              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,15 +1,15 @@
-import '../../services/interfaces/auth_service_interface.dart';
-import '../../services/interfaces/provider_service_interface.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
+import '../../services/interfaces/auth_service_interface.dart';
 import '../../services/interfaces/favorites_service_interface.dart';
-import '../../services/interfaces/pro_service_interface.dart';
 import '../../services/interfaces/pro_artist_service_interface.dart';
-import '../../services/mock/mock_auth_service.dart';
-import '../../services/mock/mock_provider_service.dart';
+import '../../services/interfaces/pro_service_interface.dart';
+import '../../services/interfaces/provider_service_interface.dart';
 import '../../services/mock/mock_appointment_service.dart';
+import '../../services/mock/mock_auth_service.dart';
 import '../../services/mock/mock_favorites_service.dart';
-import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_pro_artist_service.dart';
+import '../../services/mock/mock_pro_service.dart';
+import '../../services/mock/mock_provider_service.dart';
 
 /// Service Locator for Dependency Injection
 /// Currently using mock services, will switch to API services when backend is ready
@@ -42,6 +42,3 @@ void setupDependencyInjection() {
 }
 
 ServiceLocator get serviceLocator => ServiceLocator();
-
-
-

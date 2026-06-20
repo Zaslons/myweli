@@ -47,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     // Always go to home - users can browse without signing in
-      context.go('/home');
+    context.go('/home');
   }
 
   @override
@@ -101,5 +101,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-
-

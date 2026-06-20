@@ -1,13 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../models/provider_user.dart';
-import '../../../providers/pro_auth_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/validators.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/validators.dart';
+import '../../../models/provider_user.dart';
+import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 
@@ -64,7 +67,8 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      context.push('/pro/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}');
+      unawaited(context
+          .push('/pro/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}'));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -132,7 +136,8 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     labelText: 'Type d\'entreprise',
                     prefixIcon: const Icon(Icons.category),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                      borderRadius:
+                          BorderRadius.circular(AppTheme.radiusMedium),
                     ),
                   ),
                   items: BusinessType.values.map((type) {

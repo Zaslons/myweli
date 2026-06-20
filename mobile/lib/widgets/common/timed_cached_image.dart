@@ -4,8 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../core/utils/timeout_cache_manager.dart';
 import '../../core/theme/colors.dart';
+import '../../core/utils/timeout_cache_manager.dart';
 
 class TimedCachedImage extends StatefulWidget {
   final String imageUrl;
@@ -105,7 +105,8 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
             );
 
       if (widget.borderRadius != null) {
-        return ClipRRect(borderRadius: widget.borderRadius!, child: assetWidget);
+        return ClipRRect(
+            borderRadius: widget.borderRadius!, child: assetWidget);
       }
       return assetWidget;
     }
@@ -170,7 +171,8 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
             child: TextButton.icon(
               onPressed: _retry,
               icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text('Réessayer', style: TextStyle(color: Colors.white)),
+              label: const Text('Réessayer',
+                  style: TextStyle(color: Colors.white)),
             ),
           ),
         ),
@@ -178,4 +180,3 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
     );
   }
 }
-

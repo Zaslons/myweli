@@ -1,6 +1,6 @@
-import '../../models/provider.dart';
-import '../../models/api_response.dart';
 import '../../core/constants/app_constants.dart';
+import '../../models/api_response.dart';
+import '../../models/provider.dart';
 import '../interfaces/provider_service_interface.dart';
 import 'mock_data.dart';
 
@@ -67,7 +67,7 @@ class MockProviderService implements ProviderServiceInterface {
     // Return top 3 rated providers
     final featured = List<Provider>.from(MockData.providers)
       ..sort((a, b) => b.rating.compareTo(a.rating));
-    
+
     return ApiResponse.success(featured.take(3).toList());
   }
 
@@ -83,6 +83,3 @@ class MockProviderService implements ProviderServiceInterface {
     return ApiResponse.success(MockData.providers);
   }
 }
-
-
-

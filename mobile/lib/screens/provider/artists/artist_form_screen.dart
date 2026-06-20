@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../models/artist.dart';
-import '../../../providers/pro_auth_provider.dart';
-import '../../../providers/pro_artist_provider.dart';
-import '../../../core/theme/colors.dart';
+
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/colors.dart';
+import '../../../models/artist.dart';
+import '../../../providers/pro_artist_provider.dart';
+import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 
@@ -32,7 +33,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.artistId != null && !_prefillDone) {
-      final artistProvider = Provider.of<ProArtistProvider>(context, listen: false);
+      final artistProvider =
+          Provider.of<ProArtistProvider>(context, listen: false);
       Artist? artist;
       for (final a in artistProvider.artists) {
         if (a.id == widget.artistId) {
@@ -58,7 +60,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final artistProvider = Provider.of<ProArtistProvider>(context, listen: false);
+    final artistProvider =
+        Provider.of<ProArtistProvider>(context, listen: false);
     final providerId = _resolvedProviderId(context);
 
     final data = {
@@ -116,7 +119,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    final artistProvider = Provider.of<ProArtistProvider>(context, listen: false);
+    final artistProvider =
+        Provider.of<ProArtistProvider>(context, listen: false);
     final success = await artistProvider.deleteArtist(widget.artistId!);
 
     if (!mounted) return;
@@ -132,7 +136,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(artistProvider.error ?? 'Erreur lors de la suppression'),
+          content:
+              Text(artistProvider.error ?? 'Erreur lors de la suppression'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -144,7 +149,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.artistId != null ? 'Modifier l\'employé' : 'Nouvel employé'),
+        title: Text(
+            widget.artistId != null ? 'Modifier l\'employé' : 'Nouvel employé'),
       ),
       body: Consumer<ProArtistProvider>(
         builder: (context, artistProvider, _) {
@@ -181,8 +187,10 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                   if (widget.artistId != null) ...[
                     const SizedBox(height: AppTheme.spacingM),
                     TextButton(
-                      onPressed: artistProvider.isLoading ? null : _handleDelete,
-                      style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                      onPressed:
+                          artistProvider.isLoading ? null : _handleDelete,
+                      style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error),
                       child: const Text('Supprimer l\'employé'),
                     ),
                   ],

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../models/artist.dart';
-import '../../../providers/pro_auth_provider.dart';
-import '../../../providers/pro_artist_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../models/artist.dart';
+import '../../../providers/pro_artist_provider.dart';
+import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 
 class ArtistListScreen extends StatefulWidget {
@@ -28,7 +29,8 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final artistProvider = Provider.of<ProArtistProvider>(context, listen: false);
+        final artistProvider =
+            Provider.of<ProArtistProvider>(context, listen: false);
         artistProvider.loadArtists(_resolvedProviderId(context));
       }
     });
@@ -63,7 +65,8 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.people_outline, size: 64, color: AppColors.textSecondary),
+                    const Icon(Icons.people_outline,
+                        size: 64, color: AppColors.textSecondary),
                     const SizedBox(height: 16),
                     Text(
                       'Aucun employé',
@@ -146,11 +149,16 @@ class _ArtistCard extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-              backgroundImage: artist.imageUrl != null ? NetworkImage(artist.imageUrl!) : null,
+              backgroundImage: artist.imageUrl != null
+                  ? NetworkImage(artist.imageUrl!)
+                  : null,
               child: artist.imageUrl == null
                   ? Text(
-                      artist.name.isNotEmpty ? artist.name[0].toUpperCase() : '?',
-                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.primary),
+                      artist.name.isNotEmpty
+                          ? artist.name[0].toUpperCase()
+                          : '?',
+                      style: AppTextStyles.titleMedium
+                          .copyWith(color: AppColors.primary),
                     )
                   : null,
             ),
@@ -167,7 +175,8 @@ class _ArtistCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (artist.specialization != null && artist.specialization!.isNotEmpty) ...[
+                  if (artist.specialization != null &&
+                      artist.specialization!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       artist.specialization!,

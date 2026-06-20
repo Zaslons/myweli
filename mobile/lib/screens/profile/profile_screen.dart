@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/favorites_provider.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_button.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -58,7 +59,8 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Modifier le profil',
                   onTap: () {
                     if (user == null) {
-                      context.go('/login?returnTo=${Uri.encodeComponent('/profile')}');
+                      context.go(
+                          '/login?returnTo=${Uri.encodeComponent('/profile')}');
                       return;
                     }
                     context.push('/profile/edit');
@@ -111,41 +113,45 @@ class ProfileScreen extends StatelessWidget {
                     text: 'Déconnexion',
                     type: AppButtonType.secondary,
                     onPressed: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Déconnexion'),
-                        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Annuler'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Déconnexion'),
-                          ),
-                        ],
-                      ),
-                    );
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Déconnexion'),
+                          content: const Text(
+                              'Êtes-vous sûr de vouloir vous déconnecter ?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Annuler'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Déconnexion'),
+                            ),
+                          ],
+                        ),
+                      );
 
-                    if (confirmed == true && context.mounted) {
-                      // Clear favorites from state (but keep in storage per user)
-                      final favoritesProvider = Provider.of<FavoritesProvider>(context, listen: false);
-                      favoritesProvider.clearFavorites();
-                      
-                      await authProvider.logout();
-                      if (context.mounted) {
-                        context.go('/login');
+                      if (confirmed == true && context.mounted) {
+                        // Clear favorites from state (but keep in storage per user)
+                        final favoritesProvider =
+                            Provider.of<FavoritesProvider>(context,
+                                listen: false);
+                        favoritesProvider.clearFavorites();
+
+                        await authProvider.logout();
+                        if (context.mounted) {
+                          context.go('/login');
+                        }
                       }
-                    }
-                  },
+                    },
                   )
                 else
                   AppButton(
                     text: 'Se connecter',
                     onPressed: () {
-                      context.go('/login?returnTo=${Uri.encodeComponent('/profile')}');
+                      context.go(
+                          '/login?returnTo=${Uri.encodeComponent('/profile')}');
                     },
                   ),
               ],
@@ -175,7 +181,8 @@ class _SettingsItem extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: AppColors.textPrimary),
       title: Text(title, style: AppTextStyles.bodyLarge),
-      trailing: trailing ?? const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+      trailing: trailing ??
+          const Icon(Icons.chevron_right, color: AppColors.textTertiary),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingM,
@@ -184,6 +191,3 @@ class _SettingsItem extends StatelessWidget {
     );
   }
 }
-
-
-

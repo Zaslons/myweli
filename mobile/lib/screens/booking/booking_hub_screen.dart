@@ -124,8 +124,10 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     return '${Formatters.formatDateShort(dt)} • ${Formatters.formatTime(dt)}';
   }
 
-  bool _artistCanDoServices(models.Provider p, String artistId, List<String> serviceIds) {
-    final selectedServices = p.services.where((s) => serviceIds.contains(s.id)).toList();
+  bool _artistCanDoServices(
+      models.Provider p, String artistId, List<String> serviceIds) {
+    final selectedServices =
+        p.services.where((s) => serviceIds.contains(s.id)).toList();
     if (selectedServices.isEmpty) return true;
     final unrestricted = selectedServices.any((s) => s.artistIds.isEmpty);
     if (unrestricted) return true;
@@ -200,7 +202,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     final reqId = ++_slotsRequestId;
     setState(() => _isLoadingSlots = true);
 
-    final duration = _draft.serviceIds.isNotEmpty ? _totalDurationMinutes(p) : 30;
+    final duration =
+        _draft.serviceIds.isNotEmpty ? _totalDurationMinutes(p) : 30;
     final serviceIds = _draft.serviceIds.isNotEmpty ? _draft.serviceIds : null;
 
     final slots = await appointmentProvider.getAvailableTimeSlots(
@@ -226,7 +229,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     if (dt == null) return true;
 
     final date = DateTime(dt.year, dt.month, dt.day);
-    final duration = _draft.serviceIds.isNotEmpty ? _totalDurationMinutes(p) : 30;
+    final duration =
+        _draft.serviceIds.isNotEmpty ? _totalDurationMinutes(p) : 30;
     final serviceIds = _draft.serviceIds.isNotEmpty ? _draft.serviceIds : null;
 
     final slots = await appointmentProvider.getAvailableTimeSlots(
@@ -258,7 +262,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
 
     final startDay = DateTime.now();
     for (var i = 0; i <= daysAhead; i++) {
-      final d = DateTime(startDay.year, startDay.month, startDay.day).add(Duration(days: i));
+      final d = DateTime(startDay.year, startDay.month, startDay.day)
+          .add(Duration(days: i));
       final slots = await appointmentProvider.getAvailableTimeSlots(
         providerId: widget.providerId,
         date: d,
@@ -313,7 +318,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       ),
       body: Consumer2<ProviderProvider, AppointmentProvider>(
         builder: (context, providerProvider, appointmentProvider, _) {
-          if (providerProvider.isLoading && providerProvider.selectedProvider == null) {
+          if (providerProvider.isLoading &&
+              providerProvider.selectedProvider == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -322,14 +328,16 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
             return Center(
               child: Text(
                 providerProvider.error ?? 'Salon introuvable',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textSecondary),
               ),
             );
           }
 
           final totalPrice = _totalPrice(p);
           final totalDuration = _totalDurationMinutes(p);
-          final canConfirm = _draft.serviceIds.isNotEmpty && _draft.dateTime != null;
+          final canConfirm =
+              _draft.serviceIds.isNotEmpty && _draft.dateTime != null;
 
           return Padding(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -343,7 +351,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                         padding: const EdgeInsets.all(AppTheme.spacingM),
                         decoration: BoxDecoration(
                           color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusXL),
                           boxShadow: AppTheme.elevation1,
                         ),
                         child: Column(
@@ -353,8 +362,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             const SizedBox(height: 4),
                             Text(
                               p.address,
-                              style:
-                                  AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(color: AppColors.textSecondary),
                             ),
                           ],
                         ),
@@ -382,8 +391,10 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     '${Formatters.formatDuration(s.durationMinutes)} • ${Formatters.formatCurrency(s.price)}',
                                 selected: selected,
                                 onTap: () async {
-                                  _setEntryPointIfNeeded(_HubEntryPoint.services);
-                                  final nextIds = List<String>.from(_draft.serviceIds);
+                                  _setEntryPointIfNeeded(
+                                      _HubEntryPoint.services);
+                                  final nextIds =
+                                      List<String>.from(_draft.serviceIds);
                                   if (selected) {
                                     nextIds.remove(s.id);
                                   } else {
@@ -391,11 +402,14 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   }
 
                                   setState(() {
-                                    _draft = _draft.copyWith(serviceIds: nextIds);
+                                    _draft =
+                                        _draft.copyWith(serviceIds: nextIds);
                                     // If currently-selected artist can't do selected services, force re-pick.
                                     if (_draft.artistId != null &&
-                                        !_artistCanDoServices(p, _draft.artistId!, nextIds)) {
-                                      _draft = _draft.copyWith(clearArtistId: true);
+                                        !_artistCanDoServices(
+                                            p, _draft.artistId!, nextIds)) {
+                                      _draft =
+                                          _draft.copyWith(clearArtistId: true);
                                       _artistChosen = false;
                                     }
                                   });
@@ -419,7 +433,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     if (!mounted) return;
                                     if (earliest != null) {
                                       setState(() {
-                                        _draft = _draft.copyWith(dateTime: earliest);
+                                        _draft =
+                                            _draft.copyWith(dateTime: earliest);
                                         _selectedDate = DateTime(
                                           earliest.year,
                                           earliest.month,
@@ -443,7 +458,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             }),
                             if (p.services.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.only(top: AppTheme.spacingS),
+                                padding: const EdgeInsets.only(
+                                    top: AppTheme.spacingS),
                                 child: Text(
                                   'Aucun service disponible',
                                   style: AppTextStyles.bodySmall
@@ -471,7 +487,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             _SelectableRow(
                               title: 'Pas de préférence',
                               subtitle: 'Le salon choisit pour vous',
-                              selected: _artistChosen && _draft.artistId == null,
+                              selected:
+                                  _artistChosen && _draft.artistId == null,
                               onTap: () async {
                                 _setEntryPointIfNeeded(_HubEntryPoint.artist);
                                 setState(() {
@@ -493,10 +510,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             ),
                             const SizedBox(height: 6),
                             ...p.artists.map((a) {
-                              final selected = _artistChosen && _draft.artistId == a.id;
-                              final canDoSelectedServices = _draft.serviceIds.isEmpty
-                                  ? true
-                                  : _artistCanDoServices(p, a.id, _draft.serviceIds);
+                              final selected =
+                                  _artistChosen && _draft.artistId == a.id;
+                              final canDoSelectedServices =
+                                  _draft.serviceIds.isEmpty
+                                      ? true
+                                      : _artistCanDoServices(
+                                          p, a.id, _draft.serviceIds);
                               return Opacity(
                                 opacity: canDoSelectedServices ? 1.0 : 0.45,
                                 child: _SelectableRow(
@@ -506,7 +526,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   enabled: canDoSelectedServices,
                                   onTap: () async {
                                     if (!canDoSelectedServices) return;
-                                    _setEntryPointIfNeeded(_HubEntryPoint.artist);
+                                    _setEntryPointIfNeeded(
+                                        _HubEntryPoint.artist);
                                     setState(() {
                                       _artistChosen = true;
                                       _draft = _draft.copyWith(artistId: a.id);
@@ -522,14 +543,16 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                         _draft.serviceIds.isNotEmpty &&
                                         _draft.dateTime == null) {
                                       final earliest = await _findEarliestSlot(
-                                        appointmentProvider: appointmentProvider,
+                                        appointmentProvider:
+                                            appointmentProvider,
                                         p: p,
                                         daysAhead: 14,
                                       );
                                       if (!mounted) return;
                                       if (earliest != null) {
                                         setState(() {
-                                          _draft = _draft.copyWith(dateTime: earliest);
+                                          _draft = _draft.copyWith(
+                                              dateTime: earliest);
                                           _selectedDate = DateTime(
                                             earliest.year,
                                             earliest.month,
@@ -540,9 +563,11 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     }
 
                                     await _advance(p);
-                                    if (_activeSection == _HubSection.dateTime) {
+                                    if (_activeSection ==
+                                        _HubSection.dateTime) {
                                       await _loadSlotsForSelectedDate(
-                                        appointmentProvider: appointmentProvider,
+                                        appointmentProvider:
+                                            appointmentProvider,
                                         p: p,
                                       );
                                     }
@@ -552,7 +577,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             }),
                             if (p.artists.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.only(top: AppTheme.spacingS),
+                                padding: const EdgeInsets.only(
+                                    top: AppTheme.spacingS),
                                 child: Text(
                                   'Aucun spécialiste à sélectionner',
                                   style: AppTextStyles.bodySmall
@@ -595,7 +621,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   context: context,
                                   initialDate: initial,
                                   firstDate: DateTime.now(),
-                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                  lastDate: DateTime.now()
+                                      .add(const Duration(days: 365)),
                                 );
                                 if (!mounted || picked == null) return;
                                 setState(() => _selectedDate = picked);
@@ -609,11 +636,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             if (_isLoadingSlots)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Center(child: CircularProgressIndicator()),
+                                child:
+                                    Center(child: CircularProgressIndicator()),
                               )
                             else if (_availableSlotsForSelectedDate.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 6),
                                 child: Text(
                                   'Aucun créneau disponible',
                                   style: AppTextStyles.bodySmall
@@ -624,25 +653,34 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               Wrap(
                                 spacing: 10,
                                 runSpacing: 10,
-                                children: _availableSlotsForSelectedDate.map((slot) {
+                                children:
+                                    _availableSlotsForSelectedDate.map((slot) {
                                   final selected = _draft.dateTime != null &&
                                       _draft.dateTime!.isAtSameMomentAs(slot);
                                   return ChoiceChip(
                                     label: Text(Formatters.formatTime(slot)),
                                     selected: selected,
                                     onSelected: (_) async {
-                                      _setEntryPointIfNeeded(_HubEntryPoint.dateTime);
-                                      setState(() => _draft = _draft.copyWith(dateTime: slot));
+                                      _setEntryPointIfNeeded(
+                                          _HubEntryPoint.dateTime);
+                                      setState(() => _draft =
+                                          _draft.copyWith(dateTime: slot));
                                       await _advance(p);
                                     },
-                                    selectedColor: AppColors.primary.withValues(alpha: 0.15),
-                                    labelStyle: AppTextStyles.bodySmall.copyWith(
-                                      color: selected ? AppColors.primary : AppColors.textPrimary,
+                                    selectedColor: AppColors.primary
+                                        .withValues(alpha: 0.15),
+                                    labelStyle:
+                                        AppTextStyles.bodySmall.copyWith(
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.textPrimary,
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(999),
                                       side: BorderSide(
-                                        color: selected ? AppColors.primary : AppColors.border,
+                                        color: selected
+                                            ? AppColors.primary
+                                            : AppColors.border,
                                       ),
                                     ),
                                     backgroundColor: AppColors.secondary,
@@ -684,7 +722,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           const Text('Total', style: AppTextStyles.titleMedium),
                           Text(
                             Formatters.formatCurrency(totalPrice),
-                            style: AppTextStyles.titleLarge.copyWith(color: AppColors.primary),
+                            style: AppTextStyles.titleLarge
+                                .copyWith(color: AppColors.primary),
                           ),
                         ],
                       ),
@@ -694,8 +733,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'Durée: ${Formatters.formatDuration(totalDuration)}',
-                            style:
-                                AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.textSecondary),
                           ),
                         ),
                       ],
@@ -705,8 +744,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'Spécialiste optionnel (vous pouvez laisser “Pas de préférence”)',
-                            style:
-                                AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.textSecondary),
                           ),
                         ),
                       ],
@@ -720,7 +759,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             foregroundColor: AppColors.secondary,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusLarge),
                             ),
                           ),
                           child: const Text('Confirmer'),
@@ -763,7 +803,8 @@ class _HubSectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.secondary,
         borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        border: Border.all(color: expanded ? AppColors.primary : AppColors.border),
+        border:
+            Border.all(color: expanded ? AppColors.primary : AppColors.border),
         boxShadow: AppTheme.elevation1,
       ),
       child: Column(
@@ -792,7 +833,8 @@ class _HubSectionCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         value,
-                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                        style: AppTextStyles.bodyMedium
+                            .copyWith(color: AppColors.textPrimary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -803,7 +845,8 @@ class _HubSectionCard extends StatelessWidget {
                   turns: expanded ? 0.25 : 0.0,
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
-                  child: const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                  child: const Icon(Icons.chevron_right,
+                      color: AppColors.textTertiary),
                 ),
               ],
             ),
@@ -854,8 +897,11 @@ class _SelectableRow extends StatelessWidget {
               height: 26,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(7),
-                border: Border.all(color: selected ? AppColors.primary : AppColors.border),
-                color: selected ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
+                border: Border.all(
+                    color: selected ? AppColors.primary : AppColors.border),
+                color: selected
+                    ? AppColors.primary.withValues(alpha: 0.12)
+                    : Colors.transparent,
               ),
               child: selected
                   ? const Icon(Icons.check, size: 18, color: AppColors.primary)
@@ -876,7 +922,8 @@ class _SelectableRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textSecondary),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -931,4 +978,3 @@ class _DatePickerRow extends StatelessWidget {
     );
   }
 }
-

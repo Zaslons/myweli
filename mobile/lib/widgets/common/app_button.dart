@@ -52,9 +52,8 @@ class AppButton extends StatelessWidget {
       return OutlinedButton(
         onPressed: isEnabled ? onPressed : null,
         style: OutlinedButton.styleFrom(
-          minimumSize: isFullWidth
-              ? const Size(double.infinity, 48)
-              : const Size(0, 48),
+          minimumSize:
+              isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
         ),
         child: isLoading
             ? const SizedBox(
@@ -82,9 +81,8 @@ class AppButton extends StatelessWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
         disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
-        minimumSize: isFullWidth
-            ? const Size(double.infinity, 48)
-            : const Size(0, 48),
+        minimumSize:
+            isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
       ),
       child: isLoading
           ? const SizedBox(
@@ -109,6 +107,3 @@ class AppButton extends StatelessWidget {
     );
   }
 }
-
-
-

@@ -15,7 +15,8 @@ class CalendarScreen extends StatelessWidget {
       body: Center(
         child: Text(
           'Calendrier - À implémenter',
-          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+          style:
+              AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
         ),
       ),
     );

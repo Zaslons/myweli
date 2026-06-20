@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../providers/appointment_provider.dart';
-import '../../models/appointment.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../models/appointment.dart';
+import '../../providers/appointment_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 
@@ -19,7 +20,8 @@ class AppointmentDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<AppointmentDetailScreen> createState() => _AppointmentDetailScreenState();
+  State<AppointmentDetailScreen> createState() =>
+      _AppointmentDetailScreenState();
 }
 
 class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
@@ -38,7 +40,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Annuler le rendez-vous'),
-        content: const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
+        content:
+            const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -95,7 +98,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                  const Icon(Icons.error_outline,
+                      size: 64, color: AppColors.error),
                   const SizedBox(height: 16),
                   Text(
                     provider.error ?? 'Rendez-vous non trouvé',
@@ -132,21 +136,25 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       _InfoRow(
                         icon: Icons.calendar_today,
                         label: 'Date',
-                        value: Formatters.formatDate(appointment.appointmentDate),
+                        value:
+                            Formatters.formatDate(appointment.appointmentDate),
                       ),
                       const SizedBox(height: 16),
                       _InfoRow(
                         icon: Icons.access_time,
                         label: 'Heure',
-                        value: Formatters.formatTime(appointment.appointmentDate),
+                        value:
+                            Formatters.formatTime(appointment.appointmentDate),
                       ),
                       const SizedBox(height: 16),
                       _InfoRow(
                         icon: Icons.attach_money,
                         label: 'Prix total',
-                        value: Formatters.formatCurrency(appointment.totalPrice),
+                        value:
+                            Formatters.formatCurrency(appointment.totalPrice),
                       ),
-                      if (appointment.notes != null && appointment.notes!.isNotEmpty) ...[
+                      if (appointment.notes != null &&
+                          appointment.notes!.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _InfoRow(
                           icon: Icons.note,
@@ -226,5 +234,3 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
-

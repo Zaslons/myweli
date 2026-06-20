@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 
 class WhatsAppNotificationsScreen extends StatelessWidget {
   const WhatsAppNotificationsScreen({super.key});
@@ -34,7 +35,8 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.trending_down, color: Colors.green, size: 32),
+                  const Icon(Icons.trending_down,
+                      color: Colors.green, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -131,13 +133,15 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
             const SizedBox(height: 12),
             const _MessageTemplateCard(
               title: 'Rappel de rendez-vous',
-              message: 'Bonjour ! Vous avez un rendez-vous demain à 16:00. Nous vous attendons ✨. Détails: Coupe + Coloration',
+              message:
+                  'Bonjour ! Vous avez un rendez-vous demain à 16:00. Nous vous attendons ✨. Détails: Coupe + Coloration',
               time: '6 septembre 2024',
             ),
             const SizedBox(height: 12),
             const _MessageTemplateCard(
               title: 'Offre promotionnelle',
-              message: 'Complexe classique pour seulement 3,000 FCFA. Manicure 💅, pédicure 🦶, vernis...',
+              message:
+                  'Complexe classique pour seulement 3,000 FCFA. Manicure 💅, pédicure 🦶, vernis...',
               time: '11:00',
             ),
             const SizedBox(height: 24),

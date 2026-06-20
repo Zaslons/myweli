@@ -114,7 +114,8 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
             itemCount: stories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppTheme.spacingS),
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: AppTheme.spacingS),
             itemBuilder: (context, index) {
               final s = stories[index];
               final isSeen = _seenIds.contains(s.id);
@@ -198,4 +199,3 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
     );
   }
 }
-

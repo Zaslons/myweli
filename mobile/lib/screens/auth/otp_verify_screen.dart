@@ -1,15 +1,17 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/favorites_provider.dart';
+
+import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/utils/helpers.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_button.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
@@ -77,7 +79,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Future<void> _handleVerify() async {
     final otp = _controllers.map((c) => c.text).join();
     if (otp.length != 6) {
-      Helpers.showSnackBar(context, 'Veuillez entrer le code complet', isError: true);
+      Helpers.showSnackBar(context, 'Veuillez entrer le code complet',
+          isError: true);
       return;
     }
 
@@ -92,10 +95,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     if (success) {
       // Load favorites for the newly logged in user
       if (authProvider.user != null) {
-        final favoritesProvider = Provider.of<FavoritesProvider>(context, listen: false);
-        favoritesProvider.loadFavorites(authProvider.user!.id);
+        final favoritesProvider =
+            Provider.of<FavoritesProvider>(context, listen: false);
+        unawaited(favoritesProvider.loadFavorites(authProvider.user!.id));
       }
-      
+
       // Navigate to return path if provided, otherwise go to home
       if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
         context.go(Uri.decodeComponent(widget.returnTo!));
@@ -202,18 +206,24 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       ],
                       decoration: InputDecoration(
                         counterText: '',
-                        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 16),
                         isDense: false,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusLarge),
+                          borderSide: const BorderSide(
+                              color: AppColors.border, width: 1.5),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusLarge),
+                          borderSide: const BorderSide(
+                              color: AppColors.border, width: 1.5),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusLarge),
                           borderSide: const BorderSide(
                             color: AppColors.primary,
                             width: 2.5,
@@ -225,7 +235,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       onChanged: (value) => _onOtpChanged(index, value),
                       onTap: () {
                         if (_controllers[index].text.isEmpty) {
-                          _controllers[index].selection = const TextSelection.collapsed(
+                          _controllers[index].selection =
+                              const TextSelection.collapsed(
                             offset: 0,
                           );
                         }
@@ -256,6 +267,3 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     );
   }
 }
-
-
-

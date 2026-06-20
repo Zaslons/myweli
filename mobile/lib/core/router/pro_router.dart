@@ -1,19 +1,20 @@
 import 'package:go_router/go_router.dart';
-import '../../screens/provider/auth/pro_splash_screen.dart';
-import '../../screens/provider/auth/pro_login_screen.dart';
-import '../../screens/provider/auth/pro_register_screen.dart';
-import '../../screens/provider/auth/pro_otp_verify_screen.dart';
-import '../../screens/provider/dashboard/dashboard_screen.dart';
+
 import '../../screens/provider/appointments/appointment_list_screen.dart';
 import '../../screens/provider/appointments/pro_appointment_detail_screen.dart';
-import '../../screens/provider/services/service_list_screen.dart';
-import '../../screens/provider/services/service_form_screen.dart';
-import '../../screens/provider/artists/artist_list_screen.dart';
 import '../../screens/provider/artists/artist_form_screen.dart';
+import '../../screens/provider/artists/artist_list_screen.dart';
+import '../../screens/provider/auth/pro_login_screen.dart';
+import '../../screens/provider/auth/pro_otp_verify_screen.dart';
+import '../../screens/provider/auth/pro_register_screen.dart';
+import '../../screens/provider/auth/pro_splash_screen.dart';
 import '../../screens/provider/availability/availability_screen.dart';
-import '../../screens/provider/profile/pro_profile_screen.dart';
+import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
+import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
+import '../../screens/provider/services/service_form_screen.dart';
+import '../../screens/provider/services/service_list_screen.dart';
 
 class ProRouter {
   static final GoRouter router = GoRouter(

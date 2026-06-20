@@ -75,6 +75,3 @@ class Availability extends Equatable {
     );
   }
 }
-
-
-

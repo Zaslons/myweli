@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart' as provider_package;
 import 'package:go_router/go_router.dart';
-import '../../models/appointment.dart';
-import '../../models/provider.dart' as models;
-import '../../models/service.dart';
-import '../../models/artist.dart';
-import '../../providers/provider_provider.dart';
+import 'package:provider/provider.dart' as provider_package;
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../models/appointment.dart';
+import '../../models/artist.dart';
+import '../../models/provider.dart' as models;
+import '../../models/service.dart';
+import '../../providers/provider_provider.dart';
 import '../common/timed_cached_image.dart';
 
 class AppointmentCard extends StatelessWidget {
@@ -66,7 +67,9 @@ class AppointmentCard extends StatelessWidget {
 
         // Get services for this appointment
         final services = provider != null
-            ? provider.services.where((s) => appointment.serviceIds.contains(s.id)).toList()
+            ? provider.services
+                .where((s) => appointment.serviceIds.contains(s.id))
+                .toList()
             : <Service>[];
 
         return GestureDetector(
@@ -86,7 +89,8 @@ class AppointmentCard extends StatelessWidget {
                   children: [
                     // Provider Image
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                      borderRadius:
+                          BorderRadius.circular(AppTheme.radiusMedium),
                       child: provider != null && provider.imageUrls.isNotEmpty
                           ? TimedCachedImage(
                               imageUrl: provider.imageUrls.first,
@@ -98,7 +102,8 @@ class AppointmentCard extends StatelessWidget {
                               width: 80,
                               height: 80,
                               color: AppColors.surface,
-                              child: const Icon(Icons.store, size: 40, color: AppColors.textTertiary),
+                              child: const Icon(Icons.store,
+                                  size: 40, color: AppColors.textTertiary),
                             ),
                     ),
                     const SizedBox(width: 16),
@@ -125,8 +130,10 @@ class AppointmentCard extends StatelessWidget {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _getStatusColor(appointment.status).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                                  color: _getStatusColor(appointment.status)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(
+                                      AppTheme.radiusSmall),
                                 ),
                                 child: Text(
                                   _getStatusText(appointment.status),
@@ -147,17 +154,20 @@ class AppointmentCard extends StatelessWidget {
                                     provider.longitude == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Localisation non disponible pour ce salon'),
+                                      content: Text(
+                                          'Localisation non disponible pour ce salon'),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                   return;
                                 }
-                                context.push('/favorites?providerId=${provider.id}');
+                                context.push(
+                                    '/favorites?providerId=${provider.id}');
                               },
                               child: Row(
                                 children: [
-                                  const Icon(Icons.location_on, size: 14, color: AppColors.textTertiary),
+                                  const Icon(Icons.location_on,
+                                      size: 14, color: AppColors.textTertiary),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
@@ -169,11 +179,13 @@ class AppointmentCard extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  const Icon(Icons.map, size: 14, color: AppColors.textTertiary),
+                                  const Icon(Icons.map,
+                                      size: 14, color: AppColors.textTertiary),
                                 ],
                               ),
                             ),
-                            if (provider.latitude != null && provider.longitude != null) ...[
+                            if (provider.latitude != null &&
+                                provider.longitude != null) ...[
                               const SizedBox(height: 2),
                               GestureDetector(
                                 onTap: () {
@@ -186,7 +198,8 @@ class AppointmentCard extends StatelessWidget {
                                 },
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.directions, size: 14, color: AppColors.primary),
+                                    const Icon(Icons.directions,
+                                        size: 14, color: AppColors.primary),
                                     const SizedBox(width: 4),
                                     Text(
                                       'Itinéraire',
@@ -225,7 +238,8 @@ class AppointmentCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusSmall),
                         ),
                         child: Text(
                           service.name,
@@ -254,8 +268,8 @@ class AppointmentCard extends StatelessWidget {
                     builder: (context) {
                       final artist = provider!.artists.firstWhere(
                         (a) => a.id == appointment.artistId,
-                        orElse: () => provider!.artists.isNotEmpty 
-                            ? provider.artists.first 
+                        orElse: () => provider!.artists.isNotEmpty
+                            ? provider.artists.first
                             : Artist(
                                 id: '',
                                 name: 'Artiste',
@@ -264,7 +278,8 @@ class AppointmentCard extends StatelessWidget {
                       );
                       return Row(
                         children: [
-                          const Icon(Icons.person, size: 16, color: AppColors.textTertiary),
+                          const Icon(Icons.person,
+                              size: 16, color: AppColors.textTertiary),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -286,11 +301,13 @@ class AppointmentCard extends StatelessWidget {
                     Expanded(
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 16, color: AppColors.textTertiary),
+                          const Icon(Icons.calendar_today,
+                              size: 16, color: AppColors.textTertiary),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              Formatters.formatDateShort(appointment.appointmentDate),
+                              Formatters.formatDateShort(
+                                  appointment.appointmentDate),
                               style: AppTextStyles.bodyMedium.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -302,11 +319,13 @@ class AppointmentCard extends StatelessWidget {
                     Expanded(
                       child: Row(
                         children: [
-                          const Icon(Icons.access_time, size: 16, color: AppColors.textTertiary),
+                          const Icon(Icons.access_time,
+                              size: 16, color: AppColors.textTertiary),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              Formatters.formatTime(appointment.appointmentDate),
+                              Formatters.formatTime(
+                                  appointment.appointmentDate),
                               style: AppTextStyles.bodyMedium.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -343,6 +362,3 @@ class AppointmentCard extends StatelessWidget {
     );
   }
 }
-
-
-

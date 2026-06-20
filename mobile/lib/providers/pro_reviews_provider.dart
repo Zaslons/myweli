@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
+
+import '../core/constants/app_constants.dart';
 import '../models/review.dart';
 import '../services/mock/mock_data.dart';
-import '../core/constants/app_constants.dart';
 
 class ProReviewsProvider extends ChangeNotifier {
   List<Review> _reviews = [];
@@ -14,7 +15,9 @@ class ProReviewsProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadReviews(String providerId) async {
-    if (_currentProviderId == providerId && _reviews.isNotEmpty && !_isLoading) {
+    if (_currentProviderId == providerId &&
+        _reviews.isNotEmpty &&
+        !_isLoading) {
       return;
     }
 
@@ -27,8 +30,10 @@ class ProReviewsProvider extends ChangeNotifier {
       // For now, use mock data directly.
       // TODO(reviews): inject ProServiceInterface and call getProviderReviews(providerId).
       await Future.delayed(AppConstants.mockDelay);
-      _reviews = MockData.reviews.where((r) => r.providerId == providerId).toList();
-      _reviews.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Most recent first
+      _reviews =
+          MockData.reviews.where((r) => r.providerId == providerId).toList();
+      _reviews.sort(
+          (a, b) => b.createdAt.compareTo(a.createdAt)); // Most recent first
       _error = null;
     } catch (e) {
       _error = e.toString();

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
 
 class CategoryChips extends StatelessWidget {
   final String? selectedCategory;
@@ -41,7 +42,9 @@ class CategoryChips extends StatelessWidget {
                   Icon(
                     category['icon'] as IconData,
                     size: 18,
-                    color: isSelected ? AppColors.secondary : AppColors.textPrimary,
+                    color: isSelected
+                        ? AppColors.secondary
+                        : AppColors.textPrimary,
                   ),
                   const SizedBox(width: 6),
                   Text(category['name'] as String),
@@ -71,6 +74,3 @@ class CategoryChips extends StatelessWidget {
     );
   }
 }
-
-
-

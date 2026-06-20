@@ -38,7 +38,8 @@ class StoryViewer extends StatefulWidget {
   State<StoryViewer> createState() => _StoryViewerState();
 }
 
-class _StoryViewerState extends State<StoryViewer> with TickerProviderStateMixin {
+class _StoryViewerState extends State<StoryViewer>
+    with TickerProviderStateMixin {
   static const _storyDuration = Duration(seconds: 6);
 
   late final PageController _pageController;
@@ -238,7 +239,9 @@ class _StoryViewerState extends State<StoryViewer> with TickerProviderStateMixin
               child: Builder(
                 builder: (context) {
                   final s = widget.stories[_index];
-                  if (s.ctaLabel == null || s.ctaRoute == null) return const SizedBox.shrink();
+                  if (s.ctaLabel == null || s.ctaRoute == null) {
+                    return const SizedBox.shrink();
+                  }
                   return SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -263,4 +266,3 @@ class _StoryViewerState extends State<StoryViewer> with TickerProviderStateMixin
     );
   }
 }
-

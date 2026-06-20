@@ -1,12 +1,14 @@
 import 'dart:convert';
-import 'package:uuid/uuid.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../models/appointment.dart';
-import '../../models/api_response.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../core/constants/app_constants.dart';
+import '../../models/api_response.dart';
+import '../../models/appointment.dart';
+import '../../models/provider.dart' as models;
 import '../interfaces/appointment_service_interface.dart';
 import 'mock_data.dart';
-import '../../models/provider.dart' as models;
 
 class MockAppointmentService implements AppointmentServiceInterface {
   final _uuid = const Uuid();
@@ -83,7 +85,8 @@ class MockAppointmentService implements AppointmentServiceInterface {
           appointmentDateTime: appointmentDateTime,
         );
 
-    if (resolvedArtistId == null && MockData.getArtistsForProvider(providerId).isNotEmpty) {
+    if (resolvedArtistId == null &&
+        MockData.getArtistsForProvider(providerId).isNotEmpty) {
       return ApiResponse.error('Aucun spécialiste disponible pour ce créneau');
     }
 
@@ -121,10 +124,12 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
     if (provider.artists.isEmpty) return null;
 
-    final eligible = _eligibleArtistIdsFor(provider: provider, serviceIds: serviceIds);
+    final eligible =
+        _eligibleArtistIdsFor(provider: provider, serviceIds: serviceIds);
     if (eligible.isEmpty) return null;
 
-    final duration = _durationMinutesFor(providerId: providerId, serviceIds: serviceIds);
+    final duration =
+        _durationMinutesFor(providerId: providerId, serviceIds: serviceIds);
     final start = appointmentDateTime;
     final end = appointmentDateTime.add(Duration(minutes: duration));
 
@@ -135,7 +140,9 @@ class MockAppointmentService implements AppointmentServiceInterface {
         if (apt.artistId != aid) return false;
         final aptStart = apt.appointmentDate;
         final aptEnd = aptStart.add(
-          Duration(minutes: _durationMinutesFor(providerId: providerId, serviceIds: apt.serviceIds)),
+          Duration(
+              minutes: _durationMinutesFor(
+                  providerId: providerId, serviceIds: apt.serviceIds)),
         );
         return _overlaps(start, end, aptStart, aptEnd);
       });
@@ -207,7 +214,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
     final selectedDate = DateTime(date.year, date.month, date.day);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+
     // Skip past dates
     if (selectedDate.isBefore(today)) {
       return ApiResponse.success([]);
@@ -227,7 +234,8 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
     // Determine base opening slots from weekly schedule (30min slots).
     final weekdayIndex = selectedDate.weekday - 1; // Mon=1..Sun=7 -> 0..6
-    final templateSlots = provider.availability.weeklySchedule[weekdayIndex] ?? const [];
+    final templateSlots =
+        provider.availability.weeklySchedule[weekdayIndex] ?? const [];
     final openingSlots = templateSlots
         .where((s) => s.isAvailable)
         .map((s) => DateTime(
@@ -250,7 +258,8 @@ class MockAppointmentService implements AppointmentServiceInterface {
     final duration = durationMinutes ??
         (serviceIds == null
             ? 30
-            : _durationMinutesFor(providerId: providerId, serviceIds: serviceIds));
+            : _durationMinutesFor(
+                providerId: providerId, serviceIds: serviceIds));
     final durationBlocks = (duration / 30).ceil().clamp(1, 48);
 
     bool candidateOk(DateTime start) {
@@ -260,7 +269,8 @@ class MockAppointmentService implements AppointmentServiceInterface {
       // Ensure provider opening slots cover the whole duration in 30-min increments.
       for (var i = 0; i < durationBlocks; i++) {
         final seg = start.add(Duration(minutes: 30 * i));
-        final exists = openingSlots.any((t) => t.hour == seg.hour && t.minute == seg.minute);
+        final exists = openingSlots
+            .any((t) => t.hour == seg.hour && t.minute == seg.minute);
         if (!exists) return false;
       }
 
@@ -272,14 +282,17 @@ class MockAppointmentService implements AppointmentServiceInterface {
           if (apt.artistId != artistId) return false;
           final aptStart = apt.appointmentDate;
           final aptEnd = aptStart.add(
-            Duration(minutes: _durationMinutesFor(providerId: providerId, serviceIds: apt.serviceIds)),
+            Duration(
+                minutes: _durationMinutesFor(
+                    providerId: providerId, serviceIds: apt.serviceIds)),
           );
           return _overlaps(start, end, aptStart, aptEnd);
         });
       }
 
       // Otherwise, require at least one eligible artist free for this time.
-      final eligible = _eligibleArtistIdsFor(provider: provider, serviceIds: serviceIds);
+      final eligible =
+          _eligibleArtistIdsFor(provider: provider, serviceIds: serviceIds);
       if (eligible.isEmpty) return true; // salons with no artists
 
       for (final aid in eligible) {
@@ -289,7 +302,9 @@ class MockAppointmentService implements AppointmentServiceInterface {
           if (apt.artistId != aid) return false;
           final aptStart = apt.appointmentDate;
           final aptEnd = aptStart.add(
-            Duration(minutes: _durationMinutesFor(providerId: providerId, serviceIds: apt.serviceIds)),
+            Duration(
+                minutes: _durationMinutesFor(
+                    providerId: providerId, serviceIds: apt.serviceIds)),
           );
           return _overlaps(start, end, aptStart, aptEnd);
         });
@@ -337,16 +352,15 @@ class MockAppointmentService implements AppointmentServiceInterface {
       orElse: () => MockData.providers.first,
     );
     if (serviceIds.isEmpty) return 30;
-    final selected = provider.services.where((s) => serviceIds.contains(s.id)).toList();
+    final selected =
+        provider.services.where((s) => serviceIds.contains(s.id)).toList();
     if (selected.isEmpty) return 30;
     final sum = selected.fold<int>(0, (acc, s) => acc + s.durationMinutes);
     return sum <= 0 ? 30 : sum;
   }
 
-  bool _overlaps(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) {
+  bool _overlaps(
+      DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) {
     return aStart.isBefore(bEnd) && bStart.isBefore(aEnd);
   }
 }
-
-
-

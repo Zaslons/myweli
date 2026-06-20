@@ -5,13 +5,13 @@ class Formatters {
   static String formatPhoneNumber(String phone) {
     // Remove all non-digit characters except +
     final cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
-    
+
     if (!cleaned.startsWith('+225')) {
       return phone; // Return as-is if not Côte d'Ivoire format
     }
 
     final digits = cleaned.substring(4); // Remove +225
-    
+
     if (digits.length != 8) {
       return phone; // Return as-is if incorrect length
     }
@@ -71,6 +71,3 @@ class Formatters {
     return '${h}h${m.toString().padLeft(2, '0')}';
   }
 }
-
-
-

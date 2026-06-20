@@ -24,6 +24,3 @@ class AppConstants {
   static const String placeholderAvatar =
       'https://via.placeholder.com/100?text=User';
 }
-
-
-

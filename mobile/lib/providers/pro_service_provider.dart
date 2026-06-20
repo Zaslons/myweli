@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
+
 import '../core/di/dependency_injection.dart';
-import '../services/interfaces/pro_service_interface.dart';
 import '../models/service.dart';
+import '../services/interfaces/pro_service_interface.dart';
 
 class ProServiceProvider extends ChangeNotifier {
   final ProServiceInterface _proService = serviceLocator.proService;
@@ -16,7 +17,9 @@ class ProServiceProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadServices(String providerId) async {
-    if (_currentProviderId == providerId && _services.isNotEmpty && !_isLoading) {
+    if (_currentProviderId == providerId &&
+        _services.isNotEmpty &&
+        !_isLoading) {
       return;
     }
 
@@ -43,7 +46,8 @@ class ProServiceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createService(String providerId, Map<String, dynamic> serviceData) async {
+  Future<bool> createService(
+      String providerId, Map<String, dynamic> serviceData) async {
     _isLoading = true;
     notifyListeners();
 
@@ -69,7 +73,8 @@ class ProServiceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateService(String serviceId, Map<String, dynamic> serviceData) async {
+  Future<bool> updateService(
+      String serviceId, Map<String, dynamic> serviceData) async {
     _isLoading = true;
     notifyListeners();
 

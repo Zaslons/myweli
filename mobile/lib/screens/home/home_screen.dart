@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../providers/provider_provider.dart';
-import '../../providers/favorites_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/appointment_provider.dart';
-import '../../models/appointment.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/theme/app_theme.dart';
-import '../../widgets/provider/provider_card.dart';
-import '../../widgets/home/category_chips.dart';
-import '../../widgets/home/announcement_stories.dart';
-import '../../widgets/home/search_bar.dart';
+import '../../models/appointment.dart';
+import '../../providers/appointment_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
+import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
+import '../../widgets/home/announcement_stories.dart';
+import '../../widgets/home/category_chips.dart';
+import '../../widgets/home/search_bar.dart';
+import '../../widgets/provider/provider_card.dart';
 
 extension _FirstOrNullExtension<E> on Iterable<E> {
   E? get firstOrNull => isEmpty ? null : first;
@@ -34,11 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final provider = Provider.of<ProviderProvider>(context, listen: false);
       provider.loadFeaturedProviders();
       provider.loadProviders();
-      
+
       // Load favorites if user is authenticated
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
-        final favoritesProvider = Provider.of<FavoritesProvider>(context, listen: false);
+        final favoritesProvider =
+            Provider.of<FavoritesProvider>(context, listen: false);
         favoritesProvider.loadFavorites(authProvider.user!.id);
 
         // Load appointments for “Derniers rendez-vous”
@@ -113,80 +115,89 @@ class _HomeScreenState extends State<HomeScreen> {
               const SliverToBoxAdapter(
                 child: AnnouncementStories(),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: AppTheme.spacingM)),
+              const SliverToBoxAdapter(
+                  child: SizedBox(height: AppTheme.spacingM)),
               // Categories
               const SliverToBoxAdapter(
                 child: CategoryChips(),
               ),
               // Featured Section
               Consumer<ProviderProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.featuredProviders.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(AppTheme.spacingL),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  );
-                }
-
-                if (provider.featuredProviders.isEmpty) {
-                  return const SliverToBoxAdapter(child: SizedBox.shrink());
-                }
-
-                return SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacingM,
-                          vertical: AppTheme.spacingS,
-                        ),
-                        child: Text(
-                          'À la une',
-                          style: AppTextStyles.titleLarge.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
+                builder: (context, provider, _) {
+                  if (provider.isLoading &&
+                      provider.featuredProviders.isEmpty) {
+                    return const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(AppTheme.spacingL),
+                        child: Center(child: CircularProgressIndicator()),
                       ),
-                      SizedBox(
-                        height: 280,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
+                    );
+                  }
+
+                  if (provider.featuredProviders.isEmpty) {
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
+
+                  return SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppTheme.spacingM,
+                            vertical: AppTheme.spacingS,
                           ),
-                          itemCount: provider.featuredProviders.length,
-                          itemBuilder: (context, index) {
-                            final p = provider.featuredProviders[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(right: AppTheme.spacingM),
-                              child: ProviderCard(
-                                provider: p,
-                                isGrid: true,
-                                onTap: () => context.push('/provider/${p.id}'),
-                              ),
-                            );
-                          },
+                          child: Text(
+                            'À la une',
+                            style: AppTextStyles.titleLarge.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                        SizedBox(
+                          height: 280,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTheme.spacingM,
+                            ),
+                            itemCount: provider.featuredProviders.length,
+                            itemBuilder: (context, index) {
+                              final p = provider.featuredProviders[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                    right: AppTheme.spacingM),
+                                child: ProviderCard(
+                                  provider: p,
+                                  isGrid: true,
+                                  onTap: () =>
+                                      context.push('/provider/${p.id}'),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
 
               // Recent bookings (only when authenticated) — placed AFTER “À la une”
               SliverToBoxAdapter(
-                child: Consumer3<AuthProvider, AppointmentProvider, ProviderProvider>(
-                  builder: (context, authProvider, appointmentProvider, providerProvider, _) {
-                    if (!authProvider.isAuthenticated) return const SizedBox.shrink();
+                child: Consumer3<AuthProvider, AppointmentProvider,
+                    ProviderProvider>(
+                  builder: (context, authProvider, appointmentProvider,
+                      providerProvider, _) {
+                    if (!authProvider.isAuthenticated) {
+                      return const SizedBox.shrink();
+                    }
 
                     final recent = appointmentProvider.appointments
                         .where((a) => a.status != AppointmentStatus.cancelled)
                         .toList()
-                      ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
+                      ..sort((a, b) =>
+                          b.appointmentDate.compareTo(a.appointmentDate));
 
                     if (recent.isEmpty) return const SizedBox.shrink();
 
@@ -231,13 +242,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                     .where((p) => p.id == a.providerId)
                                     .firstOrNull;
                                 final providerName = p?.name ?? 'Salon';
-                                final providerImageUrl = (p != null &&
-                                        p.imageUrls.isNotEmpty)
-                                    ? p.imageUrls.first
-                                    : null;
+                                final providerImageUrl =
+                                    (p != null && p.imageUrls.isNotEmpty)
+                                        ? p.imageUrls.first
+                                        : null;
 
                                 final w = MediaQuery.of(context).size.width;
-                                final cardWidth = (w * 0.86).clamp(280.0, 360.0);
+                                final cardWidth =
+                                    (w * 0.86).clamp(280.0, 360.0);
 
                                 return SizedBox(
                                   width: cardWidth,
@@ -259,127 +271,135 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: AppTheme.spacingM)),
+              const SliverToBoxAdapter(
+                  child: SizedBox(height: AppTheme.spacingM)),
               // Favorites Section
               Consumer3<FavoritesProvider, AuthProvider, ProviderProvider>(
-              builder: (context, favoritesProvider, authProvider, providerProvider, _) {
-                if (!authProvider.isAuthenticated || authProvider.user == null) {
-                  return const SliverToBoxAdapter(child: SizedBox.shrink());
-                }
+                builder: (context, favoritesProvider, authProvider,
+                    providerProvider, _) {
+                  if (!authProvider.isAuthenticated ||
+                      authProvider.user == null) {
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
 
-                final favoriteProviders = favoritesProvider.getFavoriteProviders(
-                  providerProvider.providers,
-                );
+                  final favoriteProviders =
+                      favoritesProvider.getFavoriteProviders(
+                    providerProvider.providers,
+                  );
 
-                if (favoriteProviders.isEmpty) {
-                  return const SliverToBoxAdapter(child: SizedBox.shrink());
-                }
+                  if (favoriteProviders.isEmpty) {
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
 
-                return SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacingM,
-                          vertical: AppTheme.spacingS,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Mes favoris',
-                              style: AppTextStyles.titleLarge.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => context.push('/favorites'),
-                              child: const Text('Voir la carte'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: 280,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
+                  return SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppTheme.spacingM,
+                            vertical: AppTheme.spacingS,
                           ),
-                          itemCount: favoriteProviders.length,
-                          itemBuilder: (context, index) {
-                            final p = favoriteProviders[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(right: AppTheme.spacingM),
-                              child: ProviderCard(
-                                provider: p,
-                                isGrid: true,
-                                onTap: () => context.push('/provider/${p.id}'),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Mes favoris',
+                                style: AppTextStyles.titleLarge.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
-                            );
-                          },
+                              TextButton(
+                                onPressed: () => context.push('/favorites'),
+                                child: const Text('Voir la carte'),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                        SizedBox(
+                          height: 280,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTheme.spacingM,
+                            ),
+                            itemCount: favoriteProviders.length,
+                            itemBuilder: (context, index) {
+                              final p = favoriteProviders[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                    right: AppTheme.spacingM),
+                                child: ProviderCard(
+                                  provider: p,
+                                  isGrid: true,
+                                  onTap: () =>
+                                      context.push('/provider/${p.id}'),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
               // Nearby Section
               Consumer<ProviderProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.providers.isEmpty) {
-                  return const SliverFillRemaining(
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
+                builder: (context, provider, _) {
+                  if (provider.isLoading && provider.providers.isEmpty) {
+                    return const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
 
-                if (provider.providers.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Text(
-                        'Aucun salon trouvé',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textTertiary,
+                  if (provider.providers.isEmpty) {
+                    return SliverFillRemaining(
+                      child: Center(
+                        child: Text(
+                          'Aucun salon trouvé',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
                         ),
+                      ),
+                    );
+                  }
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.all(AppTheme.spacingM),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                  bottom: AppTheme.spacingM),
+                              child: Text(
+                                'Près de vous',
+                                style: AppTextStyles.titleLarge.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            );
+                          }
+                          final p = provider.providers[index - 1];
+                          return Padding(
+                            padding: const EdgeInsets.only(
+                                bottom: AppTheme.spacingM),
+                            child: ProviderCard(
+                              provider: p,
+                              isGrid: false,
+                              onTap: () => context.push('/provider/${p.id}'),
+                            ),
+                          );
+                        },
+                        childCount: provider.providers.length + 1,
                       ),
                     ),
                   );
-                }
-
-                return SliverPadding(
-                  padding: const EdgeInsets.all(AppTheme.spacingM),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        if (index == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                            child: Text(
-                              'Près de vous',
-                              style: AppTextStyles.titleLarge.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          );
-                        }
-                        final p = provider.providers[index - 1];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                          child: ProviderCard(
-                            provider: p,
-                            isGrid: false,
-                            onTap: () => context.push('/provider/${p.id}'),
-                          ),
-                        );
-                      },
-                      childCount: provider.providers.length + 1,
-                    ),
-                  ),
-                );
-              },
-            ),
+                },
+              ),
             ],
           ),
         ),
@@ -413,5 +433,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-

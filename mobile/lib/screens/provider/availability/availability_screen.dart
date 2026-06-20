@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/pro_auth_provider.dart';
-import '../../../providers/pro_availability_provider.dart';
-import '../../../models/availability.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/availability.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_availability_provider.dart';
 
 class AvailabilityScreen extends StatefulWidget {
   const AvailabilityScreen({super.key});
@@ -27,7 +28,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final availabilityProvider = Provider.of<ProAvailabilityProvider>(context, listen: false);
+        final availabilityProvider =
+            Provider.of<ProAvailabilityProvider>(context, listen: false);
         availabilityProvider.loadAvailability(_resolvedProviderId(context));
       }
     });
@@ -46,7 +48,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (availabilityProvider.isLoading && availabilityProvider.availability == null) {
+          if (availabilityProvider.isLoading &&
+              availabilityProvider.availability == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -55,7 +58,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             return Center(
               child: Text(
                 availabilityProvider.error ?? 'Aucune disponibilité configurée',
-                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyLarge
+                    .copyWith(color: AppColors.textSecondary),
               ),
             );
           }
@@ -63,7 +67,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           return RefreshIndicator(
             onRefresh: () async {
               if (authProvider.provider != null) {
-                await availabilityProvider.loadAvailability(_resolvedProviderId(context));
+                await availabilityProvider
+                    .loadAvailability(_resolvedProviderId(context));
               }
             },
             child: SingleChildScrollView(
@@ -74,7 +79,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 children: [
                   Text(
                     'Horaires de travail',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge
+                        .copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 16),
                   ...List.generate(7, (index) {
@@ -84,14 +90,20 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       dayIndex: index,
                       dayName: dayName,
                       timeSlots: daySlots,
-                      onEdit: () => _showEditDayDialog(context, index, dayName, daySlots,
-                          availabilityProvider, _resolvedProviderId(context)),
+                      onEdit: () => _showEditDayDialog(
+                          context,
+                          index,
+                          dayName,
+                          daySlots,
+                          availabilityProvider,
+                          _resolvedProviderId(context)),
                     );
                   }),
                   const SizedBox(height: 24),
                   Text(
                     'Dates bloquées',
-                    style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge
+                        .copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 12),
                   if (availability.blockedDates.isEmpty)
@@ -99,11 +111,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       padding: const EdgeInsets.all(AppTheme.spacingM),
                       decoration: BoxDecoration(
                         color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusLarge),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline, color: AppColors.textSecondary),
+                          const Icon(Icons.info_outline,
+                              color: AppColors.textSecondary),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -148,7 +162,15 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   String _getDayName(int dayIndex) {
-    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    const days = [
+      'Lundi',
+      'Mardi',
+      'Mercredi',
+      'Jeudi',
+      'Vendredi',
+      'Samedi',
+      'Dimanche'
+    ];
     return days[dayIndex];
   }
 
@@ -189,7 +211,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
     if (selectedDate != null && context.mounted) {
       final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
-        ..add(DateTime(selectedDate.year, selectedDate.month, selectedDate.day));
+        ..add(
+            DateTime(selectedDate.year, selectedDate.month, selectedDate.day));
       final updatedAvailability = Availability(
         providerId: availability.providerId,
         weeklySchedule: availability.weeklySchedule,
@@ -215,7 +238,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     String providerId,
   ) async {
     final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
-      ..removeWhere((d) => d.year == date.year && d.month == date.month && d.day == date.day);
+      ..removeWhere((d) =>
+          d.year == date.year && d.month == date.month && d.day == date.day);
     final updatedAvailability = Availability(
       providerId: availability.providerId,
       weeklySchedule: availability.weeklySchedule,
@@ -231,7 +255,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       );
     }
   }
-
 }
 
 class _DayScheduleCard extends StatelessWidget {
@@ -254,12 +277,14 @@ class _DayScheduleCard extends StatelessWidget {
       child: ListTile(
         title: Text(
           dayName,
-          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          style:
+              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
         ),
         subtitle: timeSlots.isEmpty
             ? Text(
                 'Fermé',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textSecondary),
               )
             : Wrap(
                 spacing: 8,
@@ -301,7 +326,8 @@ class _BlockedDateCard extends StatelessWidget {
         leading: const Icon(Icons.block, color: AppColors.error),
         title: Text(
           Formatters.formatDate(date),
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+          style:
+              AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
         ),
         trailing: IconButton(
           icon: const Icon(Icons.delete, color: AppColors.error),
@@ -374,7 +400,8 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.access_time, size: 48, color: AppColors.textSecondary),
+                        const Icon(Icons.access_time,
+                            size: 48, color: AppColors.textSecondary),
                         const SizedBox(height: 12),
                         Text(
                           'Aucun créneau horaire',
@@ -403,7 +430,9 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                   }),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: provider.isLoading ? null : () => _saveSchedule(availability, provider),
+                  onPressed: provider.isLoading
+                      ? null
+                      : () => _saveSchedule(availability, provider),
                   child: provider.isLoading
                       ? const SizedBox(
                           height: 20,
@@ -447,7 +476,8 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
 
     final pickedEnd = await showTimePicker(
       context: context,
-      initialTime: endTime ?? TimeOfDay(hour: pickedStart.hour + 1, minute: pickedStart.minute),
+      initialTime: endTime ??
+          TimeOfDay(hour: pickedStart.hour + 1, minute: pickedStart.minute),
     );
 
     if (pickedEnd == null || !mounted) return;
@@ -468,7 +498,8 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
       pickedEnd.minute,
     );
 
-    if (endDateTime.isBefore(startDateTime) || endDateTime.isAtSameMomentAs(startDateTime)) {
+    if (endDateTime.isBefore(startDateTime) ||
+        endDateTime.isAtSameMomentAs(startDateTime)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -503,8 +534,10 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     });
   }
 
-  Future<void> _saveSchedule(Availability availability, ProAvailabilityProvider provider) async {
-    final updatedSchedule = Map<int, List<TimeSlot>>.from(availability.weeklySchedule);
+  Future<void> _saveSchedule(
+      Availability availability, ProAvailabilityProvider provider) async {
+    final updatedSchedule =
+        Map<int, List<TimeSlot>>.from(availability.weeklySchedule);
     updatedSchedule[widget.dayIndex] = _slots;
 
     final updatedAvailability = Availability(
@@ -513,7 +546,8 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
       blockedDates: availability.blockedDates,
     );
 
-    final success = await provider.updateAvailability(widget.providerId, updatedAvailability);
+    final success = await provider.updateAvailability(
+        widget.providerId, updatedAvailability);
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -562,7 +596,8 @@ class _TimeSlotCard extends StatelessWidget {
         ),
         title: Text(
           '${Formatters.formatTime(slot.startTime)} - ${Formatters.formatTime(slot.endTime)}',
-          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          style:
+              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

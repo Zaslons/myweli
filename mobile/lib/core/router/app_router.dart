@@ -1,21 +1,22 @@
 import 'package:go_router/go_router.dart';
-import '../../screens/splash/splash_screen.dart';
-import '../../screens/auth/phone_login_screen.dart';
+
+import '../../screens/appointments/appointment_detail_screen.dart';
+import '../../screens/appointments/my_bookings_screen.dart';
 import '../../screens/auth/otp_verify_screen.dart';
-import '../../screens/home/home_screen.dart';
-import '../../screens/providers/provider_list_screen.dart';
-import '../../screens/providers/provider_detail_screen.dart';
-import '../../screens/booking/service_selection_screen.dart';
+import '../../screens/auth/phone_login_screen.dart';
 import '../../screens/booking/artist_selection_screen.dart';
-import '../../screens/booking/date_time_selection_screen.dart';
 import '../../screens/booking/booking_confirmation_screen.dart';
 import '../../screens/booking/booking_hub_screen.dart';
-import '../../screens/appointments/my_bookings_screen.dart';
-import '../../screens/appointments/appointment_detail_screen.dart';
-import '../../screens/profile/profile_screen.dart';
-import '../../screens/profile/edit_profile_screen.dart';
+import '../../screens/booking/date_time_selection_screen.dart';
+import '../../screens/booking/service_selection_screen.dart';
+import '../../screens/home/home_screen.dart';
 import '../../screens/map/map_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
+import '../../screens/profile/edit_profile_screen.dart';
+import '../../screens/profile/profile_screen.dart';
+import '../../screens/providers/provider_detail_screen.dart';
+import '../../screens/providers/provider_list_screen.dart';
+import '../../screens/splash/splash_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -98,10 +99,9 @@ class AppRouter {
         builder: (context, state) {
           final providerId = state.uri.queryParameters['providerId']!;
           final serviceParam = state.uri.queryParameters['serviceIds'];
-          final serviceIds =
-              serviceParam == null || serviceParam.isEmpty
-                  ? const <String>[]
-                  : serviceParam.split(',');
+          final serviceIds = serviceParam == null || serviceParam.isEmpty
+              ? const <String>[]
+              : serviceParam.split(',');
           final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
           final artistId = state.uri.queryParameters['artistId'];
           final dateTimeParam = state.uri.queryParameters['dateTime'];
@@ -126,10 +126,9 @@ class AppRouter {
         builder: (context, state) {
           final providerId = state.uri.queryParameters['providerId']!;
           final serviceParam = state.uri.queryParameters['serviceIds'];
-          final serviceIds =
-              serviceParam == null || serviceParam.isEmpty
-                  ? const <String>[]
-                  : serviceParam.split(',');
+          final serviceIds = serviceParam == null || serviceParam.isEmpty
+              ? const <String>[]
+              : serviceParam.split(',');
           final artistId = state.uri.queryParameters['artistId'];
           final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
           final dateTimeParam = state.uri.queryParameters['dateTime'];
@@ -153,8 +152,10 @@ class AppRouter {
         name: 'booking-confirmation',
         builder: (context, state) {
           final providerId = state.uri.queryParameters['providerId']!;
-          final serviceIds = state.uri.queryParameters['serviceIds']!.split(',');
-          final dateTime = DateTime.parse(state.uri.queryParameters['dateTime']!);
+          final serviceIds =
+              state.uri.queryParameters['serviceIds']!.split(',');
+          final dateTime =
+              DateTime.parse(state.uri.queryParameters['dateTime']!);
           final artistId = state.uri.queryParameters['artistId'];
           return BookingConfirmationScreen(
             providerId: providerId,
@@ -205,6 +206,3 @@ class AppRouter {
     ],
   );
 }
-
-
-

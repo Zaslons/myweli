@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/pro_auth_provider.dart';
-import '../../../providers/pro_earnings_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_earnings_provider.dart';
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -25,7 +26,8 @@ class _EarningsScreenState extends State<EarningsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final earningsProvider = Provider.of<ProEarningsProvider>(context, listen: false);
+        final earningsProvider =
+            Provider.of<ProEarningsProvider>(context, listen: false);
         earningsProvider.loadEarnings(authProvider.provider!.id);
       }
     });
@@ -41,7 +43,8 @@ class _EarningsScreenState extends State<EarningsScreen>
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
     if (!authProvider.isAuthenticated || authProvider.provider == null) return;
 
-    final earningsProvider = Provider.of<ProEarningsProvider>(context, listen: false);
+    final earningsProvider =
+        Provider.of<ProEarningsProvider>(context, listen: false);
     final now = DateTime.now();
 
     DateTime? startDate;
@@ -103,7 +106,8 @@ class _EarningsScreenState extends State<EarningsScreen>
             return Center(
               child: Text(
                 earningsProvider.error ?? 'Aucune donnée disponible',
-                style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyLarge
+                    .copyWith(color: AppColors.textSecondary),
               ),
             );
           }
@@ -117,12 +121,14 @@ class _EarningsScreenState extends State<EarningsScreen>
                   children: [
                     Text(
                       'Total',
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                      style: AppTextStyles.bodyMedium
+                          .copyWith(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       Formatters.formatCurrency(earnings.totalEarnings),
-                      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.primary),
+                      style: AppTextStyles.headlineLarge
+                          .copyWith(color: AppColors.primary),
                     ),
                   ],
                 ),
@@ -132,7 +138,8 @@ class _EarningsScreenState extends State<EarningsScreen>
                     ? Center(
                         child: Text(
                           'Aucune transaction',
-                          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodyLarge
+                              .copyWith(color: AppColors.textSecondary),
                         ),
                       )
                     : ListView.builder(
@@ -141,12 +148,15 @@ class _EarningsScreenState extends State<EarningsScreen>
                         itemBuilder: (context, index) {
                           final transaction = earnings.transactions[index];
                           return Card(
-                            margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
+                            margin: const EdgeInsets.only(
+                                bottom: AppTheme.spacingM),
                             child: ListTile(
-                              title: Text(Formatters.formatDateTime(transaction.date)),
+                              title: Text(
+                                  Formatters.formatDateTime(transaction.date)),
                               trailing: Text(
                                 Formatters.formatCurrency(transaction.amount),
-                                style: AppTextStyles.titleMedium.copyWith(color: AppColors.primary),
+                                style: AppTextStyles.titleMedium
+                                    .copyWith(color: AppColors.primary),
                               ),
                             ),
                           );

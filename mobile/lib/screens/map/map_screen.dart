@@ -160,7 +160,8 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _openProviderSheet(models.Provider p) {
-    final parentContext = context; // preserve the widget-tree context for go_router
+    final parentContext =
+        context; // preserve the widget-tree context for go_router
     showModalBottomSheet<void>(
       context: parentContext,
       isScrollControlled: true,
@@ -169,132 +170,145 @@ class _MapScreenState extends State<MapScreen> {
         return Container(
           decoration: const BoxDecoration(
             color: AppColors.secondary,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
           ),
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppTheme.spacingM, AppTheme.spacingM, AppTheme.spacingM, AppTheme.spacingL),
+              padding: const EdgeInsets.fromLTRB(AppTheme.spacingM,
+                  AppTheme.spacingM, AppTheme.spacingM, AppTheme.spacingL),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: AppColors.divider,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                      child: TimedCachedImage(
-                        imageUrl: p.imageUrls.isNotEmpty ? p.imageUrls.first : '',
-                        width: 64,
-                        height: 64,
-                        fit: BoxFit.cover,
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-                    const SizedBox(width: AppTheme.spacingM),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            p.name,
-                            style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.star, size: 16, color: Colors.amber),
-                              const SizedBox(width: 4),
-                              Text(
-                                p.rating.toStringAsFixed(1),
-                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '(${p.reviewCount})',
-                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            p.city ?? p.address,
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Consumer2<AuthProvider, FavoritesProvider>(
-                      builder: (_, auth, favorites, __) {
-                        final isFav =
-                            auth.isAuthenticated ? favorites.isFavorite(p.id) : false;
-                        return IconButton(
-                          onPressed: () async {
-                            if (!auth.isAuthenticated || auth.user == null) {
-                              Navigator.of(sheetCtx).pop();
-                              parentContext.go('/login?returnTo=${Uri.encodeComponent('/favorites')}');
-                              return;
-                            }
-                            await favorites.toggleFavorite(auth.user!.id, p.id);
-                          },
-                          icon: Icon(
-                            isFav ? Icons.favorite : Icons.favorite_border,
-                            color: isFav ? Colors.redAccent : AppColors.textPrimary,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(sheetCtx).pop();
-                      parentContext.push('/provider/${p.id}');
-                    },
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Voir le salon'),
                   ),
-                ),
-                if (p.latitude != null && p.longitude != null) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppTheme.spacingM),
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+                        child: TimedCachedImage(
+                          imageUrl:
+                              p.imageUrls.isNotEmpty ? p.imageUrls.first : '',
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(width: AppTheme.spacingM),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.name,
+                              style: AppTextStyles.titleLarge
+                                  .copyWith(color: AppColors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.star,
+                                    size: 16, color: Colors.amber),
+                                const SizedBox(width: 4),
+                                Text(
+                                  p.rating.toStringAsFixed(1),
+                                  style: AppTextStyles.bodySmall
+                                      .copyWith(color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '(${p.reviewCount})',
+                                  style: AppTextStyles.bodySmall
+                                      .copyWith(color: AppColors.textTertiary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              p.city ?? p.address,
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(color: AppColors.textTertiary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Consumer2<AuthProvider, FavoritesProvider>(
+                        builder: (_, auth, favorites, __) {
+                          final isFav = auth.isAuthenticated
+                              ? favorites.isFavorite(p.id)
+                              : false;
+                          return IconButton(
+                            onPressed: () async {
+                              if (!auth.isAuthenticated || auth.user == null) {
+                                Navigator.of(sheetCtx).pop();
+                                parentContext.go(
+                                    '/login?returnTo=${Uri.encodeComponent('/favorites')}');
+                                return;
+                              }
+                              await favorites.toggleFavorite(
+                                  auth.user!.id, p.id);
+                            },
+                            icon: Icon(
+                              isFav ? Icons.favorite : Icons.favorite_border,
+                              color: isFav
+                                  ? Colors.redAccent
+                                  : AppColors.textPrimary,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.spacingM),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.of(sheetCtx).pop();
-                        Helpers.launchNavigation(
-                          latitude: p.latitude!,
-                          longitude: p.longitude!,
-                          label: p.name,
-                          context: parentContext,
-                        );
+                        parentContext.push('/provider/${p.id}');
                       },
-                      icon: const Icon(Icons.directions),
-                      label: const Text('Y aller'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.surfaceVariant,
-                        foregroundColor: AppColors.textPrimary,
-                      ),
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('Voir le salon'),
                     ),
                   ),
-                ],
+                  if (p.latitude != null && p.longitude != null) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(sheetCtx).pop();
+                          Helpers.launchNavigation(
+                            latitude: p.latitude!,
+                            longitude: p.longitude!,
+                            label: p.name,
+                            context: parentContext,
+                          );
+                        },
+                        icon: const Icon(Icons.directions),
+                        label: const Text('Y aller'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.surfaceVariant,
+                          foregroundColor: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -414,7 +428,8 @@ class _MapScreenState extends State<MapScreen> {
                   padding: const EdgeInsets.all(AppTheme.spacingM),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, color: AppColors.textSecondary),
+                      const Icon(Icons.info_outline,
+                          color: AppColors.textSecondary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -441,7 +456,8 @@ class _MapScreenState extends State<MapScreen> {
               children: [
                 FloatingActionButton(
                   heroTag: 'center_me',
-                  onPressed: (_position != null) ? _centerOnUser : _initLocation,
+                  onPressed:
+                      (_position != null) ? _centerOnUser : _initLocation,
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.secondary,
                   child: _locating
@@ -450,7 +466,8 @@ class _MapScreenState extends State<MapScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.secondary),
                           ),
                         )
                       : const Icon(Icons.my_location),
@@ -536,4 +553,3 @@ class _SalonMarker extends StatelessWidget {
     );
   }
 }
-

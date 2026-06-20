@@ -1,5 +1,5 @@
-import '../../models/appointment.dart';
 import '../../models/api_response.dart';
+import '../../models/appointment.dart';
 
 abstract class AppointmentServiceInterface {
   Future<ApiResponse<Appointment>> bookAppointment({
@@ -22,6 +22,3 @@ abstract class AppointmentServiceInterface {
     int? durationMinutes,
   });
 }
-
-
-
