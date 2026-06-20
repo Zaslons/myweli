@@ -58,6 +58,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
     required DateTime appointmentDateTime,
     String? artistId,
     String? notes,
+    double depositAmount = 0,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
 
@@ -97,8 +98,13 @@ class MockAppointmentService implements AppointmentServiceInterface {
       serviceIds: serviceIds,
       artistId: resolvedArtistId,
       appointmentDate: appointmentDateTime,
-      status: AppointmentStatus.pending,
+      status: depositAmount > 0
+          ? AppointmentStatus.confirmed
+          : AppointmentStatus.pending,
       totalPrice: totalPrice,
+      depositAmount: depositAmount,
+      balanceDue:
+          (totalPrice - depositAmount).clamp(0.0, totalPrice).toDouble(),
       notes: notes,
       createdAt: DateTime.now(),
     );

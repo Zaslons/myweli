@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/deposit.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
@@ -81,9 +83,35 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     super.dispose();
   }
 
-  Future<void> _handleConfirm() async {
-    setState(() => _isLoading = true);
+  Future<void> _handleConfirm(double depositAmount, double balanceDue) async {
+    final notes = _notesController.text.isEmpty ? null : _notesController.text;
 
+    // Deposit required → collect it via the Mobile Money sheet, which also
+    // creates the booking on success.
+    if (depositAmount > 0) {
+      final paid = await showDepositPaymentSheet(
+        context,
+        depositAmount: depositAmount,
+        balanceDue: balanceDue,
+        providerId: widget.providerId,
+        serviceIds: widget.serviceIds,
+        appointmentDateTime: widget.appointmentDateTime,
+        artistId: widget.artistId,
+        notes: notes,
+      );
+      if (!mounted || paid != true) return;
+      context.go('/bookings');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Acompte payé · rendez-vous confirmé'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      return;
+    }
+
+    // No deposit required → book directly (provider will confirm).
+    setState(() => _isLoading = true);
     final appointmentProvider =
         Provider.of<AppointmentProvider>(context, listen: false);
     final success = await appointmentProvider.bookAppointment(
@@ -91,7 +119,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       serviceIds: widget.serviceIds,
       appointmentDateTime: widget.appointmentDateTime,
       artistId: widget.artistId,
-      notes: _notesController.text.isEmpty ? null : _notesController.text,
+      notes: notes,
     );
 
     if (!mounted) return;
@@ -134,6 +162,12 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
               .where((s) => widget.serviceIds.contains(s.id))
               .toList();
           final total = selectedServices.fold(0.0, (sum, s) => sum + s.price);
+          final depositAmount = computeDeposit(
+            total: total,
+            depositRequired: p.depositRequired,
+            percentage: p.depositPercentage,
+          );
+          final balanceDue = total - depositAmount;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -239,22 +273,60 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         ],
                       ),
                       const Divider(height: 24),
-                      // Total
+                      // Price breakdown
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Total:',
-                            style: AppTextStyles.titleMedium,
+                          Text(
+                            'Total',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           Text(
                             Formatters.formatCurrency(total),
-                            style: AppTextStyles.titleLarge.copyWith(
-                              color: AppColors.primary,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
                       ),
+                      if (depositAmount > 0) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Acompte (${(p.depositPercentage * 100).round()}%)',
+                              style: AppTextStyles.titleMedium,
+                            ),
+                            Text(
+                              Formatters.formatCurrency(depositAmount),
+                              style: AppTextStyles.titleLarge.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Solde à régler au salon',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                            Text(
+                              Formatters.formatCurrency(balanceDue),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -268,8 +340,12 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 ),
                 const SizedBox(height: 24),
                 AppButton(
-                  text: 'Confirmer la réservation',
-                  onPressed: _isLoading ? null : _handleConfirm,
+                  text: depositAmount > 0
+                      ? 'Payer l\'acompte · ${Formatters.formatCurrency(depositAmount)}'
+                      : 'Confirmer la réservation',
+                  onPressed: _isLoading
+                      ? null
+                      : () => _handleConfirm(depositAmount, balanceDue),
                   isLoading: _isLoading,
                 ),
                 const SizedBox(height: 16),

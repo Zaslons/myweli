@@ -8,6 +8,7 @@ abstract class AppointmentServiceInterface {
     required DateTime appointmentDateTime,
     String? artistId,
     String? notes,
+    double depositAmount = 0,
   });
   Future<ApiResponse<List<Appointment>>> getUserAppointments({
     AppointmentStatus? status,

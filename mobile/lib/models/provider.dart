@@ -23,6 +23,8 @@ class Provider extends Equatable {
   final Availability availability;
   final String phoneNumber;
   final String category; // 'salon', 'barber', 'spa', etc.
+  final bool depositRequired;
+  final double depositPercentage;
   final List<Review> reviews;
 
   const Provider({
@@ -43,6 +45,8 @@ class Provider extends Equatable {
     required this.availability,
     required this.phoneNumber,
     required this.category,
+    this.depositRequired = true,
+    this.depositPercentage = 0.30,
     this.reviews = const [],
   });
 
@@ -65,6 +69,8 @@ class Provider extends Equatable {
         availability,
         phoneNumber,
         category,
+        depositRequired,
+        depositPercentage,
         reviews,
       ];
 
@@ -86,6 +92,8 @@ class Provider extends Equatable {
     Availability? availability,
     String? phoneNumber,
     String? category,
+    bool? depositRequired,
+    double? depositPercentage,
     List<Review>? reviews,
   }) {
     return Provider(
@@ -106,6 +114,8 @@ class Provider extends Equatable {
       availability: availability ?? this.availability,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       category: category ?? this.category,
+      depositRequired: depositRequired ?? this.depositRequired,
+      depositPercentage: depositPercentage ?? this.depositPercentage,
       reviews: reviews ?? this.reviews,
     );
   }
@@ -129,6 +139,8 @@ class Provider extends Equatable {
       'availability': availability.toJson(),
       'phoneNumber': phoneNumber,
       'category': category,
+      'depositRequired': depositRequired,
+      'depositPercentage': depositPercentage,
       'reviews': reviews.map((r) => r.toJson()).toList(),
     };
   }
@@ -159,6 +171,9 @@ class Provider extends Equatable {
           Availability.fromJson(json['availability'] as Map<String, dynamic>),
       phoneNumber: json['phoneNumber'] as String,
       category: json['category'] as String,
+      depositRequired: json['depositRequired'] as bool? ?? true,
+      depositPercentage:
+          (json['depositPercentage'] as num?)?.toDouble() ?? 0.30,
       reviews: json['reviews'] != null
           ? (json['reviews'] as List)
               .map((r) => Review.fromJson(r as Map<String, dynamic>))

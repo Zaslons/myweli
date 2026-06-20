@@ -153,6 +153,22 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                         value:
                             Formatters.formatCurrency(appointment.totalPrice),
                       ),
+                      if (appointment.depositAmount > 0) ...[
+                        const SizedBox(height: 16),
+                        _InfoRow(
+                          icon: Icons.check_circle_outline,
+                          label: 'Acompte payé',
+                          value: Formatters.formatCurrency(
+                              appointment.depositAmount),
+                        ),
+                        const SizedBox(height: 16),
+                        _InfoRow(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: 'Solde à régler au salon',
+                          value:
+                              Formatters.formatCurrency(appointment.balanceDue),
+                        ),
+                      ],
                       if (appointment.notes != null &&
                           appointment.notes!.isNotEmpty) ...[
                         const SizedBox(height: 16),
