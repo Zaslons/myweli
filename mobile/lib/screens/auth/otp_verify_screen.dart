@@ -143,6 +143,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
+      // Tell the OS the one-time code was used so it stops offering it.
+      TextInput.finishAutofillContext();
       if (authProvider.user != null) {
         final favoritesProvider =
             Provider.of<FavoritesProvider>(context, listen: false);
@@ -233,9 +235,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(6, _buildOtpBox),
+              AutofillGroup(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(6, _buildOtpBox),
+                ),
               ),
               if (_inlineError != null) ...[
                 const SizedBox(height: 16),
@@ -323,6 +327,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
           textAlignVertical: TextAlignVertical.center,
           keyboardType: TextInputType.number,
           maxLength: index == 0 ? 6 : 1,
+          // The OS delivers the SMS code to the first box; paste-distribution
+          // (in _onOtpChanged) then fills the rest and auto-submits.
+          autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
           style: AppTextStyles.headlineMedium.copyWith(
             color: _hasError ? AppColors.error : AppColors.textPrimary,
             fontSize: 26,
