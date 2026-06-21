@@ -159,7 +159,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Booking + deposit** (FR-PAY-001): confirmation shows Total / Acompte / Solde; `DepositPaymentSheet` (Wave/OM/MTN/Moov, remembered operator, processing/success/failure); deposit-to-confirm on a mock payment service. Provider-side **deposit settings** (FR-PRO-PAY-001) shipped too (toggle + % slider).
 - ✅ **Notifications** (FR-NOTIF-002): in-app feed replaces the stub (flat list, unread cues, "Tout lire", tap → mark read + deep link).
 - ✅ **Reviews** (FR-REV-002/003): verified-booking badge, stylist attribution, photo **display** (attach deferred to the Phase 4 image pipeline).
-- ⏳ **Still V1-open:** auth real-OTP UX (#2); booking buffers / duration-by-length / **rebook** (#4 partial); appointments policy-bound cancel/reschedule + rich visit history + auto-sync (#5); profile account deletion/export (#8); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
+- ✅ **Booking — rebook** (FR-BOOK-009): tapping a *past* appointment in the salon-page "appointments at this salon" carousel re-opens the booking hub pre-filled with the same services + stylist (sanitized against current provider data) and lands on Date & heure; upcoming appointments still open the detail.
+- ⏳ **Still V1-open:** auth real-OTP UX (#2); booking buffers / duration-by-length (#4 partial); appointments policy-bound cancel/reschedule + rich visit history + auto-sync (#5); profile account deletion/export (#8); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
