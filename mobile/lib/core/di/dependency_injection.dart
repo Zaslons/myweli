@@ -14,6 +14,7 @@ import '../../services/mock/mock_payment_service.dart';
 import '../../services/mock/mock_pro_artist_service.dart';
 import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_provider_service.dart';
+import '../../services/secure_session_store.dart';
 
 /// Service Locator for Dependency Injection
 /// Currently using mock services, will switch to API services when backend is ready
@@ -34,7 +35,7 @@ class ServiceLocator {
 
   void setup() {
     // Use mock services for now
-    authService = MockAuthService();
+    authService = MockAuthService(sessionStore: SecureSessionStore());
     providerService = MockProviderService();
     appointmentService = MockAppointmentService();
     favoritesService = MockFavoritesService();
