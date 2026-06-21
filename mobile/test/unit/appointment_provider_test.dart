@@ -160,4 +160,25 @@ void main() {
         DateTime(2024, 6, 24, 10));
     expect(provider.error, 'boom');
   });
+
+  test('visitHistory exposes past, non-cancelled appointments as visits',
+      () async {
+    final past = confirmed(); // 2024 → elapsed
+    final cancelled = confirmed().copyWith(
+      id: 'a2',
+      status: AppointmentStatus.cancelled,
+    );
+    final future = confirmed().copyWith(
+      id: 'a3',
+      appointmentDate: DateTime.now().add(const Duration(days: 7)),
+    );
+    when(() => appointments.getUserAppointments(status: any(named: 'status')))
+        .thenAnswer(
+            (_) async => ApiResponse.success([past, cancelled, future]));
+
+    final provider = AppointmentProvider();
+    await provider.loadAppointments();
+
+    expect(provider.visitHistory.map((a) => a.id), ['a1']);
+  });
 }
