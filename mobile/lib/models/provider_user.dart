@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'kyc_document.dart';
+
 enum BusinessType {
   salon,
   barber,
@@ -24,6 +26,12 @@ class ProviderUser extends Equatable {
   final String? email;
   final String? address;
   final VerificationStatus verificationStatus;
+
+  /// Reason supplied when [verificationStatus] is rejected.
+  final String? rejectionReason;
+
+  /// Submitted KYC documents (references only — no file bytes on device).
+  final List<KycDocument> kycDocs;
   final DateTime createdAt;
   final String? providerId; // Consumer Provider id (e.g. provider1)
 
@@ -36,6 +44,8 @@ class ProviderUser extends Equatable {
     this.email,
     this.address,
     this.verificationStatus = VerificationStatus.pending,
+    this.rejectionReason,
+    this.kycDocs = const [],
     required this.createdAt,
     this.providerId,
   });
@@ -50,6 +60,8 @@ class ProviderUser extends Equatable {
         email,
         address,
         verificationStatus,
+        rejectionReason,
+        kycDocs,
         createdAt,
         providerId,
       ];
@@ -63,6 +75,8 @@ class ProviderUser extends Equatable {
     String? email,
     String? address,
     VerificationStatus? verificationStatus,
+    String? rejectionReason,
+    List<KycDocument>? kycDocs,
     DateTime? createdAt,
     String? providerId,
   }) {
@@ -75,6 +89,8 @@ class ProviderUser extends Equatable {
       email: email ?? this.email,
       address: address ?? this.address,
       verificationStatus: verificationStatus ?? this.verificationStatus,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      kycDocs: kycDocs ?? this.kycDocs,
       createdAt: createdAt ?? this.createdAt,
       providerId: providerId ?? this.providerId,
     );
@@ -90,6 +106,8 @@ class ProviderUser extends Equatable {
       'email': email,
       'address': address,
       'verificationStatus': verificationStatus.name,
+      'rejectionReason': rejectionReason,
+      'kycDocs': kycDocs.map((d) => d.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'providerId': providerId,
     };
@@ -111,6 +129,12 @@ class ProviderUser extends Equatable {
         (e) => e.name == json['verificationStatus'],
         orElse: () => VerificationStatus.pending,
       ),
+      rejectionReason: json['rejectionReason'] as String?,
+      kycDocs: json['kycDocs'] != null
+          ? (json['kycDocs'] as List)
+              .map((d) => KycDocument.fromJson(d as Map<String, dynamic>))
+              .toList()
+          : const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
       providerId: json['providerId'] as String?,
     );
