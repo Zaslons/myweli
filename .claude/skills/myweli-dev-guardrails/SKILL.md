@@ -78,6 +78,7 @@ Treat any unchecked box as "not done."
 - [ ] **API shape:** mock returns the agreed DTO shape, not an ad-hoc one.
 
 ### Before a commit / PR
+- **Feature-branch + PR workflow:** don't commit or push to `main` directly — branch off main (`feat/…`, `fix/…`, `chore/…`), push the branch, and open a PR (`gh pr create`) for the user to review/merge; after CI is green, report the PR and leave merging to the user (see memory `git-workflow-feature-branches-prs`).
 - `analyze` = 0, tests green, format clean, coverage not decreased, dependency scan clean (ROADMAP §7 gates).
 - Conventional commit message, authored as the user — **no Claude author or `Co-Authored-By` trailer** (see memory `git-no-claude-attribution`).
 - Never commit secrets, `.env`, build artifacts, or `build/` / `.dart_tool/`.
