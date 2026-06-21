@@ -270,6 +270,7 @@ class MockProService implements ProServiceInterface {
       DepositPolicy(
         depositRequired: provider.depositRequired,
         depositPercentage: provider.depositPercentage,
+        cancellationWindowHours: provider.cancellationWindowHours,
       ),
     );
   }
@@ -279,6 +280,7 @@ class MockProService implements ProServiceInterface {
     String providerId, {
     required bool depositRequired,
     required double depositPercentage,
+    required int cancellationWindowHours,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
     final index = MockData.providers.indexWhere((p) => p.id == providerId);
@@ -288,11 +290,13 @@ class MockProService implements ProServiceInterface {
     MockData.providers[index] = MockData.providers[index].copyWith(
       depositRequired: depositRequired,
       depositPercentage: depositPercentage,
+      cancellationWindowHours: cancellationWindowHours,
     );
     return ApiResponse.success(
       DepositPolicy(
         depositRequired: depositRequired,
         depositPercentage: depositPercentage,
+        cancellationWindowHours: cancellationWindowHours,
       ),
     );
   }

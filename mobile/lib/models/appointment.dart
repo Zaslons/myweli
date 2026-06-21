@@ -18,6 +18,10 @@ class Appointment extends Equatable {
   final double totalPrice;
   final double depositAmount;
   final double balanceDue;
+
+  /// Snapshot of the provider's cancellation window (hours) at booking time, so
+  /// the policy that governs this appointment can't change underneath the user.
+  final int cancellationWindowHours;
   final String? notes;
   final DateTime createdAt;
 
@@ -32,6 +36,7 @@ class Appointment extends Equatable {
     required this.totalPrice,
     this.depositAmount = 0,
     this.balanceDue = 0,
+    this.cancellationWindowHours = 24,
     this.notes,
     required this.createdAt,
   });
@@ -48,6 +53,7 @@ class Appointment extends Equatable {
         totalPrice,
         depositAmount,
         balanceDue,
+        cancellationWindowHours,
         notes,
         createdAt,
       ];
@@ -63,6 +69,7 @@ class Appointment extends Equatable {
     double? totalPrice,
     double? depositAmount,
     double? balanceDue,
+    int? cancellationWindowHours,
     String? notes,
     DateTime? createdAt,
   }) {
@@ -77,6 +84,8 @@ class Appointment extends Equatable {
       totalPrice: totalPrice ?? this.totalPrice,
       depositAmount: depositAmount ?? this.depositAmount,
       balanceDue: balanceDue ?? this.balanceDue,
+      cancellationWindowHours:
+          cancellationWindowHours ?? this.cancellationWindowHours,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -94,6 +103,7 @@ class Appointment extends Equatable {
       'totalPrice': totalPrice,
       'depositAmount': depositAmount,
       'balanceDue': balanceDue,
+      'cancellationWindowHours': cancellationWindowHours,
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -114,6 +124,7 @@ class Appointment extends Equatable {
       totalPrice: (json['totalPrice'] as num).toDouble(),
       depositAmount: (json['depositAmount'] as num?)?.toDouble() ?? 0,
       balanceDue: (json['balanceDue'] as num?)?.toDouble() ?? 0,
+      cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
