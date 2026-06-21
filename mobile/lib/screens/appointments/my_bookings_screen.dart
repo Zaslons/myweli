@@ -4,11 +4,15 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
+import '../../core/utils/visit_history.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/appointment_card.dart';
+import '../../widgets/common/app_button.dart';
 import '../../widgets/common/empty_state.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -87,8 +91,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 provider.upcomingAppointments,
                 provider.isLoading,
               ),
-              _buildAppointmentsList(
-                provider.pastAppointments,
+              _buildHistory(
+                provider.visitHistory,
                 provider.isLoading,
               ),
               _buildAppointmentsList(
@@ -161,6 +165,130 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildHistory(List<Appointment> visits, bool isLoading) {
+    if (isLoading && visits.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (visits.isEmpty) {
+      return const EmptyState(
+        icon: Icons.history,
+        title: 'Aucune visite',
+        description: 'Vos rendez-vous passés apparaîtront ici.',
+      );
+    }
+
+    final groups = groupVisitsByMonth(visits);
+    final spent = totalSpent(visits);
+
+    final children = <Widget>[
+      Row(
+        children: [
+          Expanded(
+            child: _summaryMetric(
+              '${visits.length}',
+              visits.length == 1 ? 'visite' : 'visites',
+            ),
+          ),
+          const SizedBox(width: AppTheme.spacingM),
+          Expanded(
+            child: _summaryMetric(
+              Formatters.formatCurrency(spent),
+              'dépensés',
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: AppTheme.spacingM),
+    ];
+
+    for (final group in groups) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+          child: Text(
+            Formatters.formatMonthYear(group.month).toUpperCase(),
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textTertiary,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      );
+      for (final visit in group.visits) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+            child: Column(
+              children: [
+                AppointmentCard(
+                  appointment:
+                      visit.copyWith(status: AppointmentStatus.completed),
+                  onTap: () => context.push('/appointment/${visit.id}'),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppButton(
+                    text: 'Réserver à nouveau',
+                    type: AppButtonType.secondary,
+                    icon: Icons.refresh,
+                    onPressed: () => _rebook(visit),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        final provider =
+            Provider.of<AppointmentProvider>(context, listen: false);
+        await provider.loadAppointments();
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        children: children,
+      ),
+    );
+  }
+
+  void _rebook(Appointment appointment) {
+    final uri = Uri(path: '/booking', queryParameters: {
+      'providerId': appointment.providerId,
+      if (appointment.serviceIds.isNotEmpty)
+        'serviceIds': appointment.serviceIds.join(','),
+      if (appointment.artistId != null) 'artistId': appointment.artistId!,
+    });
+    context.push(uri.toString());
+  }
+
+  Widget _summaryMetric(String value, String label) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: AppTextStyles.titleLarge),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

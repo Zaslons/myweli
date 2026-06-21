@@ -47,6 +47,11 @@ class Formatters {
     return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
   }
 
+  /// Format month + year: "juin 2026" (used for visit-history headers).
+  static String formatMonthYear(DateTime date) {
+    return DateFormat('MMMM yyyy', 'fr_FR').format(date);
+  }
+
   /// Format time: "14:30"
   static String formatTime(DateTime time) {
     return DateFormat('HH:mm', 'fr_FR').format(time);

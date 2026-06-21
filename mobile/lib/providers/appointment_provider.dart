@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
+import '../core/utils/visit_history.dart' as vh;
 import '../models/appointment.dart';
 import '../models/payment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
@@ -43,6 +44,10 @@ class AppointmentProvider extends ChangeNotifier {
         .toList()
       ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
   }
+
+  /// Completed past visits (effective status), newest first.
+  List<Appointment> get visitHistory =>
+      vh.visitHistory(_appointments, DateTime.now());
 
   bool hasCompletedBookingAt(String providerId, String userId) {
     return _appointments.any((a) =>
