@@ -43,7 +43,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Consumer appointments** (list, detail, cancel) | ~75% | Missing: policy-bound cancel UI, visit-history richness, auto-sync entries. |
 | **Reviews** (submit post-completion) | ~70% | Missing: photos, verified-booking badge, per-artist attribution. |
 | **Favorites** (map + toggle) | ~80% | Solid. |
-| **Profile** (view/edit) | ~70% | Missing: account deletion/export (store + law). |
+| **Profile** (view/edit) | ~90% | Account deletion (typed confirm) + data export (JSON copy) done. Missing: avatar upload. |
 | **Notifications (consumer)** | ~10% | **Stub** (`EmptyState`). No feed, no center. |
 | **Pro auth + register** | ~80% | Missing: KYC upload UI, guided onboarding (empty `onboarding/`). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
@@ -147,7 +147,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 5. **Appointments** — policy-bound cancel/reschedule UI, rich visit history, auto-sync placeholder entries.
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
-8. **Profile** — account deletion/export.
+8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
 9. **Pro V1** — KYC upload UI, guided onboarding (fill the empty `onboarding/`), manual booking entry, no-show marking, price ranges/duration variants/buffers/commission fields, payouts UI.
 10. **Hide/remove** the unrouted V2/V3 feature screens behind a flag so they don't ship.
 
@@ -160,7 +160,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Notifications** (FR-NOTIF-002): in-app feed replaces the stub (flat list, unread cues, "Tout lire", tap → mark read + deep link).
 - ✅ **Reviews** (FR-REV-002/003): verified-booking badge, stylist attribution, photo **display** (attach deferred to the Phase 4 image pipeline).
 - ✅ **Booking — rebook** (FR-BOOK-009): tapping a *past* appointment in the salon-page "appointments at this salon" carousel re-opens the booking hub pre-filled with the same services + stylist (sanitized against current provider data) and lands on Date & heure; past tiles show a "Réserver à nouveau" hint, upcoming appointments still open the detail.
-- ⏳ **Still V1-open:** auth real-OTP UX (#2); booking buffers / duration-by-length (#4 partial); appointments policy-bound cancel/reschedule + rich visit history + auto-sync (#5); profile account deletion/export (#8); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
+- ✅ **Profile — account deletion + data export** (FR-PROF-008): authenticated users can **export their data** ("Mes données" → profile + rendez-vous + favoris, copied as JSON) and **delete their account** (type "SUPPRIMER" to confirm → clears session + favorites → back to login). Both behind `AuthServiceInterface` (`deleteAccount`) with a pure, unit-tested export builder. *(Real file download/share + server-side erasure land with the backend.)*
+- ⏳ **Still V1-open:** auth real-OTP UX (#2); booking buffers / duration-by-length (#4 partial); appointments policy-bound cancel/reschedule + rich visit history + auto-sync (#5); profile avatar upload (#8 partial); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
