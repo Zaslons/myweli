@@ -28,3 +28,15 @@ class PaymentResult {
     this.error,
   });
 }
+
+/// A provider's deposit policy: whether an acompte is required and, if so, the
+/// fraction of the total charged up front.
+class DepositPolicy {
+  final bool depositRequired;
+  final double depositPercentage;
+
+  const DepositPolicy({
+    required this.depositRequired,
+    required this.depositPercentage,
+  });
+}

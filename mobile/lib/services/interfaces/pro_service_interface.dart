@@ -1,6 +1,7 @@
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
+import '../../models/payment.dart';
 import '../../models/service.dart';
 
 // Dashboard stats model
@@ -90,5 +91,13 @@ abstract class ProServiceInterface {
     String providerId, {
     DateTime? startDate,
     DateTime? endDate,
+  });
+
+  // Deposit policy
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId);
+  Future<ApiResponse<DepositPolicy>> updateDepositPolicy(
+    String providerId, {
+    required bool depositRequired,
+    required double depositPercentage,
   });
 }

@@ -1,5 +1,7 @@
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/pro_auth_provider.dart';
 import '../../screens/provider/appointments/appointment_list_screen.dart';
 import '../../screens/provider/appointments/pro_appointment_detail_screen.dart';
 import '../../screens/provider/artists/artist_form_screen.dart';
@@ -15,6 +17,7 @@ import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
+import '../../screens/provider/settings/deposit_settings_screen.dart';
 
 class ProRouter {
   static final GoRouter router = GoRouter(
@@ -110,6 +113,15 @@ class ProRouter {
         path: '/pro/profile',
         name: 'pro-profile',
         builder: (context, state) => const ProProfileScreen(),
+      ),
+      GoRoute(
+        path: '/pro/deposit-settings',
+        name: 'pro-deposit-settings',
+        builder: (context, state) {
+          final providerId =
+              context.read<ProAuthProvider>().provider?.providerId ?? '';
+          return DepositSettingsScreen(providerId: providerId);
+        },
       ),
       GoRoute(
         path: '/pro/earnings',
