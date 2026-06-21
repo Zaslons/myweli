@@ -99,5 +99,6 @@ abstract class ProServiceInterface {
     String providerId, {
     required bool depositRequired,
     required double depositPercentage,
+    required int cancellationWindowHours,
   });
 }

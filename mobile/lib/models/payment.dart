@@ -34,9 +34,11 @@ class PaymentResult {
 class DepositPolicy {
   final bool depositRequired;
   final double depositPercentage;
+  final int cancellationWindowHours;
 
   const DepositPolicy({
     required this.depositRequired,
     required this.depositPercentage,
+    this.cancellationWindowHours = 24,
   });
 }
