@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/rebook.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
@@ -46,9 +47,15 @@ enum _HubSection { services, artist, dateTime }
 class BookingHubScreen extends StatefulWidget {
   final String providerId;
 
+  /// Pre-fill (used by rebook): the services + stylist to start from.
+  final List<String> initialServiceIds;
+  final String? initialArtistId;
+
   const BookingHubScreen({
     super.key,
     required this.providerId,
+    this.initialServiceIds = const [],
+    this.initialArtistId,
   });
 
   @override
@@ -77,10 +84,50 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   @override
   void initState() {
     super.initState();
-    _draft = BookingDraft(providerId: widget.providerId);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ProviderProvider>(context, listen: false)
-          .loadProviderById(widget.providerId);
+    final prefilled = widget.initialServiceIds.isNotEmpty;
+    _draft = BookingDraft(
+      providerId: widget.providerId,
+      serviceIds: widget.initialServiceIds,
+      artistId: widget.initialArtistId,
+    );
+    _artistChosen = widget.initialArtistId != null;
+    if (prefilled) {
+      // Rebook: land directly on the date/time picker.
+      _activeSection = _HubSection.dateTime;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final providerProvider =
+          Provider.of<ProviderProvider>(context, listen: false);
+      await providerProvider.loadProviderById(widget.providerId);
+      if (!mounted || !prefilled) return;
+
+      final p = providerProvider.selectedProvider;
+      if (p == null) return;
+
+      // Drop any services/stylist that no longer exist on this provider.
+      final selection = sanitizeRebookSelection(
+        serviceIds: widget.initialServiceIds,
+        artistId: widget.initialArtistId,
+        availableServiceIds: p.services.map((s) => s.id).toSet(),
+        availableArtistIds: p.artists.map((a) => a.id).toSet(),
+      );
+      setState(() {
+        _draft = _draft.copyWith(
+          serviceIds: selection.serviceIds,
+          artistId: selection.artistId,
+          clearArtistId: selection.artistId == null,
+        );
+        _artistChosen = selection.artistId != null;
+      });
+
+      if (selection.serviceIds.isNotEmpty) {
+        final appointmentProvider =
+            Provider.of<AppointmentProvider>(context, listen: false);
+        await _loadSlotsForSelectedDate(
+          appointmentProvider: appointmentProvider,
+          p: p,
+        );
+      }
     });
   }
 

@@ -70,7 +70,16 @@ class AppRouter {
         name: 'booking-hub',
         builder: (context, state) {
           final providerId = state.uri.queryParameters['providerId']!;
-          return BookingHubScreen(providerId: providerId);
+          final serviceIdsParam = state.uri.queryParameters['serviceIds'];
+          final initialServiceIds =
+              serviceIdsParam == null || serviceIdsParam.isEmpty
+                  ? const <String>[]
+                  : serviceIdsParam.split(',');
+          return BookingHubScreen(
+            providerId: providerId,
+            initialServiceIds: initialServiceIds,
+            initialArtistId: state.uri.queryParameters['artistId'],
+          );
         },
       ),
       GoRoute(

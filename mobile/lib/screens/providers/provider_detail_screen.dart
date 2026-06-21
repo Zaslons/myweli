@@ -8,6 +8,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
@@ -330,8 +331,32 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                       providerImageUrl: p.imageUrls.isNotEmpty
                                           ? p.imageUrls.first
                                           : null,
-                                      onTap: () =>
-                                          context.push('/appointment/${a.id}'),
+                                      onTap: () {
+                                        final isPast = a.status ==
+                                                AppointmentStatus.completed ||
+                                            a.status ==
+                                                AppointmentStatus.cancelled ||
+                                            a.appointmentDate
+                                                .isBefore(DateTime.now());
+                                        if (isPast) {
+                                          // Past appointment → rebook the same
+                                          // services/stylist.
+                                          final uri = Uri(
+                                            path: '/booking',
+                                            queryParameters: {
+                                              'providerId': widget.providerId,
+                                              if (a.serviceIds.isNotEmpty)
+                                                'serviceIds':
+                                                    a.serviceIds.join(','),
+                                              if (a.artistId != null)
+                                                'artistId': a.artistId!,
+                                            },
+                                          );
+                                          context.push(uri.toString());
+                                        } else {
+                                          context.push('/appointment/${a.id}');
+                                        }
+                                      },
                                     ),
                                   );
                                 },
