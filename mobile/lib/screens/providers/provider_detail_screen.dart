@@ -9,7 +9,6 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../models/availability.dart';
-import '../../models/review.dart';
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -19,6 +18,7 @@ import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
+import '../../widgets/review/review_tile.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
 class ProviderDetailScreen extends StatefulWidget {
@@ -620,7 +620,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     (review) => Padding(
                                       padding: const EdgeInsets.only(
                                           bottom: AppTheme.spacingS),
-                                      child: _ReviewTile(review: review),
+                                      child: ReviewTile(review: review),
                                     ),
                                   ),
                             ],
@@ -896,74 +896,6 @@ class PageViewIndicator extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _ReviewTile extends StatelessWidget {
-  final Review review;
-
-  const _ReviewTile({required this.review});
-
-  @override
-  Widget build(BuildContext context) {
-    final initial =
-        review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: AppColors.surfaceVariant,
-          child: Text(
-            initial,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    review.userName,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ...List.generate(
-                      5,
-                      (i) => Icon(
-                            i < review.rating ? Icons.star : Icons.star_border,
-                            size: 14,
-                            color: Colors.amber,
-                          )),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                Formatters.formatDateShort(review.createdAt),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                review.text,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

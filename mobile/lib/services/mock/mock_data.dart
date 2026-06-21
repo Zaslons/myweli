@@ -380,6 +380,12 @@ class MockData {
       userName: 'Marie Diallo',
       rating: 5,
       text: 'Très bon accueil et coupe impeccable. Je recommande.',
+      verified: true,
+      artistName: 'Kouassi Jean',
+      photoUrls: const [
+        'asset:assets/images/providers/salon_excellence_photo.png',
+        'asset:assets/images/providers/spa_relax_photo.png',
+      ],
       createdAt: DateTime(2025, 2, 4),
     ),
     Review(
@@ -389,6 +395,8 @@ class MockData {
       userName: 'Marie Diallo',
       rating: 4,
       text: 'Bon salon, un peu d\'attente le samedi. Service soigné.',
+      verified: true,
+      artistName: 'Kouassi Jean',
       createdAt: DateTime(2025, 1, 8),
     ),
     Review(
@@ -407,6 +415,7 @@ class MockData {
       userName: 'Jean Kouassi',
       rating: 5,
       text: 'Institut très propre, équipe professionnelle.',
+      verified: true,
       createdAt: DateTime(2025, 1, 15),
     ),
     Review(
