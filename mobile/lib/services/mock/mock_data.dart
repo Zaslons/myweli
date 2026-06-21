@@ -170,6 +170,7 @@ class MockData {
           name: 'Tissage',
           description: 'Tissage de cheveux',
           price: 15000,
+          priceMax: 25000,
           durationMinutes: 120,
           providerId: 'provider2',
           artistIds: ['artist3', 'artist5'], // Only these two can do this
@@ -179,6 +180,7 @@ class MockData {
           name: 'Coloration',
           description: 'Coloration complète',
           price: 12000,
+          priceMax: 18000,
           durationMinutes: 90,
           providerId: 'provider2',
           artistIds: ['artist3', 'artist4'], // These two can do this
@@ -250,6 +252,7 @@ class MockData {
         blockedDates: const [],
       ),
       phoneNumber: '+225 07 11 22 33 44',
+      whatsapp: '+225 07 11 22 33 44',
       category: 'barber',
     ),
     Provider(
@@ -283,6 +286,7 @@ class MockData {
         blockedDates: const [],
       ),
       phoneNumber: '+225 05 44 55 66 77',
+      whatsapp: '+225 05 44 55 66 77',
       category: 'salon',
     ),
     Provider(
@@ -316,6 +320,7 @@ class MockData {
         blockedDates: const [],
       ),
       phoneNumber: '+225 01 22 33 44 55',
+      whatsapp: '+225 01 22 33 44 55',
       category: 'spa',
     ),
     Provider(

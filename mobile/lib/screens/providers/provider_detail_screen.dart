@@ -496,6 +496,43 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 ),
                               ),
                             ),
+                            if (p.whatsapp != null &&
+                                p.whatsapp!.isNotEmpty) ...[
+                              const _Divider(),
+                              InkWell(
+                                onTap: () async {
+                                  final digits = p.whatsapp!
+                                      .replaceAll(RegExp(r'[^0-9]'), '');
+                                  final uri =
+                                      Uri.parse('https://wa.me/$digits');
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri,
+                                        mode: LaunchMode.externalApplication);
+                                  }
+                                },
+                                borderRadius:
+                                    BorderRadius.circular(AppTheme.radiusLarge),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.chat_outlined,
+                                          size: 20,
+                                          color: AppColors.textTertiary),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'WhatsApp',
+                                        style:
+                                            AppTextStyles.bodyMedium.copyWith(
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                             // Working hours
                             const _Divider(),
                             Padding(
@@ -1033,7 +1070,7 @@ class _ServiceTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${Formatters.formatDuration(service.durationMinutes)} • ${Formatters.formatCurrency(service.price)}',
+                  Formatters.formatDuration(service.durationMinutes),
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
                   ),
@@ -1041,10 +1078,14 @@ class _ServiceTile extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            Formatters.formatCurrency(service.price),
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.primary,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              Formatters.formatPriceRange(service.price, service.priceMax),
+              textAlign: TextAlign.end,
+              style: AppTextStyles.titleSmall.copyWith(
+                color: AppColors.primary,
+              ),
             ),
           ),
         ],

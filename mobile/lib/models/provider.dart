@@ -22,6 +22,7 @@ class Provider extends Equatable {
   final List<Artist> artists;
   final Availability availability;
   final String phoneNumber;
+  final String? whatsapp;
   final String category; // 'salon', 'barber', 'spa', etc.
   final bool depositRequired;
   final double depositPercentage;
@@ -44,6 +45,7 @@ class Provider extends Equatable {
     this.artists = const [],
     required this.availability,
     required this.phoneNumber,
+    this.whatsapp,
     required this.category,
     this.depositRequired = true,
     this.depositPercentage = 0.30,
@@ -68,6 +70,7 @@ class Provider extends Equatable {
         artists,
         availability,
         phoneNumber,
+        whatsapp,
         category,
         depositRequired,
         depositPercentage,
@@ -91,6 +94,7 @@ class Provider extends Equatable {
     List<Artist>? artists,
     Availability? availability,
     String? phoneNumber,
+    String? whatsapp,
     String? category,
     bool? depositRequired,
     double? depositPercentage,
@@ -113,6 +117,7 @@ class Provider extends Equatable {
       artists: artists ?? this.artists,
       availability: availability ?? this.availability,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      whatsapp: whatsapp ?? this.whatsapp,
       category: category ?? this.category,
       depositRequired: depositRequired ?? this.depositRequired,
       depositPercentage: depositPercentage ?? this.depositPercentage,
@@ -138,6 +143,7 @@ class Provider extends Equatable {
       'artists': artists.map((a) => a.toJson()).toList(),
       'availability': availability.toJson(),
       'phoneNumber': phoneNumber,
+      'whatsapp': whatsapp,
       'category': category,
       'depositRequired': depositRequired,
       'depositPercentage': depositPercentage,
@@ -170,6 +176,7 @@ class Provider extends Equatable {
       availability:
           Availability.fromJson(json['availability'] as Map<String, dynamic>),
       phoneNumber: json['phoneNumber'] as String,
+      whatsapp: json['whatsapp'] as String?,
       category: json['category'] as String,
       depositRequired: json['depositRequired'] as bool? ?? true,
       depositPercentage:

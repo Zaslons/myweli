@@ -30,6 +30,13 @@ class Formatters {
     return '${formatter.format(amount)} XOF';
   }
 
+  /// Format a price as a single value or a range:
+  /// "15 000 XOF" or "15 000 – 25 000 XOF".
+  static String formatPriceRange(double min, double? max) {
+    if (max == null || max <= min) return formatCurrency(min);
+    return '${formatCurrency(min)} – ${formatCurrency(max)}';
+  }
+
   /// Format date: "Lundi 15 janvier 2024"
   static String formatDate(DateTime date) {
     return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date);

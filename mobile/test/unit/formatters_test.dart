@@ -99,4 +99,26 @@ void main() {
       );
     });
   });
+
+  group('Formatters.formatPriceRange', () {
+    test('single value when there is no max', () {
+      final s = Formatters.formatPriceRange(15000, null);
+      expect(s, endsWith('XOF'));
+      expect(s, isNot(contains('–')));
+    });
+
+    test('a dash-separated range when max is greater', () {
+      final s = Formatters.formatPriceRange(15000, 25000);
+      expect(s, contains('–'));
+      expect(s, contains('15'));
+      expect(s, contains('25'));
+    });
+
+    test('single value when max is not greater than min', () {
+      expect(
+        Formatters.formatPriceRange(15000, 15000),
+        isNot(contains('–')),
+      );
+    });
+  });
 }

@@ -162,6 +162,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
               .where((s) => widget.serviceIds.contains(s.id))
               .toList();
           final total = selectedServices.fold(0.0, (sum, s) => sum + s.price);
+          final hasRange = selectedServices.any((s) => s.priceMax != null);
           final depositAmount = computeDeposit(
             total: total,
             depositRequired: p.depositRequired,
@@ -213,7 +214,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                                   ),
                                 ),
                                 Text(
-                                  Formatters.formatCurrency(service.price),
+                                  Formatters.formatPriceRange(
+                                      service.price, service.priceMax),
                                   style: AppTextStyles.bodyMedium.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
@@ -284,7 +286,9 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                             ),
                           ),
                           Text(
-                            Formatters.formatCurrency(total),
+                            hasRange
+                                ? 'À partir de ${Formatters.formatCurrency(total)}'
+                                : Formatters.formatCurrency(total),
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.textSecondary,
                             ),
