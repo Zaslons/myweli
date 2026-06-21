@@ -149,6 +149,22 @@ class MockAuthService implements AuthServiceInterface {
     return ApiResponse.success(updatedUser);
   }
 
+  @override
+  Future<ApiResponse<void>> deleteAccount() async {
+    await Future.delayed(AppConstants.mockDelay);
+
+    final user = _currentUser;
+    if (user == null) {
+      return ApiResponse.error('Utilisateur non connecté');
+    }
+
+    MockData.users.removeWhere((u) => u.id == user.id);
+    _otpStates.remove(user.phoneNumber);
+    _currentUser = null;
+
+    return ApiResponse.success(null, message: 'Compte supprimé');
+  }
+
   // Provider methods
   @override
   Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
