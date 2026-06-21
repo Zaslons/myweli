@@ -98,6 +98,30 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Permanently deletes the account. On success the local user is cleared.
+  Future<bool> deleteAccount() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _authService.deleteAccount();
+      if (response.success) {
+        _user = null;
+        _error = null;
+        return true;
+      }
+      _error = response.error ?? 'Erreur lors de la suppression';
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> updateUser({String? name, String? email}) async {
     _isLoading = true;
     _error = null;
