@@ -7,37 +7,99 @@ import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import 'mock_data.dart';
 
+/// Per-phone OTP state the mock uses to emulate real SMS-OTP behaviour: a code
+/// with an expiry, a wrong-attempt budget, and a resend budget.
+class _OtpState {
+  _OtpState({
+    required this.code,
+    required this.expiresAt,
+    required this.attemptsLeft,
+    required this.resendsLeft,
+  });
+
+  final String code;
+  final DateTime expiresAt;
+  int attemptsLeft;
+  int resendsLeft;
+}
+
 class MockAuthService implements AuthServiceInterface {
+  MockAuthService({Duration? otpValidity})
+      : _otpValidity = otpValidity ?? AppConstants.otpValidity;
+
+  /// Demo code (no real SMS) — surfaced only in debug builds.
+  static const String demoOtp = '123456';
+
+  final Duration _otpValidity;
   User? _currentUser;
   ProviderUser? _currentProvider;
-  final Map<String, String> _otpStore = {}; // phone -> otp
+  final Map<String, _OtpState> _otpStates = {};
   final Map<String, String> _providerOtpStore = {}; // phone -> otp
 
   @override
   Future<ApiResponse<String>> sendOtp(String phoneNumber) async {
-    // Simulate API delay
     await Future.delayed(AppConstants.mockDelay);
 
-    // Generate a simple OTP (for demo: always "123456")
-    const otp = '123456';
-    _otpStore[phoneNumber] = otp;
+    final existing = _otpStates[phoneNumber];
+    if (existing != null && existing.resendsLeft <= 0) {
+      return ApiResponse.error(
+        'Trop de demandes de code. Réessayez plus tard.',
+        code: 'otp_resend_limit',
+      );
+    }
+    final resendsLeft = existing == null
+        ? AppConstants.otpMaxResends
+        : existing.resendsLeft - 1;
+    _otpStates[phoneNumber] = _OtpState(
+      code: demoOtp,
+      expiresAt: DateTime.now().add(_otpValidity),
+      attemptsLeft: AppConstants.otpMaxAttempts,
+      resendsLeft: resendsLeft,
+    );
 
-    return ApiResponse.success(otp, message: 'Code OTP envoyé avec succès');
+    return ApiResponse.success(demoOtp, message: 'Code OTP envoyé avec succès');
   }
 
   @override
   Future<ApiResponse<User>> verifyOtp(String phoneNumber, String otp) async {
-    // Simulate API delay
     await Future.delayed(AppConstants.mockDelay);
 
-    // Check if OTP is valid
-    final storedOtp = _otpStore[phoneNumber];
-    if (storedOtp == null || storedOtp != otp) {
-      return ApiResponse.error('Code OTP invalide');
+    final state = _otpStates[phoneNumber];
+    if (state == null) {
+      return ApiResponse.error(
+        'Aucun code actif. Demandez un nouveau code.',
+        code: 'otp_none',
+      );
+    }
+    if (DateTime.now().isAfter(state.expiresAt)) {
+      _otpStates.remove(phoneNumber);
+      return ApiResponse.error(
+        'Code expiré. Demandez un nouveau code.',
+        code: 'otp_expired',
+      );
+    }
+    if (state.attemptsLeft <= 0) {
+      return ApiResponse.error(
+        'Trop de tentatives. Demandez un nouveau code.',
+        code: 'otp_locked',
+      );
+    }
+    if (state.code != otp) {
+      state.attemptsLeft -= 1;
+      if (state.attemptsLeft <= 0) {
+        return ApiResponse.error(
+          'Trop de tentatives. Demandez un nouveau code.',
+          code: 'otp_locked',
+        );
+      }
+      final n = state.attemptsLeft;
+      return ApiResponse.error(
+        'Code incorrect. $n ${n == 1 ? 'essai restant' : 'essais restants'}.',
+        code: 'otp_invalid',
+      );
     }
 
-    // Find or create user
-    var user = MockData.users.firstWhere(
+    final user = MockData.users.firstWhere(
       (u) => u.phoneNumber == phoneNumber,
       orElse: () => User(
         id: 'user_${DateTime.now().millisecondsSinceEpoch}',
@@ -45,9 +107,8 @@ class MockAuthService implements AuthServiceInterface {
         createdAt: DateTime.now(),
       ),
     );
-
     _currentUser = user;
-    _otpStore.remove(phoneNumber);
+    _otpStates.remove(phoneNumber);
 
     return ApiResponse.success(user, message: 'Connexion réussie');
   }
