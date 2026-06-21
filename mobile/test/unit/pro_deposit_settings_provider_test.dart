@@ -21,7 +21,11 @@ void main() {
   test('load pulls the provider deposit policy', () async {
     when(() => service.getDepositPolicy(any())).thenAnswer(
       (_) async => ApiResponse.success(
-        const DepositPolicy(depositRequired: true, depositPercentage: 0.50),
+        const DepositPolicy(
+          depositRequired: true,
+          depositPercentage: 0.50,
+          cancellationWindowHours: 48,
+        ),
       ),
     );
 
@@ -30,6 +34,7 @@ void main() {
 
     expect(provider.depositRequired, isTrue);
     expect(provider.depositPercentage, 0.50);
+    expect(provider.cancellationWindowHours, 48);
     expect(provider.loadFailed, isFalse);
   });
 
@@ -50,6 +55,7 @@ void main() {
         any(),
         depositRequired: any(named: 'depositRequired'),
         depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
       ),
     ).thenAnswer(
       (_) async => ApiResponse.success(
@@ -67,6 +73,7 @@ void main() {
         'p1',
         depositRequired: false,
         depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
       ),
     ).called(1);
   });
@@ -77,6 +84,7 @@ void main() {
         any(),
         depositRequired: any(named: 'depositRequired'),
         depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
       ),
     ).thenAnswer((_) async => ApiResponse.error('nope'));
 

@@ -26,6 +26,10 @@ class Provider extends Equatable {
   final String category; // 'salon', 'barber', 'spa', etc.
   final bool depositRequired;
   final double depositPercentage;
+
+  /// Hours before the appointment within which a cancellation forfeits the
+  /// deposit. Per-salon policy; defaults to 24h.
+  final int cancellationWindowHours;
   final List<Review> reviews;
 
   const Provider({
@@ -49,6 +53,7 @@ class Provider extends Equatable {
     required this.category,
     this.depositRequired = true,
     this.depositPercentage = 0.30,
+    this.cancellationWindowHours = 24,
     this.reviews = const [],
   });
 
@@ -74,6 +79,7 @@ class Provider extends Equatable {
         category,
         depositRequired,
         depositPercentage,
+        cancellationWindowHours,
         reviews,
       ];
 
@@ -98,6 +104,7 @@ class Provider extends Equatable {
     String? category,
     bool? depositRequired,
     double? depositPercentage,
+    int? cancellationWindowHours,
     List<Review>? reviews,
   }) {
     return Provider(
@@ -121,6 +128,8 @@ class Provider extends Equatable {
       category: category ?? this.category,
       depositRequired: depositRequired ?? this.depositRequired,
       depositPercentage: depositPercentage ?? this.depositPercentage,
+      cancellationWindowHours:
+          cancellationWindowHours ?? this.cancellationWindowHours,
       reviews: reviews ?? this.reviews,
     );
   }
@@ -147,6 +156,7 @@ class Provider extends Equatable {
       'category': category,
       'depositRequired': depositRequired,
       'depositPercentage': depositPercentage,
+      'cancellationWindowHours': cancellationWindowHours,
       'reviews': reviews.map((r) => r.toJson()).toList(),
     };
   }
@@ -181,6 +191,7 @@ class Provider extends Equatable {
       depositRequired: json['depositRequired'] as bool? ?? true,
       depositPercentage:
           (json['depositPercentage'] as num?)?.toDouble() ?? 0.30,
+      cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       reviews: json['reviews'] != null
           ? (json['reviews'] as List)
               .map((r) => Review.fromJson(r as Map<String, dynamic>))

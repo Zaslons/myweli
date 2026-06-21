@@ -14,6 +14,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
   String? _error;
   bool _depositRequired = true;
   double _depositPercentage = 0.30;
+  int _cancellationWindowHours = 24;
 
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
@@ -21,6 +22,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
   String? get error => _error;
   bool get depositRequired => _depositRequired;
   double get depositPercentage => _depositPercentage;
+  int get cancellationWindowHours => _cancellationWindowHours;
 
   void setDepositRequired(bool value) {
     _depositRequired = value;
@@ -29,6 +31,11 @@ class ProDepositSettingsProvider extends ChangeNotifier {
 
   void setDepositPercentage(double value) {
     _depositPercentage = value;
+    notifyListeners();
+  }
+
+  void setCancellationWindowHours(int value) {
+    _cancellationWindowHours = value;
     notifyListeners();
   }
 
@@ -42,6 +49,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _depositRequired = response.data!.depositRequired;
         _depositPercentage = response.data!.depositPercentage;
+        _cancellationWindowHours = response.data!.cancellationWindowHours;
         _loadFailed = false;
         _error = null;
       } else {
@@ -67,6 +75,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
         providerId,
         depositRequired: _depositRequired,
         depositPercentage: _depositPercentage,
+        cancellationWindowHours: _cancellationWindowHours,
       );
       if (response.success && response.data != null) {
         _error = null;

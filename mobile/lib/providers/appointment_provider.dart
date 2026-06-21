@@ -210,6 +210,43 @@ class AppointmentProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> rescheduleAppointment({
+    required String id,
+    required DateTime newDateTime,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _appointmentService.rescheduleAppointment(
+        id: id,
+        newDateTime: newDateTime,
+      );
+      if (response.success && response.data != null) {
+        final updated = response.data!;
+        final index = _appointments.indexWhere((a) => a.id == id);
+        if (index != -1) {
+          _appointments[index] = updated;
+        }
+        if (_selectedAppointment?.id == id) {
+          _selectedAppointment = updated;
+        }
+        _error = null;
+        return true;
+      } else {
+        _error = response.error ?? 'Erreur lors du report';
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<List<DateTime>> getAvailableTimeSlots({
     required String providerId,
     required DateTime date,
