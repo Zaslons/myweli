@@ -55,4 +55,48 @@ void main() {
       expect(Formatters.formatCurrency(1500), contains('500'));
     });
   });
+
+  group('Formatters.formatRelative', () {
+    final now = DateTime(2024, 6, 24, 12, 0);
+
+    test('shows minutes for recent times', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(minutes: 5)),
+          now: now,
+        ),
+        'il y a 5 min',
+      );
+    });
+
+    test('shows hours within the day', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(hours: 2)),
+          now: now,
+        ),
+        'il y a 2 h',
+      );
+    });
+
+    test('shows "Hier" for one day ago', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(days: 1)),
+          now: now,
+        ),
+        'Hier',
+      );
+    });
+
+    test('shows days within the week', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(days: 3)),
+          now: now,
+        ),
+        'il y a 3 j',
+      );
+    });
+  });
 }

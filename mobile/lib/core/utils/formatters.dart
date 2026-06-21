@@ -63,6 +63,19 @@ class Formatters {
     return '${hours}h ${remainingMinutes}min';
   }
 
+  /// Relative time in French: "À l'instant", "il y a 5 min", "il y a 2 h",
+  /// "Hier", "il y a 3 j", otherwise a short date. Pass [now] for testing.
+  static String formatRelative(DateTime time, {DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    final diff = ref.difference(time);
+    if (diff.inMinutes < 1) return 'À l\'instant';
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
+    if (diff.inDays == 1) return 'Hier';
+    if (diff.inDays < 7) return 'il y a ${diff.inDays} j';
+    return formatDateShort(time);
+  }
+
   /// Format time for display (e.g. "9h00", "18h30")
   static String formatTimeShort(DateTime time) {
     final h = time.hour;
