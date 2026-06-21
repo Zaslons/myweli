@@ -82,6 +82,7 @@ Treat any unchecked box as "not done."
 - Conventional commit message, authored as the user — **no Claude author or `Co-Authored-By` trailer** (see memory `git-no-claude-attribution`).
 - Never commit secrets, `.env`, build artifacts, or `build/` / `.dart_tool/`.
 - This repo must be under git with CI — if it somehow isn't yet, that's the first thing to fix (ROADMAP §1.7).
+- **After a feature ships, refresh `docs/ROADMAP.md` status** — mark what's done, note deferrals — so the roadmap stays a trustworthy source of truth (see memory `roadmap-status-refresh`).
 
 ## Security checklist — first-order (detail in ROADMAP Part 5; ref OWASP MASVS)
 Security is gated from the start, not deferred to "the backend phase," because a client app can leak secrets, mishandle sessions, or trust the wrong input regardless of backend maturity.

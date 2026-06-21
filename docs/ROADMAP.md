@@ -153,6 +153,15 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
 
+**Status (2026-06-21) — Phase 1 in progress (consumer side advancing):**
+- ✅ **Discovery — commune filter** (FR-DISC-002): pill on home + list, picker (search / "Près de moi" / all), persisted, mock providers tagged by commune.
+- ✅ **Discovery — trust polish** (FR-DISC-006 / FR-BOOK-005): WhatsApp contact row on provider detail (`wa.me`), and **price ranges** (`Service.priceMax`) shown on detail / selection / confirmation, with "À partir de" totals (deposit math unchanged, on the from-price).
+- ✅ **Booking + deposit** (FR-PAY-001): confirmation shows Total / Acompte / Solde; `DepositPaymentSheet` (Wave/OM/MTN/Moov, remembered operator, processing/success/failure); deposit-to-confirm on a mock payment service. Provider-side **deposit settings** (FR-PRO-PAY-001) shipped too (toggle + % slider).
+- ✅ **Notifications** (FR-NOTIF-002): in-app feed replaces the stub (flat list, unread cues, "Tout lire", tap → mark read + deep link).
+- ✅ **Reviews** (FR-REV-002/003): verified-booking badge, stylist attribution, photo **display** (attach deferred to the Phase 4 image pipeline).
+- ⏳ **Still V1-open:** auth real-OTP UX (#2); booking buffers / duration-by-length / **rebook** (#4 partial); appointments policy-bound cancel/reschedule + rich visit history + auto-sync (#5); profile account deletion/export (#8); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
+- ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
+
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
 - [ ] **Mobile Money deposit spike:** one real sandbox deposit end-to-end via the chosen aggregator (PRD OQ-4) — proves feasibility, callback security, and the deposit-custody model (OQ-1).
 - [ ] **WhatsApp spike:** one real template message via the chosen BSP (OQ-5) — proves approval flow + deliverability.
