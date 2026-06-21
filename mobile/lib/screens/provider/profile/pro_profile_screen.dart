@@ -94,6 +94,21 @@ class ProProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Card(
                   child: ListTile(
+                    leading: const Icon(Icons.verified_user_outlined),
+                    title: const Text('Vérification'),
+                    subtitle: Text(
+                      _verificationLabel(provider.verificationStatus),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: _verificationColor(provider.verificationStatus),
+                      ),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/pro/verification'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
                     leading: const Icon(Icons.payments_outlined),
                     title: const Text('Paramètres d\'acompte'),
                     trailing: const Icon(Icons.chevron_right),
@@ -133,6 +148,28 @@ class ProProfileScreen extends StatelessWidget {
         return 'Massage';
       case BusinessType.other:
         return 'Autre';
+    }
+  }
+
+  String _verificationLabel(VerificationStatus status) {
+    switch (status) {
+      case VerificationStatus.pending:
+        return 'En attente de vérification';
+      case VerificationStatus.verified:
+        return 'Compte vérifié';
+      case VerificationStatus.rejected:
+        return 'Vérification refusée';
+    }
+  }
+
+  Color _verificationColor(VerificationStatus status) {
+    switch (status) {
+      case VerificationStatus.pending:
+        return AppColors.warning;
+      case VerificationStatus.verified:
+        return AppColors.success;
+      case VerificationStatus.rejected:
+        return AppColors.error;
     }
   }
 }
