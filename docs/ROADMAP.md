@@ -45,7 +45,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Favorites** (map + toggle) | ~80% | Solid. |
 | **Profile** (view/edit) | ~90% | Account deletion (typed confirm) + data export (JSON copy) done. Missing: avatar upload. |
 | **Notifications (consumer)** | ~10% | **Stub** (`EmptyState`). No feed, no center. |
-| **Pro auth + register** | ~80% | Missing: KYC upload UI, guided onboarding (empty `onboarding/`). |
+| **Pro auth + register + KYC** | ~88% | KYC submission + verification status (pending/verified/rejected) done; deposits gated on verification. Missing: guided onboarding checklist (`onboarding/`); real doc upload (image pipeline). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
 | **Pro appointments / calendar** | ~70% | Accept/reject/complete/reschedule present. Missing: manual booking entry, no-show marking. |
 | **Pro services / artists / availability** | ~75% | Missing: price ranges, duration variants, buffers, per-staff hours, commission. |
@@ -148,7 +148,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
 8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
-9. **Pro V1** — KYC upload UI, guided onboarding (fill the empty `onboarding/`), manual booking entry, no-show marking, price ranges/duration variants/buffers/commission fields, payouts UI.
+9. **Pro V1** — ✅ KYC submission + verification status; remaining: guided onboarding checklist (fill the empty `onboarding/`), manual booking entry, no-show marking, price ranges/duration variants/buffers/commission fields, payouts UI.
 10. **Hide/remove** the unrouted V2/V3 feature screens behind a flag so they don't ship.
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
@@ -166,7 +166,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Appointments — rich visit history + auto-sync** (FR-APPT-005): the "Passés" tab is now a visit history — past, non-cancelled appointments auto-sync to "Terminé" (pure `effectiveAppointmentStatus`, a placeholder until backend completion events), grouped by month with a spend summary (visit count + total) and one-tap "Réserver à nouveau".
 - ✅ **Auth — session persistence** (FR-AUTH): the session (mock token + user) is persisted in **`flutter_secure_storage`** and restored on cold start, so users stay logged in across restarts; logout and account deletion clear it. New `Session` model + `SessionStore` interface (secure + in-memory impls), behind `AuthServiceInterface`. *(Real access/refresh + rotation land with the backend; chosen lifetime: until logout, with a ready `expiresAt` field.)*
 - ✅ **Auth — SMS auto-read** (FR-AUTH): the OTP boxes form an `AutofillGroup` and the first box requests `AutofillHints.oneTimeCode`, so iOS surfaces the SMS code in the keyboard QuickType bar (one tap) and Android autofill can fill it; the OS code lands in the first box and the existing paste-distribution fills the rest and auto-submits. No dependency, no permission. *(Zero-tap Android SMS Retriever needs the backend SMS to embed the app hash — deferred.)*
-- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); profile avatar upload (#8 partial); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
+- ✅ **Pro — KYC & verification** (FR-PRO-KYC-001): a pro submits KYC documents (pièce d'identité + photo du visage required; RCCM required for salons, optional for freelancers à domicile; justificatif d'adresse optional) and sees their status (en attente / vérifié / refusé + motif); the screen surfaces that deposits are gated on verification. Behind `ProKycServiceInterface`; `kycDocs[]` + `rejectionReason` on `ProviderUser`. *(Mock document selection — real upload lands with the image pipeline; admin approval is backend.)*
+- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); profile avatar upload (#8 partial); Pro V1 — guided onboarding checklist (FR-PRO-ONB-001), manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
