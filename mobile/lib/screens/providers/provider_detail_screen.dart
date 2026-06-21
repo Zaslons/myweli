@@ -323,6 +323,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   final w = MediaQuery.of(context).size.width;
                                   final cardWidth =
                                       (w * 0.75).clamp(260.0, 340.0);
+                                  final isPast = a.status ==
+                                          AppointmentStatus.completed ||
+                                      a.status == AppointmentStatus.cancelled ||
+                                      a.appointmentDate
+                                          .isBefore(DateTime.now());
                                   return SizedBox(
                                     width: cardWidth,
                                     child: CompactAppointmentTile(
@@ -331,13 +336,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                       providerImageUrl: p.imageUrls.isNotEmpty
                                           ? p.imageUrls.first
                                           : null,
+                                      hint:
+                                          isPast ? 'Réserver à nouveau' : null,
                                       onTap: () {
-                                        final isPast = a.status ==
-                                                AppointmentStatus.completed ||
-                                            a.status ==
-                                                AppointmentStatus.cancelled ||
-                                            a.appointmentDate
-                                                .isBefore(DateTime.now());
                                         if (isPast) {
                                           // Past appointment → rebook the same
                                           // services/stylist.
