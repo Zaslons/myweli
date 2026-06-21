@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
+import '../models/payment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
+import '../services/interfaces/payment_service_interface.dart';
 
 class AppointmentProvider extends ChangeNotifier {
   final AppointmentServiceInterface _appointmentService =
       serviceLocator.appointmentService;
+  final PaymentServiceInterface _paymentService = serviceLocator.paymentService;
 
   List<Appointment> _appointments = [];
   Appointment? _selectedAppointment;
@@ -78,6 +81,7 @@ class AppointmentProvider extends ChangeNotifier {
     required DateTime appointmentDateTime,
     String? artistId,
     String? notes,
+    double depositAmount = 0,
   }) async {
     _isLoading = true;
     _error = null;
@@ -90,6 +94,7 @@ class AppointmentProvider extends ChangeNotifier {
         appointmentDateTime: appointmentDateTime,
         artistId: artistId,
         notes: notes,
+        depositAmount: depositAmount,
       );
       if (response.success && response.data != null) {
         _appointments.add(response.data!);
@@ -106,6 +111,51 @@ class AppointmentProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Pays the deposit (if any) via Mobile Money, then creates the booking.
+  /// Returns true on success. If the payment fails, no booking is created.
+  Future<bool> payDepositAndBook({
+    required String providerId,
+    required List<String> serviceIds,
+    required DateTime appointmentDateTime,
+    String? artistId,
+    String? notes,
+    required double depositAmount,
+    required MobileMoneyOperator operator,
+  }) async {
+    if (depositAmount > 0) {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+      try {
+        final payment = await _paymentService.payDeposit(
+          amount: depositAmount,
+          operator: operator,
+        );
+        final paid = payment.success && (payment.data?.success ?? false);
+        if (!paid) {
+          _error =
+              payment.error ?? payment.data?.error ?? 'Le paiement a échoué';
+          return false;
+        }
+      } catch (e) {
+        _error = e.toString();
+        return false;
+      } finally {
+        _isLoading = false;
+        notifyListeners();
+      }
+    }
+
+    return bookAppointment(
+      providerId: providerId,
+      serviceIds: serviceIds,
+      appointmentDateTime: appointmentDateTime,
+      artistId: artistId,
+      notes: notes,
+      depositAmount: depositAmount,
+    );
   }
 
   Future<void> loadAppointmentById(String id) async {
@@ -149,6 +199,43 @@ class AppointmentProvider extends ChangeNotifier {
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de l\'annulation';
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> rescheduleAppointment({
+    required String id,
+    required DateTime newDateTime,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _appointmentService.rescheduleAppointment(
+        id: id,
+        newDateTime: newDateTime,
+      );
+      if (response.success && response.data != null) {
+        final updated = response.data!;
+        final index = _appointments.indexWhere((a) => a.id == id);
+        if (index != -1) {
+          _appointments[index] = updated;
+        }
+        if (_selectedAppointment?.id == id) {
+          _selectedAppointment = updated;
+        }
+        _error = null;
+        return true;
+      } else {
+        _error = response.error ?? 'Erreur lors du report';
         return false;
       }
     } catch (e) {

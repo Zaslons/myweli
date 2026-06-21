@@ -16,6 +16,12 @@ class Appointment extends Equatable {
   final DateTime appointmentDate;
   final AppointmentStatus status;
   final double totalPrice;
+  final double depositAmount;
+  final double balanceDue;
+
+  /// Snapshot of the provider's cancellation window (hours) at booking time, so
+  /// the policy that governs this appointment can't change underneath the user.
+  final int cancellationWindowHours;
   final String? notes;
   final DateTime createdAt;
 
@@ -28,6 +34,9 @@ class Appointment extends Equatable {
     required this.appointmentDate,
     required this.status,
     required this.totalPrice,
+    this.depositAmount = 0,
+    this.balanceDue = 0,
+    this.cancellationWindowHours = 24,
     this.notes,
     required this.createdAt,
   });
@@ -42,6 +51,9 @@ class Appointment extends Equatable {
         appointmentDate,
         status,
         totalPrice,
+        depositAmount,
+        balanceDue,
+        cancellationWindowHours,
         notes,
         createdAt,
       ];
@@ -55,6 +67,9 @@ class Appointment extends Equatable {
     DateTime? appointmentDate,
     AppointmentStatus? status,
     double? totalPrice,
+    double? depositAmount,
+    double? balanceDue,
+    int? cancellationWindowHours,
     String? notes,
     DateTime? createdAt,
   }) {
@@ -67,6 +82,10 @@ class Appointment extends Equatable {
       appointmentDate: appointmentDate ?? this.appointmentDate,
       status: status ?? this.status,
       totalPrice: totalPrice ?? this.totalPrice,
+      depositAmount: depositAmount ?? this.depositAmount,
+      balanceDue: balanceDue ?? this.balanceDue,
+      cancellationWindowHours:
+          cancellationWindowHours ?? this.cancellationWindowHours,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -82,6 +101,9 @@ class Appointment extends Equatable {
       'appointmentDate': appointmentDate.toIso8601String(),
       'status': status.name,
       'totalPrice': totalPrice,
+      'depositAmount': depositAmount,
+      'balanceDue': balanceDue,
+      'cancellationWindowHours': cancellationWindowHours,
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -100,6 +122,9 @@ class Appointment extends Equatable {
         orElse: () => AppointmentStatus.pending,
       ),
       totalPrice: (json['totalPrice'] as num).toDouble(),
+      depositAmount: (json['depositAmount'] as num?)?.toDouble() ?? 0,
+      balanceDue: (json['balanceDue'] as num?)?.toDouble() ?? 0,
+      cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );

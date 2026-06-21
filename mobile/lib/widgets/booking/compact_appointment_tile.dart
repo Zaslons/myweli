@@ -13,12 +13,17 @@ class CompactAppointmentTile extends StatelessWidget {
   final String? providerImageUrl;
   final VoidCallback onTap;
 
+  /// Optional hint shown under the date (e.g. "Réserver à nouveau" on a past
+  /// appointment whose tap rebooks).
+  final String? hint;
+
   const CompactAppointmentTile({
     super.key,
     required this.appointment,
     required this.providerName,
     required this.onTap,
     this.providerImageUrl,
+    this.hint,
   });
 
   Color _statusColor(AppointmentStatus status) {
@@ -124,6 +129,23 @@ class CompactAppointmentTile extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  if (hint != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.refresh,
+                            size: 14, color: AppColors.textPrimary),
+                        const SizedBox(width: 4),
+                        Text(
+                          hint!,
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -29,6 +29,18 @@ If a rule below is ambiguous or a situation isn't covered, check these two docs 
 
 ## The development loop: before → during → after
 
+### UX first — design the experience before building (user-facing work)
+For anything a user touches — a screen, a flow, a state, a control — **plan the UX in detail and align with the user before writing code.** Efficient and intuitive UX is a first-order goal here, not a polish pass at the end. Produce a short written UX plan and get agreement *first*; it must cover:
+- **Goal & entry points** — what the user is trying to accomplish, and every place they arrive from.
+- **The flow** — the happy path step by step, plus the branches; minimize taps-to-done.
+- **All states** — loading, empty, error, success, offline, permission-denied, auth-gated.
+- **Edge cases** — bad/slow network, slow or failed Mobile Money, missing data, long French strings, low-end Android.
+- **Interaction detail** — what each control does, validation, feedback, back/navigation behavior, `returnTo` continuity.
+- **Copy** — the French microcopy for labels, errors, and empty states.
+- **Fit** — reuses existing components/patterns and respects the CI context (commune, FCFA, à domicile, WhatsApp).
+
+Only once the UX plan is agreed do you move to the steps below. Do not jump straight to code on user-facing work.
+
 ### Before writing code
 1. **Locate it in the plan.** Which PRD requirement and phase is this? If it's **V2 or V3** (e.g. the 8 `screens/provider/features/` modules, loyalty/membership UI, ERP), **stop and confirm with the user** — default is **V1 only**. Building screens we may cut is the top way "frontend-first" wastes time (ROADMAP §2.2).
 2. **Find the existing pattern to copy.** Match the surrounding code's idiom rather than inventing a new one. Reference implementations:
@@ -66,10 +78,12 @@ Treat any unchecked box as "not done."
 - [ ] **API shape:** mock returns the agreed DTO shape, not an ad-hoc one.
 
 ### Before a commit / PR
+- **Feature-branch + PR workflow:** don't commit or push to `main` directly — branch off main (`feat/…`, `fix/…`, `chore/…`), push the branch, and open a PR (`gh pr create`) for the user to review/merge; after CI is green, report the PR and leave merging to the user (see memory `git-workflow-feature-branches-prs`).
 - `analyze` = 0, tests green, format clean, coverage not decreased, dependency scan clean (ROADMAP §7 gates).
-- Conventional commit message; end the commit with the co-author trailer.
+- Conventional commit message, authored as the user — **no Claude author or `Co-Authored-By` trailer** (see memory `git-no-claude-attribution`).
 - Never commit secrets, `.env`, build artifacts, or `build/` / `.dart_tool/`.
 - This repo must be under git with CI — if it somehow isn't yet, that's the first thing to fix (ROADMAP §1.7).
+- **After a feature ships, refresh `docs/ROADMAP.md` status** — mark what's done, note deferrals — so the roadmap stays a trustworthy source of truth (see memory `roadmap-status-refresh`).
 
 ## Security checklist — first-order (detail in ROADMAP Part 5; ref OWASP MASVS)
 Security is gated from the start, not deferred to "the backend phase," because a client app can leak secrets, mishandle sessions, or trust the wrong input regardless of backend maturity.

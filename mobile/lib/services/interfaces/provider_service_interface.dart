@@ -5,6 +5,7 @@ abstract class ProviderServiceInterface {
   Future<ApiResponse<List<Provider>>> getProviders({
     String? category,
     String? searchQuery,
+    String? commune,
     int page = 1,
     int limit = 20,
   });

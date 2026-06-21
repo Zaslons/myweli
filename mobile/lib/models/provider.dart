@@ -11,6 +11,7 @@ class Provider extends Equatable {
   final String description;
   final String address;
   final String? city;
+  final String? commune;
   final double? latitude;
   final double? longitude;
   final List<String> imageUrls;
@@ -21,7 +22,14 @@ class Provider extends Equatable {
   final List<Artist> artists;
   final Availability availability;
   final String phoneNumber;
+  final String? whatsapp;
   final String category; // 'salon', 'barber', 'spa', etc.
+  final bool depositRequired;
+  final double depositPercentage;
+
+  /// Hours before the appointment within which a cancellation forfeits the
+  /// deposit. Per-salon policy; defaults to 24h.
+  final int cancellationWindowHours;
   final List<Review> reviews;
 
   const Provider({
@@ -30,6 +38,7 @@ class Provider extends Equatable {
     required this.description,
     required this.address,
     this.city,
+    this.commune,
     this.latitude,
     this.longitude,
     required this.imageUrls,
@@ -40,7 +49,11 @@ class Provider extends Equatable {
     this.artists = const [],
     required this.availability,
     required this.phoneNumber,
+    this.whatsapp,
     required this.category,
+    this.depositRequired = true,
+    this.depositPercentage = 0.30,
+    this.cancellationWindowHours = 24,
     this.reviews = const [],
   });
 
@@ -51,6 +64,7 @@ class Provider extends Equatable {
         description,
         address,
         city,
+        commune,
         latitude,
         longitude,
         imageUrls,
@@ -61,7 +75,11 @@ class Provider extends Equatable {
         artists,
         availability,
         phoneNumber,
+        whatsapp,
         category,
+        depositRequired,
+        depositPercentage,
+        cancellationWindowHours,
         reviews,
       ];
 
@@ -71,6 +89,7 @@ class Provider extends Equatable {
     String? description,
     String? address,
     String? city,
+    String? commune,
     double? latitude,
     double? longitude,
     List<String>? imageUrls,
@@ -81,7 +100,11 @@ class Provider extends Equatable {
     List<Artist>? artists,
     Availability? availability,
     String? phoneNumber,
+    String? whatsapp,
     String? category,
+    bool? depositRequired,
+    double? depositPercentage,
+    int? cancellationWindowHours,
     List<Review>? reviews,
   }) {
     return Provider(
@@ -90,6 +113,7 @@ class Provider extends Equatable {
       description: description ?? this.description,
       address: address ?? this.address,
       city: city ?? this.city,
+      commune: commune ?? this.commune,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       imageUrls: imageUrls ?? this.imageUrls,
@@ -100,7 +124,12 @@ class Provider extends Equatable {
       artists: artists ?? this.artists,
       availability: availability ?? this.availability,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      whatsapp: whatsapp ?? this.whatsapp,
       category: category ?? this.category,
+      depositRequired: depositRequired ?? this.depositRequired,
+      depositPercentage: depositPercentage ?? this.depositPercentage,
+      cancellationWindowHours:
+          cancellationWindowHours ?? this.cancellationWindowHours,
       reviews: reviews ?? this.reviews,
     );
   }
@@ -112,6 +141,7 @@ class Provider extends Equatable {
       'description': description,
       'address': address,
       'city': city,
+      'commune': commune,
       'latitude': latitude,
       'longitude': longitude,
       'imageUrls': imageUrls,
@@ -122,7 +152,11 @@ class Provider extends Equatable {
       'artists': artists.map((a) => a.toJson()).toList(),
       'availability': availability.toJson(),
       'phoneNumber': phoneNumber,
+      'whatsapp': whatsapp,
       'category': category,
+      'depositRequired': depositRequired,
+      'depositPercentage': depositPercentage,
+      'cancellationWindowHours': cancellationWindowHours,
       'reviews': reviews.map((r) => r.toJson()).toList(),
     };
   }
@@ -134,6 +168,7 @@ class Provider extends Equatable {
       description: json['description'] as String,
       address: json['address'] as String,
       city: json['city'] as String?,
+      commune: json['commune'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       imageUrls: List<String>.from(json['imageUrls'] as List),
@@ -151,7 +186,12 @@ class Provider extends Equatable {
       availability:
           Availability.fromJson(json['availability'] as Map<String, dynamic>),
       phoneNumber: json['phoneNumber'] as String,
+      whatsapp: json['whatsapp'] as String?,
       category: json['category'] as String,
+      depositRequired: json['depositRequired'] as bool? ?? true,
+      depositPercentage:
+          (json['depositPercentage'] as num?)?.toDouble() ?? 0.30,
+      cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       reviews: json['reviews'] != null
           ? (json['reviews'] as List)
               .map((r) => Review.fromJson(r as Map<String, dynamic>))

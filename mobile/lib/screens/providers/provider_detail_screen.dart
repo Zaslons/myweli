@@ -8,8 +8,8 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../models/appointment.dart';
 import '../../models/availability.dart';
-import '../../models/review.dart';
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -19,6 +19,7 @@ import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
+import '../../widgets/review/review_tile.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
 class ProviderDetailScreen extends StatefulWidget {
@@ -322,6 +323,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   final w = MediaQuery.of(context).size.width;
                                   final cardWidth =
                                       (w * 0.75).clamp(260.0, 340.0);
+                                  final isPast = a.status ==
+                                          AppointmentStatus.completed ||
+                                      a.status == AppointmentStatus.cancelled ||
+                                      a.appointmentDate
+                                          .isBefore(DateTime.now());
                                   return SizedBox(
                                     width: cardWidth,
                                     child: CompactAppointmentTile(
@@ -330,8 +336,28 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                       providerImageUrl: p.imageUrls.isNotEmpty
                                           ? p.imageUrls.first
                                           : null,
-                                      onTap: () =>
-                                          context.push('/appointment/${a.id}'),
+                                      hint:
+                                          isPast ? 'Réserver à nouveau' : null,
+                                      onTap: () {
+                                        if (isPast) {
+                                          // Past appointment → rebook the same
+                                          // services/stylist.
+                                          final uri = Uri(
+                                            path: '/booking',
+                                            queryParameters: {
+                                              'providerId': widget.providerId,
+                                              if (a.serviceIds.isNotEmpty)
+                                                'serviceIds':
+                                                    a.serviceIds.join(','),
+                                              if (a.artistId != null)
+                                                'artistId': a.artistId!,
+                                            },
+                                          );
+                                          context.push(uri.toString());
+                                        } else {
+                                          context.push('/appointment/${a.id}');
+                                        }
+                                      },
                                     ),
                                   );
                                 },
@@ -496,6 +522,43 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 ),
                               ),
                             ),
+                            if (p.whatsapp != null &&
+                                p.whatsapp!.isNotEmpty) ...[
+                              const _Divider(),
+                              InkWell(
+                                onTap: () async {
+                                  final digits = p.whatsapp!
+                                      .replaceAll(RegExp(r'[^0-9]'), '');
+                                  final uri =
+                                      Uri.parse('https://wa.me/$digits');
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri,
+                                        mode: LaunchMode.externalApplication);
+                                  }
+                                },
+                                borderRadius:
+                                    BorderRadius.circular(AppTheme.radiusLarge),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.chat_outlined,
+                                          size: 20,
+                                          color: AppColors.textTertiary),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'WhatsApp',
+                                        style:
+                                            AppTextStyles.bodyMedium.copyWith(
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                             // Working hours
                             const _Divider(),
                             Padding(
@@ -620,7 +683,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     (review) => Padding(
                                       padding: const EdgeInsets.only(
                                           bottom: AppTheme.spacingS),
-                                      child: _ReviewTile(review: review),
+                                      child: ReviewTile(review: review),
                                     ),
                                   ),
                             ],
@@ -900,74 +963,6 @@ class PageViewIndicator extends StatelessWidget {
   }
 }
 
-class _ReviewTile extends StatelessWidget {
-  final Review review;
-
-  const _ReviewTile({required this.review});
-
-  @override
-  Widget build(BuildContext context) {
-    final initial =
-        review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: AppColors.surfaceVariant,
-          child: Text(
-            initial,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    review.userName,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ...List.generate(
-                      5,
-                      (i) => Icon(
-                            i < review.rating ? Icons.star : Icons.star_border,
-                            size: 14,
-                            color: Colors.amber,
-                          )),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                Formatters.formatDateShort(review.createdAt),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                review.text,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _SectionCard extends StatelessWidget {
   final String title;
   final Widget child;
@@ -1101,7 +1096,7 @@ class _ServiceTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${Formatters.formatDuration(service.durationMinutes)} • ${Formatters.formatCurrency(service.price)}',
+                  Formatters.formatDuration(service.durationMinutes),
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
                   ),
@@ -1109,10 +1104,14 @@ class _ServiceTile extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            Formatters.formatCurrency(service.price),
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.primary,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              Formatters.formatPriceRange(service.price, service.priceMax),
+              textAlign: TextAlign.end,
+              style: AppTextStyles.titleSmall.copyWith(
+                color: AppColors.primary,
+              ),
             ),
           ),
         ],

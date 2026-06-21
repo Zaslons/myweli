@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/helpers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../services/mock/mock_auth_service.dart';
 import '../../widgets/common/app_button.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
@@ -36,11 +38,26 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Timer? _cooldownTimer;
   bool _isLoading = false;
 
+  /// Inline message shown under the boxes (null when there's none).
+  String? _inlineError;
+
+  /// Boxes turn red after a failed verification.
+  bool _hasError = false;
+
+  /// Code is locked (too many attempts) or resend-limited — must resend.
+  bool _locked = false;
+
+  /// Code expired — must resend.
+  bool _expired = false;
+
+  String get _otp => _controllers.map((c) => c.text).join();
+  bool get _entryDisabled => _locked || _expired;
+  bool get _canVerify => _otp.length == 6 && !_entryDisabled && !_isLoading;
+
   @override
   void initState() {
     super.initState();
     _startCooldown();
-    // Auto-focus first field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNodes[0].requestFocus();
     });
@@ -48,10 +65,10 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   @override
   void dispose() {
-    for (var controller in _controllers) {
+    for (final controller in _controllers) {
       controller.dispose();
     }
-    for (var node in _focusNodes) {
+    for (final node in _focusNodes) {
       node.dispose();
     }
     _cooldownTimer?.cancel();
@@ -70,52 +87,84 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     });
   }
 
-  void _onOtpChanged(int index, String value) {
-    if (value.isNotEmpty && index < 5) {
-      _focusNodes[index + 1].requestFocus();
+  void _clearBoxes() {
+    for (final c in _controllers) {
+      c.clear();
     }
   }
 
-  Future<void> _handleVerify() async {
-    final otp = _controllers.map((c) => c.text).join();
-    if (otp.length != 6) {
-      Helpers.showSnackBar(context, 'Veuillez entrer le code complet',
-          isError: true);
-      return;
+  void _onOtpChanged(int index, String value) {
+    // Paste / autofill of multiple digits: distribute across the boxes.
+    if (value.length > 1) {
+      final digits = value.replaceAll(RegExp(r'\D'), '');
+      for (var i = 0; i + index < 6 && i < digits.length; i++) {
+        _controllers[index + i].text = digits[i];
+      }
+      final next = (index + digits.length).clamp(0, 5);
+      _focusNodes[next].requestFocus();
+    } else if (value.isNotEmpty && index < 5) {
+      _focusNodes[index + 1].requestFocus();
     }
+
+    // Typing clears a prior error so the boxes/message reset as the user fixes.
+    if (_hasError || _inlineError != null) {
+      _hasError = false;
+      _inlineError = null;
+    }
+    setState(() {});
+
+    if (_otp.length == 6 && !_isLoading && !_entryDisabled) {
+      _handleVerify();
+    }
+  }
+
+  KeyEventResult _onBoxKey(int index, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.backspace &&
+        _controllers[index].text.isEmpty &&
+        index > 0) {
+      _controllers[index - 1].clear();
+      _focusNodes[index - 1].requestFocus();
+      setState(() {});
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  Future<void> _handleVerify() async {
+    if (_otp.length != 6 || _entryDisabled) return;
 
     setState(() => _isLoading = true);
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.verifyOtp(widget.phoneNumber, otp);
+    final success = await authProvider.verifyOtp(widget.phoneNumber, _otp);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (success) {
-      // Load favorites for the newly logged in user
       if (authProvider.user != null) {
         final favoritesProvider =
             Provider.of<FavoritesProvider>(context, listen: false);
         unawaited(favoritesProvider.loadFavorites(authProvider.user!.id));
       }
-
-      // Navigate to return path if provided, otherwise go to home
       if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
         context.go(Uri.decodeComponent(widget.returnTo!));
       } else {
         context.go('/home');
       }
-    } else {
-      Helpers.showSnackBar(
-        context,
-        authProvider.error ?? 'Code invalide',
-        isError: true,
-      );
-      // Clear OTP fields
-      for (var controller in _controllers) {
-        controller.clear();
-      }
+      return;
+    }
+
+    final code = authProvider.otpErrorCode;
+    setState(() {
+      _inlineError = authProvider.error ?? 'Code invalide';
+      _hasError = true;
+      _locked = code == 'otp_locked' || code == 'otp_resend_limit';
+      _expired = code == 'otp_expired';
+    });
+    _clearBoxes();
+    if (!_entryDisabled) {
       _focusNodes[0].requestFocus();
     }
   }
@@ -130,13 +179,21 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
     if (success) {
       Helpers.showSnackBar(context, 'Code renvoyé avec succès');
+      setState(() {
+        _inlineError = null;
+        _hasError = false;
+        _locked = false;
+        _expired = false;
+      });
+      _clearBoxes();
+      _focusNodes[0].requestFocus();
       _startCooldown();
     } else {
-      Helpers.showSnackBar(
-        context,
-        authProvider.error ?? 'Erreur lors de l\'envoi',
-        isError: true,
-      );
+      final code = authProvider.otpErrorCode;
+      setState(() {
+        _inlineError = authProvider.error ?? 'Erreur lors de l\'envoi';
+        if (code == 'otp_resend_limit') _locked = true;
+      });
     }
   }
 
@@ -178,90 +235,131 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               const SizedBox(height: 32),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(6, (index) {
-                  return Container(
-                    width: 50,
-                    height: 64,
-                    margin: EdgeInsets.only(
-                      left: index == 0 ? 0 : 4,
-                      right: index == 5 ? 0 : 4,
-                    ),
-                    child: TextField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      textAlign: TextAlign.center,
-                      textAlignVertical: TextAlignVertical.center,
-                      keyboardType: TextInputType.number,
-                      maxLength: 1,
-                      obscureText: false,
-                      style: AppTextStyles.headlineMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0,
-                        height: 1.2,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      decoration: InputDecoration(
-                        counterText: '',
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 16),
-                        isDense: false,
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                              color: AppColors.border, width: 1.5),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                              color: AppColors.border, width: 1.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
-                            width: 2.5,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.secondary,
-                      ),
-                      onChanged: (value) => _onOtpChanged(index, value),
-                      onTap: () {
-                        if (_controllers[index].text.isEmpty) {
-                          _controllers[index].selection =
-                              const TextSelection.collapsed(
-                            offset: 0,
-                          );
-                        }
-                      },
-                    ),
-                  );
-                }),
+                children: List.generate(6, _buildOtpBox),
               ),
+              if (_inlineError != null) ...[
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      _entryDisabled
+                          ? Icons.shield_outlined
+                          : Icons.error_outline,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _inlineError!,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 24),
               TextButton(
                 onPressed: _resendCooldown > 0 ? null : _handleResend,
                 child: Text(
                   _resendCooldown > 0
                       ? 'Renvoyer dans 0:${_resendCooldown.toString().padLeft(2, '0')}'
-                      : 'Renvoyer le code',
+                      : (_entryDisabled
+                          ? 'Renvoyer un nouveau code'
+                          : 'Renvoyer le code'),
                 ),
               ),
+              if (kDebugMode) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  ),
+                  child: Text(
+                    'Démo : code ${MockAuthService.demoOtp} (masqué en production)',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
               AppButton(
                 text: 'Vérifier',
-                onPressed: _isLoading ? null : _handleVerify,
+                onPressed: _canVerify ? _handleVerify : null,
                 isLoading: _isLoading,
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOtpBox(int index) {
+    final borderColor = _hasError ? AppColors.error : AppColors.border;
+    return Container(
+      width: 50,
+      height: 64,
+      margin: EdgeInsets.only(
+        left: index == 0 ? 0 : 4,
+        right: index == 5 ? 0 : 4,
+      ),
+      child: Focus(
+        onKeyEvent: (node, event) => _onBoxKey(index, event),
+        child: TextField(
+          controller: _controllers[index],
+          focusNode: _focusNodes[index],
+          enabled: !_entryDisabled,
+          textAlign: TextAlign.center,
+          textAlignVertical: TextAlignVertical.center,
+          keyboardType: TextInputType.number,
+          maxLength: index == 0 ? 6 : 1,
+          style: AppTextStyles.headlineMedium.copyWith(
+            color: _hasError ? AppColors.error : AppColors.textPrimary,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0,
+            height: 1.2,
+          ),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+          ],
+          decoration: InputDecoration(
+            counterText: '',
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            isDense: false,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              borderSide: BorderSide(color: borderColor, width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              borderSide: BorderSide(color: borderColor, width: 1.5),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              borderSide: const BorderSide(color: AppColors.border, width: 1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              borderSide: BorderSide(
+                color: _hasError ? AppColors.error : AppColors.primary,
+                width: 2.5,
+              ),
+            ),
+            filled: true,
+            fillColor: _entryDisabled ? AppColors.surface : AppColors.secondary,
+          ),
+          onChanged: (value) => _onOtpChanged(index, value),
         ),
       ),
     );

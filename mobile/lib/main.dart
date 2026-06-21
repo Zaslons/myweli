@@ -11,6 +11,7 @@ import 'core/utils/logger.dart';
 import 'providers/appointment_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/favorites_provider.dart';
+import 'providers/notifications_provider.dart';
 import 'providers/provider_provider.dart';
 
 void main() {
@@ -50,6 +51,7 @@ class MyweliApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProviderProvider()),
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
       ],
       child: MaterialApp.router(
         title: 'Myweli',

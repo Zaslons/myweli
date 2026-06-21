@@ -11,6 +11,16 @@ class AppConstants {
   static const int otpLength = 6;
   static const int otpResendCooldownSeconds = 60;
 
+  /// Wrong-code attempts allowed before the code is locked and a resend is
+  /// required.
+  static const int otpMaxAttempts = 5;
+
+  /// Resends allowed (after the initial send) before the user must wait.
+  static const int otpMaxResends = 3;
+
+  /// How long a sent code stays valid.
+  static const Duration otpValidity = Duration(minutes: 5);
+
   // Pagination
   static const int itemsPerPage = 20;
 

@@ -55,4 +55,70 @@ void main() {
       expect(Formatters.formatCurrency(1500), contains('500'));
     });
   });
+
+  group('Formatters.formatRelative', () {
+    final now = DateTime(2024, 6, 24, 12, 0);
+
+    test('shows minutes for recent times', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(minutes: 5)),
+          now: now,
+        ),
+        'il y a 5 min',
+      );
+    });
+
+    test('shows hours within the day', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(hours: 2)),
+          now: now,
+        ),
+        'il y a 2 h',
+      );
+    });
+
+    test('shows "Hier" for one day ago', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(days: 1)),
+          now: now,
+        ),
+        'Hier',
+      );
+    });
+
+    test('shows days within the week', () {
+      expect(
+        Formatters.formatRelative(
+          now.subtract(const Duration(days: 3)),
+          now: now,
+        ),
+        'il y a 3 j',
+      );
+    });
+  });
+
+  group('Formatters.formatPriceRange', () {
+    test('single value when there is no max', () {
+      final s = Formatters.formatPriceRange(15000, null);
+      expect(s, endsWith('XOF'));
+      expect(s, isNot(contains('–')));
+    });
+
+    test('a dash-separated range when max is greater', () {
+      final s = Formatters.formatPriceRange(15000, 25000);
+      expect(s, contains('–'));
+      expect(s, contains('15'));
+      expect(s, contains('25'));
+    });
+
+    test('single value when max is not greater than min', () {
+      expect(
+        Formatters.formatPriceRange(15000, 15000),
+        isNot(contains('–')),
+      );
+    });
+  });
 }

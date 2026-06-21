@@ -91,6 +91,15 @@ class ProProfileScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.payments_outlined),
+                    title: const Text('Paramètres d\'acompte'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/pro/deposit-settings'),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 AppButton(
                   text: 'Déconnexion',

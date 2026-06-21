@@ -52,6 +52,15 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
         .fold(0.0, (sum, s) => sum + s.price);
   }
 
+  bool _hasRange() {
+    final p =
+        Provider.of<ProviderProvider>(context, listen: false).selectedProvider;
+    if (p == null) return false;
+    return p.services
+        .where((s) => _selectedServiceIds.contains(s.id))
+        .any((s) => s.priceMax != null);
+  }
+
   void _handleContinue() {
     if (_selectedServiceIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,7 +179,9 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                           style: AppTextStyles.titleMedium,
                         ),
                         Text(
-                          Formatters.formatCurrency(_calculateTotal()),
+                          _hasRange()
+                              ? 'À partir de ${Formatters.formatCurrency(_calculateTotal())}'
+                              : Formatters.formatCurrency(_calculateTotal()),
                           style: AppTextStyles.titleLarge.copyWith(
                             color: AppColors.primary,
                           ),
@@ -261,10 +272,15 @@ class _ServiceCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              Formatters.formatCurrency(service.price),
-              style: AppTextStyles.titleLarge.copyWith(
-                color: isDisabled ? AppColors.textTertiary : AppColors.primary,
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                Formatters.formatPriceRange(service.price, service.priceMax),
+                textAlign: TextAlign.end,
+                style: AppTextStyles.titleMedium.copyWith(
+                  color:
+                      isDisabled ? AppColors.textTertiary : AppColors.primary,
+                ),
               ),
             ),
           ],

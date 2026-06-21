@@ -9,6 +9,7 @@ class MockProviderService implements ProviderServiceInterface {
   Future<ApiResponse<List<Provider>>> getProviders({
     String? category,
     String? searchQuery,
+    String? commune,
     int page = 1,
     int limit = 20,
   }) async {
@@ -19,6 +20,11 @@ class MockProviderService implements ProviderServiceInterface {
     // Filter by category
     if (category != null && category.isNotEmpty) {
       providers = providers.where((p) => p.category == category).toList();
+    }
+
+    // Filter by commune
+    if (commune != null && commune.isNotEmpty) {
+      providers = providers.where((p) => p.commune == commune).toList();
     }
 
     // Filter by search query

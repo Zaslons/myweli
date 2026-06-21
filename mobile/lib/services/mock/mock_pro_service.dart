@@ -2,6 +2,7 @@ import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
+import '../../models/payment.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
@@ -256,5 +257,47 @@ class MockProService implements ProServiceInterface {
       totalEarnings: totalEarnings,
       transactions: transactions,
     ));
+  }
+
+  @override
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final provider = MockData.providers.firstWhere(
+      (p) => p.id == providerId,
+      orElse: () => MockData.providers.first,
+    );
+    return ApiResponse.success(
+      DepositPolicy(
+        depositRequired: provider.depositRequired,
+        depositPercentage: provider.depositPercentage,
+        cancellationWindowHours: provider.cancellationWindowHours,
+      ),
+    );
+  }
+
+  @override
+  Future<ApiResponse<DepositPolicy>> updateDepositPolicy(
+    String providerId, {
+    required bool depositRequired,
+    required double depositPercentage,
+    required int cancellationWindowHours,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index = MockData.providers.indexWhere((p) => p.id == providerId);
+    if (index == -1) {
+      return ApiResponse.error('Prestataire introuvable');
+    }
+    MockData.providers[index] = MockData.providers[index].copyWith(
+      depositRequired: depositRequired,
+      depositPercentage: depositPercentage,
+      cancellationWindowHours: cancellationWindowHours,
+    );
+    return ApiResponse.success(
+      DepositPolicy(
+        depositRequired: depositRequired,
+        depositPercentage: depositPercentage,
+        cancellationWindowHours: cancellationWindowHours,
+      ),
+    );
   }
 }
