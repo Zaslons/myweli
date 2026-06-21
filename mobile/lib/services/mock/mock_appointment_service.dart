@@ -105,6 +105,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
       depositAmount: depositAmount,
       balanceDue:
           (totalPrice - depositAmount).clamp(0.0, totalPrice).toDouble(),
+      cancellationWindowHours: provider.cancellationWindowHours,
       notes: notes,
       createdAt: DateTime.now(),
     );
@@ -204,6 +205,35 @@ class MockAppointmentService implements AppointmentServiceInterface {
     await _saveAppointments();
 
     return ApiResponse.success(null, message: 'Rendez-vous annulé');
+  }
+
+  @override
+  Future<ApiResponse<Appointment>> rescheduleAppointment({
+    required String id,
+    required DateTime newDateTime,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+
+    final index = _appointments.indexWhere((a) => a.id == id);
+    if (index == -1) {
+      return ApiResponse.error('Rendez-vous non trouvé');
+    }
+
+    final current = _appointments[index];
+    if (current.status == AppointmentStatus.cancelled ||
+        current.status == AppointmentStatus.completed) {
+      return ApiResponse.error('Ce rendez-vous ne peut pas être reporté');
+    }
+    if (newDateTime.isBefore(DateTime.now())) {
+      return ApiResponse.error('Veuillez choisir une date à venir');
+    }
+
+    // Deposit and balance carry over; only the date moves.
+    final updated = current.copyWith(appointmentDate: newDateTime);
+    _appointments[index] = updated;
+    await _saveAppointments();
+
+    return ApiResponse.success(updated, message: 'Rendez-vous reporté');
   }
 
   @override

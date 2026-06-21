@@ -40,7 +40,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Consumer auth** (phone/OTP, splash, session) | ~85% | Mock OTP `123456`; needs real-OTP UX states (resend cooldown, lockout, auto-read). |
 | **Consumer discovery** (home, list, detail, map, search) | ~80% | Strong. Missing: commune filter, price *ranges*, WhatsApp link, verified badge, before/after gallery. |
 | **Booking flow** (hub, services, artist, date/time, confirm) | ~85% | Best part of the app (`booking_hub_screen.dart`). Missing: deposit step, buffers, duration-by-length, rebook. |
-| **Consumer appointments** (list, detail, cancel) | ~75% | Missing: policy-bound cancel UI, visit-history richness, auto-sync entries. |
+| **Consumer appointments** (list, detail, cancel, reschedule) | ~90% | Done: policy-bound cancel + reschedule. Missing: visit-history richness, auto-sync entries. |
 | **Reviews** (submit post-completion) | ~70% | Missing: photos, verified-booking badge, per-artist attribution. |
 | **Favorites** (map + toggle) | ~80% | Solid. |
 | **Profile** (view/edit) | ~70% | Missing: account deletion/export (store + law). |
@@ -144,7 +144,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 2. **Auth** — real-OTP UX (resend cooldown, attempts/lockout, auto-read affordance), error states.
 3. **Discovery** — add commune filter, price ranges, WhatsApp link, verified badge, before/after gallery; perf-test long lists (pagination, image placeholders).
 4. **Booking + deposit (UI)** — add the **deposit step UI** (operator picker, one-tap, amount = deposit, balance shown), buffers, duration-by-length, rebook; wire to a mock payment service.
-5. **Appointments** — policy-bound cancel/reschedule UI, rich visit history, auto-sync placeholder entries.
+5. **Appointments** — ✅ policy-bound cancel/reschedule UI; remaining: rich visit history, auto-sync placeholder entries.
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
 8. **Profile** — account deletion/export.
@@ -160,7 +160,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Notifications** (FR-NOTIF-002): in-app feed replaces the stub (flat list, unread cues, "Tout lire", tap → mark read + deep link).
 - ✅ **Reviews** (FR-REV-002/003): verified-booking badge, stylist attribution, photo **display** (attach deferred to the Phase 4 image pipeline).
 - ✅ **Booking — rebook** (FR-BOOK-009): tapping a *past* appointment in the salon-page "appointments at this salon" carousel re-opens the booking hub pre-filled with the same services + stylist (sanitized against current provider data) and lands on Date & heure; past tiles show a "Réserver à nouveau" hint, upcoming appointments still open the detail.
-- ⏳ **Still V1-open:** auth real-OTP UX (#2); booking buffers / duration-by-length (#4 partial); appointments policy-bound cancel/reschedule + rich visit history + auto-sync (#5); profile account deletion/export (#8); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
+- ✅ **Appointments — policy-bound cancel + reschedule** (FR-APPT-003/004/005): per-salon `cancellationWindowHours` (default 24h, snapshotted onto each appointment at booking); cancel shows the deposit consequence (forfeited within the window vs refunded outside, mock refund); reschedule reuses the `/booking/date-time` picker (deposit carries over, no penalty). Pros set the window in the existing "Acompte" settings screen. *(Real refund lands with the payment backend.)*
+- ⏳ **Still V1-open:** auth real-OTP UX (#2); booking buffers / duration-by-length (#4 partial); appointments rich visit history + auto-sync entries (#5 partial); profile account deletion/export (#8); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)

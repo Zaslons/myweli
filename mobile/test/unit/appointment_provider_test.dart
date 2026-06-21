@@ -111,4 +111,53 @@ void main() {
     expect(provider.appointments, isEmpty);
     expect(provider.error, isNotNull);
   });
+
+  test('rescheduleAppointment moves the stored appointment on success',
+      () async {
+    when(() => appointments.getUserAppointments(status: any(named: 'status')))
+        .thenAnswer((_) async => ApiResponse.success([confirmed()]));
+    final newDate = DateTime(2024, 6, 25, 14);
+    when(
+      () => appointments.rescheduleAppointment(
+        id: any(named: 'id'),
+        newDateTime: any(named: 'newDateTime'),
+      ),
+    ).thenAnswer(
+      (_) async => ApiResponse.success(
+        confirmed().copyWith(appointmentDate: newDate),
+      ),
+    );
+
+    final provider = AppointmentProvider();
+    await provider.loadAppointments();
+    final ok =
+        await provider.rescheduleAppointment(id: 'a1', newDateTime: newDate);
+
+    expect(ok, isTrue);
+    expect(provider.appointments.single.appointmentDate, newDate);
+  });
+
+  test('rescheduleAppointment keeps the date and surfaces the error on failure',
+      () async {
+    when(() => appointments.getUserAppointments(status: any(named: 'status')))
+        .thenAnswer((_) async => ApiResponse.success([confirmed()]));
+    when(
+      () => appointments.rescheduleAppointment(
+        id: any(named: 'id'),
+        newDateTime: any(named: 'newDateTime'),
+      ),
+    ).thenAnswer((_) async => ApiResponse.error('boom'));
+
+    final provider = AppointmentProvider();
+    await provider.loadAppointments();
+    final ok = await provider.rescheduleAppointment(
+      id: 'a1',
+      newDateTime: DateTime(2024, 6, 25, 14),
+    );
+
+    expect(ok, isFalse);
+    expect(provider.appointments.single.appointmentDate,
+        DateTime(2024, 6, 24, 10));
+    expect(provider.error, 'boom');
+  });
 }
