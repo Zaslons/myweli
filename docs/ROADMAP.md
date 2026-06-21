@@ -37,7 +37,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 
 | Area | Done | Notes |
 |---|---|---|
-| **Consumer auth** (phone/OTP, splash, session) | ~98% | Real-OTP UX + session persistence (secure-storage, survives restarts) done. Remaining: SMS auto-read; real access/refresh tokens (backend). |
+| **Consumer auth** (phone/OTP, splash, session) | ~99% | Real-OTP UX + session persistence + SMS auto-read (OS autofill hint) done. Remaining: real access/refresh tokens + Android SMS Retriever (backend). |
 | **Consumer discovery** (home, list, detail, map, search) | ~80% | Strong. Missing: commune filter, price *ranges*, WhatsApp link, verified badge, before/after gallery. |
 | **Booking flow** (hub, services, artist, date/time, confirm) | ~85% | Best part of the app (`booking_hub_screen.dart`). Missing: deposit step, buffers, duration-by-length, rebook. |
 | **Consumer appointments** (list, detail, cancel, reschedule, history) | ~95% | Done: policy-bound cancel + reschedule; rich visit history with auto-synced status. Remaining: deeper history (photos/receipts) post-backend. |
@@ -141,7 +141,7 @@ Each phase lists its work, its **exit criteria** (Definition of Done), and the t
 Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop. For **each screen/flow**, the Definition of Done is in Part 7. Suggested order:
 
 1. **Design-system audit** — confirm theme tokens, spacing, components (`AppButton`, `AppTextField`, `EmptyState`, `LoadingIndicator`); add loading/error/empty variants everywhere; golden-test the component library.
-2. **Auth** — ✅ real-OTP UX (5-min expiry, attempts/lockout, resend cap, inline error states); ✅ session persistence (secure storage); remaining: SMS auto-read affordance.
+2. **Auth** — ✅ real-OTP UX (5-min expiry, attempts/lockout, resend cap, inline error states); ✅ session persistence (secure storage); ✅ SMS auto-read affordance (OS autofill hint).
 3. **Discovery** — add commune filter, price ranges, WhatsApp link, verified badge, before/after gallery; perf-test long lists (pagination, image placeholders).
 4. **Booking + deposit (UI)** — add the **deposit step UI** (operator picker, one-tap, amount = deposit, balance shown), buffers, duration-by-length, rebook; wire to a mock payment service.
 5. **Appointments** — ✅ policy-bound cancel/reschedule UI; ✅ rich visit history with auto-synced status.
@@ -165,7 +165,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Profile — account deletion + data export** (FR-PROF-008): authenticated users can **export their data** ("Mes données" → profile + rendez-vous + favoris, copied as JSON) and **delete their account** (type "SUPPRIMER" to confirm → clears session + favorites → back to login). Both behind `AuthServiceInterface` (`deleteAccount`) with a pure, unit-tested export builder. *(Real file download/share + server-side erasure land with the backend.)*
 - ✅ **Appointments — rich visit history + auto-sync** (FR-APPT-005): the "Passés" tab is now a visit history — past, non-cancelled appointments auto-sync to "Terminé" (pure `effectiveAppointmentStatus`, a placeholder until backend completion events), grouped by month with a spend summary (visit count + total) and one-tap "Réserver à nouveau".
 - ✅ **Auth — session persistence** (FR-AUTH): the session (mock token + user) is persisted in **`flutter_secure_storage`** and restored on cold start, so users stay logged in across restarts; logout and account deletion clear it. New `Session` model + `SessionStore` interface (secure + in-memory impls), behind `AuthServiceInterface`. *(Real access/refresh + rotation land with the backend; chosen lifetime: until logout, with a ready `expiresAt` field.)*
-- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); profile avatar upload (#8 partial); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10); auth SMS auto-read.
+- ✅ **Auth — SMS auto-read** (FR-AUTH): the OTP boxes form an `AutofillGroup` and the first box requests `AutofillHints.oneTimeCode`, so iOS surfaces the SMS code in the keyboard QuickType bar (one tap) and Android autofill can fill it; the OS code lands in the first box and the existing paste-distribution fills the rest and auto-submits. No dependency, no permission. *(Zero-tap Android SMS Retriever needs the backend SMS to embed the app hash — deferred.)*
+- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); profile avatar upload (#8 partial); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
