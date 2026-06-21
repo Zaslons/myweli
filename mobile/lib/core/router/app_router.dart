@@ -12,6 +12,7 @@ import '../../screens/booking/service_selection_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/map/map_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
+import '../../screens/profile/data_export_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/providers/provider_detail_screen.dart';
@@ -70,7 +71,16 @@ class AppRouter {
         name: 'booking-hub',
         builder: (context, state) {
           final providerId = state.uri.queryParameters['providerId']!;
-          return BookingHubScreen(providerId: providerId);
+          final serviceIdsParam = state.uri.queryParameters['serviceIds'];
+          final initialServiceIds =
+              serviceIdsParam == null || serviceIdsParam.isEmpty
+                  ? const <String>[]
+                  : serviceIdsParam.split(',');
+          return BookingHubScreen(
+            providerId: providerId,
+            initialServiceIds: initialServiceIds,
+            initialArtistId: state.uri.queryParameters['artistId'],
+          );
         },
       ),
       GoRoute(
@@ -187,6 +197,11 @@ class AppRouter {
             path: 'edit',
             name: 'profile-edit',
             builder: (context, state) => const EditProfileScreen(),
+          ),
+          GoRoute(
+            path: 'data',
+            name: 'profile-data',
+            builder: (context, state) => const DataExportScreen(),
           ),
         ],
       ),

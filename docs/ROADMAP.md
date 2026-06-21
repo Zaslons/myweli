@@ -37,13 +37,13 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 
 | Area | Done | Notes |
 |---|---|---|
-| **Consumer auth** (phone/OTP, splash, session) | ~85% | Mock OTP `123456`; needs real-OTP UX states (resend cooldown, lockout, auto-read). |
+| **Consumer auth** (phone/OTP, splash, session) | ~95% | Real-OTP UX done (5-min expiry, attempts→lockout, resend cap, inline states). Remaining: session persistence across restarts, SMS auto-read. |
 | **Consumer discovery** (home, list, detail, map, search) | ~80% | Strong. Missing: commune filter, price *ranges*, WhatsApp link, verified badge, before/after gallery. |
 | **Booking flow** (hub, services, artist, date/time, confirm) | ~85% | Best part of the app (`booking_hub_screen.dart`). Missing: deposit step, buffers, duration-by-length, rebook. |
-| **Consumer appointments** (list, detail, cancel) | ~75% | Missing: policy-bound cancel UI, visit-history richness, auto-sync entries. |
+| **Consumer appointments** (list, detail, cancel, reschedule) | ~90% | Done: policy-bound cancel + reschedule. Missing: visit-history richness, auto-sync entries. |
 | **Reviews** (submit post-completion) | ~70% | Missing: photos, verified-booking badge, per-artist attribution. |
 | **Favorites** (map + toggle) | ~80% | Solid. |
-| **Profile** (view/edit) | ~70% | Missing: account deletion/export (store + law). |
+| **Profile** (view/edit) | ~90% | Account deletion (typed confirm) + data export (JSON copy) done. Missing: avatar upload. |
 | **Notifications (consumer)** | ~10% | **Stub** (`EmptyState`). No feed, no center. |
 | **Pro auth + register** | ~80% | Missing: KYC upload UI, guided onboarding (empty `onboarding/`). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
@@ -141,17 +141,30 @@ Each phase lists its work, its **exit criteria** (Definition of Done), and the t
 Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop. For **each screen/flow**, the Definition of Done is in Part 7. Suggested order:
 
 1. **Design-system audit** — confirm theme tokens, spacing, components (`AppButton`, `AppTextField`, `EmptyState`, `LoadingIndicator`); add loading/error/empty variants everywhere; golden-test the component library.
-2. **Auth** — real-OTP UX (resend cooldown, attempts/lockout, auto-read affordance), error states.
+2. **Auth** — ✅ real-OTP UX (5-min expiry, attempts/lockout, resend cap, inline error states); remaining: session persistence, SMS auto-read affordance.
 3. **Discovery** — add commune filter, price ranges, WhatsApp link, verified badge, before/after gallery; perf-test long lists (pagination, image placeholders).
 4. **Booking + deposit (UI)** — add the **deposit step UI** (operator picker, one-tap, amount = deposit, balance shown), buffers, duration-by-length, rebook; wire to a mock payment service.
-5. **Appointments** — policy-bound cancel/reschedule UI, rich visit history, auto-sync placeholder entries.
+5. **Appointments** — ✅ policy-bound cancel/reschedule UI; remaining: rich visit history, auto-sync placeholder entries.
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
-8. **Profile** — account deletion/export.
+8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
 9. **Pro V1** — KYC upload UI, guided onboarding (fill the empty `onboarding/`), manual booking entry, no-show marking, price ranges/duration variants/buffers/commission fields, payouts UI.
 10. **Hide/remove** the unrouted V2/V3 feature screens behind a flag so they don't ship.
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
+
+**Status (2026-06-21) — Phase 1 in progress (consumer side advancing):**
+- ✅ **Discovery — commune filter** (FR-DISC-002): pill on home + list, picker (search / "Près de moi" / all), persisted, mock providers tagged by commune.
+- ✅ **Discovery — trust polish** (FR-DISC-006 / FR-BOOK-005): WhatsApp contact row on provider detail (`wa.me`), and **price ranges** (`Service.priceMax`) shown on detail / selection / confirmation, with "À partir de" totals (deposit math unchanged, on the from-price).
+- ✅ **Booking + deposit** (FR-PAY-001): confirmation shows Total / Acompte / Solde; `DepositPaymentSheet` (Wave/OM/MTN/Moov, remembered operator, processing/success/failure); deposit-to-confirm on a mock payment service. Provider-side **deposit settings** (FR-PRO-PAY-001) shipped too (toggle + % slider).
+- ✅ **Notifications** (FR-NOTIF-002): in-app feed replaces the stub (flat list, unread cues, "Tout lire", tap → mark read + deep link).
+- ✅ **Reviews** (FR-REV-002/003): verified-booking badge, stylist attribution, photo **display** (attach deferred to the Phase 4 image pipeline).
+- ✅ **Booking — rebook** (FR-BOOK-009): tapping a *past* appointment in the salon-page "appointments at this salon" carousel re-opens the booking hub pre-filled with the same services + stylist (sanitized against current provider data) and lands on Date & heure; past tiles show a "Réserver à nouveau" hint, upcoming appointments still open the detail.
+- ✅ **Appointments — policy-bound cancel + reschedule** (FR-APPT-003/004/005): per-salon `cancellationWindowHours` (default 24h, snapshotted onto each appointment at booking); cancel shows the deposit consequence (forfeited within the window vs refunded outside, mock refund); reschedule reuses the `/booking/date-time` picker (deposit carries over, no penalty). Pros set the window in the existing "Acompte" settings screen. *(Real refund lands with the payment backend.)*
+- ✅ **Auth — real-OTP UX** (FR-AUTH-002): the mock now enforces a 5-attempt lockout, 5-minute code expiry, and a 3-resend cap, returning typed error codes (`otp_invalid`/`otp_expired`/`otp_locked`/`otp_resend_limit`); the OTP screen renders inline error / locked / expired states with red boxes + attempts-remaining, plus backspace-to-previous, paste-to-fill, auto-submit, and a debug-only demo-code hint. *(Session persistence + SMS auto-read deferred to follow-ups.)*
+- ✅ **Profile — account deletion + data export** (FR-PROF-008): authenticated users can **export their data** ("Mes données" → profile + rendez-vous + favoris, copied as JSON) and **delete their account** (type "SUPPRIMER" to confirm → clears session + favorites → back to login). Both behind `AuthServiceInterface` (`deleteAccount`) with a pure, unit-tested export builder. *(Real file download/share + server-side erasure land with the backend.)*
+- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); appointments rich visit history + auto-sync entries (#5 partial); profile avatar upload (#8 partial); Pro V1 — KYC onboarding, manual booking entry, no-show marking, payouts (#9); flag-hide the unrouted V2/V3 feature screens (#10); auth session persistence + SMS auto-read.
+- ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
 - [ ] **Mobile Money deposit spike:** one real sandbox deposit end-to-end via the chosen aggregator (PRD OQ-4) — proves feasibility, callback security, and the deposit-custody model (OQ-1).

@@ -10,10 +10,15 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _error;
+  String? _otpErrorCode;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// Machine-readable code for the last OTP failure (e.g. `otp_locked`,
+  /// `otp_expired`), so the OTP screen can render the right state.
+  String? get otpErrorCode => _otpErrorCode;
   bool get isAuthenticated => _user != null;
 
   AuthProvider() {
@@ -44,9 +49,11 @@ class AuthProvider extends ChangeNotifier {
       final response = await _authService.sendOtp(phoneNumber);
       if (response.success) {
         _error = null;
+        _otpErrorCode = null;
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de l\'envoi du code';
+        _otpErrorCode = response.code;
         return false;
       }
     } catch (e) {
@@ -68,9 +75,11 @@ class AuthProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _user = response.data;
         _error = null;
+        _otpErrorCode = null;
         return true;
       } else {
         _error = response.error ?? 'Code OTP invalide';
+        _otpErrorCode = response.code;
         return false;
       }
     } catch (e) {
@@ -92,6 +101,30 @@ class AuthProvider extends ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Permanently deletes the account. On success the local user is cleared.
+  Future<bool> deleteAccount() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _authService.deleteAccount();
+      if (response.success) {
+        _user = null;
+        _error = null;
+        return true;
+      }
+      _error = response.error ?? 'Erreur lors de la suppression';
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();

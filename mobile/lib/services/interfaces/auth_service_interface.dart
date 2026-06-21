@@ -9,6 +9,9 @@ abstract class AuthServiceInterface {
   Future<User?> getCurrentUser();
   Future<ApiResponse<User>> updateUser({String? name, String? email});
 
+  /// Permanently delete the signed-in user's account. Irreversible.
+  Future<ApiResponse<void>> deleteAccount();
+
   // Provider methods
   Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber);
   Future<ApiResponse<ProviderUser>> verifyOtpForProvider(

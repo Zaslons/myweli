@@ -106,6 +106,19 @@ class ProfileScreen extends StatelessWidget {
                   title: 'À propos',
                   trailing: Text('Version 1.0.0'),
                 ),
+                if (user != null) ...[
+                  _SettingsItem(
+                    icon: Icons.download_outlined,
+                    title: 'Exporter mes données',
+                    onTap: () => context.push('/profile/data'),
+                  ),
+                  _SettingsItem(
+                    icon: Icons.delete_outline,
+                    title: 'Supprimer mon compte',
+                    danger: true,
+                    onTap: () => _handleDelete(context, authProvider),
+                  ),
+                ],
                 const SizedBox(height: 32),
                 // Logout Button (only show if authenticated)
                 if (user != null)
@@ -161,6 +174,97 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _handleDelete(
+    BuildContext context,
+    AuthProvider authProvider,
+  ) async {
+    final confirmed = await _confirmDeletion(context);
+    if (confirmed != true || !context.mounted) return;
+
+    final favoritesProvider =
+        Provider.of<FavoritesProvider>(context, listen: false);
+    final success = await authProvider.deleteAccount();
+    if (!context.mounted) return;
+
+    if (success) {
+      favoritesProvider.clearFavorites();
+      context.go('/login');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Compte supprimé')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error ?? 'Erreur lors de la suppression'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  Future<bool?> _confirmDeletion(BuildContext context) async {
+    final controller = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocalState) {
+          final canDelete = controller.text.trim().toUpperCase() == 'SUPPRIMER';
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: AppColors.error),
+                SizedBox(width: 8),
+                Expanded(child: Text('Supprimer mon compte')),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Cette action est définitive. Vos rendez-vous, favoris et '
+                  'avis seront supprimés. Pensez à exporter vos données avant.',
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Tapez SUPPRIMER pour confirmer',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => setLocalState(() {}),
+                  decoration: const InputDecoration(hintText: 'SUPPRIMER'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: canDelete ? () => Navigator.pop(ctx, true) : null,
+                child: Text(
+                  'Supprimer définitivement',
+                  style: TextStyle(
+                    color: canDelete ? AppColors.error : AppColors.textTertiary,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
 }
 
 class _SettingsItem extends StatelessWidget {
@@ -168,19 +272,22 @@ class _SettingsItem extends StatelessWidget {
   final String title;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final bool danger;
 
   const _SettingsItem({
     required this.icon,
     required this.title,
     this.trailing,
     this.onTap,
+    this.danger = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = danger ? AppColors.error : AppColors.textPrimary;
     return ListTile(
-      leading: Icon(icon, color: AppColors.textPrimary),
-      title: Text(title, style: AppTextStyles.bodyLarge),
+      leading: Icon(icon, color: color),
+      title: Text(title, style: AppTextStyles.bodyLarge.copyWith(color: color)),
       trailing: trailing ??
           const Icon(Icons.chevron_right, color: AppColors.textTertiary),
       onTap: onTap,

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/di/dependency_injection.dart';
 import '../models/provider.dart';
@@ -15,6 +16,9 @@ class ProviderProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   String? _selectedCategory;
+  String? _selectedCommune;
+
+  static const _communeKey = 'myweli_selected_commune_v1';
 
   List<Provider> get providers => _providers;
   List<Provider> get featuredProviders => _featuredProviders;
@@ -22,6 +26,7 @@ class ProviderProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get selectedCategory => _selectedCategory;
+  String? get selectedCommune => _selectedCommune;
 
   Future<void> loadProviders({
     String? category,
@@ -36,6 +41,7 @@ class ProviderProvider extends ChangeNotifier {
       final response = await _providerService.getProviders(
         category: category,
         searchQuery: searchQuery,
+        commune: _selectedCommune,
       );
       if (response.success && response.data != null) {
         _providers = response.data!;
@@ -51,6 +57,32 @@ class ProviderProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Restore the last selected commune from local storage (call at startup).
+  Future<void> restoreSelectedCommune() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_communeKey);
+    if (saved != null && saved.isNotEmpty) {
+      _selectedCommune = saved;
+      notifyListeners();
+    }
+  }
+
+  /// Set the active commune (null = all communes), persist it, and reload the
+  /// provider list for the current category.
+  Future<void> setCommune(String? commune) async {
+    _selectedCommune = (commune != null && commune.isNotEmpty) ? commune : null;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    if (_selectedCommune == null) {
+      await prefs.remove(_communeKey);
+    } else {
+      await prefs.setString(_communeKey, _selectedCommune!);
+    }
+
+    await loadProviders(category: _selectedCategory);
   }
 
   Future<void> loadFeaturedProviders() async {

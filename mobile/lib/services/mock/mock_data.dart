@@ -170,6 +170,7 @@ class MockData {
           name: 'Tissage',
           description: 'Tissage de cheveux',
           price: 15000,
+          priceMax: 25000,
           durationMinutes: 120,
           providerId: 'provider2',
           artistIds: ['artist3', 'artist5'], // Only these two can do this
@@ -179,6 +180,7 @@ class MockData {
           name: 'Coloration',
           description: 'Coloration complète',
           price: 12000,
+          priceMax: 18000,
           durationMinutes: 90,
           providerId: 'provider2',
           artistIds: ['artist3', 'artist4'], // These two can do this
@@ -224,6 +226,7 @@ class MockData {
       name: 'Salon Excellence',
       description: 'Salon de coiffure moderne au cœur d\'Abidjan',
       address: 'Cocody, Angré 7ème Tranche',
+      commune: 'Cocody',
       city: 'Abidjan',
       latitude: 5.3600,
       longitude: -4.0083,
@@ -249,6 +252,7 @@ class MockData {
         blockedDates: const [],
       ),
       phoneNumber: '+225 07 11 22 33 44',
+      whatsapp: '+225 07 11 22 33 44',
       category: 'barber',
     ),
     Provider(
@@ -256,6 +260,8 @@ class MockData {
       name: 'Beauté Divine',
       description: 'Institut de beauté pour femmes',
       address: 'Marcory, Zone 4',
+      commune: 'Marcory',
+      depositPercentage: 0.50,
       city: 'Abidjan',
       latitude: 5.2800,
       longitude: -4.0500,
@@ -280,6 +286,7 @@ class MockData {
         blockedDates: const [],
       ),
       phoneNumber: '+225 05 44 55 66 77',
+      whatsapp: '+225 05 44 55 66 77',
       category: 'salon',
     ),
     Provider(
@@ -287,6 +294,8 @@ class MockData {
       name: 'Spa Relax',
       description: 'Centre de bien-être et relaxation',
       address: 'Yopougon, Sicogi',
+      commune: 'Yopougon',
+      depositRequired: false,
       city: 'Abidjan',
       latitude: 5.3200,
       longitude: -4.0800,
@@ -311,6 +320,7 @@ class MockData {
         blockedDates: const [],
       ),
       phoneNumber: '+225 01 22 33 44 55',
+      whatsapp: '+225 01 22 33 44 55',
       category: 'spa',
     ),
     Provider(
@@ -318,6 +328,7 @@ class MockData {
       name: 'Barber Shop Pro',
       description: 'Salon de coiffure pour hommes',
       address: 'Plateau, Avenue Franchet d\'Esperey',
+      commune: 'Plateau',
       city: 'Abidjan',
       latitude: 5.3200,
       longitude: -4.0300,
@@ -374,6 +385,12 @@ class MockData {
       userName: 'Marie Diallo',
       rating: 5,
       text: 'Très bon accueil et coupe impeccable. Je recommande.',
+      verified: true,
+      artistName: 'Kouassi Jean',
+      photoUrls: const [
+        'asset:assets/images/providers/salon_excellence_photo.png',
+        'asset:assets/images/providers/spa_relax_photo.png',
+      ],
       createdAt: DateTime(2025, 2, 4),
     ),
     Review(
@@ -383,6 +400,8 @@ class MockData {
       userName: 'Marie Diallo',
       rating: 4,
       text: 'Bon salon, un peu d\'attente le samedi. Service soigné.',
+      verified: true,
+      artistName: 'Kouassi Jean',
       createdAt: DateTime(2025, 1, 8),
     ),
     Review(
@@ -401,6 +420,7 @@ class MockData {
       userName: 'Jean Kouassi',
       rating: 5,
       text: 'Institut très propre, équipe professionnelle.',
+      verified: true,
       createdAt: DateTime(2025, 1, 15),
     ),
     Review(

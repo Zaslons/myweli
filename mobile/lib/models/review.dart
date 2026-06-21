@@ -7,6 +7,10 @@ class Review extends Equatable {
   final String userName;
   final int rating; // 1-5
   final String text;
+  final bool verified; // true when tied to a completed booking
+  final String? artistId;
+  final String? artistName;
+  final List<String> photoUrls;
   final DateTime createdAt;
 
   const Review({
@@ -16,12 +20,27 @@ class Review extends Equatable {
     required this.userName,
     required this.rating,
     required this.text,
+    this.verified = false,
+    this.artistId,
+    this.artistName,
+    this.photoUrls = const [],
     required this.createdAt,
   });
 
   @override
-  List<Object?> get props =>
-      [id, providerId, userId, userName, rating, text, createdAt];
+  List<Object?> get props => [
+        id,
+        providerId,
+        userId,
+        userName,
+        rating,
+        text,
+        verified,
+        artistId,
+        artistName,
+        photoUrls,
+        createdAt,
+      ];
 
   Map<String, dynamic> toJson() {
     return {
@@ -31,6 +50,10 @@ class Review extends Equatable {
       'userName': userName,
       'rating': rating,
       'text': text,
+      'verified': verified,
+      'artistId': artistId,
+      'artistName': artistName,
+      'photoUrls': photoUrls,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -43,6 +66,12 @@ class Review extends Equatable {
       userName: json['userName'] as String,
       rating: json['rating'] as int,
       text: json['text'] as String,
+      verified: json['verified'] as bool? ?? false,
+      artistId: json['artistId'] as String?,
+      artistName: json['artistName'] as String?,
+      photoUrls:
+          (json['photoUrls'] as List?)?.map((e) => e as String).toList() ??
+              const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
