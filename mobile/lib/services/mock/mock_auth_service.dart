@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
 import '../../models/provider_user.dart';
+import '../../models/session.dart';
 import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
+import '../interfaces/session_store.dart';
 import 'mock_data.dart';
 
 /// Per-phone OTP state the mock uses to emulate real SMS-OTP behaviour: a code
@@ -24,17 +27,27 @@ class _OtpState {
 }
 
 class MockAuthService implements AuthServiceInterface {
-  MockAuthService({Duration? otpValidity})
-      : _otpValidity = otpValidity ?? AppConstants.otpValidity;
+  MockAuthService({Duration? otpValidity, SessionStore? sessionStore})
+      : _otpValidity = otpValidity ?? AppConstants.otpValidity,
+        _sessionStore = sessionStore ?? InMemorySessionStore();
 
   /// Demo code (no real SMS) — surfaced only in debug builds.
   static const String demoOtp = '123456';
 
   final Duration _otpValidity;
+  final SessionStore _sessionStore;
   User? _currentUser;
   ProviderUser? _currentProvider;
   final Map<String, _OtpState> _otpStates = {};
   final Map<String, String> _providerOtpStore = {}; // phone -> otp
+
+  Future<void> _persistSession(User user) async {
+    final session = Session(
+      token: 'mock_${user.id}_${DateTime.now().millisecondsSinceEpoch}',
+      user: user,
+    );
+    await _sessionStore.save(jsonEncode(session.toJson()));
+  }
 
   @override
   Future<ApiResponse<String>> sendOtp(String phoneNumber) async {
@@ -109,6 +122,7 @@ class MockAuthService implements AuthServiceInterface {
     );
     _currentUser = user;
     _otpStates.remove(phoneNumber);
+    await _persistSession(user);
 
     return ApiResponse.success(user, message: 'Connexion réussie');
   }
@@ -117,12 +131,28 @@ class MockAuthService implements AuthServiceInterface {
   Future<void> logout() async {
     await Future.delayed(const Duration(milliseconds: 100));
     _currentUser = null;
+    await _sessionStore.clear();
   }
 
   @override
   Future<User?> getCurrentUser() async {
     await Future.delayed(const Duration(milliseconds: 50));
-    return _currentUser;
+    if (_currentUser != null) return _currentUser;
+
+    final raw = await _sessionStore.read();
+    if (raw == null) return null;
+    try {
+      final session = Session.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      if (session.isExpired(DateTime.now())) {
+        await _sessionStore.clear();
+        return null;
+      }
+      _currentUser = session.user;
+      return _currentUser;
+    } catch (_) {
+      await _sessionStore.clear();
+      return null;
+    }
   }
 
   @override
@@ -145,6 +175,7 @@ class MockAuthService implements AuthServiceInterface {
     if (index != -1) {
       MockData.users[index] = updatedUser;
     }
+    await _persistSession(updatedUser);
 
     return ApiResponse.success(updatedUser);
   }
@@ -161,6 +192,7 @@ class MockAuthService implements AuthServiceInterface {
     MockData.users.removeWhere((u) => u.id == user.id);
     _otpStates.remove(user.phoneNumber);
     _currentUser = null;
+    await _sessionStore.clear();
 
     return ApiResponse.success(null, message: 'Compte supprimé');
   }
