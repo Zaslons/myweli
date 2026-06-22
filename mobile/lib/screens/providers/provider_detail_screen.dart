@@ -1101,6 +1101,22 @@ class _ServiceTile extends StatelessWidget {
                     color: AppColors.textTertiary,
                   ),
                 ),
+                if (service.durationVariants.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      if (service.durationVariants.court != null)
+                        'Court ${Formatters.formatDuration(service.durationVariants.court!)}',
+                      if (service.durationVariants.moyen != null)
+                        'Moyen ${Formatters.formatDuration(service.durationVariants.moyen!)}',
+                      if (service.durationVariants.long != null)
+                        'Long ${Formatters.formatDuration(service.durationVariants.long!)}',
+                    ].join(' · '),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
