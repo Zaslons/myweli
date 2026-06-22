@@ -23,6 +23,11 @@ class Appointment extends Equatable {
   /// Snapshot of the provider's cancellation window (hours) at booking time, so
   /// the policy that governs this appointment can't change underneath the user.
   final int cancellationWindowHours;
+
+  /// Walk-in client details for a manually-entered booking (no app account).
+  /// Null for bookings made by an app user.
+  final String? clientName;
+  final String? clientPhone;
   final String? notes;
   final DateTime createdAt;
 
@@ -38,6 +43,8 @@ class Appointment extends Equatable {
     this.depositAmount = 0,
     this.balanceDue = 0,
     this.cancellationWindowHours = 24,
+    this.clientName,
+    this.clientPhone,
     this.notes,
     required this.createdAt,
   });
@@ -55,6 +62,8 @@ class Appointment extends Equatable {
         depositAmount,
         balanceDue,
         cancellationWindowHours,
+        clientName,
+        clientPhone,
         notes,
         createdAt,
       ];
@@ -71,6 +80,8 @@ class Appointment extends Equatable {
     double? depositAmount,
     double? balanceDue,
     int? cancellationWindowHours,
+    String? clientName,
+    String? clientPhone,
     String? notes,
     DateTime? createdAt,
   }) {
@@ -87,6 +98,8 @@ class Appointment extends Equatable {
       balanceDue: balanceDue ?? this.balanceDue,
       cancellationWindowHours:
           cancellationWindowHours ?? this.cancellationWindowHours,
+      clientName: clientName ?? this.clientName,
+      clientPhone: clientPhone ?? this.clientPhone,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -105,6 +118,8 @@ class Appointment extends Equatable {
       'depositAmount': depositAmount,
       'balanceDue': balanceDue,
       'cancellationWindowHours': cancellationWindowHours,
+      'clientName': clientName,
+      'clientPhone': clientPhone,
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -126,6 +141,8 @@ class Appointment extends Equatable {
       depositAmount: (json['depositAmount'] as num?)?.toDouble() ?? 0,
       balanceDue: (json['balanceDue'] as num?)?.toDouble() ?? 0,
       cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
+      clientName: json['clientName'] as String?,
+      clientPhone: json['clientPhone'] as String?,
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
