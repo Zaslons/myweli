@@ -94,6 +94,15 @@ class ProProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Card(
                   child: ListTile(
+                    leading: const Icon(Icons.checklist_rounded),
+                    title: const Text('Configurer mon profil'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/pro/onboarding'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
                     leading: const Icon(Icons.verified_user_outlined),
                     title: const Text('Vérification'),
                     subtitle: Text(
