@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -80,6 +81,13 @@ class _EarningsScreenState extends State<EarningsScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Revenus'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            tooltip: 'Virements',
+            onPressed: () => context.push('/pro/payouts'),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           onTap: _loadEarningsForTab,
