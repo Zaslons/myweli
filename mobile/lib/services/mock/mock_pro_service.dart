@@ -126,6 +126,20 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<bool>> markNoShow(String appointmentId) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index =
+        MockData.appointments.indexWhere((a) => a.id == appointmentId);
+    if (index == -1) {
+      return ApiResponse.error('Rendez-vous introuvable');
+    }
+    MockData.appointments[index] = MockData.appointments[index].copyWith(
+      status: AppointmentStatus.noShow,
+    );
+    return ApiResponse.success(true);
+  }
+
+  @override
   Future<ApiResponse<bool>> rescheduleAppointment(
     String appointmentId,
     DateTime newDateTime,

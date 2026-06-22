@@ -36,6 +36,8 @@ class CompactAppointmentTile extends StatelessWidget {
         return AppColors.infoLight;
       case AppointmentStatus.cancelled:
         return AppColors.errorLight;
+      case AppointmentStatus.noShow:
+        return AppColors.warningLight;
     }
   }
 
@@ -49,6 +51,8 @@ class CompactAppointmentTile extends StatelessWidget {
         return 'Terminé';
       case AppointmentStatus.cancelled:
         return 'Annulé';
+      case AppointmentStatus.noShow:
+        return 'Absent';
     }
   }
 

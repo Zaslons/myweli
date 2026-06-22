@@ -65,6 +65,7 @@ abstract class ProServiceInterface {
   Future<ApiResponse<bool>> rejectAppointment(
       String appointmentId, String? reason);
   Future<ApiResponse<bool>> markAppointmentComplete(String appointmentId);
+  Future<ApiResponse<bool>> markNoShow(String appointmentId);
   Future<ApiResponse<bool>> rescheduleAppointment(
     String appointmentId,
     DateTime newDateTime,
