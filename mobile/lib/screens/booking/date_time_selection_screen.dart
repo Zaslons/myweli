@@ -6,9 +6,12 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
+import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_button.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
@@ -38,8 +41,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   DateTime _selectedDate = DateTime.now();
   DateTime? _selectedTime;
   List<DateTime> _availableSlots = [];
-  bool _loadingSlots = false;
-  int? _computedDurationMinutes;
+  bool _loadingSlots = true;
+  String? _lengthVariant;
 
   @override
   void initState() {
@@ -49,26 +52,33 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
       _selectedTime = DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute);
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ProviderProvider>(context, listen: false)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Provider.of<ProviderProvider>(context, listen: false)
           .loadProviderById(widget.providerId);
+      if (!mounted) return;
+      // Default the hair length once we know the services (drives slot length).
+      final services = _selectedServices();
+      if (bookingHasVariants(services) && _lengthVariant == null) {
+        _lengthVariant = defaultLengthVariant(services);
+      }
+      await _loadAvailableSlots();
     });
-    _loadAvailableSlots();
+  }
+
+  List<Service> _selectedServices() {
+    final p =
+        Provider.of<ProviderProvider>(context, listen: false).selectedProvider;
+    if (p == null || widget.serviceIds.isEmpty) return const [];
+    return p.services.where((s) => widget.serviceIds.contains(s.id)).toList();
   }
 
   Future<void> _loadAvailableSlots() async {
     setState(() => _loadingSlots = true);
-    final providerProvider =
-        Provider.of<ProviderProvider>(context, listen: false);
-    final p = providerProvider.selectedProvider;
+    final services = _selectedServices();
     final durationMinutes = widget.durationMinutes ??
-        _computedDurationMinutes ??
-        (p == null || widget.serviceIds.isEmpty
+        (services.isEmpty
             ? 30
-            : p.services
-                .where((s) => widget.serviceIds.contains(s.id))
-                .fold<int>(0, (sum, s) => sum + s.durationMinutes));
-    _computedDurationMinutes = durationMinutes;
+            : totalBookingDuration(services, _lengthVariant));
     final provider = Provider.of<AppointmentProvider>(context, listen: false);
     final slots = await provider.getAvailableTimeSlots(
       providerId: widget.providerId,
@@ -128,8 +138,10 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     final serviceIds = widget.serviceIds.join(',');
     final artistParam =
         widget.artistId != null ? '&artistId=${widget.artistId}' : '';
+    final lengthParam =
+        _lengthVariant != null ? '&lengthVariant=$_lengthVariant' : '';
     context.push(
-      '/booking/confirm?providerId=${widget.providerId}&serviceIds=$serviceIds&dateTime=${dateTime.toIso8601String()}$artistParam',
+      '/booking/confirm?providerId=${widget.providerId}&serviceIds=$serviceIds&dateTime=${dateTime.toIso8601String()}$artistParam$lengthParam',
     );
   }
 
@@ -148,6 +160,22 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (bookingHasVariants(
+                      context.watch<ProviderProvider>().selectedProvider == null
+                          ? const []
+                          : _selectedServices())) ...[
+                    LengthVariantSelector(
+                      available: availableLengthVariants(_selectedServices()),
+                      selected: _lengthVariant,
+                      durationFor: (l) =>
+                          totalBookingDuration(_selectedServices(), l),
+                      onChanged: (l) {
+                        setState(() => _lengthVariant = l);
+                        _loadAvailableSlots();
+                      },
+                    ),
+                    const SizedBox(height: AppTheme.spacingM),
+                  ],
                   // Calendar
                   TableCalendar(
                     firstDay: DateTime.now(),
