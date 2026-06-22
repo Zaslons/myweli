@@ -77,6 +77,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _BufferSection(
+                    bufferMinutes: availability.bufferMinutes,
+                    onChanged: (minutes) => _setBuffer(
+                      context,
+                      minutes,
+                      availability,
+                      availabilityProvider,
+                      _resolvedProviderId(context),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   Text(
                     'Horaires de travail',
                     style: AppTextStyles.titleLarge
@@ -213,11 +224,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
         ..add(
             DateTime(selectedDate.year, selectedDate.month, selectedDate.day));
-      final updatedAvailability = Availability(
-        providerId: availability.providerId,
-        weeklySchedule: availability.weeklySchedule,
-        blockedDates: updatedBlockedDates,
-      );
+      final updatedAvailability =
+          availability.copyWith(blockedDates: updatedBlockedDates);
       await provider.updateAvailability(providerId, updatedAvailability);
       if (context.mounted && provider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -227,6 +235,28 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _setBuffer(
+    BuildContext context,
+    int minutes,
+    Availability availability,
+    ProAvailabilityProvider provider,
+    String providerId,
+  ) async {
+    if (minutes == availability.bufferMinutes) return;
+    await provider.updateAvailability(
+      providerId,
+      availability.copyWith(bufferMinutes: minutes),
+    );
+    if (context.mounted && provider.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error!),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -240,11 +270,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
       ..removeWhere((d) =>
           d.year == date.year && d.month == date.month && d.day == date.day);
-    final updatedAvailability = Availability(
-      providerId: availability.providerId,
-      weeklySchedule: availability.weeklySchedule,
-      blockedDates: updatedBlockedDates,
-    );
+    final updatedAvailability =
+        availability.copyWith(blockedDates: updatedBlockedDates);
     await provider.updateAvailability(providerId, updatedAvailability);
     if (context.mounted && provider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -254,6 +281,62 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         ),
       );
     }
+  }
+}
+
+class _BufferSection extends StatelessWidget {
+  final int bufferMinutes;
+  final ValueChanged<int> onChanged;
+
+  static const _presets = [0, 10, 15, 30];
+
+  const _BufferSection({required this.bufferMinutes, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppColors.secondary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.hourglass_bottom,
+                  size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 8),
+              Text(
+                'Temps de battement',
+                style: AppTextStyles.titleMedium
+                    .copyWith(color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Pause automatique entre deux rendez-vous (nettoyage, '
+            'préparation). Les créneaux proposés aux clients en tiennent compte.',
+            style: AppTextStyles.bodySmall
+                .copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _presets.map((minutes) {
+              return ChoiceChip(
+                label: Text(minutes == 0 ? 'Aucun' : '$minutes min'),
+                selected: bufferMinutes == minutes,
+                onSelected: (_) => onChanged(minutes),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -540,11 +623,8 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
         Map<int, List<TimeSlot>>.from(availability.weeklySchedule);
     updatedSchedule[widget.dayIndex] = _slots;
 
-    final updatedAvailability = Availability(
-      providerId: availability.providerId,
-      weeklySchedule: updatedSchedule,
-      blockedDates: availability.blockedDates,
-    );
+    final updatedAvailability =
+        availability.copyWith(weeklySchedule: updatedSchedule);
 
     final success = await provider.updateAvailability(
         widget.providerId, updatedAvailability);

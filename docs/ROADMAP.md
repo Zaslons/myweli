@@ -39,7 +39,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 |---|---|---|
 | **Consumer auth** (phone/OTP, splash, session) | ~99% | Real-OTP UX + session persistence + SMS auto-read (OS autofill hint) done. Remaining: real access/refresh tokens + Android SMS Retriever (backend). |
 | **Consumer discovery** (home, list, detail, map, search) | ~80% | Strong. Missing: commune filter, price *ranges*, WhatsApp link, verified badge, before/after gallery. |
-| **Booking flow** (hub, services, artist, date/time, confirm) | ~85% | Best part of the app (`booking_hub_screen.dart`). Missing: deposit step, buffers, duration-by-length, rebook. |
+| **Booking flow** (hub, services, artist, date/time, confirm) | ~90% | Best part of the app (`booking_hub_screen.dart`). Duration-by-length + buffers now respected in slots. Missing: deposit step, rebook polish. |
 | **Consumer appointments** (list, detail, cancel, reschedule, history) | ~95% | Done: policy-bound cancel + reschedule; rich visit history with auto-synced status. Remaining: deeper history (photos/receipts) post-backend. |
 | **Reviews** (submit post-completion) | ~70% | Missing: photos, verified-booking badge, per-artist attribution. |
 | **Favorites** (map + toggle) | ~80% | Solid. |
@@ -47,8 +47,8 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Notifications (consumer)** | ~10% | **Stub** (`EmptyState`). No feed, no center. |
 | **Pro auth + register + KYC + onboarding** | ~92% | KYC submission + verification status done (deposits gated on verification); guided onboarding checklist done. Missing: real doc/photo upload (image pipeline). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
-| **Pro appointments / calendar** | ~90% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. Missing: buffers. |
-| **Pro services / artists / availability** | ~80% | Price ranges + duration variants (court/moyen/long) editable on services. Missing: buffers, per-staff hours, commission (V2). |
+| **Pro appointments / calendar** | ~95% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. |
+| **Pro services / artists / availability** | ~85% | Price ranges + duration variants editable on services; buffer between appointments configurable. Missing: per-staff hours, commission (V2). |
 | **Pro earnings / reviews / profile** | ~65% | Missing: payouts, commission tracking. |
 | **Pro "feature" screens (the 8)** | Gated off | Not routed **and** gated behind `FeatureFlags.futureProviderFeatures` (false) → each renders a "Bientôt disponible" placeholder. Deferred (V2 loyalty/memberships; V3 the rest). |
 
@@ -143,12 +143,12 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 1. **Design-system audit** — confirm theme tokens, spacing, components (`AppButton`, `AppTextField`, `EmptyState`, `LoadingIndicator`); add loading/error/empty variants everywhere; golden-test the component library.
 2. **Auth** — ✅ real-OTP UX (5-min expiry, attempts/lockout, resend cap, inline error states); ✅ session persistence (secure storage); ✅ SMS auto-read affordance (OS autofill hint).
 3. **Discovery** — add commune filter, price ranges, WhatsApp link, verified badge, before/after gallery; perf-test long lists (pagination, image placeholders).
-4. **Booking + deposit (UI)** — add the **deposit step UI** (operator picker, one-tap, amount = deposit, balance shown), buffers, duration-by-length, rebook; wire to a mock payment service.
+4. **Booking + deposit (UI)** — ✅ deposit step UI, ✅ duration-by-length, ✅ buffers, ✅ rebook; deposit wired to a mock payment service.
 5. **Appointments** — ✅ policy-bound cancel/reschedule UI; ✅ rich visit history with auto-synced status.
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
 8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
-9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; remaining: booking buffers/per-staff hours. (Commission tracking is V2.)
+9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; ✅ buffer between appointments; remaining: per-staff hours. (Commission tracking is V2.)
 10. ✅ **Flag-hidden** the unrouted V2/V3 feature screens behind `FeatureFlags.futureProviderFeatures` — each renders a placeholder while off, so they can't ship.
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
@@ -174,7 +174,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Pro — payouts of collected deposits** (FR-PRO-PAYOUT-001): a `/pro/payouts` screen (entered from the earnings header + a profile row) shows the available/pending balance of deposits Myweli collected on the pro's behalf, a payout history (Versé / En attente / Échoué), and a "Demander un virement" sheet (amount + Mobile Money operator) that records a pending payout. Behind `ProPayoutServiceInterface`; balance/history modelled (`Payout`/`PayoutAccount`), the client never moves money. *(Real Mobile Money settlement + the deposit-custody decision (OQ-1) are backend; mock approximates collected deposits per booking. Commission tracking is V2 — `FR-PRO-COMM-001`, flag-hidden.)*
 - ✅ **Pro — service price ranges + duration variants** (FR-PRO-SVC-001): the service form now takes an optional **prix maximum** (unlocking the range the consumer UI already renders via `formatPriceRange`) and an optional **"varie selon la longueur"** toggle with **court / moyen / long** durations (`DurationVariants` on `Service`, shaped per §548). The provider profile shows the variant durations. *(Booking slots driven by the client's chosen length — `FR-BOOK-006` — is the deferred follow-up; it touches the slot engine.)*
 - ✅ **Booking — duration by hair length** (FR-BOOK-006): when a selected service declares duration variants, the booking hub shows a **"Longueur des cheveux"** selector (court/moyen/long, auto-defaulting to the middle bucket) that drives the **estimated duration → slot availability** (via the pure `booking_duration` helper); the choice is carried through `/booking/confirm` and shown in the summary. Single length per booking (the client's hair). *(Step-by-step screens `/booking/artist`→`/booking/date-time` and persisting the chosen length onto the booking DTO are follow-ups.)*
-- ⏳ **Still V1-open:** booking buffers (#4 partial); profile avatar upload (#8 partial).
+- ✅ **Booking — buffer between appointments** (FR-BOOK-004 / FR-PRO-AVAIL-001): the pro sets a provider-wide buffer (Aucun / 10 / 15 / 30 min, default Aucun) on the availability screen; consumer slot computation pads each existing booking by that buffer on both sides so new bookings keep the gap. `Availability.bufferMinutes`; mock `updateAvailability` now persists so the choice reaches slots.
+- ⏳ **Still V1-open:** profile avatar upload (#8 partial); per-staff hours; the two risk spikes (real Mobile Money + WhatsApp).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
