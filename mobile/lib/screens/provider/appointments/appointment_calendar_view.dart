@@ -207,6 +207,8 @@ class _AppointmentCard extends StatelessWidget {
         return Colors.green;
       case AppointmentStatus.cancelled:
         return Colors.red;
+      case AppointmentStatus.noShow:
+        return Colors.orange;
     }
   }
 
@@ -220,6 +222,8 @@ class _AppointmentCard extends StatelessWidget {
         return 'Terminé';
       case AppointmentStatus.cancelled:
         return 'Annulé';
+      case AppointmentStatus.noShow:
+        return 'Absent';
     }
   }
 

@@ -156,6 +156,45 @@ class _ProAppointmentDetailScreenState
                       }
                     },
                   ),
+                  if (!appointment.appointmentDate.isAfter(DateTime.now())) ...[
+                    const SizedBox(height: 12),
+                    AppButton(
+                      text: 'Marquer comme absent',
+                      type: AppButtonType.secondary,
+                      onPressed: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Client absent ?'),
+                            content: const Text(
+                              'Le client ne s\'est pas présenté. L\'acompte '
+                              'est conservé selon votre politique d\'annulation.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Annuler'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Confirmer'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true || !context.mounted) return;
+                        final success = await appointmentProvider
+                            .markNoShow(appointment.id);
+                        if (success && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Marqué comme absent')),
+                          );
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -175,6 +214,8 @@ class _ProAppointmentDetailScreenState
         return Colors.green;
       case AppointmentStatus.cancelled:
         return Colors.red;
+      case AppointmentStatus.noShow:
+        return Colors.orange;
     }
   }
 
@@ -188,6 +229,8 @@ class _ProAppointmentDetailScreenState
         return 'Terminé';
       case AppointmentStatus.cancelled:
         return 'Annulé';
+      case AppointmentStatus.noShow:
+        return 'Absent';
     }
   }
 }

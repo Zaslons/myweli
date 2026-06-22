@@ -7,8 +7,10 @@ import '../../models/appointment.dart';
 /// backend sends real completion / no-show events. Future appointments keep
 /// their stored status.
 AppointmentStatus effectiveAppointmentStatus(Appointment a, DateTime now) {
-  if (a.status == AppointmentStatus.cancelled) {
-    return AppointmentStatus.cancelled;
+  // Cancelled and no-show are terminal outcomes — never auto-completed.
+  if (a.status == AppointmentStatus.cancelled ||
+      a.status == AppointmentStatus.noShow) {
+    return a.status;
   }
   if (a.appointmentDate.isBefore(now)) {
     return AppointmentStatus.completed;

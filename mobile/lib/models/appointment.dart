@@ -5,6 +5,7 @@ enum AppointmentStatus {
   confirmed,
   cancelled,
   completed,
+  noShow,
 }
 
 class Appointment extends Equatable {

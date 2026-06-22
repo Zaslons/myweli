@@ -34,6 +34,8 @@ class AppointmentCard extends StatelessWidget {
         return AppColors.info;
       case AppointmentStatus.cancelled:
         return AppColors.error;
+      case AppointmentStatus.noShow:
+        return AppColors.warning;
     }
   }
 
@@ -47,6 +49,8 @@ class AppointmentCard extends StatelessWidget {
         return 'Terminé';
       case AppointmentStatus.cancelled:
         return 'Annulé';
+      case AppointmentStatus.noShow:
+        return 'Absent';
     }
   }
 

@@ -143,6 +143,37 @@ class ProAppointmentProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> markNoShow(String appointmentId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _proService.markNoShow(appointmentId);
+      if (response.success) {
+        final index = _appointments.indexWhere((a) => a.id == appointmentId);
+        if (index != -1) {
+          _appointments[index] = _appointments[index].copyWith(
+            status: AppointmentStatus.noShow,
+          );
+        }
+        _error = null;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.error ?? 'Erreur lors de la mise à jour';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> reschedule(String appointmentId, DateTime newDateTime) async {
     _isLoading = true;
     notifyListeners();
