@@ -50,6 +50,24 @@ class MockData {
     ),
   ];
 
+  // Build a simple per-day working-hours map (one range per listed weekday).
+  static Map<int, List<TimeSlot>> _weekdayHours({
+    required int startHour,
+    required int endHour,
+    required List<int> days,
+  }) {
+    return {
+      for (final d in days)
+        d: [
+          TimeSlot(
+            startTime: DateTime(2000, 1, 1, startHour),
+            endTime: DateTime(2000, 1, 1, endHour),
+            isAvailable: true,
+          ),
+        ],
+    };
+  }
+
   // Sample Artists
   static List<Artist> getArtistsForProvider(String providerId) {
     if (providerId == 'provider1') {
@@ -89,13 +107,19 @@ class MockData {
           rating: 4.7,
           reviewCount: 28,
         ),
-        const Artist(
+        Artist(
           id: 'artist5',
           name: 'Aminata Traoré',
           providerId: 'provider2',
           specialization: 'Coiffeuse',
           rating: 4.5,
           reviewCount: 19,
+          // Part-time: Tue–Sat 10:00–17:00, off Monday & Sunday.
+          workingHours: _weekdayHours(
+            startHour: 10,
+            endHour: 17,
+            days: const [1, 2, 3, 4, 5],
+          ),
         ),
       ];
     } else if (providerId == 'provider3') {

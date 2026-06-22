@@ -434,8 +434,8 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 
 ### 10.3 Services, staff, availability
 - **FR-PRO-SVC-001 [V1]** Service CRUD: name (from taxonomy), description, **price range (min–max)**, **duration variants** (court/moyen/long), category, which artists can perform it, active toggle, deposit override. *(CRUD + price range + duration variants done; taxonomy picker / category / active toggle / deposit override still ad-hoc)*
-- **FR-PRO-STAFF-001 [V1]** Staff/artist CRUD: name, photo, specialization, services they perform, working hours, **commission rate**. *(exists; add commission, per-staff hours)*
-- **FR-PRO-AVAIL-001 [V1]** Availability: weekly schedule per day, per-staff hours, **buffer time between appointments**, blocked dates/holidays, break times. *(weekly schedule + blocked dates + buffer done; per-staff hours and break times still open)*
+- **FR-PRO-STAFF-001 [V1]** Staff/artist CRUD: name, photo, specialization, services they perform, working hours, **commission rate**. *(CRUD + per-staff working hours done; commission rate is V2)*
+- **FR-PRO-AVAIL-001 [V1]** Availability: weekly schedule per day, per-staff hours, **buffer time between appointments**, blocked dates/holidays, break times. *(weekly schedule + blocked dates + buffer + per-staff hours done; break times still open)*
 - **FR-PRO-AVAIL-002 [V2]** Resources/rooms (a spa room, a chair) as bookable constraints.
 
 ### 10.4 Calendar, bookings & day-of operations

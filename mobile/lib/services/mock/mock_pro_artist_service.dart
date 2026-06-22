@@ -1,6 +1,7 @@
 import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
 import '../../models/artist.dart';
+import '../../models/availability.dart';
 import '../interfaces/pro_artist_service_interface.dart';
 import 'mock_data.dart';
 
@@ -13,6 +14,16 @@ class MockProArtistService implements ProArtistServiceInterface {
           List.from(MockData.getArtistsForProvider(providerId));
     }
     return _store[providerId]!;
+  }
+
+  /// Mirror the edited roster into MockData.providers so consumer slot
+  /// computation (which reads provider.artists) sees per-staff hours.
+  void _syncProvider(String providerId) {
+    final i = MockData.providers.indexWhere((p) => p.id == providerId);
+    if (i != -1 && _store.containsKey(providerId)) {
+      MockData.providers[i] = MockData.providers[i]
+          .copyWith(artists: List.from(_store[providerId]!));
+    }
   }
 
   @override
@@ -38,8 +49,11 @@ class MockProArtistService implements ProArtistServiceInterface {
       specialization: data['specialization'] as String?,
       rating: null,
       reviewCount: null,
+      workingHours:
+          (data['workingHours'] as Map<int, List<TimeSlot>>?) ?? const {},
     );
     artists.add(artist);
+    _syncProvider(providerId);
     return ApiResponse.success(artist);
   }
 
@@ -58,8 +72,11 @@ class MockProArtistService implements ProArtistServiceInterface {
           name: data['name'] as String? ?? a.name,
           imageUrl: data['imageUrl'] as String? ?? a.imageUrl,
           specialization: data['specialization'] as String? ?? a.specialization,
+          workingHours: data['workingHours'] as Map<int, List<TimeSlot>>? ??
+              a.workingHours,
         );
         entry.value[idx] = found;
+        _syncProvider(entry.key);
         break;
       }
     }
