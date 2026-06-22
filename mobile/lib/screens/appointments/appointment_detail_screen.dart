@@ -9,8 +9,10 @@ import '../../core/utils/cancellation_policy.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
+import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/review/submit_review_sheet.dart';
 
 class AppointmentDetailScreen extends StatefulWidget {
   final String appointmentId;
@@ -169,6 +171,21 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
   }
 
+  Future<void> _leaveReview(Appointment appointment) async {
+    final providerProvider =
+        Provider.of<ProviderProvider>(context, listen: false);
+    await providerProvider.loadProviderById(appointment.providerId);
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: SubmitReviewSheet(providerId: appointment.providerId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -289,6 +306,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     type: AppButtonType.secondary,
                     isLoading: provider.isLoading,
                     onPressed: () => _handleCancel(appointment),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (appointment.status == AppointmentStatus.completed) ...[
+                  AppButton(
+                    text: 'Donner mon avis',
+                    icon: Icons.rate_review_outlined,
+                    onPressed: () => _leaveReview(appointment),
                   ),
                   const SizedBox(height: 8),
                 ],

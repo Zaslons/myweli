@@ -4,16 +4,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/provider.dart';
 import '../models/review.dart';
+import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/provider_service_interface.dart';
+import '../services/interfaces/review_service_interface.dart';
 
 class ProviderProvider extends ChangeNotifier {
   final ProviderServiceInterface _providerService =
       serviceLocator.providerService;
+  // Lazy so constructing ProviderProvider doesn't require these registered.
+  ReviewServiceInterface get _reviewService => serviceLocator.reviewService;
+  ImageUploadServiceInterface get _uploadService =>
+      serviceLocator.imageUploadService;
 
   List<Provider> _providers = [];
   List<Provider> _featuredProviders = [];
   Provider? _selectedProvider;
   bool _isLoading = false;
+  bool _isSubmittingReview = false;
   String? _error;
   String? _selectedCategory;
   String? _selectedCommune;
@@ -24,6 +31,7 @@ class ProviderProvider extends ChangeNotifier {
   List<Provider> get featuredProviders => _featuredProviders;
   Provider? get selectedProvider => _selectedProvider;
   bool get isLoading => _isLoading;
+  bool get isSubmittingReview => _isSubmittingReview;
   String? get error => _error;
   String? get selectedCategory => _selectedCategory;
   String? get selectedCommune => _selectedCommune;
@@ -136,6 +144,34 @@ class ProviderProvider extends ChangeNotifier {
       _selectedProvider = _selectedProvider!.copyWith(
         reviews: [..._selectedProvider!.reviews, review],
       );
+      notifyListeners();
+    }
+  }
+
+  /// Uploads a review photo through the image pipeline; returns the URL.
+  Future<String?> uploadReviewPhoto(String source) async {
+    final res = await _uploadService.uploadImage(source: source);
+    return res.success ? res.data : null;
+  }
+
+  /// Submits a review through the service, then reflects it locally.
+  Future<bool> submitReview(Review review) async {
+    _isSubmittingReview = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final res = await _reviewService.submitReview(review);
+      if (res.success && res.data != null) {
+        addReviewLocally(res.data!);
+        return true;
+      }
+      _error = res.error ?? 'Erreur lors de la publication';
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isSubmittingReview = false;
       notifyListeners();
     }
   }
