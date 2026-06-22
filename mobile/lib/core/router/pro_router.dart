@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/pro_auth_provider.dart';
 import '../../screens/provider/appointments/appointment_list_screen.dart';
 import '../../screens/provider/appointments/pro_appointment_detail_screen.dart';
+import '../../screens/provider/appointments/pro_manual_booking_screen.dart';
 import '../../screens/provider/artists/artist_form_screen.dart';
 import '../../screens/provider/artists/artist_list_screen.dart';
 import '../../screens/provider/auth/pro_login_screen.dart';
@@ -61,6 +62,12 @@ class ProRouter {
         path: '/pro/appointments',
         name: 'pro-appointments',
         builder: (context, state) => const AppointmentListScreen(),
+      ),
+      GoRoute(
+        // Registered before ':id' so "new" isn't matched as an appointment id.
+        path: '/pro/appointment/new',
+        name: 'pro-appointment-new',
+        builder: (context, state) => const ProManualBookingScreen(),
       ),
       GoRoute(
         path: '/pro/appointment/:id',

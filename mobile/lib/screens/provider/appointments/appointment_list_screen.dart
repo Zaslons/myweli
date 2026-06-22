@@ -119,6 +119,11 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/pro/appointment/new'),
+        icon: const Icon(Icons.add),
+        label: const Text('Ajouter'),
+      ),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
           if (!authProvider.isAuthenticated) {

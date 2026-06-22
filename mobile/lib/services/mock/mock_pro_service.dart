@@ -140,6 +140,58 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<Appointment>> createManualBooking({
+    required String providerId,
+    required List<String> serviceIds,
+    required DateTime appointmentDateTime,
+    String? clientName,
+    String? clientPhone,
+    String? notes,
+    bool sendSmsInvite = false,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+
+    if (serviceIds.isEmpty) {
+      return ApiResponse.error('Sélectionnez au moins un service');
+    }
+
+    final provider = MockData.providers.firstWhere(
+      (p) => p.id == providerId,
+      orElse: () => MockData.providers.first,
+    );
+    var total = 0.0;
+    for (final id in serviceIds) {
+      final match = provider.services.where((s) => s.id == id);
+      if (match.isNotEmpty) total += match.first.price;
+    }
+
+    final appointment = Appointment(
+      id: 'manual_${DateTime.now().millisecondsSinceEpoch}',
+      userId: 'manual',
+      providerId: providerId,
+      serviceIds: serviceIds,
+      appointmentDate: appointmentDateTime,
+      status: AppointmentStatus.confirmed,
+      totalPrice: total,
+      // Walk-in / phone booking: no online deposit, paid in person.
+      balanceDue: total,
+      clientName:
+          (clientName != null && clientName.isNotEmpty) ? clientName : null,
+      clientPhone:
+          (clientPhone != null && clientPhone.isNotEmpty) ? clientPhone : null,
+      notes: notes,
+      createdAt: DateTime.now(),
+    );
+    MockData.appointments.add(appointment);
+
+    // sendSmsInvite is honoured by the notifications backend (not in the mock).
+    return ApiResponse.success(
+      appointment,
+      message: 'Rendez-vous créé',
+    );
+  }
+
+  @override
   Future<ApiResponse<bool>> rescheduleAppointment(
     String appointmentId,
     DateTime newDateTime,

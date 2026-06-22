@@ -71,6 +71,19 @@ abstract class ProServiceInterface {
     DateTime newDateTime,
   );
 
+  /// Create a walk-in / phone booking entered by the pro (no app account).
+  /// Confirmed immediately, no online deposit. [sendSmsInvite] requests a
+  /// confirmation SMS with an app link (handled by the notifications backend).
+  Future<ApiResponse<Appointment>> createManualBooking({
+    required String providerId,
+    required List<String> serviceIds,
+    required DateTime appointmentDateTime,
+    String? clientName,
+    String? clientPhone,
+    String? notes,
+    bool sendSmsInvite = false,
+  });
+
   // Services
   Future<ApiResponse<List<Service>>> getProviderServices(String providerId);
   Future<ApiResponse<Service>> createService(

@@ -205,4 +205,44 @@ class ProAppointmentProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> createManualBooking({
+    required String providerId,
+    required List<String> serviceIds,
+    required DateTime appointmentDateTime,
+    String? clientName,
+    String? clientPhone,
+    String? notes,
+    bool sendSmsInvite = false,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _proService.createManualBooking(
+        providerId: providerId,
+        serviceIds: serviceIds,
+        appointmentDateTime: appointmentDateTime,
+        clientName: clientName,
+        clientPhone: clientPhone,
+        notes: notes,
+        sendSmsInvite: sendSmsInvite,
+      );
+      if (response.success && response.data != null) {
+        _appointments = [..._appointments, response.data!]
+          ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+        _error = null;
+        return true;
+      }
+      _error = response.error ?? 'Erreur lors de la création';
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
