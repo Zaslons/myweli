@@ -4,8 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/staff_hours.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
+import '../../models/artist.dart';
 import '../../models/provider.dart' as models;
 import '../interfaces/appointment_service_interface.dart';
 import 'mock_data.dart';
@@ -314,8 +316,12 @@ class MockAppointmentService implements AppointmentServiceInterface {
         if (!exists) return false;
       }
 
-      // If artistId specified, require that artist is free.
+      // If artistId specified, require that artist works then and is free.
       if (artistId != null && artistId.isNotEmpty) {
+        final artist = _artistById(provider, artistId);
+        if (artist != null && !artistWorksDuring(artist, start, end)) {
+          return false;
+        }
         return !_appointments.any((apt) {
           if (apt.status == AppointmentStatus.cancelled) return false;
           if (apt.providerId != providerId) return false;
@@ -341,6 +347,11 @@ class MockAppointmentService implements AppointmentServiceInterface {
       if (eligible.isEmpty) return true; // salons with no artists
 
       for (final aid in eligible) {
+        // Skip artists who aren't working during this window.
+        final artist = _artistById(provider, aid);
+        if (artist != null && !artistWorksDuring(artist, start, end)) {
+          continue;
+        }
         final busy = _appointments.any((apt) {
           if (apt.status == AppointmentStatus.cancelled) return false;
           if (apt.providerId != providerId) return false;
@@ -369,6 +380,13 @@ class MockAppointmentService implements AppointmentServiceInterface {
     availableSlots.sort((a, b) => a.compareTo(b));
 
     return ApiResponse.success(availableSlots);
+  }
+
+  Artist? _artistById(models.Provider provider, String id) {
+    for (final a in provider.artists) {
+      if (a.id == id) return a;
+    }
+    return null;
   }
 
   List<String> _eligibleArtistIdsFor({

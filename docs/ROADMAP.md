@@ -48,7 +48,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Pro auth + register + KYC + onboarding** | ~92% | KYC submission + verification status done (deposits gated on verification); guided onboarding checklist done. Missing: real doc/photo upload (image pipeline). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
 | **Pro appointments / calendar** | ~95% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. |
-| **Pro services / artists / availability** | ~85% | Price ranges + duration variants editable on services; buffer between appointments configurable. Missing: per-staff hours, commission (V2). |
+| **Pro services / artists / availability** | ~90% | Price ranges + duration variants on services; buffer between appointments; per-staff working hours. Missing: break times, commission (V2). |
 | **Pro earnings / reviews / profile** | ~65% | Missing: payouts, commission tracking. |
 | **Pro "feature" screens (the 8)** | Gated off | Not routed **and** gated behind `FeatureFlags.futureProviderFeatures` (false) → each renders a "Bientôt disponible" placeholder. Deferred (V2 loyalty/memberships; V3 the rest). |
 
@@ -148,7 +148,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
 8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
-9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; ✅ buffer between appointments; remaining: per-staff hours. (Commission tracking is V2.)
+9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; ✅ buffer between appointments; ✅ per-staff working hours. (Commission tracking + break times are later.)
 10. ✅ **Flag-hidden** the unrouted V2/V3 feature screens behind `FeatureFlags.futureProviderFeatures` — each renders a placeholder while off, so they can't ship.
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
@@ -175,7 +175,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Pro — service price ranges + duration variants** (FR-PRO-SVC-001): the service form now takes an optional **prix maximum** (unlocking the range the consumer UI already renders via `formatPriceRange`) and an optional **"varie selon la longueur"** toggle with **court / moyen / long** durations (`DurationVariants` on `Service`, shaped per §548). The provider profile shows the variant durations. *(Booking slots driven by the client's chosen length — `FR-BOOK-006` — is the deferred follow-up; it touches the slot engine.)*
 - ✅ **Booking — duration by hair length** (FR-BOOK-006): when a selected service declares duration variants, the booking hub shows a **"Longueur des cheveux"** selector (court/moyen/long, auto-defaulting to the middle bucket) that drives the **estimated duration → slot availability** (via the pure `booking_duration` helper); the choice is carried through `/booking/confirm` and shown in the summary. Single length per booking (the client's hair). *(Step-by-step screens `/booking/artist`→`/booking/date-time` and persisting the chosen length onto the booking DTO are follow-ups.)*
 - ✅ **Booking — buffer between appointments** (FR-BOOK-004 / FR-PRO-AVAIL-001): the pro sets a provider-wide buffer (Aucun / 10 / 15 / 30 min, default Aucun) on the availability screen; consumer slot computation pads each existing booking by that buffer on both sides so new bookings keep the gap. `Availability.bufferMinutes`; mock `updateAvailability` now persists so the choice reaches slots.
-- ⏳ **Still V1-open:** profile avatar upload (#8 partial); per-staff hours; the two risk spikes (real Mobile Money + WhatsApp).
+- ✅ **Pro — per-staff working hours** (FR-PRO-AVAIL-001 / FR-PRO-STAFF-001): a staff member can follow salon hours (default) or have custom weekly hours (one range per day) via a shared `WeeklyHoursEditor` in the artist form; consumer slot computation only offers times that member works (within salon hours), in both the artist-specific and "any eligible artist" paths. `Artist.workingHours`; mock `create/updateArtist` persist into `MockData.providers` so slots reflect it.
+- ⏳ **Still V1-open:** profile avatar upload (#8 partial); the two risk spikes (real Mobile Money + WhatsApp). Minor: break times, step-by-step booking screen parity.
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)

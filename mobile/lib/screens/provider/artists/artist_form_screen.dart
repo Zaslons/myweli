@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
+import '../../../core/theme/text_styles.dart';
 import '../../../models/artist.dart';
+import '../../../models/availability.dart';
 import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class ArtistFormScreen extends StatefulWidget {
   final String? artistId;
@@ -23,6 +26,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   final _nameController = TextEditingController();
   final _specializationController = TextEditingController();
   bool _prefillDone = false;
+  bool _customHours = false;
+  Map<int, List<TimeSlot>> _workingHours = {};
 
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
@@ -45,6 +50,13 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       if (artist != null) {
         _nameController.text = artist.name;
         _specializationController.text = artist.specialization ?? '';
+        if (artist.workingHours.isNotEmpty) {
+          _customHours = true;
+          _workingHours = {
+            for (final e in artist.workingHours.entries)
+              e.key: List<TimeSlot>.from(e.value)
+          };
+        }
       }
       _prefillDone = true;
     }
@@ -69,6 +81,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       'specialization': _specializationController.text.trim().isNotEmpty
           ? _specializationController.text.trim()
           : null,
+      'workingHours': _customHours ? _workingHours : <int, List<TimeSlot>>{},
     };
 
     final success = widget.artistId != null
@@ -178,6 +191,30 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                     hint: 'Ex: Barbier, Coiffeur, Esthéticienne',
                     controller: _specializationController,
                   ),
+                  const SizedBox(height: AppTheme.spacingS),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Suit les horaires du salon'),
+                    subtitle: const Text(
+                        'Désactiver pour des horaires personnalisés'),
+                    value: !_customHours,
+                    onChanged: (followsSalon) =>
+                        setState(() => _customHours = !followsSalon),
+                  ),
+                  if (_customHours) ...[
+                    WeeklyHoursEditor(
+                      hours: _workingHours,
+                      onChanged: (hours) =>
+                          setState(() => _workingHours = hours),
+                    ),
+                    const SizedBox(height: AppTheme.spacingS),
+                    Text(
+                      'Les clients ne verront que les créneaux où ce membre '
+                      'travaille (dans la limite des horaires du salon).',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textTertiary),
+                    ),
+                  ],
                   const SizedBox(height: AppTheme.spacingL),
                   AppButton(
                     text: 'Enregistrer',

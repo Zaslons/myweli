@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'availability.dart';
+
 class Artist extends Equatable {
   final String id;
   final String name;
@@ -9,6 +11,10 @@ class Artist extends Equatable {
   final double? rating;
   final int? reviewCount;
 
+  /// Per-staff weekly hours (0=Monday..6=Sunday). Empty = follows salon hours;
+  /// a weekday absent/empty = day off for this member.
+  final Map<int, List<TimeSlot>> workingHours;
+
   const Artist({
     required this.id,
     required this.name,
@@ -17,6 +23,7 @@ class Artist extends Equatable {
     this.specialization,
     this.rating,
     this.reviewCount,
+    this.workingHours = const {},
   });
 
   @override
@@ -28,6 +35,7 @@ class Artist extends Equatable {
         specialization,
         rating,
         reviewCount,
+        workingHours,
       ];
 
   Artist copyWith({
@@ -38,6 +46,7 @@ class Artist extends Equatable {
     String? specialization,
     double? rating,
     int? reviewCount,
+    Map<int, List<TimeSlot>>? workingHours,
   }) {
     return Artist(
       id: id ?? this.id,
@@ -47,6 +56,7 @@ class Artist extends Equatable {
       specialization: specialization ?? this.specialization,
       rating: rating ?? this.rating,
       reviewCount: reviewCount ?? this.reviewCount,
+      workingHours: workingHours ?? this.workingHours,
     );
   }
 
@@ -59,6 +69,12 @@ class Artist extends Equatable {
       'specialization': specialization,
       'rating': rating,
       'reviewCount': reviewCount,
+      'workingHours': workingHours.map(
+        (key, value) => MapEntry(
+          key.toString(),
+          value.map((slot) => slot.toJson()).toList(),
+        ),
+      ),
     };
   }
 
@@ -71,6 +87,16 @@ class Artist extends Equatable {
       specialization: json['specialization'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       reviewCount: json['reviewCount'] as int?,
+      workingHours: (json['workingHours'] as Map?)?.map(
+            (key, value) => MapEntry(
+              int.parse(key as String),
+              (value as List)
+                  .map(
+                      (slot) => TimeSlot.fromJson(slot as Map<String, dynamic>))
+                  .toList(),
+            ),
+          ) ??
+          const {},
     );
   }
 }
