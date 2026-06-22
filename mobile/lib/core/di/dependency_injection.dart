@@ -5,6 +5,7 @@ import '../../services/interfaces/notification_service_interface.dart';
 import '../../services/interfaces/payment_service_interface.dart';
 import '../../services/interfaces/pro_artist_service_interface.dart';
 import '../../services/interfaces/pro_kyc_service_interface.dart';
+import '../../services/interfaces/pro_payout_service_interface.dart';
 import '../../services/interfaces/pro_service_interface.dart';
 import '../../services/interfaces/provider_service_interface.dart';
 import '../../services/mock/mock_appointment_service.dart';
@@ -14,6 +15,7 @@ import '../../services/mock/mock_notification_service.dart';
 import '../../services/mock/mock_payment_service.dart';
 import '../../services/mock/mock_pro_artist_service.dart';
 import '../../services/mock/mock_pro_kyc_service.dart';
+import '../../services/mock/mock_pro_payout_service.dart';
 import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_provider_service.dart';
 import '../../services/secure_session_store.dart';
@@ -35,6 +37,7 @@ class ServiceLocator {
   late final ProServiceInterface proService;
   late final ProArtistServiceInterface proArtistService;
   late final ProKycServiceInterface proKycService;
+  late final ProPayoutServiceInterface proPayoutService;
 
   void setup() {
     // Use mock services for now
@@ -47,6 +50,7 @@ class ServiceLocator {
     proService = MockProService();
     proArtistService = MockProArtistService();
     proKycService = MockProKycService();
+    proPayoutService = MockProPayoutService();
   }
 }
 

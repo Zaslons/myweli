@@ -451,7 +451,7 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 ### 10.5 Money (provider side)
 - **FR-PRO-PAY-001 [V1]** **Deposit settings**: default deposit % or fixed, per-service override, cancellation policy windows.
 - **FR-PRO-EARN-001 [V1]** Earnings: deposits collected, balance expected, completed revenue by day/week/month, transaction list. *(exists: `earnings_screen.dart`)*
-- **FR-PRO-PAYOUT-001 [V1]** **Payout of collected deposits** to the provider's Mobile Money account (settlement schedule, statement). *(does not exist — required since Myweli holds deposits)*
+- **FR-PRO-PAYOUT-001 [V1]** **Payout of collected deposits** to the provider's Mobile Money account (settlement schedule, statement). *(V1 frontend built on mock — balance/history + "Demander un virement"; real Mobile Money settlement + deposit-custody (OQ-1) are backend)*
 - **FR-PRO-COMM-001 [V2]** **Commission tracking** — per-stylist commission computed from completed appointments (the payroll mock made this up; make it real).
 - **FR-PRO-PAYROLL-001 [V3]** Payroll calculation (base + commission + bonus) — the `payroll_calculation_screen.dart` mock, properly modeled.
 
