@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/breaks.dart';
 import '../../core/utils/staff_hours.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
@@ -314,6 +315,11 @@ class MockAppointmentService implements AppointmentServiceInterface {
         final exists = openingSlots
             .any((t) => t.hour == seg.hour && t.minute == seg.minute);
         if (!exists) return false;
+      }
+
+      // Reject anything that runs into a provider break (e.g. lunch).
+      if (overlapsBreak(provider.availability.breaks, start, end)) {
+        return false;
       }
 
       // If artistId specified, require that artist works then and is free.

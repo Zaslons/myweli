@@ -48,7 +48,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Pro auth + register + KYC + onboarding** | ~95% | KYC + verification status done; guided onboarding checklist done (photos step now actionable). Salon photos + staff avatar upload on a mock pipeline. Missing: real bytes/CDN (backend). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
 | **Pro appointments / calendar** | ~95% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. |
-| **Pro services / artists / availability** | ~90% | Price ranges + duration variants on services; buffer between appointments; per-staff working hours. Missing: break times, commission (V2). |
+| **Pro services / artists / availability** | ~95% | Price ranges + duration variants on services; buffer between appointments; per-staff working hours; break times. Missing: commission (V2). |
 | **Pro earnings / reviews / profile** | ~65% | Missing: payouts, commission tracking. |
 | **Pro "feature" screens (the 8)** | Gated off | Not routed **and** gated behind `FeatureFlags.futureProviderFeatures` (false) → each renders a "Bientôt disponible" placeholder. Deferred (V2 loyalty/memberships; V3 the rest). |
 
@@ -148,7 +148,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
 8. **Profile / photos** — ✅ account deletion (typed confirm) + data export (JSON); ✅ image-upload pipeline (mock) wired into salon gallery + staff avatar + consumer profile avatar. Remaining: real bytes/CDN (backend).
-9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; ✅ buffer between appointments; ✅ per-staff working hours. (Commission tracking + break times are later.)
+9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; ✅ buffer between appointments; ✅ per-staff working hours; ✅ break times. (Commission tracking is V2.)
 10. ✅ **Flag-hidden** the unrouted V2/V3 feature screens behind `FeatureFlags.futureProviderFeatures` — each renders a placeholder while off, so they can't ship.
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
@@ -178,7 +178,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Pro — per-staff working hours** (FR-PRO-AVAIL-001 / FR-PRO-STAFF-001): a staff member can follow salon hours (default) or have custom weekly hours (one range per day) via a shared `WeeklyHoursEditor` in the artist form; consumer slot computation only offers times that member works (within salon hours), in both the artist-specific and "any eligible artist" paths. `Artist.workingHours`; mock `create/updateArtist` persist into `MockData.providers` so slots reflect it.
 - ✅ **Image-upload pipeline (frontend on mock)** (#8): `ImageUploadServiceInterface` + mock (simulated progress + hosted-URL contract; real impl = picker → compress/resize → CDN scan). Wired into a pro **"Photos du salon"** screen (`Provider.imageUrls`, add/remove, cover, four states) and **staff avatar** in the artist form, via a dependency-free mock image picker. `ProService.get/updateGalleryPhotos` persist into `MockData.providers` so the consumer hero gallery reflects edits.
 - ✅ **Consumer — profile avatar** (#8): the user can set a profile photo (edit-profile screen, mock picker + upload) shown on their profile; `User.avatarUrl`, saved via `AuthService.updateUser`.
-- ⏳ **Still V1-open:** the two risk spikes (real Mobile Money + WhatsApp). Minor: break times, step-by-step booking screen parity.
+- ✅ **Pro — break times** (FR-PRO-AVAIL-001): a recurring daily break (e.g. lunch, one range/day) set on the availability screen via the shared `WeeklyHoursEditor`; consumer slot computation offers nothing overlapping a break (`Availability.breaks` + `overlapsBreak` helper). Demo: provider1 lunch 13:00–14:00 Tue–Sat.
+- ⏳ **Still V1-open:** the two risk spikes (real Mobile Money + WhatsApp). Minor: step-by-step booking screen parity.
 - ⏳ **Deferred to later phases:** à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending. (Real image bytes/CDN/scan behind the mock pipeline are backend.)
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
