@@ -127,15 +127,6 @@ class ProProfileScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Card(
                   child: ListTile(
-                    leading: const Icon(Icons.account_balance_wallet_outlined),
-                    title: const Text('Virements'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/payouts'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Card(
-                  child: ListTile(
                     leading: const Icon(Icons.photo_library_outlined),
                     title: const Text('Photos du salon'),
                     trailing: const Icon(Icons.chevron_right),
