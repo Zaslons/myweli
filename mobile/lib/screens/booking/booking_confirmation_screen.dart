@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +12,7 @@ import '../../core/utils/deposit.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/messaging_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
@@ -88,6 +91,22 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     super.dispose();
   }
 
+  /// Best-effort WhatsApp/SMS confirmation (never blocks the booking UX).
+  void _fireBookingConfirmation(double depositAmount) {
+    final phone = context.read<AuthProvider>().user?.phoneNumber;
+    if (phone == null || phone.isEmpty) return;
+    final providerName =
+        context.read<ProviderProvider>().selectedProvider?.name ?? 'le salon';
+    unawaited(
+      context.read<MessagingProvider>().sendBookingConfirmation(
+            recipientPhone: phone,
+            providerName: providerName,
+            dateTime: widget.appointmentDateTime,
+            depositAmount: depositAmount,
+          ),
+    );
+  }
+
   Future<void> _handleConfirm(double depositAmount, double balanceDue) async {
     final notes = _notesController.text.isEmpty ? null : _notesController.text;
 
@@ -105,6 +124,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         notes: notes,
       );
       if (!mounted || paid != true) return;
+      _fireBookingConfirmation(depositAmount);
       context.go('/bookings');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -131,6 +151,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
+      _fireBookingConfirmation(depositAmount);
       context.go('/bookings');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
