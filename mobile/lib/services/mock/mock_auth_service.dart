@@ -156,7 +156,8 @@ class MockAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ApiResponse<User>> updateUser({String? name, String? email}) async {
+  Future<ApiResponse<User>> updateUser(
+      {String? name, String? email, String? avatarUrl}) async {
     await Future.delayed(AppConstants.mockDelay);
 
     if (_currentUser == null) {
@@ -167,6 +168,7 @@ class MockAuthService implements AuthServiceInterface {
       name: (name != null && name.isNotEmpty) ? name : _currentUser!.name,
       email:
           email == null ? _currentUser!.email : (email.isEmpty ? null : email),
+      avatarUrl: avatarUrl ?? _currentUser!.avatarUrl,
     );
 
     _currentUser = updatedUser;

@@ -9,6 +9,8 @@ import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/timed_cached_image.dart';
+import '../../widgets/provider/mock_image_picker_sheet.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -37,6 +39,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAvatar(AuthProvider authProvider) async {
+    final source = await showMockImagePicker(context);
+    if (source == null || !mounted) return;
+    final ok = await authProvider.uploadAvatar(source);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error ?? 'Échec de l’envoi'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -110,7 +127,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Column(
+                      children: [
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 44,
+                              backgroundColor: AppColors.surface,
+                              child: user.avatarUrl == null
+                                  ? const Icon(Icons.person_outline,
+                                      size: 40, color: AppColors.textSecondary)
+                                  : ClipOval(
+                                      child: TimedCachedImage(
+                                        imageUrl: user.avatarUrl!,
+                                        width: 88,
+                                        height: 88,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                            ),
+                            if (authProvider.isUploadingAvatar)
+                              const Positioned.fill(
+                                child: CircleAvatar(
+                                  radius: 44,
+                                  backgroundColor: Colors.black45,
+                                  child: SizedBox(
+                                    width: 26,
+                                    height: 26,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 3, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        TextButton(
+                          onPressed: authProvider.isUploadingAvatar
+                              ? null
+                              : () => _pickAvatar(authProvider),
+                          child: Text(user.avatarUrl == null
+                              ? 'Ajouter une photo'
+                              : 'Changer la photo'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   AppTextField(
                     label: 'Nom',
                     hint: 'Votre nom',
