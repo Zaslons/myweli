@@ -346,7 +346,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-BOOK-003 [V1]** Artist selection with "no preference," service-compatibility filtering. *(exists)*
 - **FR-BOOK-004 [V1]** Slot availability respects provider hours, **buffer time between appointments**, blocked dates, and existing bookings. *(slot model exists; buffers must be added)*
 - **FR-BOOK-005 [V1]** **Price ranges & length/type modifiers** — a service may price as min–max (e.g., tresses "15 000–25 000 selon la longueur"); booking shows estimated range, final confirmed by provider.
-- **FR-BOOK-006 [V1]** **Variable duration by hair length/type** — service can declare duration variants (court/moyen/long) affecting slot length.
+- **FR-BOOK-006 [V1]** **Variable duration by hair length/type** — service can declare duration variants (court/moyen/long) affecting slot length. *(done in the booking hub: a length selector drives the estimated duration → slot availability; carried through confirmation. Step-by-step screens + persisting the choice on the booking DTO are follow-ups.)*
 - **FR-BOOK-007 [V1]** Booking confirmation summary → **deposit step** (§9.4) → confirmed booking. *(confirmation exists; deposit must be added)*
 - **FR-BOOK-008 [V1]** Auth gating: unauthenticated users can browse and assemble a booking; auth is required at confirm, with `returnTo` continuity. *(returnTo pattern exists)*
 - **FR-BOOK-009 [V1]** **Rebook ("Réserver à nouveau")** — one tap to repeat a prior appointment (same services/artist), then pick a slot.

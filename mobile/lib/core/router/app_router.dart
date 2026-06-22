@@ -167,11 +167,13 @@ class AppRouter {
           final dateTime =
               DateTime.parse(state.uri.queryParameters['dateTime']!);
           final artistId = state.uri.queryParameters['artistId'];
+          final lengthVariant = state.uri.queryParameters['lengthVariant'];
           return BookingConfirmationScreen(
             providerId: providerId,
             serviceIds: serviceIds,
             appointmentDateTime: dateTime,
             artistId: artistId,
+            lengthVariant: lengthVariant,
           );
         },
       ),

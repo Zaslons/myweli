@@ -5,9 +5,11 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/rebook.dart';
 import '../../models/provider.dart' as models;
+import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 
@@ -17,11 +19,16 @@ class BookingDraft {
   final String? artistId;
   final DateTime? dateTime;
 
+  /// Chosen hair length ('court'/'moyen'/'long') when a selected service
+  /// declares duration variants; otherwise null.
+  final String? lengthVariant;
+
   const BookingDraft({
     required this.providerId,
     this.serviceIds = const [],
     this.artistId,
     this.dateTime,
+    this.lengthVariant,
   });
 
   BookingDraft copyWith({
@@ -30,12 +37,16 @@ class BookingDraft {
     bool clearArtistId = false,
     DateTime? dateTime,
     bool clearDateTime = false,
+    String? lengthVariant,
+    bool clearLengthVariant = false,
   }) {
     return BookingDraft(
       providerId: providerId,
       serviceIds: serviceIds ?? this.serviceIds,
       artistId: clearArtistId ? null : (artistId ?? this.artistId),
       dateTime: clearDateTime ? null : (dateTime ?? this.dateTime),
+      lengthVariant:
+          clearLengthVariant ? null : (lengthVariant ?? this.lengthVariant),
     );
   }
 }
@@ -137,11 +148,12 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     super.dispose();
   }
 
+  List<Service> _selectedServices(models.Provider p) =>
+      p.services.where((s) => _draft.serviceIds.contains(s.id)).toList();
+
   int _totalDurationMinutes(models.Provider p) {
     if (_draft.serviceIds.isEmpty) return 0;
-    return p.services
-        .where((s) => _draft.serviceIds.contains(s.id))
-        .fold<int>(0, (sum, s) => sum + s.durationMinutes);
+    return totalBookingDuration(_selectedServices(p), _draft.lengthVariant);
   }
 
   double _totalPrice(models.Provider p) {
@@ -342,6 +354,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       'serviceIds': _draft.serviceIds.join(','),
       'dateTime': _draft.dateTime!.toIso8601String(),
       if (_draft.artistId != null) 'artistId': _draft.artistId!,
+      if (_draft.lengthVariant != null) 'lengthVariant': _draft.lengthVariant!,
     };
 
     try {
@@ -434,8 +447,9 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               final selected = _draft.serviceIds.contains(s.id);
                               return _SelectableRow(
                                 title: s.name,
-                                subtitle:
-                                    '${Formatters.formatDuration(s.durationMinutes)} • ${Formatters.formatCurrency(s.price)}',
+                                subtitle: s.durationVariants.isNotEmpty
+                                    ? '${Formatters.formatPriceRange(s.price, s.priceMax)} • durée selon la longueur'
+                                    : '${Formatters.formatDuration(s.durationMinutes)} • ${Formatters.formatPriceRange(s.price, s.priceMax)}',
                                 selected: selected,
                                 onTap: () async {
                                   _setEntryPointIfNeeded(
@@ -458,6 +472,19 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                       _draft =
                                           _draft.copyWith(clearArtistId: true);
                                       _artistChosen = false;
+                                    }
+                                    // Keep the hair-length choice valid for the
+                                    // new selection.
+                                    final selected = _selectedServices(p);
+                                    if (!bookingHasVariants(selected)) {
+                                      _draft = _draft.copyWith(
+                                          clearLengthVariant: true);
+                                    } else if (_draft.lengthVariant == null ||
+                                        !availableLengthVariants(selected)
+                                            .contains(_draft.lengthVariant)) {
+                                      _draft = _draft.copyWith(
+                                          lengthVariant:
+                                              defaultLengthVariant(selected));
                                     }
                                   });
 
@@ -513,6 +540,30 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                       .copyWith(color: AppColors.textSecondary),
                                 ),
                               ),
+                            if (bookingHasVariants(_selectedServices(p))) ...[
+                              const SizedBox(height: AppTheme.spacingM),
+                              _LengthVariantSelector(
+                                available: availableLengthVariants(
+                                    _selectedServices(p)),
+                                selected: _draft.lengthVariant,
+                                durationFor: (length) => totalBookingDuration(
+                                    _selectedServices(p), length),
+                                onChanged: (length) async {
+                                  setState(() => _draft =
+                                      _draft.copyWith(lengthVariant: length));
+                                  await _validateSelectedDateTime(
+                                    appointmentProvider: appointmentProvider,
+                                    p: p,
+                                  );
+                                  if (_activeSection == _HubSection.dateTime) {
+                                    await _loadSlotsForSelectedDate(
+                                      appointmentProvider: appointmentProvider,
+                                      p: p,
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -821,6 +872,56 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _LengthVariantSelector extends StatelessWidget {
+  final List<String> available;
+  final String? selected;
+  final int Function(String length) durationFor;
+  final ValueChanged<String> onChanged;
+
+  const _LengthVariantSelector({
+    required this.available,
+    required this.selected,
+    required this.durationFor,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Longueur des cheveux',
+          style: AppTextStyles.labelMedium
+              .copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: available.map((length) {
+            return ChoiceChip(
+              label: Text(
+                '${lengthVariantLabel(length)} · '
+                '${Formatters.formatDuration(durationFor(length))}',
+              ),
+              selected: selected == length,
+              onSelected: (_) => onChanged(length),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Les créneaux sont calculés selon cette durée. '
+          'Le prix final est confirmé par le salon.',
+          style:
+              AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+        ),
+      ],
     );
   }
 }
