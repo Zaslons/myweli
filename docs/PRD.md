@@ -393,7 +393,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 ### 9.7 Favorites, notifications, retention
 
 - **FR-FAV-001 [V1]** Add/remove favorites; favorites map view; deep-link focus. *(exists: `favorites/`)*
-- **FR-NOTIF-001 [V1]** Push (FCM) + SMS fallback + WhatsApp for: booking confirmed, deposit received, reminder (24h & 2h), provider accepted/declined, reschedule, cancellation, refund. *(stub today)*
+- **FR-NOTIF-001 [V1]** Push (FCM) + SMS fallback + WhatsApp for: booking confirmed, deposit received, reminder (24h & 2h), provider accepted/declined, reschedule, cancellation, refund. *(messaging seam scaffolded: `MessagingServiceInterface` + mock (WhatsApp→SMS fallback, delivery status, transactional/promotional opt-in, outbox), typed template catalog, booking-confirmed wired. Real BSP + reminder scheduler are backend.)*
 - **FR-NOTIF-002 [V1]** In-app notification center. *(stub: `notifications_screen.dart`)*
 - **FR-NOTIF-003 [V2]** **Rebook lifecycle reminder** — "Il y a 6 semaines depuis vos dernières tresses chez Beauté Divine — réserver à nouveau ?" (single biggest repeat-booking driver).
 - **FR-NOTIF-004 [V1]** Notification preferences (channel & category opt-out where law/store requires).
