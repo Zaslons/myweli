@@ -14,7 +14,6 @@ import '../../screens/provider/auth/pro_splash_screen.dart';
 import '../../screens/provider/availability/availability_screen.dart';
 import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
-import '../../screens/provider/earnings/pro_payouts_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
 import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
 import '../../screens/provider/photos/pro_photos_screen.dart';
@@ -148,11 +147,6 @@ class ProRouter {
         path: '/pro/earnings',
         name: 'pro-earnings',
         builder: (context, state) => const EarningsScreen(),
-      ),
-      GoRoute(
-        path: '/pro/payouts',
-        name: 'pro-payouts',
-        builder: (context, state) => const ProPayoutsScreen(),
       ),
       GoRoute(
         path: '/pro/photos',
