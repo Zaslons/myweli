@@ -12,6 +12,7 @@ import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/booking/length_variant_selector.dart';
 
 class BookingDraft {
   final String providerId;
@@ -542,7 +543,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               ),
                             if (bookingHasVariants(_selectedServices(p))) ...[
                               const SizedBox(height: AppTheme.spacingM),
-                              _LengthVariantSelector(
+                              LengthVariantSelector(
                                 available: availableLengthVariants(
                                     _selectedServices(p)),
                                 selected: _draft.lengthVariant,
@@ -872,56 +873,6 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
           );
         },
       ),
-    );
-  }
-}
-
-class _LengthVariantSelector extends StatelessWidget {
-  final List<String> available;
-  final String? selected;
-  final int Function(String length) durationFor;
-  final ValueChanged<String> onChanged;
-
-  const _LengthVariantSelector({
-    required this.available,
-    required this.selected,
-    required this.durationFor,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Longueur des cheveux',
-          style: AppTextStyles.labelMedium
-              .copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: AppTheme.spacingS),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: available.map((length) {
-            return ChoiceChip(
-              label: Text(
-                '${lengthVariantLabel(length)} · '
-                '${Formatters.formatDuration(durationFor(length))}',
-              ),
-              selected: selected == length,
-              onSelected: (_) => onChanged(length),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Les créneaux sont calculés selon cette durée. '
-          'Le prix final est confirmé par le salon.',
-          style:
-              AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
-        ),
-      ],
     );
   }
 }

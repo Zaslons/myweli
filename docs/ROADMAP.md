@@ -179,7 +179,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Image-upload pipeline (frontend on mock)** (#8): `ImageUploadServiceInterface` + mock (simulated progress + hosted-URL contract; real impl = picker → compress/resize → CDN scan). Wired into a pro **"Photos du salon"** screen (`Provider.imageUrls`, add/remove, cover, four states) and **staff avatar** in the artist form, via a dependency-free mock image picker. `ProService.get/updateGalleryPhotos` persist into `MockData.providers` so the consumer hero gallery reflects edits.
 - ✅ **Consumer — profile avatar** (#8): the user can set a profile photo (edit-profile screen, mock picker + upload) shown on their profile; `User.avatarUrl`, saved via `AuthService.updateUser`.
 - ✅ **Pro — break times** (FR-PRO-AVAIL-001): a recurring daily break (e.g. lunch, one range/day) set on the availability screen via the shared `WeeklyHoursEditor`; consumer slot computation offers nothing overlapping a break (`Availability.breaks` + `overlapsBreak` helper). Demo: provider1 lunch 13:00–14:00 Tue–Sat.
-- ⏳ **Still V1-open:** the two risk spikes (real Mobile Money + WhatsApp). Minor: step-by-step booking screen parity.
+- ✅ **Booking — step-screen length parity** (FR-BOOK-006): the hub's hair-length selector is now a shared `LengthVariantSelector` widget, also used by `date_time_selection_screen` (the reschedule/rebook + step-flow path), so that screen computes slot length from the chosen variant and carries it through to confirmation — matching the hub.
+- ⏳ **Still V1-open:** the two risk spikes (real Mobile Money + WhatsApp) — genuinely backend/SDK-dependent. The V1 frontend is otherwise complete on mocks.
 - ⏳ **Deferred to later phases:** à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending. (Real image bytes/CDN/scan behind the mock pipeline are backend.)
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
