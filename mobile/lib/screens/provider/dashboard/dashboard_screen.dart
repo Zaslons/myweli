@@ -110,6 +110,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: AppTextStyles.headlineMedium
                         .copyWith(color: AppColors.textPrimary),
                   ),
+                  const SizedBox(height: 16),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.checklist_rounded),
+                      title: const Text('Configurer mon profil'),
+                      subtitle: const Text(
+                          'Complétez les étapes pour aller en ligne'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/onboarding'),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   // Stats Cards
                   Row(

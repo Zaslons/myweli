@@ -14,6 +14,7 @@ import '../../screens/provider/availability/availability_screen.dart';
 import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
+import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
 import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
@@ -128,6 +129,11 @@ class ProRouter {
         path: '/pro/verification',
         name: 'pro-verification',
         builder: (context, state) => const ProKycScreen(),
+      ),
+      GoRoute(
+        path: '/pro/onboarding',
+        name: 'pro-onboarding',
+        builder: (context, state) => const ProOnboardingScreen(),
       ),
       GoRoute(
         path: '/pro/earnings',
