@@ -177,7 +177,7 @@ class _StepRow extends StatelessWidget {
       case OnboardingStepKey.verification:
         return '/pro/verification';
       case OnboardingStepKey.photos:
-        return null; // upload UI deferred to the image pipeline
+        return '/pro/photos';
     }
   }
 
@@ -187,7 +187,7 @@ class _StepRow extends StatelessWidget {
       return 'Optionnel pour les indépendants';
     }
     if (step.key == OnboardingStepKey.photos) {
-      return 'Ajout bientôt disponible';
+      return 'Ajouter des photos du salon';
     }
     if (step.status == OnboardingStepStatus.inProgress) {
       return 'En cours';

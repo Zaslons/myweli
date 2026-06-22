@@ -10,6 +10,8 @@ import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/timed_cached_image.dart';
+import '../../../widgets/provider/mock_image_picker_sheet.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class ArtistFormScreen extends StatefulWidget {
@@ -28,6 +30,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   bool _prefillDone = false;
   bool _customHours = false;
   Map<int, List<TimeSlot>> _workingHours = {};
+  String? _avatarUrl;
 
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
@@ -50,6 +53,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       if (artist != null) {
         _nameController.text = artist.name;
         _specializationController.text = artist.specialization ?? '';
+        _avatarUrl = artist.imageUrl;
         if (artist.workingHours.isNotEmpty) {
           _customHours = true;
           _workingHours = {
@@ -69,6 +73,23 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     super.dispose();
   }
 
+  Future<void> _pickAvatar(ProArtistProvider provider) async {
+    final source = await showMockImagePicker(context);
+    if (source == null || !mounted) return;
+    final url = await provider.uploadAvatar(source);
+    if (!mounted) return;
+    if (url != null) {
+      setState(() => _avatarUrl = url);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'Échec de l’envoi'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -81,6 +102,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       'specialization': _specializationController.text.trim().isNotEmpty
           ? _specializationController.text.trim()
           : null,
+      'imageUrl': _avatarUrl,
       'workingHours': _customHours ? _workingHours : <int, List<TimeSlot>>{},
     };
 
@@ -174,6 +196,53 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Center(
+                    child: Column(
+                      children: [
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundColor: AppColors.surface,
+                              child: _avatarUrl == null
+                                  ? const Icon(Icons.person_outline,
+                                      size: 36, color: AppColors.textSecondary)
+                                  : ClipOval(
+                                      child: TimedCachedImage(
+                                        imageUrl: _avatarUrl!,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                            ),
+                            if (artistProvider.isUploadingAvatar)
+                              const Positioned.fill(
+                                child: CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Colors.black45,
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 3, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        TextButton(
+                          onPressed: artistProvider.isUploadingAvatar
+                              ? null
+                              : () => _pickAvatar(artistProvider),
+                          child: Text(_avatarUrl == null
+                              ? 'Ajouter une photo'
+                              : 'Changer la photo'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
                   AppTextField(
                     label: 'Nom',
                     hint: 'Ex: Kouassi Jean',

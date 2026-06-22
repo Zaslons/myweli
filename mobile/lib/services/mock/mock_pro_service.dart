@@ -266,6 +266,30 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final provider = MockData.providers.firstWhere(
+      (p) => p.id == providerId,
+      orElse: () => MockData.providers.first,
+    );
+    return ApiResponse.success(List<String>.from(provider.imageUrls));
+  }
+
+  @override
+  Future<ApiResponse<List<String>>> updateGalleryPhotos(
+    String providerId,
+    List<String> imageUrls,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index = MockData.providers.indexWhere((p) => p.id == providerId);
+    if (index != -1) {
+      MockData.providers[index] = MockData.providers[index]
+          .copyWith(imageUrls: List<String>.from(imageUrls));
+    }
+    return ApiResponse.success(List<String>.from(imageUrls));
+  }
+
+  @override
   Future<ApiResponse<Availability>> getProviderAvailability(
       String providerId) async {
     await Future.delayed(AppConstants.mockDelay);

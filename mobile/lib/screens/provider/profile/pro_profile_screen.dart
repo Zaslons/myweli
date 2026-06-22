@@ -133,6 +133,15 @@ class ProProfileScreen extends StatelessWidget {
                     onTap: () => context.push('/pro/payouts'),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.photo_library_outlined),
+                    title: const Text('Photos du salon'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/pro/photos'),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 AppButton(
                   text: 'Déconnexion',
