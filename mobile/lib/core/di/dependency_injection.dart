@@ -9,6 +9,7 @@ import '../../services/interfaces/pro_kyc_service_interface.dart';
 import '../../services/interfaces/pro_payout_service_interface.dart';
 import '../../services/interfaces/pro_service_interface.dart';
 import '../../services/interfaces/provider_service_interface.dart';
+import '../../services/interfaces/review_service_interface.dart';
 import '../../services/mock/mock_appointment_service.dart';
 import '../../services/mock/mock_auth_service.dart';
 import '../../services/mock/mock_favorites_service.dart';
@@ -20,6 +21,7 @@ import '../../services/mock/mock_pro_kyc_service.dart';
 import '../../services/mock/mock_pro_payout_service.dart';
 import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_provider_service.dart';
+import '../../services/mock/mock_review_service.dart';
 import '../../services/secure_session_store.dart';
 
 /// Service Locator for Dependency Injection
@@ -41,6 +43,7 @@ class ServiceLocator {
   late final ProKycServiceInterface proKycService;
   late final ProPayoutServiceInterface proPayoutService;
   late final ImageUploadServiceInterface imageUploadService;
+  late final ReviewServiceInterface reviewService;
 
   void setup() {
     // Use mock services for now
@@ -55,6 +58,7 @@ class ServiceLocator {
     proKycService = MockProKycService();
     proPayoutService = MockProPayoutService();
     imageUploadService = MockImageUploadService();
+    reviewService = MockReviewService();
   }
 }
 

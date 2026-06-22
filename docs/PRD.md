@@ -384,8 +384,8 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 
 ### 9.6 Reviews & trust (consumer)
 
-- **FR-REV-001 [V1]** Submit review only after a **completed** appointment at that provider; 1–5 stars + text. *(exists: `submit_review_sheet.dart`, gated on completion)*
-- **FR-REV-002 [V1]** **Review photos** (before/after) and a **"verified booking"** badge on reviews.
+- **FR-REV-001 [V1]** Submit review only after a **completed** appointment at that provider; 1–5 stars + text. *(done: `submit_review_sheet.dart` gated on completion; entered from provider page + completed-appointment detail; routed through `ReviewServiceInterface`)*
+- **FR-REV-002 [V1]** **Review photos** (before/after) and a **"verified booking"** badge on reviews. *(done: attach via image pipeline (cap 3) + verified badge; real bytes/CDN are backend)*
 - **FR-REV-003 [V1]** Per-stylist attribution optional (review the artist, not just the salon).
 - **FR-REV-004 [V2]** Provider response to reviews (visible on profile).
 - **FR-REV-005 [V1]** Report/flag review (moderation path, §16).

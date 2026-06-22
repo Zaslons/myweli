@@ -11,6 +11,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../common/app_button.dart';
 import '../common/app_text_field.dart';
+import '../common/timed_cached_image.dart';
+import '../provider/mock_image_picker_sheet.dart';
+
+const _maxReviewPhotos = 3;
 
 class SubmitReviewSheet extends StatefulWidget {
   final String providerId;
@@ -30,6 +34,9 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
   int _selectedRating = 0;
   String? _selectedArtistId;
   final _textController = TextEditingController();
+  final List<String> _photoUrls = [];
+  bool _uploadingPhoto = false;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -37,7 +44,32 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _addPhoto() async {
+    if (_photoUrls.length >= _maxReviewPhotos) return;
+    final source = await showMockImagePicker(context);
+    if (source == null || !mounted) return;
+    setState(() => _uploadingPhoto = true);
+    final providerProvider =
+        Provider.of<ProviderProvider>(context, listen: false);
+    final url = await providerProvider.uploadReviewPhoto(source);
+    if (!mounted) return;
+    setState(() {
+      _uploadingPhoto = false;
+      if (url != null) _photoUrls.add(url);
+    });
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Échec de l’envoi de la photo'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  void _removePhoto(int index) => setState(() => _photoUrls.removeAt(index));
+
+  Future<void> _submit() async {
     if (_selectedRating < 1) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -69,27 +101,33 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       verified: true,
       artistId: _selectedArtistId,
       artistName: artistName,
+      photoUrls: List<String>.from(_photoUrls),
       createdAt: DateTime.now(),
     );
 
-    providerProvider.addReviewLocally(review);
-    widget.onSubmitted?.call();
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Merci pour votre avis'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
+    setState(() => _submitting = true);
+    final ok = await providerProvider.submitReview(review);
+    if (!mounted) return;
+    setState(() => _submitting = false);
 
-  void _comingSoonPhotos() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("L'ajout de photos arrive bientôt"),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (ok) {
+      widget.onSubmitted?.call();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Merci pour votre avis'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(providerProvider.error ?? 'Erreur lors de la publication'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -97,6 +135,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
     final artists =
         context.watch<ProviderProvider>().selectedProvider?.artists ??
             const <Artist>[];
+    final canSubmit = _selectedRating >= 1 && !_submitting && !_uploadingPhoto;
     return Padding(
       padding: const EdgeInsets.all(AppTheme.spacingL),
       child: Column(
@@ -167,10 +206,69 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
           const SizedBox(height: AppTheme.spacingM),
           Align(
             alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: _comingSoonPhotos,
-              icon: const Icon(Icons.camera_alt_outlined, size: 18),
-              label: const Text('Ajouter des photos'),
+            child: Text(
+              'Photos (avant / après)',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Row(
+              children: [
+                for (var i = 0; i < _photoUrls.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _PhotoThumb(
+                      url: _photoUrls[i],
+                      onRemove: () => _removePhoto(i),
+                    ),
+                  ),
+                if (_uploadingPhoto)
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius:
+                          BorderRadius.circular(AppTheme.radiusMedium),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                if (_photoUrls.length < _maxReviewPhotos && !_uploadingPhoto)
+                  GestureDetector(
+                    onTap: _addPhoto,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusMedium),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.camera_alt_outlined,
+                              size: 18, color: AppColors.textSecondary),
+                          Text(
+                            '${_photoUrls.length}/$_maxReviewPhotos',
+                            style: AppTextStyles.labelSmall
+                                .copyWith(color: AppColors.textTertiary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: AppTheme.spacingL),
@@ -178,7 +276,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
             children: [
               Expanded(
                 child: TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _submitting ? null : () => Navigator.pop(context),
                   child: const Text('Annuler'),
                 ),
               ),
@@ -186,10 +284,50 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
               Expanded(
                 child: AppButton(
                   text: 'Publier',
-                  onPressed: _selectedRating >= 1 ? _submit : null,
+                  isLoading: _submitting,
+                  onPressed: canSubmit ? _submit : null,
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoThumb extends StatelessWidget {
+  final String url;
+  final VoidCallback onRemove;
+
+  const _PhotoThumb({required this.url, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            child: TimedCachedImage(imageUrl: url, fit: BoxFit.cover),
+          ),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 12, color: Colors.white),
+              ),
+            ),
           ),
         ],
       ),
