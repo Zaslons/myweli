@@ -27,7 +27,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
+  final _priceMaxController = TextEditingController();
   final _durationController = TextEditingController();
+  final _courtController = TextEditingController();
+  final _moyenController = TextEditingController();
+  final _longController = TextEditingController();
+  bool _hasVariants = false;
   bool _prefillDone = false;
 
   @override
@@ -47,7 +52,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         _nameController.text = service.name;
         _descriptionController.text = service.description;
         _priceController.text = service.price.toStringAsFixed(0);
+        _priceMaxController.text = service.priceMax?.toStringAsFixed(0) ?? '';
         _durationController.text = service.durationMinutes.toString();
+        final variants = service.durationVariants;
+        if (variants.isNotEmpty) {
+          _hasVariants = true;
+          _courtController.text = variants.court?.toString() ?? '';
+          _moyenController.text = variants.moyen?.toString() ?? '';
+          _longController.text = variants.long?.toString() ?? '';
+        }
       }
       _prefillDone = true;
     }
@@ -58,8 +71,27 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _priceMaxController.dispose();
     _durationController.dispose();
+    _courtController.dispose();
+    _moyenController.dispose();
+    _longController.dispose();
     super.dispose();
+  }
+
+  int? _parseVariant(TextEditingController controller) {
+    final text = controller.text.trim();
+    return text.isEmpty ? null : int.tryParse(text);
+  }
+
+  Widget _variantField(String label, TextEditingController controller) {
+    return AppTextField(
+      label: label,
+      hint: 'min',
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+    );
   }
 
   Future<void> _handleSave() async {
@@ -69,11 +101,25 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     final serviceProvider =
         Provider.of<ProServiceProvider>(context, listen: false);
 
+    final priceMaxText = _priceMaxController.text.trim();
+    final durationVariants = _hasVariants
+        ? <String, dynamic>{
+            if (_parseVariant(_courtController) != null)
+              'court': _parseVariant(_courtController),
+            if (_parseVariant(_moyenController) != null)
+              'moyen': _parseVariant(_moyenController),
+            if (_parseVariant(_longController) != null)
+              'long': _parseVariant(_longController),
+          }
+        : <String, dynamic>{};
+
     final serviceData = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
       'price': double.parse(_priceController.text.trim()),
+      'priceMax': priceMaxText.isEmpty ? null : double.parse(priceMaxText),
       'durationMinutes': int.parse(_durationController.text.trim()),
+      'durationVariants': durationVariants,
       'providerId':
           authProvider.provider?.providerId ?? authProvider.provider?.id ?? '',
     };
@@ -193,7 +239,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   ),
                   const SizedBox(height: AppTheme.spacingM),
                   AppTextField(
-                    label: 'Prix (XOF)',
+                    label: 'Prix — à partir de (XOF)',
                     hint: 'Ex: 5000',
                     controller: _priceController,
                     keyboardType: TextInputType.number,
@@ -207,6 +253,26 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       final cleaned = value.replaceAll(' ', '');
                       if (double.tryParse(cleaned) == null) {
                         return 'Prix invalide';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppTheme.spacingM),
+                  AppTextField(
+                    label: 'Prix maximum (optionnel)',
+                    hint: 'Ex: 25000 — laisser vide si prix fixe',
+                    controller: _priceMaxController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) return null;
+                      final max = double.tryParse(value.trim());
+                      if (max == null) return 'Prix invalide';
+                      final min = double.tryParse(_priceController.text.trim());
+                      if (min != null && max < min) {
+                        return 'Doit être ≥ au prix de départ';
                       }
                       return null;
                     },
@@ -256,6 +322,33 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: AppTheme.spacingS),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('La durée varie selon la longueur'),
+                    subtitle: const Text(
+                      'Définir une durée par longueur de cheveux',
+                    ),
+                    value: _hasVariants,
+                    onChanged: (value) => setState(() => _hasVariants = value),
+                  ),
+                  if (_hasVariants)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _variantField('Court', _courtController),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _variantField('Moyen', _moyenController),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _variantField('Long', _longController),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: AppTheme.spacingL),
                   AppButton(
                     text: 'Enregistrer',

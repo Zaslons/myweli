@@ -221,7 +221,11 @@ class MockProService implements ProServiceInterface {
       name: serviceData['name'] as String,
       description: serviceData['description'] as String? ?? '',
       price: (serviceData['price'] as num).toDouble(),
+      priceMax: (serviceData['priceMax'] as num?)?.toDouble(),
       durationMinutes: serviceData['durationMinutes'] as int,
+      durationVariants: DurationVariants.fromJson(
+        serviceData['durationVariants'] as Map<String, dynamic>?,
+      ),
       providerId: providerId,
     );
     return ApiResponse.success(service);
@@ -239,7 +243,11 @@ class MockProService implements ProServiceInterface {
       name: serviceData['name'] as String,
       description: serviceData['description'] as String? ?? '',
       price: (serviceData['price'] as num).toDouble(),
+      priceMax: (serviceData['priceMax'] as num?)?.toDouble(),
       durationMinutes: serviceData['durationMinutes'] as int,
+      durationVariants: DurationVariants.fromJson(
+        serviceData['durationVariants'] as Map<String, dynamic>?,
+      ),
       providerId: serviceData['providerId'] as String,
     );
     return ApiResponse.success(service);

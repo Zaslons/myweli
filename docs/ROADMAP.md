@@ -47,8 +47,8 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Notifications (consumer)** | ~10% | **Stub** (`EmptyState`). No feed, no center. |
 | **Pro auth + register + KYC + onboarding** | ~92% | KYC submission + verification status done (deposits gated on verification); guided onboarding checklist done. Missing: real doc/photo upload (image pipeline). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
-| **Pro appointments / calendar** | ~90% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. Missing: price ranges/duration variants/buffers. |
-| **Pro services / artists / availability** | ~75% | Missing: price ranges, duration variants, buffers, per-staff hours, commission. |
+| **Pro appointments / calendar** | ~90% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. Missing: buffers. |
+| **Pro services / artists / availability** | ~80% | Price ranges + duration variants (court/moyen/long) editable on services. Missing: buffers, per-staff hours, commission (V2). |
 | **Pro earnings / reviews / profile** | ~65% | Missing: payouts, commission tracking. |
 | **Pro "feature" screens (the 8)** | Gated off | Not routed **and** gated behind `FeatureFlags.futureProviderFeatures` (false) → each renders a "Bientôt disponible" placeholder. Deferred (V2 loyalty/memberships; V3 the rest). |
 
@@ -148,7 +148,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
 8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
-9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; remaining: price ranges/duration variants/buffers/commission fields, payouts UI.
+9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; remaining: booking buffers/per-staff hours. (Commission tracking is V2.)
 10. ✅ **Flag-hidden** the unrouted V2/V3 feature screens behind `FeatureFlags.futureProviderFeatures` — each renders a placeholder while off, so they can't ship.
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
@@ -172,7 +172,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Pro — manual booking entry** (FR-PRO-CAL): a `/pro/appointment/new` form (entered via "+" on the appointments list) where the pro records a walk-in/phone booking — multi-select services, date + time (now+future), client phone (required, with a "sans numéro" walk-in opt-out), optional name + note, and a (deferred) "Envoyer la confirmation + lien par SMS" toggle for client acquisition. Created `confirmed`, no online deposit. `createManualBooking` behind `ProServiceInterface`; `clientName`/`clientPhone` added to `Appointment`. *(Real SMS invite lands with the notifications backend; framed as a transactional confirmation.)*
 - ✅ **Scope hygiene — flag-hide V2/V3 screens** (#10): the 8 unrouted `provider/features/` screens are gated behind `FeatureFlags.futureProviderFeatures` (false) and each early-returns a "Bientôt disponible" placeholder, so the cut features can't ship even if accidentally wired.
 - ✅ **Pro — payouts of collected deposits** (FR-PRO-PAYOUT-001): a `/pro/payouts` screen (entered from the earnings header + a profile row) shows the available/pending balance of deposits Myweli collected on the pro's behalf, a payout history (Versé / En attente / Échoué), and a "Demander un virement" sheet (amount + Mobile Money operator) that records a pending payout. Behind `ProPayoutServiceInterface`; balance/history modelled (`Payout`/`PayoutAccount`), the client never moves money. *(Real Mobile Money settlement + the deposit-custody decision (OQ-1) are backend; mock approximates collected deposits per booking. Commission tracking is V2 — `FR-PRO-COMM-001`, flag-hidden.)*
-- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); profile avatar upload (#8 partial); Pro V1 — price-range / duration-variant fields (#9).
+- ✅ **Pro — service price ranges + duration variants** (FR-PRO-SVC-001): the service form now takes an optional **prix maximum** (unlocking the range the consumer UI already renders via `formatPriceRange`) and an optional **"varie selon la longueur"** toggle with **court / moyen / long** durations (`DurationVariants` on `Service`, shaped per §548). The provider profile shows the variant durations. *(Booking slots driven by the client's chosen length — `FR-BOOK-006` — is the deferred follow-up; it touches the slot engine.)*
+- ⏳ **Still V1-open:** booking buffers (#4 partial); profile avatar upload (#8 partial); booking using duration variants for slot length (`FR-BOOK-006`).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)

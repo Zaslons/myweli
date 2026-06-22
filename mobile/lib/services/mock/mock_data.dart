@@ -172,6 +172,7 @@ class MockData {
           price: 15000,
           priceMax: 25000,
           durationMinutes: 120,
+          durationVariants: DurationVariants(court: 120, moyen: 180, long: 240),
           providerId: 'provider2',
           artistIds: ['artist3', 'artist5'], // Only these two can do this
         ),
