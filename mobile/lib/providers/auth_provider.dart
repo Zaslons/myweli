@@ -3,17 +3,26 @@ import 'package:flutter/foundation.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/user.dart';
 import '../services/interfaces/auth_service_interface.dart';
+import '../services/interfaces/image_upload_service_interface.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthServiceInterface _authService = serviceLocator.authService;
+  // Resolved lazily so constructing AuthProvider doesn't require the upload
+  // service to be registered (only uploadAvatar needs it).
+  ImageUploadServiceInterface get _uploadService =>
+      serviceLocator.imageUploadService;
 
   User? _user;
   bool _isLoading = false;
+  bool _isUploadingAvatar = false;
+  double _avatarProgress = 0;
   String? _error;
   String? _otpErrorCode;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
+  bool get isUploadingAvatar => _isUploadingAvatar;
+  double get avatarProgress => _avatarProgress;
   String? get error => _error;
 
   /// Machine-readable code for the last OTP failure (e.g. `otp_locked`,
@@ -131,13 +140,44 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateUser({String? name, String? email}) async {
+  /// Uploads a new avatar through the image pipeline, then saves it on the
+  /// user. Returns true on success.
+  Future<bool> uploadAvatar(String source) async {
+    _isUploadingAvatar = true;
+    _avatarProgress = 0;
+    _error = null;
+    notifyListeners();
+    try {
+      final res = await _uploadService.uploadImage(
+        source: source,
+        onProgress: (p) {
+          _avatarProgress = p;
+          notifyListeners();
+        },
+      );
+      if (!res.success || res.data == null) {
+        _error = res.error ?? 'Échec de l’envoi';
+        return false;
+      }
+      return await updateUser(avatarUrl: res.data);
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isUploadingAvatar = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateUser(
+      {String? name, String? email, String? avatarUrl}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _authService.updateUser(name: name, email: email);
+      final response = await _authService.updateUser(
+          name: name, email: email, avatarUrl: avatarUrl);
       if (response.success && response.data != null) {
         _user = response.data;
         _error = null;

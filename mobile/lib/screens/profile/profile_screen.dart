@@ -8,6 +8,7 @@ import '../../core/theme/text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/timed_cached_image.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -29,14 +30,23 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 24),
                 // Avatar
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 40,
                   backgroundColor: AppColors.surface,
-                  child: Icon(
-                    Icons.person,
-                    size: 40,
-                    color: AppColors.textTertiary,
-                  ),
+                  child: user?.avatarUrl == null
+                      ? const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: AppColors.textTertiary,
+                        )
+                      : ClipOval(
+                          child: TimedCachedImage(
+                            imageUrl: user!.avatarUrl!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 16),
                 // Name
