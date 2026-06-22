@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/booking_duration.dart';
 import '../../core/utils/deposit.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/appointment_provider.dart';
@@ -19,6 +20,7 @@ class BookingConfirmationScreen extends StatefulWidget {
   final List<String> serviceIds;
   final DateTime appointmentDateTime;
   final String? artistId;
+  final String? lengthVariant;
 
   const BookingConfirmationScreen({
     super.key,
@@ -26,6 +28,7 @@ class BookingConfirmationScreen extends StatefulWidget {
     required this.serviceIds,
     required this.appointmentDateTime,
     this.artistId,
+    this.lengthVariant,
   });
 
   @override
@@ -53,6 +56,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             'serviceIds': widget.serviceIds.join(','),
             'dateTime': widget.appointmentDateTime.toIso8601String(),
             if (widget.artistId != null) 'artistId': widget.artistId!,
+            if (widget.lengthVariant != null)
+              'lengthVariant': widget.lengthVariant!,
           },
         );
 
@@ -274,6 +279,21 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                           ),
                         ],
                       ),
+                      if (widget.lengthVariant != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.content_cut,
+                                size: 16, color: AppColors.textSecondary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Longueur : '
+                              '${lengthVariantLabel(widget.lengthVariant!)}',
+                              style: AppTextStyles.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ],
                       const Divider(height: 24),
                       // Price breakdown
                       Row(
