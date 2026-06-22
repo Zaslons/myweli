@@ -208,6 +208,8 @@ This section is the "why" behind many requirements. Treat it as binding context.
 ### 6.1 Model
 **Provider-paid SaaS subscription.** Consumers never pay Myweli a fee. Revenue = monthly/annual provider subscriptions. Mobile Money deposits/payments are product features (they protect providers and build trust); a small transaction fee is an **optional V3 lever**, not the V1 model.
 
+> **Payment-custody model (binding, V1):** Myweli is a **time-saving tool, not a payment operator** — in V1 it **does not hold, process, or settle funds.** Deposits and payments flow **directly between client and salon** on the salon's own Mobile Money account; Myweli only *facilitates* (pre-filled Wave links / copyable number + amount) and *records intent*. This is deliberate: holding funds triggers BCEAO e-money/PSP licensing and an aggregator merchant account (CinetPay/PayDunya/etc.), both of which require a **registered company (RCCM) + KYB** Myweli won't have at launch — and it earns Myweli nothing, since revenue is the subscription, not a payment cut. A licensed aggregator + optional **escrow** for salons who want guaranteed deposits is revisited **post-incorporation** (see OQ-1).
+
 > **Strategic note (binding):** CI providers are accustomed to free WhatsApp booking. The subscription must clear a hard ROI bar: the value narrative is **"one prevented no-show pays for the month."** Pricing, trials, and the free tier all exist to make that math obvious. A generous free tier is a customer-acquisition tool, not lost revenue.
 
 ### 6.2 Tiers (indicative FCFA — validate with market testing)
@@ -222,7 +224,7 @@ This section is the "why" behind many requirements. Treat it as binding context.
 Add-ons (V2+): extra staff seats, featured placement (paid promotion), SMS bundles, advanced marketing.
 
 ### 6.3 Billing requirements
-- Subscriptions billed via **Mobile Money** (recurring or reminder-based renewal; true auto-debit support varies by operator — design for both auto-renew where supported and a one-tap renewal reminder where not).
+- Subscriptions billed via **Mobile Money** (recurring or reminder-based renewal; true auto-debit support varies by operator — design for both auto-renew where supported and a one-tap renewal reminder where not). *(Note: collecting subscriptions is Myweli **receiving** funds, so it has the same incorporation/merchant-account dependency as custody — at launch this rides the 30-day free trial + free tier; paid collection turns on once Myweli is registered and on an aggregator. Until then, early paid salons can be handled manually.)*
 - In-app purchase rules: subscriptions sold to **providers** through the Pro app must respect Apple/Google policies — because Pro is a B2B SaaS tool, bill **outside** IAP via Mobile Money where store policy allows (B2B carve-out); otherwise gate provider signup/billing to web to avoid store IAP cut. **(Open question OQ-3.)**
 - Free trial: 30 days of Pro on signup, no Mobile Money required to start.
 - Dunning: grace period + WhatsApp/SMS renewal nudges before downgrade to Free.
@@ -347,7 +349,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-BOOK-004 [V1]** Slot availability respects provider hours, **buffer time between appointments**, blocked dates, and existing bookings. *(done — provider hours, blocked dates, existing bookings + a provider-wide buffer all honoured in slot computation)*
 - **FR-BOOK-005 [V1]** **Price ranges & length/type modifiers** — a service may price as min–max (e.g., tresses "15 000–25 000 selon la longueur"); booking shows estimated range, final confirmed by provider.
 - **FR-BOOK-006 [V1]** **Variable duration by hair length/type** — service can declare duration variants (court/moyen/long) affecting slot length. *(done in the booking hub: a length selector drives the estimated duration → slot availability; carried through confirmation. Step-by-step screens + persisting the choice on the booking DTO are follow-ups.)*
-- **FR-BOOK-007 [V1]** Booking confirmation summary → **deposit step** (§9.4) → confirmed booking. *(confirmation exists; deposit must be added)*
+- **FR-BOOK-007 [V1]** Booking confirmation summary → (**optional, only if the salon enabled deposits**) deposit step (§9.4) → **salon confirms** → confirmed booking. With deposits off, the summary leads straight to a pending booking the salon confirms. *(confirmation exists; opt-in deposit hand-off to be added)*
 - **FR-BOOK-008 [V1]** Auth gating: unauthenticated users can browse and assemble a booking; auth is required at confirm, with `returnTo` continuity. *(returnTo pattern exists)*
 - **FR-BOOK-009 [V1]** **Rebook ("Réserver à nouveau")** — one tap to repeat a prior appointment (same services/artist), then pick a slot.
 - **FR-BOOK-010 [V2]** **Home service booking** — when provider offers à domicile: capture client location (GPS pin + landmark text), compute/display transport fee, "send my location" share.
@@ -359,12 +361,14 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 
 ### 9.4 Payments & deposits (consumer side)
 
-- **FR-PAY-001 [V1]** **Deposit to confirm** — provider-configurable deposit (% or fixed FCFA). Booking is only "confirmed" after deposit is paid via Mobile Money. *(does not exist — critical)*
-  - **AC:** Given a provider requires a 30% deposit, when the customer confirms a 20 000 FCFA booking, then they are prompted to pay 6 000 FCFA via Wave/OM/MTN/Moov; on success the booking status → confirmed and both parties are notified; on failure the slot is held for a short TTL then released.
-- **FR-PAY-002 [V1]** Mobile Money operator choice (Wave, Orange Money, MTN MoMo, Moov) via aggregator; **one-tap pay** with remembered operator/number and optional auto-pay confirmation (the YPLACES one-click analog, on Mobile Money rails).
-- **FR-PAY-003 [V1]** Clear display of **deposit vs. balance** ("Acompte 6 000 FCFA payé · Solde 14 000 FCFA à régler au salon").
-- **FR-PAY-004 [V1]** Receipts / transaction history in-app; downloadable.
-- **FR-PAY-005 [V1]** **Refund handling** per cancellation policy (FR-APPT-005): automatic where rules allow; dispute path otherwise.
+> **V1 model (direct, no custody — see §6.1):** Myweli never holds the money. Deposits are **opt-in per salon** (off by default). When a salon enables deposits, the booking is **pending until the salon confirms it after receiving the deposit** on its own Mobile Money account; Myweli facilitates the transfer and lets the client attach proof. Full payment for the service is settled in person (cash or the salon's MoMo) — Myweli does not need an in-app full-payment rail in V1.
+
+- **FR-PAY-001 [V1]** **Opt-in deposit to confirm** — deposits are **off by default**; a salon can enable them and configure amount (% or fixed FCFA) + which Mobile Money handle receives them. When enabled, a booking stays **pending** until the **salon confirms receipt** of the deposit; when disabled, the salon simply confirms the booking directly. The deposit is a transaction **between client and salon** — Myweli does not hold or settle it.
+  - **AC:** Given a salon requires a 30% deposit, when the customer confirms a 20 000 FCFA booking, then they see "Acompte 6 000 FCFA" with a one-tap **Wave link** (or the salon's number + amount to copy for OM/MTN/Moov), can **attach a screenshot** of the transfer, and the booking is marked **pending**; the salon **confirms** once the deposit lands, flipping it to confirmed and notifying both parties.
+- **FR-PAY-002 [V1]** **Facilitated Mobile Money transfer (no aggregator).** For **Wave**, generate a pre-filled **deep link / payment link** (recipient + amount) that opens Wave; the client confirms with their own PIN. For **Orange Money / MTN MoMo / Moov**, open the operator app/USSD where a reliable link exists, otherwise show the salon's **number + amount with a "Copier" button** and an **"Ouvrir l'app"** action. The client always authorises in their own app — Myweli never moves money. (Aggregator-based one-tap pay deferred to post-incorporation; see OQ-1.)
+- **FR-PAY-003 [V1]** Clear display of **deposit vs. balance** ("Acompte 6 000 FCFA · Solde 14 000 FCFA à régler au salon").
+- **FR-PAY-004 [V1]** Client can **attach a deposit screenshot** as proof; the salon sees it when confirming. (No Myweli-issued receipts in V1 — there's no Myweli-side transaction.)
+- **FR-PAY-005 [V1]** **Refunds are salon↔client.** Cancellation policy (FR-APPT-005) is shown for transparency, but since Myweli doesn't hold the deposit, any refund is handled directly by the salon; Myweli surfaces the policy and the contact, not an automated refund.
 - **FR-PAY-006 [V2]** **Pay full amount in-app** (deposit + balance) optionally.
 - **FR-PAY-007 [V2]** **Wallet / store credit** — refunds and referral rewards land here; usable on next booking.
 - **FR-PAY-008 [V3]** **Tipping** via Mobile Money post-appointment.
@@ -451,7 +455,7 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 ### 10.5 Money (provider side)
 - **FR-PRO-PAY-001 [V1]** **Deposit settings**: default deposit % or fixed, per-service override, cancellation policy windows.
 - **FR-PRO-EARN-001 [V1]** Earnings: deposits collected, balance expected, completed revenue by day/week/month, transaction list. *(exists: `earnings_screen.dart`)*
-- **FR-PRO-PAYOUT-001 [V1]** **Payout of collected deposits** to the provider's Mobile Money account (settlement schedule, statement). *(V1 frontend built on mock — balance/history + "Demander un virement"; real Mobile Money settlement + deposit-custody (OQ-1) are backend)*
+- **FR-PRO-PAYOUT-001 [~~V1~~ → post-incorporation]** **Payout of collected deposits** to the provider's Mobile Money account (settlement schedule, statement). *(**Not applicable under the V1 no-custody model** (OQ-1): if Myweli never holds deposits there is nothing to pay out. The mock screen built earlier (#21) is retired/flag-hidden. Reinstate only if escrow via a licensed aggregator is added after incorporation.)*
 - **FR-PRO-COMM-001 [V2]** **Commission tracking** — per-stylist commission computed from completed appointments (the payroll mock made this up; make it real).
 - **FR-PRO-PAYROLL-001 [V3]** Payroll calculation (base + commission + bonus) — the `payroll_calculation_screen.dart` mock, properly modeled.
 
@@ -568,7 +572,8 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 
 | Integration | Purpose | Phase | Notes |
 |---|---|---|---|
-| **Mobile Money aggregator** (CinetPay / PayDunya / Hub2 / Semoa) | Deposits, balance, subscriptions, payouts across Wave/OM/MTN/Moov via one integration | V1 | Strongly prefer aggregator over 4 direct integrations. Validate Wave coverage specifically. |
+| **Mobile Money — direct facilitation** (Wave deep link; OM/MTN/Moov number+amount, copy/USSD where reliable) | Opt-in deposits, client→salon, no custody | V1 | No merchant account / no registered company needed. Wave link first; others manual. |
+| **Mobile Money aggregator** (CinetPay / PayDunya / Hub2 / Semoa) | Optional escrow deposits, in-app payments, subscription billing | post-incorporation | Needs RCCM + KYB. Adds guaranteed/auto-refundable deposits + subscription auto-debit. |
 | **WhatsApp Business API** (via BSP: Meta Cloud API / 360dialog / Twilio) | Confirmations, reminders, broadcasts | V1 | Template-message approval; opt-in compliance. |
 | **SMS gateway** (local: LeTexto/CI operators, or Twilio) | OTP + notification fallback | V1 | OTP deliverability is critical; consider multi-provider. |
 | **Push** (Firebase Cloud Messaging) | App notifications | V1 | iOS APNs via FCM. |
@@ -623,7 +628,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 
 - **Data protection**: Côte d'Ivoire's personal-data law (ARTCI oversight) — lawful basis, consent for marketing comms, data subject rights (access/delete — FR-AUTH-005), local considerations on data residency. Validate with counsel.
 - **Telecom/marketing**: WhatsApp/SMS opt-in & opt-out compliance; OTP and transactional vs. promotional separation.
-- **Payments**: operate within Mobile Money aggregator/BCEAO/operator rules; KYC/AML expectations where Myweli handles/settles funds (deposit custody & payouts) — confirm whether a payment partner or agreement is required to hold funds.
+- **Payments**: **V1 — Myweli handles no funds**, so BCEAO e-money/PSP licensing and KYC/AML-for-fund-handling don't apply; only the operators' link/USSD usage terms (esp. Wave) must be respected. Once escrow/in-app payments are added post-incorporation, the aggregator/BCEAO/operator rules + KYC/AML for held funds apply (revisit with counsel + the aggregator's KYB).
 - **Tax**: **TVA 18%** on subscription revenue for registered entities; compliant invoicing/receipts (FR-PRO-SUB-001); provider invoicing where applicable.
 - **Consumer protection**: clear deposit/refund/cancellation terms surfaced before payment.
 - **App store compliance**: Apple/Google policy for B2B SaaS billing (OQ-3), data-safety disclosures, account deletion.
@@ -647,7 +652,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Providers reject paid SaaS (used to free WhatsApp) | Revenue model fails | Generous free tier; "one prevented no-show pays the month" ROI; 30-day trial; charge only after value shown. |
-| Mobile Money integration friction (esp. Wave) | No deposits = no core value | Use aggregator; validate Wave early; design hold-with-TTL fallback. |
+| Mobile Money integration friction (esp. Wave) | Clunky deposit hand-off hurts adoption | V1 sidesteps it: no custody, deposits optional (core value is time-saving booking, not the deposit). Wave deep link first; number+copy fallback for others; validate Wave link against live docs. |
 | Off-platform leakage | Erodes trust + future fees | Reminders/CRM value lives in-app; monitor; standing/ranking incentives. |
 | Cold-start liquidity | Empty marketplace | Single-commune density first; field onboarding; seed with strong providers. |
 | Fresha/Booksy localize | Competitive squeeze | Move fast on payments/WhatsApp/home-service moat; lock supply via subscription + booking pages. |
@@ -660,7 +665,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 
 ## 21. Open questions
 
-- **OQ-1** Deposit custody: does Myweli hold deposits (escrow, requires payment-institution status/partner) or do deposits go directly to providers via aggregator split? Determines payout model & licensing.
+- **OQ-1** ✅ **Resolved (V1): no custody.** Deposits flow **directly client→salon** on the salon's own Mobile Money handle; Myweli facilitates + records intent but never holds/settles funds — avoiding BCEAO e-money/PSP licensing and an aggregator merchant account (both need a registered company Myweli lacks at launch). *Revisit post-incorporation:* a licensed aggregator + optional **escrow** for salons wanting guaranteed/auto-refundable deposits. This makes `FR-PRO-PAYOUT-001` (Myweli paying out collected deposits) **not applicable in V1**.
 - **OQ-2** Exact subscription pricing & free-tier caps — needs field validation with ~20 Cocody salons.
 - **OQ-3** Apple/Google IAP treatment of provider SaaS billing — confirm B2B carve-out vs. web-only billing.
 - **OQ-4** Which Mobile Money aggregator gives the best Wave + OM coverage and payout support in CI?
