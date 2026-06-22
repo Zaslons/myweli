@@ -298,6 +298,10 @@ class MockAppointmentService implements AppointmentServiceInterface {
                 providerId: providerId, serviceIds: serviceIds));
     final durationBlocks = (duration / 30).ceil().clamp(1, 48);
 
+    // Keep a gap between appointments (cleanup/setup) by padding each existing
+    // booking's busy window on both sides.
+    final bufferMinutes = provider.availability.bufferMinutes;
+
     bool candidateOk(DateTime start) {
       if (minStart != null && start.isBefore(minStart)) return false;
       final end = start.add(Duration(minutes: duration));
@@ -322,7 +326,12 @@ class MockAppointmentService implements AppointmentServiceInterface {
                 minutes: _durationMinutesFor(
                     providerId: providerId, serviceIds: apt.serviceIds)),
           );
-          return _overlaps(start, end, aptStart, aptEnd);
+          return _overlaps(
+            start,
+            end,
+            aptStart.subtract(Duration(minutes: bufferMinutes)),
+            aptEnd.add(Duration(minutes: bufferMinutes)),
+          );
         });
       }
 
@@ -342,7 +351,12 @@ class MockAppointmentService implements AppointmentServiceInterface {
                 minutes: _durationMinutesFor(
                     providerId: providerId, serviceIds: apt.serviceIds)),
           );
-          return _overlaps(start, end, aptStart, aptEnd);
+          return _overlaps(
+            start,
+            end,
+            aptStart.subtract(Duration(minutes: bufferMinutes)),
+            aptEnd.add(Duration(minutes: bufferMinutes)),
+          );
         });
         if (!busy) return true;
       }

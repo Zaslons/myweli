@@ -282,6 +282,12 @@ class MockProService implements ProServiceInterface {
     Availability availability,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
+    // Persist so consumer slot computation sees the change (e.g. buffers).
+    final index = MockData.providers.indexWhere((p) => p.id == providerId);
+    if (index != -1) {
+      MockData.providers[index] =
+          MockData.providers[index].copyWith(availability: availability);
+    }
     return ApiResponse.success(availability);
   }
 

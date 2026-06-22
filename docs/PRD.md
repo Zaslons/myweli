@@ -344,7 +344,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-BOOK-001 [V1]** Booking hub with service / artist / date-time sections, smart ordering, auto-advance, sticky summary (total price range, duration), real-time validation. *(exists & strong: `booking_hub_screen.dart`)*
 - **FR-BOOK-002 [V1]** Multi-service selection; total duration drives slot length. *(exists)*
 - **FR-BOOK-003 [V1]** Artist selection with "no preference," service-compatibility filtering. *(exists)*
-- **FR-BOOK-004 [V1]** Slot availability respects provider hours, **buffer time between appointments**, blocked dates, and existing bookings. *(slot model exists; buffers must be added)*
+- **FR-BOOK-004 [V1]** Slot availability respects provider hours, **buffer time between appointments**, blocked dates, and existing bookings. *(done — provider hours, blocked dates, existing bookings + a provider-wide buffer all honoured in slot computation)*
 - **FR-BOOK-005 [V1]** **Price ranges & length/type modifiers** — a service may price as min–max (e.g., tresses "15 000–25 000 selon la longueur"); booking shows estimated range, final confirmed by provider.
 - **FR-BOOK-006 [V1]** **Variable duration by hair length/type** — service can declare duration variants (court/moyen/long) affecting slot length. *(done in the booking hub: a length selector drives the estimated duration → slot availability; carried through confirmation. Step-by-step screens + persisting the choice on the booking DTO are follow-ups.)*
 - **FR-BOOK-007 [V1]** Booking confirmation summary → **deposit step** (§9.4) → confirmed booking. *(confirmation exists; deposit must be added)*
@@ -435,7 +435,7 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 ### 10.3 Services, staff, availability
 - **FR-PRO-SVC-001 [V1]** Service CRUD: name (from taxonomy), description, **price range (min–max)**, **duration variants** (court/moyen/long), category, which artists can perform it, active toggle, deposit override. *(CRUD + price range + duration variants done; taxonomy picker / category / active toggle / deposit override still ad-hoc)*
 - **FR-PRO-STAFF-001 [V1]** Staff/artist CRUD: name, photo, specialization, services they perform, working hours, **commission rate**. *(exists; add commission, per-staff hours)*
-- **FR-PRO-AVAIL-001 [V1]** Availability: weekly schedule per day, per-staff hours, **buffer time between appointments**, blocked dates/holidays, break times. *(exists: `availability_screen.dart`; add buffers, per-staff, breaks)*
+- **FR-PRO-AVAIL-001 [V1]** Availability: weekly schedule per day, per-staff hours, **buffer time between appointments**, blocked dates/holidays, break times. *(weekly schedule + blocked dates + buffer done; per-staff hours and break times still open)*
 - **FR-PRO-AVAIL-002 [V2]** Resources/rooms (a spa room, a chair) as bookable constraints.
 
 ### 10.4 Calendar, bookings & day-of operations

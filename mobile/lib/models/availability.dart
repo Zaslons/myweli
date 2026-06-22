@@ -36,14 +36,33 @@ class Availability extends Equatable {
   final Map<int, List<TimeSlot>> weeklySchedule; // 0=Monday, 6=Sunday
   final List<DateTime> blockedDates;
 
+  /// Minutes kept free between two appointments (cleanup/setup). 0 = none.
+  final int bufferMinutes;
+
   const Availability({
     required this.providerId,
     required this.weeklySchedule,
     required this.blockedDates,
+    this.bufferMinutes = 0,
   });
 
   @override
-  List<Object?> get props => [providerId, weeklySchedule, blockedDates];
+  List<Object?> get props =>
+      [providerId, weeklySchedule, blockedDates, bufferMinutes];
+
+  Availability copyWith({
+    String? providerId,
+    Map<int, List<TimeSlot>>? weeklySchedule,
+    List<DateTime>? blockedDates,
+    int? bufferMinutes,
+  }) {
+    return Availability(
+      providerId: providerId ?? this.providerId,
+      weeklySchedule: weeklySchedule ?? this.weeklySchedule,
+      blockedDates: blockedDates ?? this.blockedDates,
+      bufferMinutes: bufferMinutes ?? this.bufferMinutes,
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -55,6 +74,7 @@ class Availability extends Equatable {
         ),
       ),
       'blockedDates': blockedDates.map((d) => d.toIso8601String()).toList(),
+      'bufferMinutes': bufferMinutes,
     };
   }
 
@@ -72,6 +92,7 @@ class Availability extends Equatable {
       blockedDates: (json['blockedDates'] as List)
           .map((d) => DateTime.parse(d as String))
           .toList(),
+      bufferMinutes: (json['bufferMinutes'] as num?)?.toInt() ?? 0,
     );
   }
 }
