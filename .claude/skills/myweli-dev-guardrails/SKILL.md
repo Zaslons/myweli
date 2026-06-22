@@ -103,7 +103,7 @@ Budgeted against the **reference low-end Android (2–3 GB RAM, Android 9)** fro
 - Paginate everywhere; dedupe in-flight requests (the booking hub's `slotsRequestId` pattern); cache reads for offline tolerance.
 
 ## Scope & phasing discipline
-The plan is **finish the V1 frontend on mocks first**, with three guardrails (ROADMAP §2.2): stay in V1 scope, keep mock data shaped like the real DTOs, and spike the two risky integrations (Mobile Money deposit, WhatsApp) early rather than last. The 8 `provider/features/` screens and the loyalty/membership/gifting UI are **V2/V3** — keep them flag-hidden and don't polish them now.
+The plan is **finish the V1 frontend on mocks first**, with three guardrails (ROADMAP §2.2): stay in V1 scope, keep mock data shaped like the real DTOs, and spike the two risky integrations (Mobile Money deposit, WhatsApp) early rather than last. The 8 `provider/features/` screens and the loyalty/membership/gifting UI are **V2/V3** — keep them flag-hidden and don't polish them now. This is enforced in code via `FeatureFlags.futureProviderFeatures` (`lib/core/config/feature_flags.dart`), which is `false` for V1; each of those screens early-returns a `ComingSoonScaffold` placeholder while off. Don't route them or flip the flag without confirming the phase with the user.
 
 ## Keep the guardrails honest
 When a real decision changes a rule (a new pattern, a revised budget, a resolved open question), **update docs/PRD.md or docs/ROADMAP.md** in the same change. This skill is only as good as those documents — stale rules are worse than no rules.
