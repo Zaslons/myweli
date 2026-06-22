@@ -93,6 +93,13 @@ abstract class ProServiceInterface {
   Future<ApiResponse<bool>> deleteService(String serviceId);
   Future<ApiResponse<bool>> toggleServiceAvailability(String serviceId);
 
+  // Gallery photos
+  Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId);
+  Future<ApiResponse<List<String>>> updateGalleryPhotos(
+    String providerId,
+    List<String> imageUrls,
+  );
+
   // Availability
   Future<ApiResponse<Availability>> getProviderAvailability(String providerId);
   Future<ApiResponse<Availability>> updateAvailability(

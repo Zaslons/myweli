@@ -45,7 +45,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Favorites** (map + toggle) | ~80% | Solid. |
 | **Profile** (view/edit) | ~90% | Account deletion (typed confirm) + data export (JSON copy) done. Missing: avatar upload. |
 | **Notifications (consumer)** | ~10% | **Stub** (`EmptyState`). No feed, no center. |
-| **Pro auth + register + KYC + onboarding** | ~92% | KYC submission + verification status done (deposits gated on verification); guided onboarding checklist done. Missing: real doc/photo upload (image pipeline). |
+| **Pro auth + register + KYC + onboarding** | ~95% | KYC + verification status done; guided onboarding checklist done (photos step now actionable). Salon photos + staff avatar upload on a mock pipeline. Missing: real bytes/CDN (backend). |
 | **Pro dashboard** | ~70% | Stats wired to mock. |
 | **Pro appointments / calendar** | ~95% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. |
 | **Pro services / artists / availability** | ~90% | Price ranges + duration variants on services; buffer between appointments; per-staff working hours. Missing: break times, commission (V2). |
@@ -147,7 +147,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 5. **Appointments** — ✅ policy-bound cancel/reschedule UI; ✅ rich visit history with auto-synced status.
 6. **Reviews** — photos, verified-booking badge.
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
-8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
+8. **Profile / photos** — ✅ account deletion (typed confirm) + data export (JSON); ✅ image-upload pipeline (mock) wired into salon gallery + staff avatar. Remaining: consumer profile avatar; real bytes/CDN (backend).
 9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; ✅ payouts of collected deposits; ✅ price ranges + duration variants on services; ✅ buffer between appointments; ✅ per-staff working hours. (Commission tracking + break times are later.)
 10. ✅ **Flag-hidden** the unrouted V2/V3 feature screens behind `FeatureFlags.futureProviderFeatures` — each renders a placeholder while off, so they can't ship.
 
@@ -176,7 +176,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Booking — duration by hair length** (FR-BOOK-006): when a selected service declares duration variants, the booking hub shows a **"Longueur des cheveux"** selector (court/moyen/long, auto-defaulting to the middle bucket) that drives the **estimated duration → slot availability** (via the pure `booking_duration` helper); the choice is carried through `/booking/confirm` and shown in the summary. Single length per booking (the client's hair). *(Step-by-step screens `/booking/artist`→`/booking/date-time` and persisting the chosen length onto the booking DTO are follow-ups.)*
 - ✅ **Booking — buffer between appointments** (FR-BOOK-004 / FR-PRO-AVAIL-001): the pro sets a provider-wide buffer (Aucun / 10 / 15 / 30 min, default Aucun) on the availability screen; consumer slot computation pads each existing booking by that buffer on both sides so new bookings keep the gap. `Availability.bufferMinutes`; mock `updateAvailability` now persists so the choice reaches slots.
 - ✅ **Pro — per-staff working hours** (FR-PRO-AVAIL-001 / FR-PRO-STAFF-001): a staff member can follow salon hours (default) or have custom weekly hours (one range per day) via a shared `WeeklyHoursEditor` in the artist form; consumer slot computation only offers times that member works (within salon hours), in both the artist-specific and "any eligible artist" paths. `Artist.workingHours`; mock `create/updateArtist` persist into `MockData.providers` so slots reflect it.
-- ⏳ **Still V1-open:** profile avatar upload (#8 partial); the two risk spikes (real Mobile Money + WhatsApp). Minor: break times, step-by-step booking screen parity.
+- ✅ **Image-upload pipeline (frontend on mock)** (#8): `ImageUploadServiceInterface` + mock (simulated progress + hosted-URL contract; real impl = picker → compress/resize → CDN scan). Wired into a pro **"Photos du salon"** screen (`Provider.imageUrls`, add/remove, cover, four states) and **staff avatar** in the artist form, via a dependency-free mock image picker. `ProService.get/updateGalleryPhotos` persist into `MockData.providers` so the consumer hero gallery reflects edits.
+- ⏳ **Still V1-open:** the two risk spikes (real Mobile Money + WhatsApp). Minor: consumer profile avatar, break times, step-by-step booking screen parity, review-photo upload (needs a consumer review-submission flow first).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
