@@ -275,6 +275,12 @@ class MockData {
           6: const [], // Sunday closed
         },
         blockedDates: const [],
+        // Lunch break 13:00–14:00, Tuesday–Saturday.
+        breaks: _weekdayHours(
+          startHour: 13,
+          endHour: 14,
+          days: const [1, 2, 3, 4, 5],
+        ),
       ),
       phoneNumber: '+225 07 11 22 33 44',
       whatsapp: '+225 07 11 22 33 44',

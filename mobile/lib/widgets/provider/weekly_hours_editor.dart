@@ -20,10 +20,19 @@ class WeeklyHoursEditor extends StatelessWidget {
   final Map<int, List<TimeSlot>> hours;
   final ValueChanged<Map<int, List<TimeSlot>>> onChanged;
 
+  /// Label for a day with no range (e.g. 'Repos' for hours, 'Aucune' for
+  /// breaks), and the range a freshly-toggled-on day starts with.
+  final String offLabel;
+  final TimeOfDay defaultStart;
+  final TimeOfDay defaultEnd;
+
   const WeeklyHoursEditor({
     super.key,
     required this.hours,
     required this.onChanged,
+    this.offLabel = 'Repos',
+    this.defaultStart = const TimeOfDay(hour: 9, minute: 0),
+    this.defaultEnd = const TimeOfDay(hour: 17, minute: 0),
   });
 
   TimeSlot? _slotFor(int day) {
@@ -93,19 +102,14 @@ class WeeklyHoursEditor extends StatelessWidget {
                 )
               else
                 Text(
-                  'Repos',
+                  offLabel,
                   style: AppTextStyles.bodySmall
                       .copyWith(color: AppColors.textTertiary),
                 ),
               Switch(
                 value: works,
-                onChanged: (on) => _setDay(
-                  day,
-                  on
-                      ? _slot(const TimeOfDay(hour: 9, minute: 0),
-                          const TimeOfDay(hour: 17, minute: 0))
-                      : null,
-                ),
+                onChanged: (on) =>
+                    _setDay(day, on ? _slot(defaultStart, defaultEnd) : null),
               ),
             ],
           ),

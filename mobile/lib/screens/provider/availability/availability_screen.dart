@@ -8,6 +8,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
+import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class AvailabilityScreen extends StatefulWidget {
   const AvailabilityScreen({super.key});
@@ -82,6 +83,33 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     onChanged: (minutes) => _setBuffer(
                       context,
                       minutes,
+                      availability,
+                      availabilityProvider,
+                      _resolvedProviderId(context),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Pauses',
+                    style: AppTextStyles.titleLarge
+                        .copyWith(color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Une pause récurrente par jour (ex. déjeuner). '
+                    'Aucun créneau ne sera proposé pendant ces heures.',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  WeeklyHoursEditor(
+                    hours: availability.breaks,
+                    offLabel: 'Aucune',
+                    defaultStart: const TimeOfDay(hour: 12, minute: 0),
+                    defaultEnd: const TimeOfDay(hour: 13, minute: 0),
+                    onChanged: (breaks) => _setBreaks(
+                      context,
+                      breaks,
                       availability,
                       availabilityProvider,
                       _resolvedProviderId(context),
@@ -249,6 +277,27 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     await provider.updateAvailability(
       providerId,
       availability.copyWith(bufferMinutes: minutes),
+    );
+    if (context.mounted && provider.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error!),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _setBreaks(
+    BuildContext context,
+    Map<int, List<TimeSlot>> breaks,
+    Availability availability,
+    ProAvailabilityProvider provider,
+    String providerId,
+  ) async {
+    await provider.updateAvailability(
+      providerId,
+      availability.copyWith(breaks: breaks),
     );
     if (context.mounted && provider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
