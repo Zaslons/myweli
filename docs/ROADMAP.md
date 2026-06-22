@@ -50,7 +50,7 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 | **Pro appointments / calendar** | ~90% | Accept/reject/complete/reschedule + no-show marking + manual (walk-in/phone) booking entry. Missing: price ranges/duration variants/buffers. |
 | **Pro services / artists / availability** | ~75% | Missing: price ranges, duration variants, buffers, per-staff hours, commission. |
 | **Pro earnings / reviews / profile** | ~65% | Missing: payouts, commission tracking. |
-| **Pro "feature" screens (the 8)** | UI-only mocks | Hardcoded values, empty handlers, **not routed**. Defer (V2 loyalty/memberships; V3 the rest). |
+| **Pro "feature" screens (the 8)** | Gated off | Not routed **and** gated behind `FeatureFlags.futureProviderFeatures` (false) → each renders a "Bientôt disponible" placeholder. Deferred (V2 loyalty/memberships; V3 the rest). |
 
 ### 1.4 What's MOCKED (works, but simulated)
 All data flows through `lib/services/mock/*` behind `lib/services/interfaces/*`. Simulated: OTP (`123456`), provider/appointment/favorites data, slot generation (30-min, ~90% availability), review eligibility, booking lifecycle. **This is the asset that makes frontend-first viable** (see Part 2).
@@ -149,7 +149,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 7. **Notifications** — real in-app feed + center (replace stub), preferences UI.
 8. **Profile** — ✅ account deletion (typed confirm) + data export (JSON); remaining: avatar upload.
 9. **Pro V1** — ✅ KYC submission + verification status; ✅ guided onboarding checklist; ✅ no-show marking; ✅ manual booking entry; remaining: price ranges/duration variants/buffers/commission fields, payouts UI.
-10. **Hide/remove** the unrouted V2/V3 feature screens behind a flag so they don't ship.
+10. ✅ **Flag-hidden** the unrouted V2/V3 feature screens behind `FeatureFlags.futureProviderFeatures` — each renders a placeholder while off, so they can't ship.
 
 **Exit:** all V1 screens meet the per-screen DoD; flows pass integration tests against mocks; analyze = 0; coverage gate met; perf budget met on reference device for every screen.
 
@@ -170,7 +170,8 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Pro — guided onboarding checklist** (FR-PRO-ONB-001): the `/pro/onboarding` hub shows live progress over the steps (profil · services ≥3 · équipe · disponibilités · acompte · vérification · photos), each linking to its screen, with a "Mettre en ligne" CTA gated on the self-serve essentials. Pure `buildOnboardingChecklist`/`canGoLive` helper; `ProOnboardingProvider` aggregates the data; entries on the pro dashboard + profile. *(Photos step is informational until the image pipeline; "go live" publish is backend.)*
 - ✅ **Pro — no-show marking** (FR-PRO): new `AppointmentStatus.noShow` (handled across all status chips; excluded from the consumer's completed visit history); the pro marks a confirmed, past-due appointment "absent" from the detail screen, with a confirmation noting the deposit is kept per the salon's cancellation policy. `markNoShow` behind `ProServiceInterface`.
 - ✅ **Pro — manual booking entry** (FR-PRO-CAL): a `/pro/appointment/new` form (entered via "+" on the appointments list) where the pro records a walk-in/phone booking — multi-select services, date + time (now+future), client phone (required, with a "sans numéro" walk-in opt-out), optional name + note, and a (deferred) "Envoyer la confirmation + lien par SMS" toggle for client acquisition. Created `confirmed`, no online deposit. `createManualBooking` behind `ProServiceInterface`; `clientName`/`clientPhone` added to `Appointment`. *(Real SMS invite lands with the notifications backend; framed as a transactional confirmation.)*
-- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); profile avatar upload (#8 partial); Pro V1 — payouts/commission UI, price-range/duration-variant fields (#9); flag-hide the unrouted V2/V3 feature screens (#10).
+- ✅ **Scope hygiene — flag-hide V2/V3 screens** (#10): the 8 unrouted `provider/features/` screens are gated behind `FeatureFlags.futureProviderFeatures` (false) and each early-returns a "Bientôt disponible" placeholder, so the cut features can't ship even if accidentally wired.
+- ⏳ **Still V1-open:** booking buffers / duration-by-length (#4 partial); profile avatar upload (#8 partial); Pro V1 — payouts/commission UI, price-range/duration-variant fields (#9).
 - ⏳ **Deferred to later phases:** review photo upload, à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending.
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)

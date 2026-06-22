@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../widgets/common/coming_soon_scaffold.dart';
 
 class PayrollCalculationScreen extends StatelessWidget {
   const PayrollCalculationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    if (!FeatureFlags.futureProviderFeatures) {
+      return const ComingSoonScaffold();
+    }
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
