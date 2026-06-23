@@ -16,19 +16,6 @@ extension MobileMoneyOperatorX on MobileMoneyOperator {
   }
 }
 
-/// Outcome of a Mobile Money payment attempt.
-class PaymentResult {
-  final bool success;
-  final String? reference;
-  final String? error;
-
-  const PaymentResult({
-    required this.success,
-    this.reference,
-    this.error,
-  });
-}
-
 /// A provider's deposit policy: whether an acompte is required and, if so, the
 /// fraction of the total charged up front.
 class DepositPolicy {
