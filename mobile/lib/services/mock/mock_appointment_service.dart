@@ -62,6 +62,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
     String? artistId,
     String? notes,
     double depositAmount = 0,
+    String? depositScreenshotUrl,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
 
@@ -101,15 +102,16 @@ class MockAppointmentService implements AppointmentServiceInterface {
       serviceIds: serviceIds,
       artistId: resolvedArtistId,
       appointmentDate: appointmentDateTime,
-      status: depositAmount > 0
-          ? AppointmentStatus.confirmed
-          : AppointmentStatus.pending,
+      // Always pending: the salon confirms (after receiving the deposit, if
+      // one was required) — Myweli never auto-confirms on payment.
+      status: AppointmentStatus.pending,
       totalPrice: totalPrice,
       depositAmount: depositAmount,
       balanceDue:
           (totalPrice - depositAmount).clamp(0.0, totalPrice).toDouble(),
       cancellationWindowHours: provider.cancellationWindowHours,
       notes: notes,
+      depositScreenshotUrl: depositScreenshotUrl,
       createdAt: DateTime.now(),
     );
 

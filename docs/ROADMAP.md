@@ -156,7 +156,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 **Status (2026-06-21) — Phase 1 in progress (consumer side advancing):**
 - ✅ **Discovery — commune filter** (FR-DISC-002): pill on home + list, picker (search / "Près de moi" / all), persisted, mock providers tagged by commune.
 - ✅ **Discovery — trust polish** (FR-DISC-006 / FR-BOOK-005): WhatsApp contact row on provider detail (`wa.me`), and **price ranges** (`Service.priceMax`) shown on detail / selection / confirmation, with "À partir de" totals (deposit math unchanged, on the from-price).
-- ✅ **Booking + deposit** (FR-PAY-001): confirmation shows Total / Acompte / Solde; `DepositPaymentSheet` (Wave/OM/MTN/Moov, remembered operator, processing/success/failure); deposit-to-confirm on a mock payment service. Provider-side **deposit settings** (FR-PRO-PAY-001) shipped too (toggle + % slider).
+- ✅ **Booking + deposit** (FR-PAY-001): confirmation shows Total / Acompte / Solde; the deposit sheet is the **no-custody facilitated transfer** (Wave deep link / copy-number + optional screenshot → pending booking the salon confirms). Provider-side **deposit settings** (toggle + % + receiving handle).
 - ✅ **Notifications** (FR-NOTIF-002): in-app feed replaces the stub (flat list, unread cues, "Tout lire", tap → mark read + deep link).
 - ✅ **Reviews** (FR-REV-001/002/003): verified-booking badge, stylist attribution, photo display **and attach** (before/after, via the image pipeline, cap 3). Submission routed through `ReviewServiceInterface` (was local-only) and entered from the completed-appointment detail as well as the provider page.
 - ✅ **Booking — rebook** (FR-BOOK-009): tapping a *past* appointment in the salon-page "appointments at this salon" carousel re-opens the booking hub pre-filled with the same services + stylist (sanitized against current provider data) and lands on Date & heure; past tiles show a "Réserver à nouveau" hint, upcoming appointments still open the detail.
@@ -185,9 +185,9 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ⏳ **Deferred to later phases:** à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending. (Real image bytes/CDN/scan behind the mock pipeline are backend.)
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
-- 🟡 **Mobile Money deposit (V1, no custody)** — in progress:
-  - ✅ **Salon side:** `Provider`/`Appointment`/`DepositPolicy` deposit-handle + screenshot fields; `depositRequired` default → **off**; deposit-settings screen gains the **receiving Mobile Money handle** (operator + number); `waveDeepLink` helper. Demo: provider2 requires a 50% deposit to its Wave number.
-  - [ ] **Consumer side (next PR):** rework the deposit sheet to the facilitated transfer — Wave deep link / copy-number + optional screenshot → booking **pending** → salon confirms; pro sees the amount + screenshot. *(Aggregator sandbox + escrow deferred to post-incorporation.)*
+- ✅ **Mobile Money deposit (V1, no custody)** (FR-PAY-001/002):
+  - **Salon side:** `Provider`/`Appointment`/`DepositPolicy` deposit-handle + screenshot fields; `depositRequired` default → **off**; deposit-settings screen takes the **receiving Mobile Money handle** (operator + number); `waveDeepLink` helper. Demo: provider2 requires 50% to its Wave number.
+  - **Consumer side:** the deposit sheet is now a **facilitated transfer** — *Payer avec Wave* deep link (when the salon uses Wave) / number + **Copier** for the others, an **optional screenshot**, then **"J'ai payé"** → the booking is created **`pending`** (never auto-confirmed). The pro sees the deposit amount + screenshot on the appointment detail and **confirms** after receiving it. The old mock-pay path (`payDepositAndBook` + `PaymentService` use) is removed. *(Aggregator sandbox + escrow deferred to post-incorporation; the `PaymentService` seam is now unused — candidate for removal.)*
 - [ ] **WhatsApp spike:** one real template message via the chosen BSP (OQ-5) — proves approval flow + deliverability.
 - [ ] Decision memos on OQ-1 (deposit custody) and OQ-3 (store IAP vs web billing) — both have legal/architecture lead time.
 

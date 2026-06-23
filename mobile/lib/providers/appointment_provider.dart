@@ -3,14 +3,11 @@ import 'package:flutter/foundation.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/visit_history.dart' as vh;
 import '../models/appointment.dart';
-import '../models/payment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
-import '../services/interfaces/payment_service_interface.dart';
 
 class AppointmentProvider extends ChangeNotifier {
   final AppointmentServiceInterface _appointmentService =
       serviceLocator.appointmentService;
-  final PaymentServiceInterface _paymentService = serviceLocator.paymentService;
 
   List<Appointment> _appointments = [];
   Appointment? _selectedAppointment;
@@ -87,6 +84,7 @@ class AppointmentProvider extends ChangeNotifier {
     String? artistId,
     String? notes,
     double depositAmount = 0,
+    String? depositScreenshotUrl,
   }) async {
     _isLoading = true;
     _error = null;
@@ -100,6 +98,7 @@ class AppointmentProvider extends ChangeNotifier {
         artistId: artistId,
         notes: notes,
         depositAmount: depositAmount,
+        depositScreenshotUrl: depositScreenshotUrl,
       );
       if (response.success && response.data != null) {
         _appointments.add(response.data!);
@@ -116,51 +115,6 @@ class AppointmentProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  /// Pays the deposit (if any) via Mobile Money, then creates the booking.
-  /// Returns true on success. If the payment fails, no booking is created.
-  Future<bool> payDepositAndBook({
-    required String providerId,
-    required List<String> serviceIds,
-    required DateTime appointmentDateTime,
-    String? artistId,
-    String? notes,
-    required double depositAmount,
-    required MobileMoneyOperator operator,
-  }) async {
-    if (depositAmount > 0) {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-      try {
-        final payment = await _paymentService.payDeposit(
-          amount: depositAmount,
-          operator: operator,
-        );
-        final paid = payment.success && (payment.data?.success ?? false);
-        if (!paid) {
-          _error =
-              payment.error ?? payment.data?.error ?? 'Le paiement a échoué';
-          return false;
-        }
-      } catch (e) {
-        _error = e.toString();
-        return false;
-      } finally {
-        _isLoading = false;
-        notifyListeners();
-      }
-    }
-
-    return bookAppointment(
-      providerId: providerId,
-      serviceIds: serviceIds,
-      appointmentDateTime: appointmentDateTime,
-      artistId: artistId,
-      notes: notes,
-      depositAmount: depositAmount,
-    );
   }
 
   Future<void> loadAppointmentById(String id) async {

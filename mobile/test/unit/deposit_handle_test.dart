@@ -4,7 +4,9 @@ import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/payment.dart';
 import 'package:myweli/models/provider.dart' as models;
+import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('waveDeepLink', () {
@@ -70,6 +72,27 @@ void main() {
       expect(Appointment.fromJson(a.toJson()).depositScreenshotUrl,
           'asset:proof.png');
     });
+  });
+
+  test('a deposit booking is created pending, with the screenshot attached',
+      () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+    final service = MockAppointmentService();
+
+    final res = await service.bookAppointment(
+      providerId: 'provider2',
+      serviceIds: const ['service4'],
+      appointmentDateTime: DateTime.now().add(const Duration(days: 3)),
+      depositAmount: 6000,
+      depositScreenshotUrl: 'asset:proof.png',
+    );
+
+    expect(res.success, isTrue);
+    // Never auto-confirmed on payment — the salon confirms.
+    expect(res.data!.status, AppointmentStatus.pending);
+    expect(res.data!.depositAmount, 6000);
+    expect(res.data!.depositScreenshotUrl, 'asset:proof.png');
   });
 
   test('MockProService persists the deposit handle via the policy', () async {

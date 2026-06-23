@@ -9,6 +9,7 @@ abstract class AppointmentServiceInterface {
     String? artistId,
     String? notes,
     double depositAmount = 0,
+    String? depositScreenshotUrl,
   });
   Future<ApiResponse<List<Appointment>>> getUserAppointments({
     AppointmentStatus? status,

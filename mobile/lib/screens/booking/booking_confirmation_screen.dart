@@ -113,22 +113,25 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     // Deposit required → collect it via the Mobile Money sheet, which also
     // creates the booking on success.
     if (depositAmount > 0) {
+      final p = context.read<ProviderProvider>().selectedProvider;
       final paid = await showDepositPaymentSheet(
         context,
         depositAmount: depositAmount,
         balanceDue: balanceDue,
         providerId: widget.providerId,
+        providerName: p?.name ?? 'le salon',
         serviceIds: widget.serviceIds,
         appointmentDateTime: widget.appointmentDateTime,
+        depositOperator: p?.depositMobileMoneyOperator,
+        depositNumber: p?.depositMobileMoneyNumber,
         artistId: widget.artistId,
         notes: notes,
       );
       if (!mounted || paid != true) return;
-      _fireBookingConfirmation(depositAmount);
       context.go('/bookings');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Acompte payé · rendez-vous confirmé'),
+          content: Text('Acompte envoyé · en attente de confirmation du salon'),
           backgroundColor: AppColors.success,
         ),
       );
