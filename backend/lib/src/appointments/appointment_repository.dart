@@ -15,6 +15,10 @@ abstract interface class AppointmentRepository {
   Future<List<Map<String, dynamic>>> listForProvider(String providerId);
 
   Future<Map<String, dynamic>?> byId(String id);
+
+  /// Merge [changes] into the stored appointment; returns the updated record,
+  /// or null if it doesn't exist.
+  Future<Map<String, dynamic>?> update(String id, Map<String, dynamic> changes);
 }
 
 class InMemoryAppointmentRepository implements AppointmentRepository {
@@ -53,6 +57,20 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
   Future<Map<String, dynamic>?> byId(String id) async {
     for (final a in _all) {
       if (a['id'] == id) return a;
+    }
+    return null;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> update(
+    String id,
+    Map<String, dynamic> changes,
+  ) async {
+    for (final a in _all) {
+      if (a['id'] == id) {
+        a.addAll(changes);
+        return a;
+      }
     }
     return null;
   }
