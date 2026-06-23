@@ -29,6 +29,10 @@ class Appointment extends Equatable {
   final String? clientName;
   final String? clientPhone;
   final String? notes;
+
+  /// Proof-of-deposit screenshot the client optionally attached (the deposit is
+  /// paid directly to the salon; Myweli doesn't process it).
+  final String? depositScreenshotUrl;
   final DateTime createdAt;
 
   const Appointment({
@@ -46,6 +50,7 @@ class Appointment extends Equatable {
     this.clientName,
     this.clientPhone,
     this.notes,
+    this.depositScreenshotUrl,
     required this.createdAt,
   });
 
@@ -65,6 +70,7 @@ class Appointment extends Equatable {
         clientName,
         clientPhone,
         notes,
+        depositScreenshotUrl,
         createdAt,
       ];
 
@@ -83,6 +89,7 @@ class Appointment extends Equatable {
     String? clientName,
     String? clientPhone,
     String? notes,
+    String? depositScreenshotUrl,
     DateTime? createdAt,
   }) {
     return Appointment(
@@ -101,6 +108,7 @@ class Appointment extends Equatable {
       clientName: clientName ?? this.clientName,
       clientPhone: clientPhone ?? this.clientPhone,
       notes: notes ?? this.notes,
+      depositScreenshotUrl: depositScreenshotUrl ?? this.depositScreenshotUrl,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -121,6 +129,7 @@ class Appointment extends Equatable {
       'clientName': clientName,
       'clientPhone': clientPhone,
       'notes': notes,
+      'depositScreenshotUrl': depositScreenshotUrl,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -144,6 +153,7 @@ class Appointment extends Equatable {
       clientName: json['clientName'] as String?,
       clientPhone: json['clientPhone'] as String?,
       notes: json['notes'] as String?,
+      depositScreenshotUrl: json['depositScreenshotUrl'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }

@@ -121,5 +121,7 @@ abstract class ProServiceInterface {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,
+    MobileMoneyOperator? mobileMoneyOperator,
+    String? mobileMoneyNumber,
   });
 }

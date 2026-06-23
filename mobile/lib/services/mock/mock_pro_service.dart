@@ -375,6 +375,8 @@ class MockProService implements ProServiceInterface {
         depositRequired: provider.depositRequired,
         depositPercentage: provider.depositPercentage,
         cancellationWindowHours: provider.cancellationWindowHours,
+        mobileMoneyOperator: provider.depositMobileMoneyOperator,
+        mobileMoneyNumber: provider.depositMobileMoneyNumber,
       ),
     );
   }
@@ -385,6 +387,8 @@ class MockProService implements ProServiceInterface {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,
+    MobileMoneyOperator? mobileMoneyOperator,
+    String? mobileMoneyNumber,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
     final index = MockData.providers.indexWhere((p) => p.id == providerId);
@@ -395,12 +399,16 @@ class MockProService implements ProServiceInterface {
       depositRequired: depositRequired,
       depositPercentage: depositPercentage,
       cancellationWindowHours: cancellationWindowHours,
+      depositMobileMoneyOperator: mobileMoneyOperator,
+      depositMobileMoneyNumber: mobileMoneyNumber,
     );
     return ApiResponse.success(
       DepositPolicy(
         depositRequired: depositRequired,
         depositPercentage: depositPercentage,
         cancellationWindowHours: cancellationWindowHours,
+        mobileMoneyOperator: mobileMoneyOperator,
+        mobileMoneyNumber: mobileMoneyNumber,
       ),
     );
   }

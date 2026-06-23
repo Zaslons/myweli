@@ -6,8 +6,10 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/deposit.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/payment.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -24,6 +26,9 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   /// A representative service price used only to preview the split.
   static const double _sampleTotal = 20000;
 
+  final _numberController = TextEditingController();
+  bool _numberPrefilled = false;
+
   @override
   void initState() {
     super.initState();
@@ -32,8 +37,15 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _numberController.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
     final provider = context.read<ProDepositSettingsProvider>();
+    provider.setMobileMoneyNumber(_numberController.text);
     final ok = await provider.save(widget.providerId);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -72,6 +84,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   }
 
   Widget _buildForm(ProDepositSettingsProvider provider) {
+    if (!_numberPrefilled) {
+      _numberController.text = provider.mobileMoneyNumber;
+      _numberPrefilled = true;
+    }
     final pct = (provider.depositPercentage * 100).round();
     final deposit = computeDeposit(
       total: _sampleTotal,
@@ -180,6 +196,51 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingM),
+          Container(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            decoration: BoxDecoration(
+              color: AppColors.secondary,
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Recevoir l\'acompte',
+                    style: AppTextStyles.bodyMedium),
+                const SizedBox(height: 4),
+                Text(
+                  'Le client envoie l\'acompte directement sur ce compte '
+                  'Mobile Money. Myweli ne le traite pas.',
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textTertiary),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: MobileMoneyOperator.values.map((op) {
+                    return ChoiceChip(
+                      label: Text(op.displayName),
+                      selected: provider.mobileMoneyOperator == op,
+                      showCheckmark: false,
+                      selectedColor: AppColors.primary,
+                      backgroundColor: AppColors.surface,
+                      onSelected: (_) => provider.setMobileMoneyOperator(op),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+                AppTextField(
+                  label: 'Numéro Mobile Money',
+                  hint: 'Ex: 07 07 12 34 56',
+                  controller: _numberController,
+                  keyboardType: TextInputType.phone,
                 ),
               ],
             ),

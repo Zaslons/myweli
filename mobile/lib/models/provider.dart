@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import 'artist.dart';
 import 'availability.dart';
+import 'payment.dart';
 import 'review.dart';
 import 'service.dart';
 
@@ -27,6 +28,11 @@ class Provider extends Equatable {
   final bool depositRequired;
   final double depositPercentage;
 
+  /// Mobile Money handle the deposit is sent to (the deposit is paid directly
+  /// client→salon — Myweli holds nothing). Null until the salon configures it.
+  final MobileMoneyOperator? depositMobileMoneyOperator;
+  final String? depositMobileMoneyNumber;
+
   /// Hours before the appointment within which a cancellation forfeits the
   /// deposit. Per-salon policy; defaults to 24h.
   final int cancellationWindowHours;
@@ -51,8 +57,10 @@ class Provider extends Equatable {
     required this.phoneNumber,
     this.whatsapp,
     required this.category,
-    this.depositRequired = true,
+    this.depositRequired = false,
     this.depositPercentage = 0.30,
+    this.depositMobileMoneyOperator,
+    this.depositMobileMoneyNumber,
     this.cancellationWindowHours = 24,
     this.reviews = const [],
   });
@@ -79,6 +87,8 @@ class Provider extends Equatable {
         category,
         depositRequired,
         depositPercentage,
+        depositMobileMoneyOperator,
+        depositMobileMoneyNumber,
         cancellationWindowHours,
         reviews,
       ];
@@ -104,6 +114,8 @@ class Provider extends Equatable {
     String? category,
     bool? depositRequired,
     double? depositPercentage,
+    MobileMoneyOperator? depositMobileMoneyOperator,
+    String? depositMobileMoneyNumber,
     int? cancellationWindowHours,
     List<Review>? reviews,
   }) {
@@ -128,6 +140,10 @@ class Provider extends Equatable {
       category: category ?? this.category,
       depositRequired: depositRequired ?? this.depositRequired,
       depositPercentage: depositPercentage ?? this.depositPercentage,
+      depositMobileMoneyOperator:
+          depositMobileMoneyOperator ?? this.depositMobileMoneyOperator,
+      depositMobileMoneyNumber:
+          depositMobileMoneyNumber ?? this.depositMobileMoneyNumber,
       cancellationWindowHours:
           cancellationWindowHours ?? this.cancellationWindowHours,
       reviews: reviews ?? this.reviews,
@@ -156,6 +172,8 @@ class Provider extends Equatable {
       'category': category,
       'depositRequired': depositRequired,
       'depositPercentage': depositPercentage,
+      'depositMobileMoneyOperator': depositMobileMoneyOperator?.name,
+      'depositMobileMoneyNumber': depositMobileMoneyNumber,
       'cancellationWindowHours': cancellationWindowHours,
       'reviews': reviews.map((r) => r.toJson()).toList(),
     };
@@ -188,9 +206,16 @@ class Provider extends Equatable {
       phoneNumber: json['phoneNumber'] as String,
       whatsapp: json['whatsapp'] as String?,
       category: json['category'] as String,
-      depositRequired: json['depositRequired'] as bool? ?? true,
+      depositRequired: json['depositRequired'] as bool? ?? false,
       depositPercentage:
           (json['depositPercentage'] as num?)?.toDouble() ?? 0.30,
+      depositMobileMoneyOperator: json['depositMobileMoneyOperator'] == null
+          ? null
+          : MobileMoneyOperator.values.firstWhere(
+              (e) => e.name == json['depositMobileMoneyOperator'],
+              orElse: () => MobileMoneyOperator.wave,
+            ),
+      depositMobileMoneyNumber: json['depositMobileMoneyNumber'] as String?,
       cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       reviews: json['reviews'] != null
           ? (json['reviews'] as List)
