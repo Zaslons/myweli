@@ -199,6 +199,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - [ ] Threat model the API (Part 5) before the first write endpoints.
 
 ### Phase 3 — Backend build + integration
+- 🟡 **B1 — provider read slice shipped:** backend `GET /providers` (search/filter/paginate, rating-sorted) + `GET /providers/{id}` over a seeded in-memory store mirroring the mock data; `ApiProviderService` implements `ProviderServiceInterface` and is wired in by DI **only when `AppConfig.useApiBackend=true`** (`--dart-define`), so mocks remain the default for tests/demos. Contract-faithful, with backend + app tests. Next: auth (B2) → Postgres (B3).
 - [ ] Build endpoints by domain; swap mock implementations for real ones **one interface at a time** (auth → providers → booking → favorites → pro), behind a build flag so mock mode still runs for tests/demos.
 - [ ] **Contract tests** ensure each real service matches the interface the UI already depends on.
 - [ ] Server-authoritative availability + **double-booking prevention** under concurrency.

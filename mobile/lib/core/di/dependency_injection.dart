@@ -1,3 +1,4 @@
+import '../../services/api/api_provider_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
 import '../../services/interfaces/auth_service_interface.dart';
 import '../../services/interfaces/favorites_service_interface.dart';
@@ -21,9 +22,13 @@ import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_provider_service.dart';
 import '../../services/mock/mock_review_service.dart';
 import '../../services/secure_session_store.dart';
+import '../config/app_config.dart';
 
-/// Service Locator for Dependency Injection
-/// Currently using mock services, will switch to API services when backend is ready
+/// Service Locator for Dependency Injection.
+///
+/// Services are mock by default. When `AppConfig.useApiBackend` is on, the
+/// interfaces that have a backend slice are wired to their `Api*` impl instead;
+/// everything else stays mock. The swap is purely here — callers are unchanged.
 class ServiceLocator {
   static final ServiceLocator _instance = ServiceLocator._internal();
   factory ServiceLocator() => _instance;
@@ -45,7 +50,9 @@ class ServiceLocator {
   void setup() {
     // Use mock services for now
     authService = MockAuthService(sessionStore: SecureSessionStore());
-    providerService = MockProviderService();
+    // Provider reads are the first slice swapped to the real backend (B1).
+    providerService =
+        AppConfig.useApiBackend ? ApiProviderService() : MockProviderService();
     appointmentService = MockAppointmentService();
     favoritesService = MockFavoritesService();
     notificationService = MockNotificationService();

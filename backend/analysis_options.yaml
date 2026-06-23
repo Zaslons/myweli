@@ -5,6 +5,10 @@ analyzer:
     strict-casts: true
     strict-inference: true
     strict-raw-types: true
+  errors:
+    # dart_frog dynamic routes are idiomatically named `[id].dart`, which the
+    # default file_names lint rejects. Bracket filenames are framework convention.
+    file_names: ignore
 
 linter:
   rules:

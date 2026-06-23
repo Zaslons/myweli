@@ -120,7 +120,11 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: { $ref: '#/components/schemas/ProviderSummary' }
+                    description: >
+                      Full Provider objects for now (the app model has no
+                      separate summary type). ProviderSummary is reserved for a
+                      later lightweight list payload.
+                    items: { $ref: '#/components/schemas/Provider' }
                   page: { type: integer }
                   pageSize: { type: integer }
                   total: { type: integer }
