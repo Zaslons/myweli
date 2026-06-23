@@ -170,6 +170,7 @@ Seeded for the surfaces shipped/known. Extend per slice.
 | T8 | Secrets | **I** — committed credentials | gitleaks in CI; env-only config; `.env` gitignored | Enforced |
 | T9 | Dependencies | **various** — known CVEs | OSV scan in CI; Dependabot updates | Enforced |
 | T10 | Provider read (B1) | **I** — exposure of non-public data | Only public provider fields served; no secrets in the model | Enforced |
+| T11 | Booking / reschedule | **T** — overbooking / book a closed/past/taken slot | Server validates the requested time against the slot engine (server-authoritative availability) → `slot_unavailable` (409). DB-level uniqueness/transaction lands with Postgres for true concurrency safety. | Implemented (app-level); DB constraint pending |
 
 ---
 

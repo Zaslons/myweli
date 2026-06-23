@@ -322,6 +322,13 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            `slot_unavailable` — the requested time isn't a free slot
+            (closed/past/break/already-booked/non-aligned).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /appointments/{id}:
     get:
