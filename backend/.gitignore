@@ -5,3 +5,8 @@ build/
 
 # dart_frog dev/build output
 .dart_frog/
+
+# Local secrets — never commit (use .env.example as the template)
+.env
+.env.*
+!.env.example

@@ -24,6 +24,7 @@ The two source-of-truth documents hold the detail; this skill makes sure they're
 ## Source of truth — read these, don't reinvent them
 - **[docs/PRD.md](../../../docs/PRD.md)** — what we're building and the phasing (V1 / V2 / V3). Go here to confirm a feature exists, its requirement ID, and its phase.
 - **[docs/ROADMAP.md](../../../docs/ROADMAP.md)** — current state, the build plan, the security model (Part 5), performance budgets (Part 6), the testing strategy (Part 4), and the Definition of Done / quality gates (Part 7).
+- **[docs/BACKEND.md](../../../docs/BACKEND.md)** — **for any work in `backend/`** (the `dart_frog` REST API): architecture & layering, conventions (error envelope, DTOs), the server-side **security model** (JWT access + rotating refresh, OTP rate-limit, secrets, authz, input validation, the living STRIDE threat model), performance budgets, testing strategy, and the **backend PR Definition of Done**. The app guardrails below still apply; this is the server-side companion. The contract is **[docs/api/openapi.yaml](../../../docs/api/openapi.yaml)** — update it in the same PR as the code.
 
 If a rule below is ambiguous or a situation isn't covered, check these two docs first. If they don't answer it, ask the user — and propose updating the docs so the answer is captured for next time.
 
