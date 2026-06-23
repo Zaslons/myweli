@@ -335,6 +335,61 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /appointments/{id}/cancel:
+    post:
+      tags: [appointments]
+      summary: Cancel the caller's own appointment (B-life)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The cancelled appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Not in a cancellable state (already cancelled/completed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /appointments/{id}/reschedule:
+    post:
+      tags: [appointments]
+      summary: Move the caller's appointment to a new time (B-life)
+      description: Deposit + balance carry over unchanged.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newDateTime]
+              properties:
+                newDateTime: { type: string, format: date-time }
+      responses:
+        '200':
+          description: The rescheduled appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Not in a reschedulable state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /availability:
     get:
       tags: [appointments]
