@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import 'appointments/appointment_lifecycle_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
+import 'appointments/pro_appointment_service.dart';
 import 'appointments/slot_service.dart';
 import 'auth/auth_repository.dart';
 import 'auth/provider_auth_repository.dart';
@@ -72,6 +73,11 @@ final SlotService slotService = SlotService(
 
 final AppointmentLifecycleService appointmentLifecycleService =
     AppointmentLifecycleService(appointmentRepository);
+
+final ProAppointmentService proAppointmentService = ProAppointmentService(
+  providerAuthRepository,
+  appointmentRepository,
+);
 
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies
 /// migrations and seeds providers when a database is configured. No-op for

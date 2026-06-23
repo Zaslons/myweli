@@ -35,11 +35,15 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 
+  final providerIdRaw = (body['providerId'] as String?)?.trim();
   final result = await context.read<ProviderAuthRepository>().register(
     phoneNumber: phone,
     businessName: businessName,
     businessType: businessType,
     address: (address == null || address.isEmpty) ? null : address,
+    providerId: (providerIdRaw == null || providerIdRaw.isEmpty)
+        ? null
+        : providerIdRaw,
   );
   if (!result.ok) {
     return jsonError(HttpStatus.conflict, result.error!);
