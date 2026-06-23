@@ -1,6 +1,7 @@
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart';
+import '../../models/payment.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
 import '../../models/review.dart';
@@ -292,7 +293,10 @@ class MockData {
       description: 'Institut de beauté pour femmes',
       address: 'Marcory, Zone 4',
       commune: 'Marcory',
+      depositRequired: true,
       depositPercentage: 0.50,
+      depositMobileMoneyOperator: MobileMoneyOperator.wave,
+      depositMobileMoneyNumber: '+225 05 44 55 66 77',
       city: 'Abidjan',
       latitude: 5.2800,
       longitude: -4.0500,

@@ -185,7 +185,9 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ⏳ **Deferred to later phases:** à-domicile end-to-end, and the risk spikes below (real Mobile Money + WhatsApp) — still pending. (Real image bytes/CDN/scan behind the mock pipeline are backend.)
 
 ### Phase 1b — Risk spikes (run during Phase 1, not after)
-- [ ] **Mobile Money deposit (V1, no custody):** opt-in deposit hand-off — Wave pre-filled deep link (+ number/copy fallback for OM/MTN/Moov), client screenshot, salon confirms receipt. No aggregator/custody (PRD OQ-1 resolved). *(Aggregator sandbox + escrow spike deferred to post-incorporation.)*
+- 🟡 **Mobile Money deposit (V1, no custody)** — in progress:
+  - ✅ **Salon side:** `Provider`/`Appointment`/`DepositPolicy` deposit-handle + screenshot fields; `depositRequired` default → **off**; deposit-settings screen gains the **receiving Mobile Money handle** (operator + number); `waveDeepLink` helper. Demo: provider2 requires a 50% deposit to its Wave number.
+  - [ ] **Consumer side (next PR):** rework the deposit sheet to the facilitated transfer — Wave deep link / copy-number + optional screenshot → booking **pending** → salon confirms; pro sees the amount + screenshot. *(Aggregator sandbox + escrow deferred to post-incorporation.)*
 - [ ] **WhatsApp spike:** one real template message via the chosen BSP (OQ-5) — proves approval flow + deliverability.
 - [ ] Decision memos on OQ-1 (deposit custody) and OQ-3 (store IAP vs web billing) — both have legal/architecture lead time.
 

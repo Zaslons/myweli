@@ -36,9 +36,15 @@ class DepositPolicy {
   final double depositPercentage;
   final int cancellationWindowHours;
 
+  /// Mobile Money handle the deposit is sent to (client→salon directly).
+  final MobileMoneyOperator? mobileMoneyOperator;
+  final String? mobileMoneyNumber;
+
   const DepositPolicy({
     required this.depositRequired,
     required this.depositPercentage,
     this.cancellationWindowHours = 24,
+    this.mobileMoneyOperator,
+    this.mobileMoneyNumber,
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
+import '../models/payment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Holds the editable deposit policy for the signed-in provider and persists it
@@ -12,9 +13,11 @@ class ProDepositSettingsProvider extends ChangeNotifier {
   bool _isSaving = false;
   bool _loadFailed = false;
   String? _error;
-  bool _depositRequired = true;
+  bool _depositRequired = false;
   double _depositPercentage = 0.30;
   int _cancellationWindowHours = 24;
+  MobileMoneyOperator? _mobileMoneyOperator;
+  String _mobileMoneyNumber = '';
 
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
@@ -23,10 +26,21 @@ class ProDepositSettingsProvider extends ChangeNotifier {
   bool get depositRequired => _depositRequired;
   double get depositPercentage => _depositPercentage;
   int get cancellationWindowHours => _cancellationWindowHours;
+  MobileMoneyOperator? get mobileMoneyOperator => _mobileMoneyOperator;
+  String get mobileMoneyNumber => _mobileMoneyNumber;
 
   void setDepositRequired(bool value) {
     _depositRequired = value;
     notifyListeners();
+  }
+
+  void setMobileMoneyOperator(MobileMoneyOperator value) {
+    _mobileMoneyOperator = value;
+    notifyListeners();
+  }
+
+  void setMobileMoneyNumber(String value) {
+    _mobileMoneyNumber = value;
   }
 
   void setDepositPercentage(double value) {
@@ -50,6 +64,8 @@ class ProDepositSettingsProvider extends ChangeNotifier {
         _depositRequired = response.data!.depositRequired;
         _depositPercentage = response.data!.depositPercentage;
         _cancellationWindowHours = response.data!.cancellationWindowHours;
+        _mobileMoneyOperator = response.data!.mobileMoneyOperator;
+        _mobileMoneyNumber = response.data!.mobileMoneyNumber ?? '';
         _loadFailed = false;
         _error = null;
       } else {
@@ -71,11 +87,14 @@ class ProDepositSettingsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final trimmed = _mobileMoneyNumber.trim();
       final response = await _proService.updateDepositPolicy(
         providerId,
         depositRequired: _depositRequired,
         depositPercentage: _depositPercentage,
         cancellationWindowHours: _cancellationWindowHours,
+        mobileMoneyOperator: _mobileMoneyOperator,
+        mobileMoneyNumber: trimmed.isEmpty ? null : trimmed,
       );
       if (response.success && response.data != null) {
         _error = null;

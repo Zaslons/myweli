@@ -40,7 +40,11 @@ void main() {
 
     expect(find.text('Exiger un acompte'), findsOneWidget);
     expect(find.text('30 %'), findsOneWidget);
-    expect(find.text('Enregistrer'), findsOneWidget);
+    // The save button can sit below the fold now that the deposit handle
+    // section is shown, so don't skip offstage widgets.
+    expect(find.text('Enregistrer', skipOffstage: false), findsOneWidget);
+    expect(
+        find.text("Recevoir l'acompte", skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('hides the percentage when the deposit is off', (tester) async {
