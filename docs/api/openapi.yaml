@@ -335,6 +335,43 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /availability:
+    get:
+      tags: [appointments]
+      summary: Bookable start times for a provider on a date (B-slot)
+      description: >
+        Server-authoritative availability. Public (clients browse before signing
+        in). Times are UTC (Côte d'Ivoire is UTC+0). Honours the provider's
+        weekly schedule, blocked dates, breaks, a setup/cleanup buffer, the
+        requested duration, and existing bookings.
+      parameters:
+        - { in: query, name: providerId, required: true, schema: { type: string } }
+        - in: query
+          name: date
+          required: true
+          schema: { type: string, format: date, example: '2026-06-25' }
+        - in: query
+          name: serviceIds
+          description: Comma-separated; sums their durations if durationMinutes is absent.
+          schema: { type: string }
+        - { in: query, name: durationMinutes, schema: { type: integer } }
+      responses:
+        '200':
+          description: The bookable starts (may be empty if closed/blocked/full)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providerId, date, slots]
+                properties:
+                  providerId: { type: string }
+                  date: { type: string }
+                  slots:
+                    type: array
+                    items: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:

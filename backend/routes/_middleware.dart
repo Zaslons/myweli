@@ -1,6 +1,7 @@
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
+import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -16,6 +17,7 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderAuthRepository>((_) => providerAuthRepository))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
       .use(provider<BookingService>((_) => bookingService))
+      .use(provider<SlotService>((_) => slotService))
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository));
 }
