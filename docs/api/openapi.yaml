@@ -130,6 +130,90 @@ paths:
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /auth/provider/otp/request:
+    post:
+      tags: [auth]
+      summary: Request a login code for an existing provider (B-prov)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OtpRequest' }
+      responses:
+        '202':
+          description: Code dispatched (dev builds return it inline)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expiresInSeconds: { type: integer }
+                  devCode: { type: string, description: dev only }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/provider/register:
+    post:
+      tags: [auth]
+      summary: Register a provider account and dispatch a code (B-prov)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, businessName, businessType]
+              properties:
+                phoneNumber: { type: string, example: '+2250544556677' }
+                businessName: { type: string }
+                businessType:
+                  type: string
+                  enum: [salon, barber, spa, nailSalon, massage, other]
+                address: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider: { $ref: '#/components/schemas/ProviderUser' }
+                  expiresInSeconds: { type: integer }
+                  devCode: { type: string, description: dev only }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: A provider already exists for this phone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/provider/otp/verify:
+    post:
+      tags: [auth]
+      summary: Verify a provider code; returns the account + access token (B-prov)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OtpVerify' }
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [provider, accessToken]
+                properties:
+                  provider: { $ref: '#/components/schemas/ProviderUser' }
+                  accessToken:
+                    type: string
+                    description: >
+                      Signed JWT, role `provider`. No refresh flow yet (added
+                      with the provider write slice).
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /providers:
     get:
       tags: [providers]
@@ -266,6 +350,31 @@ components:
         name: { type: string }
         email: { type: string }
         avatarUrl: { type: string }
+
+    ProviderUser:
+      type: object
+      description: A provider (business) account. Mirrors ProviderUser.toJson().
+      required: [id, phoneNumber, businessName, businessType, createdAt]
+      properties:
+        id: { type: string }
+        phoneNumber: { type: string }
+        name: { type: string, nullable: true }
+        businessName: { type: string }
+        businessType:
+          type: string
+          enum: [salon, barber, spa, nailSalon, massage, other]
+        email: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        verificationStatus:
+          type: string
+          enum: [pending, verified, rejected]
+        rejectionReason: { type: string, nullable: true }
+        kycDocs:
+          type: array
+          description: KYC document references (empty until the KYC slice).
+          items: { type: object }
+        createdAt: { type: string, format: date-time }
+        providerId: { type: string, nullable: true }
 
     DurationVariants:
       type: object
