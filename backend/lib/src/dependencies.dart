@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 
+import 'appointments/appointment_repository.dart';
+import 'appointments/booking_service.dart';
 import 'auth/auth_repository.dart';
 import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
@@ -51,6 +53,15 @@ final ProvidersRepository providersRepository = _pool == null
 // Provider auth is in-memory for now; a Postgres impl is a follow-up.
 final ProviderAuthRepository providerAuthRepository =
     InMemoryProviderAuthRepository(tokens: tokenService, isProd: _isProd);
+
+// Appointments are in-memory for now; a Postgres impl is a follow-up.
+final AppointmentRepository appointmentRepository =
+    InMemoryAppointmentRepository();
+
+final BookingService bookingService = BookingService(
+  providersRepository,
+  appointmentRepository,
+);
 
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies
 /// migrations and seeds providers when a database is configured. No-op for

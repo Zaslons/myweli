@@ -258,6 +258,83 @@ paths:
               schema: { $ref: '#/components/schemas/Provider' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /appointments:
+    get:
+      tags: [appointments]
+      summary: List the signed-in user's appointments (B-appt)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled, completed, noShow]
+      responses:
+        '200':
+          description: The caller's appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Appointment' }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [appointments]
+      summary: Book an appointment — created pending, server-priced (B-appt)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerId, serviceIds, appointmentDateTime]
+              properties:
+                providerId: { type: string }
+                serviceIds:
+                  type: array
+                  items: { type: string }
+                appointmentDateTime: { type: string, format: date-time }
+                artistId: { type: string }
+                notes: { type: string }
+                depositScreenshotUrl: { type: string }
+              description: >
+                total/deposit/balance are NOT accepted from the client — the
+                server computes them from the provider's prices + deposit policy.
+      responses:
+        '201':
+          description: The created (pending) appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /appointments/{id}:
+    get:
+      tags: [appointments]
+      summary: One of the caller's appointments (B-appt)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -282,6 +359,11 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     NotFound:
       description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Authenticated but not allowed (e.g. another user's resource)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -375,6 +457,33 @@ components:
           items: { type: object }
         createdAt: { type: string, format: date-time }
         providerId: { type: string, nullable: true }
+
+    Appointment:
+      type: object
+      description: A booking. Mirrors Appointment.toJson(). Created `pending`.
+      required:
+        [id, userId, providerId, serviceIds, appointmentDate, status, totalPrice, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        providerId: { type: string }
+        serviceIds:
+          type: array
+          items: { type: string }
+        artistId: { type: string, nullable: true }
+        appointmentDate: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, completed, noShow]
+        totalPrice: { type: number }
+        depositAmount: { type: number }
+        balanceDue: { type: number }
+        cancellationWindowHours: { type: integer }
+        clientName: { type: string, nullable: true }
+        clientPhone: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        depositScreenshotUrl: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
 
     DurationVariants:
       type: object
