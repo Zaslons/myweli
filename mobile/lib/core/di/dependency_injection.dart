@@ -1,3 +1,4 @@
+import '../../services/api/api_auth_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
 import '../../services/interfaces/auth_service_interface.dart';
@@ -48,8 +49,10 @@ class ServiceLocator {
   late final MessagingServiceInterface messagingService;
 
   void setup() {
-    // Use mock services for now
-    authService = MockAuthService(sessionStore: SecureSessionStore());
+    // Consumer auth is the B2 slice; provider auth still delegates to the mock.
+    authService = AppConfig.useApiBackend
+        ? ApiAuthService(sessionStore: SecureSessionStore())
+        : MockAuthService(sessionStore: SecureSessionStore());
     // Provider reads are the first slice swapped to the real backend (B1).
     providerService =
         AppConfig.useApiBackend ? ApiProviderService() : MockProviderService();
