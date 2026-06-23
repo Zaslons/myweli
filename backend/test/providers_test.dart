@@ -14,8 +14,8 @@ void main() {
   group('InMemoryProvidersRepository', () {
     final repo = InMemoryProvidersRepository();
 
-    test('returns all providers sorted by rating desc', () {
-      final all = repo.query();
+    test('returns all providers sorted by rating desc', () async {
+      final all = await repo.query();
       expect(all, isNotEmpty);
       for (var i = 1; i < all.length; i++) {
         expect(
@@ -25,26 +25,30 @@ void main() {
       }
     });
 
-    test('filters by category and commune', () {
+    test('filters by category and commune', () async {
       expect(
-        repo.query(category: 'barber').every((p) => p['category'] == 'barber'),
+        (await repo.query(
+          category: 'barber',
+        )).every((p) => p['category'] == 'barber'),
         isTrue,
       );
       expect(
-        repo.query(commune: 'Cocody').every((p) => p['commune'] == 'Cocody'),
+        (await repo.query(
+          commune: 'Cocody',
+        )).every((p) => p['commune'] == 'Cocody'),
         isTrue,
       );
     });
 
-    test('free-text search matches name/description/address', () {
-      final res = repo.query(q: 'barbier');
+    test('free-text search matches name/description/address', () async {
+      final res = await repo.query(q: 'barbier');
       expect(res, isNotEmpty);
       expect(res.first['id'], 'provider3');
     });
 
-    test('byId hits and misses', () {
-      expect(repo.byId('provider1'), isNotNull);
-      expect(repo.byId('nope'), isNull);
+    test('byId hits and misses', () async {
+      expect(await repo.byId('provider1'), isNotNull);
+      expect(await repo.byId('nope'), isNull);
     });
   });
 
@@ -61,7 +65,7 @@ void main() {
         Request.get(Uri.parse('http://localhost/providers?pageSize=2')),
       );
 
-      final response = list.onRequest(context);
+      final response = await list.onRequest(context);
       expect(response.statusCode, HttpStatus.ok);
       final body = await response.json() as Map<String, dynamic>;
       expect((body['items'] as List).length, 2);
@@ -73,7 +77,7 @@ void main() {
         Request.get(Uri.parse('http://localhost/providers?category=barber')),
       );
 
-      final response = list.onRequest(context);
+      final response = await list.onRequest(context);
       final body = await response.json() as Map<String, dynamic>;
       final items = body['items'] as List;
       expect(items, isNotEmpty);
@@ -86,12 +90,12 @@ void main() {
         when(() => context.request).thenReturn(
           Request.get(Uri.parse('http://localhost/providers/provider1')),
         );
-        final ok = detail.onRequest(context, 'provider1');
+        final ok = await detail.onRequest(context, 'provider1');
         expect(ok.statusCode, HttpStatus.ok);
         final body = await ok.json() as Map<String, dynamic>;
         expect(body['id'], 'provider1');
 
-        final missing = detail.onRequest(context, 'nope');
+        final missing = await detail.onRequest(context, 'nope');
         expect(missing.statusCode, HttpStatus.notFound);
       },
     );
@@ -100,7 +104,8 @@ void main() {
       when(
         () => context.request,
       ).thenReturn(Request.post(Uri.parse('http://localhost/providers')));
-      expect(list.onRequest(context).statusCode, HttpStatus.methodNotAllowed);
+      final response = await list.onRequest(context);
+      expect(response.statusCode, HttpStatus.methodNotAllowed);
     });
   });
 }

@@ -8,12 +8,12 @@
 /// Read access to providers. In-memory now; a Postgres impl (B3b) satisfies the
 /// same interface, so the route handlers are unchanged when the store swaps.
 abstract interface class ProvidersRepository {
-  List<Map<String, dynamic>> query({
+  Future<List<Map<String, dynamic>>> query({
     String? q,
     String? commune,
     String? category,
   });
-  Map<String, dynamic>? byId(String id);
+  Future<Map<String, dynamic>?> byId(String id);
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -25,11 +25,11 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   /// Filtered by category / commune / free-text query, sorted by rating desc
   /// (so an unsorted `getProviders` and `getFeaturedProviders` agree).
   @override
-  List<Map<String, dynamic>> query({
+  Future<List<Map<String, dynamic>>> query({
     String? q,
     String? commune,
     String? category,
-  }) {
+  }) async {
     final list =
         _all.where((p) {
             if (category != null &&
@@ -54,7 +54,7 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   }
 
   @override
-  Map<String, dynamic>? byId(String id) {
+  Future<Map<String, dynamic>?> byId(String id) async {
     for (final p in _all) {
       if (p['id'] == id) return p;
     }
