@@ -60,6 +60,22 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # Postgres service so the DB-backed repository tests (B3c) run against a real
+    # database; without DATABASE_URL those tests skip (e.g. local dev).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: myweli_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -81,6 +97,8 @@ jobs:
 
       - name: Run tests
         run: dart test
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/myweli_test
 
   security:
     name: Security — secrets & dependencies

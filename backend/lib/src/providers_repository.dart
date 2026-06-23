@@ -18,7 +18,7 @@ abstract interface class ProvidersRepository {
 
 class InMemoryProvidersRepository implements ProvidersRepository {
   InMemoryProvidersRepository([List<Map<String, dynamic>>? seed])
-    : _all = seed ?? _seedProviders;
+    : _all = seed ?? seedProviders;
 
   final List<Map<String, dynamic>> _all;
 
@@ -93,7 +93,7 @@ Map<String, dynamic> _availability(String providerId) {
   };
 }
 
-final List<Map<String, dynamic>> _seedProviders = [
+final List<Map<String, dynamic>> seedProviders = [
   {
     'id': 'provider1',
     'name': 'Beauté Divine',
