@@ -84,17 +84,17 @@ class _Refresh {
 /// In-memory now; a Postgres impl (B3b) satisfies the same interface, so the
 /// routes are unchanged when the store swaps.
 abstract interface class AuthRepository {
-  OtpRequestResult requestOtp(String phoneNumber);
-  OtpVerifyResult verifyOtp(String phoneNumber, String code);
-  RefreshResult refresh(String refreshToken);
-  AuthUser? userById(String id);
-  AuthUser? updateUser(
+  Future<OtpRequestResult> requestOtp(String phoneNumber);
+  Future<OtpVerifyResult> verifyOtp(String phoneNumber, String code);
+  Future<RefreshResult> refresh(String refreshToken);
+  Future<AuthUser?> userById(String id);
+  Future<AuthUser?> updateUser(
     String id, {
     String? name,
     String? email,
     String? avatarUrl,
   });
-  bool deleteUser(String id);
+  Future<bool> deleteUser(String id);
 }
 
 /// In-memory implementation: per-phone OTP state (hashed code + an attempt/
@@ -127,7 +127,7 @@ class InMemoryAuthRepository implements AuthRepository {
 
   /// Issue (or resend) an OTP for [phoneNumber]. Enforces the resend budget.
   @override
-  OtpRequestResult requestOtp(String phoneNumber) {
+  Future<OtpRequestResult> requestOtp(String phoneNumber) async {
     final existing = _otps[phoneNumber];
     if (existing != null && existing.resendsLeft <= 0) {
       return (
@@ -157,7 +157,7 @@ class InMemoryAuthRepository implements AuthRepository {
 
   /// Verify a code; on success find-or-create the user and issue a token pair.
   @override
-  OtpVerifyResult verifyOtp(String phoneNumber, String code) {
+  Future<OtpVerifyResult> verifyOtp(String phoneNumber, String code) async {
     final otp = _otps[phoneNumber];
     if (otp == null) {
       return (ok: false, error: 'otp_none', user: null, tokens: null);
@@ -187,7 +187,7 @@ class InMemoryAuthRepository implements AuthRepository {
   /// Exchange a refresh token for a fresh pair. Rotates the token; presenting
   /// an already-rotated token is treated as theft and revokes the whole family.
   @override
-  RefreshResult refresh(String refreshToken) {
+  Future<RefreshResult> refresh(String refreshToken) async {
     final rec = _refreshByHash[_tokens.hashToken(refreshToken)];
     if (rec == null) {
       return (ok: false, error: 'refresh_invalid', tokens: null);
@@ -205,16 +205,16 @@ class InMemoryAuthRepository implements AuthRepository {
   }
 
   @override
-  AuthUser? userById(String id) => _usersById[id];
+  Future<AuthUser?> userById(String id) async => _usersById[id];
 
   /// Update mutable profile fields. `email: ''` clears it; null leaves it.
   @override
-  AuthUser? updateUser(
+  Future<AuthUser?> updateUser(
     String id, {
     String? name,
     String? email,
     String? avatarUrl,
-  }) {
+  }) async {
     final user = _usersById[id];
     if (user == null) return null;
     if (name != null && name.isNotEmpty) user.name = name;
@@ -224,7 +224,7 @@ class InMemoryAuthRepository implements AuthRepository {
   }
 
   @override
-  bool deleteUser(String id) {
+  Future<bool> deleteUser(String id) async {
     final user = _usersById.remove(id);
     if (user == null) return false;
     _usersByPhone.remove(user.phoneNumber);

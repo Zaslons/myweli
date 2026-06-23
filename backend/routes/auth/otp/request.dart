@@ -21,7 +21,7 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_phone');
   }
 
-  final result = context.read<AuthRepository>().requestOtp(phone);
+  final result = await context.read<AuthRepository>().requestOtp(phone);
   if (!result.ok) {
     return jsonError(HttpStatus.tooManyRequests, result.error!);
   }

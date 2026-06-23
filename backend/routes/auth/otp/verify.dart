@@ -22,7 +22,7 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 
-  final result = context.read<AuthRepository>().verifyOtp(phone, code);
+  final result = await context.read<AuthRepository>().verifyOtp(phone, code);
   if (!result.ok) {
     return jsonError(HttpStatus.badRequest, result.error!);
   }

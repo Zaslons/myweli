@@ -60,7 +60,7 @@ void main() {
   });
 
   test('otp/verify: correct code → 200 tokens + user', () async {
-    final code = repo.requestOtp(_phone).devCode!;
+    final code = (await repo.requestOtp(_phone)).devCode!;
     final res = await otp_verify.onRequest(
       ctx(post('/auth/otp/verify', {'phoneNumber': _phone, 'code': code})),
     );
@@ -71,7 +71,7 @@ void main() {
   });
 
   test('otp/verify: wrong code → 400 otp_invalid', () async {
-    final code = repo.requestOtp(_phone).devCode!;
+    final code = (await repo.requestOtp(_phone)).devCode!;
     final wrong = code == '111111' ? '222222' : '111111';
     final res = await otp_verify.onRequest(
       ctx(post('/auth/otp/verify', {'phoneNumber': _phone, 'code': wrong})),
@@ -81,9 +81,10 @@ void main() {
   });
 
   test('refresh: replaying a rotated token → 401 refresh_reused', () async {
-    final first = repo
-        .verifyOtp(_phone, repo.requestOtp(_phone).devCode!)
-        .tokens!;
+    final first = (await repo.verifyOtp(
+      _phone,
+      (await repo.requestOtp(_phone)).devCode!,
+    )).tokens!;
 
     final rotated = await refresh_route.onRequest(
       ctx(post('/auth/refresh', {'refreshToken': first.refreshToken})),
@@ -105,7 +106,10 @@ void main() {
   });
 
   test('/me PATCH updates the caller, DELETE removes them', () async {
-    final session = repo.verifyOtp(_phone, repo.requestOtp(_phone).devCode!);
+    final session = await repo.verifyOtp(
+      _phone,
+      (await repo.requestOtp(_phone)).devCode!,
+    );
     final access = session.tokens!.accessToken;
     final headers = {'Authorization': 'Bearer $access'};
 
@@ -126,19 +130,19 @@ void main() {
       ctx(Request('DELETE', _u('/me'), headers: headers)),
     );
     expect(deleted.statusCode, HttpStatus.noContent);
-    expect(repo.userById(session.user!.id), isNull);
+    expect(await repo.userById(session.user!.id), isNull);
   });
 
   test(
     'a token only ever mutates its own account (ownership by sub)',
     () async {
-      final a = repo.verifyOtp(
+      final a = await repo.verifyOtp(
         '+2250700000001',
-        repo.requestOtp('+2250700000001').devCode!,
+        (await repo.requestOtp('+2250700000001')).devCode!,
       );
-      final b = repo.verifyOtp(
+      final b = await repo.verifyOtp(
         '+2250700000002',
-        repo.requestOtp('+2250700000002').devCode!,
+        (await repo.requestOtp('+2250700000002')).devCode!,
       );
 
       // A's token patches /me → only A changes; B is untouched.
@@ -153,8 +157,8 @@ void main() {
         ),
       );
 
-      expect(repo.userById(a.user!.id)!.name, 'A-only');
-      expect(repo.userById(b.user!.id)!.name, isNull);
+      expect((await repo.userById(a.user!.id))!.name, 'A-only');
+      expect((await repo.userById(b.user!.id))!.name, isNull);
     },
   );
 }

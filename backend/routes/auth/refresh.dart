@@ -20,7 +20,7 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final result = context.read<AuthRepository>().refresh(token);
+  final result = await context.read<AuthRepository>().refresh(token);
   if (!result.ok) {
     return jsonError(HttpStatus.unauthorized, result.error!);
   }

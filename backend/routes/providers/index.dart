@@ -6,7 +6,7 @@ import 'package:myweli_backend/src/providers_repository.dart';
 /// `GET /providers` — search/list, paginated. Backs `getProviders` /
 /// `getFeaturedProviders` (the latter just reads the first page sorted by
 /// rating) in the app's `ProviderServiceInterface`.
-Response onRequest(RequestContext context) {
+Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.get) {
     return Response.json(
       statusCode: HttpStatus.methodNotAllowed,
@@ -18,7 +18,7 @@ Response onRequest(RequestContext context) {
   final page = (int.tryParse(params['page'] ?? '') ?? 1).clamp(1, 100000);
   final pageSize = (int.tryParse(params['pageSize'] ?? '') ?? 20).clamp(1, 50);
 
-  final all = context.read<ProvidersRepository>().query(
+  final all = await context.read<ProvidersRepository>().query(
     q: params['q'],
     commune: params['commune'],
     category: params['category'],

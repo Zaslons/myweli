@@ -24,7 +24,7 @@ Future<Response> onRequest(RequestContext context) async {
       } catch (_) {
         return jsonError(HttpStatus.badRequest, 'invalid_body');
       }
-      final updated = repo.updateUser(
+      final updated = await repo.updateUser(
         principal.userId,
         name: body['name'] as String?,
         email: body['email'] as String?,
@@ -36,7 +36,7 @@ Future<Response> onRequest(RequestContext context) async {
       return Response.json(body: updated.toJson());
 
     case HttpMethod.delete:
-      final ok = repo.deleteUser(principal.userId);
+      final ok = await repo.deleteUser(principal.userId);
       if (!ok) return jsonError(HttpStatus.notFound, 'not_found');
       return Response(statusCode: HttpStatus.noContent);
 
