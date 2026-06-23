@@ -9,6 +9,7 @@ import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/timed_cached_image.dart';
 
 class ProAppointmentDetailScreen extends StatefulWidget {
   final String appointmentId;
@@ -107,6 +108,41 @@ class _ProAppointmentDetailScreenState
                           style: AppTextStyles.headlineSmall
                               .copyWith(color: AppColors.primary),
                         ),
+                        if (appointment.depositAmount > 0) ...[
+                          const Divider(height: 24),
+                          Row(
+                            children: [
+                              const Icon(Icons.savings_outlined,
+                                  size: 18, color: AppColors.textSecondary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Acompte annoncé : '
+                                  '${Formatters.formatCurrency(appointment.depositAmount)}',
+                                  style: AppTextStyles.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Confirmez le rendez-vous une fois l\'acompte reçu '
+                            'sur votre compte Mobile Money.',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.textTertiary),
+                          ),
+                          if (appointment.depositScreenshotUrl != null) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusMedium),
+                              child: TimedCachedImage(
+                                imageUrl: appointment.depositScreenshotUrl!,
+                                height: 140,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ],
+                        ],
                       ],
                     ),
                   ),

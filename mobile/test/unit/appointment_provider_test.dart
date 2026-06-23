@@ -3,34 +3,23 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
-import 'package:myweli/models/payment.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/services/interfaces/appointment_service_interface.dart';
-import 'package:myweli/services/interfaces/payment_service_interface.dart';
 
 class _MockAppointmentService extends Mock
     implements AppointmentServiceInterface {}
 
-class _MockPaymentService extends Mock implements PaymentServiceInterface {}
-
 void main() {
   late _MockAppointmentService appointments;
-  late _MockPaymentService payments;
 
   setUpAll(() {
     appointments = _MockAppointmentService();
-    payments = _MockPaymentService();
     serviceLocator.appointmentService = appointments;
-    serviceLocator.paymentService = payments;
     registerFallbackValue(<String>[]);
     registerFallbackValue(DateTime(2024));
-    registerFallbackValue(MobileMoneyOperator.wave);
   });
 
-  setUp(() {
-    reset(appointments);
-    reset(payments);
-  });
+  setUp(() => reset(appointments));
 
   Appointment confirmed() => Appointment(
         id: 'a1',
@@ -45,17 +34,8 @@ void main() {
         createdAt: DateTime(2024),
       );
 
-  test('payDepositAndBook books after a successful deposit', () async {
-    when(
-      () => payments.payDeposit(
-        amount: any(named: 'amount'),
-        operator: any(named: 'operator'),
-      ),
-    ).thenAnswer(
-      (_) async => ApiResponse.success(
-        const PaymentResult(success: true, reference: 'R1'),
-      ),
-    );
+  test('bookAppointment stores the returned booking + threads the deposit',
+      () async {
     when(
       () => appointments.bookAppointment(
         providerId: any(named: 'providerId'),
@@ -64,52 +44,32 @@ void main() {
         artistId: any(named: 'artistId'),
         notes: any(named: 'notes'),
         depositAmount: any(named: 'depositAmount'),
+        depositScreenshotUrl: any(named: 'depositScreenshotUrl'),
       ),
     ).thenAnswer((_) async => ApiResponse.success(confirmed()));
 
     final provider = AppointmentProvider();
-    final ok = await provider.payDepositAndBook(
+    final ok = await provider.bookAppointment(
       providerId: 'p1',
       serviceIds: const ['s1'],
       appointmentDateTime: DateTime(2024, 6, 24, 10),
       depositAmount: 6000,
-      operator: MobileMoneyOperator.wave,
+      depositScreenshotUrl: 'asset:proof.png',
     );
 
     expect(ok, isTrue);
     expect(provider.appointments, hasLength(1));
     verify(
-      () => payments.payDeposit(
-        amount: 6000,
-        operator: MobileMoneyOperator.wave,
+      () => appointments.bookAppointment(
+        providerId: 'p1',
+        serviceIds: const ['s1'],
+        appointmentDateTime: DateTime(2024, 6, 24, 10),
+        artistId: null,
+        notes: null,
+        depositAmount: 6000,
+        depositScreenshotUrl: 'asset:proof.png',
       ),
     ).called(1);
-  });
-
-  test('payDepositAndBook does not book when the deposit fails', () async {
-    when(
-      () => payments.payDeposit(
-        amount: any(named: 'amount'),
-        operator: any(named: 'operator'),
-      ),
-    ).thenAnswer(
-      (_) async => ApiResponse.success(
-        const PaymentResult(success: false, error: 'Paiement refusé'),
-      ),
-    );
-
-    final provider = AppointmentProvider();
-    final ok = await provider.payDepositAndBook(
-      providerId: 'p1',
-      serviceIds: const ['s1'],
-      appointmentDateTime: DateTime(2024, 6, 24, 10),
-      depositAmount: 6000,
-      operator: MobileMoneyOperator.wave,
-    );
-
-    expect(ok, isFalse);
-    expect(provider.appointments, isEmpty);
-    expect(provider.error, isNotNull);
   });
 
   test('rescheduleAppointment moves the stored appointment on success',
