@@ -1,0 +1,7 @@
+# Dart / dart_frog
+.dart_tool/
+.packages
+build/
+
+# dart_frog dev/build output
+.dart_frog/

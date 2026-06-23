@@ -1,0 +1,298 @@
+openapi: 3.1.0
+
+info:
+  title: Myweli API
+  version: 0.1.0
+  description: >
+    The single REST API behind every Myweli client (Flutter mobile app, the
+    public Next.js web, the admin console). It replaces the app's mock
+    `*ServiceInterface` implementations one slice at a time (ROADMAP Phase 3).
+
+
+    This file is the **contract source of truth**. Schemas mirror the Dart DTOs
+    in `mobile/lib/models/` exactly, so swapping a mock for `Api<X>Service` is a
+    field-for-field match. Endpoints are added as each slice ships:
+      - B0  health                      (implemented)
+      - B1  GET /providers, /providers/{id}   (contract locked; impl next)
+      - B2  POST /auth/otp/*, /auth/refresh   (contract locked; impl next)
+    Real Mobile Money, WhatsApp/SMS and FCM are out of V1 scope here.
+
+servers:
+  - url: http://localhost:8080
+    description: Local dart_frog dev server
+
+tags:
+  - name: system
+  - name: auth
+  - name: providers
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /auth/otp/request:
+    post:
+      tags: [auth]
+      summary: Request a one-time code for a phone number (B2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OtpRequest' }
+      responses:
+        '202':
+          description: Code dispatched (dev builds return it inline)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expiresInSeconds: { type: integer, example: 300 }
+                  devCode:
+                    type: string
+                    description: Present only in dev; never in production.
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/otp/verify:
+    post:
+      tags: [auth]
+      summary: Verify a code and issue tokens (B2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OtpVerify' }
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Exchange a refresh token for a new token pair (B2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Rotated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /providers:
+    get:
+      tags: [providers]
+      summary: List/search providers (B1)
+      parameters:
+        - { in: query, name: q, schema: { type: string }, description: Free-text search }
+        - { in: query, name: commune, schema: { type: string } }
+        - { in: query, name: category, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, default: 1, minimum: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, default: 20, minimum: 1, maximum: 50 } }
+      responses:
+        '200':
+          description: A page of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProviderSummary' }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+
+  /providers/{id}:
+    get:
+      tags: [providers]
+      summary: Provider detail (B1)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The provider
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Provider' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Health:
+      type: object
+      required: [status, service, time]
+      properties:
+        status: { type: string, example: ok }
+        service: { type: string, example: myweli-api }
+        time: { type: string, format: date-time }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, description: Stable machine code, e.g. otp_expired }
+        message: { type: string, description: Optional human-readable detail }
+
+    OtpRequest:
+      type: object
+      required: [phoneNumber]
+      properties:
+        phoneNumber:
+          type: string
+          description: E.164, defaulting to +225 (Côte d'Ivoire).
+          example: '+2250707123456'
+
+    OtpVerify:
+      type: object
+      required: [phoneNumber, code]
+      properties:
+        phoneNumber: { type: string, example: '+2250707123456' }
+        code: { type: string, example: '123456' }
+
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, expiresAt]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresAt:
+          type: string
+          format: date-time
+          description: Access-token expiry; mirrors the app's Session.expiresAt.
+
+    AuthSession:
+      type: object
+      required: [tokens, user]
+      properties:
+        tokens: { $ref: '#/components/schemas/TokenPair' }
+        user: { $ref: '#/components/schemas/User' }
+
+    User:
+      type: object
+      required: [id, phoneNumber]
+      properties:
+        id: { type: string }
+        phoneNumber: { type: string }
+        name: { type: string }
+        email: { type: string }
+        avatarUrl: { type: string }
+
+    DurationVariants:
+      type: object
+      description: Optional per-hair-length durations (minutes). Mirrors DurationVariants.
+      properties:
+        court: { type: integer }
+        moyen: { type: integer }
+        long: { type: integer }
+
+    Service:
+      type: object
+      required: [id, name, description, price, durationMinutes, providerId]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number, description: '"From" (minimum) price, FCFA.' }
+        priceMax: { type: number, nullable: true, description: Optional upper bound. }
+        durationMinutes: { type: integer }
+        durationVariants: { $ref: '#/components/schemas/DurationVariants' }
+        providerId: { type: string }
+        artistIds:
+          type: array
+          items: { type: string }
+
+    ProviderSummary:
+      type: object
+      description: Lightweight list item for /providers.
+      required: [id, name, category, rating, reviewCount]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        category: { type: string }
+        commune: { type: string, nullable: true }
+        rating: { type: number }
+        reviewCount: { type: integer }
+        logoUrl: { type: string, nullable: true }
+        imageUrls:
+          type: array
+          items: { type: string }
+        depositRequired: { type: boolean }
+
+    Provider:
+      type: object
+      description: Full provider detail. Mirrors Provider.toJson() field-for-field.
+      required: [id, name, description, address, imageUrls, rating, reviewCount, services, phoneNumber, category]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        address: { type: string }
+        city: { type: string, nullable: true }
+        commune: { type: string, nullable: true }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        imageUrls:
+          type: array
+          items: { type: string }
+        logoUrl: { type: string, nullable: true }
+        rating: { type: number }
+        reviewCount: { type: integer }
+        services:
+          type: array
+          items: { $ref: '#/components/schemas/Service' }
+        phoneNumber: { type: string }
+        whatsapp: { type: string, nullable: true }
+        category: { type: string }
+        depositRequired: { type: boolean }
+        depositPercentage: { type: number }
+        depositMobileMoneyOperator:
+          type: string
+          nullable: true
+          enum: [wave, orangeMoney, mtnMoMo, moov]
+        depositMobileMoneyNumber: { type: string, nullable: true }
+        cancellationWindowHours: { type: integer }

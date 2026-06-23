@@ -1,0 +1,16 @@
+name: myweli_backend
+description: Myweli REST API (dart_frog). Replaces the app's mock *ServiceInterface implementations.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  dart_frog: ^1.1.0
+
+dev_dependencies:
+  http: ^1.2.0
+  lints: ^4.0.0
+  mocktail: ^1.0.4
+  test: ^1.25.0
