@@ -144,6 +144,16 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Short-lived HS256 access token (~15 min). Obtain via /auth/otp/verify;
+        refresh via /auth/refresh (rotating opaque refresh token). Applied to
+        protected routes (e.g. /me) as those slices land — see docs/BACKEND.md §3.1.
+
   responses:
     BadRequest:
       description: Invalid input

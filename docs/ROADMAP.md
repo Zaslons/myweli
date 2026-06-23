@@ -195,6 +195,7 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - ✅ **Stack chosen: Dart + `dart_frog`** (REST), in `backend/` of this monorepo. One language app↔server (shared Dart DTOs, zero drift); public web stays Next.js/React on the same API via generated TS. *(PRD §8.2 decision, 2026-06-23.)*
 - 🟡 **API contract** seeded as **OpenAPI 3.1** — [`docs/api/openapi.yaml`](api/openapi.yaml) — mirroring the app DTOs field-for-field (B0). First slice locked: health, `/providers` read, `/auth/otp/*`; more added per slice.
 - ✅ **B0 foundation shipped:** `backend/` scaffold (dart_frog), `/health` route, strict analyze + tests, a dedicated **backend CI job** (`dart analyze --fatal-infos --fatal-warnings` + `dart test`).
+- ✅ **Backend engineering guide + security model** — [`docs/BACKEND.md`](BACKEND.md): layering, conventions, the server-side security model (**JWT access + rotating refresh**, OTP rate-limit/lockout, secrets via env, deny-by-default authz, input validation), performance budgets, testing strategy, a living **STRIDE threat model**, and the backend PR DoD. Wired into the dev-guardrails skill. **CI security gates added:** secret scanning (gitleaks) + dependency-vulnerability scan (OSV). Built **before** the auth slice, by design.
 - [ ] Auth model (phone/OTP, JWT/refresh) + the **slot engine** design (server-authoritative) — detailed as B2/booking slices land.
 - [ ] Threat model the API (Part 5) before the first write endpoints.
 

@@ -81,3 +81,33 @@ jobs:
 
       - name: Run tests
         run: dart test
+
+  security:
+    name: Security — secrets & dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Fail the build if any credential is committed anywhere in the repo.
+      - name: Secret scan (gitleaks)
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.18.4 \
+            detect --source=/repo --no-git --redact --verbose
+
+      # Known-vulnerability scan of the backend deps (blocking).
+      - name: Dependency vulnerabilities — backend
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/src" \
+            ghcr.io/google/osv-scanner:v1.8.5 \
+            --lockfile=/src/backend/pubspec.lock
+
+      # The large Flutter dep tree is surfaced but not yet blocking, pending a
+      # first triage; promote to blocking once clean (docs/BACKEND.md §6).
+      - name: Dependency vulnerabilities — mobile (report-only)
+        continue-on-error: true
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/src" \
+            ghcr.io/google/osv-scanner:v1.8.5 \
+            --lockfile=/src/mobile/pubspec.lock
