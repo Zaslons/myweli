@@ -169,6 +169,11 @@ paths:
                   type: string
                   enum: [salon, barber, spa, nailSalon, massage, other]
                 address: { type: string }
+                providerId:
+                  type: string
+                  description: >
+                    Links the account to the Provider listing it manages
+                    (required to act on that salon's appointments).
       responses:
         '201':
           description: Created
@@ -390,6 +395,81 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /appointments/{id}/accept:
+    post:
+      tags: [appointments]
+      summary: Salon confirms a pending booking (B-pro-life)
+      description: >
+        Provider-role token only. The account's providerId must match the
+        appointment's providerId (→ 403 otherwise). pending → confirmed.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The confirmed appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /appointments/{id}/reject:
+    post:
+      tags: [appointments]
+      summary: Salon declines a pending booking → cancelled (B-pro-life)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The cancelled appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /appointments/{id}/complete:
+    post:
+      tags: [appointments]
+      summary: Salon marks a confirmed booking done (B-pro-life)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The completed appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /appointments/{id}/no-show:
+    post:
+      tags: [appointments]
+      summary: Salon marks the client a no-show (B-pro-life)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The no-show appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /availability:
     get:
       tags: [appointments]
@@ -456,6 +536,11 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     Forbidden:
       description: Authenticated but not allowed (e.g. another user's resource)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Not allowed in the resource's current state
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

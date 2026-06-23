@@ -164,7 +164,7 @@ Seeded for the surfaces shipped/known. Extend per slice.
 | T2 | OTP verify | **S** — brute-force the code | Wrong-attempt budget + lockout; short TTL; hashed at rest | Implemented (B2) |
 | T3 | Access token | **S/E** — forgery / privilege escalation | Signed JWT (HS256), `exp` ~15 min, `role` claim, deny-by-default middleware | Implemented (B2) |
 | T4 | Refresh token | **S** — theft / replay | Opaque, hashed at rest, rotated each use, family revoke on reuse | Implemented (B2) |
-| T5 | `/me`, bookings | **T/E** — act on another user's data | Principal from token `sub`; `/me` self-scoped; `GET /appointments` filtered to the caller, `/appointments/{id}` returns **403** for another user's booking (not a 404 leak). | Implemented (B2 /me; appointments) |
+| T5 | `/me`, bookings | **T/E** — act on another user's data | Principal from token `sub`; `/me` self-scoped; consumer appointments scoped/owned (403). **Pro transitions** require `role=provider` **and** the account's `providerId` to match the appointment's (cross-salon → 403). | Implemented (B2 /me; consumer + pro appointments) |
 | T6 | Any input | **T** — injection / over-trust | Boundary validation; **parameterized queries everywhere** (B3c Postgres repos); server-authoritative prices/ids | Enforced |
 | T7 | Logs / errors | **I** — leak tokens / PII / internals | Redaction; generic 5xx; no stack traces in responses | Enforced |
 | T8 | Secrets | **I** — committed credentials | gitleaks in CI; env-only config; `.env` gitignored | Enforced |

@@ -77,8 +77,13 @@ abstract interface class ProviderAuthRepository {
     required String businessName,
     required String businessType,
     String? address,
+    String? providerId,
   });
   Future<ProviderVerifyResult> verifyOtp(String phoneNumber, String code);
+
+  /// The provider account for an id (the access-token `sub`), or null — used to
+  /// authorize pro actions (resolve the account → the Provider it manages).
+  Future<ProviderAccount?> accountById(String id);
 }
 
 class _Otp {
@@ -115,7 +120,11 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   final Random _random = Random.secure();
 
   final Map<String, ProviderAccount> _byPhone = {};
+  final Map<String, ProviderAccount> _byId = {};
   final Map<String, _Otp> _otps = {};
+
+  @override
+  Future<ProviderAccount?> accountById(String id) async => _byId[id];
 
   @override
   Future<OtpRequestResult> requestOtp(String phoneNumber) async {
@@ -142,6 +151,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     required String businessName,
     required String businessType,
     String? address,
+    String? providerId,
   }) async {
     if (_byPhone.containsKey(phoneNumber)) {
       return (
@@ -158,9 +168,11 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       businessName: businessName,
       businessType: businessType,
       address: address,
+      providerId: providerId,
       createdAt: DateTime.now().toUtc(),
     );
     _byPhone[phoneNumber] = account;
+    _byId[account.id] = account;
     final otp = _issueOtp(phoneNumber)!; // fresh phone → always issues
     return (
       ok: true,
