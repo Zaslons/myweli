@@ -11,8 +11,8 @@ import '../routes/providers/index.dart' as list;
 class _MockRequestContext extends Mock implements RequestContext {}
 
 void main() {
-  group('ProvidersRepository', () {
-    final repo = ProvidersRepository();
+  group('InMemoryProvidersRepository', () {
+    final repo = InMemoryProvidersRepository();
 
     test('returns all providers sorted by rating desc', () {
       final all = repo.query();
@@ -50,7 +50,11 @@ void main() {
 
   group('routes', () {
     late RequestContext context;
-    setUp(() => context = _MockRequestContext());
+    final repo = InMemoryProvidersRepository();
+    setUp(() {
+      context = _MockRequestContext();
+      when(() => context.read<ProvidersRepository>()).thenReturn(repo);
+    });
 
     test('GET /providers returns a page with items + total', () async {
       when(() => context.request).thenReturn(

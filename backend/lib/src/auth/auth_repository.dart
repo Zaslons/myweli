@@ -80,13 +80,28 @@ class _Refresh {
   bool rotated = false;
 }
 
-/// In-memory auth store + the security logic behind the auth routes
-/// (docs/BACKEND.md §3). Holds users, per-phone OTP state (hashed code + an
-/// attempt/resend budget), and refresh-token families (hashed, rotating, with
-/// reuse detection). A Postgres-backed impl replaces it in a later slice; the
-/// routes depend only on this surface.
-class AuthRepository {
-  AuthRepository({
+/// Auth storage + security logic behind the auth routes (docs/BACKEND.md §3).
+/// In-memory now; a Postgres impl (B3b) satisfies the same interface, so the
+/// routes are unchanged when the store swaps.
+abstract interface class AuthRepository {
+  OtpRequestResult requestOtp(String phoneNumber);
+  OtpVerifyResult verifyOtp(String phoneNumber, String code);
+  RefreshResult refresh(String refreshToken);
+  AuthUser? userById(String id);
+  AuthUser? updateUser(
+    String id, {
+    String? name,
+    String? email,
+    String? avatarUrl,
+  });
+  bool deleteUser(String id);
+}
+
+/// In-memory implementation: per-phone OTP state (hashed code + an attempt/
+/// resend budget) and refresh-token families (hashed, rotating, reuse
+/// detection).
+class InMemoryAuthRepository implements AuthRepository {
+  InMemoryAuthRepository({
     required TokenService tokens,
     required bool isProd,
     Duration otpValidity = const Duration(minutes: 5),
@@ -111,6 +126,7 @@ class AuthRepository {
   final Map<String, _Refresh> _refreshByHash = {};
 
   /// Issue (or resend) an OTP for [phoneNumber]. Enforces the resend budget.
+  @override
   OtpRequestResult requestOtp(String phoneNumber) {
     final existing = _otps[phoneNumber];
     if (existing != null && existing.resendsLeft <= 0) {
@@ -140,6 +156,7 @@ class AuthRepository {
   }
 
   /// Verify a code; on success find-or-create the user and issue a token pair.
+  @override
   OtpVerifyResult verifyOtp(String phoneNumber, String code) {
     final otp = _otps[phoneNumber];
     if (otp == null) {
@@ -169,6 +186,7 @@ class AuthRepository {
 
   /// Exchange a refresh token for a fresh pair. Rotates the token; presenting
   /// an already-rotated token is treated as theft and revokes the whole family.
+  @override
   RefreshResult refresh(String refreshToken) {
     final rec = _refreshByHash[_tokens.hashToken(refreshToken)];
     if (rec == null) {
@@ -186,9 +204,11 @@ class AuthRepository {
     );
   }
 
+  @override
   AuthUser? userById(String id) => _usersById[id];
 
   /// Update mutable profile fields. `email: ''` clears it; null leaves it.
+  @override
   AuthUser? updateUser(
     String id, {
     String? name,
@@ -203,6 +223,7 @@ class AuthRepository {
     return user;
   }
 
+  @override
   bool deleteUser(String id) {
     final user = _usersById.remove(id);
     if (user == null) return false;

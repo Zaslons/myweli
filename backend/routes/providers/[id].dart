@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 
-final _repo = ProvidersRepository();
-
 /// `GET /providers/{id}` — full provider detail; backs `getProviderById`.
 Response onRequest(RequestContext context, String id) {
   if (context.request.method != HttpMethod.get) {
@@ -14,7 +12,7 @@ Response onRequest(RequestContext context, String id) {
     );
   }
 
-  final provider = _repo.byId(id);
+  final provider = context.read<ProvidersRepository>().byId(id);
   if (provider == null) {
     return Response.json(
       statusCode: HttpStatus.notFound,

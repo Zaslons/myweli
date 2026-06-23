@@ -23,7 +23,7 @@ void main() {
 
   setUp(() {
     ts = TokenService(secret: 'test-secret');
-    repo = AuthRepository(tokens: ts, isProd: false);
+    repo = InMemoryAuthRepository(tokens: ts, isProd: false);
   });
 
   RequestContext ctx(Request request) {
