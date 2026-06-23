@@ -10,6 +10,10 @@ abstract interface class AppointmentRepository {
     String? status,
   });
 
+  /// All of a provider's appointments (any status) — used by the slot engine to
+  /// exclude booked times. The caller filters out cancelled.
+  Future<List<Map<String, dynamic>>> listForProvider(String providerId);
+
   Future<Map<String, dynamic>?> byId(String id);
 }
 
@@ -38,6 +42,11 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
             ),
           );
     return list;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listForProvider(String providerId) async {
+    return _all.where((a) => a['providerId'] == providerId).toList();
   }
 
   @override

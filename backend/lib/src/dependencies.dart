@@ -4,6 +4,7 @@ import 'package:postgres/postgres.dart';
 
 import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
+import 'appointments/slot_service.dart';
 import 'auth/auth_repository.dart';
 import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
@@ -59,6 +60,11 @@ final AppointmentRepository appointmentRepository =
     InMemoryAppointmentRepository();
 
 final BookingService bookingService = BookingService(
+  providersRepository,
+  appointmentRepository,
+);
+
+final SlotService slotService = SlotService(
   providersRepository,
   appointmentRepository,
 );

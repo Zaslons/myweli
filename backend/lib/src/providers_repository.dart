@@ -87,10 +87,25 @@ Map<String, dynamic> _service({
 Map<String, dynamic> _availability(String providerId) {
   return {
     'providerId': providerId,
-    'weeklySchedule': <String, dynamic>{},
+    'weeklySchedule': _defaultWeeklySchedule(),
     'blockedDates': <String>[],
-    'bufferMinutes': 0,
+    'bufferMinutes': 10,
   };
+}
+
+/// Mon–Sat (weekday 0..5), 09:00–18:00 as 30-minute opening slots. Times are
+/// wall-clock (the date part is ignored by the slot engine; Abidjan is UTC+0).
+Map<String, dynamic> _defaultWeeklySchedule() {
+  final slots = <Map<String, dynamic>>[];
+  for (var minutes = 9 * 60; minutes < 18 * 60; minutes += 30) {
+    final start = DateTime.utc(2024, 1, 1, minutes ~/ 60, minutes % 60);
+    slots.add({
+      'startTime': start.toIso8601String(),
+      'endTime': start.add(const Duration(minutes: 30)).toIso8601String(),
+      'isAvailable': true,
+    });
+  }
+  return {for (var day = 0; day <= 5; day++) '$day': slots};
 }
 
 final List<Map<String, dynamic>> seedProviders = [
