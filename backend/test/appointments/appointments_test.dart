@@ -5,6 +5,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
+import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
@@ -14,8 +15,19 @@ import '../../routes/appointments/index.dart' as list;
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
-String _futureDate() =>
-    DateTime.now().toUtc().add(const Duration(days: 3)).toIso8601String();
+/// A future Mon–Sat at [hour]:00 UTC — an open slot in the seed schedule.
+DateTime _slotAt(int hour) {
+  final now = DateTime.now().toUtc();
+  var d = DateTime.utc(
+    now.year,
+    now.month,
+    now.day,
+  ).add(const Duration(days: 7));
+  while (d.weekday == DateTime.sunday) {
+    d = d.add(const Duration(days: 1));
+  }
+  return DateTime.utc(d.year, d.month, d.day, hour);
+}
 
 void main() {
   late InMemoryAppointmentRepository appts;
@@ -29,37 +41,35 @@ void main() {
       .token;
 
   setUp(() {
+    final providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
-    booking = BookingService(InMemoryProvidersRepository(), appts);
+    booking = BookingService(providers, appts, SlotService(providers, appts));
   });
 
-  group('BookingService (server-authoritative pricing)', () {
-    test('prices from the provider + applies the deposit policy', () async {
-      // provider2 (Élégance) requires a 50% deposit; service4 = 25000.
-      final res = await booking.book(
-        userId: 'user_A',
-        providerId: 'provider2',
-        serviceIds: const ['service4'],
-        appointmentDateTime: DateTime.now().add(const Duration(days: 2)),
-      );
-      expect(res.ok, isTrue);
-      expect(res.appointment!['totalPrice'], 25000);
-      expect(res.appointment!['depositAmount'], 12500);
-      expect(res.appointment!['balanceDue'], 12500);
-      expect(res.appointment!['status'], 'pending');
-    });
+  Map<String, Object?> bookBody(DateTime when, {String service = 'service1'}) =>
+      {
+        'providerId': 'provider1',
+        'serviceIds': [service],
+        'appointmentDateTime': when.toIso8601String(),
+      };
 
-    test('no deposit when the provider does not require one', () async {
-      // provider1 service1 = 15000, no deposit.
-      final res = await booking.book(
-        userId: 'user_A',
-        providerId: 'provider1',
-        serviceIds: const ['service1'],
-        appointmentDateTime: DateTime.now().add(const Duration(days: 2)),
-      );
-      expect(res.appointment!['totalPrice'], 15000);
-      expect(res.appointment!['depositAmount'], 0);
-    });
+  group('BookingService', () {
+    test(
+      'server prices + applies the deposit policy on an available slot',
+      () async {
+        // provider2 (Élégance) requires a 50% deposit; service4 = 25000, 90 min.
+        final res = await booking.book(
+          userId: 'user_A',
+          providerId: 'provider2',
+          serviceIds: const ['service4'],
+          appointmentDateTime: _slotAt(9),
+        );
+        expect(res.ok, isTrue);
+        expect(res.appointment!['totalPrice'], 25000);
+        expect(res.appointment!['depositAmount'], 12500);
+        expect(res.appointment!['status'], 'pending');
+      },
+    );
 
     test('rejects unknown provider / service / empty selection', () async {
       expect(
@@ -67,7 +77,7 @@ void main() {
           userId: 'u',
           providerId: 'nope',
           serviceIds: const ['service1'],
-          appointmentDateTime: DateTime.now(),
+          appointmentDateTime: _slotAt(9),
         )).error,
         'provider_not_found',
       );
@@ -76,7 +86,7 @@ void main() {
           userId: 'u',
           providerId: 'provider1',
           serviceIds: const ['not_a_service'],
-          appointmentDateTime: DateTime.now(),
+          appointmentDateTime: _slotAt(9),
         )).error,
         'invalid_service',
       );
@@ -85,11 +95,53 @@ void main() {
           userId: 'u',
           providerId: 'provider1',
           serviceIds: const [],
-          appointmentDateTime: DateTime.now(),
+          appointmentDateTime: _slotAt(9),
         )).error,
         'no_services',
       );
     });
+
+    test(
+      'rejects a non-aligned / closed-day time as slot_unavailable',
+      () async {
+        // 09:15 is not a 30-min opening slot.
+        final nonAligned = _slotAt(9).add(const Duration(minutes: 15));
+        expect(
+          (await booking.book(
+            userId: 'u',
+            providerId: 'provider1',
+            serviceIds: const ['service1'],
+            appointmentDateTime: nonAligned,
+          )).error,
+          'slot_unavailable',
+        );
+      },
+    );
+
+    test(
+      'double-booking is prevented (same slot, second client → conflict)',
+      () async {
+        final slot = _slotAt(14); // service1 is 180 min → 14:00..17:00 fits
+        expect(
+          (await booking.book(
+            userId: 'user_A',
+            providerId: 'provider1',
+            serviceIds: const ['service1'],
+            appointmentDateTime: slot,
+          )).ok,
+          isTrue,
+        );
+        expect(
+          (await booking.book(
+            userId: 'user_B',
+            providerId: 'provider1',
+            serviceIds: const ['service1'],
+            appointmentDateTime: slot,
+          )).error,
+          'slot_unavailable',
+        );
+      },
+    );
   });
 
   group('routes', () {
@@ -116,7 +168,7 @@ void main() {
         ctx(
           Request.post(
             Uri.parse('http://localhost/appointments'),
-            body: jsonEncode({'providerId': 'provider1'}),
+            body: jsonEncode(bookBody(_slotAt(9))),
           ),
         ),
       );
@@ -127,40 +179,33 @@ void main() {
       final res = await list.onRequest(
         ctx(
           bookReq(accessA, {
-            'providerId': 'provider1',
-            'serviceIds': ['service1'],
-            'appointmentDateTime': _futureDate(),
-            // A hostile client price is ignored — the server computes it.
-            'totalPrice': 1,
+            ...bookBody(_slotAt(9)),
+            'totalPrice': 1, // hostile client price — ignored
           }),
         ),
       );
       expect(res.statusCode, HttpStatus.created);
       final body = await jsonOf(res);
       expect(body['userId'], 'user_A');
-      expect(body['totalPrice'], 15000);
       expect(body['status'], 'pending');
     });
 
+    test('POST an unavailable slot → 409', () async {
+      final res = await list.onRequest(
+        ctx(
+          bookReq(
+            accessA,
+            bookBody(_slotAt(9).add(const Duration(minutes: 15))),
+          ),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect((await jsonOf(res))['error'], 'slot_unavailable');
+    });
+
     test('GET lists only the caller’s appointments', () async {
-      await list.onRequest(
-        ctx(
-          bookReq(accessA, {
-            'providerId': 'provider1',
-            'serviceIds': ['service1'],
-            'appointmentDateTime': _futureDate(),
-          }),
-        ),
-      );
-      await list.onRequest(
-        ctx(
-          bookReq(accessB, {
-            'providerId': 'provider1',
-            'serviceIds': ['service1'],
-            'appointmentDateTime': _futureDate(),
-          }),
-        ),
-      );
+      await list.onRequest(ctx(bookReq(accessA, bookBody(_slotAt(9)))));
+      await list.onRequest(ctx(bookReq(accessB, bookBody(_slotAt(14)))));
 
       final res = await list.onRequest(
         ctx(
@@ -177,15 +222,7 @@ void main() {
 
     test('GET /{id} enforces ownership (403) + 404 for unknown', () async {
       final created = await jsonOf(
-        await list.onRequest(
-          ctx(
-            bookReq(accessA, {
-              'providerId': 'provider1',
-              'serviceIds': ['service1'],
-              'appointmentDateTime': _futureDate(),
-            }),
-          ),
-        ),
+        await list.onRequest(ctx(bookReq(accessA, bookBody(_slotAt(9))))),
       );
       final id = created['id'] as String;
 

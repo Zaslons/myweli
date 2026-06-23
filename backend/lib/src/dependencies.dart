@@ -61,18 +61,19 @@ final ProviderAuthRepository providerAuthRepository =
 final AppointmentRepository appointmentRepository =
     InMemoryAppointmentRepository();
 
-final BookingService bookingService = BookingService(
-  providersRepository,
-  appointmentRepository,
-);
-
 final SlotService slotService = SlotService(
   providersRepository,
   appointmentRepository,
 );
 
+final BookingService bookingService = BookingService(
+  providersRepository,
+  appointmentRepository,
+  slotService,
+);
+
 final AppointmentLifecycleService appointmentLifecycleService =
-    AppointmentLifecycleService(appointmentRepository);
+    AppointmentLifecycleService(appointmentRepository, slotService);
 
 final ProAppointmentService proAppointmentService = ProAppointmentService(
   providerAuthRepository,

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../providers_repository.dart';
 import 'appointment_repository.dart';
+import 'slot_service.dart';
 
 /// Outcome of a booking attempt.
 typedef BookingResult = ({
@@ -11,15 +12,17 @@ typedef BookingResult = ({
 });
 
 /// Booking business logic (docs/BACKEND.md §1, §3.4). The **server is the
-/// authority** on price: total/deposit/balance are computed from the provider's
-/// own service prices + deposit policy — never taken from the client. Bookings
-/// are created `pending` (the salon confirms; Myweli never auto-confirms on
-/// payment — PRD OQ-1). Slot/availability validation is a later slice.
+/// authority** on price (total/deposit/balance from the provider's own prices +
+/// policy) **and on availability** — the requested time must be a free slot per
+/// [SlotService], so a client can't book a closed/past/already-taken slot
+/// (double-booking prevention). Bookings are created `pending` (the salon
+/// confirms; Myweli never auto-confirms on payment — PRD OQ-1).
 class BookingService {
-  BookingService(this._providers, this._appointments);
+  BookingService(this._providers, this._appointments, this._slots);
 
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
+  final SlotService _slots;
   final Random _random = Random.secure();
 
   Future<BookingResult> book({
@@ -54,6 +57,21 @@ class BookingService {
         return (ok: false, error: 'invalid_service', appointment: null);
       }
       total += (service['price'] as num).toDouble();
+    }
+
+    // The server decides availability: the requested time must be a free slot
+    // (rejects past/closed/break/already-booked, and non-aligned times).
+    final slotResult = await _slots.availableSlots(
+      providerId: providerId,
+      date: appointmentDateTime,
+      serviceIds: serviceIds,
+    );
+    final wanted = appointmentDateTime.toUtc();
+    final isFree = (slotResult.slots ?? const []).any(
+      (s) => s.isAtSameMomentAs(wanted),
+    );
+    if (!isFree) {
+      return (ok: false, error: 'slot_unavailable', appointment: null);
     }
 
     final depositRequired = provider['depositRequired'] as bool? ?? false;

@@ -63,9 +63,11 @@ Future<Response> _book(RequestContext context, String userId) async {
     depositScreenshotUrl: body['depositScreenshotUrl'] as String?,
   );
   if (!result.ok) {
-    final status = result.error == 'provider_not_found'
-        ? HttpStatus.notFound
-        : HttpStatus.badRequest;
+    final status = switch (result.error) {
+      'provider_not_found' => HttpStatus.notFound,
+      'slot_unavailable' => HttpStatus.conflict,
+      _ => HttpStatus.badRequest,
+    };
     return jsonError(status, result.error!);
   }
   return Response.json(
