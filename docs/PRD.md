@@ -298,6 +298,7 @@ The minimum to onboard salons in 3 communes and run real, deposit-backed booking
 ### 8.2 Backend
 - Single API (REST or GraphQL) serving all clients. Replace the existing mock `*ServiceInterface` implementations with real HTTP implementations — **the interface-then-mock architecture already in the codebase is preserved** and makes this swap localized.
 - Recommended: managed Postgres, an app server (Node/NestJS or Dart/serverpod or Python/FastAPI — team's choice), object storage for images (S3-compatible) with on-upload compression/resizing, Redis for slot/availability caching.
+- **Decision (2026-06-23): Dart + `dart_frog`**, in `backend/` of this monorepo (REST). One language across app + server lets the Flutter app share the existing Dart DTOs (zero drift); the **public web stays Next.js/React** and consumes the *same* REST API via TypeScript types generated from the contract. The **API contract is the source of truth** — [`docs/api/openapi.yaml`](api/openapi.yaml) — and mock data already mirrors those shapes (ROADMAP §2.2 guardrail #2). Postgres + S3-compatible storage + Redis still apply; they're introduced per the cutover below, not on day one.
 - **Offline tolerance:** clients cache reads (provider lists, profiles, schedule) and queue mutations (e.g., mark-complete) for sync. Booking + payment are online-only (money requires connectivity) but must degrade gracefully with clear retry UX.
 
 ### 8.3 Migration from current state

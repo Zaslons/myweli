@@ -192,10 +192,11 @@ Work the PRD V1 surface, prioritized by the booking → deposit → show-up loop
 - [ ] Decision memos on OQ-1 (deposit custody) and OQ-3 (store IAP vs web billing) — both have legal/architecture lead time.
 
 ### Phase 2 — API contract & backend design (overlaps end of Phase 1)
-- [ ] Define API (REST/GraphQL) + **DTO schemas** matching the data model (PRD §13).
-- [ ] Make mock services return those exact shapes; generate typed models (e.g., `freezed`/`json_serializable`).
-- [ ] Choose stack (Postgres + app server + object storage + Redis), auth model (phone/OTP, JWT/refresh), and the **slot engine** design (server-authoritative).
-- [ ] Threat model the API (Part 5) before writing it.
+- ✅ **Stack chosen: Dart + `dart_frog`** (REST), in `backend/` of this monorepo. One language app↔server (shared Dart DTOs, zero drift); public web stays Next.js/React on the same API via generated TS. *(PRD §8.2 decision, 2026-06-23.)*
+- 🟡 **API contract** seeded as **OpenAPI 3.1** — [`docs/api/openapi.yaml`](api/openapi.yaml) — mirroring the app DTOs field-for-field (B0). First slice locked: health, `/providers` read, `/auth/otp/*`; more added per slice.
+- ✅ **B0 foundation shipped:** `backend/` scaffold (dart_frog), `/health` route, strict analyze + tests, a dedicated **backend CI job** (`dart analyze --fatal-infos --fatal-warnings` + `dart test`).
+- [ ] Auth model (phone/OTP, JWT/refresh) + the **slot engine** design (server-authoritative) — detailed as B2/booking slices land.
+- [ ] Threat model the API (Part 5) before the first write endpoints.
 
 ### Phase 3 — Backend build + integration
 - [ ] Build endpoints by domain; swap mock implementations for real ones **one interface at a time** (auth → providers → booking → favorites → pro), behind a build flag so mock mode still runs for tests/demos.
