@@ -10,17 +10,27 @@ void main() {
 
   test('requestOtp returns a dev code outside prod, none in prod', () {
     expect(
-      AuthRepository(tokens: ts(), isProd: false).requestOtp(phone).devCode,
+      InMemoryAuthRepository(
+        tokens: ts(),
+        isProd: false,
+      ).requestOtp(phone).devCode,
       isNotNull,
     );
     expect(
-      AuthRepository(tokens: ts(), isProd: true).requestOtp(phone).devCode,
+      InMemoryAuthRepository(
+        tokens: ts(),
+        isProd: true,
+      ).requestOtp(phone).devCode,
       isNull,
     );
   });
 
   test('resend budget is enforced', () {
-    final repo = AuthRepository(tokens: ts(), isProd: false, maxResends: 1);
+    final repo = InMemoryAuthRepository(
+      tokens: ts(),
+      isProd: false,
+      maxResends: 1,
+    );
     expect(repo.requestOtp(phone).ok, isTrue);
     expect(repo.requestOtp(phone).ok, isTrue);
     final third = repo.requestOtp(phone);
@@ -29,7 +39,7 @@ void main() {
   });
 
   test('verifyOtp succeeds with the right code and issues tokens', () {
-    final repo = AuthRepository(tokens: ts(), isProd: false);
+    final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
     final code = repo.requestOtp(phone).devCode!;
     final res = repo.verifyOtp(phone, code);
     expect(res.ok, isTrue);
@@ -39,21 +49,25 @@ void main() {
   });
 
   test('same phone resolves to the same user (find-or-create)', () {
-    final repo = AuthRepository(tokens: ts(), isProd: false);
+    final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
     final id1 = repo.verifyOtp(phone, repo.requestOtp(phone).devCode!).user!.id;
     final id2 = repo.verifyOtp(phone, repo.requestOtp(phone).devCode!).user!.id;
     expect(id1, id2);
   });
 
   test('wrong codes decrement the budget then lock out', () {
-    final repo = AuthRepository(tokens: ts(), isProd: false, maxAttempts: 2);
+    final repo = InMemoryAuthRepository(
+      tokens: ts(),
+      isProd: false,
+      maxAttempts: 2,
+    );
     final code = repo.requestOtp(phone).devCode!;
     expect(repo.verifyOtp(phone, wrong(code)).error, 'otp_invalid');
     expect(repo.verifyOtp(phone, wrong(code)).error, 'otp_locked');
   });
 
   test('expired codes are rejected', () async {
-    final repo = AuthRepository(
+    final repo = InMemoryAuthRepository(
       tokens: ts(),
       isProd: false,
       otpValidity: const Duration(milliseconds: 1),
@@ -64,7 +78,7 @@ void main() {
   });
 
   test('refresh rotates, and replaying a rotated token revokes the family', () {
-    final repo = AuthRepository(tokens: ts(), isProd: false);
+    final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
     final first = repo
         .verifyOtp(phone, repo.requestOtp(phone).devCode!)
         .tokens!;
@@ -85,7 +99,7 @@ void main() {
   });
 
   test('updateUser mutates fields; deleteUser removes the account', () {
-    final repo = AuthRepository(tokens: ts(), isProd: false);
+    final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
     final user = repo.verifyOtp(phone, repo.requestOtp(phone).devCode!).user!;
 
     final updated = repo.updateUser(user.id, name: 'Awa', email: 'a@b.ci');

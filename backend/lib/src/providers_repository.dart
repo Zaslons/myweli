@@ -5,14 +5,26 @@
 /// `mobile/lib/models/provider.dart`). It is replaced by a Postgres-backed
 /// repository in a later slice — the route handlers depend only on this small
 /// surface (`query` + `byId`), so that swap stays localized.
-class ProvidersRepository {
-  ProvidersRepository([List<Map<String, dynamic>>? seed])
+/// Read access to providers. In-memory now; a Postgres impl (B3b) satisfies the
+/// same interface, so the route handlers are unchanged when the store swaps.
+abstract interface class ProvidersRepository {
+  List<Map<String, dynamic>> query({
+    String? q,
+    String? commune,
+    String? category,
+  });
+  Map<String, dynamic>? byId(String id);
+}
+
+class InMemoryProvidersRepository implements ProvidersRepository {
+  InMemoryProvidersRepository([List<Map<String, dynamic>>? seed])
     : _all = seed ?? _seedProviders;
 
   final List<Map<String, dynamic>> _all;
 
   /// Filtered by category / commune / free-text query, sorted by rating desc
   /// (so an unsorted `getProviders` and `getFeaturedProviders` agree).
+  @override
   List<Map<String, dynamic>> query({
     String? q,
     String? commune,
@@ -41,6 +53,7 @@ class ProvidersRepository {
     return list;
   }
 
+  @override
   Map<String, dynamic>? byId(String id) {
     for (final p in _all) {
       if (p['id'] == id) return p;
