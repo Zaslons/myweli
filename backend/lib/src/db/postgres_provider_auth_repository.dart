@@ -2,7 +2,8 @@ import 'dart:math';
 
 import 'package:postgres/postgres.dart';
 
-import '../auth/auth_repository.dart' show OtpRequestResult;
+import '../auth/auth_repository.dart'
+    show OtpRequestResult, RefreshResult, TokenPair;
 import '../auth/provider_auth_repository.dart'
     show
         ProviderAccount,
@@ -145,28 +146,18 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
       parameters: {'p': phoneNumber},
     );
     if (rows.isEmpty) {
-      return (ok: false, error: 'otp_none', provider: null, accessToken: null);
+      return (ok: false, error: 'otp_none', provider: null, tokens: null);
     }
     final row = rows.first.toColumnMap();
     if (DateTime.now().toUtc().isAfter(
       (row['expires_at'] as DateTime).toUtc(),
     )) {
       await _deleteOtp(phoneNumber);
-      return (
-        ok: false,
-        error: 'otp_expired',
-        provider: null,
-        accessToken: null,
-      );
+      return (ok: false, error: 'otp_expired', provider: null, tokens: null);
     }
     final attemptsLeft = row['attempts_left'] as int;
     if (attemptsLeft <= 0) {
-      return (
-        ok: false,
-        error: 'otp_locked',
-        provider: null,
-        accessToken: null,
-      );
+      return (ok: false, error: 'otp_locked', provider: null, tokens: null);
     }
     if ((row['code_hash'] as String) != _tokens.hashToken(code)) {
       final left = attemptsLeft - 1;
@@ -181,7 +172,7 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
         ok: false,
         error: left <= 0 ? 'otp_locked' : 'otp_invalid',
         provider: null,
-        accessToken: null,
+        tokens: null,
       );
     }
     final accountRows = await _pool.execute(
@@ -194,20 +185,83 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
         ok: false,
         error: 'provider_not_found',
         provider: null,
-        accessToken: null,
+        tokens: null,
       );
     }
-    await _deleteOtp(phoneNumber);
     final account = _toAccount(accountRows.first.toColumnMap());
+    return _pool.runTx((tx) async {
+      await tx.execute(
+        Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
+        parameters: {'p': phoneNumber},
+      );
+      final tokens = await _issueInFamily(tx, account.id, _newId('fam'));
+      return (ok: true, error: null, provider: account, tokens: tokens);
+    });
+  }
+
+  @override
+  Future<RefreshResult> refresh(String refreshToken) async {
+    final hash = _tokens.hashToken(refreshToken);
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT account_id, family_id, rotated '
+        'FROM provider_refresh_tokens WHERE token_hash = @h',
+      ),
+      parameters: {'h': hash},
+    );
+    if (rows.isEmpty) {
+      return (ok: false, error: 'refresh_invalid', tokens: null);
+    }
+    final row = rows.first.toColumnMap();
+    if (row['rotated'] as bool) {
+      await _pool.execute(
+        Sql.named('DELETE FROM provider_refresh_tokens WHERE family_id = @f'),
+        parameters: {'f': row['family_id']},
+      );
+      return (ok: false, error: 'refresh_reused', tokens: null);
+    }
+    return _pool.runTx((tx) async {
+      await tx.execute(
+        Sql.named(
+          'UPDATE provider_refresh_tokens SET rotated = true '
+          'WHERE token_hash = @h',
+        ),
+        parameters: {'h': hash},
+      );
+      final tokens = await _issueInFamily(
+        tx,
+        row['account_id'] as String,
+        row['family_id'] as String,
+      );
+      return (ok: true, error: null, tokens: tokens);
+    });
+  }
+
+  Future<TokenPair> _issueInFamily(
+    Session session,
+    String accountId,
+    String familyId,
+  ) async {
     final access = _tokens.issueAccessToken(
-      subject: account.id,
+      subject: accountId,
       role: 'provider',
     );
+    final refresh = _tokens.generateRefreshToken();
+    await session.execute(
+      Sql.named(
+        'INSERT INTO provider_refresh_tokens '
+        '(token_hash, account_id, family_id) VALUES (@h, @a, @f)',
+      ),
+      parameters: {
+        'h': _tokens.hashToken(refresh),
+        'a': accountId,
+        'f': familyId,
+      },
+    );
     return (
-      ok: true,
-      error: null,
-      provider: account,
       accessToken: access.token,
+      refreshToken: refresh,
+      expiresAt: access.expiresAt,
     );
   }
 

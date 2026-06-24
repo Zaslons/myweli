@@ -3,10 +3,9 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
-import 'package:myweli_backend/src/validators.dart';
 
-/// `POST /auth/provider/otp/verify` — verify a code; returns the provider
-/// account + a signed access token (role `provider`).
+/// `POST /auth/provider/refresh` — rotate a provider refresh token for a fresh
+/// pair. Mirrors `/auth/refresh`: replaying a rotated token revokes the family.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
 
@@ -17,27 +16,19 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final phone = (body['phoneNumber'] as String?)?.trim() ?? '';
-  final code = (body['code'] as String?)?.trim() ?? '';
-  if (!isValidE164(phone) || !isValidOtpCode(code)) {
-    return jsonError(HttpStatus.badRequest, 'invalid_input');
+  final token = (body['refreshToken'] as String?)?.trim() ?? '';
+  if (token.isEmpty) {
+    return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final result = await context.read<ProviderAuthRepository>().verifyOtp(
-    phone,
-    code,
-  );
+  final result = await context.read<ProviderAuthRepository>().refresh(token);
   if (!result.ok) {
-    final status = result.error == 'provider_not_found'
-        ? HttpStatus.notFound
-        : HttpStatus.badRequest;
-    return jsonError(status, result.error!);
+    return jsonError(HttpStatus.unauthorized, result.error!);
   }
 
   final tokens = result.tokens!;
   return Response.json(
     body: {
-      'provider': result.provider!.toJson(),
       'accessToken': tokens.accessToken,
       'refreshToken': tokens.refreshToken,
       'expiresAt': tokens.expiresAt.toIso8601String(),
