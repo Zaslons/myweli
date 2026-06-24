@@ -90,6 +90,35 @@ CREATE TABLE IF NOT EXISTS appointments (
           "WHERE status IN ('pending', 'confirmed')",
     ],
   ),
+  (
+    id: '0003_provider_accounts',
+    statements: [
+      '''
+CREATE TABLE IF NOT EXISTS provider_users (
+  id                  text PRIMARY KEY,
+  phone_number        text UNIQUE NOT NULL,
+  name                text,
+  business_name       text NOT NULL,
+  business_type       text NOT NULL,
+  email               text,
+  address             text,
+  verification_status text NOT NULL DEFAULT 'pending',
+  rejection_reason    text,
+  provider_id         text,
+  created_at          timestamptz NOT NULL DEFAULT now()
+)''',
+      // Separate from the consumer `otp_codes` (both phone-keyed) so a phone
+      // used as both consumer and provider doesn't collide.
+      '''
+CREATE TABLE IF NOT EXISTS provider_otp_codes (
+  phone_number  text PRIMARY KEY,
+  code_hash     text NOT NULL,
+  expires_at    timestamptz NOT NULL,
+  attempts_left int NOT NULL,
+  resends_left  int NOT NULL
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

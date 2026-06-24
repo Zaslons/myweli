@@ -14,6 +14,7 @@ import 'db/database.dart';
 import 'db/migrations.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_auth_repository.dart';
+import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'providers_repository.dart';
 
@@ -54,9 +55,13 @@ final ProvidersRepository providersRepository = _pool == null
     ? InMemoryProvidersRepository()
     : PostgresProvidersRepository(_pool!);
 
-// Provider auth is in-memory for now; a Postgres impl is a follow-up.
-final ProviderAuthRepository providerAuthRepository =
-    InMemoryProviderAuthRepository(tokens: tokenService, isProd: _isProd);
+final ProviderAuthRepository providerAuthRepository = _pool == null
+    ? InMemoryProviderAuthRepository(tokens: tokenService, isProd: _isProd)
+    : PostgresProviderAuthRepository(
+        _pool!,
+        tokens: tokenService,
+        isProd: _isProd,
+      );
 
 final AppointmentRepository appointmentRepository = _pool == null
     ? InMemoryAppointmentRepository()
