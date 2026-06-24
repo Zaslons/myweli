@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
+import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:postgres/postgres.dart';
@@ -35,8 +36,74 @@ void main() {
   tearDownAll(() async => pool.close());
 
   setUp(() async {
-    // Isolate auth state between tests; the seeded providers stay.
-    await pool.execute('TRUNCATE refresh_tokens, otp_codes, users CASCADE');
+    // Isolate state between tests; the seeded providers stay.
+    await pool.execute(
+      'TRUNCATE appointments, refresh_tokens, otp_codes, users CASCADE',
+    );
+  });
+
+  Map<String, dynamic> apptMap({
+    required String id,
+    String userId = 'u1',
+    String providerId = 'provider1',
+    String status = 'pending',
+    required DateTime when,
+  }) => {
+    'id': id,
+    'userId': userId,
+    'providerId': providerId,
+    'serviceIds': ['service1'],
+    'artistId': null,
+    'appointmentDate': when.toUtc().toIso8601String(),
+    'status': status,
+    'totalPrice': 15000,
+    'depositAmount': 0,
+    'balanceDue': 15000,
+    'cancellationWindowHours': 24,
+    'clientName': null,
+    'clientPhone': null,
+    'notes': null,
+    'depositScreenshotUrl': null,
+    'createdAt': DateTime.now().toUtc().toIso8601String(),
+  };
+
+  group('PostgresAppointmentRepository', () {
+    final when = DateTime.utc(2030, 6, 25, 9);
+
+    test('create + byId + listForUser/Provider + update', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      final created = await repo.create(apptMap(id: 'a1', when: when));
+      expect(created, isNotNull);
+      expect(created!['totalPrice'], 15000);
+      expect(created['appointmentDate'], when.toIso8601String());
+
+      expect((await repo.byId('a1'))?['id'], 'a1');
+      expect((await repo.listForUser('u1')).single['id'], 'a1');
+      expect((await repo.listForProvider('provider1')).single['id'], 'a1');
+      expect((await repo.listForUser('u1', status: 'confirmed')), isEmpty);
+
+      final updated = await repo.update('a1', {'status': 'confirmed'});
+      expect(updated!['status'], 'confirmed');
+    });
+
+    test(
+      'the partial unique index blocks a second booking on the same slot',
+      () async {
+        final repo = PostgresAppointmentRepository(pool);
+        expect(await repo.create(apptMap(id: 'a1', when: when)), isNotNull);
+        // Same provider + exact start, still pending → conflict → null.
+        expect(
+          await repo.create(apptMap(id: 'a2', userId: 'u2', when: when)),
+          isNull,
+        );
+        // After the first is cancelled, the slot frees up.
+        await repo.update('a1', {'status': 'cancelled'});
+        expect(
+          await repo.create(apptMap(id: 'a3', userId: 'u2', when: when)),
+          isNotNull,
+        );
+      },
+    );
   });
 
   group('PostgresProvidersRepository', () {

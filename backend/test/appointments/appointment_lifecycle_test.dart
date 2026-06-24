@@ -63,7 +63,7 @@ void main() {
       'depositAmount': 6000,
       'balanceDue': 9000,
     });
-    return created['id'] as String;
+    return created!['id'] as String;
   }
 
   group('AppointmentLifecycleService', () {

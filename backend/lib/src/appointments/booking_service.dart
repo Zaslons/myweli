@@ -98,10 +98,11 @@ class BookingService {
       'depositScreenshotUrl': depositScreenshotUrl,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
     };
-    return (
-      ok: true,
-      error: null,
-      appointment: await _appointments.create(appointment),
-    );
+    final created = await _appointments.create(appointment);
+    if (created == null) {
+      // Lost the race — the DB rejected a concurrent booking for this slot.
+      return (ok: false, error: 'slot_unavailable', appointment: null);
+    }
+    return (ok: true, error: null, appointment: created);
   }
 }

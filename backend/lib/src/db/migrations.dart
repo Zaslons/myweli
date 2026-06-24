@@ -58,6 +58,38 @@ CREATE TABLE IF NOT EXISTS providers (
       'CREATE INDEX IF NOT EXISTS providers_rating_idx ON providers(rating DESC)',
     ],
   ),
+  (
+    id: '0002_appointments',
+    statements: [
+      '''
+CREATE TABLE IF NOT EXISTS appointments (
+  id                        text PRIMARY KEY,
+  user_id                   text NOT NULL,
+  provider_id               text NOT NULL,
+  service_ids               jsonb NOT NULL,
+  artist_id                 text,
+  appointment_date          timestamptz NOT NULL,
+  status                    text NOT NULL,
+  total_price               double precision NOT NULL,
+  deposit_amount            double precision NOT NULL DEFAULT 0,
+  balance_due               double precision NOT NULL DEFAULT 0,
+  cancellation_window_hours int NOT NULL DEFAULT 24,
+  client_name               text,
+  client_phone              text,
+  notes                     text,
+  deposit_screenshot_url    text,
+  created_at                timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS appointments_user_idx ON appointments(user_id)',
+      'CREATE INDEX IF NOT EXISTS appointments_provider_date_idx '
+          'ON appointments(provider_id, appointment_date)',
+      // Atomic double-booking guard: at most one non-cancelled booking per
+      // (provider, exact start). Duration-overlap exclusion is a follow-up.
+      'CREATE UNIQUE INDEX IF NOT EXISTS appointments_slot_unique '
+          "ON appointments(provider_id, appointment_date) "
+          "WHERE status IN ('pending', 'confirmed')",
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

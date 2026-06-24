@@ -12,6 +12,7 @@ import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
 import 'db/database.dart';
 import 'db/migrations.dart';
+import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'providers_repository.dart';
@@ -57,9 +58,9 @@ final ProvidersRepository providersRepository = _pool == null
 final ProviderAuthRepository providerAuthRepository =
     InMemoryProviderAuthRepository(tokens: tokenService, isProd: _isProd);
 
-// Appointments are in-memory for now; a Postgres impl is a follow-up.
-final AppointmentRepository appointmentRepository =
-    InMemoryAppointmentRepository();
+final AppointmentRepository appointmentRepository = _pool == null
+    ? InMemoryAppointmentRepository()
+    : PostgresAppointmentRepository(_pool!);
 
 final SlotService slotService = SlotService(
   providersRepository,

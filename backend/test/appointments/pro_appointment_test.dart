@@ -62,7 +62,7 @@ void main() {
           .toIso8601String(),
       'status': status,
     });
-    return created['id'] as String;
+    return created!['id'] as String;
   }
 
   group('ProAppointmentService', () {
