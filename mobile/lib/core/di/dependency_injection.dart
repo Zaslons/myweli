@@ -1,3 +1,4 @@
+import '../../services/api/api_appointment_service.dart';
 import '../../services/api/api_auth_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
@@ -56,7 +57,10 @@ class ServiceLocator {
     // Provider reads are the first slice swapped to the real backend (B1).
     providerService =
         AppConfig.useApiBackend ? ApiProviderService() : MockProviderService();
-    appointmentService = MockAppointmentService();
+    // Appointments (book/list/cancel/reschedule/slots) — B-appt slice.
+    appointmentService = AppConfig.useApiBackend
+        ? ApiAppointmentService(sessionStore: SecureSessionStore())
+        : MockAppointmentService();
     favoritesService = MockFavoritesService();
     notificationService = MockNotificationService();
     proService = MockProService();

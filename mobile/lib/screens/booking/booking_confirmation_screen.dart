@@ -158,7 +158,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       context.go('/bookings');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Rendez-vous réservé avec succès'),
+          content:
+              Text('Réservation envoyée · en attente de confirmation du salon'),
           backgroundColor: AppColors.success,
         ),
       );
