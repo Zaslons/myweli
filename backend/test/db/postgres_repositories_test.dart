@@ -8,6 +8,7 @@ import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
+import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -38,7 +39,8 @@ void main() {
   setUp(() async {
     // Isolate state between tests; the seeded providers stay.
     await pool.execute(
-      'TRUNCATE appointments, refresh_tokens, otp_codes, users CASCADE',
+      'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
+      'provider_users, provider_otp_codes CASCADE',
     );
   });
 
@@ -104,6 +106,70 @@ void main() {
         );
       },
     );
+  });
+
+  group('PostgresProviderAuthRepository', () {
+    const provPhone = '+2250544556677';
+    PostgresProviderAuthRepository repo({int maxAttempts = 5}) =>
+        PostgresProviderAuthRepository(
+          pool,
+          tokens: tokens,
+          isProd: false,
+          maxAttempts: maxAttempts,
+        );
+
+    test(
+      'register creates the account (+ link) then verify returns a token',
+      () async {
+        final r = repo();
+        final reg = await r.register(
+          phoneNumber: provPhone,
+          businessName: 'Élégance',
+          businessType: 'salon',
+          providerId: 'provider1',
+        );
+        expect(reg.ok, isTrue);
+        expect(reg.provider!.providerId, 'provider1');
+        expect(reg.devCode, isNotNull);
+
+        // Duplicate phone is rejected.
+        expect(
+          (await r.register(
+            phoneNumber: provPhone,
+            businessName: 'X',
+            businessType: 'salon',
+          )).error,
+          'provider_exists',
+        );
+
+        final ok = await r.verifyOtp(provPhone, reg.devCode!);
+        expect(ok.ok, isTrue);
+        expect(
+          tokens.verifyAccessToken(ok.accessToken!)!.payload,
+          containsPair('role', 'provider'),
+        );
+        expect((await r.accountById(ok.provider!.id))!.providerId, 'provider1');
+      },
+    );
+
+    test('verify requires registration; wrong codes lock out', () async {
+      final r = repo(maxAttempts: 2);
+      // Unregistered phone: a code can be requested, but verify → not found.
+      final code = (await r.requestOtp('+2250500000000')).devCode!;
+      expect(
+        (await r.verifyOtp('+2250500000000', code)).error,
+        'provider_not_found',
+      );
+
+      final reg = await r.register(
+        phoneNumber: provPhone,
+        businessName: 'X',
+        businessType: 'salon',
+      );
+      final wrong = reg.devCode == '111111' ? '222222' : '111111';
+      expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_invalid');
+      expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_locked');
+    });
   });
 
   group('PostgresProvidersRepository', () {
