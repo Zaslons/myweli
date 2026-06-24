@@ -2,7 +2,12 @@
 /// DTO shape (see docs/api/openapi.yaml). In-memory now; a Postgres impl
 /// satisfies the same interface in a follow-up.
 abstract interface class AppointmentRepository {
-  Future<Map<String, dynamic>> create(Map<String, dynamic> appointment);
+  /// Persist a new appointment. Returns the stored record, or **null** when the
+  /// slot is already taken at the database level (the partial unique index on
+  /// `(provider_id, appointment_date)` for non-cancelled statuses) — atomic
+  /// double-booking prevention. The in-memory impl never returns null (the
+  /// app-level slot check guards it).
+  Future<Map<String, dynamic>?> create(Map<String, dynamic> appointment);
 
   /// The caller's appointments, newest first, optionally filtered by status.
   Future<List<Map<String, dynamic>>> listForUser(
@@ -25,7 +30,7 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
   final List<Map<String, dynamic>> _all = [];
 
   @override
-  Future<Map<String, dynamic>> create(Map<String, dynamic> appointment) async {
+  Future<Map<String, dynamic>?> create(Map<String, dynamic> appointment) async {
     _all.add(appointment);
     return appointment;
   }
