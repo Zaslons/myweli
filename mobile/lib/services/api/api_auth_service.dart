@@ -4,38 +4,42 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
+import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
 import '../../models/session.dart';
 import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
-import '../mock/mock_auth_service.dart';
 
-/// Real HTTP implementation of [AuthServiceInterface] (backend B2).
+/// Real HTTP implementation of [AuthServiceInterface] (backend B2 + B-prov).
 ///
-/// Consumer auth (OTP → JWT, profile, delete) goes to the backend; the session
-/// is persisted via [SessionStore] exactly like the mock, so cold-start restore
-/// and logout are unchanged. **Provider auth** has no backend slice yet, so
-/// those methods delegate to an embedded [MockAuthService] (a later slice swaps
-/// them). Wired in by DI only when `AppConfig.useApiBackend` is true.
+/// Both consumer and provider auth go to the backend. Each session is persisted
+/// via its own [SessionStore] (distinct secure keys) exactly like the mock, so
+/// cold-start restore and logout are unchanged and the two sessions never
+/// overwrite each other. Wired in by DI only when `AppConfig.useApiBackend` is
+/// true. No provider refresh flow yet (the backend returns only an access
+/// token); the persisted provider session has no client-side expiry, mirroring
+/// the consumer side until the refresh slice lands.
 class ApiAuthService implements AuthServiceInterface {
   ApiAuthService({
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
-    AuthServiceInterface? providerFallback,
+    SessionStore? providerSessionStore,
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
         _sessionStore = sessionStore ?? InMemorySessionStore(),
-        _providerAuth = providerFallback ?? MockAuthService();
+        _providerSessionStore = providerSessionStore ?? InMemorySessionStore();
 
   final http.Client _client;
   final String _baseUrl;
   final SessionStore _sessionStore;
-  final AuthServiceInterface _providerAuth;
+  final SessionStore _providerSessionStore;
 
   User? _currentUser;
   String? _accessToken;
+  ProviderUser? _currentProvider;
+  String? _providerToken;
 
   // ---- Consumer auth (real backend) ----------------------------------------
 
@@ -137,18 +141,43 @@ class ApiAuthService implements AuthServiceInterface {
     return ApiResponse.success(null, message: 'Compte supprimé');
   }
 
-  // ---- Provider auth (delegated to mock until its own slice) ---------------
+  // ---- Provider auth (real backend) ----------------------------------------
 
   @override
-  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) =>
-      _providerAuth.sendOtpToProvider(phoneNumber);
+  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
+    final res =
+        await _post('/auth/provider/otp/request', {'phoneNumber': phoneNumber});
+    if (res == null) return _networkError();
+    if (res.statusCode == 202) {
+      final body = _decode(res.body);
+      return ApiResponse.success(
+        body['devCode'] as String? ?? '',
+        message: 'Code OTP envoyé',
+      );
+    }
+    return _errorFrom(res);
+  }
 
   @override
   Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
     String phoneNumber,
     String otp,
-  ) =>
-      _providerAuth.verifyOtpForProvider(phoneNumber, otp);
+  ) async {
+    final res = await _post(
+      '/auth/provider/otp/verify',
+      {'phoneNumber': phoneNumber, 'code': otp},
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+
+    final body = _decode(res.body);
+    final provider =
+        ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
+    _currentProvider = provider;
+    _providerToken = body['accessToken'] as String;
+    await _persistProviderSession(provider, _providerToken!);
+    return ApiResponse.success(provider, message: 'Connexion réussie');
+  }
 
   @override
   Future<ApiResponse<ProviderUser>> registerProvider({
@@ -156,20 +185,47 @@ class ApiAuthService implements AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
-  }) =>
-      _providerAuth.registerProvider(
-        phoneNumber: phoneNumber,
-        businessName: businessName,
-        businessType: businessType,
-        address: address,
-      );
+  }) async {
+    // Creates the account and dispatches a code — the provider then verifies on
+    // the OTP screen, which is where they actually log in. No session yet.
+    final res = await _post('/auth/provider/register', {
+      'phoneNumber': phoneNumber,
+      'businessName': businessName,
+      'businessType': businessType.name,
+      if (address != null) 'address': address,
+    });
+    if (res == null) return _networkError();
+    if (res.statusCode != 201) return _errorFrom(res);
+
+    final body = _decode(res.body);
+    final provider =
+        ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
+    return ApiResponse.success(provider, message: 'Inscription réussie');
+  }
 
   @override
-  Future<ProviderUser?> getCurrentProvider() =>
-      _providerAuth.getCurrentProvider();
+  Future<ProviderUser?> getCurrentProvider() async {
+    if (_currentProvider != null) return _currentProvider;
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      final session =
+          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      _currentProvider = session.provider;
+      _providerToken = session.token;
+      return _currentProvider;
+    } catch (_) {
+      await _providerSessionStore.clear();
+      return null;
+    }
+  }
 
   @override
-  Future<void> logoutProvider() => _providerAuth.logoutProvider();
+  Future<void> logoutProvider() async {
+    _currentProvider = null;
+    _providerToken = null;
+    await _providerSessionStore.clear();
+  }
 
   // ---- helpers --------------------------------------------------------------
 
@@ -212,6 +268,14 @@ class ApiAuthService implements AuthServiceInterface {
     await _sessionStore.save(jsonEncode(session.toJson()));
   }
 
+  Future<void> _persistProviderSession(
+    ProviderUser provider,
+    String accessToken,
+  ) async {
+    final session = ProviderSession(token: accessToken, provider: provider);
+    await _providerSessionStore.save(jsonEncode(session.toJson()));
+  }
+
   ApiResponse<T> _networkError<T>() =>
       ApiResponse.error('Connexion au serveur impossible');
 
@@ -242,6 +306,10 @@ class ApiAuthService implements AuthServiceInterface {
       case 'invalid_phone':
       case 'invalid_input':
         return 'Numéro ou code invalide.';
+      case 'provider_not_found':
+        return 'Aucun compte professionnel pour ce numéro. Inscrivez-vous.';
+      case 'provider_exists':
+        return 'Un compte existe déjà pour ce numéro. Connectez-vous.';
       default:
         return 'Une erreur est survenue.';
     }

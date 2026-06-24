@@ -6,11 +6,15 @@ import 'interfaces/session_store.dart';
 /// EncryptedSharedPreferences/Keystore on Android) — never in
 /// `shared_preferences` or logs.
 class SecureSessionStore implements SessionStore {
-  SecureSessionStore([FlutterSecureStorage? storage])
-      : _storage = storage ?? const FlutterSecureStorage();
+  SecureSessionStore({FlutterSecureStorage? storage, String? key})
+      : _storage = storage ?? const FlutterSecureStorage(),
+        _key = key ?? 'myweli_session';
 
   final FlutterSecureStorage _storage;
-  static const String _key = 'myweli_session';
+
+  /// Storage key — distinct keys keep independent sessions side by side (e.g.
+  /// the consumer session vs. the provider session on the same device).
+  final String _key;
 
   @override
   Future<void> save(String value) => _storage.write(key: _key, value: value);

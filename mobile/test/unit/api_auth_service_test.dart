@@ -3,10 +3,26 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
 const _phone = '+2250707010101';
+
+Map<String, dynamic> _providerJson() => {
+      'id': 'provider_1',
+      'phoneNumber': _phone,
+      'name': null,
+      'businessName': 'Élégance',
+      'businessType': 'salon',
+      'email': null,
+      'address': null,
+      'verificationStatus': 'pending',
+      'rejectionReason': null,
+      'kycDocs': const <Map<String, dynamic>>[],
+      'createdAt': DateTime(2026).toIso8601String(),
+      'providerId': 'provider1',
+    };
 
 Map<String, dynamic> _userJson() => {
       'id': 'user_1',
@@ -100,14 +116,110 @@ void main() {
     expect(res.error, isNotNull);
   });
 
-  test('provider auth is delegated (no backend slice yet)', () async {
-    // No HTTP should be hit for provider OTP — it goes to the mock fallback.
-    final client =
-        MockClient((req) async => throw Exception('should not call'));
+  test('sendOtpToProvider hits the provider OTP route, returns the dev code',
+      () async {
+    final client = MockClient((req) async {
+      expect(req.url.path, '/auth/provider/otp/request');
+      return http.Response(
+          jsonEncode({'expiresInSeconds': 300, 'devCode': '654321'}), 202);
+    });
     final service = ApiAuthService(client: client, baseUrl: 'http://x');
 
     final res = await service.sendOtpToProvider(_phone);
 
     expect(res.success, isTrue);
+    expect(res.data, '654321');
+  });
+
+  test('registerProvider POSTs the account; does not log in yet', () async {
+    final store = InMemorySessionStore();
+    final client = MockClient((req) async {
+      expect(req.url.path, '/auth/provider/register');
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      expect(body['businessType'], 'salon');
+      return http.Response(
+        jsonEncode({'provider': _providerJson(), 'devCode': '654321'}),
+        201,
+      );
+    });
+    final service = ApiAuthService(
+      client: client,
+      baseUrl: 'http://x',
+      providerSessionStore: store,
+    );
+
+    final res = await service.registerProvider(
+      phoneNumber: _phone,
+      businessName: 'Élégance',
+      businessType: BusinessType.salon,
+    );
+
+    expect(res.success, isTrue);
+    expect(res.data!.id, 'provider_1');
+    // Registration sends a code but does not authenticate — verify does that.
+    expect(await store.read(), isNull);
+    expect(await service.getCurrentProvider(), isNull);
+  });
+
+  test('verifyOtpForProvider persists the provider session and restores it',
+      () async {
+    final store = InMemorySessionStore();
+    final client = MockClient((req) async {
+      expect(req.url.path, '/auth/provider/otp/verify');
+      return http.Response(
+        jsonEncode({'provider': _providerJson(), 'accessToken': 'prov-123'}),
+        200,
+      );
+    });
+    final service = ApiAuthService(
+      client: client,
+      baseUrl: 'http://x',
+      providerSessionStore: store,
+    );
+
+    final res = await service.verifyOtpForProvider(_phone, '123456');
+
+    expect(res.success, isTrue);
+    expect(res.data!.id, 'provider_1');
+    // Persisted under the provider store, and restorable after a cold start.
+    expect(await store.read(), isNotNull);
+    final restored =
+        await ApiAuthService(baseUrl: 'http://x', providerSessionStore: store)
+            .getCurrentProvider();
+    expect(restored!.id, 'provider_1');
+  });
+
+  test('verifyOtpForProvider surfaces provider_not_found', () async {
+    final client = MockClient(
+      (req) async =>
+          http.Response(jsonEncode({'error': 'provider_not_found'}), 404),
+    );
+    final service = ApiAuthService(client: client, baseUrl: 'http://x');
+
+    final res = await service.verifyOtpForProvider(_phone, '000000');
+
+    expect(res.success, isFalse);
+    expect(res.code, 'provider_not_found');
+  });
+
+  test('logoutProvider clears the persisted provider session', () async {
+    final store = InMemorySessionStore();
+    final client = MockClient(
+      (req) async => http.Response(
+        jsonEncode({'provider': _providerJson(), 'accessToken': 'prov-123'}),
+        200,
+      ),
+    );
+    final service = ApiAuthService(
+      client: client,
+      baseUrl: 'http://x',
+      providerSessionStore: store,
+    );
+    await service.verifyOtpForProvider(_phone, '123456');
+
+    await service.logoutProvider();
+
+    expect(await store.read(), isNull);
+    expect(await service.getCurrentProvider(), isNull);
   });
 }

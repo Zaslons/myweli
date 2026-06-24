@@ -50,9 +50,15 @@ class ServiceLocator {
   late final MessagingServiceInterface messagingService;
 
   void setup() {
-    // Consumer auth is the B2 slice; provider auth still delegates to the mock.
+    // Consumer auth (B2) + provider auth (B-prov), each on the real backend.
+    // The provider session lives under its own secure key so it never
+    // overwrites the consumer session on a shared device.
     authService = AppConfig.useApiBackend
-        ? ApiAuthService(sessionStore: SecureSessionStore())
+        ? ApiAuthService(
+            sessionStore: SecureSessionStore(),
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
         : MockAuthService(sessionStore: SecureSessionStore());
     // Provider reads are the first slice swapped to the real backend (B1).
     providerService =
