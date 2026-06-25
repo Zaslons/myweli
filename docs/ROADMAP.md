@@ -303,6 +303,8 @@ Budgeted against the **reference low-end Android (2–3 GB RAM, Android 9)** fro
 
 ## Part 7 — Definition of Done & quality gates
 
+**Before building any part:** write a detailed **design spec** in [`docs/design/`](design/README.md) first (per [`docs/design/TEMPLATE.md`](design/TEMPLATE.md)) — invoke the guardrails skill, re-confirm fit with this ROADMAP + the security model + the architecture, align on the spec, then build and cross-link it. Specs are the per-part source of truth.
+
 **Per screen/feature (Phase 1):**
 - [ ] Loading, empty, error, and success states implemented.
 - [ ] Wired to a mock service that simulates latency + errors.
