@@ -142,6 +142,7 @@ Every PR is tested; treat an unchecked box as "not done":
 
 ## 6. Definition of Done — backend PR gates
 
+- [ ] **Design spec written first** in [`docs/design/`](design/README.md) (per [`docs/design/TEMPLATE.md`](design/TEMPLATE.md)), aligned, and cross-linked from the routes/services/contract it governs.
 - [ ] `dart format` clean · `dart analyze --fatal-infos --fatal-warnings` = **0**.
 - [ ] Tests green, including the **security/negative** tests for any auth-touching change.
 - [ ] **Contract updated** in the same PR (`docs/api/openapi.yaml`); responses match it.

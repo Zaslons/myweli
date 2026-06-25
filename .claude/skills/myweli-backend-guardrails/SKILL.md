@@ -31,6 +31,17 @@ every backend change — the server-side mirror of `myweli-dev-guardrails`.
 > the same PR.
 
 ## Before writing code
+0. **Write the design spec first.** Before any non-trivial slice, **invoke this
+   skill, re-confirm it fits the ROADMAP / rules / security model / layering /
+   architecture, then write a detailed design spec as its own Markdown file
+   _before_ code** — `docs/design/<part>.md`, per
+   [`docs/design/TEMPLATE.md`](../../../docs/design/TEMPLATE.md), indexed in
+   [`docs/design/README.md`](../../../docs/design/README.md). Cover goal & scope,
+   the endpoint(s) + DTO contract, data model/migrations, services/repos,
+   security/authz (+ threat-model deltas), errors, performance, tests, rollout,
+   open questions. Align first, then build; **cross-link** it from the ROADMAP
+   entry and the routes/services/contract it governs. (Memory:
+   `design-spec-per-part`.)
 1. **Locate it.** Which PRD requirement / cutover slice (PRD §8.3) and which
    `*ServiceInterface` does this back? Stay in V1 scope; real Mobile Money,
    WhatsApp/SMS, FCM are deferred (PRD §8 / OQ-1).

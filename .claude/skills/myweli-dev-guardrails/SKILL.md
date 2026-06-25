@@ -32,6 +32,9 @@ If a rule below is ambiguous or a situation isn't covered, check these two docs 
 
 ## The development loop: before → during → after
 
+### Design spec first — write it down before building (every part)
+Before any non-trivial part / feature / slice: **invoke this skill, re-confirm the work fits the ROADMAP, the rules, the security model, the patterns, the structure, and the architecture we agreed on — then write a detailed design spec as its own Markdown file _before_ writing code.** The spec lives at `docs/design/<part>.md`, follows [`docs/design/TEMPLATE.md`](../../../docs/design/TEMPLATE.md), and is listed in [`docs/design/README.md`](../../../docs/design/README.md). It is the single source of truth for the part: goal & scope, UX/flows, all states & edge cases, the API/DTO contract, data model, security/authz, performance, testing, rollout, and open questions. **Align on the spec first, then build**, and **cross-link it** from the ROADMAP entry and the code / contract files it governs so it stays discoverable. (Memory: `design-spec-per-part`; extends `plan-before-building` + `ux-first-planning`.) The UX detail below feeds directly into the spec.
+
 ### UX first — design the experience before building (user-facing work)
 For anything a user touches — a screen, a flow, a state, a control — **plan the UX in detail and align with the user before writing code.** Efficient and intuitive UX is a first-order goal here, not a polish pass at the end. Produce a short written UX plan and get agreement *first*; it must cover:
 - **Goal & entry points** — what the user is trying to accomplish, and every place they arrive from.
