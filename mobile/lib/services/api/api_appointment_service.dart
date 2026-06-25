@@ -8,11 +8,14 @@ import '../../models/appointment.dart';
 import '../../models/session.dart';
 import '../interfaces/appointment_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [AppointmentServiceInterface] (backend B-appt).
 ///
-/// Authenticated calls carry the access token read from the persisted
-/// [Session] (written by the auth service on login). The server is the
+/// Authenticated calls go through [RefreshingHttpClient], which reads the access
+/// token from the persisted [Session] (written by the auth service on login)
+/// and **silently refreshes** it on a 401 — so a booking mid-session never
+/// fails just because the short-lived access token expired. The server is the
 /// authority on price **and availability** — booking/reschedule can come back
 /// `slot_unavailable`, surfaced as a clear French message. `/availability` is
 /// public (browsing before sign-in). Wired in by DI when
@@ -30,6 +33,12 @@ class ApiAppointmentService implements AppointmentServiceInterface {
   final String _baseUrl;
   final SessionStore _sessionStore;
 
+  late final RefreshingHttpClient _authed = RefreshingHttpClient(
+    client: _client,
+    baseUrl: _baseUrl,
+    store: _sessionStore,
+  );
+
   @override
   Future<ApiResponse<Appointment>> bookAppointment({
     required String providerId,
@@ -40,10 +49,11 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     double depositAmount = 0,
     String? depositScreenshotUrl,
   }) async {
-    final token = await _token();
-    if (token == null) return ApiResponse.error('Connectez-vous pour réserver');
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Connectez-vous pour réserver');
+    }
     // Note: depositAmount is computed server-side from the provider's policy.
-    final res = await _send(() => _client.post(
+    final res = await _authed.send((token) => _client.post(
           _uri('/appointments'),
           headers: _authHeaders(token),
           body: jsonEncode({
@@ -66,13 +76,14 @@ class ApiAppointmentService implements AppointmentServiceInterface {
   Future<ApiResponse<List<Appointment>>> getUserAppointments({
     AppointmentStatus? status,
   }) async {
-    final token = await _token();
-    if (token == null) return ApiResponse.error('Non connecté');
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
     final uri = _uri('/appointments').replace(
       queryParameters: {if (status != null) 'status': status.name},
     );
-    final res =
-        await _send(() => _client.get(uri, headers: _authHeaders(token)));
+    final res = await _authed
+        .send((token) => _client.get(uri, headers: _authHeaders(token)));
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     final items = (_decode(res.body)['items'] as List)
@@ -83,10 +94,11 @@ class ApiAppointmentService implements AppointmentServiceInterface {
 
   @override
   Future<ApiResponse<Appointment>> getAppointmentById(String id) async {
-    final token = await _token();
-    if (token == null) return ApiResponse.error('Non connecté');
-    final res = await _send(
-      () =>
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (token) =>
           _client.get(_uri('/appointments/$id'), headers: _authHeaders(token)),
     );
     if (res == null) return _networkError();
@@ -96,9 +108,10 @@ class ApiAppointmentService implements AppointmentServiceInterface {
 
   @override
   Future<ApiResponse<void>> cancelAppointment(String id) async {
-    final token = await _token();
-    if (token == null) return ApiResponse.error('Non connecté');
-    final res = await _send(() => _client.post(
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((token) => _client.post(
           _uri('/appointments/$id/cancel'),
           headers: _authHeaders(token),
         ));
@@ -112,9 +125,10 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     required String id,
     required DateTime newDateTime,
   }) async {
-    final token = await _token();
-    if (token == null) return ApiResponse.error('Non connecté');
-    final res = await _send(() => _client.post(
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((token) => _client.post(
           _uri('/appointments/$id/reschedule'),
           headers: _authHeaders(token),
           body: jsonEncode({
@@ -163,16 +177,6 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         'content-type': 'application/json',
         'Authorization': 'Bearer $token',
       };
-
-  Future<String?> _token() async {
-    final raw = await _sessionStore.read();
-    if (raw == null) return null;
-    try {
-      return Session.fromJson(jsonDecode(raw) as Map<String, dynamic>).token;
-    } catch (_) {
-      return null;
-    }
-  }
 
   Future<http.Response?> _send(Future<http.Response> Function() run) async {
     try {

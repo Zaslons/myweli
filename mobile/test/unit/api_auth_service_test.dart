@@ -106,6 +106,59 @@ void main() {
     expect(authHeader, 'Bearer access-123');
   });
 
+  test('verifyOtp persists the refresh token for later silent refresh',
+      () async {
+    final store = InMemorySessionStore();
+    final client = MockClient((req) async => _verifyOk());
+    final service = ApiAuthService(
+        client: client, baseUrl: 'http://x', sessionStore: store);
+
+    await service.verifyOtp(_phone, '123456');
+
+    final stored = jsonDecode((await store.read())!) as Map<String, dynamic>;
+    expect(stored['token'], 'access-123');
+    expect(stored['refreshToken'], 'refresh-123');
+  });
+
+  test('updateUser silently refreshes on a 401, then retries and rotates',
+      () async {
+    final store = InMemorySessionStore();
+    var refreshed = false;
+    final client = MockClient((req) async {
+      if (req.url.path == '/auth/otp/verify') return _verifyOk();
+      if (req.url.path == '/auth/refresh') {
+        refreshed = true;
+        return http.Response(
+          jsonEncode({
+            'accessToken': 'access-456',
+            'refreshToken': 'refresh-456',
+            'expiresAt': DateTime(2030).toIso8601String(),
+          }),
+          200,
+        );
+      }
+      // /me PATCH: reject the stale token once, accept the refreshed one.
+      final auth = req.headers['Authorization'] ?? req.headers['authorization'];
+      if (auth == 'Bearer access-456') {
+        return http.Response(jsonEncode(_userJson()..['name'] = 'Awa'), 200);
+      }
+      return http.Response(jsonEncode({'error': 'unauthorized'}), 401);
+    });
+    final service = ApiAuthService(
+        client: client, baseUrl: 'http://x', sessionStore: store);
+    await service.verifyOtp(_phone, '123456');
+
+    final res = await service.updateUser(name: 'Awa');
+
+    expect(res.success, isTrue);
+    expect(res.data!.name, 'Awa');
+    expect(refreshed, isTrue);
+    final stored = jsonDecode((await store.read())!) as Map<String, dynamic>;
+    expect(stored['token'], 'access-456'); // rotated
+    expect(stored['refreshToken'], 'refresh-456');
+    expect((stored['user'] as Map)['name'], 'Awa'); // profile update kept
+  });
+
   test('a transport failure becomes a friendly error', () async {
     final client = MockClient((req) async => throw Exception('down'));
     final service = ApiAuthService(client: client, baseUrl: 'http://x');

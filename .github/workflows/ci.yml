@@ -100,6 +100,93 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/myweli_test
 
+  backend-boot-smoke:
+    name: Backend — boot smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    # Validates the *production build path* the unit tests never exercise: the
+    # custom entrypoint (main.dart) runs `initializeDatabase()` → real
+    # migrations + provider seed against Postgres, then the server actually
+    # serves. Catches route-tree code-gen breaks and startup/migration faults
+    # before they reach a deploy.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: myweli_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/myweli_smoke
+      JWT_SECRET: ci-boot-smoke-secret
+      ENV: dev
+      PORT: "8080"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.10.7
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Activate dart_frog CLI
+        run: dart pub global activate dart_frog_cli 1.2.14
+
+      # Code-gens build/bin/server.dart from the whole route tree — fails the
+      # job if any route file is misplaced or won't compile.
+      - name: Build production server
+        run: dart pub global run dart_frog_cli:dart_frog build
+
+      - name: Boot server + smoke endpoints (real Postgres migrations)
+        run: |
+          set -euo pipefail
+          dart build/bin/server.dart >/tmp/server.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            echo '--- server log ---'; cat /tmp/server.log || true
+          }
+          trap cleanup EXIT
+          # Wait for the server to answer /health (fail fast if it dies).
+          for i in $(seq 1 30); do
+            curl -fsS "http://localhost:${PORT}/health" >/dev/null 2>&1 \
+              && { echo "server up after ${i}s"; break; }
+            kill -0 "$SERVER_PID" 2>/dev/null || { echo 'server died during boot'; exit 1; }
+            sleep 1
+          done
+          # /health → ok
+          curl -fsS "http://localhost:${PORT}/health" | tee /tmp/health.json; echo
+          grep -q '"status":"ok"' /tmp/health.json
+          # /providers → seeded data (proves migrations + seed ran on Postgres)
+          curl -fsS "http://localhost:${PORT}/providers" | tee /tmp/providers.json; echo
+          grep -q '"id":"provider1"' /tmp/providers.json
+          # Auth round-trip: request OTP → devCode → verify → tokens
+          REQ=$(curl -fsS -X POST "http://localhost:${PORT}/auth/otp/request" \
+            -H 'content-type: application/json' \
+            -d '{"phoneNumber":"+2250700000009"}')
+          echo "otp/request: $REQ"
+          CODE=$(printf '%s' "$REQ" | sed -n 's/.*"devCode":"\([0-9]*\)".*/\1/p')
+          test -n "$CODE"
+          VER=$(curl -fsS -X POST "http://localhost:${PORT}/auth/otp/verify" \
+            -H 'content-type: application/json' \
+            -d "{\"phoneNumber\":\"+2250700000009\",\"code\":\"${CODE}\"}")
+          printf '%s' "$VER" | head -c 200; echo
+          printf '%s' "$VER" | grep -q '"accessToken"'
+          echo 'boot smoke passed ✅'
+
   security:
     name: Security — secrets & dependencies
     runs-on: ubuntu-latest
