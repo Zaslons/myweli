@@ -162,4 +162,54 @@ void main() {
     );
     expect(res.success, isTrue);
   });
+
+  test('a 401 mid-booking triggers a silent refresh + retry', () async {
+    final store = InMemorySessionStore();
+    await store.save(jsonEncode(
+      Session(
+        token: 'old',
+        refreshToken: 'r1',
+        user: User(
+          id: 'u1',
+          phoneNumber: '+2250700000000',
+          createdAt: DateTime.utc(2026),
+        ),
+      ).toJson(),
+    ));
+    var refreshed = false;
+    final client = MockClient((req) async {
+      if (req.url.path == '/auth/refresh') {
+        refreshed = true;
+        return http.Response(
+          jsonEncode({
+            'accessToken': 'new',
+            'refreshToken': 'r2',
+            'expiresAt': DateTime(2030).toIso8601String(),
+          }),
+          200,
+        );
+      }
+      // The first booking attempt uses the stale token → 401; retry succeeds.
+      final auth = req.headers['Authorization'] ?? req.headers['authorization'];
+      if (auth == 'Bearer new') {
+        return http.Response(jsonEncode(_apptJson()), 201);
+      }
+      return http.Response(jsonEncode({'error': 'unauthorized'}), 401);
+    });
+    final service = ApiAppointmentService(
+      client: client,
+      baseUrl: 'http://x',
+      sessionStore: store,
+    );
+
+    final res = await service.bookAppointment(
+      providerId: 'provider1',
+      serviceIds: ['service1'],
+      appointmentDateTime: DateTime.utc(2026, 6, 25, 9),
+    );
+
+    expect(res.success, isTrue);
+    expect(refreshed, isTrue);
+    expect((jsonDecode((await store.read())!) as Map)['token'], 'new');
+  });
 }
