@@ -8,6 +8,7 @@ import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/dependencies.dart';
+import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 
 /// Provides the process-wide singletons into every request's context, so
@@ -26,6 +27,7 @@ Handler middleware(Handler handler) {
         ),
       )
       .use(provider<ProAppointmentService>((_) => proAppointmentService))
+      .use(provider<ProviderCatalogService>((_) => providerCatalogService))
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository));
 }

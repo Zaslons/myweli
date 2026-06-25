@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:postgres/postgres.dart';
 
 import '../providers_repository.dart';
+import 'migrations.dart' show insertProviderAvailability;
 
 /// Postgres-backed [ProvidersRepository].
 ///
@@ -76,6 +77,129 @@ class PostgresProvidersRepository implements ProvidersRepository {
     doc['services'] = services[id] ?? const <Map<String, dynamic>>[];
     doc['availability'] = availability[id] ?? _emptyAvailability(id);
     return doc;
+  }
+
+  // ---- writes (PR 2) --------------------------------------------------------
+
+  @override
+  Future<Map<String, dynamic>?> addService(
+    String providerId,
+    Map<String, dynamic> service,
+  ) async {
+    final rows = await _pool.execute(
+      Sql.named(
+        'INSERT INTO provider_services '
+        '(id, provider_id, name, description, price, price_max, '
+        'duration_minutes, duration_variants, artist_ids, active) '
+        'VALUES (@id, @pid, @name, @desc, @price, @price_max, @dur, '
+        '@variants:jsonb, @artists:jsonb, @active) RETURNING *',
+      ),
+      parameters: {
+        'id': service['id'],
+        'pid': providerId,
+        'name': service['name'],
+        'desc': service['description'] ?? '',
+        'price': (service['price'] as num).toDouble(),
+        'price_max': (service['priceMax'] as num?)?.toDouble(),
+        'dur': (service['durationMinutes'] as num).toInt(),
+        'variants': jsonEncode(service['durationVariants'] ?? const {}),
+        'artists': jsonEncode(service['artistIds'] ?? const []),
+        'active': service['active'] as bool? ?? true,
+      },
+    );
+    return _serviceDto(rows.first.toColumnMap());
+  }
+
+  @override
+  Future<Map<String, dynamic>?> updateService(
+    String providerId,
+    String serviceId,
+    Map<String, dynamic> changes,
+  ) async {
+    final sets = <String>[];
+    final params = <String, Object?>{'sid': serviceId, 'pid': providerId};
+    void put(String key, String column, Object? value, {String cast = ''}) {
+      sets.add('$column = @$key$cast');
+      params[key] = value;
+    }
+
+    if (changes.containsKey('name')) put('name', 'name', changes['name']);
+    if (changes.containsKey('description')) {
+      put('desc', 'description', changes['description']);
+    }
+    if (changes.containsKey('price')) {
+      put('price', 'price', (changes['price'] as num).toDouble());
+    }
+    if (changes.containsKey('priceMax')) {
+      put('price_max', 'price_max', (changes['priceMax'] as num?)?.toDouble());
+    }
+    if (changes.containsKey('durationMinutes')) {
+      put(
+        'dur',
+        'duration_minutes',
+        (changes['durationMinutes'] as num).toInt(),
+      );
+    }
+    if (changes.containsKey('durationVariants')) {
+      put(
+        'variants',
+        'duration_variants',
+        jsonEncode(changes['durationVariants']),
+        cast: ':jsonb',
+      );
+    }
+    if (changes.containsKey('artistIds')) {
+      put(
+        'artists',
+        'artist_ids',
+        jsonEncode(changes['artistIds']),
+        cast: ':jsonb',
+      );
+    }
+    if (changes.containsKey('active')) {
+      put('active', 'active', changes['active']);
+    }
+
+    final sql = sets.isEmpty
+        ? 'SELECT * FROM provider_services WHERE id = @sid AND provider_id = @pid'
+        : 'UPDATE provider_services SET ${sets.join(', ')} '
+              'WHERE id = @sid AND provider_id = @pid RETURNING *';
+    final rows = await _pool.execute(Sql.named(sql), parameters: params);
+    if (rows.isEmpty) return null;
+    return _serviceDto(rows.first.toColumnMap());
+  }
+
+  @override
+  Future<bool> deleteService(String providerId, String serviceId) async {
+    final res = await _pool.execute(
+      Sql.named(
+        'DELETE FROM provider_services WHERE id = @sid AND provider_id = @pid',
+      ),
+      parameters: {'sid': serviceId, 'pid': providerId},
+    );
+    return res.affectedRows > 0;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> replaceAvailability(
+    String providerId,
+    Map<String, dynamic> availability,
+  ) async {
+    await _pool.runTx((tx) async {
+      for (final t in const [
+        'provider_working_hours',
+        'provider_breaks',
+        'provider_blocked_dates',
+        'provider_availability',
+      ]) {
+        await tx.execute(
+          Sql.named('DELETE FROM $t WHERE provider_id = @pid'),
+          parameters: {'pid': providerId},
+        );
+      }
+      await insertProviderAvailability(tx, providerId, availability);
+    });
+    return (await _availabilityByProvider([providerId]))[providerId];
   }
 
   // ---- assembly -------------------------------------------------------------

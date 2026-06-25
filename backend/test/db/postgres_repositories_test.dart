@@ -282,6 +282,66 @@ void main() {
         );
       },
     );
+
+    // Writes mutate provider3, kept last so the read assertions above (which
+    // use provider1) are unaffected.
+    test('addService / updateService / deleteService persist', () async {
+      final repo = PostgresProvidersRepository(pool);
+      final created = await repo.addService('provider3', {
+        'id': 'svc_pr2_1',
+        'name': 'Test',
+        'description': '',
+        'price': 5000.0,
+        'priceMax': null,
+        'durationMinutes': 30,
+        'durationVariants': const <String, dynamic>{},
+        'artistIds': const <String>[],
+        'active': true,
+      });
+      expect(created, isNotNull);
+      expect(created!['providerId'], 'provider3');
+
+      final p = await repo.byId('provider3');
+      expect(
+        (p!['services'] as List).any((s) => s['id'] == 'svc_pr2_1'),
+        isTrue,
+      );
+
+      final upd = await repo.updateService('provider3', 'svc_pr2_1', {
+        'price': 6000.0,
+        'active': false,
+      });
+      expect(upd!['price'], 6000);
+      expect(upd['active'], false);
+
+      expect(await repo.deleteService('provider3', 'svc_pr2_1'), isTrue);
+      expect(await repo.deleteService('provider3', 'svc_pr2_1'), isFalse);
+    });
+
+    test('replaceAvailability replaces wholesale', () async {
+      final repo = PostgresProvidersRepository(pool);
+      final saved = await repo.replaceAvailability('provider3', {
+        'providerId': 'provider3',
+        'weeklySchedule': {
+          '0': [
+            {
+              'startTime': '2024-01-01T08:00:00.000Z',
+              'endTime': '2024-01-01T12:00:00.000Z',
+              'isAvailable': true,
+            },
+          ],
+        },
+        'breaks': const <String, dynamic>{},
+        'blockedDates': const ['2030-12-25T00:00:00.000Z'],
+        'bufferMinutes': 25,
+      });
+      expect(saved!['bufferMinutes'], 25);
+
+      final avail = (await repo.byId('provider3'))!['availability'] as Map;
+      expect(avail['bufferMinutes'], 25);
+      expect((avail['weeklySchedule'] as Map)['0'], isNotEmpty);
+      expect((avail['blockedDates'] as List).length, 1);
+    });
   });
 
   group('PostgresAuthRepository', () {

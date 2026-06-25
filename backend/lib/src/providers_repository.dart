@@ -14,6 +14,31 @@ abstract interface class ProvidersRepository {
     String? category,
   });
   Future<Map<String, dynamic>?> byId(String id);
+
+  /// Append [service] to [providerId]'s catalogue; returns the stored service,
+  /// or null if the provider doesn't exist.
+  Future<Map<String, dynamic>?> addService(
+    String providerId,
+    Map<String, dynamic> service,
+  );
+
+  /// Merge [changes] into a service; returns the updated service, or null if it
+  /// isn't found under [providerId].
+  Future<Map<String, dynamic>?> updateService(
+    String providerId,
+    String serviceId,
+    Map<String, dynamic> changes,
+  );
+
+  /// Remove a service; false if not found under [providerId].
+  Future<bool> deleteService(String providerId, String serviceId);
+
+  /// Replace [providerId]'s availability wholesale; returns the stored value,
+  /// or null if the provider doesn't exist.
+  Future<Map<String, dynamic>?> replaceAvailability(
+    String providerId,
+    Map<String, dynamic> availability,
+  );
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -59,6 +84,59 @@ class InMemoryProvidersRepository implements ProvidersRepository {
       if (p['id'] == id) return p;
     }
     return null;
+  }
+
+  List<Map<String, dynamic>> _servicesOf(Map<String, dynamic> p) =>
+      (p['services'] as List? ?? (p['services'] = <Map<String, dynamic>>[]))
+          .cast<Map<String, dynamic>>();
+
+  @override
+  Future<Map<String, dynamic>?> addService(
+    String providerId,
+    Map<String, dynamic> service,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    _servicesOf(p).add(service);
+    return service;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> updateService(
+    String providerId,
+    String serviceId,
+    Map<String, dynamic> changes,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    for (final s in _servicesOf(p)) {
+      if (s['id'] == serviceId) {
+        s.addAll(changes);
+        return s;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<bool> deleteService(String providerId, String serviceId) async {
+    final p = await byId(providerId);
+    if (p == null) return false;
+    final services = _servicesOf(p);
+    final before = services.length;
+    services.removeWhere((s) => s['id'] == serviceId);
+    return services.length < before;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> replaceAvailability(
+    String providerId,
+    Map<String, dynamic> availability,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    p['availability'] = availability;
+    return availability;
   }
 }
 

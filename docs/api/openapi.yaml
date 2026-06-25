@@ -292,6 +292,120 @@ paths:
               schema: { $ref: '#/components/schemas/Provider' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /providers/{id}/services:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: List a salon's services (B-cat, provider-owned)
+      description: >
+        Provider-authenticated and ownership-scoped: the token's account must
+        manage `{id}` (else 403).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The salon's services
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Service' }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [providers]
+      summary: Create a service (B-cat)
+      description: Server sets `id`, `providerId`, and `active` (default true).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Service' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /providers/{id}/services/{serviceId}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: serviceId, required: true, schema: { type: string } }
+    patch:
+      tags: [providers]
+      summary: Update a service — incl. `active` to enable/disable (B-cat)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceInput' }
+      responses:
+        '200':
+          description: The updated service
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Service' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [providers]
+      summary: Delete a service (B-cat)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/availability:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: Read a salon's availability (B-cat, provider-owned)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The salon's availability
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Availability' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [providers]
+      summary: Replace a salon's availability wholesale (B-cat)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Availability' }
+      responses:
+        '200':
+          description: The stored availability
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Availability' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /appointments:
     get:
       tags: [appointments]
@@ -714,7 +828,7 @@ components:
 
     Service:
       type: object
-      required: [id, name, description, price, durationMinutes, providerId]
+      required: [id, name, description, price, durationMinutes, providerId, active]
       properties:
         id: { type: string }
         name: { type: string }
@@ -727,6 +841,64 @@ components:
         artistIds:
           type: array
           items: { type: string }
+        active:
+          type: boolean
+          description: >
+            Bookable when true. A disabled service is hidden from booking and
+            rejected server-side. Defaults to true on create.
+
+    ServiceInput:
+      type: object
+      description: >
+        Create/update payload. On create, name/price/durationMinutes are
+        required; on PATCH every field is optional. `id`/`providerId` are
+        server-set and ignored if sent.
+      properties:
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        priceMax: { type: number, nullable: true }
+        durationMinutes: { type: integer }
+        durationVariants: { $ref: '#/components/schemas/DurationVariants' }
+        artistIds:
+          type: array
+          items: { type: string }
+        active: { type: boolean }
+
+    TimeSlot:
+      type: object
+      required: [startTime, endTime, isAvailable]
+      properties:
+        startTime:
+          type: string
+          format: date-time
+          description: Only the time-of-day is significant (placeholder date).
+        endTime: { type: string, format: date-time }
+        isAvailable: { type: boolean }
+
+    Availability:
+      type: object
+      required: [providerId, weeklySchedule, blockedDates, bufferMinutes]
+      properties:
+        providerId: { type: string }
+        weeklySchedule:
+          type: object
+          description: 'Keys "0".."6" (Mon..Sun) → working windows.'
+          additionalProperties:
+            type: array
+            items: { $ref: '#/components/schemas/TimeSlot' }
+        breaks:
+          type: object
+          description: Same shape as weeklySchedule; within-day breaks.
+          additionalProperties:
+            type: array
+            items: { $ref: '#/components/schemas/TimeSlot' }
+        blockedDates:
+          type: array
+          items: { type: string, format: date-time }
+        bufferMinutes:
+          type: integer
+          description: Setup/cleanup gap enforced around each booking.
 
     ProviderSummary:
       type: object

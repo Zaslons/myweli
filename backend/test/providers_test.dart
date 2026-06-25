@@ -5,7 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
 
-import '../routes/providers/[id].dart' as detail;
+import '../routes/providers/[id]/index.dart' as detail;
 import '../routes/providers/index.dart' as list;
 
 class _MockRequestContext extends Mock implements RequestContext {}
