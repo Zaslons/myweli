@@ -273,12 +273,16 @@ Future<void> backfillCatalogueIfNeeded(Pool<void> pool) async {
           ? jsonDecode(raw) as Map<String, dynamic>
           : Map<String, dynamic>.from(raw as Map);
       await insertProviderCatalogue(tx, id, doc);
+      // Strip the now-normalized keys in Dart and write the cleaned document
+      // back (the `data` column is stored as a JSON-string scalar, like the
+      // rest of the codebase, so the jsonb `-` key-delete operator can't be
+      // used). Single source of truth: services/availability now live in the
+      // tables only.
+      doc.remove('services');
+      doc.remove('availability');
       await tx.execute(
-        Sql.named(
-          "UPDATE providers SET data = data - 'services' - 'availability' "
-          'WHERE id = @id',
-        ),
-        parameters: {'id': id},
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {'id': id, 'data': jsonEncode(doc)},
       );
     }
   });
