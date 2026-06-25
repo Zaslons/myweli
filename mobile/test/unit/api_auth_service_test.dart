@@ -220,7 +220,12 @@ void main() {
     final client = MockClient((req) async {
       expect(req.url.path, '/auth/provider/otp/verify');
       return http.Response(
-        jsonEncode({'provider': _providerJson(), 'accessToken': 'prov-123'}),
+        jsonEncode({
+          'provider': _providerJson(),
+          'accessToken': 'prov-123',
+          'refreshToken': 'prov-refresh-123',
+          'expiresAt': DateTime(2030).toIso8601String(),
+        }),
         200,
       );
     });
@@ -234,8 +239,11 @@ void main() {
 
     expect(res.success, isTrue);
     expect(res.data!.id, 'provider_1');
-    // Persisted under the provider store, and restorable after a cold start.
-    expect(await store.read(), isNotNull);
+    // Persisted under the provider store (incl. the refresh token for silent
+    // refresh), and restorable after a cold start.
+    final stored = jsonDecode((await store.read())!) as Map<String, dynamic>;
+    expect(stored['token'], 'prov-123');
+    expect(stored['refreshToken'], 'prov-refresh-123');
     final restored =
         await ApiAuthService(baseUrl: 'http://x', providerSessionStore: store)
             .getCurrentProvider();

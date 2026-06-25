@@ -189,7 +189,11 @@ class ApiAuthService implements AuthServiceInterface {
         ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
     _currentProvider = provider;
     _providerToken = body['accessToken'] as String;
-    await _persistProviderSession(provider, _providerToken!);
+    await _persistProviderSession(
+      provider,
+      _providerToken!,
+      body['refreshToken'] as String?,
+    );
     return ApiResponse.success(provider, message: 'Connexion réussie');
   }
 
@@ -287,8 +291,13 @@ class ApiAuthService implements AuthServiceInterface {
   Future<void> _persistProviderSession(
     ProviderUser provider,
     String accessToken,
+    String? refreshToken,
   ) async {
-    final session = ProviderSession(token: accessToken, provider: provider);
+    final session = ProviderSession(
+      token: accessToken,
+      refreshToken: refreshToken,
+      provider: provider,
+    );
     await _providerSessionStore.save(jsonEncode(session.toJson()));
   }
 

@@ -1,5 +1,6 @@
 import '../../services/api/api_appointment_service.dart';
 import '../../services/api/api_auth_service.dart';
+import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
 import '../../services/interfaces/auth_service_interface.dart';
@@ -69,7 +70,14 @@ class ServiceLocator {
         : MockAppointmentService();
     favoritesService = MockFavoritesService();
     notificationService = MockNotificationService();
-    proService = MockProService();
+    // Pro appointment surface (list + accept/reject/complete/no-show) on the
+    // real backend with provider silent refresh; the rest delegates to mock.
+    proService = AppConfig.useApiBackend
+        ? ApiProService(
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockProService();
     proArtistService = MockProArtistService();
     proKycService = MockProKycService();
     imageUploadService = MockImageUploadService();
