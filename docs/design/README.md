@@ -23,7 +23,8 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
-| Provider services & availability (backend) | [provider-services-availability-backend.md](provider-services-availability-backend.md) | Draft |
+| Pro catalogue app wiring (ApiProService → backend) | [pro-catalogue-app-wiring.md](pro-catalogue-app-wiring.md) | Built |
+| Provider services & availability (backend) | [provider-services-availability-backend.md](provider-services-availability-backend.md) | Built |
 | _Spec template_ | [TEMPLATE.md](TEMPLATE.md) | — |
 
 > Add a row per spec as it's created. Keep newest at the top.

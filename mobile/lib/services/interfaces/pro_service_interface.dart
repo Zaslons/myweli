@@ -91,7 +91,10 @@ abstract class ProServiceInterface {
   Future<ApiResponse<Service>> updateService(
       String serviceId, Map<String, dynamic> serviceData);
   Future<ApiResponse<bool>> deleteService(String serviceId);
-  Future<ApiResponse<bool>> toggleServiceAvailability(String serviceId);
+
+  /// Enable/disable a service (`active`). A disabled service is hidden from
+  /// booking and rejected server-side.
+  Future<ApiResponse<bool>> setServiceActive(String serviceId, bool active);
 
   // Gallery photos
   Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId);

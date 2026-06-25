@@ -260,7 +260,10 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> toggleServiceAvailability(String serviceId) async {
+  Future<ApiResponse<bool>> setServiceActive(
+    String serviceId,
+    bool active,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     return ApiResponse.success(true);
   }
