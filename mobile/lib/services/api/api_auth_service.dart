@@ -10,6 +10,7 @@ import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
 import '../mock/mock_auth_service.dart';
+import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [AuthServiceInterface] (backend B2).
 ///
@@ -34,8 +35,16 @@ class ApiAuthService implements AuthServiceInterface {
   final SessionStore _sessionStore;
   final AuthServiceInterface _providerAuth;
 
+  /// Authenticated `/me` calls go through this so an expired access token is
+  /// silently refreshed (and the session rotated) instead of logging the user
+  /// out mid-action.
+  late final RefreshingHttpClient _authed = RefreshingHttpClient(
+    client: _client,
+    baseUrl: _baseUrl,
+    store: _sessionStore,
+  );
+
   User? _currentUser;
-  String? _accessToken;
 
   // ---- Consumer auth (real backend) ----------------------------------------
 
@@ -66,15 +75,17 @@ class ApiAuthService implements AuthServiceInterface {
     final tokens = body['tokens'] as Map<String, dynamic>;
     final user = User.fromJson(body['user'] as Map<String, dynamic>);
     _currentUser = user;
-    _accessToken = tokens['accessToken'] as String;
-    await _persistSession(user, _accessToken!);
+    await _persistSession(
+      user,
+      tokens['accessToken'] as String,
+      tokens['refreshToken'] as String?,
+    );
     return ApiResponse.success(user, message: 'Connexion réussie');
   }
 
   @override
   Future<void> logout() async {
     _currentUser = null;
-    _accessToken = null;
     await _sessionStore.clear();
   }
 
@@ -90,7 +101,6 @@ class ApiAuthService implements AuthServiceInterface {
         return null;
       }
       _currentUser = session.user;
-      _accessToken = session.token;
       return _currentUser;
     } catch (_) {
       await _sessionStore.clear();
@@ -104,32 +114,36 @@ class ApiAuthService implements AuthServiceInterface {
     String? email,
     String? avatarUrl,
   }) async {
-    await getCurrentUser(); // hydrate the token after a cold start
-    if (_accessToken == null) {
+    if (await _authed.accessToken() == null) {
       return ApiResponse.error('Utilisateur non connecté');
     }
-    final res = await _patch('/me', {
-      if (name != null) 'name': name,
-      if (email != null) 'email': email,
-      if (avatarUrl != null) 'avatarUrl': avatarUrl,
-    });
+    final res = await _authed.send((token) => _client.patch(
+          _uri('/me'),
+          headers: _bearer(token),
+          body: jsonEncode({
+            if (name != null) 'name': name,
+            if (email != null) 'email': email,
+            if (avatarUrl != null) 'avatarUrl': avatarUrl,
+          }),
+        ));
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
 
     final user = User.fromJson(_decode(res.body));
     _currentUser = user;
-    await _persistSession(user, _accessToken!);
+    // Persist the updated user without disturbing a token the silent refresh
+    // may have just rotated during this call.
+    await _authed.mergeIntoSession({'user': user.toJson()});
     return ApiResponse.success(user);
   }
 
   @override
   Future<ApiResponse<void>> deleteAccount() async {
-    await getCurrentUser();
-    if (_accessToken == null) {
+    if (await _authed.accessToken() == null) {
       return ApiResponse.error('Utilisateur non connecté');
     }
-    final res = await _send(
-      () => _client.delete(_uri('/me'), headers: _authHeaders()),
+    final res = await _authed.send(
+      (token) => _client.delete(_uri('/me'), headers: _bearer(token)),
     );
     if (res == null) return _networkError();
     if (res.statusCode != 204) return _errorFrom(res);
@@ -175,22 +189,15 @@ class ApiAuthService implements AuthServiceInterface {
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
-  Map<String, String> _authHeaders() => {
+  Map<String, String> _bearer(String token) => {
         'content-type': 'application/json',
-        if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+        'Authorization': 'Bearer $token',
       };
 
   Future<http.Response?> _post(String path, Map<String, dynamic> body) =>
       _send(() => _client.post(
             _uri(path),
             headers: const {'content-type': 'application/json'},
-            body: jsonEncode(body),
-          ));
-
-  Future<http.Response?> _patch(String path, Map<String, dynamic> body) =>
-      _send(() => _client.patch(
-            _uri(path),
-            headers: _authHeaders(),
             body: jsonEncode(body),
           ));
 
@@ -205,10 +212,19 @@ class ApiAuthService implements AuthServiceInterface {
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;
 
-  Future<void> _persistSession(User user, String accessToken) async {
-    // No client-side expiry: stay logged in until logout (the short-lived
-    // access token is refreshed server-side in a later slice).
-    final session = Session(token: accessToken, user: user);
+  Future<void> _persistSession(
+    User user,
+    String accessToken,
+    String? refreshToken,
+  ) async {
+    // No client-side expiry: stay logged in until logout. The short-lived
+    // access token is renewed on demand by [RefreshingHttpClient] using the
+    // refresh token (rotated server-side).
+    final session = Session(
+      token: accessToken,
+      refreshToken: refreshToken,
+      user: user,
+    );
     await _sessionStore.save(jsonEncode(session.toJson()));
   }
 
