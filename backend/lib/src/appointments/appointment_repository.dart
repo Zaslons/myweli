@@ -15,9 +15,13 @@ abstract interface class AppointmentRepository {
     String? status,
   });
 
-  /// All of a provider's appointments (any status) — used by the slot engine to
-  /// exclude booked times. The caller filters out cancelled.
-  Future<List<Map<String, dynamic>>> listForProvider(String providerId);
+  /// A provider's appointments, newest first, optionally filtered by status.
+  /// With no [status] it returns every status — the slot engine relies on that
+  /// to exclude already-booked times (it filters out cancelled itself).
+  Future<List<Map<String, dynamic>>> listForProvider(
+    String providerId, {
+    String? status,
+  });
 
   Future<Map<String, dynamic>?> byId(String id);
 
@@ -54,8 +58,19 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listForProvider(String providerId) async {
-    return _all.where((a) => a['providerId'] == providerId).toList();
+  Future<List<Map<String, dynamic>>> listForProvider(
+    String providerId, {
+    String? status,
+  }) async {
+    return _all
+        .where((a) => a['providerId'] == providerId)
+        .where((a) => status == null || a['status'] == status)
+        .toList()
+      ..sort(
+        (a, b) => (b['appointmentDate'] as String).compareTo(
+          a['appointmentDate'] as String,
+        ),
+      );
   }
 
   @override

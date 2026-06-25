@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
@@ -32,6 +33,7 @@ DateTime _slotAt(int hour) {
 void main() {
   late InMemoryAppointmentRepository appts;
   late BookingService booking;
+  late InMemoryProviderAuthRepository providerAuth;
   final tokens = TokenService(secret: 'test-secret');
   final accessA = tokens
       .issueAccessToken(subject: 'user_A', role: 'user')
@@ -44,7 +46,25 @@ void main() {
     final providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     booking = BookingService(providers, appts, SlotService(providers, appts));
+    providerAuth = InMemoryProviderAuthRepository(
+      tokens: tokens,
+      isProd: false,
+    );
   });
+
+  /// Registers a provider account (optionally linked to [providerId]) and
+  /// returns a provider-role access token for it.
+  Future<String> providerToken(String phone, {String? providerId}) async {
+    final reg = await providerAuth.register(
+      phoneNumber: phone,
+      businessName: 'Salon',
+      businessType: 'salon',
+      providerId: providerId,
+    );
+    return tokens
+        .issueAccessToken(subject: reg.provider!.id, role: 'provider')
+        .token;
+  }
 
   Map<String, Object?> bookBody(DateTime when, {String service = 'service1'}) =>
       {
@@ -151,8 +171,16 @@ void main() {
       when(() => context.read<TokenService>()).thenReturn(tokens);
       when(() => context.read<BookingService>()).thenReturn(booking);
       when(() => context.read<AppointmentRepository>()).thenReturn(appts);
+      when(
+        () => context.read<ProviderAuthRepository>(),
+      ).thenReturn(providerAuth);
       return context;
     }
+
+    Request getReq(String token, {String query = ''}) => Request.get(
+      Uri.parse('http://localhost/appointments$query'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
     Request bookReq(String token, Map<String, Object?> body) => Request.post(
       Uri.parse('http://localhost/appointments'),
@@ -218,6 +246,61 @@ void main() {
       final body = await jsonOf(res);
       expect(body['total'], 1);
       expect((body['items'] as List).single['userId'], 'user_A');
+    });
+
+    test(
+      'GET as a provider lists its salon’s appointments (not by user)',
+      () async {
+        // Two different users book provider1; the linked salon sees both.
+        await list.onRequest(ctx(bookReq(accessA, bookBody(_slotAt(9)))));
+        await list.onRequest(ctx(bookReq(accessB, bookBody(_slotAt(14)))));
+        final token = await providerToken(
+          '+2250500000001',
+          providerId: 'provider1',
+        );
+
+        final res = await list.onRequest(ctx(getReq(token)));
+
+        final body = await jsonOf(res);
+        expect(body['total'], 2);
+        expect(
+          (body['items'] as List).every((a) => a['providerId'] == 'provider1'),
+          isTrue,
+        );
+      },
+    );
+
+    test('GET as a provider honors ?status=', () async {
+      final booked = await list.onRequest(
+        ctx(bookReq(accessA, bookBody(_slotAt(9)))),
+      );
+      await appts.update((await jsonOf(booked))['id'] as String, {
+        'status': 'confirmed',
+      });
+      await list.onRequest(
+        ctx(bookReq(accessB, bookBody(_slotAt(14)))),
+      ); // pending
+      final token = await providerToken(
+        '+2250500000002',
+        providerId: 'provider1',
+      );
+
+      final res = await list.onRequest(
+        ctx(getReq(token, query: '?status=confirmed')),
+      );
+
+      final body = await jsonOf(res);
+      expect(body['total'], 1);
+      expect((body['items'] as List).single['status'], 'confirmed');
+    });
+
+    test('GET as an unlinked provider → 403', () async {
+      final token = await providerToken('+2250500000003'); // no providerId
+
+      final res = await list.onRequest(ctx(getReq(token)));
+
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await jsonOf(res))['error'], 'forbidden');
     });
 
     test('GET /{id} enforces ownership (403) + 404 for unknown', () async {

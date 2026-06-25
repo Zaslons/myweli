@@ -72,10 +72,17 @@ class PostgresAppointmentRepository implements AppointmentRepository {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listForProvider(String providerId) async {
+  Future<List<Map<String, dynamic>>> listForProvider(
+    String providerId, {
+    String? status,
+  }) async {
     final result = await _pool.execute(
-      Sql.named('SELECT * FROM appointments WHERE provider_id = @p'),
-      parameters: {'p': providerId},
+      Sql.named(
+        'SELECT * FROM appointments WHERE provider_id = @p '
+        '${status == null ? '' : 'AND status = @s '}'
+        'ORDER BY appointment_date DESC',
+      ),
+      parameters: {'p': providerId, if (status != null) 's': status},
     );
     return result.map((r) => _toDto(r.toColumnMap())).toList();
   }
