@@ -4,8 +4,55 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/models/appointment.dart';
+import 'package:myweli/models/availability.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
+
+Map<String, dynamic> _svcJson({bool active = false}) => {
+      'id': 'svc1',
+      'name': 'Coupe',
+      'description': '',
+      'price': 5000,
+      'priceMax': null,
+      'durationMinutes': 30,
+      'durationVariants': <String, dynamic>{},
+      'providerId': 'provider1',
+      'artistIds': <String>[],
+      'active': active,
+    };
+
+Map<String, dynamic> _availJson() => {
+      'providerId': 'provider1',
+      'weeklySchedule': <String, dynamic>{},
+      'breaks': <String, dynamic>{},
+      'blockedDates': <String>[],
+      'bufferMinutes': 10,
+    };
+
+/// An ApiProService whose persisted provider session is linked to [providerId]
+/// (so the serviceId-only methods can resolve the salon path).
+ApiProService _linked(MockClient client, {String providerId = 'provider1'}) {
+  final store = InMemorySessionStore();
+  store.save(jsonEncode({
+    'token': 'tok',
+    'refreshToken': 'r1',
+    'provider': {
+      'id': 'acc1',
+      'phoneNumber': '+2250500000000',
+      'businessName': 'Salon',
+      'businessType': 'salon',
+      'verificationStatus': 'pending',
+      'kycDocs': <Map<String, dynamic>>[],
+      'createdAt': '2026-01-01T00:00:00.000Z',
+      'providerId': providerId,
+    },
+  }));
+  return ApiProService(
+    client: client,
+    baseUrl: 'http://x',
+    providerSessionStore: store,
+  );
+}
 
 Map<String, dynamic> _apptJson({String status = 'pending'}) => {
       'id': 'a1',
@@ -156,5 +203,131 @@ void main() {
     final res = await service.getDashboardStats('provider1');
 
     expect(res.success, isTrue); // came from the embedded MockProService
+  });
+
+  // ---- catalogue (services + availability) ----------------------------------
+
+  test('getProviderServices GETs the salon services + parses active', () async {
+    final client = MockClient((req) async {
+      expect(req.url.path, '/providers/provider1/services');
+      expect(
+        req.headers['Authorization'] ?? req.headers['authorization'],
+        'Bearer tok',
+      );
+      return http.Response(
+        jsonEncode({
+          'items': [_svcJson()],
+          'total': 1
+        }),
+        200,
+      );
+    });
+    final res = await _linked(client).getProviderServices('provider1');
+    expect(res.success, isTrue);
+    expect(res.data!.single.active, false);
+  });
+
+  test('createService POSTs the body → Service', () async {
+    final client = MockClient((req) async {
+      expect(req.url.path, '/providers/provider1/services');
+      expect((jsonDecode(req.body) as Map)['name'], 'Coupe');
+      return http.Response(jsonEncode(_svcJson(active: true)), 201);
+    });
+    final res = await _linked(client).createService(
+      'provider1',
+      {'name': 'Coupe', 'price': 5000, 'durationMinutes': 30},
+    );
+    expect(res.success, isTrue);
+    expect(res.data!.active, true);
+  });
+
+  test('updateService PATCHes the salon-scoped path (providerId from session)',
+      () async {
+    String? path;
+    final client = MockClient((req) async {
+      path = req.url.path;
+      return http.Response(jsonEncode(_svcJson()), 200);
+    });
+    final res = await _linked(client).updateService('svc1', {'price': 6000});
+    expect(res.success, isTrue);
+    expect(path, '/providers/provider1/services/svc1');
+  });
+
+  test('deleteService → 204 → true', () async {
+    final client = MockClient((req) async {
+      expect(req.method, 'DELETE');
+      expect(req.url.path, '/providers/provider1/services/svc1');
+      return http.Response('', 204);
+    });
+    expect((await _linked(client).deleteService('svc1')).success, isTrue);
+  });
+
+  test('setServiceActive PATCHes {active}', () async {
+    Map<String, dynamic>? body;
+    final client = MockClient((req) async {
+      body = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(jsonEncode(_svcJson()), 200);
+    });
+    final res = await _linked(client).setServiceActive('svc1', false);
+    expect(res.success, isTrue);
+    expect(body!['active'], false);
+  });
+
+  test('serviceId-only methods fail fast when the account is unlinked',
+      () async {
+    // _service stores a minimal provider with no providerId → no salon path.
+    final client =
+        MockClient((req) async => throw Exception('should not call'));
+    expect((await _service(client).deleteService('svc1')).success, isFalse);
+  });
+
+  test('availability GET + PUT round-trip', () async {
+    final client = MockClient((req) async {
+      if (req.method == 'PUT') {
+        expect(req.url.path, '/providers/provider1/availability');
+      }
+      return http.Response(jsonEncode(_availJson()), 200);
+    });
+    final svc = _linked(client);
+    expect((await svc.getProviderAvailability('provider1')).success, isTrue);
+    final put = await svc.updateAvailability(
+      'provider1',
+      Availability.fromJson(_availJson()),
+    );
+    expect(put.success, isTrue);
+  });
+
+  test('a 401 on a catalogue call triggers provider silent refresh', () async {
+    var refreshed = false;
+    final client = MockClient((req) async {
+      if (req.url.path == '/auth/provider/refresh') {
+        refreshed = true;
+        return http.Response(
+          jsonEncode({
+            'accessToken': 'tok2',
+            'refreshToken': 'r2',
+            'expiresAt': DateTime(2030).toIso8601String(),
+          }),
+          200,
+        );
+      }
+      final auth = req.headers['Authorization'] ?? req.headers['authorization'];
+      if (auth == 'Bearer tok2') {
+        return http.Response(jsonEncode({'items': [], 'total': 0}), 200);
+      }
+      return http.Response(jsonEncode({'error': 'unauthorized'}), 401);
+    });
+    final res = await _linked(client).getProviderServices('provider1');
+    expect(res.success, isTrue);
+    expect(refreshed, isTrue);
+  });
+
+  test('forbidden (cross-salon) maps to a clear error code', () async {
+    final client = MockClient(
+      (req) async => http.Response(jsonEncode({'error': 'forbidden'}), 403),
+    );
+    final res = await _linked(client).getProviderServices('provider1');
+    expect(res.success, isFalse);
+    expect(res.code, 'forbidden');
   });
 }

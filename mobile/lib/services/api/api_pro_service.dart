@@ -7,6 +7,7 @@ import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/payment.dart';
+import '../../models/provider_session.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import '../interfaces/session_store.dart';
@@ -14,19 +15,22 @@ import '../mock/mock_pro_service.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ProServiceInterface] for the slices the backend
-/// supports today: the **provider appointment surface** — listing the salon's
-/// bookings and the accept / reject / complete / no-show transitions.
+/// supports today: the **provider appointment surface** (list + accept / reject
+/// / complete / no-show) and the **catalogue** — services CRUD + enable/disable
+/// and availability read/replace (design:
+/// docs/design/pro-catalogue-app-wiring.md).
 ///
 /// Authenticated calls go through [RefreshingHttpClient] pointed at the
 /// **provider** session (its own secure key) and `/auth/provider/refresh`, so a
-/// pro acting on bookings after the ~15-min access token expires is silently
-/// re-authenticated instead of bounced to sign-in. The salon is determined by
-/// the token (the `providerId` arguments are ignored server-side).
+/// pro acting after the ~15-min access token expires is silently
+/// re-authenticated instead of bounced to sign-in. Appointment lists are scoped
+/// by the token; catalogue endpoints are `/providers/{id}/…` (the salon id is an
+/// argument, or — for the serviceId-only edits — read from the session), with
+/// ownership re-checked server-side.
 ///
-/// Everything without a backend yet (dashboard, services, gallery, availability,
-/// earnings, deposit policy, manual booking, pro-side reschedule) delegates to
-/// an embedded [MockProService], so the pro app keeps working while the
-/// appointment surface is real. Wired in by DI only when
+/// Everything still without a backend (dashboard, gallery, earnings, deposit
+/// policy, manual booking, pro-side reschedule) delegates to an embedded
+/// [MockProService], so the pro app keeps working. Wired in by DI only when
 /// `AppConfig.useApiBackend` is true.
 class ApiProService implements ProServiceInterface {
   ApiProService({
@@ -36,19 +40,36 @@ class ApiProService implements ProServiceInterface {
     ProServiceInterface? fallback,
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+        _providerSessionStore = providerSessionStore ?? InMemorySessionStore(),
         _fallback = fallback ?? MockProService() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
-      store: providerSessionStore ?? InMemorySessionStore(),
+      store: _providerSessionStore,
       refreshPath: '/auth/provider/refresh',
     );
   }
 
   final http.Client _client;
   final String _baseUrl;
+  final SessionStore _providerSessionStore;
   final ProServiceInterface _fallback;
   late final RefreshingHttpClient _authed;
+
+  /// The salon id this account manages, read from the persisted provider
+  /// session — used for the `serviceId`-only edit/delete/active paths. Null if
+  /// not signed in or the account isn't linked to a Provider.
+  Future<String?> _providerId() async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      return ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
+          .provider
+          .providerId;
+    } catch (_) {
+      return null;
+    }
+  }
 
   // ---- Appointments (real backend) -----------------------------------------
 
@@ -156,30 +177,98 @@ class ApiProService implements ProServiceInterface {
       );
 
   @override
-  Future<ApiResponse<List<Service>>> getProviderServices(String providerId) =>
-      _fallback.getProviderServices(providerId);
+  Future<ApiResponse<List<Service>>> getProviderServices(
+    String providerId,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/providers/$providerId/services'),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    final items = (_decode(res.body)['items'] as List)
+        .map((e) => Service.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return ApiResponse.success(items);
+  }
 
   @override
   Future<ApiResponse<Service>> createService(
     String providerId,
     Map<String, dynamic> serviceData,
-  ) =>
-      _fallback.createService(providerId, serviceData);
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri('/providers/$providerId/services'),
+        headers: _bearer(t),
+        body: jsonEncode(serviceData),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 201) return _errorFrom(res);
+    return ApiResponse.success(Service.fromJson(_decode(res.body)));
+  }
 
   @override
   Future<ApiResponse<Service>> updateService(
     String serviceId,
     Map<String, dynamic> serviceData,
-  ) =>
-      _fallback.updateService(serviceId, serviceData);
+  ) async {
+    final pid = await _providerId();
+    if (pid == null) return ApiResponse.error('Compte non lié à un salon');
+    final res = await _authed.send(
+      (t) => _client.patch(
+        _uri('/providers/$pid/services/$serviceId'),
+        headers: _bearer(t),
+        body: jsonEncode(serviceData),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(Service.fromJson(_decode(res.body)));
+  }
 
   @override
-  Future<ApiResponse<bool>> deleteService(String serviceId) =>
-      _fallback.deleteService(serviceId);
+  Future<ApiResponse<bool>> deleteService(String serviceId) async {
+    final pid = await _providerId();
+    if (pid == null) return ApiResponse.error('Compte non lié à un salon');
+    final res = await _authed.send(
+      (t) => _client.delete(
+        _uri('/providers/$pid/services/$serviceId'),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 204) return _errorFrom(res);
+    return ApiResponse.success(true, message: 'Service supprimé');
+  }
 
   @override
-  Future<ApiResponse<bool>> toggleServiceAvailability(String serviceId) =>
-      _fallback.toggleServiceAvailability(serviceId);
+  Future<ApiResponse<bool>> setServiceActive(
+    String serviceId,
+    bool active,
+  ) async {
+    final pid = await _providerId();
+    if (pid == null) return ApiResponse.error('Compte non lié à un salon');
+    final res = await _authed.send(
+      (t) => _client.patch(
+        _uri('/providers/$pid/services/$serviceId'),
+        headers: _bearer(t),
+        body: jsonEncode({'active': active}),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(true);
+  }
 
   @override
   Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId) =>
@@ -195,15 +284,40 @@ class ApiProService implements ProServiceInterface {
   @override
   Future<ApiResponse<Availability>> getProviderAvailability(
     String providerId,
-  ) =>
-      _fallback.getProviderAvailability(providerId);
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/providers/$providerId/availability'),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(Availability.fromJson(_decode(res.body)));
+  }
 
   @override
   Future<ApiResponse<Availability>> updateAvailability(
     String providerId,
     Availability availability,
-  ) =>
-      _fallback.updateAvailability(providerId, availability);
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.put(
+        _uri('/providers/$providerId/availability'),
+        headers: _bearer(t),
+        body: jsonEncode(availability.toJson()),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(Availability.fromJson(_decode(res.body)));
+  }
 
   @override
   Future<ApiResponse<EarningsData>> getEarnings(
@@ -269,7 +383,9 @@ class ApiProService implements ProServiceInterface {
       case 'forbidden':
         return 'Action non autorisée pour ce salon.';
       case 'not_found':
-        return 'Rendez-vous introuvable.';
+        return 'Introuvable.';
+      case 'invalid_input':
+        return 'Informations invalides.';
       case 'invalid_state':
         return 'Cette action n’est plus possible.';
       case 'unauthorized':
