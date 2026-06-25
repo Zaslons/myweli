@@ -94,4 +94,7 @@ Future<void> initializeDatabase() async {
   if (pool == null) return;
   await runMigrations(pool);
   await seedProvidersIfEmpty(pool);
+  // Move services/availability out of the provider JSONB into the normalized
+  // catalogue tables (single source of truth). See migration 0005.
+  await backfillCatalogueIfNeeded(pool);
 }

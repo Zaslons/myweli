@@ -137,6 +137,66 @@ CREATE TABLE IF NOT EXISTS provider_refresh_tokens (
           'ON provider_refresh_tokens(family_id)',
     ],
   ),
+  (
+    // Normalize the salon catalogue + working hours out of the providers JSONB
+    // document into first-class tables (design: docs/design/
+    // provider-services-availability-backend.md). The provider DTO is
+    // reassembled from these by the repository, so reads / slot engine /
+    // booking are unchanged. Backfilled from `data` at startup (see
+    // backfillCatalogueIfNeeded), which then strips them from `data`.
+    id: '0005_provider_catalogue',
+    statements: [
+      '''
+CREATE TABLE IF NOT EXISTS provider_services (
+  id                text PRIMARY KEY,
+  provider_id       text NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  name              text NOT NULL,
+  description       text NOT NULL DEFAULT '',
+  price             double precision NOT NULL,
+  price_max         double precision,
+  duration_minutes  int NOT NULL,
+  duration_variants jsonb NOT NULL DEFAULT '{}',
+  artist_ids        jsonb NOT NULL DEFAULT '[]',
+  active            boolean NOT NULL DEFAULT true,
+  created_at        timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_services_provider_idx '
+          'ON provider_services(provider_id)',
+      // One config row per provider (the scalar buffer + an anchor row).
+      '''
+CREATE TABLE IF NOT EXISTS provider_availability (
+  provider_id    text PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
+  buffer_minutes int NOT NULL DEFAULT 0
+)''',
+      '''
+CREATE TABLE IF NOT EXISTS provider_working_hours (
+  id           text PRIMARY KEY,
+  provider_id  text NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  weekday      smallint NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_time   time NOT NULL,
+  end_time     time NOT NULL,
+  is_available boolean NOT NULL DEFAULT true
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_working_hours_provider_idx '
+          'ON provider_working_hours(provider_id)',
+      '''
+CREATE TABLE IF NOT EXISTS provider_breaks (
+  id          text PRIMARY KEY,
+  provider_id text NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  weekday     smallint NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_time  time NOT NULL,
+  end_time    time NOT NULL
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_breaks_provider_idx '
+          'ON provider_breaks(provider_id)',
+      '''
+CREATE TABLE IF NOT EXISTS provider_blocked_dates (
+  provider_id  text NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  blocked_date date NOT NULL,
+  PRIMARY KEY (provider_id, blocked_date)
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
@@ -188,4 +248,162 @@ Future<void> seedProvidersIfEmpty(Pool<void> pool) async {
       },
     );
   }
+}
+
+/// Moves embedded `services` + `availability` out of each provider's `data`
+/// JSONB into the normalized tables (migration `0005`), then strips them from
+/// `data` so there is a single source of truth. Runs once — a no-op when
+/// `provider_services` already holds rows. (Design:
+/// docs/design/provider-services-availability-backend.md.)
+Future<void> backfillCatalogueIfNeeded(Pool<void> pool) async {
+  final existing = await pool.execute(
+    'SELECT count(*) AS n FROM provider_services',
+  );
+  if ((existing.first.toColumnMap()['n'] as int) > 0) return;
+
+  final providers = await pool.execute('SELECT id, data FROM providers');
+  if (providers.isEmpty) return;
+
+  await pool.runTx((tx) async {
+    for (final row in providers) {
+      final m = row.toColumnMap();
+      final id = m['id'] as String;
+      final raw = m['data'];
+      final doc = raw is String
+          ? jsonDecode(raw) as Map<String, dynamic>
+          : Map<String, dynamic>.from(raw as Map);
+      await insertProviderCatalogue(tx, id, doc);
+      // Strip the now-normalized keys in Dart and write the cleaned document
+      // back (the `data` column is stored as a JSON-string scalar, like the
+      // rest of the codebase, so the jsonb `-` key-delete operator can't be
+      // used). Single source of truth: services/availability now live in the
+      // tables only.
+      doc.remove('services');
+      doc.remove('availability');
+      await tx.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {'id': id, 'data': jsonEncode(doc)},
+      );
+    }
+  });
+}
+
+/// Inserts the `services` + `availability` embedded in a provider [doc] into the
+/// normalized tables, within [session]. Shared by the backfill and the seed.
+Future<void> insertProviderCatalogue(
+  Session session,
+  String providerId,
+  Map<String, dynamic> doc,
+) async {
+  for (final s in (doc['services'] as List? ?? const [])) {
+    final svc = (s as Map).cast<String, dynamic>();
+    await session.execute(
+      Sql.named(
+        'INSERT INTO provider_services '
+        '(id, provider_id, name, description, price, price_max, '
+        'duration_minutes, duration_variants, artist_ids, active) '
+        'VALUES (@id, @pid, @name, @desc, @price, @price_max, @dur, '
+        '@variants:jsonb, @artists:jsonb, @active) ON CONFLICT (id) DO NOTHING',
+      ),
+      parameters: {
+        'id': svc['id'],
+        'pid': providerId,
+        'name': svc['name'],
+        'desc': svc['description'] ?? '',
+        'price': (svc['price'] as num).toDouble(),
+        'price_max': (svc['priceMax'] as num?)?.toDouble(),
+        'dur': (svc['durationMinutes'] as num).toInt(),
+        'variants': jsonEncode(svc['durationVariants'] ?? const {}),
+        'artists': jsonEncode(svc['artistIds'] ?? const []),
+        'active': svc['active'] as bool? ?? true,
+      },
+    );
+  }
+
+  final availability = (doc['availability'] as Map?)?.cast<String, dynamic>();
+  if (availability == null) return;
+
+  await session.execute(
+    Sql.named(
+      'INSERT INTO provider_availability (provider_id, buffer_minutes) '
+      'VALUES (@pid, @buffer) ON CONFLICT (provider_id) DO NOTHING',
+    ),
+    parameters: {
+      'pid': providerId,
+      'buffer': (availability['bufferMinutes'] as num?)?.toInt() ?? 0,
+    },
+  );
+
+  await _insertWindows(
+    session,
+    providerId,
+    availability['weeklySchedule'],
+    table: 'provider_working_hours',
+    withAvailable: true,
+  );
+  await _insertWindows(
+    session,
+    providerId,
+    availability['breaks'],
+    table: 'provider_breaks',
+    withAvailable: false,
+  );
+
+  for (final d in (availability['blockedDates'] as List? ?? const [])) {
+    await session.execute(
+      Sql.named(
+        'INSERT INTO provider_blocked_dates (provider_id, blocked_date) '
+        'VALUES (@pid, CAST(@d AS date)) ON CONFLICT DO NOTHING',
+      ),
+      parameters: {'pid': providerId, 'd': (d as String).split('T').first},
+    );
+  }
+}
+
+/// Inserts the per-weekday `{ "0".."6": [TimeSlot] }` [schedule] into [table]
+/// (working hours or breaks), one row per window.
+Future<void> _insertWindows(
+  Session session,
+  String providerId,
+  Object? schedule, {
+  required String table,
+  required bool withAvailable,
+}) async {
+  final byWeekday = (schedule as Map?)?.cast<String, dynamic>() ?? const {};
+  var i = 0;
+  for (final entry in byWeekday.entries) {
+    final weekday = int.parse(entry.key);
+    for (final slot in (entry.value as List? ?? const [])) {
+      final s = (slot as Map).cast<String, dynamic>();
+      final id =
+          '${providerId}_${table == 'provider_breaks' ? 'br' : 'wh'}_'
+          '${weekday}_${i++}';
+      final cols = withAvailable
+          ? '(id, provider_id, weekday, start_time, end_time, is_available)'
+          : '(id, provider_id, weekday, start_time, end_time)';
+      final vals = withAvailable
+          ? '(@id, @pid, @wd, CAST(@start AS time), CAST(@end AS time), @avail)'
+          : '(@id, @pid, @wd, CAST(@start AS time), CAST(@end AS time))';
+      await session.execute(
+        Sql.named('INSERT INTO $table $cols VALUES $vals'),
+        parameters: {
+          'id': id,
+          'pid': providerId,
+          'wd': weekday,
+          'start': _timeOfDay(s['startTime'] as String),
+          'end': _timeOfDay(s['endTime'] as String),
+          if (withAvailable) 'avail': s['isAvailable'] as bool? ?? true,
+        },
+      );
+    }
+  }
+}
+
+/// `HH:mm:ss` time-of-day from an ISO timestamp (Abidjan is UTC+0, and the slot
+/// engine only uses the time component).
+String _timeOfDay(String iso) {
+  final t = DateTime.parse(iso).toUtc();
+  final hh = t.hour.toString().padLeft(2, '0');
+  final mm = t.minute.toString().padLeft(2, '0');
+  return '$hh:$mm:00';
 }

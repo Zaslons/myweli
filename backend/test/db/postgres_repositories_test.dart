@@ -1,6 +1,7 @@
 @Tags(['postgres'])
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -32,6 +33,9 @@ void main() {
     pool = createPool(url);
     await runMigrations(pool);
     await seedProvidersIfEmpty(pool);
+    await backfillCatalogueIfNeeded(
+      pool,
+    ); // match production: catalogue → tables
   });
 
   tearDownAll(() async => pool.close());
@@ -229,6 +233,55 @@ void main() {
       expect((await repo.byId('provider1'))?['id'], 'provider1');
       expect(await repo.byId('nope'), isNull);
     });
+
+    test(
+      'byId assembles services + availability from the normalized tables',
+      () async {
+        final p = await PostgresProvidersRepository(pool).byId('provider1');
+        expect(p, isNotNull);
+
+        final services = p!['services'] as List;
+        expect(services, isNotEmpty);
+        final svc = (services.first as Map).cast<String, dynamic>();
+        expect(svc['providerId'], 'provider1');
+        expect(svc.containsKey('active'), isTrue); // normalized flag present
+
+        final avail = (p['availability'] as Map).cast<String, dynamic>();
+        expect(avail['providerId'], 'provider1');
+        expect(avail.containsKey('bufferMinutes'), isTrue);
+        expect(avail['weeklySchedule'], isA<Map<dynamic, dynamic>>());
+      },
+    );
+
+    test(
+      'the backfill stripped services/availability from the providers doc',
+      () async {
+        final rows = await pool.execute(
+          Sql.named('SELECT data FROM providers WHERE id = @id'),
+          parameters: {'id': 'provider1'},
+        );
+        final data = rows.first.toColumnMap()['data'];
+        final doc = data is String
+            ? jsonDecode(data) as Map<String, dynamic>
+            : Map<String, dynamic>.from(data as Map);
+        expect(doc.containsKey('services'), isFalse);
+        expect(doc.containsKey('availability'), isFalse);
+      },
+    );
+
+    test(
+      'query assembles the catalogue for every provider (no N+1 gaps)',
+      () async {
+        final all = await PostgresProvidersRepository(pool).query();
+        expect(all, isNotEmpty);
+        expect(
+          all.every(
+            (p) => p.containsKey('services') && p.containsKey('availability'),
+          ),
+          isTrue,
+        );
+      },
+    );
   });
 
   group('PostgresAuthRepository', () {
