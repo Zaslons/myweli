@@ -321,12 +321,25 @@ Future<void> insertProviderCatalogue(
   }
 
   final availability = (doc['availability'] as Map?)?.cast<String, dynamic>();
-  if (availability == null) return;
+  if (availability != null) {
+    await insertProviderAvailability(session, providerId, availability);
+  }
+}
 
+/// Inserts a provider's [availability] (buffer + working hours + breaks +
+/// blocked dates) into the normalized tables, within [session]. Assumes any
+/// prior rows for [providerId] are already cleared (the caller replaces
+/// wholesale or starts empty). Shared by the backfill and `replaceAvailability`.
+Future<void> insertProviderAvailability(
+  Session session,
+  String providerId,
+  Map<String, dynamic> availability,
+) async {
   await session.execute(
     Sql.named(
       'INSERT INTO provider_availability (provider_id, buffer_minutes) '
-      'VALUES (@pid, @buffer) ON CONFLICT (provider_id) DO NOTHING',
+      'VALUES (@pid, @buffer) ON CONFLICT (provider_id) DO UPDATE SET '
+      'buffer_minutes = EXCLUDED.buffer_minutes',
     ),
     parameters: {
       'pid': providerId,

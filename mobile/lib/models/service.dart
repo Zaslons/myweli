@@ -42,6 +42,7 @@ class Service extends Equatable {
   final DurationVariants durationVariants; // optional per-length durations
   final String providerId;
   final List<String> artistIds; // Artists who can perform this service
+  final bool active; // false = hidden from booking (server enforces)
 
   const Service({
     required this.id,
@@ -53,6 +54,7 @@ class Service extends Equatable {
     this.durationVariants = const DurationVariants(),
     required this.providerId,
     this.artistIds = const [], // Empty list means all artists can perform it
+    this.active = true,
   });
 
   @override
@@ -66,6 +68,7 @@ class Service extends Equatable {
         durationVariants,
         providerId,
         artistIds,
+        active,
       ];
 
   Service copyWith({
@@ -78,6 +81,7 @@ class Service extends Equatable {
     DurationVariants? durationVariants,
     String? providerId,
     List<String>? artistIds,
+    bool? active,
   }) {
     return Service(
       id: id ?? this.id,
@@ -89,6 +93,7 @@ class Service extends Equatable {
       durationVariants: durationVariants ?? this.durationVariants,
       providerId: providerId ?? this.providerId,
       artistIds: artistIds ?? this.artistIds,
+      active: active ?? this.active,
     );
   }
 
@@ -103,6 +108,7 @@ class Service extends Equatable {
       'durationVariants': durationVariants.toJson(),
       'providerId': providerId,
       'artistIds': artistIds,
+      'active': active,
     };
   }
 
@@ -121,6 +127,7 @@ class Service extends Equatable {
       artistIds: json['artistIds'] != null
           ? List<String>.from(json['artistIds'] as List)
           : [],
+      active: json['active'] as bool? ?? true,
     );
   }
 }

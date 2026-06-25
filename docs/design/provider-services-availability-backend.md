@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved — build in 2 PRs (foundation → endpoints) |
+| **Status** | Built — PR 1 (foundation) #62 + PR 2 (management endpoints). App swap is the next slice. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | Pro services + availability management · V1 |
@@ -79,7 +79,7 @@ provider_blocked_dates ( provider_id text NOT NULL REFERENCES providers(id) ON D
 ## 5. Architecture & patterns
 
 - **Repository is the assembly point (PR 1).** `ProvidersRepository.byId`/`query` return the **full provider DTO** = core (`data`) **+ services** **+ availability** assembled from the tables. So the slot engine, booking service (server-authoritative pricing reads `provider['services']`), and `GET /providers*` are **unchanged at their boundary**. List assembly **batches** (`WHERE provider_id = ANY(@ids)`, group in memory) → no N+1 (≈6 queries for a page regardless of size).
-- **Write methods (PR 2):** `servicesFor / addService / updateService / deleteService` and `getAvailability / replaceAvailability` — in-memory + Postgres behind the one interface. `replaceAvailability` is a **transaction**: delete the provider's working-hours/breaks/blocked-dates/buffer rows and reinsert (clean full replace).
+- **Write methods (PR 2):** `addService / updateService / deleteService / replaceAvailability` — in-memory + Postgres behind the one interface. `replaceAvailability` is a **transaction**: delete the provider's working-hours/breaks/blocked-dates/buffer rows and reinsert (clean full replace). The **GET** endpoints (services / availability) need no new read method — they reuse the assembling `byId` and return its `services` / `availability` (avoids duplicating the assembly).
 - **Routes** (PR 2, thin): principal → require `role==provider` → validate → delegate → shape; one file per path under `routes/providers/[id]/…`.
 - **`ProviderCatalogService`** (PR 2; no dart_frog/SQL): resolves `account.providerId` via `ProviderAuthRepository.accountById`, enforces ownership (403), validates, mutates via repo, returns `(ok,error,data)` — mirrors `ProAppointmentService`.
 - Wired in `dependencies.dart`; provided via middleware.

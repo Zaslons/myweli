@@ -16,6 +16,7 @@ import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_auth_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
+import 'provider_catalog_service.dart';
 import 'providers_repository.dart';
 
 /// Composition root: process-wide singletons built from env
@@ -84,6 +85,11 @@ final AppointmentLifecycleService appointmentLifecycleService =
 final ProAppointmentService proAppointmentService = ProAppointmentService(
   providerAuthRepository,
   appointmentRepository,
+);
+
+final ProviderCatalogService providerCatalogService = ProviderCatalogService(
+  providersRepository,
+  providerAuthRepository,
 );
 
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies

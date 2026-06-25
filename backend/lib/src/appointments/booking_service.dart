@@ -53,7 +53,8 @@ class BookingService {
           break;
         }
       }
-      if (service == null) {
+      // A disabled service is not bookable (the server is the authority).
+      if (service == null || service['active'] == false) {
         return (ok: false, error: 'invalid_service', appointment: null);
       }
       total += (service['price'] as num).toDouble();

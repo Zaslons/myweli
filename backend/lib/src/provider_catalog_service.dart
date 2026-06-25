@@ -1,0 +1,233 @@
+import 'auth/provider_auth_repository.dart';
+import 'providers_repository.dart';
+
+/// Outcome of a catalogue operation. [data] is the affected resource (a service,
+/// a service list, or an availability map) on success.
+typedef CatalogResult = ({bool ok, String? error, Object? data});
+
+/// Pro-side management of a salon's **services** and **availability**
+/// (docs/design/provider-services-availability-backend.md). A provider edits
+/// only the Provider its account is linked to: the access token's `sub`
+/// resolves to a provider account whose `providerId` must match the path
+/// (→ `forbidden` otherwise). The server validates every input and is the
+/// authority on ids; the provider is the price authority for its own salon.
+class ProviderCatalogService {
+  ProviderCatalogService(this._providers, this._providerAuth);
+
+  final ProvidersRepository _providers;
+  final ProviderAuthRepository _providerAuth;
+
+  Future<CatalogResult> listServices(
+    String accountId,
+    String providerId,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final provider = await _providers.byId(providerId);
+    if (provider == null) return _notFound;
+    return (
+      ok: true,
+      error: null,
+      data: provider['services'] ?? const <Map<String, dynamic>>[],
+    );
+  }
+
+  Future<CatalogResult> createService(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final error = _validateService(body, partial: false);
+    if (error != null) return (ok: false, error: error, data: null);
+
+    final service = {
+      'id': _newId('service'),
+      'name': (body['name'] as String).trim(),
+      'description': (body['description'] as String?)?.trim() ?? '',
+      'price': (body['price'] as num).toDouble(),
+      'priceMax': (body['priceMax'] as num?)?.toDouble(),
+      'durationMinutes': (body['durationMinutes'] as num).toInt(),
+      'durationVariants': body['durationVariants'] ?? const <String, dynamic>{},
+      'providerId': providerId,
+      'artistIds': body['artistIds'] ?? const <String>[],
+      'active': body['active'] as bool? ?? true,
+    };
+    final created = await _providers.addService(providerId, service);
+    if (created == null) return _notFound;
+    return (ok: true, error: null, data: created);
+  }
+
+  Future<CatalogResult> updateService(
+    String accountId,
+    String providerId,
+    String serviceId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final error = _validateService(body, partial: true);
+    if (error != null) return (ok: false, error: error, data: null);
+
+    const editable = [
+      'name',
+      'description',
+      'price',
+      'priceMax',
+      'durationMinutes',
+      'durationVariants',
+      'artistIds',
+      'active',
+    ];
+    final changes = {
+      for (final k in editable)
+        if (body.containsKey(k)) k: body[k],
+    };
+    final updated = await _providers.updateService(
+      providerId,
+      serviceId,
+      changes,
+    );
+    if (updated == null) return _notFound;
+    return (ok: true, error: null, data: updated);
+  }
+
+  Future<CatalogResult> deleteService(
+    String accountId,
+    String providerId,
+    String serviceId,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final removed = await _providers.deleteService(providerId, serviceId);
+    return removed ? (ok: true, error: null, data: null) : _notFound;
+  }
+
+  Future<CatalogResult> getAvailability(
+    String accountId,
+    String providerId,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final provider = await _providers.byId(providerId);
+    if (provider == null) return _notFound;
+    return (ok: true, error: null, data: provider['availability']);
+  }
+
+  Future<CatalogResult> replaceAvailability(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final error = _validateAvailability(body);
+    if (error != null) return (ok: false, error: error, data: null);
+
+    final availability = {
+      'providerId': providerId,
+      'weeklySchedule': body['weeklySchedule'] ?? const <String, dynamic>{},
+      'breaks': body['breaks'] ?? const <String, dynamic>{},
+      'blockedDates': body['blockedDates'] ?? const <String>[],
+      'bufferMinutes': (body['bufferMinutes'] as num?)?.toInt() ?? 0,
+    };
+    final saved = await _providers.replaceAvailability(
+      providerId,
+      availability,
+    );
+    if (saved == null) return _notFound;
+    return (ok: true, error: null, data: saved);
+  }
+
+  /// Ownership: the account behind the token must be linked to [providerId].
+  Future<bool> _owns(String accountId, String providerId) async {
+    final account = await _providerAuth.accountById(accountId);
+    return account?.providerId == providerId;
+  }
+
+  /// Returns an error code (`invalid_input`) or null. On create everything
+  /// required is checked; on a partial update only the provided fields are.
+  String? _validateService(Map<String, dynamic> body, {required bool partial}) {
+    bool has(String k) => body.containsKey(k);
+
+    if (!partial || has('name')) {
+      final name = body['name'];
+      if (name is! String || name.trim().isEmpty) return 'invalid_input';
+    }
+    if (!partial || has('price')) {
+      final price = body['price'];
+      if (price is! num || price < 0) return 'invalid_input';
+    }
+    if (has('priceMax') && body['priceMax'] != null) {
+      final pm = body['priceMax'];
+      final price = (body['price'] as num?) ?? 0;
+      if (pm is! num || pm < price) return 'invalid_input';
+    }
+    if (!partial || has('durationMinutes')) {
+      final d = body['durationMinutes'];
+      if (d is! num || d <= 0) return 'invalid_input';
+    }
+    if (has('durationVariants') && body['durationVariants'] != null) {
+      final v = body['durationVariants'];
+      if (v is! Map) return 'invalid_input';
+      for (final val in v.values) {
+        if (val != null && (val is! num || val <= 0)) return 'invalid_input';
+      }
+    }
+    if (has('artistIds') &&
+        body['artistIds'] != null &&
+        body['artistIds'] is! List) {
+      return 'invalid_input';
+    }
+    if (has('active') && body['active'] is! bool) return 'invalid_input';
+    return null;
+  }
+
+  String? _validateAvailability(Map<String, dynamic> body) {
+    final buffer = body['bufferMinutes'];
+    if (buffer != null && (buffer is! num || buffer < 0)) {
+      return 'invalid_input';
+    }
+
+    for (final schedule in [body['weeklySchedule'], body['breaks']]) {
+      if (schedule == null) continue;
+      if (schedule is! Map) return 'invalid_input';
+      for (final entry in schedule.entries) {
+        final weekday = int.tryParse(entry.key.toString());
+        if (weekday == null || weekday < 0 || weekday > 6) {
+          return 'invalid_input';
+        }
+        final windows = entry.value;
+        if (windows is! List) return 'invalid_input';
+        for (final slot in windows) {
+          if (slot is! Map) return 'invalid_input';
+          final start = DateTime.tryParse('${slot['startTime']}');
+          final end = DateTime.tryParse('${slot['endTime']}');
+          if (start == null || end == null || !start.isBefore(end)) {
+            return 'invalid_input';
+          }
+        }
+      }
+    }
+
+    final blocked = body['blockedDates'];
+    if (blocked != null) {
+      if (blocked is! List) return 'invalid_input';
+      for (final d in blocked) {
+        if (d is! String || DateTime.tryParse(d) == null) {
+          return 'invalid_input';
+        }
+      }
+    }
+    return null;
+  }
+
+  static const CatalogResult _forbidden = (
+    ok: false,
+    error: 'forbidden',
+    data: null,
+  );
+  static const CatalogResult _notFound = (
+    ok: false,
+    error: 'not_found',
+    data: null,
+  );
+
+  String _newId(String prefix) =>
+      '${prefix}_${DateTime.now().microsecondsSinceEpoch}';
+}

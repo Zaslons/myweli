@@ -172,6 +172,7 @@ Seeded for the surfaces shipped/known. Extend per slice.
 | T9 | Dependencies | **various** — known CVEs | OSV scan in CI; Dependabot updates | Enforced |
 | T10 | Provider read (B1) | **I** — exposure of non-public data | Only public provider fields served; no secrets in the model | Enforced |
 | T11 | Booking / reschedule | **T** — overbooking / book a closed/past/taken slot | App-level slot-engine validation → `slot_unavailable` (409), **plus** a Postgres **partial unique index** on `(provider_id, appointment_date)` for non-cancelled statuses → atomic exact-start collision rejection under concurrency. Duration-**overlap** exclusion (btree_gist) pending. | Implemented (app + DB exact-start); overlap pending |
+| T12 | Catalogue mgmt (`/providers/{id}/services`, `/availability`) | **T/E** — edit another salon's catalogue / hours | `role=provider` **and** ownership: the account's linked `providerId` must equal `{id}` (cross-salon / unlinked → 403). Boundary validation (name/price/duration/time-windows → 400); server sets `id`/`providerId`; a disabled service (`active=false`) is rejected by booking. | Implemented (B-cat) |
 
 ---
 
