@@ -190,7 +190,7 @@ void main() {
     expect((await service.getProviderAppointments('p')).success, isFalse);
   });
 
-  test('an unbacked method (dashboard) delegates to the mock, no HTTP',
+  test('an unbacked method (earnings) delegates to the mock, no HTTP',
       () async {
     final client =
         MockClient((req) async => throw Exception('should not be called'));
@@ -200,9 +200,34 @@ void main() {
       providerSessionStore: InMemorySessionStore(),
     );
 
-    final res = await service.getDashboardStats('provider1');
+    final res = await service.getEarnings('provider1');
 
     expect(res.success, isTrue); // came from the embedded MockProService
+  });
+
+  test('getDashboardStats GETs /providers/{id}/dashboard + parses', () async {
+    final client = MockClient((req) async {
+      expect(req.url.path, '/providers/provider1/dashboard');
+      expect(
+        req.headers['Authorization'] ?? req.headers['authorization'],
+        'Bearer tok',
+      );
+      return http.Response(
+        jsonEncode({
+          'todayAppointments': 3,
+          'pendingRequests': 1,
+          'todayRevenue': 15000,
+          'weekRevenue': 20000,
+          'monthRevenue': 50000,
+          'totalAppointments': 42,
+        }),
+        200,
+      );
+    });
+    final res = await _linked(client).getDashboardStats('provider1');
+    expect(res.success, isTrue);
+    expect(res.data!.todayAppointments, 3);
+    expect(res.data!.monthRevenue, 50000);
   });
 
   // ---- catalogue (services + availability) ----------------------------------

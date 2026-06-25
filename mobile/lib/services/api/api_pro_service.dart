@@ -146,8 +146,22 @@ class ApiProService implements ProServiceInterface {
   // ---- Not yet backed by an endpoint → delegate to the mock ----------------
 
   @override
-  Future<ApiResponse<DashboardStats>> getDashboardStats(String providerId) =>
-      _fallback.getDashboardStats(providerId);
+  Future<ApiResponse<DashboardStats>> getDashboardStats(
+    String providerId,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/providers/$providerId/dashboard'),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(DashboardStats.fromJson(_decode(res.body)));
+  }
 
   @override
   Future<ApiResponse<bool>> rescheduleAppointment(

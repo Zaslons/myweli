@@ -21,6 +21,15 @@ class DashboardStats {
     required this.monthRevenue,
     required this.totalAppointments,
   });
+
+  factory DashboardStats.fromJson(Map<String, dynamic> json) => DashboardStats(
+        todayAppointments: (json['todayAppointments'] as num).toInt(),
+        pendingRequests: (json['pendingRequests'] as num).toInt(),
+        todayRevenue: (json['todayRevenue'] as num).toDouble(),
+        weekRevenue: (json['weekRevenue'] as num).toDouble(),
+        monthRevenue: (json['monthRevenue'] as num).toDouble(),
+        totalAppointments: (json['totalAppointments'] as num).toInt(),
+      );
 }
 
 // Earnings data model
