@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'auth_repository.dart' show OtpRequestResult;
+import 'auth_repository.dart' show OtpRequestResult, RefreshResult, TokenPair;
 import 'tokens.dart';
 
 /// Public-facing provider-account fields. Mirrors the app's `ProviderUser` DTO
@@ -58,13 +58,13 @@ typedef ProviderRegisterResult = ({
   int expiresInSeconds,
 });
 
-/// Verify outcome: the provider account + a signed access token (role
-/// `provider`). No refresh flow yet — added with the provider write slice.
+/// Verify outcome: the provider account + a freshly issued token pair (access
+/// JWT role `provider` + a rotating opaque refresh token).
 typedef ProviderVerifyResult = ({
   bool ok,
   String? error,
   ProviderAccount? provider,
-  String? accessToken,
+  TokenPair? tokens,
 });
 
 /// Provider auth store + security logic (docs/BACKEND.md §3): hashed OTP with an
@@ -80,6 +80,11 @@ abstract interface class ProviderAuthRepository {
     String? providerId,
   });
   Future<ProviderVerifyResult> verifyOtp(String phoneNumber, String code);
+
+  /// Exchange a refresh token for a fresh pair. Rotates the presented token;
+  /// replaying an already-rotated token is treated as theft and revokes the
+  /// whole family (mirrors the consumer flow).
+  Future<RefreshResult> refresh(String refreshToken);
 
   /// The provider account for an id (the access-token `sub`), or null — used to
   /// authorize pro actions (resolve the account → the Provider it manages).
@@ -97,6 +102,13 @@ class _Otp {
   final DateTime expiresAt;
   int attemptsLeft;
   int resendsLeft;
+}
+
+class _Refresh {
+  _Refresh({required this.accountId, required this.familyId});
+  final String accountId;
+  final String familyId;
+  bool rotated = false;
 }
 
 class InMemoryProviderAuthRepository implements ProviderAuthRepository {
@@ -119,6 +131,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   final int _maxResends;
   final Random _random = Random.secure();
 
+  final Map<String, _Refresh> _refreshByHash = {};
   final Map<String, ProviderAccount> _byPhone = {};
   final Map<String, ProviderAccount> _byId = {};
   final Map<String, _Otp> _otps = {};
@@ -190,24 +203,14 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   ) async {
     final otp = _otps[phoneNumber];
     if (otp == null) {
-      return (ok: false, error: 'otp_none', provider: null, accessToken: null);
+      return (ok: false, error: 'otp_none', provider: null, tokens: null);
     }
     if (DateTime.now().toUtc().isAfter(otp.expiresAt)) {
       _otps.remove(phoneNumber);
-      return (
-        ok: false,
-        error: 'otp_expired',
-        provider: null,
-        accessToken: null,
-      );
+      return (ok: false, error: 'otp_expired', provider: null, tokens: null);
     }
     if (otp.attemptsLeft <= 0) {
-      return (
-        ok: false,
-        error: 'otp_locked',
-        provider: null,
-        accessToken: null,
-      );
+      return (ok: false, error: 'otp_locked', provider: null, tokens: null);
     }
     if (otp.codeHash != _tokens.hashToken(code)) {
       otp.attemptsLeft -= 1;
@@ -215,7 +218,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
         ok: false,
         error: otp.attemptsLeft <= 0 ? 'otp_locked' : 'otp_invalid',
         provider: null,
-        accessToken: null,
+        tokens: null,
       );
     }
     final account = _byPhone[phoneNumber];
@@ -225,21 +228,57 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
         ok: false,
         error: 'provider_not_found',
         provider: null,
-        accessToken: null,
+        tokens: null,
       );
     }
     _otps.remove(phoneNumber);
-    final access = _tokens.issueAccessToken(
-      subject: account.id,
-      role: 'provider',
-    );
     return (
       ok: true,
       error: null,
       provider: account,
-      accessToken: access.token,
+      tokens: _issueInFamily(account.id, _newId('fam')),
     );
   }
+
+  @override
+  Future<RefreshResult> refresh(String refreshToken) async {
+    final rec = _refreshByHash[_tokens.hashToken(refreshToken)];
+    if (rec == null) {
+      return (ok: false, error: 'refresh_invalid', tokens: null);
+    }
+    if (rec.rotated) {
+      _revokeFamily(rec.familyId);
+      return (ok: false, error: 'refresh_reused', tokens: null);
+    }
+    rec.rotated = true;
+    return (
+      ok: true,
+      error: null,
+      tokens: _issueInFamily(rec.accountId, rec.familyId),
+    );
+  }
+
+  /// Issues an access JWT (role `provider`) + a rotating opaque refresh token,
+  /// storing only the refresh hash, tied to [familyId].
+  TokenPair _issueInFamily(String accountId, String familyId) {
+    final access = _tokens.issueAccessToken(
+      subject: accountId,
+      role: 'provider',
+    );
+    final refresh = _tokens.generateRefreshToken();
+    _refreshByHash[_tokens.hashToken(refresh)] = _Refresh(
+      accountId: accountId,
+      familyId: familyId,
+    );
+    return (
+      accessToken: access.token,
+      refreshToken: refresh,
+      expiresAt: access.expiresAt,
+    );
+  }
+
+  void _revokeFamily(String familyId) =>
+      _refreshByHash.removeWhere((_, r) => r.familyId == familyId);
 
   ({String? devCode, int expiresInSeconds})? _issueOtp(String phoneNumber) {
     final existing = _otps[phoneNumber];

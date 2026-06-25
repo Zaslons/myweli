@@ -40,7 +40,7 @@ void main() {
     // Isolate state between tests; the seeded providers stay.
     await pool.execute(
       'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
-      'provider_users, provider_otp_codes CASCADE',
+      'provider_users, provider_otp_codes, provider_refresh_tokens CASCADE',
     );
   });
 
@@ -145,10 +145,33 @@ void main() {
         final ok = await r.verifyOtp(provPhone, reg.devCode!);
         expect(ok.ok, isTrue);
         expect(
-          tokens.verifyAccessToken(ok.accessToken!)!.payload,
+          tokens.verifyAccessToken(ok.tokens!.accessToken)!.payload,
           containsPair('role', 'provider'),
         );
         expect((await r.accountById(ok.provider!.id))!.providerId, 'provider1');
+      },
+    );
+
+    test(
+      'refresh rotates; replaying a rotated token revokes the family',
+      () async {
+        final r = repo();
+        final reg = await r.register(
+          phoneNumber: provPhone,
+          businessName: 'Élégance',
+          businessType: 'salon',
+        );
+        final first = (await r.verifyOtp(provPhone, reg.devCode!)).tokens!;
+
+        final rotated = await r.refresh(first.refreshToken);
+        expect(rotated.ok, isTrue);
+
+        final reuse = await r.refresh(first.refreshToken);
+        expect(reuse.error, 'refresh_reused');
+        expect(
+          (await r.refresh(rotated.tokens!.refreshToken)).error,
+          'refresh_invalid',
+        );
       },
     );
 

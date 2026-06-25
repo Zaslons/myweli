@@ -119,6 +119,24 @@ CREATE TABLE IF NOT EXISTS provider_otp_codes (
 )''',
     ],
   ),
+  (
+    id: '0004_provider_refresh_tokens',
+    statements: [
+      // Provider refresh-token families (hashed, rotating, reuse → family
+      // revoke). `account_id` is the provider_users row (the JWT `sub`) —
+      // separate from the consumer `refresh_tokens` table, which FKs to users.
+      '''
+CREATE TABLE IF NOT EXISTS provider_refresh_tokens (
+  token_hash text PRIMARY KEY,
+  account_id text NOT NULL REFERENCES provider_users(id) ON DELETE CASCADE,
+  family_id  text NOT NULL,
+  rotated    boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_refresh_tokens_family_idx '
+          'ON provider_refresh_tokens(family_id)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

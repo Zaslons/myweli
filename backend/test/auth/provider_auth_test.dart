@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 
 import '../../routes/auth/provider/otp/request.dart' as p_request;
 import '../../routes/auth/provider/otp/verify.dart' as p_verify;
+import '../../routes/auth/provider/refresh.dart' as p_refresh;
 import '../../routes/auth/provider/register.dart' as p_register;
 
 class _MockRequestContext extends Mock implements RequestContext {}
@@ -67,10 +68,45 @@ void main() {
         final ok = await repo.verifyOtp(_phone, reg.devCode!);
         expect(ok.ok, isTrue);
         expect(ok.provider!.phoneNumber, _phone);
-        final jwt = tokens.verifyAccessToken(ok.accessToken!);
+        final jwt = tokens.verifyAccessToken(ok.tokens!.accessToken);
         expect(jwt!.payload, containsPair('role', 'provider'));
+        expect(ok.tokens!.refreshToken, isNotEmpty);
       },
     );
+
+    test(
+      'refresh rotates; replaying a rotated token revokes the family',
+      () async {
+        final repo = InMemoryProviderAuthRepository(
+          tokens: ts(),
+          isProd: false,
+        );
+        final reg = await repo.register(
+          phoneNumber: _phone,
+          businessName: 'Élégance',
+          businessType: 'salon',
+        );
+        final first = (await repo.verifyOtp(_phone, reg.devCode!)).tokens!;
+
+        final rotated = await repo.refresh(first.refreshToken);
+        expect(rotated.ok, isTrue);
+        expect(rotated.tokens!.refreshToken, isNot(first.refreshToken));
+
+        // Replaying the now-rotated first token is theft → family revoked.
+        final reuse = await repo.refresh(first.refreshToken);
+        expect(reuse.error, 'refresh_reused');
+        // The token handed out by the rotation is revoked along with the family.
+        expect(
+          (await repo.refresh(rotated.tokens!.refreshToken)).error,
+          'refresh_invalid',
+        );
+      },
+    );
+
+    test('an unknown refresh token → refresh_invalid', () async {
+      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      expect((await repo.refresh('nope')).error, 'refresh_invalid');
+    });
 
     test('wrong code decrements then locks out', () async {
       final repo = InMemoryProviderAuthRepository(
@@ -181,7 +217,10 @@ void main() {
         ),
       );
       expect(ok.statusCode, HttpStatus.ok);
-      expect((await jsonOf(ok))['accessToken'], isNotEmpty);
+      final okBody = await jsonOf(ok);
+      expect(okBody['accessToken'], isNotEmpty);
+      expect(okBody['refreshToken'], isNotEmpty);
+      expect(okBody['expiresAt'], isNotNull);
 
       // Unregistered phone: a code can be requested, but verify → 404.
       const other = '+2250700000000';
@@ -196,6 +235,49 @@ void main() {
       );
       expect(missing.statusCode, HttpStatus.notFound);
     });
+
+    test(
+      'refresh: rotates → 200; replay → 401; bad body → 400; GET → 405',
+      () async {
+        await repo.register(
+          phoneNumber: _phone,
+          businessName: 'Élégance',
+          businessType: 'salon',
+        );
+        final reg = await repo.requestOtp(_phone);
+        final first = (await repo.verifyOtp(_phone, reg.devCode!)).tokens!;
+
+        final rotated = await p_refresh.onRequest(
+          ctx(
+            post('/auth/provider/refresh', {
+              'refreshToken': first.refreshToken,
+            }),
+          ),
+        );
+        expect(rotated.statusCode, HttpStatus.ok);
+        expect((await jsonOf(rotated))['refreshToken'], isNotEmpty);
+
+        final reuse = await p_refresh.onRequest(
+          ctx(
+            post('/auth/provider/refresh', {
+              'refreshToken': first.refreshToken,
+            }),
+          ),
+        );
+        expect(reuse.statusCode, HttpStatus.unauthorized);
+        expect((await jsonOf(reuse))['error'], 'refresh_reused');
+
+        final bad = await p_refresh.onRequest(
+          ctx(post('/auth/provider/refresh', {'refreshToken': ''})),
+        );
+        expect(bad.statusCode, HttpStatus.badRequest);
+
+        final wrongVerb = await p_refresh.onRequest(
+          ctx(Request.get(Uri.parse('http://localhost/auth/provider/refresh'))),
+        );
+        expect(wrongVerb.statusCode, HttpStatus.methodNotAllowed);
+      },
+    );
 
     test('non-POST request → 405', () async {
       final res = await p_request.onRequest(

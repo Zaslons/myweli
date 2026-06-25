@@ -195,7 +195,7 @@ paths:
   /auth/provider/otp/verify:
     post:
       tags: [auth]
-      summary: Verify a provider code; returns the account + access token (B-prov)
+      summary: Verify a provider code; returns the account + a token pair (B-prov)
       requestBody:
         required: true
         content:
@@ -208,16 +208,45 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [provider, accessToken]
+                required: [provider, accessToken, refreshToken, expiresAt]
                 properties:
                   provider: { $ref: '#/components/schemas/ProviderUser' }
                   accessToken:
                     type: string
+                    description: Signed JWT, role `provider`.
+                  refreshToken:
+                    type: string
                     description: >
-                      Signed JWT, role `provider`. No refresh flow yet (added
-                      with the provider write slice).
+                      Rotating opaque refresh token (hashed at rest); exchange
+                      at POST /auth/provider/refresh.
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    description: Access-token expiry.
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /auth/provider/refresh:
+    post:
+      tags: [auth]
+      summary: Exchange a provider refresh token for a new token pair (B-prov)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Rotated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
   /providers:
     get:
