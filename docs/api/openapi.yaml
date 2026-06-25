@@ -295,7 +295,12 @@ paths:
   /appointments:
     get:
       tags: [appointments]
-      summary: List the signed-in user's appointments (B-appt)
+      summary: List the caller's appointments (B-appt)
+      description: >
+        Role-scoped: a **user** token returns that user's own bookings; a
+        **provider** token returns the bookings of the salon it manages
+        (the account's linked `providerId`). A provider account not yet linked
+        to a Provider gets 403.
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query
@@ -305,7 +310,7 @@ paths:
             enum: [pending, confirmed, cancelled, completed, noShow]
       responses:
         '200':
-          description: The caller's appointments
+          description: The caller's appointments (own, or the salon's for a provider)
           content:
             application/json:
               schema:
@@ -319,6 +324,7 @@ paths:
                   pageSize: { type: integer }
                   total: { type: integer }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [appointments]
       summary: Book an appointment — created pending, server-priced (B-appt)

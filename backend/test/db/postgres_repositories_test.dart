@@ -86,6 +86,19 @@ void main() {
 
       final updated = await repo.update('a1', {'status': 'confirmed'});
       expect(updated!['status'], 'confirmed');
+
+      // Provider list honours the status filter.
+      expect(
+        (await repo.listForProvider(
+          'provider1',
+          status: 'confirmed',
+        )).single['id'],
+        'a1',
+      );
+      expect(
+        await repo.listForProvider('provider1', status: 'pending'),
+        isEmpty,
+      );
     });
 
     test(
