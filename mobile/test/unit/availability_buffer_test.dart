@@ -42,65 +42,54 @@ void main() {
       );
     }
 
-    test('a buffer removes the slots adjacent to an existing booking',
-        () async {
+    test('a 60-min buffer removes a slot adjacent to a booking', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
-      SharedPreferences.setMockInitialValues({});
-      setBuffer(0);
-      final service = MockAppointmentService();
 
-      // Find a future day that has a few slots for this artist/service.
-      DateTime? day;
-      for (var i = 1; i <= 14; i++) {
+      // Search the next 3 weeks for a day that demonstrates the property,
+      // instead of assuming any single `now`-relative day will — the slot
+      // layout (and whether a back-to-back slot exists after the booking)
+      // varies by date, which used to make this flaky. Each probe starts from a
+      // clean prefs store so bookings don't accumulate across iterations.
+      for (var i = 1; i <= 21; i++) {
         final d = DateTime.now().add(Duration(days: i));
-        final res = await service.getAvailableTimeSlots(
+        final day = DateTime(d.year, d.month, d.day);
+
+        SharedPreferences.setMockInitialValues({});
+        final service = MockAppointmentService();
+
+        Future<List<DateTime>> slots() async =>
+            (await service.getAvailableTimeSlots(
+              providerId: providerId,
+              date: day,
+              serviceIds: serviceIds,
+              artistId: artistId,
+            ))
+                .data!;
+
+        setBuffer(0);
+        final base = await slots();
+        if (base.length < 3) continue;
+
+        // Book the earliest slot, then compare buffer 0 vs 60 on the same day.
+        await service.bookAppointment(
           providerId: providerId,
-          date: d,
           serviceIds: serviceIds,
+          appointmentDateTime: base.first,
           artistId: artistId,
         );
-        if ((res.data?.length ?? 0) >= 3) {
-          day = DateTime(d.year, d.month, d.day);
-          break;
+        setBuffer(0);
+        final withoutBuffer = await slots();
+        setBuffer(60);
+        final withBuffer = await slots();
+        setBuffer(0); // restore the shared mock state
+
+        // The buffer only ever removes slots, never adds them.
+        expect(withBuffer.every(withoutBuffer.contains), isTrue);
+        if (withBuffer.length < withoutBuffer.length) {
+          return; // a 60-min buffer dropped an adjacent slot — property shown
         }
       }
-      expect(day, isNotNull, reason: 'expected an open day with slots');
-
-      // Book the earliest slot.
-      final firstSlots = (await service.getAvailableTimeSlots(
-        providerId: providerId,
-        date: day!,
-        serviceIds: serviceIds,
-        artistId: artistId,
-      ))
-          .data!;
-      await service.bookAppointment(
-        providerId: providerId,
-        serviceIds: serviceIds,
-        appointmentDateTime: firstSlots.first,
-        artistId: artistId,
-      );
-
-      Future<List<DateTime>> slots() async =>
-          (await service.getAvailableTimeSlots(
-            providerId: providerId,
-            date: day!,
-            serviceIds: serviceIds,
-            artistId: artistId,
-          ))
-              .data!;
-
-      setBuffer(0);
-      final withoutBuffer = await slots();
-      setBuffer(60);
-      final withBuffer = await slots();
-
-      // The buffer only ever removes slots, never adds them...
-      expect(withBuffer.every(withoutBuffer.contains), isTrue);
-      // ...and it removes at least one slot next to the booking.
-      expect(withBuffer.length, lessThan(withoutBuffer.length));
-
-      setBuffer(0); // restore
+      fail('no day in the next 3 weeks showed the buffer removing a slot');
     });
   });
 }
