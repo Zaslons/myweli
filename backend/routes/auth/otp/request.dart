@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -24,6 +25,12 @@ Future<Response> onRequest(RequestContext context) async {
   final result = await context.read<AuthRepository>().requestOtp(phone);
   if (!result.ok) {
     return jsonError(HttpStatus.tooManyRequests, result.error!);
+  }
+
+  // Deliver the code via SMS (best-effort; never logs the code). In dev the
+  // LogProvider no-ops and `devCode` is echoed below.
+  if (result.code != null) {
+    await context.read<MessagingService>().sendOtp(phone, result.code!);
   }
 
   return Response.json(

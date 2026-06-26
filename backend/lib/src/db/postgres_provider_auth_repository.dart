@@ -55,6 +55,7 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
       return (
         ok: false,
         error: 'otp_resend_limit',
+        code: null,
         devCode: null,
         expiresInSeconds: 0,
       );
@@ -82,6 +83,7 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     return (
       ok: true,
       error: null,
+      code: code,
       devCode: _isProd ? null : code,
       expiresInSeconds: _otpValidity.inSeconds,
     );

@@ -19,6 +19,7 @@ import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/favorites_service.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
+import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
@@ -50,6 +51,7 @@ Handler middleware(Handler handler) {
       .use(provider<FavoritesService>((_) => favoritesService))
       .use(provider<KycService>((_) => kycService))
       .use(provider<DepositService>((_) => depositService))
+      .use(provider<MessagingService>((_) => messagingService))
       .use(provider<AdminAuthRepository>((_) => adminAuthRepository))
       .use(provider<AuditLogRepository>((_) => auditLogRepository))
       .use(provider<AdminKycService>((_) => adminKycService))

@@ -26,6 +26,7 @@ tags:
   - name: auth
   - name: providers
   - name: admin
+  - name: messaging
 
 paths:
   /health:
@@ -43,6 +44,9 @@ paths:
     post:
       tags: [auth]
       summary: Request a one-time code for a phone number (B2)
+      description: >
+        Dispatches the code over SMS (Twilio) — best-effort. Dev builds also
+        return it inline (`devCode`); production never does.
       requestBody:
         required: true
         content:
@@ -61,6 +65,30 @@ paths:
                     type: string
                     description: Present only in dev; never in production.
         '429': { $ref: '#/components/responses/RateLimited' }
+
+  /webhooks/messaging/status:
+    post:
+      tags: [messaging]
+      summary: BSP delivery-status callback (Twilio) — advances the outbox row
+      description: >
+        Form-encoded `MessageSid` + `MessageStatus` from the BSP. Guarded by a
+        shared `?secret=` when `MESSAGING_WEBHOOK_SECRET` is set (deny-by-default).
+        Always 200 for known/unknown ids (idempotent).
+      parameters:
+        - { in: query, name: secret, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                MessageSid: { type: string }
+                MessageStatus: { type: string }
+      responses:
+        '200': { description: Acknowledged }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /auth/otp/verify:
     post:
