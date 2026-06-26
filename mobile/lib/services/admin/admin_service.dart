@@ -86,6 +86,25 @@ class AdminService {
   ) =>
       _post('/admin/kyc/$accountId/reject', body: {'reason': reason});
 
+  // --- review moderation -----------------------------------------------------
+  Future<ApiResponse<Map<String, dynamic>>> reportedReviews({int page = 1}) =>
+      _get('/admin/reviews/reports?page=$page&pageSize=50');
+
+  Future<ApiResponse<Map<String, dynamic>>> hiddenReviews({int page = 1}) =>
+      _get('/admin/reviews/hidden?page=$page&pageSize=50');
+
+  Future<ApiResponse<Map<String, dynamic>>> hideReview(
+    String reviewId,
+    String reason,
+  ) =>
+      _post('/admin/reviews/$reviewId/hide', body: {'reason': reason});
+
+  Future<ApiResponse<Map<String, dynamic>>> dismissReports(String reviewId) =>
+      _post('/admin/reviews/$reviewId/dismiss');
+
+  Future<ApiResponse<Map<String, dynamic>>> restoreReview(String reviewId) =>
+      _post('/admin/reviews/$reviewId/restore');
+
   // ---- helpers --------------------------------------------------------------
 
   Future<ApiResponse<Map<String, dynamic>>> _get(String path) async {
