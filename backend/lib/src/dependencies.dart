@@ -18,6 +18,7 @@ import 'db/postgres_favorites_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reviews_repository.dart';
+import 'deposit_service.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'kyc_service.dart';
@@ -180,6 +181,12 @@ final UploadSigningService uploadSigningService = UploadSigningService(
 );
 
 final KycService kycService = KycService(providerAuthRepository);
+
+final DepositService depositService = DepositService(
+  appointmentRepository,
+  providerAuthRepository,
+  storageService,
+);
 
 final ProviderDashboardService providerDashboardService =
     ProviderDashboardService(providerAuthRepository, appointmentRepository);

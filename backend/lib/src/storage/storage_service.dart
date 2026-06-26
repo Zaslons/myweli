@@ -30,6 +30,10 @@ abstract interface class StorageService {
 
   /// The public (CDN) delivery URL for a public-bucket [key].
   String publicUrl(String key);
+
+  /// A short-lived **signed GET** URL for a **private**-bucket [key] (KYC /
+  /// deposit screenshots). The caller authorizes who may request it.
+  String presignGet({required String key, Duration ttl});
 }
 
 /// No-network stand-in for dev/CI/tests (selected when R2 isn't configured).
@@ -58,6 +62,12 @@ class FakeStorageService implements StorageService {
       },
     );
   }
+
+  @override
+  String presignGet({
+    required String key,
+    Duration ttl = const Duration(minutes: 5),
+  }) => '$origin/private/$key?sig=fake';
 
   @override
   String publicUrl(String key) => '$origin/$key';
@@ -146,16 +156,82 @@ class R2StorageService implements StorageService {
   @override
   String publicUrl(String key) => '${_trim(publicBaseUrl)}/$key';
 
-  /// SigV4 key-derivation chain, then HMAC the base64 policy → hex signature.
-  String _sign(String dateStamp, String policyB64) {
+  @override
+  String presignGet({
+    required String key,
+    Duration ttl = const Duration(minutes: 5),
+  }) {
+    final now = _clock().toUtc();
+    final amzDate = _amzDate(now);
+    final dateStamp = amzDate.substring(0, 8);
+    final credential = '$_accessKeyId/$dateStamp/$region/s3/aws4_request';
+    final host = Uri.parse(endpoint).host;
+    // Path-style, on the private bucket; each segment URI-encoded, '/' kept.
+    final canonicalUri =
+        '/${[_kycBucket, ...key.split('/')].map(_uriEncode).join('/')}';
+
+    final query = <String, String>{
+      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+      'X-Amz-Credential': credential,
+      'X-Amz-Date': amzDate,
+      'X-Amz-Expires': '${ttl.inSeconds}',
+      'X-Amz-SignedHeaders': 'host',
+    };
+    final canonicalQuery = (query.keys.toList()..sort())
+        .map((k) => '${_uriEncode(k)}=${_uriEncode(query[k]!)}')
+        .join('&');
+
+    final canonicalRequest = [
+      'GET',
+      canonicalUri,
+      canonicalQuery,
+      'host:$host\n',
+      'host',
+      'UNSIGNED-PAYLOAD',
+    ].join('\n');
+    final stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      '$dateStamp/$region/s3/aws4_request',
+      sha256.convert(utf8.encode(canonicalRequest)).toString(),
+    ].join('\n');
+    final signature = _hmacHex(_signingKey(dateStamp), stringToSign);
+
+    return '${_trim(endpoint)}$canonicalUri?$canonicalQuery'
+        '&X-Amz-Signature=$signature';
+  }
+
+  /// SigV4 key-derivation chain → the signing key for [dateStamp].
+  List<int> _signingKey(String dateStamp) {
     List<int> hmac(List<int> key, String data) =>
         Hmac(sha256, key).convert(utf8.encode(data)).bytes;
-
     final kDate = hmac(utf8.encode('AWS4$_secretAccessKey'), dateStamp);
     final kRegion = hmac(kDate, region);
     final kService = hmac(kRegion, 's3');
-    final kSigning = hmac(kService, 'aws4_request');
-    return Hmac(sha256, kSigning).convert(utf8.encode(policyB64)).toString();
+    return hmac(kService, 'aws4_request');
+  }
+
+  String _hmacHex(List<int> key, String data) =>
+      Hmac(sha256, key).convert(utf8.encode(data)).toString();
+
+  /// HMAC the base64 policy with the signing key → hex signature (POST).
+  String _sign(String dateStamp, String policyB64) =>
+      _hmacHex(_signingKey(dateStamp), policyB64);
+
+  /// AWS SigV4 percent-encoding: unreserved chars pass; everything else %XX.
+  static String _uriEncode(String s) {
+    const unreserved =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~';
+    final out = StringBuffer();
+    for (final byte in utf8.encode(s)) {
+      final ch = String.fromCharCode(byte);
+      if (unreserved.contains(ch)) {
+        out.write(ch);
+      } else {
+        out.write('%${byte.toRadixString(16).toUpperCase().padLeft(2, '0')}');
+      }
+    }
+    return out.toString();
   }
 
   static String _trim(String url) =>

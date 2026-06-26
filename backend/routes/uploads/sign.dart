@@ -15,9 +15,6 @@ Future<Response> onRequest(RequestContext context) async {
   if (principal == null) {
     return jsonError(HttpStatus.unauthorized, 'unauthorized');
   }
-  if (principal.role != 'provider') {
-    return jsonError(HttpStatus.forbidden, 'forbidden');
-  }
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
 
   final Map<String, dynamic> body;
@@ -25,6 +22,13 @@ Future<Response> onRequest(RequestContext context) async {
     body = await context.request.json() as Map<String, dynamic>;
   } catch (_) {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
+  }
+
+  // Role gate per purpose: deposit screenshots are a consumer upload; gallery
+  // and KYC are provider uploads.
+  final requiredRole = body['purpose'] == 'deposit' ? 'user' : 'provider';
+  if (principal.role != requiredRole) {
+    return jsonError(HttpStatus.forbidden, 'forbidden');
   }
 
   final r = await context.read<UploadSigningService>().sign(

@@ -791,7 +791,10 @@ paths:
         (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a
         separate **private** bucket, prefix `kyc/{accountId}`, returns the `key`
         only (ID docs are never public) and additionally accepts `application/
-        pdf`.
+        pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), the
+        same private bucket, prefix `deposit/{userId}`, returns the `key` only
+        (payment proof is never public; images only). Role is gated **per
+        purpose**: `deposit` requires `user`; `gallery`/`kyc` require `provider`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -804,7 +807,7 @@ paths:
                 contentType:
                   type: string
                   enum: [image/jpeg, image/png, image/webp, application/pdf]
-                purpose: { type: string, enum: [gallery, kyc] }
+                purpose: { type: string, enum: [gallery, kyc, deposit] }
       responses:
         '200':
           description: A presigned upload ticket
@@ -926,6 +929,76 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+
+  /appointments/{id}/deposit:
+    post:
+      tags: [appointments]
+      summary: Attach a deposit-payment screenshot (B-deposit)
+      description: >
+        Consumer-only, and only the caller's **own** booking while it is still
+        `pending` (pay-later: book now, pay the salon directly via Mobile Money,
+        attach proof afterward — booking can also include the key inline). The
+        `screenshotKey` must be one the caller just uploaded via
+        `POST /uploads/sign?purpose=deposit` (validated under the caller's own
+        `deposit/{userId}/` prefix). Myweli holds no funds; the salon confirms
+        receipt by **accepting** the booking. The screenshot is private — view it
+        via `GET /appointments/{id}/deposit-screenshot`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [screenshotKey]
+              properties:
+                screenshotKey:
+                  type: string
+                  description: Key from `/uploads/sign?purpose=deposit`.
+      responses:
+        '200':
+          description: The updated appointment (with the screenshot attached)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Not in a state that accepts a deposit (not `pending`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /appointments/{id}/deposit-screenshot:
+    get:
+      tags: [appointments]
+      summary: A signed view URL for the deposit screenshot (B-deposit)
+      description: >
+        Returns a short-lived **signed GET** URL for the booking's deposit
+        screenshot. Restricted to the two parties to the transaction: the
+        booking's **consumer** (`userId`) or its **salon** (the provider
+        account's linked `providerId`) — anyone else gets 403. The bytes live in
+        private storage and are never served through the API. 404 if no
+        screenshot has been attached.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: A short-lived signed URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /appointments/{id}/review:
     parameters:

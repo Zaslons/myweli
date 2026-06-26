@@ -23,6 +23,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Consumer deposit / Mobile Money flow | [consumer-deposit.md](consumer-deposit.md) | B1 building · B2 next |
 | Booking duration-overlap exclusion (btree_gist) | [booking-overlap-exclusion.md](booking-overlap-exclusion.md) | Built |
 | Pro KYC (provider verification) | [pro-kyc.md](pro-kyc.md) | Built (provider side) |
 | Pro staff (artists) management | [pro-artists.md](pro-artists.md) | Built |

@@ -34,34 +34,49 @@ class UploadSigningService {
 
   final _rng = Random.secure();
 
+  /// Sign an upload. [accountId] is the token's `sub` (a provider account id for
+  /// gallery/kyc; the consumer's user id for deposit). The route gates which
+  /// role may use which purpose.
   Future<SignResult> sign(
     String accountId, {
     required Object? contentType,
     required Object? purpose,
   }) async {
-    final account = await _providerAuth.accountById(accountId);
-    if (account == null) return (ok: false, error: 'forbidden', data: null);
-
     final isKyc = purpose == 'kyc';
-    if (purpose != 'gallery' && !isKyc) {
+    final isDeposit = purpose == 'deposit';
+    final isGallery = purpose == 'gallery';
+    if (!isGallery && !isKyc && !isDeposit) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    // KYC accepts PDF; gallery + deposit (screenshots) are images only.
     final ext = (isKyc ? _kycTypes : _imageTypes)[contentType];
     if (contentType is! String || ext == null) {
       return (ok: false, error: 'invalid_input', data: null);
     }
 
-    // Key prefix: KYC is scoped to the account (onboarding, pre-link); gallery
-    // to the linked salon.
+    // Prefix + privacy per purpose. Deposit is a CONSUMER upload scoped to the
+    // user id (no provider account); kyc → the provider account; gallery → the
+    // linked salon (public).
     final String prefixId;
-    if (isKyc) {
+    final bool private;
+    if (isDeposit) {
       prefixId = accountId;
+      private = true;
+    } else if (isKyc) {
+      if (await _providerAuth.accountById(accountId) == null) {
+        return (ok: false, error: 'forbidden', data: null);
+      }
+      prefixId = accountId;
+      private = true;
     } else {
-      final providerId = account.providerId;
+      final providerId = (await _providerAuth.accountById(
+        accountId,
+      ))?.providerId;
       if (providerId == null) {
         return (ok: false, error: 'forbidden', data: null);
       }
       prefixId = providerId;
+      private = false;
     }
 
     final key = '$purpose/$prefixId/${_objectId()}.$ext';
@@ -70,7 +85,7 @@ class UploadSigningService {
       contentType: contentType,
       maxBytes: _maxBytes,
       ttl: _ttl,
-      private: isKyc,
+      private: private,
     );
 
     return (
@@ -81,8 +96,8 @@ class UploadSigningService {
         'uploadUrl': post.url,
         'fields': post.fields,
         'key': key,
-        // ID docs are never publicly served; only public (gallery) gets a URL.
-        if (!isKyc) 'publicUrl': _storage.publicUrl(key),
+        // Private objects (kyc/deposit) are never publicly served.
+        if (!private) 'publicUrl': _storage.publicUrl(key),
         'maxBytes': _maxBytes,
         'expiresInSeconds': _ttl.inSeconds,
       },
