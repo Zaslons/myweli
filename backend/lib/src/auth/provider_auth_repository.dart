@@ -100,6 +100,22 @@ abstract interface class ProviderAuthRepository {
     String accountId,
     List<Map<String, dynamic>> docs,
   );
+
+  /// Admin: accounts with the given verification [status] (e.g. `pending`),
+  /// newest-first, paginated. (Design: docs/design/admin-console.md.)
+  Future<({List<ProviderAccount> items, int total})> listByVerificationStatus(
+    String status, {
+    int page,
+    int pageSize,
+  });
+
+  /// Admin: set an account's verification [status] (`verified`/`rejected`) and
+  /// optional [rejectionReason]. Returns the updated account, or null if absent.
+  Future<ProviderAccount?> setVerification(
+    String accountId, {
+    required String status,
+    String? rejectionReason,
+  });
 }
 
 class _Otp {
@@ -161,6 +177,36 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       ..kycDocs = List<Map<String, dynamic>>.from(docs)
       ..verificationStatus = 'pending'
       ..rejectionReason = null;
+    return account;
+  }
+
+  @override
+  Future<({List<ProviderAccount> items, int total})> listByVerificationStatus(
+    String status, {
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final all =
+        _byId.values.where((a) => a.verificationStatus == status).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final start = (page - 1) * pageSize;
+    final items = start >= all.length
+        ? <ProviderAccount>[]
+        : all.sublist(start, (start + pageSize).clamp(0, all.length));
+    return (items: items, total: all.length);
+  }
+
+  @override
+  Future<ProviderAccount?> setVerification(
+    String accountId, {
+    required String status,
+    String? rejectionReason,
+  }) async {
+    final account = _byId[accountId];
+    if (account == null) return null;
+    account
+      ..verificationStatus = status
+      ..rejectionReason = rejectionReason;
     return account;
   }
 

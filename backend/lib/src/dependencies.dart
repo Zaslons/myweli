@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 
+import 'admin/admin_auth_repository.dart';
+import 'admin/admin_kyc_service.dart';
+import 'admin/audit_log_repository.dart';
 import 'appointments/appointment_lifecycle_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
@@ -12,7 +15,9 @@ import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
 import 'db/database.dart';
 import 'db/migrations.dart';
+import 'db/postgres_admin_auth_repository.dart';
 import 'db/postgres_appointment_repository.dart';
+import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
 import 'db/postgres_favorites_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
@@ -192,6 +197,20 @@ final DepositService depositService = DepositService(
   storageService,
 );
 
+final AdminAuthRepository adminAuthRepository = _pool == null
+    ? InMemoryAdminAuthRepository(tokens: tokenService)
+    : PostgresAdminAuthRepository(_pool!, tokens: tokenService);
+
+final AuditLogRepository auditLogRepository = _pool == null
+    ? InMemoryAuditLogRepository()
+    : PostgresAuditLogRepository(_pool!);
+
+final AdminKycService adminKycService = AdminKycService(
+  providerAuthRepository,
+  storageService,
+  auditLogRepository,
+);
+
 final ProviderDashboardService providerDashboardService =
     ProviderDashboardService(providerAuthRepository, appointmentRepository);
 
@@ -213,10 +232,21 @@ final ReviewsService reviewsService = ReviewsService(
 /// in-memory mode.
 Future<void> initializeDatabase() async {
   final pool = _pool;
-  if (pool == null) return;
-  await runMigrations(pool);
-  await seedProvidersIfEmpty(pool);
-  // Move services/availability out of the provider JSONB into the normalized
-  // catalogue tables (single source of truth). See migration 0005.
-  await backfillCatalogueIfNeeded(pool);
+  if (pool != null) {
+    await runMigrations(pool);
+    await seedProvidersIfEmpty(pool);
+    // Move services/availability out of the provider JSONB into the normalized
+    // catalogue tables (single source of truth). See migration 0005.
+    await backfillCatalogueIfNeeded(pool);
+  }
+  // Seed the super-admin from env (idempotent), after migrations so the table
+  // exists. Runs in both modes; no-op when ADMIN_EMAIL/ADMIN_PASSWORD are unset.
+  final adminEmail = _envOrNull('ADMIN_EMAIL');
+  final adminPassword = _envOrNull('ADMIN_PASSWORD');
+  if (adminEmail != null && adminPassword != null) {
+    await adminAuthRepository.ensureSeedAdmin(
+      email: adminEmail,
+      password: adminPassword,
+    );
+  }
 }
