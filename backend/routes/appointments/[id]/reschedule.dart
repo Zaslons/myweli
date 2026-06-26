@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/messaging/booking_notifier.dart';
+import 'package:myweli_backend/src/messaging/messaging_models.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /appointments/{id}/reschedule` — move a booking to a new time.
@@ -48,7 +51,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
   } else {
     result = await lifecycle.reschedule(id, principal.userId, newDateTime);
   }
-  if (result.ok) return Response.json(body: result.appointment);
+  if (result.ok) {
+    unawaited(
+      context.read<BookingNotifier>().notify(
+        result.appointment,
+        MessageTemplate.rescheduled,
+      ),
+    );
+    return Response.json(body: result.appointment);
+  }
   switch (result.error) {
     case 'not_found':
       return jsonError(HttpStatus.notFound, 'not_found');

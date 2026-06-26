@@ -31,15 +31,19 @@ import 'db/postgres_messaging_outbox_repository.dart';
 import 'db/postgres_messaging_prefs_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
+import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'deposit_service.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'kyc_service.dart';
+import 'messaging/booking_notifier.dart';
 import 'messaging/messaging_outbox_repository.dart';
 import 'messaging/messaging_prefs_repository.dart';
 import 'messaging/messaging_provider.dart';
 import 'messaging/messaging_service.dart';
+import 'messaging/reminder_log_repository.dart';
+import 'messaging/reminder_scheduler.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
@@ -323,6 +327,29 @@ final MessagingService messagingService = MessagingService(
 /// unset (dev) → the webhook is open. Real Twilio signature validation is a
 /// follow-up. Design: docs/design/messaging-notifications.md §5.
 final String? messagingWebhookSecret = _envOrNull('MESSAGING_WEBHOOK_SECRET');
+
+/// Turns booking transitions into notifications (recipient + params resolution).
+final BookingNotifier bookingNotifier = BookingNotifier(
+  messagingService,
+  authRepository,
+  providersRepository,
+);
+
+final ReminderLogRepository reminderLogRepository = _pool == null
+    ? InMemoryReminderLogRepository()
+    : PostgresReminderLogRepository(_pool!);
+
+/// The 24h/2h reminder scheduler (driven by the internal cron route).
+final ReminderScheduler reminderScheduler = ReminderScheduler(
+  appointmentRepository,
+  reminderLogRepository,
+  bookingNotifier,
+);
+
+/// Shared secret guarding the internal reminder-cron route (deny-by-default when
+/// set; unset → the route is unavailable). Design:
+/// docs/design/messaging-notifications.md §PR-B.
+final String? cronSecret = _envOrNull('CRON_SECRET');
 
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies
 /// migrations and seeds providers when a database is configured. No-op for

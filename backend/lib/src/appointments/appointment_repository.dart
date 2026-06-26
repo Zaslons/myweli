@@ -37,6 +37,13 @@ abstract interface class AppointmentRepository {
   /// `appointment_date >= from`, as `{providerId, appointmentDate}` — the
   /// caller buckets by week + resolves the provider's commune.
   Future<List<Map<String, dynamic>>> completedForAnalytics(DateTime from);
+
+  /// `confirmed` appointments with `from < appointment_date <= to` — the reminder
+  /// scheduler's window. Full records (it needs recipient + params).
+  Future<List<Map<String, dynamic>>> confirmedInWindow(
+    DateTime from,
+    DateTime to,
+  );
 }
 
 class InMemoryAppointmentRepository implements AppointmentRepository {
@@ -67,6 +74,23 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
             'appointmentDate': a['appointmentDate'],
           },
     ];
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> confirmedInWindow(
+    DateTime from,
+    DateTime to,
+  ) async {
+    return [
+      for (final a in _all)
+        if (a['status'] == 'confirmed')
+          if (_within(a['appointmentDate'] as String?, from, to)) a,
+    ];
+  }
+
+  static bool _within(String? iso, DateTime from, DateTime to) {
+    final at = iso == null ? null : DateTime.tryParse(iso)?.toUtc();
+    return at != null && at.isAfter(from) && !at.isAfter(to);
   }
 
   @override

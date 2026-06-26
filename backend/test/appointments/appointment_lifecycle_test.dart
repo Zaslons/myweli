@@ -8,6 +8,8 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/messaging/booking_notifier.dart';
+import 'package:myweli_backend/src/messaging/messaging_models.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
 
@@ -15,6 +17,8 @@ import '../../routes/appointments/[id]/cancel.dart' as cancel_route;
 import '../../routes/appointments/[id]/reschedule.dart' as reschedule_route;
 
 class _MockRequestContext extends Mock implements RequestContext {}
+
+class _MockNotifier extends Mock implements BookingNotifier {}
 
 /// A future Mon–Sat at 09:00 UTC — an open slot in the seed schedule.
 DateTime _slotAt(int hour) {
@@ -31,6 +35,7 @@ DateTime _slotAt(int hour) {
 }
 
 void main() {
+  setUpAll(() => registerFallbackValue(MessageTemplate.bookingConfirmed));
   late InMemoryAppointmentRepository appts;
   late AppointmentLifecycleService lifecycle;
   late InMemoryProviderAuthRepository providerAuth;
@@ -199,6 +204,9 @@ void main() {
       when(
         () => context.read<ProviderAuthRepository>(),
       ).thenReturn(providerAuth);
+      final notifier = _MockNotifier();
+      when(() => notifier.notify(any(), any())).thenAnswer((_) async {});
+      when(() => context.read<BookingNotifier>()).thenReturn(notifier);
       return context;
     }
 

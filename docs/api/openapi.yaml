@@ -90,6 +90,30 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /internal/cron/reminders:
+    post:
+      tags: [messaging]
+      summary: Reminder cron tick — dispatch due 24h/2h reminders (internal)
+      description: >
+        Hit by an external scheduler (~every 15 min). Guarded by `CRON_SECRET`
+        (`X-Cron-Secret` header or `?secret=`): 404 when unset (off), 403 on
+        mismatch. Idempotent per tick.
+      parameters:
+        - { in: query, name: secret, schema: { type: string } }
+        - { in: header, name: X-Cron-Secret, schema: { type: string } }
+      responses:
+        '200':
+          description: Counts dispatched this tick
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder24h: { type: integer }
+                  reminder2h: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /auth/otp/verify:
     post:
       tags: [auth]
