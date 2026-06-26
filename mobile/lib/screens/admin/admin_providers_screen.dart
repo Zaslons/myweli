@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -102,6 +103,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
               rows: [
                 for (final r in p.items)
                   AdminRow(
+                    onTap: () => context.push('/admin/providers/${r['id']}'),
                     cells: [
                       Text('${r['name'] ?? '—'}',
                           style: AppTextStyles.bodyMedium),
