@@ -4,6 +4,8 @@ Every non-trivial part of Myweli gets a **design spec here before any code is wr
 
 This is a standing rule, not a suggestion (see the `myweli-dev-guardrails` / `myweli-backend-guardrails` skills and the `design-spec-per-part` memory).
 
+> **Before any UI/design work, read [DESIGN-STANDARDS.md](DESIGN-STANDARDS.md)** — the canonical design + UX standards (identity, tokens, components, the four-states/French rules, the consistency sweep). Plus the part's spec below. (Rule: `check-design-standards-first`.)
+
 ## The workflow — for every part
 
 1. **Invoke the relevant guardrails skill** (`myweli-dev-guardrails`, and `myweli-backend-guardrails` for anything under `backend/`).
