@@ -28,10 +28,24 @@ abstract interface class AppointmentRepository {
   /// Merge [changes] into the stored appointment; returns the updated record,
   /// or null if it doesn't exist.
   Future<Map<String, dynamic>?> update(String id, Map<String, dynamic> changes);
+
+  /// Admin analytics: a count of appointments per `status`
+  /// (`pending`/`confirmed`/`completed`/`cancelled`/`noShow`).
+  Future<Map<String, int>> countsByStatus();
 }
 
 class InMemoryAppointmentRepository implements AppointmentRepository {
   final List<Map<String, dynamic>> _all = [];
+
+  @override
+  Future<Map<String, int>> countsByStatus() async {
+    final counts = <String, int>{};
+    for (final a in _all) {
+      final s = a['status'] as String;
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    return counts;
+  }
 
   @override
   Future<Map<String, dynamic>?> create(Map<String, dynamic> appointment) async {

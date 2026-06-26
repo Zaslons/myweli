@@ -175,4 +175,17 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       'createdAt': (r['created_at'] as DateTime).toUtc().toIso8601String(),
     };
   }
+
+  @override
+  Future<Map<String, int>> countsByStatus() async {
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT status, COUNT(*)::int AS n FROM appointments GROUP BY status',
+      ),
+    );
+    return {
+      for (final r in rows)
+        (r.toColumnMap()['status'] as String): r.toColumnMap()['n'] as int,
+    };
+  }
 }

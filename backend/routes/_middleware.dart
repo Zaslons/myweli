@@ -3,6 +3,7 @@ import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
 import 'package:myweli_backend/src/admin/admin_provider_service.dart';
 import 'package:myweli_backend/src/admin/admin_user_service.dart';
+import 'package:myweli_backend/src/admin/analytics_service.dart';
 import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/admin/dispute_service.dart';
 import 'package:myweli_backend/src/admin/moderation_service.dart';
@@ -56,6 +57,7 @@ Handler middleware(Handler handler) {
       .use(provider<AdminProviderService>((_) => adminProviderService))
       .use(provider<AdminUserService>((_) => adminUserService))
       .use(provider<DisputeService>((_) => disputeService))
+      .use(provider<AnalyticsService>((_) => analyticsService))
       .use(provider<ReviewsRepository>((_) => reviewsRepository))
       .use(provider<ReviewsService>((_) => reviewsService))
       .use(provider<TokenService>((_) => tokenService))
