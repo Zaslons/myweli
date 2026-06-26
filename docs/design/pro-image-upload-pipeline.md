@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | B1 (backend) Built · B2 (app uploader) Approved — next |
+| **Status** | Built (B1 backend #70 · B2 app picker+uploader) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | Pro profile / portfolio · V1 |

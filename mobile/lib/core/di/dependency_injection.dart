@@ -1,5 +1,6 @@
 import '../../services/api/api_appointment_service.dart';
 import '../../services/api/api_auth_service.dart';
+import '../../services/api/api_image_upload_service.dart';
 import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
@@ -80,7 +81,14 @@ class ServiceLocator {
         : MockProService();
     proArtistService = MockProArtistService();
     proKycService = MockProKycService();
-    imageUploadService = MockImageUploadService();
+    // Real upload pipeline (compress → presigned direct-to-R2) with provider
+    // silent refresh; mock echoes the source in demo mode.
+    imageUploadService = AppConfig.useApiBackend
+        ? ApiImageUploadService(
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockImageUploadService();
     reviewService = MockReviewService();
     messagingService = MockMessagingService();
   }

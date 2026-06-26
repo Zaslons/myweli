@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -9,6 +10,7 @@ import '../../../providers/pro_gallery_provider.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
+import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
 
 class ProPhotosScreen extends StatefulWidget {
@@ -31,11 +33,19 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
   }
 
   Future<void> _addPhoto(String providerId, ProGalleryProvider gallery) async {
-    final source = await showMockImagePicker(context);
-    if (source == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    // Real camera/gallery picker against the backend; the sample-image sheet
+    // in demo (mock) mode so previews still render without a device file.
+    final String? source;
+    if (AppConfig.useApiBackend) {
+      source = await showImagePicker(context);
+    } else {
+      source = await showMockImagePicker(context);
+    }
+    if (source == null) return;
     final ok = await gallery.addPhoto(providerId, source);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (!ok) {
+      messenger.showSnackBar(
         SnackBar(
           content: Text(gallery.error ?? 'Échec de l’envoi'),
           backgroundColor: AppColors.error,

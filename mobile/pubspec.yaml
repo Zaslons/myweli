@@ -37,6 +37,10 @@ dependencies:
   flutter_svg: ^2.0.9
   intl: ^0.20.2
 
+  # Pro gallery uploads: pick from camera/gallery + compress before upload.
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+
   # Calendar & Date Picker
   table_calendar: ^3.0.9
   flutter_datetime_picker_plus: ^2.1.0
