@@ -249,6 +249,47 @@ class PostgresProvidersRepository implements ProvidersRepository {
     });
   }
 
+  @override
+  Future<bool> updateRatings(
+    String providerId, {
+    required double rating,
+    required int reviewCount,
+    Map<String, ({double rating, int count})> artists = const {},
+  }) {
+    // Denormalized ratings live in `data` (+ the indexed `rating` column);
+    // read-modify-write the whole blob atomically (like updateGallery).
+    return _pool.runTx<bool>((tx) async {
+      final rows = await tx.execute(
+        Sql.named('SELECT data FROM providers WHERE id = @id FOR UPDATE'),
+        parameters: {'id': providerId},
+      );
+      if (rows.isEmpty) return false;
+      final data = _data(rows.first);
+      data['rating'] = rating;
+      data['reviewCount'] = reviewCount;
+      for (final a in (data['artists'] as List?) ?? const []) {
+        final m = a as Map<String, dynamic>;
+        final agg = artists[m['id']];
+        if (agg != null) {
+          m['rating'] = agg.rating;
+          m['reviewCount'] = agg.count;
+        }
+      }
+      await tx.execute(
+        Sql.named(
+          'UPDATE providers SET data = @data:jsonb, rating = @rating '
+          'WHERE id = @id',
+        ),
+        parameters: {
+          'id': providerId,
+          'data': jsonEncode(data),
+          'rating': rating,
+        },
+      );
+      return true;
+    });
+  }
+
   // ---- assembly -------------------------------------------------------------
 
   Future<Map<String, List<Map<String, dynamic>>>> _servicesByProvider(

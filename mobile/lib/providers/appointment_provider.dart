@@ -46,11 +46,20 @@ class AppointmentProvider extends ChangeNotifier {
   List<Appointment> get visitHistory =>
       vh.visitHistory(_appointments, DateTime.now());
 
-  bool hasCompletedBookingAt(String providerId, String userId) {
-    return _appointments.any((a) =>
-        a.providerId == providerId &&
-        a.userId == userId &&
-        a.status == AppointmentStatus.completed);
+  bool hasCompletedBookingAt(String providerId, String userId) =>
+      latestCompletedAppointmentId(providerId, userId) != null;
+
+  /// The most recent completed appointment id the user had at [providerId] — the
+  /// visit a "leave a review" CTA reviews. Null if there is none.
+  String? latestCompletedAppointmentId(String providerId, String userId) {
+    final completed = _appointments
+        .where((a) =>
+            a.providerId == providerId &&
+            a.userId == userId &&
+            a.status == AppointmentStatus.completed)
+        .toList()
+      ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
+    return completed.isEmpty ? null : completed.first.id;
   }
 
   Future<void> loadAppointments({AppointmentStatus? status}) async {

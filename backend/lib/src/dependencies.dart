@@ -17,12 +17,15 @@ import 'db/postgres_auth_repository.dart';
 import 'db/postgres_favorites_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
+import 'db/postgres_reviews_repository.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
 import 'providers_repository.dart';
+import 'reviews_repository.dart';
+import 'reviews_service.dart';
 import 'storage/storage_service.dart';
 import 'upload_signing_service.dart';
 
@@ -97,6 +100,10 @@ final FavoritesService favoritesService = FavoritesService(
   favoritesRepository,
   providersRepository,
 );
+
+final ReviewsRepository reviewsRepository = _pool == null
+    ? InMemoryReviewsRepository()
+    : PostgresReviewsRepository(_pool!);
 
 final SlotService slotService = SlotService(
   providersRepository,
@@ -174,6 +181,14 @@ final ProviderDashboardService providerDashboardService =
 final ProviderEarningsService providerEarningsService = ProviderEarningsService(
   providerAuthRepository,
   appointmentRepository,
+);
+
+final ReviewsService reviewsService = ReviewsService(
+  reviewsRepository,
+  appointmentRepository,
+  providersRepository,
+  authRepository,
+  allowedImageOrigins: _galleryAllowedOrigins,
 );
 
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies

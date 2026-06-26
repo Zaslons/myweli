@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/constants/app_constants.dart';
+import '../core/di/dependency_injection.dart';
 import '../models/review.dart';
-import '../services/mock/mock_data.dart';
+import '../services/interfaces/review_service_interface.dart';
 
 class ProReviewsProvider extends ChangeNotifier {
+  final ReviewServiceInterface _reviewService = serviceLocator.reviewService;
+
   List<Review> _reviews = [];
   bool _isLoading = false;
   String? _error;
@@ -27,14 +29,14 @@ class ProReviewsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // For now, use mock data directly.
-      // TODO(reviews): inject ProServiceInterface and call getProviderReviews(providerId).
-      await Future.delayed(AppConstants.mockDelay);
-      _reviews =
-          MockData.reviews.where((r) => r.providerId == providerId).toList();
-      _reviews.sort(
-          (a, b) => b.createdAt.compareTo(a.createdAt)); // Most recent first
-      _error = null;
+      final res = await _reviewService.getProviderReviews(providerId);
+      if (res.success && res.data != null) {
+        _reviews = res.data!;
+        _error = null;
+      } else {
+        _reviews = [];
+        _error = res.error ?? 'Erreur lors du chargement des avis';
+      }
     } catch (e) {
       _error = e.toString();
       _reviews = [];

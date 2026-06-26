@@ -12,6 +12,7 @@ import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
+import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -46,7 +47,7 @@ void main() {
     await pool.execute(
       'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
       'provider_users, provider_otp_codes, provider_refresh_tokens, '
-      'favorites CASCADE',
+      'favorites, reviews CASCADE',
     );
   });
 
@@ -465,6 +466,49 @@ void main() {
         await r.remove('fav_user_A', 'provider1');
         await r.remove('fav_user_A', 'provider1'); // already gone → no-op
         expect(await r.listForUser('fav_user_A'), ['provider2']);
+      },
+    );
+  });
+
+  group('PostgresReviewsRepository', () {
+    Map<String, dynamic> rv(String appt, {int rating = 5, String? artist}) => {
+      'id': 'rev_$appt',
+      'appointmentId': appt,
+      'providerId': 'provider1',
+      'userId': 'u_$appt',
+      'userName': 'U',
+      'rating': rating,
+      'text': 'ok',
+      'verified': true,
+      'artistId': artist,
+      'artistName': artist == null ? null : 'A',
+      'serviceName': 'Coupe',
+      'photoUrls': ['https://cdn/x.jpg'],
+      'createdAt': DateTime.utc(2030, 6, int.parse(appt)).toIso8601String(),
+    };
+
+    test(
+      'upsert-by-appointment + paginate + aggregate (provider + artist)',
+      () async {
+        final r = PostgresReviewsRepository(pool);
+        await r.upsertByAppointment(rv('1', rating: 4, artist: 'artist1'));
+        await r.upsertByAppointment(rv('1', rating: 2, artist: 'artist1'));
+        await r.upsertByAppointment(rv('2', rating: 5));
+
+        final page = await r.listForProvider('provider1', pageSize: 1);
+        expect(page.total, 2);
+        expect(page.items, hasLength(1));
+        expect(page.items.first['photoUrls'], ['https://cdn/x.jpg']);
+
+        final agg = await r.aggregateProvider('provider1');
+        expect(agg.count, 2);
+        expect(agg.rating, (2 + 5) / 2);
+
+        final byArtist = await r.aggregateByArtist('provider1');
+        expect(byArtist['artist1']!.count, 1);
+        expect(byArtist['artist1']!.rating, 2);
+
+        expect(await r.recentForProvider('provider1', 1), hasLength(1));
       },
     );
   });

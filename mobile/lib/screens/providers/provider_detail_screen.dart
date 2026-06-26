@@ -693,12 +693,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 final isAuthenticated =
                                     authProvider.isAuthenticated &&
                                         authProvider.user != null;
-                                final hasCompletedBooking = isAuthenticated &&
-                                    appointmentProvider.hasCompletedBookingAt(
-                                      widget.providerId,
-                                      authProvider.user!.id,
-                                    );
-                                if (!hasCompletedBooking) {
+                                final reviewableApptId = isAuthenticated
+                                    ? appointmentProvider
+                                        .latestCompletedAppointmentId(
+                                        widget.providerId,
+                                        authProvider.user!.id,
+                                      )
+                                    : null;
+                                if (reviewableApptId == null) {
                                   return const SizedBox.shrink();
                                 }
                                 return Padding(
@@ -717,6 +719,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                           ),
                                           child: SubmitReviewSheet(
                                             providerId: widget.providerId,
+                                            appointmentId: reviewableApptId,
                                           ),
                                         ),
                                       );

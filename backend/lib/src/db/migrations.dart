@@ -211,6 +211,32 @@ CREATE TABLE IF NOT EXISTS favorites (
 )''',
     ],
   ),
+  (
+    // Consumer reviews: one per completed appointment (UNIQUE appointment_id →
+    // upsert), attributed to the artist who performed it. Provider/artist
+    // ratings stay denormalized; this is the source of truth for recompute.
+    id: '0007_reviews',
+    statements: [
+      '''
+CREATE TABLE IF NOT EXISTS reviews (
+  id             text PRIMARY KEY,
+  appointment_id text NOT NULL UNIQUE,
+  provider_id    text NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  user_id        text NOT NULL,
+  user_name      text NOT NULL,
+  rating         smallint NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  text           text NOT NULL DEFAULT '',
+  verified       boolean NOT NULL DEFAULT true,
+  artist_id      text,
+  artist_name    text,
+  service_name   text NOT NULL DEFAULT '',
+  photo_urls     jsonb NOT NULL DEFAULT '[]',
+  created_at     timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS reviews_provider_idx '
+          'ON reviews(provider_id, created_at DESC)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

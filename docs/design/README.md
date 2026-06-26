@@ -23,6 +23,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Consumer reviews | [consumer-reviews.md](consumer-reviews.md) | Built |
 | Consumer favorites | [consumer-favorites.md](consumer-favorites.md) | Built |
 | Pro deposit policy management | [pro-deposit-policy.md](pro-deposit-policy.md) | Built |
 | Image upload pipeline (Cloudflare R2) | [pro-image-upload-pipeline.md](pro-image-upload-pipeline.md) | Built |

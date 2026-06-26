@@ -54,6 +54,16 @@ abstract interface class ProvidersRepository {
     String providerId,
     Map<String, dynamic> fields,
   );
+
+  /// Recompute-driven update of the provider's `rating`/`reviewCount` and, for
+  /// any matching entries in `artists[]`, the per-artist `rating`/`reviewCount`
+  /// (from reviews). Returns false if the provider doesn't exist.
+  Future<bool> updateRatings(
+    String providerId, {
+    required double rating,
+    required int reviewCount,
+    Map<String, ({double rating, int count})> artists,
+  });
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -174,6 +184,28 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     if (p == null) return null;
     p.addAll(fields);
     return Map<String, dynamic>.from(fields);
+  }
+
+  @override
+  Future<bool> updateRatings(
+    String providerId, {
+    required double rating,
+    required int reviewCount,
+    Map<String, ({double rating, int count})> artists = const {},
+  }) async {
+    final p = await byId(providerId);
+    if (p == null) return false;
+    p['rating'] = rating;
+    p['reviewCount'] = reviewCount;
+    for (final a in (p['artists'] as List?) ?? const []) {
+      final m = a as Map<String, dynamic>;
+      final agg = artists[m['id']];
+      if (agg != null) {
+        m['rating'] = agg.rating;
+        m['reviewCount'] = agg.count;
+      }
+    }
+    return true;
   }
 }
 

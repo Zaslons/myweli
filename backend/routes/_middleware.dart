@@ -13,6 +13,8 @@ import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/reviews_repository.dart';
+import 'package:myweli_backend/src/reviews_service.dart';
 import 'package:myweli_backend/src/upload_signing_service.dart';
 
 /// Provides the process-wide singletons into every request's context, so
@@ -36,6 +38,8 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))
       .use(provider<UploadSigningService>((_) => uploadSigningService))
       .use(provider<FavoritesService>((_) => favoritesService))
+      .use(provider<ReviewsRepository>((_) => reviewsRepository))
+      .use(provider<ReviewsService>((_) => reviewsService))
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository));
 }
