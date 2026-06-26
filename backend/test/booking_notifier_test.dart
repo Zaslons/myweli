@@ -7,6 +7,9 @@ import 'package:myweli_backend/src/messaging/messaging_prefs_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_provider.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/push/push_provider.dart';
+import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 class _MockAuth extends Mock implements AuthRepository {}
@@ -33,7 +36,12 @@ void main() {
     ).thenAnswer((_) async => {'name': 'Beauté Divine'});
   });
 
-  BookingNotifier notifier() => BookingNotifier(messaging, users, providers);
+  BookingNotifier notifier() => BookingNotifier(
+    messaging,
+    users,
+    providers,
+    PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),
+  );
 
   test('uses clientPhone (manual booking) without a user lookup', () async {
     await notifier().notify({

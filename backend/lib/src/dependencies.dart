@@ -25,6 +25,7 @@ import 'db/postgres_admin_auth_repository.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
+import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
 import 'db/postgres_messaging_outbox_repository.dart';
@@ -49,6 +50,11 @@ import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
 import 'providers_repository.dart';
+import 'push/access_token_source.dart';
+import 'push/device_token_repository.dart';
+import 'push/fcm_v1_push_provider.dart';
+import 'push/push_provider.dart';
+import 'push/push_service.dart';
 import 'reviews_repository.dart';
 import 'reviews_service.dart';
 import 'storage/storage_service.dart';
@@ -328,11 +334,48 @@ final MessagingService messagingService = MessagingService(
 /// follow-up. Design: docs/design/messaging-notifications.md §5.
 final String? messagingWebhookSecret = _envOrNull('MESSAGING_WEBHOOK_SECRET');
 
-/// Turns booking transitions into notifications (recipient + params resolution).
+/// Push (FCM). Configured → FCM HTTP v1; else a no-network log provider for
+/// dev/CI. Production must configure it (fail-fast). Design:
+/// docs/design/push-notifications-fcm.md.
+final PushProvider pushProvider = () {
+  final projectId = _envOrNull('FCM_PROJECT_ID');
+  final clientEmail = _envOrNull('FCM_CLIENT_EMAIL');
+  // Render-style env often escapes newlines in the PEM — unescape them.
+  final privateKey = _envOrNull('FCM_PRIVATE_KEY')?.replaceAll(r'\n', '\n');
+  if (projectId != null && clientEmail != null && privateKey != null) {
+    return FcmV1PushProvider(
+      projectId: projectId,
+      tokenSource: ServiceAccountTokenSource(
+        clientEmail: clientEmail,
+        privateKeyPem: privateKey,
+      ),
+    );
+  }
+  if (_isProd) {
+    throw StateError(
+      'Push must be configured in production: set FCM_PROJECT_ID, '
+      'FCM_CLIENT_EMAIL and FCM_PRIVATE_KEY (service account).',
+    );
+  }
+  return LogPushProvider();
+}();
+
+final DeviceTokenRepository deviceTokenRepository = _pool == null
+    ? InMemoryDeviceTokenRepository()
+    : PostgresDeviceTokenRepository(_pool!);
+
+final PushService pushService = PushService(
+  pushProvider,
+  deviceTokenRepository,
+);
+
+/// Turns booking transitions into notifications (recipient + params resolution),
+/// across WhatsApp/SMS + push.
 final BookingNotifier bookingNotifier = BookingNotifier(
   messagingService,
   authRepository,
   providersRepository,
+  pushService,
 );
 
 final ReminderLogRepository reminderLogRepository = _pool == null
