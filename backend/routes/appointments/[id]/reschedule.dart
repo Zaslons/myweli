@@ -3,10 +3,14 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 
-/// `POST /appointments/{id}/reschedule` — move the caller's booking to a new
-/// time. Deposit + balance carry over unchanged.
+/// `POST /appointments/{id}/reschedule` — move a booking to a new time.
+/// **Role-aware** (design: docs/design/pro-reschedule.md): a `user` reschedules
+/// their own booking; a `provider` reschedules one of its own salon's bookings
+/// (ownership by linked `providerId`). Both re-validate the new slot; deposit +
+/// balance carry over unchanged.
 Future<Response> onRequest(RequestContext context, String id) async {
   final principal = principalOf(context);
   if (principal == null) {
@@ -26,11 +30,24 @@ Future<Response> onRequest(RequestContext context, String id) async {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
 
-  final result = await context.read<AppointmentLifecycleService>().reschedule(
-    id,
-    principal.userId,
-    newDateTime,
-  );
+  final lifecycle = context.read<AppointmentLifecycleService>();
+  final LifecycleResult result;
+  if (principal.role == 'provider') {
+    final account = await context.read<ProviderAuthRepository>().accountById(
+      principal.userId,
+    );
+    final managedProviderId = account?.providerId;
+    if (managedProviderId == null) {
+      return jsonError(HttpStatus.forbidden, 'forbidden');
+    }
+    result = await lifecycle.rescheduleByProvider(
+      id,
+      managedProviderId,
+      newDateTime,
+    );
+  } else {
+    result = await lifecycle.reschedule(id, principal.userId, newDateTime);
+  }
   if (result.ok) return Response.json(body: result.appointment);
   switch (result.error) {
     case 'not_found':

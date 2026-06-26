@@ -16,10 +16,11 @@ import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ProServiceInterface] for the slices the backend
 /// supports today: the **provider appointment surface** (list + accept / reject
-/// / complete / no-show + **manual booking**), the **catalogue** (services CRUD
-/// + enable/disable, availability read/replace), the **dashboard** stats, and
-/// the **earnings** ledger. Designs: docs/design/pro-catalogue-app-wiring.md,
-/// provider-dashboard-stats.md, pro-manual-booking.md, provider-earnings.md.
+/// / complete / no-show + **manual booking** + **reschedule**), the
+/// **catalogue** (services CRUD + enable/disable, availability read/replace),
+/// the **dashboard** stats, and the **earnings** ledger. Designs:
+/// docs/design/pro-catalogue-app-wiring.md, provider-dashboard-stats.md,
+/// pro-manual-booking.md, provider-earnings.md, pro-reschedule.md.
 ///
 /// Authenticated calls go through [RefreshingHttpClient] pointed at the
 /// **provider** session (its own secure key) and `/auth/provider/refresh`, so a
@@ -29,9 +30,9 @@ import 'refreshing_http_client.dart';
 /// (or — for the serviceId-only edits — read it from the session), with
 /// ownership re-checked server-side.
 ///
-/// Still without a backend (gallery photos, deposit policy, pro-side
-/// reschedule) → delegated to an embedded [MockProService], so the pro app
-/// keeps working. Wired in by DI only when `AppConfig.useApiBackend` is true.
+/// Still without a backend (gallery photos, deposit policy) → delegated to an
+/// embedded [MockProService], so the pro app keeps working. Wired in by DI only
+/// when `AppConfig.useApiBackend` is true.
 class ApiProService implements ProServiceInterface {
   ApiProService({
     http.Client? client,
@@ -167,8 +168,23 @@ class ApiProService implements ProServiceInterface {
   Future<ApiResponse<bool>> rescheduleAppointment(
     String appointmentId,
     DateTime newDateTime,
-  ) =>
-      _fallback.rescheduleAppointment(appointmentId, newDateTime);
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    // Role-aware on the backend: the provider token reschedules by salon
+    // ownership. Deposit/balance carry over server-side.
+    final res = await _authed.send((t) => _client.post(
+          _uri('/appointments/$appointmentId/reschedule'),
+          headers: _bearer(t),
+          body: jsonEncode({
+            'newDateTime': newDateTime.toUtc().toIso8601String(),
+          }),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(true, message: 'Rendez-vous reporté');
+  }
 
   @override
   Future<ApiResponse<Appointment>> createManualBooking({
