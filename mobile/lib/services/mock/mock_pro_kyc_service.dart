@@ -16,6 +16,17 @@ class MockProKycService implements ProKycServiceInterface {
   }
 
   @override
+  Future<ApiResponse<String>> uploadDocument({
+    required String source,
+    required String contentType,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    if (source.trim().isEmpty) return ApiResponse.error('Fichier invalide');
+    // Echo a fake private key so the flow works without real storage.
+    return ApiResponse.success('kyc/mock/${source.split('/').last}');
+  }
+
+  @override
   Future<ApiResponse<KycStatus>> submitKyc({
     required String providerUserId,
     required List<KycDocument> documents,

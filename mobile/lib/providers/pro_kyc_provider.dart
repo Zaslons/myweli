@@ -16,6 +16,7 @@ class ProKycProvider extends ChangeNotifier {
   String? _error;
   VerificationStatus _status = VerificationStatus.pending;
   String? _rejectionReason;
+  KycDocumentType? _uploadingType;
   final Map<KycDocumentType, KycDocument> _documents = {};
 
   bool get isLoading => _isLoading;
@@ -24,6 +25,9 @@ class ProKycProvider extends ChangeNotifier {
   String? get error => _error;
   VerificationStatus get status => _status;
   String? get rejectionReason => _rejectionReason;
+
+  /// The document type currently uploading (for a per-tile spinner), or null.
+  KycDocumentType? get uploadingType => _uploadingType;
   Map<KycDocumentType, KycDocument> get documents =>
       Map.unmodifiable(_documents);
 
@@ -67,14 +71,39 @@ class ProKycProvider extends ChangeNotifier {
     }
   }
 
-  /// Mock document selection — records a placeholder reference for [type].
-  void addDocument(KycDocumentType type, String fileName) {
-    _documents[type] = KycDocument(
-      type: type,
-      fileName: fileName,
-      submittedAt: DateTime.now(),
-    );
+  /// Upload the picked file at [source] to private storage and record it for
+  /// [type] (with its returned storage key). Returns false on failure.
+  Future<bool> addDocument(
+    KycDocumentType type,
+    String source,
+    String contentType,
+  ) async {
+    _uploadingType = type;
+    _error = null;
     notifyListeners();
+    try {
+      final res = await _service.uploadDocument(
+        source: source,
+        contentType: contentType,
+      );
+      if (res.success && res.data != null) {
+        _documents[type] = KycDocument(
+          type: type,
+          fileName: source.split('/').last,
+          key: res.data!,
+          submittedAt: DateTime.now(),
+        );
+        return true;
+      }
+      _error = res.error ?? 'Échec de l’envoi du document';
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _uploadingType = null;
+      notifyListeners();
+    }
   }
 
   void removeDocument(KycDocumentType type) {

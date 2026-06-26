@@ -40,6 +40,8 @@ dependencies:
   # Pro gallery uploads: pick from camera/gallery + compress before upload.
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
+  # KYC: pick identity documents (images or PDF) for private upload.
+  file_picker: ^8.1.2
 
   # Calendar & Date Picker
   table_calendar: ^3.0.9
