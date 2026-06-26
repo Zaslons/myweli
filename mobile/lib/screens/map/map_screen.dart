@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/category_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
@@ -146,18 +147,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Color _categoryColor(String category) {
-    switch (category) {
-      case 'spa':
-        return const Color(0xFF2E7D32);
-      case 'barber':
-        return const Color(0xFF6D4C41);
-      case 'salon':
-        return const Color(0xFF1976D2);
-      default:
-        return AppColors.primary;
-    }
-  }
+  Color _categoryColor(String category) => categoryColor(category);
 
   void _openProviderSheet(models.Provider p) {
     final parentContext =
@@ -221,7 +211,7 @@ class _MapScreenState extends State<MapScreen> {
                             Row(
                               children: [
                                 const Icon(Icons.star,
-                                    size: 16, color: Colors.amber),
+                                    size: 16, color: AppColors.starRating),
                                 const SizedBox(width: 4),
                                 Text(
                                   p.rating.toStringAsFixed(1),
@@ -266,7 +256,7 @@ class _MapScreenState extends State<MapScreen> {
                             icon: Icon(
                               isFav ? Icons.favorite : Icons.favorite_border,
                               color: isFav
-                                  ? Colors.redAccent
+                                  ? AppColors.favorite
                                   : AppColors.textPrimary,
                             ),
                           );
@@ -361,7 +351,7 @@ class _MapScreenState extends State<MapScreen> {
       height: 22,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.blue,
+          color: AppColors.info,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 3),
           boxShadow: AppTheme.elevation2,
@@ -542,7 +532,7 @@ class _SalonMarker extends StatelessWidget {
               width: 16,
               height: 16,
               decoration: BoxDecoration(
-                color: Colors.redAccent,
+                color: AppColors.favorite,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),

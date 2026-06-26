@@ -46,6 +46,14 @@ class AppColors {
   static const Color starRating = Color(0xFFFFB800); // amber rating stars
   static const Color favorite = Color(0xFFE53935); // favorite heart
 
+  // Service-category accents (map markers + category chips). A deliberate,
+  // bounded **exception** to the monochrome identity: muted/earthy hues that aid
+  // wayfinding without shouting. Use via `categoryColor()` — never inline.
+  // See docs/design/DESIGN-STANDARDS.md §7. Falls back to [primary] (default).
+  static const Color categorySpa = Color(0xFF5B6B4F); // sage
+  static const Color categoryBarber = Color(0xFF6D5A4C); // taupe
+  static const Color categorySalon = Color(0xFF4F5B6B); // slate
+
   // Dark Mode (Future)
   static const Color backgroundDark = Color(0xFF111827);
   static const Color surfaceDark = Color(0xFF1F2937);
