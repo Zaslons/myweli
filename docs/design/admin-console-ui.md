@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | UX plan signed off · **UI-2a Built** (design system + UI-1 reworked to it) · UI-2b (moderation) next |
+| **Status** | UX signed off · UI-2a Built (design system + UI-1 rework) · **UI-2b Built** (moderation: Signalés + Masqués) · provider/user mgmt next |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **Backend** | [admin-console.md](admin-console.md) (Slices 1–3 — the API this UI drives) |

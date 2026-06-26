@@ -28,6 +28,7 @@ const _groups = [
   ]),
   _NavGroup('Modération', [
     _NavItem('/admin/kyc', Icons.verified_user_outlined, 'KYC'),
+    _NavItem('/admin/reviews', Icons.flag_outlined, 'Avis'),
   ]),
 ];
 
