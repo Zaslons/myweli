@@ -427,6 +427,31 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /providers/{id}/earnings:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: The salon's realized earnings ledger (B-earn)
+      description: >
+        Provider-authenticated and ownership-scoped (→ 403). Counts only
+        `completed` appointments (realized money — narrower than the
+        dashboard's revenue). Optional inclusive UTC date range; absent = all
+        time.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: startDate, schema: { type: string, format: date-time } }
+        - { in: query, name: endDate, schema: { type: string, format: date-time } }
+      responses:
+        '200':
+          description: The salon's earnings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EarningsData' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /providers/{id}/appointments:
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
@@ -985,6 +1010,27 @@ components:
         weekRevenue: { type: number, description: Same, Monday-based week. }
         monthRevenue: { type: number, description: Same, calendar month. }
         totalAppointments: { type: integer, description: All-time, any status. }
+
+    EarningsData:
+      type: object
+      required: [totalEarnings, transactions]
+      properties:
+        totalEarnings:
+          type: number
+          description: Σ totalPrice of completed bookings in range (FCFA).
+        transactions:
+          type: array
+          items: { $ref: '#/components/schemas/EarningsTransaction' }
+
+    EarningsTransaction:
+      type: object
+      required: [id, appointmentId, amount, date, status]
+      properties:
+        id: { type: string }
+        appointmentId: { type: string }
+        amount: { type: number }
+        date: { type: string, format: date-time }
+        status: { type: string, description: '"completed".' }
 
     ProviderSummary:
       type: object

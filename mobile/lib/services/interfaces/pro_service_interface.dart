@@ -41,6 +41,13 @@ class EarningsData {
     required this.totalEarnings,
     required this.transactions,
   });
+
+  factory EarningsData.fromJson(Map<String, dynamic> json) => EarningsData(
+        totalEarnings: (json['totalEarnings'] as num).toDouble(),
+        transactions: ((json['transactions'] as List?) ?? const [])
+            .map((e) => EarningsTransaction.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
 }
 
 class EarningsTransaction {
@@ -57,6 +64,15 @@ class EarningsTransaction {
     required this.date,
     required this.status,
   });
+
+  factory EarningsTransaction.fromJson(Map<String, dynamic> json) =>
+      EarningsTransaction(
+        id: json['id'] as String,
+        appointmentId: json['appointmentId'] as String,
+        amount: (json['amount'] as num).toDouble(),
+        date: DateTime.parse(json['date'] as String),
+        status: json['status'] as String,
+      );
 }
 
 abstract class ProServiceInterface {
