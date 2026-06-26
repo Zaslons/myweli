@@ -120,7 +120,7 @@ class ReviewsService {
       'createdAt': DateTime.now().toUtc().toIso8601String(),
     };
     await _reviews.upsertByAppointment(review);
-    await _recompute(providerId);
+    await recomputeRatings(providerId);
     return (ok: true, error: null, review: review);
   }
 
@@ -139,8 +139,10 @@ class ReviewsService {
     return (items: res.items, total: res.total, page: p, pageSize: size);
   }
 
-  /// Recompute the denormalized provider + per-artist ratings from reviews.
-  Future<void> _recompute(String providerId) async {
+  /// Recompute the denormalized provider + per-artist ratings from the
+  /// **visible** reviews (the repo's aggregates exclude hidden). Public so
+  /// moderation can re-run it after a hide/restore.
+  Future<void> recomputeRatings(String providerId) async {
     final agg = await _reviews.aggregateProvider(providerId);
     final byArtist = await _reviews.aggregateByArtist(providerId);
     await _providers.updateRatings(

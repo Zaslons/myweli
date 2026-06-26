@@ -1368,6 +1368,117 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /reviews/{id}/report:
+    post:
+      tags: [reviews]
+      summary: Report a review (B-admin A2, FR-REV-005)
+      description: >
+        Consumer-only. Flags a review for moderation; it stays visible until an
+        admin acts. Idempotent per (review, reporter). `reason` is optional.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Reported (idempotent) }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/reviews/reports:
+    get:
+      tags: [admin]
+      summary: Moderation queue — reviews with open reports (B-admin A2)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200':
+          description: Reported reviews (one row each), newest report first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        reviewId: { type: string }
+                        providerId: { type: string }
+                        userName: { type: string }
+                        rating: { type: integer }
+                        text: { type: string }
+                        moderationStatus: { type: string }
+                        reportCount: { type: integer }
+                        lastReason: { type: string }
+                        lastReportedAt: { type: string, format: date-time }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/reviews/{id}/hide:
+    post:
+      tags: [admin]
+      summary: Hide a review (B-admin A2) — audited
+      description: >
+        Excludes the review from the public feed + rating and resolves its open
+        reports. Optional `{reason}`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: The hidden review }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/reviews/{id}/restore:
+    post:
+      tags: [admin]
+      summary: Restore a hidden review (B-admin A2) — audited
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200': { description: The restored review }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/reviews/{id}/dismiss:
+    post:
+      tags: [admin]
+      summary: Dismiss a review's reports without hiding it (B-admin A2) — audited
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Reports dismissed; review stays visible }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:

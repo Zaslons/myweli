@@ -309,6 +309,28 @@ CREATE TABLE audit_log (
       'CREATE INDEX audit_log_actor_idx ON audit_log(actor_admin_id)',
     ],
   ),
+  (
+    id: '0011_review_moderation',
+    statements: [
+      "ALTER TABLE reviews "
+          "ADD COLUMN moderation_status text NOT NULL DEFAULT 'visible'",
+      // Consumer reports (FR-REV-005). One report per (review, reporter).
+      '''
+CREATE TABLE review_reports (
+  id text PRIMARY KEY,
+  review_id text NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+  reporter_user_id text NOT NULL,
+  reason text NOT NULL DEFAULT '',
+  status text NOT NULL DEFAULT 'open',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  resolved_by text,
+  resolved_at timestamptz,
+  UNIQUE (review_id, reporter_user_id)
+)''',
+      "CREATE INDEX review_reports_open_idx "
+          "ON review_reports(review_id) WHERE status = 'open'",
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

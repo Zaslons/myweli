@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import 'admin/admin_auth_repository.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/audit_log_repository.dart';
+import 'admin/moderation_service.dart';
 import 'appointments/appointment_lifecycle_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
@@ -208,6 +209,12 @@ final AuditLogRepository auditLogRepository = _pool == null
 final AdminKycService adminKycService = AdminKycService(
   providerAuthRepository,
   storageService,
+  auditLogRepository,
+);
+
+final ModerationService moderationService = ModerationService(
+  reviewsRepository,
+  reviewsService,
   auditLogRepository,
 );
 

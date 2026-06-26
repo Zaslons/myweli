@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slice 1 — A1 (foundation + KYC) **Built** · A2 (moderation) next |
+| **Status** | Slice 1 **Built** — A1 (foundation + KYC) + A2 (review moderation) · Slice 2 next |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | §11.4 (FR-WEB-AD-001…008), §16 trust & safety, §17 analytics, §18 compliance · V1 basic → V2 full |
