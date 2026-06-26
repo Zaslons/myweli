@@ -141,6 +141,20 @@ class ApiProService implements ProServiceInterface {
     return ApiResponse.success(true, message: okMessage);
   }
 
+  @override
+  Future<ApiResponse<String>> depositScreenshotUrl(String appointmentId) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((token) => _client.get(
+          _uri('/appointments/$appointmentId/deposit-screenshot'),
+          headers: _bearer(token),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(_decode(res.body)['url'] as String);
+  }
+
   // ---- Not yet backed by an endpoint → delegate to the mock ----------------
 
   @override

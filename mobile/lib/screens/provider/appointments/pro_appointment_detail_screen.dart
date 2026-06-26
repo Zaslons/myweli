@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/api_response.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -130,18 +132,11 @@ class _ProAppointmentDetailScreenState
                             style: AppTextStyles.bodySmall
                                 .copyWith(color: AppColors.textTertiary),
                           ),
-                          if (appointment.depositScreenshotUrl != null) ...[
-                            const SizedBox(height: 8),
-                            ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusMedium),
-                              child: TimedCachedImage(
-                                imageUrl: appointment.depositScreenshotUrl!,
-                                height: 140,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ],
+                          const SizedBox(height: 8),
+                          _DepositProof(
+                            appointmentId: appointment.id,
+                            hasProof: appointment.depositScreenshotUrl != null,
+                          ),
                         ],
                       ],
                     ),
@@ -268,5 +263,81 @@ class _ProAppointmentDetailScreenState
       case AppointmentStatus.noShow:
         return 'Absent';
     }
+  }
+}
+
+/// Salon-side view of the consumer's deposit screenshot. The image is private;
+/// it's fetched via a short-lived **signed URL** (the key on the appointment is
+/// opaque and never rendered directly). Tap to enlarge.
+class _DepositProof extends StatefulWidget {
+  final String appointmentId;
+  final bool hasProof;
+
+  const _DepositProof({required this.appointmentId, required this.hasProof});
+
+  @override
+  State<_DepositProof> createState() => _DepositProofState();
+}
+
+class _DepositProofState extends State<_DepositProof> {
+  late Future<ApiResponse<String>> _url;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.hasProof) {
+      _url = serviceLocator.proService.depositScreenshotUrl(
+        widget.appointmentId,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.hasProof) {
+      return Text(
+        'Aucune capture jointe pour le moment.',
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+      );
+    }
+    return FutureBuilder<ApiResponse<String>>(
+      future: _url,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox(
+            height: 140,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final res = snapshot.data;
+        if (res == null || !res.success || res.data == null) {
+          return Text(
+            'Capture indisponible. Réessayez plus tard.',
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+          );
+        }
+        final url = res.data!;
+        return GestureDetector(
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => Dialog(
+              backgroundColor: Colors.transparent,
+              child: InteractiveViewer(
+                child: TimedCachedImage(imageUrl: url, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            child: TimedCachedImage(
+              imageUrl: url,
+              height: 140,
+              fit: BoxFit.cover,
+            ),
+          ),
+        );
+      },
+    );
   }
 }

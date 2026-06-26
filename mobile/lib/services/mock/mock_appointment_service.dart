@@ -196,6 +196,50 @@ class MockAppointmentService implements AppointmentServiceInterface {
   }
 
   @override
+  Future<ApiResponse<String>> uploadDepositScreenshot({
+    required String source,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    // Mimic the real private upload: return an opaque key (no public URL).
+    return ApiResponse.success('deposit/mock-user/${const Uuid().v4()}.jpg');
+  }
+
+  @override
+  Future<ApiResponse<Appointment>> submitDeposit({
+    required String appointmentId,
+    required String screenshotKey,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index = _appointments.indexWhere((a) => a.id == appointmentId);
+    if (index == -1) {
+      return ApiResponse.error('Rendez-vous non trouvé');
+    }
+    if (_appointments[index].status != AppointmentStatus.pending) {
+      return ApiResponse.error('Cette action n’est plus possible.');
+    }
+    _appointments[index] = _appointments[index].copyWith(
+      depositScreenshotUrl: screenshotKey,
+    );
+    await _saveAppointments();
+    return ApiResponse.success(_appointments[index]);
+  }
+
+  @override
+  Future<ApiResponse<String>> depositScreenshotUrl({
+    required String appointmentId,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index = _appointments.indexWhere((a) => a.id == appointmentId);
+    if (index == -1 || _appointments[index].depositScreenshotUrl == null) {
+      return ApiResponse.error('Aucune capture jointe');
+    }
+    // A sample image stands in for the signed URL in mock mode.
+    return ApiResponse.success(
+      'asset:assets/images/providers/salon_excellence_photo.png',
+    );
+  }
+
+  @override
   Future<ApiResponse<void>> cancelAppointment(String id) async {
     await Future.delayed(AppConstants.mockDelay);
 

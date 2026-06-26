@@ -126,6 +126,37 @@ class AppointmentProvider extends ChangeNotifier {
     }
   }
 
+  /// Pay-later: attach a deposit screenshot (already uploaded → [screenshotKey])
+  /// to an existing pending booking, then refresh it in the list.
+  Future<bool> submitDeposit({
+    required String appointmentId,
+    required String screenshotKey,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await _appointmentService.submitDeposit(
+        appointmentId: appointmentId,
+        screenshotKey: screenshotKey,
+      );
+      if (response.success && response.data != null) {
+        final i = _appointments.indexWhere((a) => a.id == appointmentId);
+        if (i != -1) _appointments[i] = response.data!;
+        _error = null;
+        return true;
+      }
+      _error = response.error ?? 'Erreur lors de l’envoi de l’acompte';
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadAppointmentById(String id) async {
     _isLoading = true;
     _error = null;

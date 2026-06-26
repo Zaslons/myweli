@@ -141,4 +141,32 @@ void main() {
 
     expect(provider.visitHistory.map((a) => a.id), ['a1']);
   });
+
+  test('submitDeposit refreshes the stored appointment with the screenshot',
+      () async {
+    final pending = confirmed().copyWith(status: AppointmentStatus.pending);
+    when(() => appointments.getUserAppointments(status: any(named: 'status')))
+        .thenAnswer((_) async => ApiResponse.success([pending]));
+    when(
+      () => appointments.submitDeposit(
+        appointmentId: any(named: 'appointmentId'),
+        screenshotKey: any(named: 'screenshotKey'),
+      ),
+    ).thenAnswer(
+      (_) async => ApiResponse.success(
+        pending.copyWith(depositScreenshotUrl: 'deposit/u1/x.jpg'),
+      ),
+    );
+
+    final provider = AppointmentProvider();
+    await provider.loadAppointments();
+    final ok = await provider.submitDeposit(
+      appointmentId: 'a1',
+      screenshotKey: 'deposit/u1/x.jpg',
+    );
+
+    expect(ok, isTrue);
+    expect(
+        provider.appointments.single.depositScreenshotUrl, 'deposit/u1/x.jpg');
+  });
 }

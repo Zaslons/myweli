@@ -152,4 +152,8 @@ abstract class ProServiceInterface {
     MobileMoneyOperator? mobileMoneyOperator,
     String? mobileMoneyNumber,
   });
+
+  /// A short-lived signed URL to view a booking's deposit screenshot (the salon
+  /// is authorized to see proof for its own bookings).
+  Future<ApiResponse<String>> depositScreenshotUrl(String appointmentId);
 }
