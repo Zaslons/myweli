@@ -541,6 +541,40 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /uploads/sign:
+    post:
+      tags: [uploads]
+      summary: Presign a direct-to-storage image upload (B-upload)
+      description: >
+        Provider-only. Returns a short-lived presigned **multipart POST** to
+        object storage (Cloudflare R2). The object key is built server-side from
+        the token's salon, and the signed policy pins the key, content-type, and
+        a size range — so image bytes go client → storage directly (never
+        through the API) and a salon can only write under its own prefix. The
+        returned `publicUrl` is then saved via `PUT /providers/{id}/gallery`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType, purpose]
+              properties:
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp]
+                purpose: { type: string, enum: [gallery] }
+      responses:
+        '200':
+          description: A presigned upload ticket
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadTicket' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /appointments:
     get:
       tags: [appointments]
@@ -1056,6 +1090,20 @@ components:
         weekRevenue: { type: number, description: Same, Monday-based week. }
         monthRevenue: { type: number, description: Same, calendar month. }
         totalAppointments: { type: integer, description: All-time, any status. }
+
+    UploadTicket:
+      type: object
+      required: [method, uploadUrl, fields, publicUrl, maxBytes, expiresInSeconds]
+      properties:
+        method: { type: string, enum: [POST] }
+        uploadUrl: { type: string, description: Multipart POST target (storage). }
+        fields:
+          type: object
+          additionalProperties: { type: string }
+          description: Signed form fields; send these then the file (last).
+        publicUrl: { type: string, description: CDN URL to save to the gallery. }
+        maxBytes: { type: integer }
+        expiresInSeconds: { type: integer }
 
     Gallery:
       type: object

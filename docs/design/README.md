@@ -23,6 +23,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Image upload pipeline (Cloudflare R2) | [pro-image-upload-pipeline.md](pro-image-upload-pipeline.md) | B1 Built · B2 next |
 | Pro gallery photos (URL list) | [pro-gallery.md](pro-gallery.md) | Built |
 | Pro-side reschedule | [pro-reschedule.md](pro-reschedule.md) | Built |
 | Provider earnings detail | [provider-earnings.md](provider-earnings.md) | Built |

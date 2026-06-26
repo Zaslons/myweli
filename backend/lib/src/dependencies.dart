@@ -20,6 +20,8 @@ import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
 import 'providers_repository.dart';
+import 'storage/storage_service.dart';
+import 'upload_signing_service.dart';
 
 /// Composition root: process-wide singletons built from env
 /// (docs/BACKEND.md §3.5), provided into request context by
@@ -47,6 +49,20 @@ final String? _databaseUrl = () {
 final Pool<void>? _pool = _databaseUrl == null
     ? null
     : createPool(_databaseUrl!);
+
+String? _envOrNull(String key) {
+  final v = Platform.environment[key]?.trim();
+  return (v == null || v.isEmpty) ? null : v;
+}
+
+/// R2 API endpoint: explicit `R2_ENDPOINT` wins, else derived from
+/// `R2_ACCOUNT_ID` (so AWS S3 / Supabase / MinIO can drop in via `R2_ENDPOINT`).
+String? get _r2Endpoint {
+  final explicit = _envOrNull('R2_ENDPOINT');
+  if (explicit != null) return explicit;
+  final account = _envOrNull('R2_ACCOUNT_ID');
+  return account == null ? null : 'https://$account.r2.cloudflarestorage.com';
+}
 
 final TokenService tokenService = TokenService(secret: _resolveSecret());
 
@@ -89,9 +105,55 @@ final ProAppointmentService proAppointmentService = ProAppointmentService(
   appointmentRepository,
 );
 
+/// Object storage for image uploads. Configured → R2 (S3-compatible); else a
+/// no-network Fake for dev/CI. Production must configure it (fail-fast, like
+/// `JWT_SECRET`) so we never issue fake URLs in prod.
+final StorageService storageService = () {
+  final endpoint = _r2Endpoint;
+  final bucket = _envOrNull('R2_BUCKET');
+  final keyId = _envOrNull('R2_ACCESS_KEY_ID');
+  final secret = _envOrNull('R2_SECRET_ACCESS_KEY');
+  final publicBase = _envOrNull('R2_PUBLIC_BASE_URL');
+  if (endpoint != null &&
+      bucket != null &&
+      keyId != null &&
+      secret != null &&
+      publicBase != null) {
+    return R2StorageService(
+      endpoint: endpoint,
+      bucket: bucket,
+      accessKeyId: keyId,
+      secretAccessKey: secret,
+      publicBaseUrl: publicBase,
+    );
+  }
+  if (_isProd) {
+    throw StateError(
+      'Object storage must be configured in production: set R2_ENDPOINT (or '
+      'R2_ACCOUNT_ID), R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, '
+      'R2_PUBLIC_BASE_URL.',
+    );
+  }
+  return const FakeStorageService();
+}();
+
+/// When public delivery is configured, the gallery accepts only URLs from our
+/// own origin (anti-SSRF / hotlink) plus `asset:` seed placeholders; empty in
+/// dev/Fake (accept anything for local work).
+final List<String> _galleryAllowedOrigins = () {
+  final base = _envOrNull('R2_PUBLIC_BASE_URL');
+  return base == null ? const <String>[] : <String>[base, 'asset:'];
+}();
+
 final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   providersRepository,
   providerAuthRepository,
+  allowedImageOrigins: _galleryAllowedOrigins,
+);
+
+final UploadSigningService uploadSigningService = UploadSigningService(
+  providerAuthRepository,
+  storageService,
 );
 
 final ProviderDashboardService providerDashboardService =

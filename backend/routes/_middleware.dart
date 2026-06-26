@@ -12,6 +12,7 @@ import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/upload_signing_service.dart';
 
 /// Provides the process-wide singletons into every request's context, so
 /// handlers share state and the repository impls can be swapped in one place
@@ -32,6 +33,7 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderCatalogService>((_) => providerCatalogService))
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))
+      .use(provider<UploadSigningService>((_) => uploadSigningService))
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository));
 }

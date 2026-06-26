@@ -212,6 +212,31 @@ void main() {
         'forbidden',
       );
     });
+
+    test(
+      'gallery origin allowlist (when configured) rejects foreign URLs',
+      () async {
+        final scoped = ProviderCatalogService(
+          providers,
+          providerAuth,
+          allowedImageOrigins: const ['https://cdn.myweli.com', 'asset:'],
+        );
+        // In-origin + asset placeholder pass.
+        expect(
+          (await scoped.updateGallery(accountId, 'provider1', {
+            'imageUrls': ['https://cdn.myweli.com/g/x.jpg', 'asset:seed.jpg'],
+          })).ok,
+          isTrue,
+        );
+        // A foreign origin is rejected.
+        expect(
+          (await scoped.updateGallery(accountId, 'provider1', {
+            'imageUrls': ['https://evil.example/x.jpg'],
+          })).error,
+          'invalid_input',
+        );
+      },
+    );
   });
 
   group('routes', () {
