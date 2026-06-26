@@ -16,43 +16,55 @@ class PostgresAppointmentRepository implements AppointmentRepository {
 
   @override
   Future<Map<String, dynamic>?> create(Map<String, dynamic> a) async {
-    final result = await _pool.execute(
-      Sql.named(
-        'INSERT INTO appointments '
-        '(id, user_id, provider_id, service_ids, artist_id, appointment_date, '
-        'status, total_price, deposit_amount, balance_due, '
-        'cancellation_window_hours, client_name, client_phone, notes, '
-        'deposit_screenshot_url, created_at) '
-        'VALUES (@id, @user_id, @provider_id, @service_ids:jsonb, '
-        '@artist_id:text, @appointment_date:timestamptz, @status, @total_price, '
-        '@deposit_amount, @balance_due, @cancellation_window_hours, '
-        '@client_name:text, @client_phone:text, @notes:text, '
-        '@deposit_screenshot_url:text, @created_at:timestamptz) '
-        "ON CONFLICT (provider_id, appointment_date) "
-        "WHERE (status IN ('pending', 'confirmed')) DO NOTHING "
-        'RETURNING *',
-      ),
-      parameters: {
-        'id': a['id'],
-        'user_id': a['userId'],
-        'provider_id': a['providerId'],
-        'service_ids': jsonEncode(a['serviceIds']),
-        'artist_id': a['artistId'],
-        'appointment_date': DateTime.parse(a['appointmentDate'] as String),
-        'status': a['status'],
-        'total_price': (a['totalPrice'] as num).toDouble(),
-        'deposit_amount': (a['depositAmount'] as num?)?.toDouble() ?? 0,
-        'balance_due': (a['balanceDue'] as num?)?.toDouble() ?? 0,
-        'cancellation_window_hours': a['cancellationWindowHours'] ?? 24,
-        'client_name': a['clientName'],
-        'client_phone': a['clientPhone'],
-        'notes': a['notes'],
-        'deposit_screenshot_url': a['depositScreenshotUrl'],
-        'created_at': DateTime.parse(a['createdAt'] as String),
-      },
-    );
-    if (result.isEmpty) return null; // slot taken (unique-index conflict)
-    return _toDto(result.first.toColumnMap());
+    final start = DateTime.parse(a['appointmentDate'] as String);
+    final durationMinutes = (a['durationMinutes'] as num?)?.toInt() ?? 30;
+    try {
+      final result = await _pool.execute(
+        Sql.named(
+          'INSERT INTO appointments '
+          '(id, user_id, provider_id, service_ids, artist_id, '
+          'appointment_date, duration_minutes, ends_at, status, total_price, '
+          'deposit_amount, balance_due, cancellation_window_hours, '
+          'client_name, client_phone, notes, deposit_screenshot_url, '
+          'created_at) '
+          'VALUES (@id, @user_id, @provider_id, @service_ids:jsonb, '
+          '@artist_id:text, @appointment_date:timestamptz, @duration_minutes, '
+          '@ends_at:timestamptz, @status, @total_price, @deposit_amount, '
+          '@balance_due, @cancellation_window_hours, @client_name:text, '
+          '@client_phone:text, @notes:text, @deposit_screenshot_url:text, '
+          '@created_at:timestamptz) '
+          "ON CONFLICT (provider_id, appointment_date) "
+          "WHERE (status IN ('pending', 'confirmed')) DO NOTHING "
+          'RETURNING *',
+        ),
+        parameters: {
+          'id': a['id'],
+          'user_id': a['userId'],
+          'provider_id': a['providerId'],
+          'service_ids': jsonEncode(a['serviceIds']),
+          'artist_id': a['artistId'],
+          'appointment_date': start,
+          'duration_minutes': durationMinutes,
+          'ends_at': start.add(Duration(minutes: durationMinutes)),
+          'status': a['status'],
+          'total_price': (a['totalPrice'] as num).toDouble(),
+          'deposit_amount': (a['depositAmount'] as num?)?.toDouble() ?? 0,
+          'balance_due': (a['balanceDue'] as num?)?.toDouble() ?? 0,
+          'cancellation_window_hours': a['cancellationWindowHours'] ?? 24,
+          'client_name': a['clientName'],
+          'client_phone': a['clientPhone'],
+          'notes': a['notes'],
+          'deposit_screenshot_url': a['depositScreenshotUrl'],
+          'created_at': DateTime.parse(a['createdAt'] as String),
+        },
+      );
+      if (result.isEmpty) return null; // exact-start conflict (unique index)
+      return _toDto(result.first.toColumnMap());
+    } on ServerException catch (e) {
+      // Duration-overlap exclusion (btree_gist, 23P01) → the slot is taken.
+      if (e.code == '23P01') return null;
+      rethrow;
+    }
   }
 
   @override
@@ -112,15 +124,27 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       sets.add('appointment_date = @ad:timestamptz');
       params['ad'] = DateTime.parse(changes['appointmentDate'] as String);
     }
+    if (changes.containsKey('endsAt')) {
+      sets.add('ends_at = @ends_at:timestamptz');
+      params['ends_at'] = DateTime.parse(changes['endsAt'] as String);
+    }
     if (sets.isEmpty) return byId(id);
-    final result = await _pool.execute(
-      Sql.named(
-        'UPDATE appointments SET ${sets.join(', ')} WHERE id = @id RETURNING *',
-      ),
-      parameters: params,
-    );
-    if (result.isEmpty) return null;
-    return _toDto(result.first.toColumnMap());
+    try {
+      final result = await _pool.execute(
+        Sql.named(
+          'UPDATE appointments SET ${sets.join(', ')} WHERE id = @id '
+          'RETURNING *',
+        ),
+        parameters: params,
+      );
+      if (result.isEmpty) return null;
+      return _toDto(result.first.toColumnMap());
+    } on ServerException catch (e) {
+      // Rescheduling onto an overlapping slot trips the exclusion (23P01) →
+      // treat as "slot taken" (null); the lifecycle maps it to slot_unavailable.
+      if (e.code == '23P01') return null;
+      rethrow;
+    }
   }
 
   Map<String, dynamic> _toDto(Map<String, dynamic> r) {
@@ -134,6 +158,7 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       'appointmentDate': (r['appointment_date'] as DateTime)
           .toUtc()
           .toIso8601String(),
+      'durationMinutes': r['duration_minutes'],
       'status': r['status'],
       'totalPrice': (r['total_price'] as num).toDouble(),
       'depositAmount': (r['deposit_amount'] as num?)?.toDouble() ?? 0,

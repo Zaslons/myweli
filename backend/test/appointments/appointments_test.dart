@@ -89,6 +89,7 @@ void main() {
         expect(res.ok, isTrue);
         expect(res.appointment!['totalPrice'], 25000);
         expect(res.appointment!['depositAmount'], 12500);
+        expect(res.appointment!['durationMinutes'], 90); // service4 = 90 min
         expect(res.appointment!['status'], 'pending');
       },
     );

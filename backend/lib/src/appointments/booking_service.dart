@@ -45,6 +45,7 @@ class BookingService {
     final services = (provider['services'] as List)
         .cast<Map<String, dynamic>>();
     var total = 0.0;
+    var durationMinutes = 0;
     for (final id in serviceIds) {
       Map<String, dynamic>? service;
       for (final s in services) {
@@ -58,7 +59,9 @@ class BookingService {
         return (ok: false, error: 'invalid_service', appointment: null);
       }
       total += (service['price'] as num).toDouble();
+      durationMinutes += (service['durationMinutes'] as num?)?.toInt() ?? 0;
     }
+    if (durationMinutes <= 0) durationMinutes = 30; // safety floor
 
     // The server decides availability: the requested time must be a free slot
     // (rejects past/closed/break/already-booked, and non-aligned times).
@@ -87,6 +90,7 @@ class BookingService {
       'serviceIds': serviceIds,
       'artistId': artistId,
       'appointmentDate': appointmentDateTime.toUtc().toIso8601String(),
+      'durationMinutes': durationMinutes,
       'status': 'pending',
       'totalPrice': total,
       'depositAmount': deposit,
@@ -136,6 +140,7 @@ class BookingService {
     final services = (provider['services'] as List)
         .cast<Map<String, dynamic>>();
     var total = 0.0;
+    var durationMinutes = 0;
     for (final id in serviceIds) {
       Map<String, dynamic>? service;
       for (final s in services) {
@@ -148,7 +153,9 @@ class BookingService {
         return (ok: false, error: 'invalid_service', appointment: null);
       }
       total += (service['price'] as num).toDouble();
+      durationMinutes += (service['durationMinutes'] as num?)?.toInt() ?? 0;
     }
+    if (durationMinutes <= 0) durationMinutes = 30; // safety floor
 
     final appointment = {
       'id':
@@ -158,6 +165,7 @@ class BookingService {
       'serviceIds': serviceIds,
       'artistId': artistId,
       'appointmentDate': appointmentDateTime.toUtc().toIso8601String(),
+      'durationMinutes': durationMinutes,
       'status': 'confirmed', // salon-entered → confirmed, no client step
       'totalPrice': total,
       'depositAmount': 0,

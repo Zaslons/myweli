@@ -1257,6 +1257,11 @@ components:
           items: { type: string }
         artistId: { type: string, nullable: true }
         appointmentDate: { type: string, format: date-time }
+        durationMinutes:
+          type: integer
+          description: >
+            Server-computed total service duration; backs the booking
+            overlap-exclusion constraint. Read-only.
         status:
           type: string
           enum: [pending, confirmed, cancelled, completed, noShow]

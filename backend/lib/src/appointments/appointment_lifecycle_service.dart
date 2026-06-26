@@ -88,9 +88,18 @@ class AppointmentLifecycleService {
       return (ok: false, error: 'slot_unavailable', appointment: null);
     }
 
+    // Shift the stored end with the start (= start + duration) so the overlap
+    // exclusion guards the new window.
+    final start = newDateTime.toUtc();
+    final dur = (appointment['durationMinutes'] as num?)?.toInt() ?? 30;
     final updated = await _appointments.update(id, {
-      'appointmentDate': newDateTime.toUtc().toIso8601String(),
+      'appointmentDate': start.toIso8601String(),
+      'endsAt': start.add(Duration(minutes: dur)).toIso8601String(),
     });
+    // Null here means the DB rejected a concurrent overlap (exclusion guard).
+    if (updated == null) {
+      return (ok: false, error: 'slot_unavailable', appointment: null);
+    }
     return (ok: true, error: null, appointment: updated);
   }
 
