@@ -11,7 +11,9 @@ import 'providers/admin/admin_auth_provider.dart';
 import 'providers/admin/admin_dashboard_provider.dart';
 import 'providers/admin/admin_kyc_provider.dart';
 import 'providers/admin/admin_moderation_provider.dart';
+import 'providers/admin/admin_provider_detail_provider.dart';
 import 'providers/admin/admin_providers_provider.dart';
+import 'providers/admin/admin_user_detail_provider.dart';
 import 'providers/admin/admin_users_provider.dart';
 
 /// Myweli admin/ops console — a 3rd Flutter (Web) entrypoint, behind admin
@@ -53,6 +55,8 @@ class MyweliAdminApp extends StatelessWidget {
           ChangeNotifierProvider(create: (_) => AdminModerationProvider()),
           ChangeNotifierProvider(create: (_) => AdminProvidersProvider()),
           ChangeNotifierProvider(create: (_) => AdminUsersProvider()),
+          ChangeNotifierProvider(create: (_) => AdminProviderDetailProvider()),
+          ChangeNotifierProvider(create: (_) => AdminUserDetailProvider()),
         ],
         child: Builder(
           builder: (context) {

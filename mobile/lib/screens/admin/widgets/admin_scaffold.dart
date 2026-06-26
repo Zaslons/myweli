@@ -45,11 +45,15 @@ class AdminScaffold extends StatelessWidget {
     required this.title,
     required this.child,
     this.actions = const [],
+    this.showBack = false,
   });
 
   final String title;
   final Widget child;
   final List<Widget> actions;
+
+  /// Show a back affordance in the top bar (detail screens).
+  final bool showBack;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +67,7 @@ class AdminScaffold extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                _TopBar(title: title, actions: actions),
+                _TopBar(title: title, actions: actions, showBack: showBack),
                 Expanded(child: child),
               ],
             ),
@@ -75,9 +79,14 @@ class AdminScaffold extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, required this.actions});
+  const _TopBar({
+    required this.title,
+    required this.actions,
+    this.showBack = false,
+  });
   final String title;
   final List<Widget> actions;
+  final bool showBack;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +96,17 @@ class _TopBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingL),
       child: Row(
         children: [
+          if (showBack)
+            Padding(
+              padding: const EdgeInsets.only(right: AppTheme.spacingS),
+              child: IconButton(
+                tooltip: 'Retour',
+                icon: const Icon(Icons.arrow_back, size: 20),
+                onPressed: () => context.canPop()
+                    ? context.pop()
+                    : context.go(_parentPath(context)),
+              ),
+            ),
           Text(title, style: AppTextStyles.headlineSmall),
           const Spacer(),
           ...actions,
@@ -94,6 +114,14 @@ class _TopBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Fallback when there's no back-stack (e.g. a deep-link): the parent list path.
+String _parentPath(BuildContext context) {
+  final loc = GoRouterState.of(context).uri.path;
+  final i = loc.lastIndexOf('/');
+  final parent = i > 0 ? loc.substring(0, i) : '';
+  return parent.isEmpty ? '/admin/dashboard' : parent;
 }
 
 class _Sidebar extends StatelessWidget {

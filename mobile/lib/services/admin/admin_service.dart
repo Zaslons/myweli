@@ -117,6 +117,9 @@ class AdminService {
     return _get('/admin/providers?${_query(params)}');
   }
 
+  Future<ApiResponse<Map<String, dynamic>>> providerDetail(String id) =>
+      _get('/admin/providers/$id');
+
   Future<ApiResponse<Map<String, dynamic>>> suspendProvider(
     String id,
     String reason,
@@ -143,6 +146,9 @@ class AdminService {
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
     return _get('/admin/users?${_query(params)}');
   }
+
+  Future<ApiResponse<Map<String, dynamic>>> userDetail(String id) =>
+      _get('/admin/users/$id');
 
   Future<ApiResponse<Map<String, dynamic>>> banUser(String id, String reason) =>
       _post('/admin/users/$id/ban', body: {'reason': reason});
