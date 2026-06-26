@@ -213,6 +213,31 @@ void main() {
       expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_invalid');
       expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_locked');
     });
+
+    test('submitKyc persists kyc_docs + pending; survives re-read', () async {
+      final r = repo();
+      final reg = await r.register(
+        phoneNumber: provPhone,
+        businessName: 'X',
+        businessType: 'salon',
+      );
+      final id = reg.provider!.id;
+
+      final updated = await r.submitKyc(id, [
+        {
+          'type': 'idCard',
+          'fileName': 'id.jpg',
+          'key': 'kyc/$id/a.jpg',
+          'submittedAt': '2030-06-26T09:00:00.000Z',
+        },
+      ]);
+      expect(updated!.verificationStatus, 'pending');
+      expect(updated.kycDocs.single['type'], 'idCard');
+
+      final reread = await r.accountById(id);
+      expect(reread!.kycDocs.single['key'], 'kyc/$id/a.jpg');
+      expect(await r.submitKyc('nope', const []), isNull);
+    });
   });
 
   group('PostgresProvidersRepository', () {

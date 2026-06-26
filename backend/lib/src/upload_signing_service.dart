@@ -7,24 +7,28 @@ import 'storage/storage_service.dart';
 /// Outcome of a sign request; [data] is the response body on success.
 typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
 
-/// Issues a presigned upload for an authenticated salon (design:
-/// docs/design/pro-image-upload-pipeline.md). The object **key is built from
-/// the token's `providerId`**, so a salon can only write under its own prefix —
-/// the client never chooses the path. Content-type is allowlisted and the size
-/// cap is signed into the policy; bytes never pass through the API.
+/// Issues a presigned upload for an authenticated salon. The object **key is
+/// built server-side from the token**, so a salon can only write under its own
+/// prefix — the client never chooses the path. Content-type is allowlisted and
+/// the size cap is signed into the policy; bytes never pass through the API.
+/// Two purposes (designs: pro-image-upload-pipeline.md, pro-kyc.md):
+/// - `gallery` → **public** bucket, prefix `gallery/{providerId}` (needs a
+///   linked salon), returns a `publicUrl`.
+/// - `kyc` → **private** bucket, prefix `kyc/{accountId}`, returns the `key`
+///   only (no public URL — ID documents are never public); accepts PDF too.
 class UploadSigningService {
   UploadSigningService(this._providerAuth, this._storage);
 
   final ProviderAuthRepository _providerAuth;
   final StorageService _storage;
 
-  /// jpeg/png/webp → file extension.
-  static const _allowedTypes = {
+  /// content-type → file extension, per purpose.
+  static const _imageTypes = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
     'image/webp': 'webp',
   };
-  static const _allowedPurposes = {'gallery'};
+  static const _kycTypes = {..._imageTypes, 'application/pdf': 'pdf'};
   static const _maxBytes = 5 * 1024 * 1024; // 5 MB
   static const _ttl = Duration(minutes: 5);
 
@@ -36,24 +40,37 @@ class UploadSigningService {
     required Object? purpose,
   }) async {
     final account = await _providerAuth.accountById(accountId);
-    final providerId = account?.providerId;
-    if (providerId == null) {
-      return (ok: false, error: 'forbidden', data: null);
+    if (account == null) return (ok: false, error: 'forbidden', data: null);
+
+    final isKyc = purpose == 'kyc';
+    if (purpose != 'gallery' && !isKyc) {
+      return (ok: false, error: 'invalid_input', data: null);
     }
-    final ext = _allowedTypes[contentType];
+    final ext = (isKyc ? _kycTypes : _imageTypes)[contentType];
     if (contentType is! String || ext == null) {
       return (ok: false, error: 'invalid_input', data: null);
     }
-    if (purpose is! String || !_allowedPurposes.contains(purpose)) {
-      return (ok: false, error: 'invalid_input', data: null);
+
+    // Key prefix: KYC is scoped to the account (onboarding, pre-link); gallery
+    // to the linked salon.
+    final String prefixId;
+    if (isKyc) {
+      prefixId = accountId;
+    } else {
+      final providerId = account.providerId;
+      if (providerId == null) {
+        return (ok: false, error: 'forbidden', data: null);
+      }
+      prefixId = providerId;
     }
 
-    final key = '$purpose/$providerId/${_objectId()}.$ext';
+    final key = '$purpose/$prefixId/${_objectId()}.$ext';
     final post = _storage.presignPost(
       key: key,
       contentType: contentType,
       maxBytes: _maxBytes,
       ttl: _ttl,
+      private: isKyc,
     );
 
     return (
@@ -63,7 +80,9 @@ class UploadSigningService {
         'method': 'POST',
         'uploadUrl': post.url,
         'fields': post.fields,
-        'publicUrl': _storage.publicUrl(key),
+        'key': key,
+        // ID docs are never publicly served; only public (gallery) gets a URL.
+        if (!isKyc) 'publicUrl': _storage.publicUrl(key),
         'maxBytes': _maxBytes,
         'expiresInSeconds': _ttl.inSeconds,
       },

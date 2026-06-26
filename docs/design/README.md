@@ -23,6 +23,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Pro KYC (provider verification) | [pro-kyc.md](pro-kyc.md) | B1 Built · B2 next |
 | Pro staff (artists) management | [pro-artists.md](pro-artists.md) | Built |
 | Consumer reviews | [consumer-reviews.md](consumer-reviews.md) | Built |
 | Consumer favorites | [consumer-favorites.md](consumer-favorites.md) | Built |

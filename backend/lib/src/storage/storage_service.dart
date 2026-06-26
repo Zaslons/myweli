@@ -17,15 +17,18 @@ class PresignedPost {
 /// (R2 today). Design: docs/design/pro-image-upload-pipeline.md.
 abstract interface class StorageService {
   /// Build a presigned POST that allows uploading exactly [key] with
-  /// [contentType] and at most [maxBytes] bytes, valid for [ttl].
+  /// [contentType] and at most [maxBytes] bytes, valid for [ttl]. When
+  /// [private] is true the upload targets the private bucket (KYC); otherwise
+  /// the public (gallery) bucket.
   PresignedPost presignPost({
     required String key,
     required String contentType,
     required int maxBytes,
     Duration ttl,
+    bool private,
   });
 
-  /// The public (CDN) delivery URL for [key].
+  /// The public (CDN) delivery URL for a public-bucket [key].
   String publicUrl(String key);
 }
 
@@ -43,9 +46,10 @@ class FakeStorageService implements StorageService {
     required String contentType,
     required int maxBytes,
     Duration ttl = const Duration(minutes: 5),
+    bool private = false,
   }) {
     return PresignedPost(
-      url: '$origin/bucket',
+      url: '$origin/${private ? 'kyc-bucket' : 'bucket'}',
       fields: {
         'key': key,
         'Content-Type': contentType,
@@ -70,15 +74,20 @@ class R2StorageService implements StorageService {
     required String accessKeyId,
     required String secretAccessKey,
     required this.publicBaseUrl,
+    String? kycBucket,
     this.region = 'auto',
     DateTime Function()? clock,
   }) : _accessKeyId = accessKeyId,
        _secretAccessKey = secretAccessKey,
+       _kycBucket = kycBucket ?? bucket,
        _clock = clock ?? DateTime.now;
 
   /// Storage API endpoint, e.g. `https://<account>.r2.cloudflarestorage.com`.
   final String endpoint;
   final String bucket;
+
+  /// Separate **private** bucket for KYC documents (never publicly served).
+  final String _kycBucket;
   final String region;
 
   /// Public delivery base, e.g. `https://cdn.myweli.com` (a domain bound to the
@@ -95,7 +104,9 @@ class R2StorageService implements StorageService {
     required String contentType,
     required int maxBytes,
     Duration ttl = const Duration(minutes: 5),
+    bool private = false,
   }) {
+    final targetBucket = private ? _kycBucket : bucket;
     final now = _clock().toUtc();
     final amzDate = _amzDate(now);
     final dateStamp = amzDate.substring(0, 8);
@@ -105,7 +116,7 @@ class R2StorageService implements StorageService {
     final policy = {
       'expiration': expiration,
       'conditions': [
-        {'bucket': bucket},
+        {'bucket': targetBucket},
         {'key': key},
         {'Content-Type': contentType},
         ['content-length-range', 0, maxBytes],
@@ -118,11 +129,11 @@ class R2StorageService implements StorageService {
     final signature = _sign(dateStamp, policyB64);
 
     return PresignedPost(
-      url: '${_trim(endpoint)}/$bucket',
+      url: '${_trim(endpoint)}/$targetBucket',
       fields: {
         'key': key,
         'Content-Type': contentType,
-        'bucket': bucket,
+        'bucket': targetBucket,
         'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
         'X-Amz-Credential': credential,
         'X-Amz-Date': amzDate,
