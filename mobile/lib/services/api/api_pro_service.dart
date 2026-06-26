@@ -16,22 +16,22 @@ import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ProServiceInterface] for the slices the backend
 /// supports today: the **provider appointment surface** (list + accept / reject
-/// / complete / no-show) and the **catalogue** — services CRUD + enable/disable
-/// and availability read/replace (design:
-/// docs/design/pro-catalogue-app-wiring.md).
+/// / complete / no-show + **manual booking**), the **catalogue** (services CRUD
+/// + enable/disable, availability read/replace), the **dashboard** stats, and
+/// the **earnings** ledger. Designs: docs/design/pro-catalogue-app-wiring.md,
+/// provider-dashboard-stats.md, pro-manual-booking.md, provider-earnings.md.
 ///
 /// Authenticated calls go through [RefreshingHttpClient] pointed at the
 /// **provider** session (its own secure key) and `/auth/provider/refresh`, so a
 /// pro acting after the ~15-min access token expires is silently
 /// re-authenticated instead of bounced to sign-in. Appointment lists are scoped
-/// by the token; catalogue endpoints are `/providers/{id}/…` (the salon id is an
-/// argument, or — for the serviceId-only edits — read from the session), with
+/// by the token; `/providers/{id}/…` endpoints take the salon id as an argument
+/// (or — for the serviceId-only edits — read it from the session), with
 /// ownership re-checked server-side.
 ///
-/// Everything still without a backend (dashboard, gallery, earnings, deposit
-/// policy, manual booking, pro-side reschedule) delegates to an embedded
-/// [MockProService], so the pro app keeps working. Wired in by DI only when
-/// `AppConfig.useApiBackend` is true.
+/// Still without a backend (gallery photos, deposit policy, pro-side
+/// reschedule) → delegated to an embedded [MockProService], so the pro app
+/// keeps working. Wired in by DI only when `AppConfig.useApiBackend` is true.
 class ApiProService implements ProServiceInterface {
   ApiProService({
     http.Client? client,
@@ -351,12 +351,22 @@ class ApiProService implements ProServiceInterface {
     String providerId, {
     DateTime? startDate,
     DateTime? endDate,
-  }) =>
-      _fallback.getEarnings(
-        providerId,
-        startDate: startDate,
-        endDate: endDate,
-      );
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final uri = _uri('/providers/$providerId/earnings').replace(
+      queryParameters: {
+        if (startDate != null) 'startDate': startDate.toUtc().toIso8601String(),
+        if (endDate != null) 'endDate': endDate.toUtc().toIso8601String(),
+      },
+    );
+    final res =
+        await _authed.send((t) => _client.get(uri, headers: _bearer(t)));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(EarningsData.fromJson(_decode(res.body)));
+  }
 
   @override
   Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId) =>

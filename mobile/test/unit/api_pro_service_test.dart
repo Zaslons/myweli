@@ -190,7 +190,7 @@ void main() {
     expect((await service.getProviderAppointments('p')).success, isFalse);
   });
 
-  test('an unbacked method (earnings) delegates to the mock, no HTTP',
+  test('an unbacked method (deposit policy) delegates to the mock, no HTTP',
       () async {
     final client =
         MockClient((req) async => throw Exception('should not be called'));
@@ -200,9 +200,39 @@ void main() {
       providerSessionStore: InMemorySessionStore(),
     );
 
-    final res = await service.getEarnings('provider1');
+    final res = await service.getDepositPolicy('provider1');
 
     expect(res.success, isTrue); // came from the embedded MockProService
+  });
+
+  test('getEarnings GETs /providers/{id}/earnings with the range + parses',
+      () async {
+    final client = MockClient((req) async {
+      expect(req.url.path, '/providers/provider1/earnings');
+      expect(req.url.queryParameters['startDate'], isNotNull);
+      return http.Response(
+        jsonEncode({
+          'totalEarnings': 15000,
+          'transactions': [
+            {
+              'id': 'transaction_a1',
+              'appointmentId': 'a1',
+              'amount': 15000,
+              'date': DateTime.utc(2030, 6, 10).toIso8601String(),
+              'status': 'completed',
+            },
+          ],
+        }),
+        200,
+      );
+    });
+    final res = await _linked(client).getEarnings(
+      'provider1',
+      startDate: DateTime.utc(2030, 6, 1),
+    );
+    expect(res.success, isTrue);
+    expect(res.data!.totalEarnings, 15000);
+    expect(res.data!.transactions.single.appointmentId, 'a1');
   });
 
   test('getDashboardStats GETs /providers/{id}/dashboard + parses', () async {
