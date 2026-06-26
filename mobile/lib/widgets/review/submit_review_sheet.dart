@@ -172,7 +172,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                 icon: Icon(
                   starIndex <= _selectedRating ? Icons.star : Icons.star_border,
                   size: 40,
-                  color: Colors.amber,
+                  color: AppColors.starRating,
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
               );

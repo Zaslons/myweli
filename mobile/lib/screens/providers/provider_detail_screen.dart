@@ -142,7 +142,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                       return IconButton(
                         icon: Icon(
                           isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite ? Colors.red : AppColors.secondary,
+                          color: isFavorite
+                              ? AppColors.favorite
+                              : AppColors.secondary,
                         ),
                         onPressed: () async {
                           if (!authProvider.isAuthenticated) {
@@ -233,7 +235,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   Row(
                                     children: [
                                       const Icon(Icons.star,
-                                          size: 16, color: Colors.amber),
+                                          size: 16,
+                                          color: AppColors.starRating),
                                       const SizedBox(width: 4),
                                       Text(
                                         p.rating.toStringAsFixed(1),
@@ -656,7 +659,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             Row(
                               children: [
                                 const Icon(Icons.star,
-                                    size: 28, color: Colors.amber),
+                                    size: 28, color: AppColors.starRating),
                                 const SizedBox(width: 12),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

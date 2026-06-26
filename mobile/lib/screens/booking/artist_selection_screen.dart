@@ -413,7 +413,8 @@ class _ArtistCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        const Icon(Icons.star,
+                            size: 14, color: AppColors.starRating),
                         const SizedBox(width: 4),
                         Text(
                           artist.rating!.toStringAsFixed(1),
