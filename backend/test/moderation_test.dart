@@ -117,6 +117,20 @@ void main() {
     expect((await audit.list()).items.first['action'], 'review.restore');
   });
 
+  test('hiddenQueue lists hidden reviews; restore removes them', () async {
+    await seedReview('r1', rating: 5); // visible
+    await seedReview('r2', rating: 1, day: 2); // will be hidden
+    await svc.hide('admin_1', 'r2', 'abusif');
+
+    var hidden = (await svc.hiddenQueue()).data! as Map;
+    expect(hidden['total'], 1);
+    expect((hidden['items'] as List).single['id'], 'r2');
+
+    await svc.restore('admin_1', 'r2');
+    hidden = (await svc.hiddenQueue()).data! as Map;
+    expect(hidden['total'], 0);
+  });
+
   group('report route', () {
     RequestContext ctx({String? bearer, Object body = const {}}) {
       final c = _MockRequestContext();

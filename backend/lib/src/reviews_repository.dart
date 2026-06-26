@@ -42,6 +42,13 @@ abstract interface class ReviewsRepository {
     int pageSize,
   });
 
+  /// Admin: reviews currently `hidden` (for the "Avis masqués" / restore view),
+  /// newest-first, paginated.
+  Future<({List<Map<String, dynamic>> items, int total})> listHidden({
+    int page,
+    int pageSize,
+  });
+
   /// Set a review's `moderation_status` (`hidden`/`visible`); returns the review
   /// (with `providerId` for rating recompute), or null if absent.
   Future<Map<String, dynamic>?> setModerationStatus(
@@ -189,6 +196,23 @@ class InMemoryReviewsRepository implements ReviewsRepository {
       }
     }
     final all = byReview.values.toList();
+    final start = (page - 1) * pageSize;
+    final items = start >= all.length
+        ? <Map<String, dynamic>>[]
+        : all.sublist(start, (start + pageSize).clamp(0, all.length));
+    return (items: items, total: all.length);
+  }
+
+  @override
+  Future<({List<Map<String, dynamic>> items, int total})> listHidden({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final all =
+        _reviews.where((r) => r['moderationStatus'] == 'hidden').toList()..sort(
+          (a, b) =>
+              (b['createdAt'] as String).compareTo(a['createdAt'] as String),
+        );
     final start = (page - 1) * pageSize;
     final items = start >= all.length
         ? <Map<String, dynamic>>[]
