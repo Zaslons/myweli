@@ -5,6 +5,10 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/messaging/messaging_outbox_repository.dart';
+import 'package:myweli_backend/src/messaging/messaging_prefs_repository.dart';
+import 'package:myweli_backend/src/messaging/messaging_provider.dart';
+import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/auth/otp/request.dart' as otp_request;
@@ -20,10 +24,16 @@ Uri _u(String path) => Uri.parse('http://localhost$path');
 void main() {
   late TokenService ts;
   late AuthRepository repo;
+  late MessagingService messaging;
 
   setUp(() {
     ts = TokenService(secret: 'test-secret');
     repo = InMemoryAuthRepository(tokens: ts, isProd: false);
+    messaging = MessagingService(
+      LogMessagingProvider(),
+      InMemoryMessagingOutboxRepository(),
+      InMemoryMessagingPrefsRepository(),
+    );
   });
 
   RequestContext ctx(Request request) {
@@ -31,6 +41,7 @@ void main() {
     when(() => context.request).thenReturn(request);
     when(() => context.read<AuthRepository>()).thenReturn(repo);
     when(() => context.read<TokenService>()).thenReturn(ts);
+    when(() => context.read<MessagingService>()).thenReturn(messaging);
     return context;
   }
 

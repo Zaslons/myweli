@@ -27,6 +27,8 @@ import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
+import 'db/postgres_messaging_outbox_repository.dart';
+import 'db/postgres_messaging_prefs_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reviews_repository.dart';
@@ -34,6 +36,11 @@ import 'deposit_service.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'kyc_service.dart';
+import 'messaging/messaging_outbox_repository.dart';
+import 'messaging/messaging_prefs_repository.dart';
+import 'messaging/messaging_provider.dart';
+import 'messaging/messaging_service.dart';
+import 'messaging/twilio_messaging_provider.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
@@ -271,6 +278,51 @@ final ReviewsService reviewsService = ReviewsService(
   authRepository,
   allowedImageOrigins: _galleryAllowedOrigins,
 );
+
+/// Outbound messaging (WhatsApp + SMS). Configured → Twilio; else a no-network
+/// log provider for dev/CI. Production must configure it (fail-fast, like
+/// `JWT_SECRET`/storage). Design: docs/design/messaging-notifications.md.
+final MessagingProvider messagingProvider = () {
+  final sid = _envOrNull('TWILIO_ACCOUNT_SID');
+  final token = _envOrNull('TWILIO_AUTH_TOKEN');
+  final smsFrom = _envOrNull('TWILIO_SMS_FROM');
+  final waFrom = _envOrNull('TWILIO_WHATSAPP_FROM');
+  if (sid != null && token != null && smsFrom != null && waFrom != null) {
+    return TwilioMessagingProvider(
+      accountSid: sid,
+      authToken: token,
+      smsFrom: smsFrom,
+      whatsAppFrom: waFrom,
+    );
+  }
+  if (_isProd) {
+    throw StateError(
+      'Messaging must be configured in production: set TWILIO_ACCOUNT_SID, '
+      'TWILIO_AUTH_TOKEN, TWILIO_SMS_FROM and TWILIO_WHATSAPP_FROM.',
+    );
+  }
+  return LogMessagingProvider();
+}();
+
+final MessagingOutboxRepository messagingOutboxRepository = _pool == null
+    ? InMemoryMessagingOutboxRepository()
+    : PostgresMessagingOutboxRepository(_pool!);
+
+final MessagingPrefsRepository messagingPrefsRepository = _pool == null
+    ? InMemoryMessagingPrefsRepository()
+    : PostgresMessagingPrefsRepository(_pool!);
+
+final MessagingService messagingService = MessagingService(
+  messagingProvider,
+  messagingOutboxRepository,
+  messagingPrefsRepository,
+);
+
+/// Shared secret guarding the delivery-status webhook (the BSP appends it as a
+/// `?secret=` query param). When set, mismatches are rejected (deny-by-default);
+/// unset (dev) → the webhook is open. Real Twilio signature validation is a
+/// follow-up. Design: docs/design/messaging-notifications.md §5.
+final String? messagingWebhookSecret = _envOrNull('MESSAGING_WEBHOOK_SECRET');
 
 /// Server-startup hook (called from the custom entrypoint `main.dart`): applies
 /// migrations and seeds providers when a database is configured. No-op for

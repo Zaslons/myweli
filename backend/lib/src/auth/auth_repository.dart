@@ -9,10 +9,13 @@ typedef TokenPair = ({
   DateTime expiresAt,
 });
 
-/// Outcome of an OTP request. [devCode] is non-null only outside production.
+/// Outcome of an OTP request. [code] is the plaintext for **delivery** (always
+/// set on success, in-memory only — handed to the SMS sender, never logged).
+/// [devCode] is the same value echoed to clients **only** outside production.
 typedef OtpRequestResult = ({
   bool ok,
   String? error,
+  String? code,
   String? devCode,
   int expiresInSeconds,
 });
@@ -149,6 +152,7 @@ class InMemoryAuthRepository implements AuthRepository {
       return (
         ok: false,
         error: 'otp_resend_limit',
+        code: null,
         devCode: null,
         expiresInSeconds: 0,
       );
@@ -166,6 +170,7 @@ class InMemoryAuthRepository implements AuthRepository {
     return (
       ok: true,
       error: null,
+      code: code,
       devCode: _isProd ? null : code,
       expiresInSeconds: _otpValidity.inSeconds,
     );

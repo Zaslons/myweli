@@ -370,6 +370,36 @@ CREATE TABLE disputes (
       'CREATE INDEX disputes_appointment_idx ON disputes(appointment_id)',
     ],
   ),
+  (
+    id: '0015_messaging',
+    statements: [
+      // Outbound-message log (FR-NOTIF-001). OTP is NOT stored here (sent via
+      // MessagingService.sendOtp). Design: docs/design/messaging-notifications.md.
+      '''
+CREATE TABLE outbound_messages (
+  id text PRIMARY KEY,
+  recipient_phone text NOT NULL,
+  channel text NOT NULL,
+  template text NOT NULL,
+  params jsonb NOT NULL DEFAULT '{}',
+  body text NOT NULL,
+  status text NOT NULL DEFAULT 'queued',
+  provider_message_id text,
+  created_at timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX outbound_messages_recipient_idx '
+          'ON outbound_messages(recipient_phone, created_at DESC)',
+      'CREATE INDEX outbound_messages_provider_idx '
+          'ON outbound_messages(provider_message_id)',
+      // Promotional opt-out (transactional always sends).
+      '''
+CREATE TABLE messaging_opt_out (
+  phone text PRIMARY KEY,
+  opted_out boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

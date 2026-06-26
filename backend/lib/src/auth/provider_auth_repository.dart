@@ -217,6 +217,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       return (
         ok: false,
         error: 'otp_resend_limit',
+        code: null,
         devCode: null,
         expiresInSeconds: 0,
       );
@@ -224,6 +225,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     return (
       ok: true,
       error: null,
+      code: issued.code,
       devCode: issued.devCode,
       expiresInSeconds: issued.expiresInSeconds,
     );
@@ -351,7 +353,9 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   void _revokeFamily(String familyId) =>
       _refreshByHash.removeWhere((_, r) => r.familyId == familyId);
 
-  ({String? devCode, int expiresInSeconds})? _issueOtp(String phoneNumber) {
+  ({String? code, String? devCode, int expiresInSeconds})? _issueOtp(
+    String phoneNumber,
+  ) {
     final existing = _otps[phoneNumber];
     if (existing != null && existing.resendsLeft <= 0) return null;
     final resendsLeft = existing == null
@@ -365,6 +369,7 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       resendsLeft: resendsLeft,
     );
     return (
+      code: code,
       devCode: _isProd ? null : code,
       expiresInSeconds: _otpValidity.inSeconds,
     );
