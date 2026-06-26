@@ -23,7 +23,8 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
-| Admin / ops console (KYC verify · moderation · …) | [admin-console.md](admin-console.md) | Slices 1–3 built (KYC · moderation · mgmt · disputes · analytics) · Slice 4+/UI next |
+| Admin / ops console — backend (KYC · moderation · mgmt · disputes · analytics) | [admin-console.md](admin-console.md) | Slices 1–3 built |
+| Admin / ops console — UI (Flutter Web) | [admin-console-ui.md](admin-console-ui.md) | UI-1 (auth + dashboard + KYC) Built · moderation/mgmt/disputes next |
 | Consumer deposit / Mobile Money flow | [consumer-deposit.md](consumer-deposit.md) | Built (B1 + B2) |
 | Booking duration-overlap exclusion (btree_gist) | [booking-overlap-exclusion.md](booking-overlap-exclusion.md) | Built |
 | Pro KYC (provider verification) | [pro-kyc.md](pro-kyc.md) | Built (provider side) |
