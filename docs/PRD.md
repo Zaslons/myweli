@@ -291,7 +291,7 @@ The minimum to onboard salons in 3 communes and run real, deposit-backed booking
 | Pro iOS + Android | **Flutter** (existing, `main_pro.dart`) | Same. |
 | **Public web** (per-provider booking pages + consumer marketplace) | **Next.js / React (SSR/SSG)** | **SEO and shareability are the entire point** of these surfaces. Flutter Web cannot rank on Google or render fast on first paint. Public pages must be server-rendered. |
 | Provider dashboard (web) | React (shared with public web) **or** Flutter Web | Behind login, SEO irrelevant; choose by team velocity. Recommend React to share components/design system with public web. |
-| Admin/ops console | React | Internal, behind auth; reuse web stack. |
+| Admin/ops console | **Flutter Web** (revised from React) | Internal, behind auth → SEO/SSR (React's edge) is irrelevant here. Built as a 3rd Flutter entrypoint (`main_admin.dart`) reusing the existing models, `interface+Api` services, `RefreshingHttpClient` (silent refresh), theme + widgets — fastest for a solo Flutter team ("choose by team velocity"). The React preference was justified by sharing with the **public** web (V2, not built); revisit only if that materializes. Design: docs/design/admin-console-ui.md. |
 
 **Decision:** Do **not** build the public-facing web on Flutter Web. Public booking pages and the marketplace are SEO-first and must be SSR (Next.js). Authenticated surfaces (provider dashboard, admin) may use the same React stack.
 
