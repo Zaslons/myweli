@@ -1577,6 +1577,81 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ---- Admin consumer management — B-admin Slice 2 / A3b ---------------------
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: Consumer management list (B-admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [active, banned] } }
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200':
+          description: Paginated users (with status)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/User' } }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/users/{id}:
+    get:
+      tags: [admin]
+      summary: User support view — user + recent bookings (B-admin)
+      description: Read-only (no act-as impersonation in this slice).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200': { description: User + recentAppointments }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/users/{id}/ban:
+    post:
+      tags: [admin]
+      summary: Ban a consumer (B-admin) — audited
+      description: Blocks login (and therefore booking). Optional `{reason}`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: The banned user }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/users/{id}/unban:
+    post:
+      tags: [admin]
+      summary: Unban a consumer (B-admin) — audited
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200': { description: The restored user }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:

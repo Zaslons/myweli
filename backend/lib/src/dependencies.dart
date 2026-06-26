@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import 'admin/admin_auth_repository.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/admin_provider_service.dart';
+import 'admin/admin_user_service.dart';
 import 'admin/audit_log_repository.dart';
 import 'admin/moderation_service.dart';
 import 'appointments/appointment_lifecycle_service.dart';
@@ -221,6 +222,12 @@ final ModerationService moderationService = ModerationService(
 
 final AdminProviderService adminProviderService = AdminProviderService(
   providersRepository,
+  appointmentRepository,
+  auditLogRepository,
+);
+
+final AdminUserService adminUserService = AdminUserService(
+  authRepository,
   appointmentRepository,
   auditLogRepository,
 );

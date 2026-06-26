@@ -342,6 +342,13 @@ CREATE TABLE review_reports (
           'ADD COLUMN featured boolean NOT NULL DEFAULT false',
     ],
   ),
+  (
+    id: '0013_user_status',
+    statements: [
+      // Admin can ban a consumer (blocks login + booking). active | banned.
+      "ALTER TABLE users ADD COLUMN status text NOT NULL DEFAULT 'active'",
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

@@ -38,6 +38,7 @@ class AuthUser {
     this.name,
     this.email,
     this.avatarUrl,
+    this.status = 'active',
   });
 
   final String id;
@@ -46,6 +47,7 @@ class AuthUser {
   String? name;
   String? email;
   String? avatarUrl;
+  String status; // active | banned (admin-controlled)
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -53,6 +55,7 @@ class AuthUser {
     'name': name,
     'email': email,
     'avatarUrl': avatarUrl,
+    'status': status,
     'createdAt': createdAt.toIso8601String(),
   };
 }
@@ -95,6 +98,19 @@ abstract interface class AuthRepository {
     String? avatarUrl,
   });
   Future<bool> deleteUser(String id);
+
+  // --- Admin user management — design: docs/design/admin-console.md §12 ------
+  /// Set a user's `status` (`active`/`banned`). Banned → login blocked. Returns
+  /// the updated user, or null if absent.
+  Future<AuthUser?> setStatus(String id, String status);
+
+  /// Admin list, filterable by status + free-text (name/phone), paginated.
+  Future<({List<AuthUser> items, int total})> listUsers({
+    String? status,
+    String? q,
+    int page,
+    int pageSize,
+  });
 }
 
 /// In-memory implementation: per-phone OTP state (hashed code + an attempt/
@@ -176,6 +192,9 @@ class InMemoryAuthRepository implements AuthRepository {
     }
     _otps.remove(phoneNumber);
     final user = _findOrCreateUser(phoneNumber);
+    if (user.status == 'banned') {
+      return (ok: false, error: 'account_suspended', user: null, tokens: null);
+    }
     return (
       ok: true,
       error: null,
@@ -206,6 +225,38 @@ class InMemoryAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUser?> userById(String id) async => _usersById[id];
+
+  @override
+  Future<AuthUser?> setStatus(String id, String status) async {
+    final user = _usersById[id];
+    if (user == null) return null;
+    user.status = status;
+    return user;
+  }
+
+  @override
+  Future<({List<AuthUser> items, int total})> listUsers({
+    String? status,
+    String? q,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final all = _usersById.values.where((u) {
+      if (status != null && status.isNotEmpty && u.status != status) {
+        return false;
+      }
+      if (q != null && q.isNotEmpty) {
+        final hay = '${u.name ?? ''} ${u.phoneNumber}'.toLowerCase();
+        if (!hay.contains(q.toLowerCase())) return false;
+      }
+      return true;
+    }).toList();
+    final start = (page - 1) * pageSize;
+    final items = start >= all.length
+        ? <AuthUser>[]
+        : all.sublist(start, (start + pageSize).clamp(0, all.length));
+    return (items: items, total: all.length);
+  }
 
   /// Update mutable profile fields. `email: ''` clears it; null leaves it.
   @override

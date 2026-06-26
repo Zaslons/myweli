@@ -24,7 +24,10 @@ Future<Response> onRequest(RequestContext context) async {
 
   final result = await context.read<AuthRepository>().verifyOtp(phone, code);
   if (!result.ok) {
-    return jsonError(HttpStatus.badRequest, result.error!);
+    final status = result.error == 'account_suspended'
+        ? HttpStatus.forbidden
+        : HttpStatus.badRequest;
+    return jsonError(status, result.error!);
   }
 
   final tokens = result.tokens!;

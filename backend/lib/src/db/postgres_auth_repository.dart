@@ -121,6 +121,14 @@ class PostgresAuthRepository implements AuthRepository {
         parameters: {'p': phoneNumber},
       );
       final user = await _findOrCreateUser(tx, phoneNumber);
+      if (user.status == 'banned') {
+        return (
+          ok: false,
+          error: 'account_suspended',
+          user: null,
+          tokens: null,
+        );
+      }
       final tokens = await _issueInFamily(tx, user.id, 'user', _newId('fam'));
       return (ok: true, error: null, user: user, tokens: tokens);
     });
@@ -267,7 +275,53 @@ class PostgresAuthRepository implements AuthRepository {
     name: m['name'] as String?,
     email: m['email'] as String?,
     avatarUrl: m['avatar_url'] as String?,
+    status: (m['status'] as String?) ?? 'active',
   );
+
+  @override
+  Future<AuthUser?> setStatus(String id, String status) async {
+    final rows = await _pool.execute(
+      Sql.named('UPDATE users SET status = @s WHERE id = @id RETURNING *'),
+      parameters: {'id': id, 's': status},
+    );
+    if (rows.isEmpty) return null;
+    return _userFrom(rows.first.toColumnMap());
+  }
+
+  @override
+  Future<({List<AuthUser> items, int total})> listUsers({
+    String? status,
+    String? q,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final conditions = <String>[];
+    final params = <String, Object?>{};
+    if (status != null && status.isNotEmpty) {
+      conditions.add('status = @status');
+      params['status'] = status;
+    }
+    if (q != null && q.isNotEmpty) {
+      conditions.add('(name ILIKE @q OR phone_number ILIKE @q)');
+      params['q'] = '%$q%';
+    }
+    final where = conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
+    final count = await _pool.execute(
+      Sql.named('SELECT COUNT(*)::int AS n FROM users $where'),
+      parameters: params,
+    );
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT * FROM users $where '
+        'ORDER BY created_at DESC LIMIT @ps OFFSET @off',
+      ),
+      parameters: {...params, 'ps': pageSize, 'off': (page - 1) * pageSize},
+    );
+    return (
+      items: rows.map((r) => _userFrom(r.toColumnMap())).toList(),
+      total: count.first.toColumnMap()['n'] as int,
+    );
+  }
 
   String _newId(String prefix) =>
       '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}';
