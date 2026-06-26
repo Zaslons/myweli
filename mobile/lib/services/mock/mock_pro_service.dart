@@ -2,6 +2,7 @@ import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
+import '../../models/before_after_pair.dart';
 import '../../models/payment.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -299,6 +300,33 @@ class MockProService implements ProServiceInterface {
           .copyWith(imageUrls: List<String>.from(imageUrls));
     }
     return ApiResponse.success(List<String>.from(imageUrls));
+  }
+
+  @override
+  Future<ApiResponse<List<BeforeAfterPair>>> getBeforeAfters(
+    String providerId,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final provider = MockData.providers.firstWhere(
+      (p) => p.id == providerId,
+      orElse: () => MockData.providers.first,
+    );
+    return ApiResponse.success(
+        List<BeforeAfterPair>.from(provider.beforeAfters));
+  }
+
+  @override
+  Future<ApiResponse<List<BeforeAfterPair>>> updateBeforeAfters(
+    String providerId,
+    List<BeforeAfterPair> pairs,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index = MockData.providers.indexWhere((p) => p.id == providerId);
+    if (index != -1) {
+      MockData.providers[index] = MockData.providers[index]
+          .copyWith(beforeAfters: List<BeforeAfterPair>.from(pairs));
+    }
+    return ApiResponse.success(List<BeforeAfterPair>.from(pairs));
   }
 
   @override

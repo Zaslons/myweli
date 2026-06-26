@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import 'artist.dart';
 import 'availability.dart';
+import 'before_after_pair.dart';
 import 'payment.dart';
 import 'review.dart';
 import 'service.dart';
@@ -16,6 +17,7 @@ class Provider extends Equatable {
   final double? latitude;
   final double? longitude;
   final List<String> imageUrls;
+  final List<BeforeAfterPair> beforeAfters;
   final String? logoUrl;
   final double rating;
   final int reviewCount;
@@ -48,6 +50,7 @@ class Provider extends Equatable {
     this.latitude,
     this.longitude,
     required this.imageUrls,
+    this.beforeAfters = const [],
     this.logoUrl,
     required this.rating,
     required this.reviewCount,
@@ -76,6 +79,7 @@ class Provider extends Equatable {
         latitude,
         longitude,
         imageUrls,
+        beforeAfters,
         logoUrl,
         rating,
         reviewCount,
@@ -103,6 +107,7 @@ class Provider extends Equatable {
     double? latitude,
     double? longitude,
     List<String>? imageUrls,
+    List<BeforeAfterPair>? beforeAfters,
     String? logoUrl,
     double? rating,
     int? reviewCount,
@@ -129,6 +134,7 @@ class Provider extends Equatable {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       imageUrls: imageUrls ?? this.imageUrls,
+      beforeAfters: beforeAfters ?? this.beforeAfters,
       logoUrl: logoUrl ?? this.logoUrl,
       rating: rating ?? this.rating,
       reviewCount: reviewCount ?? this.reviewCount,
@@ -161,6 +167,7 @@ class Provider extends Equatable {
       'latitude': latitude,
       'longitude': longitude,
       'imageUrls': imageUrls,
+      'beforeAfters': beforeAfters.map((p) => p.toJson()).toList(),
       'logoUrl': logoUrl,
       'rating': rating,
       'reviewCount': reviewCount,
@@ -190,6 +197,9 @@ class Provider extends Equatable {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       imageUrls: List<String>.from(json['imageUrls'] as List),
+      beforeAfters: ((json['beforeAfters'] as List?) ?? const [])
+          .map((p) => BeforeAfterPair.fromJson(p as Map<String, dynamic>))
+          .toList(),
       logoUrl: json['logoUrl'] as String?,
       rating: (json['rating'] as num).toDouble(),
       reviewCount: json['reviewCount'] as int,
