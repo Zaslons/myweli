@@ -39,6 +39,13 @@ abstract interface class ProvidersRepository {
     String providerId,
     Map<String, dynamic> availability,
   );
+
+  /// Replace [providerId]'s gallery (`imageUrls`) wholesale; returns the stored
+  /// list, or null if the provider doesn't exist.
+  Future<List<String>?> updateGallery(
+    String providerId,
+    List<String> imageUrls,
+  );
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -137,6 +144,17 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     if (p == null) return null;
     p['availability'] = availability;
     return availability;
+  }
+
+  @override
+  Future<List<String>?> updateGallery(
+    String providerId,
+    List<String> imageUrls,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    p['imageUrls'] = List<String>.from(imageUrls);
+    return List<String>.from(imageUrls);
   }
 }
 

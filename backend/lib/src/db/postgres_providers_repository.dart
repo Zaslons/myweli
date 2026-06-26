@@ -202,6 +202,30 @@ class PostgresProvidersRepository implements ProvidersRepository {
     return (await _availabilityByProvider([providerId]))[providerId];
   }
 
+  @override
+  Future<List<String>?> updateGallery(
+    String providerId,
+    List<String> imageUrls,
+  ) {
+    // `imageUrls` lives in the core `data` document; read-modify-write the whole
+    // blob (it's stored as a JSON-string scalar, so jsonb operators don't
+    // apply), atomically under a row lock.
+    return _pool.runTx<List<String>?>((tx) async {
+      final rows = await tx.execute(
+        Sql.named('SELECT data FROM providers WHERE id = @id FOR UPDATE'),
+        parameters: {'id': providerId},
+      );
+      if (rows.isEmpty) return null;
+      final data = _data(rows.first);
+      data['imageUrls'] = imageUrls;
+      await tx.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {'id': providerId, 'data': jsonEncode(data)},
+      );
+      return List<String>.from(imageUrls);
+    });
+  }
+
   // ---- assembly -------------------------------------------------------------
 
   Future<Map<String, List<Map<String, dynamic>>>> _servicesByProvider(

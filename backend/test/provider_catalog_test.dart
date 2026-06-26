@@ -10,6 +10,7 @@ import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/availability.dart' as availability;
+import '../routes/providers/[id]/gallery.dart' as gallery_route;
 import '../routes/providers/[id]/services/[serviceId].dart' as service_detail;
 import '../routes/providers/[id]/services/index.dart' as services;
 
@@ -161,6 +162,56 @@ void main() {
       });
       expect(bad.error, 'invalid_input');
     });
+
+    test('gallery: read, replace, validation, ownership', () async {
+      // Replace, then read back.
+      final saved = await catalog.updateGallery(accountId, 'provider1', {
+        'imageUrls': ['https://cdn/a.jpg', '  https://cdn/b.jpg  '],
+      });
+      expect(saved.ok, isTrue);
+      expect((saved.data! as Map)['imageUrls'], [
+        'https://cdn/a.jpg',
+        'https://cdn/b.jpg', // trimmed
+      ]);
+
+      final got = await catalog.gallery(accountId, 'provider1');
+      expect((got.data! as Map)['imageUrls'], [
+        'https://cdn/a.jpg',
+        'https://cdn/b.jpg',
+      ]);
+
+      // Validation: over cap (21), non-string, empty entry → invalid_input.
+      expect(
+        (await catalog.updateGallery(accountId, 'provider1', {
+          'imageUrls': List.generate(21, (i) => 'https://cdn/$i.jpg'),
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateGallery(accountId, 'provider1', {
+          'imageUrls': [1, 2],
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateGallery(accountId, 'provider1', {
+          'imageUrls': ['  '],
+        })).error,
+        'invalid_input',
+      );
+
+      // Ownership: another salon cannot touch provider1's gallery.
+      expect(
+        (await catalog.gallery(accountId, 'provider2')).error,
+        'forbidden',
+      );
+      expect(
+        (await catalog.updateGallery(accountId, 'provider2', {
+          'imageUrls': <String>[],
+        })).error,
+        'forbidden',
+      );
+    });
   });
 
   group('routes', () {
@@ -311,6 +362,60 @@ void main() {
       );
       expect(put.statusCode, HttpStatus.ok);
       expect((await jsonOf(put))['bufferMinutes'], 20);
+    });
+
+    test('gallery: GET → 200; PUT replaces → 200; over-cap → 400; '
+        'cross-salon → 403; bad verb → 405', () async {
+      final got = await gallery_route.onRequest(
+        ctx(req('GET', '/providers/provider1/gallery', bearer: token)),
+        'provider1',
+      );
+      expect(got.statusCode, HttpStatus.ok);
+      expect((await jsonOf(got))['imageUrls'], isA<List<dynamic>>());
+
+      final put = await gallery_route.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/gallery',
+            bearer: token,
+            body: {
+              'imageUrls': ['https://cdn/x.jpg', 'https://cdn/y.jpg'],
+            },
+          ),
+        ),
+        'provider1',
+      );
+      expect(put.statusCode, HttpStatus.ok);
+      expect((await jsonOf(put))['imageUrls'], [
+        'https://cdn/x.jpg',
+        'https://cdn/y.jpg',
+      ]);
+
+      final overCap = await gallery_route.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/gallery',
+            bearer: token,
+            body: {'imageUrls': List.generate(21, (i) => 'https://cdn/$i.jpg')},
+          ),
+        ),
+        'provider1',
+      );
+      expect(overCap.statusCode, HttpStatus.badRequest);
+
+      final cross = await gallery_route.onRequest(
+        ctx(req('GET', '/providers/provider2/gallery', bearer: token)),
+        'provider2',
+      );
+      expect(cross.statusCode, HttpStatus.forbidden);
+
+      final badVerb = await gallery_route.onRequest(
+        ctx(req('DELETE', '/providers/provider1/gallery', bearer: token)),
+        'provider1',
+      );
+      expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
     });
   });
 }
