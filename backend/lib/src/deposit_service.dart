@@ -46,7 +46,8 @@ class DepositService {
   }
 
   /// A short-lived signed view URL for the booking's screenshot — only the
-  /// booking's consumer or its salon may request it.
+  /// booking's consumer, its salon, or an **admin** (dispute evidence) may
+  /// request it.
   Future<DepositResult> screenshotUrl(
     String appointmentId, {
     required String sub,
@@ -56,7 +57,9 @@ class DepositService {
     if (appt == null) return (ok: false, error: 'not_found', data: null);
 
     final bool authorized;
-    if (role == 'provider') {
+    if (role == 'admin') {
+      authorized = true; // admins review deposit proof for disputes
+    } else if (role == 'provider') {
       final pid = (await _providerAuth.accountById(sub))?.providerId;
       authorized = pid != null && pid == appt['providerId'];
     } else {

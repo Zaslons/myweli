@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slice 1 **Built** · Slice 2 A3 (provider) + A3b (user) **Built** · A4 (disputes) next — see §12 |
+| **Status** | Slice 1 **Built** · Slice 2 **Built** (A3 provider · A3b user · A4 disputes) · Slice 3 (analytics) next |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | §11.4 (FR-WEB-AD-001…008), §16 trust & safety, §17 analytics, §18 compliance · V1 basic → V2 full |
@@ -113,7 +113,7 @@ _None open._
 
 | | |
 |---|---|
-| **Status** | A3 (management + featured) **Approved — building** · A4 (disputes) next |
+| **Status** | **Built** — A3 (provider) · A3b (user) · A4 (disputes) |
 | **PRD** | FR-WEB-AD-002 (provider/user mgmt, suspend/ban, support views), FR-WEB-AD-005 (featured), FR-WEB-AD-003 (disputes) |
 
 ### 12.1 Decisions (signed off)

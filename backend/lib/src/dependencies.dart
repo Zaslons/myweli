@@ -7,6 +7,8 @@ import 'admin/admin_kyc_service.dart';
 import 'admin/admin_provider_service.dart';
 import 'admin/admin_user_service.dart';
 import 'admin/audit_log_repository.dart';
+import 'admin/dispute_service.dart';
+import 'admin/disputes_repository.dart';
 import 'admin/moderation_service.dart';
 import 'appointments/appointment_lifecycle_service.dart';
 import 'appointments/appointment_repository.dart';
@@ -22,6 +24,7 @@ import 'db/postgres_admin_auth_repository.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
+import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
@@ -229,6 +232,17 @@ final AdminProviderService adminProviderService = AdminProviderService(
 final AdminUserService adminUserService = AdminUserService(
   authRepository,
   appointmentRepository,
+  auditLogRepository,
+);
+
+final DisputesRepository disputesRepository = _pool == null
+    ? InMemoryDisputesRepository()
+    : PostgresDisputesRepository(_pool!);
+
+final DisputeService disputeService = DisputeService(
+  disputesRepository,
+  appointmentRepository,
+  depositService,
   auditLogRepository,
 );
 
