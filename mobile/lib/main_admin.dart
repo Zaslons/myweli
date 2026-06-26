@@ -9,6 +9,8 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'providers/admin/admin_auth_provider.dart';
 import 'providers/admin/admin_dashboard_provider.dart';
+import 'providers/admin/admin_dispute_detail_provider.dart';
+import 'providers/admin/admin_disputes_provider.dart';
 import 'providers/admin/admin_kyc_provider.dart';
 import 'providers/admin/admin_moderation_provider.dart';
 import 'providers/admin/admin_provider_detail_provider.dart';
@@ -57,6 +59,8 @@ class MyweliAdminApp extends StatelessWidget {
           ChangeNotifierProvider(create: (_) => AdminUsersProvider()),
           ChangeNotifierProvider(create: (_) => AdminProviderDetailProvider()),
           ChangeNotifierProvider(create: (_) => AdminUserDetailProvider()),
+          ChangeNotifierProvider(create: (_) => AdminDisputesProvider()),
+          ChangeNotifierProvider(create: (_) => AdminDisputeDetailProvider()),
         ],
         child: Builder(
           builder: (context) {

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | UX signed off · UI-2a (system + rework) · UI-2b (moderation) · UI-3a (Salons + Clients management) · **UI-3b Built** (salon + client support views: profile + recent bookings + sticky actions) · disputes + audit next |
+| **Status** | UX signed off · UI-2a/2b · UI-3a/3b (mgmt + support views) · **UI-4 Built** (disputes: list + detail with deposit-evidence + résoudre; open-from-booking) · audit-log viewer next |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **Backend** | [admin-console.md](admin-console.md) (Slices 1–3 — the API this UI drives) |

@@ -2,6 +2,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/admin/admin_auth_provider.dart';
 import '../../screens/admin/admin_dashboard_screen.dart';
+import '../../screens/admin/admin_dispute_detail_screen.dart';
+import '../../screens/admin/admin_disputes_screen.dart';
 import '../../screens/admin/admin_kyc_detail_screen.dart';
 import '../../screens/admin/admin_kyc_queue_screen.dart';
 import '../../screens/admin/admin_login_screen.dart';
@@ -58,6 +60,15 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
           path: '/admin/users/:id',
           builder: (_, state) =>
               AdminUserDetailScreen(id: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/admin/disputes',
+          builder: (_, __) => const AdminDisputesScreen(),
+        ),
+        GoRoute(
+          path: '/admin/disputes/:id',
+          builder: (_, state) =>
+              AdminDisputeDetailScreen(id: state.pathParameters['id']!),
         ),
         GoRoute(
           path: '/admin/kyc/:id',

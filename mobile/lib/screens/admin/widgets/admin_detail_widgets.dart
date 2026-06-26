@@ -5,6 +5,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/timed_cached_image.dart';
 import 'status_chip.dart';
 
 /// Shared building blocks for the admin support views (salon / client detail).
@@ -64,9 +65,13 @@ class AdminProfileCard extends StatelessWidget {
 /// "Derniers rendez-vous" — a compact table of an entity's recent appointments
 /// (date · statut · montant · client). Empty state included.
 class AdminBookingsCard extends StatelessWidget {
-  const AdminBookingsCard({super.key, required this.items});
+  const AdminBookingsCard({super.key, required this.items, this.onOpenDispute});
 
   final List<Map<String, dynamic>> items;
+
+  /// When set, each row shows an "Ouvrir un litige" action carrying the
+  /// appointment id (the support-view → dispute-creation entry point).
+  final void Function(String appointmentId)? onOpenDispute;
 
   @override
   Widget build(BuildContext context) {
@@ -142,8 +147,69 @@ class AdminBookingsCard extends StatelessWidget {
                   .copyWith(color: AppColors.textSecondary),
             ),
           ),
+          if (onOpenDispute != null)
+            SizedBox(
+              width: 40,
+              child: IconButton(
+                tooltip: 'Ouvrir un litige',
+                icon: const Icon(Icons.gavel_outlined, size: 18),
+                onPressed: () => onOpenDispute!('${a['id']}'),
+              ),
+            ),
         ],
       ),
+    );
+  }
+}
+
+/// A signed-URL evidence image (deposit screenshot), tap to zoom. Used by the
+/// dispute detail. Shows a neutral placeholder when there's no URL.
+class AdminEvidenceImage extends StatelessWidget {
+  const AdminEvidenceImage({super.key, required this.url, this.caption});
+
+  final String? url;
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (caption != null) ...[
+          Text(caption!, style: AppTextStyles.titleSmall),
+          const SizedBox(height: AppTheme.spacingS),
+        ],
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          child: SizedBox(
+            width: 240,
+            height: 260,
+            child: url == null
+                ? const ColoredBox(
+                    color: AppColors.surfaceVariant,
+                    child: Center(
+                      child: Icon(Icons.receipt_long_outlined,
+                          color: AppColors.textTertiary),
+                    ),
+                  )
+                : GestureDetector(
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => Dialog(
+                        backgroundColor: Colors.transparent,
+                        child: InteractiveViewer(
+                          child: TimedCachedImage(
+                            imageUrl: url!,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: TimedCachedImage(imageUrl: url!, fit: BoxFit.cover),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
