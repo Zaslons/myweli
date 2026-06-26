@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slice 1 **Built** · Slice 2 A3 (provider mgmt + featured) **Built** · A3b (user) + A4 (disputes) next — see §12 |
+| **Status** | Slice 1 **Built** · Slice 2 A3 (provider) + A3b (user) **Built** · A4 (disputes) next — see §12 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | §11.4 (FR-WEB-AD-001…008), §16 trust & safety, §17 analytics, §18 compliance · V1 basic → V2 full |
