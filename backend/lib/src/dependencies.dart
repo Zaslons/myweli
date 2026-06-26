@@ -6,6 +6,7 @@ import 'admin/admin_auth_repository.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/admin_provider_service.dart';
 import 'admin/admin_user_service.dart';
+import 'admin/analytics_service.dart';
 import 'admin/audit_log_repository.dart';
 import 'admin/dispute_service.dart';
 import 'admin/disputes_repository.dart';
@@ -244,6 +245,15 @@ final DisputeService disputeService = DisputeService(
   appointmentRepository,
   depositService,
   auditLogRepository,
+);
+
+final AnalyticsService analyticsService = AnalyticsService(
+  appointmentRepository,
+  providersRepository,
+  authRepository,
+  providerAuthRepository,
+  disputesRepository,
+  reviewsRepository,
 );
 
 final ProviderDashboardService providerDashboardService =
