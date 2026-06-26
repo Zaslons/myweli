@@ -9,6 +9,9 @@ import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_log_repository.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/push/push_provider.dart';
+import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 class _MockAuth extends Mock implements AuthRepository {}
@@ -43,6 +46,7 @@ void main() {
       ),
       _MockAuth(),
       providers,
+      PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),
     );
     scheduler = ReminderScheduler(
       appts,

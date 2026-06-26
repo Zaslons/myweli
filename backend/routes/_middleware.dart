@@ -26,6 +26,7 @@ import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:myweli_backend/src/reviews_service.dart';
 import 'package:myweli_backend/src/upload_signing_service.dart';
@@ -56,6 +57,7 @@ Handler middleware(Handler handler) {
       .use(provider<MessagingService>((_) => messagingService))
       .use(provider<BookingNotifier>((_) => bookingNotifier))
       .use(provider<ReminderScheduler>((_) => reminderScheduler))
+      .use(provider<PushService>((_) => pushService))
       .use(provider<AdminAuthRepository>((_) => adminAuthRepository))
       .use(provider<AuditLogRepository>((_) => auditLogRepository))
       .use(provider<AdminKycService>((_) => adminKycService))

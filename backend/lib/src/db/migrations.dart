@@ -414,6 +414,22 @@ CREATE TABLE appointment_reminders (
 )''',
     ],
   ),
+  (
+    id: '0017_device_tokens',
+    statements: [
+      // FCM device-token registry (one token → one user). Design:
+      // docs/design/push-notifications-fcm.md.
+      '''
+CREATE TABLE device_tokens (
+  token text PRIMARY KEY,
+  user_id text NOT NULL,
+  role text NOT NULL,
+  platform text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX device_tokens_user_idx ON device_tokens(user_id)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
