@@ -290,6 +290,65 @@ class PostgresProvidersRepository implements ProvidersRepository {
     });
   }
 
+  @override
+  Future<Map<String, dynamic>?> addArtist(
+    String providerId,
+    Map<String, dynamic> artist,
+  ) => _mutateArtists(providerId, (artists) {
+    artists.add(artist);
+    return artist;
+  });
+
+  @override
+  Future<Map<String, dynamic>?> updateArtist(
+    String providerId,
+    String artistId,
+    Map<String, dynamic> changes,
+  ) => _mutateArtists(providerId, (artists) {
+    for (final a in artists) {
+      if ((a as Map)['id'] == artistId) {
+        a.addAll(changes);
+        return Map<String, dynamic>.from(a);
+      }
+    }
+    return null;
+  });
+
+  @override
+  Future<bool> deleteArtist(String providerId, String artistId) async {
+    final removed = await _mutateArtists(providerId, (artists) {
+      final before = artists.length;
+      artists.removeWhere((a) => (a as Map)['id'] == artistId);
+      return artists.length < before ? <String, dynamic>{} : null;
+    });
+    return removed != null;
+  }
+
+  /// Read-modify-write `data.artists` atomically; [mutate] returns the result
+  /// (or null = "not found", which aborts as a no-op).
+  Future<Map<String, dynamic>?> _mutateArtists(
+    String providerId,
+    Map<String, dynamic>? Function(List<dynamic> artists) mutate,
+  ) {
+    return _pool.runTx<Map<String, dynamic>?>((tx) async {
+      final rows = await tx.execute(
+        Sql.named('SELECT data FROM providers WHERE id = @id FOR UPDATE'),
+        parameters: {'id': providerId},
+      );
+      if (rows.isEmpty) return null;
+      final data = _data(rows.first);
+      final artists = (data['artists'] as List?) ?? <dynamic>[];
+      final result = mutate(artists);
+      if (result == null) return null;
+      data['artists'] = artists;
+      await tx.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {'id': providerId, 'data': jsonEncode(data)},
+      );
+      return result;
+    });
+  }
+
   // ---- assembly -------------------------------------------------------------
 
   Future<Map<String, List<Map<String, dynamic>>>> _servicesByProvider(

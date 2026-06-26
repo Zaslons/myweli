@@ -64,6 +64,24 @@ abstract interface class ProvidersRepository {
     required int reviewCount,
     Map<String, ({double rating, int count})> artists,
   });
+
+  /// Append [artist] to [providerId]'s `artists`; returns the stored artist, or
+  /// null if the provider doesn't exist.
+  Future<Map<String, dynamic>?> addArtist(
+    String providerId,
+    Map<String, dynamic> artist,
+  );
+
+  /// Merge [changes] into an artist; returns the updated artist, or null if it
+  /// isn't found under [providerId].
+  Future<Map<String, dynamic>?> updateArtist(
+    String providerId,
+    String artistId,
+    Map<String, dynamic> changes,
+  );
+
+  /// Remove an artist; false if not found under [providerId].
+  Future<bool> deleteArtist(String providerId, String artistId);
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -113,6 +131,10 @@ class InMemoryProvidersRepository implements ProvidersRepository {
 
   List<Map<String, dynamic>> _servicesOf(Map<String, dynamic> p) =>
       (p['services'] as List? ?? (p['services'] = <Map<String, dynamic>>[]))
+          .cast<Map<String, dynamic>>();
+
+  List<Map<String, dynamic>> _artistsOf(Map<String, dynamic> p) =>
+      (p['artists'] as List? ?? (p['artists'] = <Map<String, dynamic>>[]))
           .cast<Map<String, dynamic>>();
 
   @override
@@ -206,6 +228,44 @@ class InMemoryProvidersRepository implements ProvidersRepository {
       }
     }
     return true;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> addArtist(
+    String providerId,
+    Map<String, dynamic> artist,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    _artistsOf(p).add(artist);
+    return artist;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> updateArtist(
+    String providerId,
+    String artistId,
+    Map<String, dynamic> changes,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    for (final a in _artistsOf(p)) {
+      if (a['id'] == artistId) {
+        a.addAll(changes);
+        return a;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<bool> deleteArtist(String providerId, String artistId) async {
+    final p = await byId(providerId);
+    if (p == null) return false;
+    final artists = _artistsOf(p);
+    final before = artists.length;
+    artists.removeWhere((a) => a['id'] == artistId);
+    return artists.length < before;
   }
 }
 
