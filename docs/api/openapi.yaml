@@ -406,6 +406,27 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /providers/{id}/dashboard:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: Server-computed dashboard stats for a salon (B-dash)
+      description: >
+        Provider-authenticated and ownership-scoped (token account's
+        `providerId` must equal `{id}` → else 403). Revenue counts
+        `confirmed` + `completed`; `todayAppointments` excludes cancelled.
+        Computed in UTC.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The salon's dashboard stats
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /appointments:
     get:
       tags: [appointments]
@@ -899,6 +920,23 @@ components:
         bufferMinutes:
           type: integer
           description: Setup/cleanup gap enforced around each booking.
+
+    DashboardStats:
+      type: object
+      required:
+        [todayAppointments, pendingRequests, todayRevenue, weekRevenue,
+         monthRevenue, totalAppointments]
+      properties:
+        todayAppointments:
+          type: integer
+          description: Non-cancelled bookings today (UTC).
+        pendingRequests: { type: integer, description: Bookings awaiting accept. }
+        todayRevenue:
+          type: number
+          description: Σ totalPrice of confirmed+completed bookings today (FCFA).
+        weekRevenue: { type: number, description: Same, Monday-based week. }
+        monthRevenue: { type: number, description: Same, calendar month. }
+        totalAppointments: { type: integer, description: All-time, any status. }
 
     ProviderSummary:
       type: object
