@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../providers/admin/admin_disputes_provider.dart';
 import '../../providers/admin/admin_provider_detail_provider.dart';
 import '../../providers/admin/admin_providers_provider.dart';
 import '../../widgets/common/app_button.dart';
@@ -70,6 +71,25 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
     if (ok) unawaited(context.read<AdminProvidersProvider>().load());
   }
 
+  Future<void> _openDispute(String appointmentId) async {
+    final reason = await showReasonDialog(
+      context,
+      title: 'Ouvrir un litige',
+      confirmLabel: 'Ouvrir',
+      hint: 'Motif du litige',
+    );
+    if (reason == null || !mounted) return;
+    final disputes = context.read<AdminDisputesProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await disputes.open(appointmentId, reason);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Litige ouvert' : (disputes.actionError ?? 'Échec')),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AdminProviderDetailProvider>();
@@ -101,7 +121,12 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
                 Expanded(flex: 2, child: _profile(s)),
                 const SizedBox(width: AppTheme.spacingL),
                 Expanded(
-                    flex: 3, child: AdminBookingsCard(items: p.appointments)),
+                  flex: 3,
+                  child: AdminBookingsCard(
+                    items: p.appointments,
+                    onOpenDispute: _openDispute,
+                  ),
+                ),
               ],
             ),
           ),

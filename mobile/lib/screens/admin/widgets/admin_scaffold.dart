@@ -34,6 +34,9 @@ const _groups = [
     _NavItem('/admin/providers', Icons.storefront_outlined, 'Salons'),
     _NavItem('/admin/users', Icons.people_outline, 'Clients'),
   ]),
+  _NavGroup('Opérations', [
+    _NavItem('/admin/disputes', Icons.gavel_outlined, 'Litiges'),
+  ]),
 ];
 
 /// The admin console frame: a grouped sidebar + a top bar with the page [title]

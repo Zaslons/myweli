@@ -156,6 +156,32 @@ class AdminService {
   Future<ApiResponse<Map<String, dynamic>>> unbanUser(String id) =>
       _post('/admin/users/$id/unban');
 
+  // --- disputes --------------------------------------------------------------
+  Future<ApiResponse<Map<String, dynamic>>> disputes({
+    String? status,
+    int page = 1,
+  }) {
+    final params = <String, String>{'page': '$page', 'pageSize': '50'};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    return _get('/admin/disputes?${_query(params)}');
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> disputeDetail(String id) =>
+      _get('/admin/disputes/$id');
+
+  Future<ApiResponse<Map<String, dynamic>>> openDispute(
+    String appointmentId,
+    String reason,
+  ) =>
+      _post('/admin/disputes',
+          body: {'appointmentId': appointmentId, 'reason': reason});
+
+  Future<ApiResponse<Map<String, dynamic>>> resolveDispute(
+    String id,
+    String resolution,
+  ) =>
+      _post('/admin/disputes/$id/resolve', body: {'resolution': resolution});
+
   // ---- helpers --------------------------------------------------------------
 
   String _query(Map<String, String> params) => params.entries
