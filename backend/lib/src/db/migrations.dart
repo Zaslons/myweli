@@ -349,6 +349,27 @@ CREATE TABLE review_reports (
       "ALTER TABLE users ADD COLUMN status text NOT NULL DEFAULT 'active'",
     ],
   ),
+  (
+    id: '0014_disputes',
+    statements: [
+      // Admin-recorded dispute cases on a booking (no money moves — no-custody).
+      '''
+CREATE TABLE disputes (
+  id text PRIMARY KEY,
+  appointment_id text NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  opened_by text NOT NULL,
+  status text NOT NULL DEFAULT 'open',
+  reason text NOT NULL,
+  resolution text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  resolved_by text,
+  resolved_at timestamptz
+)''',
+      "CREATE INDEX disputes_open_idx ON disputes(created_at DESC) "
+          "WHERE status = 'open'",
+      'CREATE INDEX disputes_appointment_idx ON disputes(appointment_id)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

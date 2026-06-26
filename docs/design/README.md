@@ -23,7 +23,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
-| Admin / ops console (KYC verify · moderation · …) | [admin-console.md](admin-console.md) | Slice 1 built (KYC + moderation) · Slice 2 next |
+| Admin / ops console (KYC verify · moderation · …) | [admin-console.md](admin-console.md) | Slices 1–2 built (KYC · moderation · mgmt · disputes) · Slice 3 next |
 | Consumer deposit / Mobile Money flow | [consumer-deposit.md](consumer-deposit.md) | Built (B1 + B2) |
 | Booking duration-overlap exclusion (btree_gist) | [booking-overlap-exclusion.md](booking-overlap-exclusion.md) | Built |
 | Pro KYC (provider verification) | [pro-kyc.md](pro-kyc.md) | Built (provider side) |
