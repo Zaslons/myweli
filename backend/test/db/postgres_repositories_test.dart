@@ -356,6 +356,29 @@ void main() {
 
       expect(await repo.updateGallery('nope', const []), isNull);
     });
+
+    test(
+      'updateDepositPolicy persists into data and survives re-read',
+      () async {
+        final repo = PostgresProvidersRepository(pool);
+        final saved = await repo.updateDepositPolicy('provider3', {
+          'depositRequired': true,
+          'depositPercentage': 0.35,
+          'cancellationWindowHours': 48,
+          'depositMobileMoneyOperator': 'wave',
+          'depositMobileMoneyNumber': '+2250700000000',
+        });
+        expect(saved!['depositRequired'], true);
+
+        final p = (await repo.byId('provider3'))!;
+        expect(p['depositRequired'], true);
+        expect(p['depositPercentage'], 0.35);
+        expect(p['cancellationWindowHours'], 48);
+        expect(p['depositMobileMoneyOperator'], 'wave');
+
+        expect(await repo.updateDepositPolicy('nope', const {}), isNull);
+      },
+    );
   });
 
   group('PostgresAuthRepository', () {

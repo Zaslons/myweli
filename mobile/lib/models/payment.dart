@@ -14,6 +14,18 @@ extension MobileMoneyOperatorX on MobileMoneyOperator {
         return 'Moov Money';
     }
   }
+
+  /// The wire name (matches the backend enum), e.g. `orangeMoney`.
+  String get apiName => name;
+
+  /// Parse a wire name (e.g. `wave`) back to an operator, or null.
+  static MobileMoneyOperator? fromApi(String? name) {
+    if (name == null) return null;
+    for (final op in MobileMoneyOperator.values) {
+      if (op.name == name) return op;
+    }
+    return null;
+  }
 }
 
 /// A provider's deposit policy: whether an acompte is required and, if so, the
@@ -34,4 +46,15 @@ class DepositPolicy {
     this.mobileMoneyOperator,
     this.mobileMoneyNumber,
   });
+
+  factory DepositPolicy.fromJson(Map<String, dynamic> json) => DepositPolicy(
+        depositRequired: json['depositRequired'] as bool? ?? false,
+        depositPercentage: (json['depositPercentage'] as num?)?.toDouble() ?? 0,
+        cancellationWindowHours:
+            (json['cancellationWindowHours'] as num?)?.toInt() ?? 24,
+        mobileMoneyOperator: MobileMoneyOperatorX.fromApi(
+          json['mobileMoneyOperator'] as String?,
+        ),
+        mobileMoneyNumber: json['mobileMoneyNumber'] as String?,
+      );
 }

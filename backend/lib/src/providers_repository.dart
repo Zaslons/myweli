@@ -46,6 +46,14 @@ abstract interface class ProvidersRepository {
     String providerId,
     List<String> imageUrls,
   );
+
+  /// Merge the deposit-policy [fields] into [providerId]'s record; returns the
+  /// stored fields, or null if the provider doesn't exist. (Keys are the
+  /// provider's storage names, e.g. `depositMobileMoneyOperator`.)
+  Future<Map<String, dynamic>?> updateDepositPolicy(
+    String providerId,
+    Map<String, dynamic> fields,
+  );
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -155,6 +163,17 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     if (p == null) return null;
     p['imageUrls'] = List<String>.from(imageUrls);
     return List<String>.from(imageUrls);
+  }
+
+  @override
+  Future<Map<String, dynamic>?> updateDepositPolicy(
+    String providerId,
+    Map<String, dynamic> fields,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    p.addAll(fields);
+    return Map<String, dynamic>.from(fields);
   }
 }
 

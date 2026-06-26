@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
+import 'package:myweli/models/payment.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
@@ -190,19 +191,49 @@ void main() {
     expect((await service.getProviderAppointments('p')).success, isFalse);
   });
 
-  test('an unbacked method (deposit policy) delegates to the mock, no HTTP',
+  test('getDepositPolicy GETs /providers/{id}/deposit-policy + parses',
       () async {
-    final client =
-        MockClient((req) async => throw Exception('should not be called'));
-    final service = ApiProService(
-      client: client,
-      baseUrl: 'http://x',
-      providerSessionStore: InMemorySessionStore(),
+    final client = MockClient((req) async {
+      expect(req.method, 'GET');
+      expect(req.url.path, '/providers/provider1/deposit-policy');
+      return http.Response(
+        jsonEncode({
+          'depositRequired': true,
+          'depositPercentage': 0.4,
+          'cancellationWindowHours': 24,
+          'mobileMoneyOperator': 'orangeMoney',
+          'mobileMoneyNumber': '+2250700000000',
+        }),
+        200,
+      );
+    });
+    final res = await _linked(client).getDepositPolicy('provider1');
+    expect(res.success, isTrue);
+    expect(res.data!.depositRequired, isTrue);
+    expect(res.data!.depositPercentage, 0.4);
+    expect(res.data!.mobileMoneyOperator, MobileMoneyOperator.orangeMoney);
+  });
+
+  test('updateDepositPolicy PUTs the policy (operator by wire name)', () async {
+    Map<String, dynamic>? body;
+    final client = MockClient((req) async {
+      expect(req.method, 'PUT');
+      expect(req.url.path, '/providers/provider1/deposit-policy');
+      body = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(jsonEncode(body), 200);
+    });
+    final res = await _linked(client).updateDepositPolicy(
+      'provider1',
+      depositRequired: true,
+      depositPercentage: 0.5,
+      cancellationWindowHours: 48,
+      mobileMoneyOperator: MobileMoneyOperator.wave,
+      mobileMoneyNumber: '+2250700000000',
     );
-
-    final res = await service.getDepositPolicy('provider1');
-
-    expect(res.success, isTrue); // came from the embedded MockProService
+    expect(res.success, isTrue);
+    expect(body!['mobileMoneyOperator'], 'wave');
+    expect(body!['depositPercentage'], 0.5);
+    expect(res.data!.mobileMoneyOperator, MobileMoneyOperator.wave);
   });
 
   test('getEarnings GETs /providers/{id}/earnings with the range + parses',

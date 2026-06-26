@@ -226,6 +226,29 @@ class PostgresProvidersRepository implements ProvidersRepository {
     });
   }
 
+  @override
+  Future<Map<String, dynamic>?> updateDepositPolicy(
+    String providerId,
+    Map<String, dynamic> fields,
+  ) {
+    // Deposit-policy fields live in the core `data` document; merge them in via
+    // an atomic read-modify-write (same pattern as updateGallery).
+    return _pool.runTx<Map<String, dynamic>?>((tx) async {
+      final rows = await tx.execute(
+        Sql.named('SELECT data FROM providers WHERE id = @id FOR UPDATE'),
+        parameters: {'id': providerId},
+      );
+      if (rows.isEmpty) return null;
+      final data = _data(rows.first);
+      data.addAll(fields);
+      await tx.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {'id': providerId, 'data': jsonEncode(data)},
+      );
+      return Map<String, dynamic>.from(fields);
+    });
+  }
+
   // ---- assembly -------------------------------------------------------------
 
   Future<Map<String, List<Map<String, dynamic>>>> _servicesByProvider(
