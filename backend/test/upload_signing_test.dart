@@ -72,6 +72,51 @@ void main() {
         'https://cdn.myweli.com/gallery/p1/abc.jpg',
       );
     });
+
+    test(
+      'R2StorageService.presignGet signs a GET on the chosen private bucket',
+      () async {
+        final r2 = R2StorageService(
+          endpoint: 'https://acc.r2.cloudflarestorage.com',
+          bucket: 'uploads',
+          accessKeyId: 'AKID',
+          secretAccessKey: 'SECRET',
+          publicBaseUrl: 'https://cdn.myweli.com',
+          kycBucket: 'kyc-bkt',
+          depositBucket: 'deposit-bkt',
+          clock: () => DateTime.utc(2026, 6, 26, 10),
+        );
+        final url = r2.presignGet(
+          key: 'deposit/u1/abc.jpg',
+          bucket: StorageBucket.deposit,
+        );
+        // Deposit screenshots live in their own bucket, not the KYC one.
+        expect(
+          url,
+          startsWith('https://acc.r2.cloudflarestorage.com/deposit-bkt/'),
+        );
+        expect(
+          r2.presignGet(key: 'kyc/a/x.pdf', bucket: StorageBucket.kyc),
+          startsWith('https://acc.r2.cloudflarestorage.com/kyc-bkt/'),
+        );
+        expect(url, contains('X-Amz-Algorithm=AWS4-HMAC-SHA256'));
+        expect(url, contains('X-Amz-Credential=AKID%2F20260626%2Fauto%2Fs3'));
+        expect(url, contains('X-Amz-Date=20260626T100000Z'));
+        expect(url, contains('X-Amz-Expires=300'));
+        expect(url, contains('X-Amz-SignedHeaders=host'));
+        expect(url, matches(RegExp(r'X-Amz-Signature=[0-9a-f]{64}')));
+      },
+    );
+
+    test('FakeStorageService.presignGet returns a usable private URL', () {
+      expect(
+        const FakeStorageService().presignGet(
+          key: 'deposit/u1/x.jpg',
+          bucket: StorageBucket.deposit,
+        ),
+        startsWith('https://fake-storage.local/deposit/deposit/u1/x.jpg'),
+      );
+    });
   });
 
   group('UploadSigningService', () {
@@ -149,6 +194,34 @@ void main() {
             accountId,
             contentType: 'application/pdf',
             purpose: 'gallery',
+          )).error,
+          'invalid_input',
+        );
+      },
+    );
+
+    test(
+      'deposit upload: consumer-scoped private key, no public URL',
+      () async {
+        // A consumer sub (not a provider account) — no provider lookup needed.
+        final r = await service.sign(
+          'user_consumer',
+          contentType: 'image/jpeg',
+          purpose: 'deposit',
+        );
+        expect(r.ok, isTrue);
+        expect(
+          (r.data!['fields'] as Map)['key'],
+          startsWith('deposit/user_consumer/'),
+        );
+        expect(r.data!['key'], startsWith('deposit/user_consumer/'));
+        expect(r.data!.containsKey('publicUrl'), isFalse); // never public
+        // PDF is not allowed for a deposit screenshot (images only).
+        expect(
+          (await service.sign(
+            'user_consumer',
+            contentType: 'application/pdf',
+            purpose: 'deposit',
           )).error,
           'invalid_input',
         );
@@ -288,6 +361,34 @@ void main() {
         ),
       );
       expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
+    });
+
+    test('deposit purpose: consumer → 200; provider → 403', () async {
+      final userToken = tokens
+          .issueAccessToken(subject: 'u1', role: 'user')
+          .token;
+      // Consumer can sign a deposit upload.
+      final ok = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: userToken,
+            body: {'contentType': 'image/jpeg', 'purpose': 'deposit'},
+          ),
+        ),
+      );
+      expect(ok.statusCode, HttpStatus.ok);
+      // A provider token cannot use the deposit purpose.
+      final provider = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: token,
+            body: {'contentType': 'image/jpeg', 'purpose': 'deposit'},
+          ),
+        ),
+      );
+      expect(provider.statusCode, HttpStatus.forbidden);
     });
   });
 }

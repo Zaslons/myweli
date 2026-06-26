@@ -128,6 +128,10 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       sets.add('ends_at = @ends_at:timestamptz');
       params['ends_at'] = DateTime.parse(changes['endsAt'] as String);
     }
+    if (changes.containsKey('depositScreenshotUrl')) {
+      sets.add('deposit_screenshot_url = @dsu:text');
+      params['dsu'] = changes['depositScreenshotUrl'];
+    }
     if (sets.isEmpty) return byId(id);
     try {
       final result = await _pool.execute(
