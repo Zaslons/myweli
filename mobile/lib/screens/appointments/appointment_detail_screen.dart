@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -10,8 +11,10 @@ import '../../core/utils/formatters.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
 class AppointmentDetailScreen extends StatefulWidget {
@@ -171,6 +174,123 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
   }
 
+  /// Pay-later: open the deposit sheet in submit mode (the booking exists). The
+  /// salon's Mobile Money handle comes from the provider's deposit policy.
+  Future<void> _handleSendDeposit(Appointment appointment) async {
+    final providerProvider =
+        Provider.of<ProviderProvider>(context, listen: false);
+    await providerProvider.loadProviderById(appointment.providerId);
+    if (!mounted) return;
+    final p = providerProvider.selectedProvider;
+    final sent = await showDepositSubmitSheet(
+      context,
+      appointmentId: appointment.id,
+      depositAmount: appointment.depositAmount,
+      balanceDue: appointment.balanceDue,
+      providerName: p?.name ?? 'le salon',
+      depositOperator: p?.depositMobileMoneyOperator,
+      depositNumber: p?.depositMobileMoneyNumber,
+    );
+    if (sent != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Acompte envoyé. En attente de confirmation du salon.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+  }
+
+  /// View the screenshot the consumer already submitted (signed URL).
+  Future<void> _viewMyProof(Appointment appointment) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await serviceLocator.appointmentService.depositScreenshotUrl(
+      appointmentId: appointment.id,
+    );
+    if (!mounted) return;
+    if (res.success && res.data != null) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: InteractiveViewer(
+            child: TimedCachedImage(imageUrl: res.data!, fit: BoxFit.contain),
+          ),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(content: Text(res.error ?? 'Capture indisponible')),
+      );
+    }
+  }
+
+  /// State-aware deposit row: à envoyer (with the pay-later CTA) → en attente de
+  /// confirmation (view proof) → confirmé. Myweli never holds the money.
+  Widget _depositSection(Appointment a) {
+    final hasProof = a.depositScreenshotUrl != null;
+    final amount = Formatters.formatCurrency(a.depositAmount);
+
+    IconData icon;
+    String label;
+    String? hint;
+    Widget? action;
+
+    Widget viewProofButton() => AppButton(
+          text: 'Voir ma capture',
+          type: AppButtonType.secondary,
+          onPressed: () => _viewMyProof(a),
+        );
+
+    switch (a.status) {
+      case AppointmentStatus.confirmed:
+        icon = Icons.verified_outlined;
+        label = 'Acompte confirmé';
+        hint = 'Le salon a confirmé la réception de votre acompte.';
+        if (hasProof) action = viewProofButton();
+      case AppointmentStatus.pending:
+        if (hasProof) {
+          icon = Icons.hourglass_empty;
+          label = 'Acompte — en attente de confirmation';
+          hint = 'Le salon confirmera après vérification.';
+          action = viewProofButton();
+        } else {
+          icon = Icons.savings_outlined;
+          label = 'Acompte à envoyer';
+          hint = 'Payez le salon directement, puis joignez une capture.';
+          action = AppButton(
+            text: "Envoyer l'acompte",
+            icon: Icons.send_outlined,
+            onPressed: () => _handleSendDeposit(a),
+          );
+        }
+      case AppointmentStatus.completed:
+      case AppointmentStatus.cancelled:
+      case AppointmentStatus.noShow:
+        icon = Icons.savings_outlined;
+        label = 'Acompte';
+        if (hasProof) action = viewProofButton();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _InfoRow(icon: icon, label: label, value: amount),
+        if (hint != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            hint,
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+          ),
+        ],
+        if (action != null) ...[
+          const SizedBox(height: 8),
+          action,
+        ],
+      ],
+    );
+  }
+
   Future<void> _leaveReview(Appointment appointment) async {
     final providerProvider =
         Provider.of<ProviderProvider>(context, listen: false);
@@ -265,12 +385,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       ),
                       if (appointment.depositAmount > 0) ...[
                         const SizedBox(height: 16),
-                        _InfoRow(
-                          icon: Icons.check_circle_outline,
-                          label: 'Acompte payé',
-                          value: Formatters.formatCurrency(
-                              appointment.depositAmount),
-                        ),
+                        _depositSection(appointment),
                         const SizedBox(height: 16),
                         _InfoRow(
                           icon: Icons.account_balance_wallet_outlined,

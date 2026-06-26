@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -12,12 +15,14 @@ import '../../core/utils/mobile_money.dart';
 import '../../models/payment.dart';
 import '../../providers/appointment_provider.dart';
 import '../common/app_button.dart';
-import '../common/timed_cached_image.dart';
+import '../provider/image_picker_sheet.dart';
 import '../provider/mock_image_picker_sheet.dart';
 
-/// Opens the deposit hand-off sheet. The deposit is paid **directly to the
-/// salon** (Wave deep link or copy-number) — Myweli holds nothing. Returns true
-/// once the (pending) booking is created.
+/// Opens the deposit hand-off sheet in **book mode**: the deposit is paid
+/// **directly to the salon** (Wave deep link or copy-number) — Myweli holds
+/// nothing — and the (pending) booking is created on confirm. The screenshot is
+/// optional here (it can be sent later from the appointment). Returns true once
+/// the booking is created.
 Future<bool?> showDepositPaymentSheet(
   BuildContext context, {
   required double depositAmount,
@@ -50,37 +55,76 @@ Future<bool?> showDepositPaymentSheet(
   );
 }
 
+/// Opens the deposit sheet in **submit mode** (pay-later): the booking already
+/// exists, so confirming attaches the screenshot to [appointmentId] instead of
+/// creating a booking. Returns true once the proof is attached.
+Future<bool?> showDepositSubmitSheet(
+  BuildContext context, {
+  required String appointmentId,
+  required double depositAmount,
+  required double balanceDue,
+  required String providerName,
+  MobileMoneyOperator? depositOperator,
+  String? depositNumber,
+}) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _DepositPaymentSheet(
+      appointmentId: appointmentId,
+      depositAmount: depositAmount,
+      balanceDue: balanceDue,
+      providerName: providerName,
+      depositOperator: depositOperator,
+      depositNumber: depositNumber,
+    ),
+  );
+}
+
 class _DepositPaymentSheet extends StatefulWidget {
   final double depositAmount;
   final double balanceDue;
-  final String providerId;
   final String providerName;
-  final List<String> serviceIds;
-  final DateTime appointmentDateTime;
   final MobileMoneyOperator? depositOperator;
   final String? depositNumber;
+
+  /// Submit mode (pay-later) when non-null; book mode otherwise.
+  final String? appointmentId;
+
+  // Book-mode only.
+  final String? providerId;
+  final List<String>? serviceIds;
+  final DateTime? appointmentDateTime;
   final String? artistId;
   final String? notes;
 
   const _DepositPaymentSheet({
     required this.depositAmount,
     required this.balanceDue,
-    required this.providerId,
     required this.providerName,
-    required this.serviceIds,
-    required this.appointmentDateTime,
     this.depositOperator,
     this.depositNumber,
+    this.appointmentId,
+    this.providerId,
+    this.serviceIds,
+    this.appointmentDateTime,
     this.artistId,
     this.notes,
   });
+
+  bool get isSubmitMode => appointmentId != null;
 
   @override
   State<_DepositPaymentSheet> createState() => _DepositPaymentSheetState();
 }
 
 class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
-  String? _screenshotUrl;
+  /// The private object key returned by the upload (sent to the backend).
+  String? _screenshotKey;
+
+  /// The just-picked local file, used only to preview the attachment.
+  String? _localPreviewPath;
   bool _uploading = false;
   bool _booking = false;
   String? _error;
@@ -111,15 +155,30 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
   }
 
   Future<void> _attachScreenshot() async {
-    final source = await showMockImagePicker(context);
+    final String? source;
+    if (AppConfig.useApiBackend) {
+      source = await showImagePicker(context);
+    } else {
+      source = await showMockImagePicker(context);
+    }
     if (source == null || !mounted) return;
-    setState(() => _uploading = true);
-    final res =
-        await serviceLocator.imageUploadService.uploadImage(source: source);
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+    // Upload to PRIVATE storage; we keep only the returned key (proof is never
+    // public). Preview uses the local file we just picked.
+    final res = await serviceLocator.appointmentService
+        .uploadDepositScreenshot(source: source);
     if (!mounted) return;
     setState(() {
       _uploading = false;
-      if (res.success) _screenshotUrl = res.data;
+      if (res.success && res.data != null) {
+        _screenshotKey = res.data;
+        _localPreviewPath = source;
+      } else {
+        _error = res.error ?? 'Échec de l’envoi de la capture';
+      }
     });
   }
 
@@ -129,22 +188,33 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
       _error = null;
     });
     final provider = context.read<AppointmentProvider>();
-    final ok = await provider.bookAppointment(
-      providerId: widget.providerId,
-      serviceIds: widget.serviceIds,
-      appointmentDateTime: widget.appointmentDateTime,
-      artistId: widget.artistId,
-      notes: widget.notes,
-      depositAmount: widget.depositAmount,
-      depositScreenshotUrl: _screenshotUrl,
-    );
+    final bool ok;
+    if (widget.isSubmitMode) {
+      ok = await provider.submitDeposit(
+        appointmentId: widget.appointmentId!,
+        screenshotKey: _screenshotKey!,
+      );
+    } else {
+      ok = await provider.bookAppointment(
+        providerId: widget.providerId!,
+        serviceIds: widget.serviceIds!,
+        appointmentDateTime: widget.appointmentDateTime!,
+        artistId: widget.artistId,
+        notes: widget.notes,
+        depositAmount: widget.depositAmount,
+        depositScreenshotUrl: _screenshotKey,
+      );
+    }
     if (!mounted) return;
     if (ok) {
       Navigator.of(context).pop(true);
     } else {
       setState(() {
         _booking = false;
-        _error = provider.error ?? 'Erreur lors de la réservation';
+        _error = provider.error ??
+            (widget.isSubmitMode
+                ? 'Erreur lors de l’envoi de l’acompte'
+                : 'Erreur lors de la réservation');
       });
     }
   }
@@ -170,7 +240,10 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text("Payer l'acompte", style: AppTextStyles.titleMedium),
+              Text(
+                widget.isSubmitMode ? "Envoyer l'acompte" : "Payer l'acompte",
+                style: AppTextStyles.titleMedium,
+              ),
               const SizedBox(height: 2),
               Text(
                 'Versé directement au salon. Myweli ne prélève rien.',
@@ -255,13 +328,23 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
               ],
               const SizedBox(height: AppTheme.spacingL),
               AppButton(
-                text: "J'ai payé l'acompte",
+                text: widget.isSubmitMode
+                    ? "Envoyer l'acompte"
+                    : "J'ai payé l'acompte",
                 isLoading: _booking,
-                onPressed: (_booking || _uploading) ? null : _markPaid,
+                // Submit mode needs a screenshot (it's the proof being sent);
+                // book mode lets you confirm now and attach proof later.
+                onPressed: (_booking ||
+                        _uploading ||
+                        (widget.isSubmitMode && _screenshotKey == null))
+                    ? null
+                    : _markPaid,
               ),
               const SizedBox(height: 8),
               Text(
-                'Le salon confirmera après réception. Statut : en attente.',
+                widget.isSubmitMode
+                    ? 'Le salon confirmera après réception de l’acompte.'
+                    : 'Le salon confirmera après réception. Statut : en attente.',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.textTertiary),
@@ -274,7 +357,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
   }
 
   Widget _screenshotRow() {
-    if (_screenshotUrl != null) {
+    if (_screenshotKey != null && _localPreviewPath != null) {
       return Row(
         children: [
           ClipRRect(
@@ -282,14 +365,21 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
             child: SizedBox(
               width: 48,
               height: 48,
-              child: TimedCachedImage(
-                  imageUrl: _screenshotUrl!, fit: BoxFit.cover),
+              child: _localPreviewPath!.startsWith('asset:')
+                  ? Image.asset(
+                      _localPreviewPath!.substring('asset:'.length),
+                      fit: BoxFit.cover,
+                    )
+                  : Image.file(File(_localPreviewPath!), fit: BoxFit.cover),
             ),
           ),
           const SizedBox(width: AppTheme.spacingM),
           const Expanded(child: Text('Capture jointe')),
           TextButton(
-            onPressed: () => setState(() => _screenshotUrl = null),
+            onPressed: () => setState(() {
+              _screenshotKey = null;
+              _localPreviewPath = null;
+            }),
             child: const Text('Retirer'),
           ),
         ],
@@ -318,7 +408,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
             const SizedBox(width: AppTheme.spacingM),
             Expanded(
               child: Text(
-                'Joindre une capture du paiement (optionnel)',
+                widget.isSubmitMode
+                    ? 'Joindre une capture du paiement'
+                    : 'Joindre une capture du paiement (optionnel)',
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.textSecondary),
               ),

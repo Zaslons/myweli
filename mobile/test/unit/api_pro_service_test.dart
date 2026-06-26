@@ -506,4 +506,15 @@ void main() {
     expect(res.data, ['https://cdn/x.jpg']);
     expect(body!['imageUrls'], ['https://cdn/x.jpg']);
   });
+
+  test('depositScreenshotUrl GETs the signed deposit-screenshot URL', () async {
+    final client = MockClient((req) async {
+      expect(req.method, 'GET');
+      expect(req.url.path, '/appointments/a1/deposit-screenshot');
+      return http.Response(jsonEncode({'url': 'https://signed/proof'}), 200);
+    });
+    final res = await _linked(client).depositScreenshotUrl('a1');
+    expect(res.success, isTrue);
+    expect(res.data, 'https://signed/proof');
+  });
 }

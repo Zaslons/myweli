@@ -110,6 +110,15 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<String>> depositScreenshotUrl(String appointmentId) async {
+    await Future.delayed(AppConstants.mockDelay);
+    // A sample image stands in for the signed URL in mock mode.
+    return ApiResponse.success(
+      'asset:assets/images/providers/salon_excellence_photo.png',
+    );
+  }
+
+  @override
   Future<ApiResponse<bool>> rejectAppointment(
       String appointmentId, String? reason) async {
     await Future.delayed(AppConstants.mockDelay);

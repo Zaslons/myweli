@@ -17,6 +17,24 @@ abstract class AppointmentServiceInterface {
   Future<ApiResponse<Appointment>> getAppointmentById(String id);
   Future<ApiResponse<void>> cancelAppointment(String id);
 
+  /// Upload a deposit-payment screenshot to **private** storage; returns the
+  /// opaque object key to attach to a booking (no public URL).
+  Future<ApiResponse<String>> uploadDepositScreenshot({
+    required String source,
+  });
+
+  /// Attach/replace the deposit screenshot on the caller's own pending booking
+  /// (pay-later). Returns the updated appointment.
+  Future<ApiResponse<Appointment>> submitDeposit({
+    required String appointmentId,
+    required String screenshotKey,
+  });
+
+  /// A short-lived signed URL to view this booking's deposit screenshot.
+  Future<ApiResponse<String>> depositScreenshotUrl({
+    required String appointmentId,
+  });
+
   /// Move an existing appointment to a new date/time. The deposit and balance
   /// carry over unchanged.
   Future<ApiResponse<Appointment>> rescheduleAppointment({

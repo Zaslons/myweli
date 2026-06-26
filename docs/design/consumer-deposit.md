@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | B1 (backend) Approved — building · B2 (app) next |
+| **Status** | B1 (backend) **Built** (PR #79, merged) · B2 (app) **Built** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | Payments & deposits · V1 (PRD §6.1 custody model, §9.4, FR-PAY-001…005) — **top risk** |
@@ -25,12 +25,21 @@ Complete the **no-custody deposit flow** on the real backend, **securely**. Per 
 
 **In scope:**
 - **B1 (backend):** a `deposit` upload purpose (**consumer-authenticated, private**, prefix `deposit/{userId}`); **signed-GET** viewing (`StorageService.presignGet`) so only the consumer + the owning salon can see the screenshot; `POST /appointments/{id}/deposit` (pay-later submit) + `GET /appointments/{id}/deposit-screenshot` (signed URL); `depositScreenshotUrl` becomes a **private key**.
-- **B2 (app):** the deposit sheet uploads via the **private** path with the **real picker**; the consumer preview + the pro accept screen fetch the **signed URL** to display; a pay-later "submit deposit" entry from my-bookings.
+- **B2 (app):** the deposit sheet uploads via the **private** path with the **real picker** (key, not public URL); preview shows the just-picked **local file**; a **pay-later** "Envoyer l'acompte" entry on the **consumer appointment-detail** screen (submit-mode sheet → `POST …/deposit`); the consumer "view my proof" + the **pro accept screen** fetch the **signed URL** to display.
 
 **Out of scope:** real Mobile Money **aggregator** / one-tap pay (deferred, OQ-1); in-app **full payment**, wallet, tipping (V2/V3); **automated refunds** (salon↔client — Myweli surfaces the policy only, FR-PAY-005); Myweli-issued receipts (no Myweli-side transaction).
 
 ## 2. UX & flows
-No structural change. Book → (deposit on) **deposit sheet**: "Acompte X · Solde Y", **Payer avec Wave** / copy number, **attach screenshot** (real picker → private upload), **"J'ai payé"** → booking `pending`. The salon's accept screen shows the screenshot (signed) → **accept** → `confirmed`, both notified (notifications deferred). **Pay-later:** a pending deposit-booking in *My bookings* offers "Envoyer l'acompte" → the same sheet → `POST …/deposit`. Cancellation policy stays display-only (FR-APPT-003/005). French copy; all four states already exist.
+**At booking** — deposit sheet (existing): "Acompte X · Solde Y", **Payer avec Wave** / copy number, **attach screenshot** (real picker in API mode → private upload → key; preview = the local file), **"J'ai payé l'acompte"** → booking `pending` with the key. Screenshot is **optional** here (decision B2-1).
+
+**Pay-later (consumer appointment detail)** — an **Acompte card** reflecting real state:
+- *pending, no proof* → "Acompte à envoyer" + **"Envoyer l'acompte"** → the same sheet in **submit mode** (attach → `POST /appointments/{id}/deposit`).
+- *proof attached, awaiting* → "En attente de confirmation" + **"Voir ma capture"** (fetch signed URL → view).
+- *confirmed* → "Acompte confirmé par le salon".
+
+**Pro appointment detail** — replace the direct-URL render with a **signed-GET fetch** (provider session): thumbnail (tap to enlarge) · "Aucune capture jointe" · loading · fetch-error. "Confirmez une fois l'acompte reçu" guidance stays; **accept = confirm receipt** → `confirmed`.
+
+**States** (every surface): loading · empty (no salon handle / no proof) · error (upload/network/fetch) · success · offline. French copy. Reuses `AppButton`, `TimedCachedImage`, the API-mode picker-gating pattern. Cancellation policy stays display-only (FR-APPT-003/005). Notifications deferred.
 
 ## 3. API & contract
 - **`POST /uploads/sign`** gains **`purpose=deposit`** — **consumer** (`user`) token → presigns into the **private** bucket, prefix `deposit/{userId}` (server-built from the token), returns the `key` only (images: jpeg/png/webp). (gallery/kyc remain provider-only; the route gates role by purpose.)
@@ -50,7 +59,11 @@ None new. `appointments.deposit_screenshot_url` now holds a **private object key
   - `screenshotUrl(appointmentId, {sub, role})` → load + authorize (consumer owner **or** owning salon) → `presignGet(key)` → `{url}` (or `not_found`).
 - **`AppointmentRepository.update`** handles a `depositScreenshotUrl` change (in-memory + Postgres `SET deposit_screenshot_url`).
 - **Routes** (thin): `routes/appointments/[id]/deposit.dart` (POST) + `routes/appointments/[id]/deposit-screenshot.dart` (GET); `/uploads/sign` extended. DI + middleware provide `DepositService`.
-- **App (B2):** `ApiAppointmentService` gains `uploadDepositScreenshot(source)` (private upload → key) + `submitDeposit(id, key)` + `depositScreenshotUrl(id)` (signed GET). The deposit sheet + pro accept screen use them; the consumer preview + pro screen render the signed URL.
+- **App (B2):**
+  - Consumer `AppointmentServiceInterface` (+ Api + Mock) gains `uploadDepositScreenshot({source}) → key` (compress → `/uploads/sign?purpose=deposit` on the **consumer** session → multipart POST → key), `submitDeposit({appointmentId, screenshotKey}) → Appointment`, `depositScreenshotUrl({appointmentId}) → url` (signed GET). `AppointmentProvider` exposes thin wrappers + refreshes after submit.
+  - Pro service (`ApiProService` + mock) gains `depositScreenshotUrl(appointmentId) → url` (provider session GET) for the accept screen.
+  - `deposit_payment_sheet` takes an optional `appointmentId`: present → **submit mode** (`submitDeposit`), absent → **book mode** (unchanged). Picker gated by `AppConfig.useApiBackend` (real vs mock), like gallery/reviews. Holds `_screenshotKey` + `_localPreviewPath`.
+  - `Appointment.depositScreenshotUrl` stays the DTO field but now holds an **opaque key**; the UI uses its **presence** as "proof attached" and never renders it directly — it fetches the signed URL on demand.
 
 ## 6. Security & authz (this is money-adjacent PII)
 - **No custody** — the server never moves or holds funds; it records the booking + the screenshot key + status. (PRD §6.1.)
@@ -65,7 +78,7 @@ None new. `appointments.deposit_screenshot_url` now holds a **private object key
 - **Storage:** `R2StorageService.presignGet` structure (host, `X-Amz-Algorithm/Credential/Date/Expires/SignedHeaders`, 64-hex signature, private bucket); Fake returns a usable URL. `purpose=deposit` → private key `deposit/{sub}/…`, no public URL, consumer-scoped.
 - **DepositService:** submit (owner + pending + key-prefix; foreign key / non-owner / non-pending → error); `screenshotUrl` authorizes consumer owner + owning salon, rejects a stranger, 404 when no screenshot.
 - **Routes:** `/uploads/sign` deposit → consumer 200 / provider 403; `POST …/deposit` → 200 / not-owner 403 / 400 bad key; `GET …/deposit-screenshot` → 200 {url} / stranger 403 / 404 none / 401.
-- **App (B2):** deposit upload (sign deposit → private POST → key); book/submit send the key; both surfaces fetch the signed URL; real picker gated by `useApiBackend`.
+- **App (B2):** Mock appointment service — `uploadDepositScreenshot` → fake key, `submitDeposit` updates + returns the appointment, `depositScreenshotUrl` → placeholder; mock realism (latency/error). `AppointmentProvider` wrappers. Widget/provider tests: sheet book-mode vs submit-mode, picker gated by `useApiBackend`, the detail Acompte card states (à envoyer / en attente / confirmé), pro signed-fetch states (proof / none / error). `flutter analyze` 0; all four UI states.
 
 ## 9. Definition of done (per PR)
 - [ ] `dart format` clean · `dart analyze` 0 · tests green (incl. DB-gated where relevant).
@@ -78,7 +91,9 @@ None new. `appointments.deposit_screenshot_url` now holds a **private object key
 2. **Pay-later** `POST /appointments/{id}/deposit` (book now, attach proof later); booking-with-key still works. ✓
 3. **Two PRs** — B1 backend → B2 app. ✓
 4. **Dedicated private bucket** `R2_DEPOSIT_BUCKET`, separate from KYC (independent retention / credential scope / blast radius; R2 has no per-bucket fee). Bucket selection is a typed `StorageBucket` enum. ✓
-5. Carried in (binding): **no custody**; Wave deep-link / copy-number; **opt-in per salon**; refunds salon↔client; **no aggregator** (V1). ✓
+5. **B2-1:** screenshot **optional at booking** + pay-later (PRD FR-PAY-004), not required-to-book. ✓
+6. **B2-2:** pay-later entry on the **consumer appointment-detail** screen only (not the My-bookings list). ✓
+7. Carried in (binding): **no custody**; Wave deep-link / copy-number; **opt-in per salon**; refunds salon↔client; **no aggregator** (V1). ✓
 
 ## 11. Open questions
 _None open._

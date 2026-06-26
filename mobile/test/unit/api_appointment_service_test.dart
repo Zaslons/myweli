@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -22,7 +23,10 @@ Map<String, dynamic> _apptJson({String status = 'pending'}) => {
       'createdAt': DateTime.utc(2026).toIso8601String(),
     };
 
-Future<ApiAppointmentService> _authed(MockClient client) async {
+Future<ApiAppointmentService> _authed(
+  MockClient client, {
+  ImageCompressor? compressor,
+}) async {
   final store = InMemorySessionStore();
   await store.save(jsonEncode(
     Session(
@@ -38,6 +42,7 @@ Future<ApiAppointmentService> _authed(MockClient client) async {
     client: client,
     baseUrl: 'http://x',
     sessionStore: store,
+    compressor: compressor,
   );
 }
 
@@ -211,5 +216,78 @@ void main() {
     expect(res.success, isTrue);
     expect(refreshed, isTrue);
     expect((jsonDecode((await store.read())!) as Map)['token'], 'new');
+  });
+
+  test('uploadDepositScreenshot signs purpose=deposit, uploads → returns key',
+      () async {
+    var signed = false;
+    var uploaded = false;
+    final client = MockClient((req) async {
+      if (req.url.path == '/uploads/sign') {
+        signed = true;
+        expect((jsonDecode(req.body) as Map)['purpose'], 'deposit');
+        return http.Response(
+          jsonEncode({
+            'uploadUrl': 'http://storage/deposit-bkt',
+            'fields': {'key': 'deposit/u1/x.jpg'},
+            'key': 'deposit/u1/x.jpg',
+          }),
+          200,
+        );
+      }
+      // The presigned multipart upload straight to storage.
+      uploaded = true;
+      expect(req.url.toString(), 'http://storage/deposit-bkt');
+      return http.Response('', 204);
+    });
+    final service = await _authed(
+      client,
+      compressor: (_) async => Uint8List.fromList([1, 2, 3]),
+    );
+
+    final res = await service.uploadDepositScreenshot(source: 'shot.jpg');
+
+    expect(signed, isTrue);
+    expect(uploaded, isTrue);
+    expect(res.success, isTrue);
+    expect(res.data, 'deposit/u1/x.jpg'); // only the private key, no public URL
+  });
+
+  test('submitDeposit POSTs the key → returns the updated appointment',
+      () async {
+    final client = MockClient((req) async {
+      expect(req.method, 'POST');
+      expect(req.url.path, '/appointments/a1/deposit');
+      expect(
+        (jsonDecode(req.body) as Map)['screenshotKey'],
+        'deposit/u1/x.jpg',
+      );
+      final j = _apptJson();
+      j['depositScreenshotUrl'] = 'deposit/u1/x.jpg';
+      return http.Response(jsonEncode(j), 200);
+    });
+    final service = await _authed(client);
+
+    final res = await service.submitDeposit(
+      appointmentId: 'a1',
+      screenshotKey: 'deposit/u1/x.jpg',
+    );
+
+    expect(res.success, isTrue);
+    expect(res.data!.depositScreenshotUrl, 'deposit/u1/x.jpg');
+  });
+
+  test('depositScreenshotUrl GETs the signed view URL', () async {
+    final client = MockClient((req) async {
+      expect(req.method, 'GET');
+      expect(req.url.path, '/appointments/a1/deposit-screenshot');
+      return http.Response(jsonEncode({'url': 'https://signed/x'}), 200);
+    });
+    final service = await _authed(client);
+
+    final res = await service.depositScreenshotUrl(appointmentId: 'a1');
+
+    expect(res.success, isTrue);
+    expect(res.data, 'https://signed/x');
   });
 }

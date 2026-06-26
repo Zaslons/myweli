@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
@@ -9,6 +11,10 @@ import '../../models/session.dart';
 import '../interfaces/appointment_service_interface.dart';
 import '../interfaces/session_store.dart';
 import 'refreshing_http_client.dart';
+
+/// Compresses [source] (a local file path) to JPEG bytes. Injected so the
+/// deposit-screenshot upload is testable without the native compressor.
+typedef ImageCompressor = Future<Uint8List?> Function(String source);
 
 /// Real HTTP implementation of [AppointmentServiceInterface] (backend B-appt).
 ///
@@ -25,13 +31,25 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
+    ImageCompressor? compressor,
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _sessionStore = sessionStore ?? InMemorySessionStore();
+        _sessionStore = sessionStore ?? InMemorySessionStore(),
+        _compress = compressor ?? _defaultCompress;
 
   final http.Client _client;
   final String _baseUrl;
   final SessionStore _sessionStore;
+  final ImageCompressor _compress;
+
+  static Future<Uint8List?> _defaultCompress(String source) =>
+      FlutterImageCompress.compressWithFile(
+        source,
+        minWidth: 1600,
+        minHeight: 1600,
+        quality: 80,
+        format: CompressFormat.jpeg,
+      );
 
   late final RefreshingHttpClient _authed = RefreshingHttpClient(
     client: _client,
@@ -70,6 +88,92 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     if (res == null) return _networkError();
     if (res.statusCode != 201) return _errorFrom(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
+  }
+
+  @override
+  Future<ApiResponse<String>> uploadDepositScreenshot({
+    required String source,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Connectez-vous pour réserver');
+    }
+    final Uint8List? bytes;
+    try {
+      bytes = await _compress(source);
+    } catch (_) {
+      return ApiResponse.error('Image invalide');
+    }
+    if (bytes == null || bytes.isEmpty) {
+      return ApiResponse.error('Image invalide');
+    }
+
+    // 1. Presign a private, single-use upload to the deposit bucket.
+    final signRes = await _authed.send((token) => _client.post(
+          _uri('/uploads/sign'),
+          headers: _authHeaders(token),
+          body: jsonEncode({'contentType': 'image/jpeg', 'purpose': 'deposit'}),
+        ));
+    if (signRes == null) return _networkError();
+    if (signRes.statusCode != 200) return _errorFrom(signRes);
+    final ticket = _decode(signRes.body);
+
+    // 2. Upload bytes straight to private storage (the presign is the auth).
+    final req = http.MultipartRequest(
+      'POST',
+      Uri.parse(ticket['uploadUrl'] as String),
+    );
+    (ticket['fields'] as Map).forEach((k, v) {
+      req.fields[k as String] = v as String;
+    });
+    req.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: 'deposit.jpg'),
+    );
+    final http.StreamedResponse uploaded;
+    try {
+      uploaded = await _client.send(req);
+      await uploaded.stream.drain<void>();
+    } catch (_) {
+      return ApiResponse.error('Échec de l’envoi. Réessayez.');
+    }
+    if (uploaded.statusCode < 200 || uploaded.statusCode >= 300) {
+      return ApiResponse.error('Échec de l’envoi. Réessayez.');
+    }
+    // Only the opaque private key is kept; bytes never went through our API.
+    return ApiResponse.success(ticket['key'] as String);
+  }
+
+  @override
+  Future<ApiResponse<Appointment>> submitDeposit({
+    required String appointmentId,
+    required String screenshotKey,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((token) => _client.post(
+          _uri('/appointments/$appointmentId/deposit'),
+          headers: _authHeaders(token),
+          body: jsonEncode({'screenshotKey': screenshotKey}),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
+  }
+
+  @override
+  Future<ApiResponse<String>> depositScreenshotUrl({
+    required String appointmentId,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((token) => _client.get(
+          _uri('/appointments/$appointmentId/deposit-screenshot'),
+          headers: _authHeaders(token),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(_decode(res.body)['url'] as String);
   }
 
   @override
