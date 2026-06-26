@@ -1,57 +1,81 @@
-# Admin / ops console — UI design spec (Flutter Web)
+# Admin / ops console — UX & design plan (Flutter Web)
 
 | | |
 |---|---|
-| **Status** | UI-1 (auth + shell + dashboard + KYC) **Built** · moderation / mgmt / disputes / audit UI next |
+| **Status** | UX plan signed off · **UI-2a Built** (design system + UI-1 reworked to it) · UI-2b (moderation) next |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
-| **Backend** | [admin-console.md](admin-console.md) (Slices 1–3 built — the API this UI drives) |
-| **PRD ref** | §11.4 (FR-WEB-AD-*), §6.1 (stack — **Flutter Web**, revised from React) |
-| **Skills** | myweli-dev-guardrails (UX-first) |
+| **Backend** | [admin-console.md](admin-console.md) (Slices 1–3 — the API this UI drives) |
+| **PRD ref** | §11.4 (FR-WEB-AD-*), §6.1 (stack — **Flutter Web**) |
+| **Skills** | myweli-dev-guardrails (**UX-first**: plan + sign-off before code) |
 
-## 1. Goal & scope
-Make the admin backend usable by a human. Built as a **3rd Flutter entrypoint** `main_admin.dart` (alongside `main.dart`/`main_pro.dart`) — **Flutter Web**, internal, behind admin login. Reuses the existing models/services/theme/widgets; the admin session is isolated under its own secure key.
+> **Why this doc exists.** UI-1 (login + dashboard + KYC, PR #88) was shipped functional but **without a real UX/design pass or sign-off** — a process miss. This plan defines the admin **design system** and every screen's UX *first*, gets sign-off, then UI-1 is reworked to it and the remaining screens are built to the same bar.
 
-**UI-1 (this slice):** admin **login** → app **shell** (nav) → **dashboard** (analytics KPIs) → **KYC approval queue** (list → detail with signed doc viewing → approve / reject). This is the launch-critical workflow end-to-end.
+## 1. Principles & fit with the app's identity
+The app is **minimalist monochrome**: pure-black primary (`#000`), white / very-light-gray surfaces (`#FAFAFA`, `#F5F5F5`, bg `#F6F7F9`), muted-dark semantic colors (success `#2D5016`, error `#8B0000`, warning `#6B5B00` + lighter variants), semibold headlines, spacing 4/8/16/24/32, radius 12 default. **The admin reuses these exact tokens** — same `AppColors`/`AppTextStyles`/`AppTheme` — so it reads as "Myweli, for the team."
 
-**Later UI slices:** review moderation queue · provider/user management (suspend/ban + support views) · disputes · audit-log viewer.
+The admin is **not a phone screen blown up**. It's an **internal desktop tool**, so the design optimizes for:
+- **Scannability & density** — operators triage queues fast → **data tables**, not stacked cards.
+- **A persistent frame** — sidebar + top bar always visible; content scrolls.
+- **Status at a glance** — consistent **status chips** (verified/pending/suspended/open) in the semantic palette.
+- **Safe, reversible actions** — destructive actions (suspend, hide, reject) confirm + take a reason; everything's audited server-side.
+- **Calm monochrome** — black/white/gray dominates; color is reserved for **status + the single primary action**, never decoration.
 
-## 2. UX & flows
-- **Login** (`/admin`) — email + password (the seeded super-admin). Loading · invalid-credentials (401) · locked-out (429) · success → `/admin/dashboard`. No self-signup link (seeded only).
-- **Shell** — `NavigationRail` (desktop-first): **Tableau de bord**, **KYC**; footer **Déconnexion**. Hosts the routed child. Unauthenticated → redirect to login; authenticated on `/admin` → redirect to dashboard.
-- **Dashboard** (`/admin/dashboard`) — KPI cards from `GET /admin/analytics/overview`: users (active/banned), providers (active/suspended), verification (pending/verified/rejected), bookings by status, **no-show + cancellation rates**, open disputes, reported reviews. States: loading · error+retry · loaded.
-- **KYC queue** (`/admin/kyc`) — table/list from `GET /admin/kyc` (pending): business name/type, submitted date, doc count → row tap → detail. States: loading · **empty ("Aucune vérification en attente")** · error.
-- **KYC detail** (`/admin/kyc/:id`) — `GET /admin/kyc/{id}`: business info + each doc rendered from its **signed `viewUrl`** (tap to enlarge). Actions: **Approuver** (→ confirmed) · **Rejeter** (requires a reason). On success → back to the queue (refreshed) + snackbar. States: loading · per-action loading · error.
+## 2. The admin design system
+**Layout (desktop-first):**
+- **Sidebar** (240px, white, right border): wordmark "Myweli · Admin" → nav groups (**Vue d'ensemble**; **Modération**: KYC, Avis; **Marché**: Salons, Clients, Litiges; **Journal**: Audit) → footer: admin email + Déconnexion. Active item = black text + a 3px black left rule on `surfaceVariant`.
+- **Top bar** (64px): current page title (`headlineSmall`) left; contextual actions (search/refresh/filter) right; thin bottom divider.
+- **Content** (`background` `#F6F7F9`, padding 32): a max-width ~1200 column; cards/tables on white with `border` + radius 12.
+- **Responsive:** desktop-first. < ~1000px → sidebar collapses to icons; tables become horizontally scrollable. (Admin use is desktop; this is graceful-degrade, not a mobile redesign.)
 
-**Cross-cutting:** French copy; desktop-first layout (admin = desktop), graceful narrow width; loading/empty/error/success on every screen. Reuses `AppButton`, `AppTextField`, `LoadingIndicator`, `EmptyState`, `TimedCachedImage` (renders the signed doc URLs), theme/colors/text styles.
+**Components (shared admin widgets):**
+- **`AdminScaffold`** — the sidebar + top-bar frame; every screen is a body inside it.
+- **`StatCard`** — KPI: big value (`headlineMedium`), label (`bodySmall` secondary), optional accent for attention metrics (pending KYC, open disputes, no-show rate). White, border, radius 12.
+- **`AdminDataTable`** — the workhorse: header row (`labelMedium`, tertiary), zebra-free rows with a 1px divider, row hover = `surfaceVariant`, right-aligned actions, click-row → detail. Built-in **states**: loading (skeleton rows), empty (icon + title + line), error (line + Réessayer). Footer: "X résultats · page N" + prev/next.
+- **`StatusChip`** — pill, semantic color on a light tint: `vérifié`/`actif` (green), `en attente`/`ouvert` (amber), `rejeté`/`suspendu`/`banni`/`masqué` (red), neutral (gray).
+- **`PageHeader`** — title + optional subtitle + right-aligned filter/segment control.
+- **`ConfirmDialog` / `ReasonDialog`** — standard confirm; reason variant for reject/suspend/hide (textarea + required/optional rule).
+- **Buttons:** reuse `AppButton` (primary = black, secondary = outline, text). One primary action per context.
+- **States everywhere:** loading (skeleton), empty (EmptyState), error (retry), success (snackbar). No raw spinners on data tables.
 
-## 3. Architecture
-- **Entrypoint** `lib/main_admin.dart` — `MultiProvider` (AdminAuthProvider, AdminDashboardProvider, AdminKycProvider) → `MaterialApp.router(adminRouter)`. Mirrors `main_pro.dart`.
-- **Router** `lib/core/router/admin_router.dart` — go_router; `redirect` on `AdminAuthProvider.isAuthenticated` (refreshListenable). Routes: `/admin` (login), `/admin/dashboard`, `/admin/kyc`, `/admin/kyc/:id`, all under the shell.
-- **Service** `lib/services/admin/admin_service.dart` — **one** `AdminService` (the console is small): isolated `SecureSessionStore('myweli_admin_session')` + `RefreshingHttpClient(refreshPath: '/admin/auth/refresh')`. Methods: `login(email,password)` (POST `/admin/auth/login` → save `{token, refreshToken}`), `logout()`, `hasSession()`, `overview()`, `kycQueue({page})`, `kycDetail(id)`, `approveKyc(id)`, `rejectKyc(id, reason)`. Returns `ApiResponse<…>`. Injected (default real) for testability; a process singleton `adminService` wires the screens.
-- **State** `lib/providers/admin/` — `AdminAuthProvider` (isAuthenticated/isLoading/error/login/logout/restore), `AdminDashboardProvider` (overview), `AdminKycProvider` (queue/detail/approve/reject). `ChangeNotifier` + scoped `Consumer`.
-- **Data shape:** admin responses are admin-specific JSON; UI-1 reads them **map-driven** (typed models add little for an internal tool and a lot of classes) — documented exception to the typed-DTO guideline; revisit if the console grows.
+**Interaction standards:** server-side pagination (50/puis "Charger plus" or prev/next); destructive actions always confirm; success → snackbar + optimistic row removal from queues; French copy throughout; keyboard: Enter submits dialogs, Esc cancels.
 
-## 4. Security
-- Admin session under its **own** secure key (`myweli_admin_session`) — never mixed with consumer/provider sessions. Tokens in `flutter_secure_storage` (never logged).
-- All data calls carry the admin bearer via `RefreshingHttpClient` (silent refresh on 401 at `/admin/auth/refresh`); the backend enforces `role=admin` (deny-by-default) + audits every mutation — the client is never the authority.
-- No self-signup; login is the only unauthenticated screen. Reject reasons are surfaced to the provider by the backend.
+## 3. Screens (flow · states · copy)
+Every screen lives in `AdminScaffold`. States = loading · empty · error · success unless noted.
 
-## 5. Testing
-- `AdminService` (MockClient): login posts to `/admin/auth/login` + saves session; data calls send the bearer + parse; 401→refresh→retry inherited from `RefreshingHttpClient`.
-- `AdminAuthProvider`: login success → authenticated; bad creds → error, not authenticated; logout clears.
-- `AdminKycProvider`: queue load; approve/reject update + surface errors.
-- `flutter analyze` 0; **`flutter build web`** compiles the admin target; widget smoke for login + dashboard states.
+1. **Login** (`/admin`, no frame) — centered card on `background`: wordmark, email, password, "Se connecter". States: idle · loading · `Identifiants invalides` (401) · `Trop de tentatives, réessayez plus tard` (429). No signup.
+2. **Vue d'ensemble** (`/admin/dashboard`) — `PageHeader` + a **StatCard grid** (responsive wrap): Rendez-vous total/terminés, **Taux de no-show** (accent), Taux d'annulation, **KYC en attente** (accent, → KYC), Salons vérifiés/actifs/suspendus, **Litiges ouverts** (accent, → Litiges), Avis signalés (→ Avis), Clients actifs/bannis. Below: a compact **"À traiter"** panel linking the open queues with counts. (North-Star chart is a later add.)
+3. **KYC** (`/admin/kyc`) — `AdminDataTable`: Salon · Type · Soumis le · Documents · (row →). Empty: "Aucune vérification en attente." Row → **detail** (`/admin/kyc/:id`): a two-column layout — left: business info + status chip; right: **document thumbnails** (signed view URLs, click → lightbox). Sticky action bar: **Approuver** (primary) · **Rejeter** (secondary → `ReasonDialog`, reason required). Success → toast + back to the (refreshed) queue.
+4. **Avis (modération)** (`/admin/reviews`) — `AdminDataTable` of reported reviews: Note · Avis (truncated) · Client · Signalements · Dernier motif · actions **Masquer** (→ ReasonDialog, optional) / **Ignorer**. Empty: "Aucun avis signalé." (Restore lives in a later "Avis masqués" filter — hidden reviews leave the open-reports queue.)
+5. **Salons** (`/admin/providers`) — table: Salon · Commune · Statut (chip) · Note · actions; filter (Tous/Actifs/Suspendus) + search. Row → detail: profile + recent bookings + **Suspendre/Réactiver** (reason) + **Mettre en avant** toggle. *(later UI slice)*
+6. **Clients** (`/admin/users`) — table: Nom · Téléphone · Statut · actions **Bannir/Réactiver** (reason); filter + search. Row → detail + recent bookings. *(later UI slice)*
+7. **Litiges** (`/admin/disputes`) — table: Réservation · Statut · Ouvert le · Motif; row → detail (booking + signed deposit screenshot evidence) + **Résoudre** (resolution). *(later UI slice)*
+8. **Audit** (`/admin/audit`) — read-only table of admin actions: Date · Admin · Action · Cible · Motif; filter by admin/action. *(later UI slice)*
 
-## 6. Definition of done
-- [ ] `flutter analyze` 0 · `flutter test` green · `flutter build web --target lib/main_admin.dart` succeeds.
-- [ ] All four states per screen; French copy; admin session isolated.
-- [ ] Spec cross-linked; ROADMAP updated; PRD §6.1 reflects Flutter Web. Feature branch + PR; CI green; no Claude attribution.
+## 4. UI-1 rework (what changes vs. what shipped)
+UI-1 stays functionally correct but is **reworked to this system**:
+- `NavigationRail` → the **sidebar** (`AdminScaffold`) with groups + admin identity + logout in the frame (not a rail trailing icon).
+- KYC queue: mobile **ListTile cards → `AdminDataTable`** (columns + states + pagination footer).
+- KYC detail: ad-hoc column → the **two-column + sticky action bar** layout; reject dialog → `ReasonDialog`.
+- Dashboard: loose `Wrap` of cards → `StatCard` grid + the **"À traiter"** panel; accent only on attention metrics.
+- Introduce the shared `AdminScaffold`/`StatCard`/`AdminDataTable`/`StatusChip` widgets (UI-1 screens refactor onto them).
 
-## 7. Decisions (signed off)
-1. **Flutter Web**, `main_admin.dart` entrypoint, reusing the existing stack (overrides PRD's React note; §6.1 updated). ✓
-2. **UI-1 = auth + shell + dashboard + KYC queue**; moderation / mgmt / disputes / audit are later UI slices. ✓
-3. One `AdminService` + map-driven reads for the console (documented exception). ✓
+## 5. Build sequencing (after sign-off)
+- **UI-2a — design system + UI-1 rework:** `AdminScaffold`, `StatCard`, `AdminDataTable`, `StatusChip`, `PageHeader`, dialogs; refactor login/dashboard/KYC onto them. *(no new backend surface)*
+- **UI-2b — moderation** (Avis) on the new system.
+- **UI-3 — Salons + Clients management.**
+- **UI-4 — Litiges + Audit.**
+
+## 6. Security / a11y (carried)
+Admin session isolated (`myweli_admin_session`), tokens in secure storage, all calls bearer-authed (backend enforces `role=admin` + audits). a11y: focus order, dialog focus trap, ≥4.5:1 contrast (the monochrome palette passes), tooltips on icon-only controls.
+
+## 7. Decisions
+1. **Flutter Web**, `main_admin.dart`, reuse app tokens (§6.1 updated). ✓
+2. Desktop **data-table-centric** design system reusing the monochrome identity (not a blown-up mobile layout). **← needs sign-off**
+3. **Rework UI-1** (dashboard + KYC) onto the new system. **← needs sign-off**
+4. Sequencing UI-2a (system + rework) → moderation → mgmt → disputes/audit. **← needs sign-off**
 
 ## 8. Open questions
-_None._
+1. Sidebar grouping/labels (above) OK, or flat list?
+2. Density: comfortable (rows ~52px) vs compact (~40px) — recommend **comfortable**.
+3. North-Star chart on the dashboard now or a later "Analytics" page — recommend **later**.

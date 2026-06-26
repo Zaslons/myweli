@@ -11,9 +11,13 @@ import '../../providers/admin/admin_kyc_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
+import 'widgets/admin_scaffold.dart';
+import 'widgets/reason_dialog.dart';
+import 'widgets/status_chip.dart';
 
-/// KYC submission detail: business info + submitted docs (signed view URLs) +
-/// approve / reject (reason). Design: docs/design/admin-console-ui.md.
+/// KYC submission detail: business info + status (left), submitted documents via
+/// signed view URLs (right), and a sticky approve / reject action bar.
+/// Design: docs/design/admin-console-ui.md §3.
 class AdminKycDetailScreen extends StatefulWidget {
   const AdminKycDetailScreen({super.key, required this.accountId});
 
@@ -49,7 +53,12 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
   }
 
   Future<void> _reject() async {
-    final reason = await _askReason();
+    final reason = await showReasonDialog(
+      context,
+      title: 'Motif du rejet',
+      confirmLabel: 'Rejeter',
+      hint: 'Visible par le salon (ex. document illisible)',
+    );
     if (reason == null || !mounted) return;
     final p = context.read<AdminKycProvider>();
     final messenger = ScaffoldMessenger.of(context);
@@ -66,111 +75,138 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
     }
   }
 
-  Future<String?> _askReason() {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Motif du rejet'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Visible par le salon (ex. document illisible)',
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<AdminKycProvider>();
+    return AdminScaffold(
+      title: 'Vérification KYC',
+      child: _body(context, p),
+    );
+  }
+
+  Widget _body(BuildContext context, AdminKycProvider p) {
+    if (p.detailLoading && p.detail == null) return const LoadingIndicator();
+    if (p.detail == null) {
+      return Center(child: Text(p.detailError ?? 'Introuvable'));
+    }
+    final d = p.detail!;
+    final docs = (d['docs'] as List? ?? const []).cast<Map<String, dynamic>>();
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppTheme.spacingL),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 2, child: _info(d)),
+                const SizedBox(width: AppTheme.spacingL),
+                Expanded(flex: 3, child: _documents(docs)),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
+        _actionBar(p),
+      ],
+    );
+  }
+
+  Widget _info(Map<String, dynamic> d) {
+    Widget row(String label, String value) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textTertiary)),
+              Text(value, style: AppTextStyles.bodyMedium),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              final t = controller.text.trim();
-              if (t.isNotEmpty) Navigator.pop(ctx, t);
-            },
-            child: const Text('Rejeter'),
+        );
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppColors.secondary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('${d['businessName'] ?? '—'}',
+                    style: AppTextStyles.titleMedium),
+              ),
+              StatusChip.forStatus(d['verificationStatus'] as String?),
+            ],
           ),
+          const SizedBox(height: AppTheme.spacingM),
+          row('Type', '${d['businessType'] ?? '—'}'),
+          row('Téléphone', '${d['phoneNumber'] ?? '—'}'),
+          if ((d['address'] ?? '').toString().isNotEmpty)
+            row('Adresse', '${d['address']}'),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final p = context.watch<AdminKycProvider>();
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(title: const Text('Vérification KYC')),
-      body: Builder(
-        builder: (context) {
-          if (p.detailLoading && p.detail == null) {
-            return const LoadingIndicator();
-          }
-          if (p.detail == null) {
-            return Center(child: Text(p.detailError ?? 'Introuvable'));
-          }
-          final d = p.detail!;
-          final docs =
-              (d['docs'] as List? ?? const []).cast<Map<String, dynamic>>();
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacingL),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${d['businessName'] ?? '—'}',
-                    style: AppTextStyles.titleMedium),
-                Text(
-                  '${d['businessType'] ?? ''} · ${d['phoneNumber'] ?? ''}',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textTertiary),
+  Widget _documents(List<Map<String, dynamic>> docs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Documents', style: AppTextStyles.titleSmall),
+        const SizedBox(height: AppTheme.spacingS),
+        if (docs.isEmpty)
+          Text('Aucun document soumis.',
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.textTertiary))
+        else
+          Wrap(
+            spacing: AppTheme.spacingM,
+            runSpacing: AppTheme.spacingM,
+            children: [
+              for (final doc in docs)
+                _DocTile(
+                  type: '${doc['type'] ?? 'Document'}',
+                  url: doc['viewUrl'] as String?,
                 ),
-                const SizedBox(height: AppTheme.spacingL),
-                Text('Documents', style: AppTextStyles.titleSmall),
-                const SizedBox(height: AppTheme.spacingS),
-                if (docs.isEmpty)
-                  Text(
-                    'Aucun document soumis.',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textTertiary),
-                  )
-                else
-                  Wrap(
-                    spacing: AppTheme.spacingM,
-                    runSpacing: AppTheme.spacingM,
-                    children: [
-                      for (final doc in docs)
-                        _DocTile(
-                          type: '${doc['type'] ?? 'Document'}',
-                          url: doc['viewUrl'] as String?,
-                        ),
-                    ],
-                  ),
-                const SizedBox(height: AppTheme.spacingXL),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppButton(
-                        text: 'Approuver',
-                        isLoading: p.acting,
-                        onPressed: p.acting ? null : _approve,
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingM),
-                    Expanded(
-                      child: AppButton(
-                        text: 'Rejeter',
-                        type: AppButtonType.secondary,
-                        onPressed: p.acting ? null : _reject,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _actionBar(AdminKycProvider p) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: const BoxDecoration(
+        color: AppColors.secondary,
+        border: Border(top: BorderSide(color: AppColors.divider)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          SizedBox(
+            width: 160,
+            child: AppButton(
+              text: 'Rejeter',
+              type: AppButtonType.secondary,
+              onPressed: p.acting ? null : _reject,
             ),
-          );
-        },
+          ),
+          const SizedBox(width: AppTheme.spacingM),
+          SizedBox(
+            width: 160,
+            child: AppButton(
+              text: 'Approuver',
+              isLoading: p.acting,
+              onPressed: p.acting ? null : _approve,
+            ),
+          ),
+        ],
       ),
     );
   }

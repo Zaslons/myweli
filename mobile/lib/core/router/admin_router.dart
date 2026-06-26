@@ -5,11 +5,10 @@ import '../../screens/admin/admin_dashboard_screen.dart';
 import '../../screens/admin/admin_kyc_detail_screen.dart';
 import '../../screens/admin/admin_kyc_queue_screen.dart';
 import '../../screens/admin/admin_login_screen.dart';
-import '../../screens/admin/admin_shell.dart';
 
 /// Admin console routes. Redirects on [AdminAuthProvider] (login when signed
-/// out; dashboard when signed in and on the login screen). Design:
-/// docs/design/admin-console-ui.md.
+/// out; dashboard when signed in and on the login screen). Each authed screen
+/// wraps itself in `AdminScaffold`. Design: docs/design/admin-console-ui.md.
 GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
       initialLocation: '/admin/dashboard',
       refreshListenable: auth,
@@ -25,23 +24,18 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
       },
       routes: [
         GoRoute(path: '/admin', builder: (_, __) => const AdminLoginScreen()),
-        ShellRoute(
-          builder: (_, __, child) => AdminShell(child: child),
-          routes: [
-            GoRoute(
-              path: '/admin/dashboard',
-              builder: (_, __) => const AdminDashboardScreen(),
-            ),
-            GoRoute(
-              path: '/admin/kyc',
-              builder: (_, __) => const AdminKycQueueScreen(),
-            ),
-            GoRoute(
-              path: '/admin/kyc/:id',
-              builder: (_, state) =>
-                  AdminKycDetailScreen(accountId: state.pathParameters['id']!),
-            ),
-          ],
+        GoRoute(
+          path: '/admin/dashboard',
+          builder: (_, __) => const AdminDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/admin/kyc',
+          builder: (_, __) => const AdminKycQueueScreen(),
+        ),
+        GoRoute(
+          path: '/admin/kyc/:id',
+          builder: (_, state) =>
+              AdminKycDetailScreen(accountId: state.pathParameters['id']!),
         ),
       ],
     );
