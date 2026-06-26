@@ -10,6 +10,7 @@ import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/availability.dart' as availability;
+import '../routes/providers/[id]/deposit-policy.dart' as deposit_route;
 import '../routes/providers/[id]/gallery.dart' as gallery_route;
 import '../routes/providers/[id]/services/[serviceId].dart' as service_detail;
 import '../routes/providers/[id]/services/index.dart' as services;
@@ -237,6 +238,73 @@ void main() {
         );
       },
     );
+
+    test('deposit policy: read, replace, validation, ownership', () async {
+      Map<String, dynamic> validBody({
+        bool required = true,
+        num pct = 0.4,
+        num hours = 24,
+        String? op = 'wave',
+        String? number = '+2250700000000',
+      }) => {
+        'depositRequired': required,
+        'depositPercentage': pct,
+        'cancellationWindowHours': hours,
+        'mobileMoneyOperator': op,
+        'mobileMoneyNumber': number,
+      };
+
+      // Replace, then read back (DTO uses the mobileMoney* names).
+      final saved = await catalog.updateDepositPolicy(
+        accountId,
+        'provider1',
+        validBody(),
+      );
+      expect(saved.ok, isTrue);
+      final d = saved.data! as Map;
+      expect(d['depositRequired'], true);
+      expect(d['depositPercentage'], 0.4);
+      expect(d['mobileMoneyOperator'], 'wave');
+      expect(d['mobileMoneyNumber'], '+2250700000000');
+
+      final got = await catalog.depositPolicy(accountId, 'provider1');
+      expect((got.data! as Map)['mobileMoneyOperator'], 'wave');
+
+      Future<String?> err(Map<String, dynamic> b) async =>
+          (await catalog.updateDepositPolicy(accountId, 'provider1', b)).error;
+      // Out-of-range percentage, required-with-0%, bad window, bad operator,
+      // bad phone all → invalid_input.
+      expect(await err(validBody(pct: 1.5)), 'invalid_input');
+      expect(await err(validBody(pct: 0)), 'invalid_input');
+      expect(await err(validBody(hours: 1000)), 'invalid_input');
+      expect(await err(validBody(op: 'paypal')), 'invalid_input');
+      expect(await err(validBody(number: '0700')), 'invalid_input');
+      // Required deposit without a Mobile Money handle → invalid_input.
+      expect(await err(validBody(op: null, number: null)), 'invalid_input');
+      // Not required → handle optional; 0% allowed.
+      expect(
+        (await catalog.updateDepositPolicy(accountId, 'provider1', {
+          'depositRequired': false,
+          'depositPercentage': 0,
+          'cancellationWindowHours': 48,
+        })).ok,
+        isTrue,
+      );
+
+      // Ownership.
+      expect(
+        (await catalog.depositPolicy(accountId, 'provider2')).error,
+        'forbidden',
+      );
+      expect(
+        (await catalog.updateDepositPolicy(
+          accountId,
+          'provider2',
+          validBody(),
+        )).error,
+        'forbidden',
+      );
+    });
   });
 
   group('routes', () {
@@ -438,6 +506,67 @@ void main() {
 
       final badVerb = await gallery_route.onRequest(
         ctx(req('DELETE', '/providers/provider1/gallery', bearer: token)),
+        'provider1',
+      );
+      expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
+    });
+
+    test('deposit policy: GET → 200; PUT replaces → 200; bad → 400; '
+        'cross-salon → 403; bad verb → 405', () async {
+      final got = await deposit_route.onRequest(
+        ctx(req('GET', '/providers/provider1/deposit-policy', bearer: token)),
+        'provider1',
+      );
+      expect(got.statusCode, HttpStatus.ok);
+
+      final put = await deposit_route.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/deposit-policy',
+            bearer: token,
+            body: {
+              'depositRequired': true,
+              'depositPercentage': 0.5,
+              'cancellationWindowHours': 24,
+              'mobileMoneyOperator': 'orangeMoney',
+              'mobileMoneyNumber': '+2250700000000',
+            },
+          ),
+        ),
+        'provider1',
+      );
+      expect(put.statusCode, HttpStatus.ok);
+      expect((await jsonOf(put))['depositPercentage'], 0.5);
+
+      final bad = await deposit_route.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/deposit-policy',
+            bearer: token,
+            body: {
+              'depositRequired': true,
+              'depositPercentage': 0.5,
+              'cancellationWindowHours': 24,
+              // missing Mobile Money handle for a required deposit
+            },
+          ),
+        ),
+        'provider1',
+      );
+      expect(bad.statusCode, HttpStatus.badRequest);
+
+      final cross = await deposit_route.onRequest(
+        ctx(req('GET', '/providers/provider2/deposit-policy', bearer: token)),
+        'provider2',
+      );
+      expect(cross.statusCode, HttpStatus.forbidden);
+
+      final badVerb = await deposit_route.onRequest(
+        ctx(
+          req('DELETE', '/providers/provider1/deposit-policy', bearer: token),
+        ),
         'provider1',
       );
       expect(badVerb.statusCode, HttpStatus.methodNotAllowed);

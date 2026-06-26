@@ -8,6 +8,7 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
 
@@ -32,6 +33,7 @@ DateTime _slotAt(int hour) {
 
 void main() {
   late InMemoryAppointmentRepository appts;
+  late InMemoryProvidersRepository providers;
   late BookingService booking;
   late InMemoryProviderAuthRepository providerAuth;
   final tokens = TokenService(secret: 'test-secret');
@@ -43,7 +45,7 @@ void main() {
       .token;
 
   setUp(() {
-    final providers = InMemoryProvidersRepository();
+    providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     booking = BookingService(providers, appts, SlotService(providers, appts));
     providerAuth = InMemoryProviderAuthRepository(
@@ -88,6 +90,51 @@ void main() {
         expect(res.appointment!['totalPrice'], 25000);
         expect(res.appointment!['depositAmount'], 12500);
         expect(res.appointment!['status'], 'pending');
+      },
+    );
+
+    test(
+      'a saved deposit policy drives the next booking (server authority)',
+      () async {
+        final catalog = ProviderCatalogService(providers, providerAuth);
+        final reg = await providerAuth.register(
+          phoneNumber: '+2250500000099',
+          businessName: 'Salon',
+          businessType: 'salon',
+          providerId: 'provider1',
+        );
+
+        // provider1's seed policy has no deposit.
+        final before = await booking.book(
+          userId: 'user_A',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDateTime: _slotAt(9),
+        );
+        expect(before.appointment!['depositAmount'], 0);
+        final total = before.appointment!['totalPrice'] as num;
+
+        // The salon turns on a 40% deposit (with a Mobile Money destination).
+        final upd = await catalog
+            .updateDepositPolicy(reg.provider!.id, 'provider1', {
+              'depositRequired': true,
+              'depositPercentage': 0.4,
+              'cancellationWindowHours': 24,
+              'mobileMoneyOperator': 'wave',
+              'mobileMoneyNumber': '+2250700000000',
+            });
+        expect(upd.ok, isTrue);
+
+        // A new (non-overlapping) booking now carries the 40% deposit — no
+        // booking change needed (service1 is 180 min, so 09:00 runs to 12:00).
+        final after = await booking.book(
+          userId: 'user_B',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDateTime: _slotAt(14),
+        );
+        expect(after.appointment!['depositAmount'], total * 0.4);
+        expect(after.appointment!['balanceDue'], total - total * 0.4);
       },
     );
 

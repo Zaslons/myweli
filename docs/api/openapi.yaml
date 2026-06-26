@@ -447,6 +447,48 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /providers/{id}/deposit-policy:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: Read a salon's deposit policy (B-deposit, provider-owned)
+      description: Provider-authenticated and ownership-scoped (→ 403).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The salon's deposit policy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepositPolicy' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [providers]
+      summary: Replace a salon's deposit policy wholesale (B-deposit)
+      description: >
+        Server-authoritative (booking derives each deposit from this).
+        Validated: `depositPercentage` 0..1 (and > 0 when required);
+        `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum;
+        `mobileMoneyNumber` E.164. **When `depositRequired` is true, the Mobile
+        Money operator + number are required.**
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepositPolicy' }
+      responses:
+        '200':
+          description: The stored deposit policy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepositPolicy' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /providers/{id}/dashboard:
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
@@ -1104,6 +1146,26 @@ components:
         publicUrl: { type: string, description: CDN URL to save to the gallery. }
         maxBytes: { type: integer }
         expiresInSeconds: { type: integer }
+
+    DepositPolicy:
+      type: object
+      required: [depositRequired, depositPercentage, cancellationWindowHours]
+      properties:
+        depositRequired: { type: boolean }
+        depositPercentage:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Fraction of the total (0.30 = 30%); > 0 when required.
+        cancellationWindowHours: { type: integer, minimum: 0, maximum: 720 }
+        mobileMoneyOperator:
+          type: string
+          nullable: true
+          enum: [wave, orangeMoney, mtnMoMo, moov]
+        mobileMoneyNumber:
+          type: string
+          nullable: true
+          description: E.164. Required (with operator) when depositRequired.
 
     Gallery:
       type: object

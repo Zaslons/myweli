@@ -1,5 +1,6 @@
 import 'auth/provider_auth_repository.dart';
 import 'providers_repository.dart';
+import 'validators.dart';
 
 /// Outcome of a catalogue operation. [data] is the affected resource (a service,
 /// a service list, or an availability map) on success.
@@ -187,6 +188,88 @@ class ProviderCatalogService {
 
   static const _maxGalleryPhotos = 20;
   static const _maxUrlLength = 2048;
+
+  /// The salon's deposit policy (design: docs/design/pro-deposit-policy.md).
+  /// Maps the provider's stored `depositMobileMoney*` fields to the DTO's
+  /// `mobileMoney*` names.
+  Future<CatalogResult> depositPolicy(
+    String accountId,
+    String providerId,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final p = await _providers.byId(providerId);
+    if (p == null) return _notFound;
+    return (ok: true, error: null, data: _policyDto(p));
+  }
+
+  /// Replace the deposit policy wholesale. The server is the authority on this
+  /// money math — booking derives the deposit from the stored policy.
+  Future<CatalogResult> updateDepositPolicy(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final error = _validateDepositPolicy(body);
+    if (error != null) return (ok: false, error: error, data: null);
+
+    final required = body['depositRequired'] as bool;
+    final fields = {
+      'depositRequired': required,
+      'depositPercentage': (body['depositPercentage'] as num).toDouble(),
+      'cancellationWindowHours': (body['cancellationWindowHours'] as num)
+          .toInt(),
+      'depositMobileMoneyOperator': (body['mobileMoneyOperator'] as String?)
+          ?.trim(),
+      'depositMobileMoneyNumber': (body['mobileMoneyNumber'] as String?)
+          ?.trim(),
+    };
+    final saved = await _providers.updateDepositPolicy(providerId, fields);
+    if (saved == null) return _notFound;
+    return (ok: true, error: null, data: _policyDto(saved));
+  }
+
+  Map<String, dynamic> _policyDto(Map<String, dynamic> p) => {
+    'depositRequired': p['depositRequired'] ?? false,
+    'depositPercentage': p['depositPercentage'] ?? 0,
+    'cancellationWindowHours': p['cancellationWindowHours'] ?? 24,
+    'mobileMoneyOperator': p['depositMobileMoneyOperator'],
+    'mobileMoneyNumber': p['depositMobileMoneyNumber'],
+  };
+
+  static const _operators = {'wave', 'orangeMoney', 'mtnMoMo', 'moov'};
+  static const _maxCancellationHours = 720; // 30 days
+
+  String? _validateDepositPolicy(Map<String, dynamic> body) {
+    final required = body['depositRequired'];
+    if (required is! bool) return 'invalid_input';
+
+    final pct = body['depositPercentage'];
+    if (pct is! num || pct < 0 || pct > 1) return 'invalid_input';
+    if (required && pct <= 0) return 'invalid_input';
+
+    final hours = body['cancellationWindowHours'];
+    if (hours is! num || hours < 0 || hours > _maxCancellationHours) {
+      return 'invalid_input';
+    }
+
+    final op = body['mobileMoneyOperator'];
+    if (op != null && (op is! String || !_operators.contains(op))) {
+      return 'invalid_input';
+    }
+    final number = body['mobileMoneyNumber'];
+    if (number != null && (number is! String || !isValidE164(number.trim()))) {
+      return 'invalid_input';
+    }
+
+    // A required deposit needs a Mobile Money destination.
+    if (required) {
+      final hasOp = op is String && op.isNotEmpty;
+      final hasNum = number is String && number.trim().isNotEmpty;
+      if (!hasOp || !hasNum) return 'invalid_input';
+    }
+    return null;
+  }
 
   /// Ownership: the account behind the token must be linked to [providerId].
   Future<bool> _owns(String accountId, String providerId) async {

@@ -11,17 +11,17 @@ import '../../models/provider_session.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import '../interfaces/session_store.dart';
-import '../mock/mock_pro_service.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ProServiceInterface] for the slices the backend
-/// supports today: the **provider appointment surface** (list + accept / reject
-/// / complete / no-show + **manual booking** + **reschedule**), the
-/// **catalogue** (services CRUD + enable/disable, availability read/replace),
-/// the **dashboard** stats, the **earnings** ledger, and the **gallery** URL
-/// list. Designs: docs/design/pro-catalogue-app-wiring.md,
+/// supports today — now the **entire** `ProServiceInterface`: the **provider
+/// appointment surface** (list + accept / reject / complete / no-show +
+/// **manual booking** + **reschedule**), the **catalogue** (services CRUD +
+/// enable/disable, availability read/replace), the **dashboard** stats, the
+/// **earnings** ledger, the **gallery** URL list, and the **deposit policy**.
+/// Designs: docs/design/pro-catalogue-app-wiring.md,
 /// provider-dashboard-stats.md, pro-manual-booking.md, provider-earnings.md,
-/// pro-reschedule.md, pro-gallery.md.
+/// pro-reschedule.md, pro-gallery.md, pro-deposit-policy.md.
 ///
 /// Authenticated calls go through [RefreshingHttpClient] pointed at the
 /// **provider** session (its own secure key) and `/auth/provider/refresh`, so a
@@ -31,19 +31,16 @@ import 'refreshing_http_client.dart';
 /// (or — for the serviceId-only edits — read it from the session), with
 /// ownership re-checked server-side.
 ///
-/// Still without a backend (deposit policy) → delegated to an embedded
-/// [MockProService], so the pro app keeps working. Wired in by DI only when
-/// `AppConfig.useApiBackend` is true.
+/// Every method now hits the backend (no mock fallback). Wired in by DI only
+/// when `AppConfig.useApiBackend` is true.
 class ApiProService implements ProServiceInterface {
   ApiProService({
     http.Client? client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-    ProServiceInterface? fallback,
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore(),
-        _fallback = fallback ?? MockProService() {
+        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -55,7 +52,6 @@ class ApiProService implements ProServiceInterface {
   final http.Client _client;
   final String _baseUrl;
   final SessionStore _providerSessionStore;
-  final ProServiceInterface _fallback;
   late final RefreshingHttpClient _authed;
 
   /// The salon id this account manages, read from the persisted provider
@@ -417,8 +413,22 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId) =>
-      _fallback.getDepositPolicy(providerId);
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(
+    String providerId,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/providers/$providerId/deposit-policy'),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(DepositPolicy.fromJson(_decode(res.body)));
+  }
 
   @override
   Future<ApiResponse<DepositPolicy>> updateDepositPolicy(
@@ -428,15 +438,28 @@ class ApiProService implements ProServiceInterface {
     required int cancellationWindowHours,
     MobileMoneyOperator? mobileMoneyOperator,
     String? mobileMoneyNumber,
-  }) =>
-      _fallback.updateDepositPolicy(
-        providerId,
-        depositRequired: depositRequired,
-        depositPercentage: depositPercentage,
-        cancellationWindowHours: cancellationWindowHours,
-        mobileMoneyOperator: mobileMoneyOperator,
-        mobileMoneyNumber: mobileMoneyNumber,
-      );
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((t) => _client.put(
+          _uri('/providers/$providerId/deposit-policy'),
+          headers: _bearer(t),
+          body: jsonEncode({
+            'depositRequired': depositRequired,
+            'depositPercentage': depositPercentage,
+            'cancellationWindowHours': cancellationWindowHours,
+            'mobileMoneyOperator': mobileMoneyOperator?.apiName,
+            'mobileMoneyNumber': mobileMoneyNumber,
+          }),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(
+      DepositPolicy.fromJson(_decode(res.body)),
+      message: 'Politique d’acompte enregistrée',
+    );
+  }
 
   // ---- helpers --------------------------------------------------------------
 
