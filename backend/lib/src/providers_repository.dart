@@ -82,6 +82,22 @@ abstract interface class ProvidersRepository {
 
   /// Remove an artist; false if not found under [providerId].
   Future<bool> deleteArtist(String providerId, String artistId);
+
+  // --- Admin marketplace management — design: docs/design/admin-console.md §12
+  /// Set a provider's `status` (`active`/`suspended`). Suspended → excluded from
+  /// discovery + new bookings. Returns the updated provider, or null.
+  Future<Map<String, dynamic>?> setStatus(String providerId, String status);
+
+  /// Toggle homepage `featured` placement. Returns the updated provider, or null.
+  Future<Map<String, dynamic>?> setFeatured(String providerId, bool featured);
+
+  /// Admin list (includes suspended), filterable by status + free-text, paged.
+  Future<({List<Map<String, dynamic>> items, int total})> listForAdmin({
+    String? status,
+    String? q,
+    int page,
+    int pageSize,
+  });
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -100,6 +116,7 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   }) async {
     final list =
         _all.where((p) {
+            if (p['status'] == 'suspended') return false; // hide suspended
             if (category != null &&
                 category.isNotEmpty &&
                 p['category'] != category) {
@@ -117,7 +134,14 @@ class InMemoryProvidersRepository implements ProvidersRepository {
             }
             return true;
           }).toList()
-          ..sort((a, b) => (b['rating'] as num).compareTo(a['rating'] as num));
+          // Featured first, then by rating.
+          ..sort((a, b) {
+            final f = ((b['featured'] == true) ? 1 : 0).compareTo(
+              (a['featured'] == true) ? 1 : 0,
+            );
+            if (f != 0) return f;
+            return (b['rating'] as num).compareTo(a['rating'] as num);
+          });
     return list;
   }
 
@@ -266,6 +290,52 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     final before = artists.length;
     artists.removeWhere((a) => a['id'] == artistId);
     return artists.length < before;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> setStatus(
+    String providerId,
+    String status,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    p['status'] = status;
+    return p;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> setFeatured(
+    String providerId,
+    bool featured,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    p['featured'] = featured;
+    return p;
+  }
+
+  @override
+  Future<({List<Map<String, dynamic>> items, int total})> listForAdmin({
+    String? status,
+    String? q,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final all = _all.where((p) {
+      if (status != null && status.isNotEmpty) {
+        if ((p['status'] ?? 'active') != status) return false;
+      }
+      if (q != null && q.isNotEmpty) {
+        final hay = '${p['name']} ${p['address']}'.toLowerCase();
+        if (!hay.contains(q.toLowerCase())) return false;
+      }
+      return true;
+    }).toList();
+    final start = (page - 1) * pageSize;
+    final items = start >= all.length
+        ? <Map<String, dynamic>>[]
+        : all.sublist(start, (start + pageSize).clamp(0, all.length));
+    return (items: items, total: all.length);
   }
 }
 

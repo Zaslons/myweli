@@ -88,6 +88,7 @@ Future<Response> _book(RequestContext context, String userId) async {
     final status = switch (result.error) {
       'provider_not_found' => HttpStatus.notFound,
       'slot_unavailable' => HttpStatus.conflict,
+      'provider_suspended' => HttpStatus.conflict,
       _ => HttpStatus.badRequest,
     };
     return jsonError(status, result.error!);
