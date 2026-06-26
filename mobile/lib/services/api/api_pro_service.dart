@@ -179,16 +179,29 @@ class ApiProService implements ProServiceInterface {
     String? clientPhone,
     String? notes,
     bool sendSmsInvite = false,
-  }) =>
-      _fallback.createManualBooking(
-        providerId: providerId,
-        serviceIds: serviceIds,
-        appointmentDateTime: appointmentDateTime,
-        clientName: clientName,
-        clientPhone: clientPhone,
-        notes: notes,
-        sendSmsInvite: sendSmsInvite,
-      );
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri('/providers/$providerId/appointments'),
+        headers: _bearer(t),
+        body: jsonEncode({
+          'serviceIds': serviceIds,
+          'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
+          if (clientName != null) 'clientName': clientName,
+          if (clientPhone != null) 'clientPhone': clientPhone,
+          if (notes != null) 'notes': notes,
+          // Honoured by the notifications backend (deferred); ignored for now.
+          'sendSmsInvite': sendSmsInvite,
+        }),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 201) return _errorFrom(res);
+    return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
+  }
 
   @override
   Future<ApiResponse<List<Service>>> getProviderServices(

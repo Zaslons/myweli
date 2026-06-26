@@ -106,4 +106,74 @@ class BookingService {
     }
     return (ok: true, error: null, appointment: created);
   }
+
+  /// Salon-entered booking (walk-in, after-the-fact, or a phone booking for a
+  /// future date). Server-priced from the provider's services like [book], but
+  /// created **`confirmed`** with **no online deposit** and a sentinel
+  /// `userId` (`'manual'` — no app account). Unlike [book] it does **not**
+  /// validate the slot engine — the salon owns its calendar — so any time
+  /// (past/now/future, off-grid) is allowed; the DB partial unique index still
+  /// rejects an exact-start collision with a non-cancelled booking
+  /// (→ `slot_unavailable`). Authz (the caller manages [providerId]) is the
+  /// route's responsibility. (Design: docs/design/pro-manual-booking.md.)
+  Future<BookingResult> bookManual({
+    required String providerId,
+    required List<String> serviceIds,
+    required DateTime appointmentDateTime,
+    String? artistId,
+    String? clientName,
+    String? clientPhone,
+    String? notes,
+  }) async {
+    if (serviceIds.isEmpty) {
+      return (ok: false, error: 'no_services', appointment: null);
+    }
+    final provider = await _providers.byId(providerId);
+    if (provider == null) {
+      return (ok: false, error: 'provider_not_found', appointment: null);
+    }
+
+    final services = (provider['services'] as List)
+        .cast<Map<String, dynamic>>();
+    var total = 0.0;
+    for (final id in serviceIds) {
+      Map<String, dynamic>? service;
+      for (final s in services) {
+        if (s['id'] == id) {
+          service = s;
+          break;
+        }
+      }
+      if (service == null || service['active'] == false) {
+        return (ok: false, error: 'invalid_service', appointment: null);
+      }
+      total += (service['price'] as num).toDouble();
+    }
+
+    final appointment = {
+      'id':
+          'manual_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}',
+      'userId': 'manual', // walk-in / phone client — no app account
+      'providerId': providerId,
+      'serviceIds': serviceIds,
+      'artistId': artistId,
+      'appointmentDate': appointmentDateTime.toUtc().toIso8601String(),
+      'status': 'confirmed', // salon-entered → confirmed, no client step
+      'totalPrice': total,
+      'depositAmount': 0,
+      'balanceDue': total, // paid in person; no online deposit
+      'cancellationWindowHours':
+          provider['cancellationWindowHours'] as int? ?? 24,
+      'clientName': clientName,
+      'clientPhone': clientPhone,
+      'notes': notes,
+      'depositScreenshotUrl': null,
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+    };
+    final created = await _appointments.create(appointment);
+    if (created == null) {
+      return (ok: false, error: 'slot_unavailable', appointment: null);
+    }
+    return (ok: true, error: null, appointment: created);
+  }
 }
