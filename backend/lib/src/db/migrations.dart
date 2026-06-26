@@ -271,6 +271,44 @@ ALTER TABLE appointments ADD CONSTRAINT appointments_no_overlap
   ) WHERE (status IN ('pending', 'confirmed'))''',
     ],
   ),
+  (
+    id: '0010_admin',
+    statements: [
+      // Internal Myweli staff. Seeded super-admin; no self-signup.
+      '''
+CREATE TABLE admins (
+  id text PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
+  status text NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now()
+)''',
+      '''
+CREATE TABLE admin_refresh_tokens (
+  token_hash text PRIMARY KEY,
+  admin_id text NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+  family_id text NOT NULL,
+  rotated boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX admin_refresh_family_idx '
+          'ON admin_refresh_tokens(family_id)',
+      // Append-only record of every privileged admin action.
+      '''
+CREATE TABLE audit_log (
+  id text PRIMARY KEY,
+  actor_admin_id text NOT NULL,
+  action text NOT NULL,
+  target_type text NOT NULL,
+  target_id text,
+  reason text,
+  metadata jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX audit_log_created_idx ON audit_log(created_at DESC)',
+      'CREATE INDEX audit_log_actor_idx ON audit_log(actor_admin_id)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

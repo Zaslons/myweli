@@ -1,4 +1,7 @@
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
+import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
+import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
@@ -42,6 +45,9 @@ Handler middleware(Handler handler) {
       .use(provider<FavoritesService>((_) => favoritesService))
       .use(provider<KycService>((_) => kycService))
       .use(provider<DepositService>((_) => depositService))
+      .use(provider<AdminAuthRepository>((_) => adminAuthRepository))
+      .use(provider<AuditLogRepository>((_) => auditLogRepository))
+      .use(provider<AdminKycService>((_) => adminKycService))
       .use(provider<ReviewsRepository>((_) => reviewsRepository))
       .use(provider<ReviewsService>((_) => reviewsService))
       .use(provider<TokenService>((_) => tokenService))

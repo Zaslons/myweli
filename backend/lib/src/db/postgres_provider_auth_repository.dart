@@ -293,6 +293,50 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     return _toAccount(rows.first.toColumnMap());
   }
 
+  @override
+  Future<({List<ProviderAccount> items, int total})> listByVerificationStatus(
+    String status, {
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final count = await _pool.execute(
+      Sql.named(
+        'SELECT COUNT(*)::int FROM provider_users '
+        'WHERE verification_status = @s',
+      ),
+      parameters: {'s': status},
+    );
+    final total = count.first[0]! as int;
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT * FROM provider_users WHERE verification_status = @s '
+        'ORDER BY created_at DESC LIMIT @ps OFFSET @off',
+      ),
+      parameters: {'s': status, 'ps': pageSize, 'off': (page - 1) * pageSize},
+    );
+    return (
+      items: rows.map((r) => _toAccount(r.toColumnMap())).toList(),
+      total: total,
+    );
+  }
+
+  @override
+  Future<ProviderAccount?> setVerification(
+    String accountId, {
+    required String status,
+    String? rejectionReason,
+  }) async {
+    final rows = await _pool.execute(
+      Sql.named(
+        'UPDATE provider_users SET verification_status = @s, '
+        'rejection_reason = @r WHERE id = @id RETURNING *',
+      ),
+      parameters: {'id': accountId, 's': status, 'r': rejectionReason},
+    );
+    if (rows.isEmpty) return null;
+    return _toAccount(rows.first.toColumnMap());
+  }
+
   Future<void> _deleteOtp(String phoneNumber) => _pool.execute(
     Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
     parameters: {'p': phoneNumber},

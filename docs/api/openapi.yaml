@@ -25,6 +25,7 @@ tags:
   - name: system
   - name: auth
   - name: providers
+  - name: admin
 
 paths:
   /health:
@@ -1188,6 +1189,184 @@ paths:
                     items: { type: string, format: date-time }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---- Admin / ops console (internal; role=admin) — B-admin Slice 1 ----------
+  # Every /admin/* path except auth requires an `admin` access token (deny by
+  # default); every mutation is recorded in the append-only audit log.
+  /admin/auth/login:
+    post:
+      tags: [admin]
+      summary: Staff login (B-admin)
+      description: >
+        Email + password → admin token pair. Rate-limited; repeated failures
+        lock the account out (429). Admins are seeded, never self-signup.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Admin token pair
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429':
+          description: Locked out after too many failed attempts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/auth/refresh:
+    post:
+      tags: [admin]
+      summary: Rotate an admin refresh token (B-admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: A fresh admin token pair
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /admin/kyc:
+    get:
+      tags: [admin]
+      summary: KYC approval queue (B-admin, FR-WEB-AD-001)
+      description: Providers awaiting verification (`verification_status=pending`), paginated.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200':
+          description: Paginated pending accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        accountId: { type: string }
+                        businessName: { type: string }
+                        businessType: { type: string }
+                        submittedAt: { type: string, format: date-time }
+                        docCount: { type: integer }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/kyc/{accountId}:
+    get:
+      tags: [admin]
+      summary: KYC submission detail with signed doc URLs (B-admin)
+      description: >
+        Full provider account plus `docs[]`, each with a short-lived **signed-GET**
+        `viewUrl` into the private KYC bucket (bytes never proxied through the API).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: accountId, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Account + docs (with viewUrl)
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/kyc/{accountId}/approve:
+    post:
+      tags: [admin]
+      summary: Approve verification (B-admin) — audited
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: accountId, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The updated provider account (verified)
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/kyc/{accountId}/reject:
+    post:
+      tags: [admin]
+      summary: Reject verification with a reason (B-admin) — audited
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: accountId, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: The updated provider account (rejected + reason)
+          content:
+            application/json:
+              schema: { type: object }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/audit:
+    get:
+      tags: [admin]
+      summary: Append-only admin audit log (B-admin, FR-WEB-AD-008)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { in: query, name: actor, schema: { type: string } }
+        - { in: query, name: action, schema: { type: string } }
+      responses:
+        '200':
+          description: Paginated audit entries (newest first)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { type: object } }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
 components:
   securitySchemes:
