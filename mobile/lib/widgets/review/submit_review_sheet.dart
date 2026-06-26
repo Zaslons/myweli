@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -12,17 +13,22 @@ import '../../providers/provider_provider.dart';
 import '../common/app_button.dart';
 import '../common/app_text_field.dart';
 import '../common/timed_cached_image.dart';
+import '../provider/image_picker_sheet.dart';
 import '../provider/mock_image_picker_sheet.dart';
 
 const _maxReviewPhotos = 3;
 
 class SubmitReviewSheet extends StatefulWidget {
   final String providerId;
+
+  /// The completed appointment being reviewed (one review per visit).
+  final String appointmentId;
   final VoidCallback? onSubmitted;
 
   const SubmitReviewSheet({
     super.key,
     required this.providerId,
+    required this.appointmentId,
     this.onSubmitted,
   });
 
@@ -46,7 +52,12 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
 
   Future<void> _addPhoto() async {
     if (_photoUrls.length >= _maxReviewPhotos) return;
-    final source = await showMockImagePicker(context);
+    final String? source;
+    if (AppConfig.useApiBackend) {
+      source = await showImagePicker(context);
+    } else {
+      source = await showMockImagePicker(context);
+    }
     if (source == null || !mounted) return;
     setState(() => _uploadingPhoto = true);
     final providerProvider =
@@ -92,6 +103,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
 
     final review = Review(
       id: const Uuid().v4(),
+      appointmentId: widget.appointmentId,
       providerId: widget.providerId,
       userId: user.id,
       userName: user.name ?? 'Utilisateur',

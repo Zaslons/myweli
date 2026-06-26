@@ -181,7 +181,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       isScrollControlled: true,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: SubmitReviewSheet(providerId: appointment.providerId),
+        child: SubmitReviewSheet(
+          providerId: appointment.providerId,
+          appointmentId: appointment.id,
+        ),
       ),
     );
   }

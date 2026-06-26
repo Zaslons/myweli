@@ -24,4 +24,22 @@ class MockReviewService implements ReviewServiceInterface {
     }
     return ApiResponse.success(review, message: 'Avis publié');
   }
+
+  @override
+  Future<ApiResponse<List<Review>>> getProviderReviews(
+    String providerId, {
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final all = MockData.reviews
+        .where((r) => r.providerId == providerId)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final start = (page - 1) * pageSize;
+    final items = start >= all.length
+        ? <Review>[]
+        : all.sublist(start, (start + pageSize).clamp(0, all.length));
+    return ApiResponse.success(items);
+  }
 }

@@ -4,6 +4,7 @@ import '../../services/api/api_favorites_service.dart';
 import '../../services/api/api_image_upload_service.dart';
 import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_provider_service.dart';
+import '../../services/api/api_review_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
 import '../../services/interfaces/auth_service_interface.dart';
 import '../../services/interfaces/favorites_service_interface.dart';
@@ -94,7 +95,11 @@ class ServiceLocator {
                 SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockImageUploadService();
-    reviewService = MockReviewService();
+    // Reviews on the real backend (consumer session for submit; the list is
+    // public) when the backend is on.
+    reviewService = AppConfig.useApiBackend
+        ? ApiReviewService(sessionStore: SecureSessionStore())
+        : MockReviewService();
     messagingService = MockMessagingService();
   }
 }

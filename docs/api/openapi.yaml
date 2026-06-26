@@ -491,6 +491,34 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /providers/{id}/reviews:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [reviews]
+      summary: A salon's reviews, newest first (B-reviews, public)
+      description: >
+        Public, paginated. `pageSize` is clamped (default 20, max 50). The
+        provider's `GET /providers/{id}` also embeds the latest 10.
+      parameters:
+        - { in: query, name: page, schema: { type: integer } }
+        - { in: query, name: pageSize, schema: { type: integer } }
+      responses:
+        '200':
+          description: A page of reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Review' }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+
   /providers/{id}/deposit-policy:
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
@@ -772,6 +800,44 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+
+  /appointments/{id}/review:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [reviews]
+      summary: Review a completed appointment (B-reviews)
+      description: >
+        Consumer-only. The appointment must be the caller's own and `completed`
+        (→ 403 `forbidden`/`not_completed`). The server derives provider, artist,
+        service, reviewer, and `verified` from it; only `rating`/`text`/
+        `photoUrls` are taken from the body. One review per appointment (resubmit
+        replaces). Recomputes the provider's + artist's rating.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                text: { type: string, maxLength: 1000 }
+                photoUrls:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, maxLength: 2048 }
+      responses:
+        '201':
+          description: The stored review
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /appointments/{id}/reschedule:
     post:
@@ -1190,6 +1256,24 @@ components:
         publicUrl: { type: string, description: CDN URL to save to the gallery. }
         maxBytes: { type: integer }
         expiresInSeconds: { type: integer }
+
+    Review:
+      type: object
+      required: [id, providerId, userId, userName, rating, createdAt]
+      properties:
+        id: { type: string }
+        appointmentId: { type: string, description: The reviewed visit. }
+        providerId: { type: string }
+        userId: { type: string }
+        userName: { type: string }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        text: { type: string }
+        verified: { type: boolean, description: Always true (post-completion). }
+        artistId: { type: string, nullable: true }
+        artistName: { type: string, nullable: true }
+        serviceName: { type: string, description: Service(s) of the visit. }
+        photoUrls: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
 
     DepositPolicy:
       type: object

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/index.dart' as detail;
@@ -55,9 +56,11 @@ void main() {
   group('routes', () {
     late RequestContext context;
     final repo = InMemoryProvidersRepository();
+    final reviews = InMemoryReviewsRepository();
     setUp(() {
       context = _MockRequestContext();
       when(() => context.read<ProvidersRepository>()).thenReturn(repo);
+      when(() => context.read<ReviewsRepository>()).thenReturn(reviews);
     });
 
     test('GET /providers returns a page with items + total', () async {
