@@ -20,6 +20,7 @@ import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
+import 'kyc_service.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
@@ -133,24 +134,27 @@ final StorageService storageService = () {
   final keyId = _envOrNull('R2_ACCESS_KEY_ID');
   final secret = _envOrNull('R2_SECRET_ACCESS_KEY');
   final publicBase = _envOrNull('R2_PUBLIC_BASE_URL');
+  final kycBucket = _envOrNull('R2_KYC_BUCKET');
   if (endpoint != null &&
       bucket != null &&
       keyId != null &&
       secret != null &&
-      publicBase != null) {
+      publicBase != null &&
+      kycBucket != null) {
     return R2StorageService(
       endpoint: endpoint,
       bucket: bucket,
       accessKeyId: keyId,
       secretAccessKey: secret,
       publicBaseUrl: publicBase,
+      kycBucket: kycBucket,
     );
   }
   if (_isProd) {
     throw StateError(
       'Object storage must be configured in production: set R2_ENDPOINT (or '
       'R2_ACCOUNT_ID), R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, '
-      'R2_PUBLIC_BASE_URL.',
+      'R2_PUBLIC_BASE_URL, R2_KYC_BUCKET (a separate private bucket).',
     );
   }
   return const FakeStorageService();
@@ -174,6 +178,8 @@ final UploadSigningService uploadSigningService = UploadSigningService(
   providerAuthRepository,
   storageService,
 );
+
+final KycService kycService = KycService(providerAuthRepository);
 
 final ProviderDashboardService providerDashboardService =
     ProviderDashboardService(providerAuthRepository, appointmentRepository);

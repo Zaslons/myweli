@@ -130,6 +130,50 @@ paths:
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /me/kyc:
+    get:
+      tags: [kyc]
+      summary: The signed-in provider's KYC status (B-kyc)
+      description: Provider-only; self-scoped to the token's account.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: KYC status + submitted documents
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [kyc]
+      summary: Submit KYC documents (B-kyc)
+      description: >
+        Provider-only. Each document's `key` is one the caller uploaded via
+        `POST /uploads/sign?purpose=kyc` (must be under the caller's
+        `kyc/{accountId}/` prefix). Sets `verificationStatus` to `pending` and
+        clears any prior rejection. Approve/reject is a future admin slice.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documents]
+              properties:
+                documents:
+                  type: array
+                  items: { $ref: '#/components/schemas/KycDocumentInput' }
+      responses:
+        '200':
+          description: The updated KYC status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycStatus' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /me/favorites:
     get:
       tags: [favorites]
@@ -736,14 +780,18 @@ paths:
   /uploads/sign:
     post:
       tags: [uploads]
-      summary: Presign a direct-to-storage image upload (B-upload)
+      summary: Presign a direct-to-storage upload (B-upload, B-kyc)
       description: >
         Provider-only. Returns a short-lived presigned **multipart POST** to
         object storage (Cloudflare R2). The object key is built server-side from
-        the token's salon, and the signed policy pins the key, content-type, and
-        a size range — so image bytes go client → storage directly (never
-        through the API) and a salon can only write under its own prefix. The
-        returned `publicUrl` is then saved via `PUT /providers/{id}/gallery`.
+        the token, and the signed policy pins the key, content-type, and a size
+        range — so bytes go client → storage directly (never through the API)
+        and a caller can only write under its own prefix. **`purpose=gallery`**
+        → public bucket, prefix `gallery/{providerId}`, returns `publicUrl`
+        (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a
+        separate **private** bucket, prefix `kyc/{accountId}`, returns the `key`
+        only (ID docs are never public) and additionally accepts `application/
+        pdf`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -755,8 +803,8 @@ paths:
               properties:
                 contentType:
                   type: string
-                  enum: [image/jpeg, image/png, image/webp]
-                purpose: { type: string, enum: [gallery] }
+                  enum: [image/jpeg, image/png, image/webp, application/pdf]
+                purpose: { type: string, enum: [gallery, kyc] }
       responses:
         '200':
           description: A presigned upload ticket
@@ -1356,7 +1404,7 @@ components:
 
     UploadTicket:
       type: object
-      required: [method, uploadUrl, fields, publicUrl, maxBytes, expiresInSeconds]
+      required: [method, uploadUrl, fields, key, maxBytes, expiresInSeconds]
       properties:
         method: { type: string, enum: [POST] }
         uploadUrl: { type: string, description: Multipart POST target (storage). }
@@ -1364,9 +1412,48 @@ components:
           type: object
           additionalProperties: { type: string }
           description: Signed form fields; send these then the file (last).
-        publicUrl: { type: string, description: CDN URL to save to the gallery. }
+        key: { type: string, description: The object key (used to reference the upload). }
+        publicUrl:
+          type: string
+          description: CDN URL — only for `gallery` (omitted for private `kyc`).
         maxBytes: { type: integer }
         expiresInSeconds: { type: integer }
+
+    KycStatus:
+      type: object
+      required: [status, documents]
+      properties:
+        status:
+          type: string
+          enum: [pending, verified, rejected]
+          description: Server-owned; only the (future) admin flips it.
+        documents:
+          type: array
+          items: { $ref: '#/components/schemas/KycDocument' }
+        rejectionReason: { type: string, nullable: true }
+
+    KycDocument:
+      type: object
+      required: [type, key]
+      properties:
+        type:
+          type: string
+          enum: [idCard, selfie, businessRegistration, addressProof]
+        fileName: { type: string }
+        key: { type: string, description: Private storage object key. }
+        submittedAt: { type: string, format: date-time }
+
+    KycDocumentInput:
+      type: object
+      required: [type, key]
+      properties:
+        type:
+          type: string
+          enum: [idCard, selfie, businessRegistration, addressProof]
+        fileName: { type: string }
+        key:
+          type: string
+          description: From `/uploads/sign?purpose=kyc`; under the caller's prefix.
 
     Review:
       type: object

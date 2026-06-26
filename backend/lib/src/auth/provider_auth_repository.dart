@@ -4,8 +4,9 @@ import 'auth_repository.dart' show OtpRequestResult, RefreshResult, TokenPair;
 import 'tokens.dart';
 
 /// Public-facing provider-account fields. Mirrors the app's `ProviderUser` DTO
-/// (and the OpenAPI `ProviderUser` schema) field-for-field. `kycDocs` is empty
-/// here — KYC submission is its own slice.
+/// (and the OpenAPI `ProviderUser` schema) field-for-field. `kycDocs` holds the
+/// submitted KYC document metadata + private storage keys (design:
+/// docs/design/pro-kyc.md).
 class ProviderAccount {
   ProviderAccount({
     required this.id,
@@ -19,6 +20,7 @@ class ProviderAccount {
     this.verificationStatus = 'pending',
     this.rejectionReason,
     this.providerId,
+    this.kycDocs = const [],
   });
 
   final String id;
@@ -32,6 +34,7 @@ class ProviderAccount {
   String verificationStatus;
   String? rejectionReason;
   String? providerId;
+  List<Map<String, dynamic>> kycDocs;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -43,7 +46,7 @@ class ProviderAccount {
     'address': address,
     'verificationStatus': verificationStatus,
     'rejectionReason': rejectionReason,
-    'kycDocs': const <Map<String, dynamic>>[],
+    'kycDocs': kycDocs,
     'createdAt': createdAt.toIso8601String(),
     'providerId': providerId,
   };
@@ -89,6 +92,14 @@ abstract interface class ProviderAuthRepository {
   /// The provider account for an id (the access-token `sub`), or null — used to
   /// authorize pro actions (resolve the account → the Provider it manages).
   Future<ProviderAccount?> accountById(String id);
+
+  /// Store submitted KYC [docs] for the account and reset verification to
+  /// `pending` (clearing any prior rejection). Returns the updated account, or
+  /// null if it doesn't exist. (Design: docs/design/pro-kyc.md.)
+  Future<ProviderAccount?> submitKyc(
+    String accountId,
+    List<Map<String, dynamic>> docs,
+  );
 }
 
 class _Otp {
@@ -138,6 +149,20 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
 
   @override
   Future<ProviderAccount?> accountById(String id) async => _byId[id];
+
+  @override
+  Future<ProviderAccount?> submitKyc(
+    String accountId,
+    List<Map<String, dynamic>> docs,
+  ) async {
+    final account = _byId[accountId];
+    if (account == null) return null;
+    account
+      ..kycDocs = List<Map<String, dynamic>>.from(docs)
+      ..verificationStatus = 'pending'
+      ..rejectionReason = null;
+    return account;
+  }
 
   @override
   Future<OtpRequestResult> requestOtp(String phoneNumber) async {

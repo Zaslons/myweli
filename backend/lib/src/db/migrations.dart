@@ -237,6 +237,15 @@ CREATE TABLE IF NOT EXISTS reviews (
           'ON reviews(provider_id, created_at DESC)',
     ],
   ),
+  (
+    // Provider KYC: the submitted documents' metadata + private storage keys
+    // (the bytes live in a private bucket; only the key + metadata are here).
+    id: '0008_kyc_docs',
+    statements: [
+      "ALTER TABLE provider_users "
+          "ADD COLUMN IF NOT EXISTS kyc_docs jsonb NOT NULL DEFAULT '[]'",
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

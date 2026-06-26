@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:postgres/postgres.dart';
@@ -275,6 +276,23 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     return _toAccount(rows.first.toColumnMap());
   }
 
+  @override
+  Future<ProviderAccount?> submitKyc(
+    String accountId,
+    List<Map<String, dynamic>> docs,
+  ) async {
+    final rows = await _pool.execute(
+      Sql.named(
+        "UPDATE provider_users SET kyc_docs = @docs:jsonb, "
+        "verification_status = 'pending', rejection_reason = NULL "
+        "WHERE id = @id RETURNING *",
+      ),
+      parameters: {'id': accountId, 'docs': jsonEncode(docs)},
+    );
+    if (rows.isEmpty) return null;
+    return _toAccount(rows.first.toColumnMap());
+  }
+
   Future<void> _deleteOtp(String phoneNumber) => _pool.execute(
     Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
     parameters: {'p': phoneNumber},
@@ -292,7 +310,14 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     verificationStatus: (r['verification_status'] as String?) ?? 'pending',
     rejectionReason: r['rejection_reason'] as String?,
     providerId: r['provider_id'] as String?,
+    kycDocs: _kycDocs(r['kyc_docs']),
   );
+
+  List<Map<String, dynamic>> _kycDocs(Object? raw) {
+    final decoded = raw is String ? jsonDecode(raw) : raw;
+    if (decoded is! List) return const [];
+    return [for (final e in decoded) Map<String, dynamic>.from(e as Map)];
+  }
 
   String _newId(String prefix) =>
       '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}';

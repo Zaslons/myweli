@@ -128,6 +128,54 @@ void main() {
       );
     });
 
+    test(
+      'kyc upload: account-scoped key, accepts pdf, no public URL',
+      () async {
+        final r = await service.sign(
+          accountId,
+          contentType: 'application/pdf', // PDF allowed for KYC, not gallery
+          purpose: 'kyc',
+        );
+        expect(r.ok, isTrue);
+        expect(
+          (r.data!['fields'] as Map)['key'],
+          startsWith('kyc/$accountId/'),
+        );
+        expect(r.data!['key'], startsWith('kyc/$accountId/'));
+        expect(r.data!.containsKey('publicUrl'), isFalse); // never public
+        // PDF is rejected for gallery.
+        expect(
+          (await service.sign(
+            accountId,
+            contentType: 'application/pdf',
+            purpose: 'gallery',
+          )).error,
+          'invalid_input',
+        );
+      },
+    );
+
+    test('kyc works for an unlinked account (gallery does not)', () async {
+      final reg = await providerAuth.register(
+        phoneNumber: '+2250500000063',
+        businessName: 'Unlinked',
+        businessType: 'salon',
+      );
+      final id = reg.provider!.id;
+      expect(
+        (await service.sign(id, contentType: 'image/jpeg', purpose: 'kyc')).ok,
+        isTrue,
+      );
+      expect(
+        (await service.sign(
+          id,
+          contentType: 'image/jpeg',
+          purpose: 'gallery',
+        )).error,
+        'forbidden',
+      );
+    });
+
     test('an unlinked account → forbidden', () async {
       final reg = await providerAuth.register(
         phoneNumber: '+2250500000061',
