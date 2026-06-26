@@ -197,6 +197,20 @@ CREATE TABLE IF NOT EXISTS provider_blocked_dates (
 )''',
     ],
   ),
+  (
+    // Consumer favorites: saved providers per user. The PK doubles as the
+    // list-by-user index and makes add idempotent (ON CONFLICT DO NOTHING).
+    id: '0006_favorites',
+    statements: [
+      '''
+CREATE TABLE IF NOT EXISTS favorites (
+  user_id     text NOT NULL,
+  provider_id text NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, provider_id)
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

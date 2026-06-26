@@ -9,6 +9,7 @@ import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
+import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:postgres/postgres.dart';
@@ -44,7 +45,8 @@ void main() {
     // Isolate state between tests; the seeded providers stay.
     await pool.execute(
       'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
-      'provider_users, provider_otp_codes, provider_refresh_tokens CASCADE',
+      'provider_users, provider_otp_codes, provider_refresh_tokens, '
+      'favorites CASCADE',
     );
   });
 
@@ -447,5 +449,23 @@ void main() {
       expect(await r.deleteUser(user.id), isTrue);
       expect(await r.userById(user.id), isNull);
     });
+  });
+
+  group('PostgresFavoritesRepository', () {
+    test(
+      'add idempotent + newest-first + remove + per-user isolation',
+      () async {
+        final r = PostgresFavoritesRepository(pool);
+        await r.add('fav_user_A', 'provider1');
+        await r.add('fav_user_A', 'provider1'); // dup → no-op
+        await r.add('fav_user_A', 'provider2');
+        expect(await r.listForUser('fav_user_A'), ['provider2', 'provider1']);
+        expect(await r.listForUser('fav_user_B'), isEmpty);
+
+        await r.remove('fav_user_A', 'provider1');
+        await r.remove('fav_user_A', 'provider1'); // already gone → no-op
+        expect(await r.listForUser('fav_user_A'), ['provider2']);
+      },
+    );
   });
 }

@@ -1,5 +1,6 @@
 import '../../services/api/api_appointment_service.dart';
 import '../../services/api/api_auth_service.dart';
+import '../../services/api/api_favorites_service.dart';
 import '../../services/api/api_image_upload_service.dart';
 import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_provider_service.dart';
@@ -69,7 +70,11 @@ class ServiceLocator {
     appointmentService = AppConfig.useApiBackend
         ? ApiAppointmentService(sessionStore: SecureSessionStore())
         : MockAppointmentService();
-    favoritesService = MockFavoritesService();
+    // Favorites move from on-device prefs to the account (consumer session +
+    // silent refresh) when the backend is on.
+    favoritesService = AppConfig.useApiBackend
+        ? ApiFavoritesService(sessionStore: SecureSessionStore())
+        : MockFavoritesService();
     notificationService = MockNotificationService();
     // Pro appointment surface (list + accept/reject/complete/no-show) on the
     // real backend with provider silent refresh; the rest delegates to mock.
