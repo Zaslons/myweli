@@ -400,6 +400,20 @@ CREATE TABLE messaging_opt_out (
 )''',
     ],
   ),
+  (
+    id: '0016_appointment_reminders',
+    statements: [
+      // Idempotency log for the 24h/2h reminder scheduler (one row per
+      // appointment+kind). Design: docs/design/messaging-notifications.md.
+      '''
+CREATE TABLE appointment_reminders (
+  appointment_id text NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  sent_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (appointment_id, kind)
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

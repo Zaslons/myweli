@@ -6,6 +6,8 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/messaging/booking_notifier.dart';
+import 'package:myweli_backend/src/messaging/messaging_models.dart';
 import 'package:test/test.dart';
 
 import '../../routes/appointments/[id]/accept.dart' as accept_route;
@@ -13,7 +15,10 @@ import '../../routes/appointments/[id]/no-show.dart' as no_show_route;
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
+class _MockNotifier extends Mock implements BookingNotifier {}
+
 void main() {
+  setUpAll(() => registerFallbackValue(MessageTemplate.bookingConfirmed));
   final tokens = TokenService(secret: 'test-secret');
   late InMemoryAppointmentRepository appts;
   late InMemoryProviderAuthRepository providerAuth;
@@ -116,6 +121,9 @@ void main() {
       when(() => context.request).thenReturn(request);
       when(() => context.read<TokenService>()).thenReturn(tokens);
       when(() => context.read<ProAppointmentService>()).thenReturn(pro);
+      final notifier = _MockNotifier();
+      when(() => notifier.notify(any(), any())).thenAnswer((_) async {});
+      when(() => context.read<BookingNotifier>()).thenReturn(notifier);
       return context;
     }
 

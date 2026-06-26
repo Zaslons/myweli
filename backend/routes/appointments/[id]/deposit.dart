@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
+import 'package:myweli_backend/src/messaging/booking_notifier.dart';
+import 'package:myweli_backend/src/messaging/messaging_models.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /appointments/{id}/deposit` — the consumer attaches (or replaces) the
@@ -31,7 +34,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
     id,
     body['screenshotKey'],
   );
-  if (r.ok) return Response.json(body: r.data);
+  if (r.ok) {
+    unawaited(
+      context.read<BookingNotifier>().notify(
+        r.data as Map<String, dynamic>?,
+        MessageTemplate.depositReceived,
+      ),
+    );
+    return Response.json(body: r.data);
+  }
   switch (r.error) {
     case 'not_found':
       return jsonError(HttpStatus.notFound, 'not_found');
