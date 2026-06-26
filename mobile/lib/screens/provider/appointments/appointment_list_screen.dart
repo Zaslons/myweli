@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/status_colors.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -235,20 +236,8 @@ class _AppointmentCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Color _getStatusColor(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return Colors.orange;
-      case AppointmentStatus.confirmed:
-        return Colors.blue;
-      case AppointmentStatus.completed:
-        return Colors.green;
-      case AppointmentStatus.cancelled:
-        return Colors.red;
-      case AppointmentStatus.noShow:
-        return Colors.orange;
-    }
-  }
+  Color _getStatusColor(AppointmentStatus status) =>
+      appointmentStatusColor(status);
 
   String _getStatusText(AppointmentStatus status) {
     switch (status) {

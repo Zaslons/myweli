@@ -90,7 +90,7 @@ class ReviewTile extends StatelessWidget {
                     (i) => Icon(
                       i < review.rating ? Icons.star : Icons.star_border,
                       size: 14,
-                      color: Colors.amber,
+                      color: AppColors.starRating,
                     ),
                   ),
                   if (review.artistName != null &&

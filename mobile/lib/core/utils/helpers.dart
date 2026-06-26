@@ -186,7 +186,7 @@ class Helpers {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red.shade900 : Colors.black87,
+        backgroundColor: isError ? AppColors.error : Colors.black87,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),

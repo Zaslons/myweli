@@ -42,6 +42,10 @@ class AppColors {
   static const Color info = Color(0xFF1A1A2E); // Dark blue-gray
   static const Color infoLight = Color(0xFF2D3561); // Lighter blue-gray
 
+  // UI accents — purpose-named so screens use a token, not a literal.
+  static const Color starRating = Color(0xFFFFB800); // amber rating stars
+  static const Color favorite = Color(0xFFE53935); // favorite heart
+
   // Dark Mode (Future)
   static const Color backgroundDark = Color(0xFF111827);
   static const Color surfaceDark = Color(0xFF1F2937);

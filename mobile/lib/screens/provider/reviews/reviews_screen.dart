@@ -111,7 +111,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               const Icon(Icons.star,
-                                  size: 32, color: Colors.amber),
+                                  size: 32, color: AppColors.starRating),
                               const SizedBox(width: 8),
                               Text(
                                 averageRating.toStringAsFixed(1),
@@ -153,7 +153,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                 ),
                                 const SizedBox(width: 4),
                                 const Icon(Icons.star,
-                                    size: 14, color: Colors.amber),
+                                    size: 14, color: AppColors.starRating),
                                 const SizedBox(width: 8),
                                 SizedBox(
                                   width: 100,
@@ -162,7 +162,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                     backgroundColor: AppColors.surface,
                                     valueColor:
                                         const AlwaysStoppedAnimation<Color>(
-                                            Colors.amber),
+                                            AppColors.starRating),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -251,7 +251,7 @@ class _ReviewCard extends StatelessWidget {
                                     ? Icons.star
                                     : Icons.star_border,
                                 size: 16,
-                                color: Colors.amber,
+                                color: AppColors.starRating,
                               )),
                     ],
                   ),

@@ -132,7 +132,7 @@ class ProviderCard extends StatelessWidget {
                                     ? Icons.favorite
                                     : Icons.favorite_border,
                                 color: isFavorite
-                                    ? Colors.red
+                                    ? AppColors.favorite
                                     : AppColors.textPrimary,
                                 size: 20,
                               ),
@@ -158,7 +158,7 @@ class ProviderCard extends StatelessWidget {
                           Row(
                             children: [
                               const Icon(Icons.star,
-                                  size: 16, color: Colors.amber),
+                                  size: 16, color: AppColors.starRating),
                               const SizedBox(width: 4),
                               Text(
                                 provider.rating.toStringAsFixed(1),
@@ -283,8 +283,9 @@ class ProviderCard extends StatelessWidget {
                           ),
                           child: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color:
-                                isFavorite ? Colors.red : AppColors.textPrimary,
+                            color: isFavorite
+                                ? AppColors.favorite
+                                : AppColors.textPrimary,
                             size: 16,
                           ),
                         ),
@@ -310,7 +311,7 @@ class ProviderCard extends StatelessWidget {
                         Row(
                           children: [
                             const Icon(Icons.star,
-                                size: 16, color: Colors.amber),
+                                size: 16, color: AppColors.starRating),
                             const SizedBox(width: 4),
                             Text(
                               provider.rating.toStringAsFixed(1),

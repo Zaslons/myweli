@@ -53,8 +53,17 @@ grep -rn --include='*.dart' "fontSize:" lib | grep -v lib/core/theme/
 ```
 
 ## 7. Known deviations (tech debt — track + burn down)
-As of the 2026-06-26 audit (`flutter analyze` = 0; **admin UI = 0 violations**):
-- **~37 hardcoded `Colors.<named>` status colors in ~12 live screens** — `provider_detail`, `artist_selection`, pro appointment `list`/`calendar`/`detail`, pro `dashboard`, `reviews`, `map`, `provider_card`, review widgets, `helpers`. → replace with `AppColors.success/error/warning/info`.
-- **~39 in deferred V2/V3 `screens/provider/features/*`** (flag-hidden `ComingSoon`) — low priority; fix if/when those ship.
-- **11 `Color(0x…)`** (stories, map) + **3 inline `fontSize:` / 5 `TextStyle(`** (otp screens, `provider_detail`).
-- **Plan:** a dedicated **UI-consistency cleanup slice** for the live offenders (token swap, no behavior change); deferred-feature screens left until un-shelved.
+Baseline `flutter analyze` = 0; **admin UI = 0 violations**.
+
+**Fixed (UI-consistency cleanup, 2026-06-26):** the **semantic** color drift in live
+screens — appointment **status** colors now go through `appointmentStatusColor()`
+(`core/utils/status_colors.dart`) reused by the pro list/calendar/detail; the pro
+**dashboard** stat accents → `AppColors.warning/success/info`; **star** ratings →
+`AppColors.starRating`; **favorite** hearts → `AppColors.favorite`; the snackbar
+error → `AppColors.error`. (~37 live `Colors.<named>` → tokens.)
+
+**Remaining (separate follow-ups):**
+- **Category / marker palette** — `map_screen` markers + category hex, `highlight_stories` category hex, `announcement_stories` rings. These are intentional *non-monochrome* accents → need a **deliberate category-palette decision** (define named `AppColors` category tokens or accept as a documented exception), not a blind swap. Until then they stay as-is.
+- **Story scrims** (`story_viewer` `Color(0x99000000)` black gradient) — neutral overlays; **acceptable** literal.
+- **~39 in deferred V2/V3 `screens/provider/features/*`** (flag-hidden `ComingSoon`) — fix if/when un-shelved.
+- A few inline `fontSize:` / `TextStyle(` (OTP digit fields, `provider_detail`) — minor; fold into the next pass.
