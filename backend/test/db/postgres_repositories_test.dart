@@ -522,6 +522,26 @@ void main() {
     });
 
     test(
+      'updateBeforeAfters persists into data and survives re-read',
+      () async {
+        final repo = PostgresProvidersRepository(pool);
+        final saved = await repo.updateBeforeAfters('provider3', [
+          {
+            'before': 'https://cdn/b.jpg',
+            'after': 'https://cdn/a.jpg',
+            'caption': 'Tresses',
+          },
+        ]);
+        expect(saved!.single['after'], 'https://cdn/a.jpg');
+
+        final pairs = (await repo.byId('provider3'))!['beforeAfters'] as List;
+        expect((pairs.single as Map)['caption'], 'Tresses');
+
+        expect(await repo.updateBeforeAfters('nope', const []), isNull);
+      },
+    );
+
+    test(
       'updateDepositPolicy persists into data and survives re-read',
       () async {
         final repo = PostgresProvidersRepository(pool);

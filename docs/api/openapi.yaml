@@ -703,6 +703,49 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /providers/{id}/before-after:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: Read a salon's before/after pairs (FR-DISC-006, provider-owned)
+      description: >
+        Provider-authenticated + ownership-scoped (→ 403). The public
+        `GET /providers/{id}` also surfaces `beforeAfters`. Image bytes are
+        uploaded out of band; only URLs pass through.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The salon's before/after pairs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeforeAfterList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [providers]
+      summary: Replace a salon's before/after pairs wholesale (FR-DISC-006)
+      description: >
+        Validated: ≤ 12 pairs; each `before`/`after` a non-empty URL ≤ 2048 chars
+        (origin-allowlisted when public delivery is configured); optional
+        `caption` ≤ 120 chars.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeforeAfterList' }
+      responses:
+        '200':
+          description: The stored pairs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeforeAfterList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /providers/{id}/reviews:
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
@@ -2299,6 +2342,24 @@ components:
           items: { type: string, maxLength: 2048 }
           description: Ordered list of hosted photo URLs (bytes live in storage).
 
+    BeforeAfterPair:
+      type: object
+      required: [before, after]
+      properties:
+        before: { type: string, maxLength: 2048, description: Hosted "before" photo URL. }
+        after: { type: string, maxLength: 2048, description: Hosted "after" photo URL. }
+        caption: { type: string, maxLength: 120, nullable: true }
+
+    BeforeAfterList:
+      type: object
+      required: [beforeAfters]
+      properties:
+        beforeAfters:
+          type: array
+          maxItems: 12
+          items: { $ref: '#/components/schemas/BeforeAfterPair' }
+          description: Curated before/after pairs (FR-DISC-006).
+
     EarningsData:
       type: object
       required: [totalEarnings, transactions]
@@ -2353,6 +2414,10 @@ components:
         imageUrls:
           type: array
           items: { type: string }
+        beforeAfters:
+          type: array
+          items: { $ref: '#/components/schemas/BeforeAfterPair' }
+          description: Curated before/after pairs (FR-DISC-006); may be absent/empty.
         logoUrl: { type: string, nullable: true }
         rating: { type: number }
         reviewCount: { type: integer }

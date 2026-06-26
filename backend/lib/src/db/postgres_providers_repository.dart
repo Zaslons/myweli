@@ -231,6 +231,29 @@ class PostgresProvidersRepository implements ProvidersRepository {
   }
 
   @override
+  Future<List<Map<String, dynamic>>?> updateBeforeAfters(
+    String providerId,
+    List<Map<String, dynamic>> beforeAfters,
+  ) {
+    // `beforeAfters` lives in the core `data` document; read-modify-write the
+    // whole blob atomically under a row lock (same pattern as updateGallery).
+    return _pool.runTx<List<Map<String, dynamic>>?>((tx) async {
+      final rows = await tx.execute(
+        Sql.named('SELECT data FROM providers WHERE id = @id FOR UPDATE'),
+        parameters: {'id': providerId},
+      );
+      if (rows.isEmpty) return null;
+      final data = _data(rows.first);
+      data['beforeAfters'] = beforeAfters;
+      await tx.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {'id': providerId, 'data': jsonEncode(data)},
+      );
+      return [for (final e in beforeAfters) Map<String, dynamic>.from(e)];
+    });
+  }
+
+  @override
   Future<Map<String, dynamic>?> updateDepositPolicy(
     String providerId,
     Map<String, dynamic> fields,

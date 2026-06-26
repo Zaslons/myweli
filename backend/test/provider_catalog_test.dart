@@ -12,6 +12,7 @@ import 'package:test/test.dart';
 import '../routes/providers/[id]/artists/[artistId].dart' as artist_detail;
 import '../routes/providers/[id]/artists/index.dart' as artists_route;
 import '../routes/providers/[id]/availability.dart' as availability;
+import '../routes/providers/[id]/before-after.dart' as before_after_route;
 import '../routes/providers/[id]/deposit-policy.dart' as deposit_route;
 import '../routes/providers/[id]/gallery.dart' as gallery_route;
 import '../routes/providers/[id]/services/[serviceId].dart' as service_detail;
@@ -211,6 +212,82 @@ void main() {
       expect(
         (await catalog.updateGallery(accountId, 'provider2', {
           'imageUrls': <String>[],
+        })).error,
+        'forbidden',
+      );
+    });
+
+    test('before/after: read, replace, validation, ownership', () async {
+      final saved = await catalog.updateBeforeAfters(accountId, 'provider1', {
+        'beforeAfters': [
+          {'before': 'https://cdn/b1.jpg', 'after': '  https://cdn/a1.jpg  '},
+          {
+            'before': 'https://cdn/b2.jpg',
+            'after': 'https://cdn/a2.jpg',
+            'caption': '  Tresses  ',
+          },
+        ],
+      });
+      expect(saved.ok, isTrue);
+      final pairs = (saved.data! as Map)['beforeAfters'] as List;
+      expect(pairs.length, 2);
+      expect((pairs[0] as Map)['after'], 'https://cdn/a1.jpg'); // trimmed
+      expect((pairs[0] as Map).containsKey('caption'), isFalse); // omitted
+      expect((pairs[1] as Map)['caption'], 'Tresses'); // trimmed
+
+      final got = await catalog.beforeAfters(accountId, 'provider1');
+      expect(((got.data! as Map)['beforeAfters'] as List).length, 2);
+
+      // Validation: >12 pairs · missing `after` · bad-type url · caption >120.
+      expect(
+        (await catalog.updateBeforeAfters(accountId, 'provider1', {
+          'beforeAfters': List.generate(
+            13,
+            (i) => {
+              'before': 'https://cdn/b$i.jpg',
+              'after': 'https://cdn/a$i.jpg',
+            },
+          ),
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateBeforeAfters(accountId, 'provider1', {
+          'beforeAfters': [
+            {'before': 'https://cdn/b.jpg'},
+          ],
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateBeforeAfters(accountId, 'provider1', {
+          'beforeAfters': [
+            {'before': 'https://cdn/b.jpg', 'after': '  '},
+          ],
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateBeforeAfters(accountId, 'provider1', {
+          'beforeAfters': [
+            {
+              'before': 'https://cdn/b.jpg',
+              'after': 'https://cdn/a.jpg',
+              'caption': 'x' * 121,
+            },
+          ],
+        })).error,
+        'invalid_input',
+      );
+
+      // Ownership: another salon cannot read/write provider1's pairs.
+      expect(
+        (await catalog.beforeAfters(accountId, 'provider2')).error,
+        'forbidden',
+      );
+      expect(
+        (await catalog.updateBeforeAfters(accountId, 'provider2', {
+          'beforeAfters': <Map<String, dynamic>>[],
         })).error,
         'forbidden',
       );
@@ -577,6 +654,63 @@ void main() {
 
       final badVerb = await gallery_route.onRequest(
         ctx(req('DELETE', '/providers/provider1/gallery', bearer: token)),
+        'provider1',
+      );
+      expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
+    });
+
+    test('before-after: GET → 200; PUT replaces → 200; bad → 400; '
+        'cross-salon → 403; bad verb → 405', () async {
+      final got = await before_after_route.onRequest(
+        ctx(req('GET', '/providers/provider1/before-after', bearer: token)),
+        'provider1',
+      );
+      expect(got.statusCode, HttpStatus.ok);
+      expect((await jsonOf(got))['beforeAfters'], isA<List<dynamic>>());
+
+      final put = await before_after_route.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/before-after',
+            bearer: token,
+            body: {
+              'beforeAfters': [
+                {'before': 'https://cdn/b.jpg', 'after': 'https://cdn/a.jpg'},
+              ],
+            },
+          ),
+        ),
+        'provider1',
+      );
+      expect(put.statusCode, HttpStatus.ok);
+      expect(((await jsonOf(put))['beforeAfters'] as List).length, 1);
+
+      final bad = await before_after_route.onRequest(
+        ctx(
+          req(
+            'PUT',
+            '/providers/provider1/before-after',
+            bearer: token,
+            body: {
+              'beforeAfters': [
+                {'before': 'https://cdn/b.jpg'}, // missing after
+              ],
+            },
+          ),
+        ),
+        'provider1',
+      );
+      expect(bad.statusCode, HttpStatus.badRequest);
+
+      final cross = await before_after_route.onRequest(
+        ctx(req('GET', '/providers/provider2/before-after', bearer: token)),
+        'provider2',
+      );
+      expect(cross.statusCode, HttpStatus.forbidden);
+
+      final badVerb = await before_after_route.onRequest(
+        ctx(req('DELETE', '/providers/provider1/before-after', bearer: token)),
         'provider1',
       );
       expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
