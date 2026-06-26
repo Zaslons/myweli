@@ -791,10 +791,11 @@ paths:
         (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a
         separate **private** bucket, prefix `kyc/{accountId}`, returns the `key`
         only (ID docs are never public) and additionally accepts `application/
-        pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), the
-        same private bucket, prefix `deposit/{userId}`, returns the `key` only
-        (payment proof is never public; images only). Role is gated **per
-        purpose**: `deposit` requires `user`; `gallery`/`kyc` require `provider`.
+        pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a
+        **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC),
+        prefix `deposit/{userId}`, returns the `key` only (payment proof is never
+        public; images only). Role is gated **per purpose**: `deposit` requires
+        `user`; `gallery`/`kyc` require `provider`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true

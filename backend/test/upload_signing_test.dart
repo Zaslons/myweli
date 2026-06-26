@@ -74,7 +74,7 @@ void main() {
     });
 
     test(
-      'R2StorageService.presignGet builds a signed GET on the private bucket',
+      'R2StorageService.presignGet signs a GET on the chosen private bucket',
       () async {
         final r2 = R2StorageService(
           endpoint: 'https://acc.r2.cloudflarestorage.com',
@@ -82,13 +82,22 @@ void main() {
           accessKeyId: 'AKID',
           secretAccessKey: 'SECRET',
           publicBaseUrl: 'https://cdn.myweli.com',
-          kycBucket: 'private-bkt',
+          kycBucket: 'kyc-bkt',
+          depositBucket: 'deposit-bkt',
           clock: () => DateTime.utc(2026, 6, 26, 10),
         );
-        final url = r2.presignGet(key: 'deposit/u1/abc.jpg');
+        final url = r2.presignGet(
+          key: 'deposit/u1/abc.jpg',
+          bucket: StorageBucket.deposit,
+        );
+        // Deposit screenshots live in their own bucket, not the KYC one.
         expect(
           url,
-          startsWith('https://acc.r2.cloudflarestorage.com/private-bkt/'),
+          startsWith('https://acc.r2.cloudflarestorage.com/deposit-bkt/'),
+        );
+        expect(
+          r2.presignGet(key: 'kyc/a/x.pdf', bucket: StorageBucket.kyc),
+          startsWith('https://acc.r2.cloudflarestorage.com/kyc-bkt/'),
         );
         expect(url, contains('X-Amz-Algorithm=AWS4-HMAC-SHA256'));
         expect(url, contains('X-Amz-Credential=AKID%2F20260626%2Fauto%2Fs3'));
@@ -101,8 +110,11 @@ void main() {
 
     test('FakeStorageService.presignGet returns a usable private URL', () {
       expect(
-        const FakeStorageService().presignGet(key: 'deposit/u1/x.jpg'),
-        startsWith('https://fake-storage.local/private/deposit/u1/x.jpg'),
+        const FakeStorageService().presignGet(
+          key: 'deposit/u1/x.jpg',
+          bucket: StorageBucket.deposit,
+        ),
+        startsWith('https://fake-storage.local/deposit/deposit/u1/x.jpg'),
       );
     });
   });

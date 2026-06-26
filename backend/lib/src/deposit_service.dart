@@ -71,7 +71,13 @@ class DepositService {
     return (
       ok: true,
       error: null,
-      data: {'url': _storage.presignGet(key: key, ttl: _viewTtl)},
+      data: {
+        'url': _storage.presignGet(
+          key: key,
+          bucket: StorageBucket.deposit,
+          ttl: _viewTtl,
+        ),
+      },
     );
   }
 }

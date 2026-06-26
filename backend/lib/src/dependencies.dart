@@ -136,12 +136,14 @@ final StorageService storageService = () {
   final secret = _envOrNull('R2_SECRET_ACCESS_KEY');
   final publicBase = _envOrNull('R2_PUBLIC_BASE_URL');
   final kycBucket = _envOrNull('R2_KYC_BUCKET');
+  final depositBucket = _envOrNull('R2_DEPOSIT_BUCKET');
   if (endpoint != null &&
       bucket != null &&
       keyId != null &&
       secret != null &&
       publicBase != null &&
-      kycBucket != null) {
+      kycBucket != null &&
+      depositBucket != null) {
     return R2StorageService(
       endpoint: endpoint,
       bucket: bucket,
@@ -149,13 +151,15 @@ final StorageService storageService = () {
       secretAccessKey: secret,
       publicBaseUrl: publicBase,
       kycBucket: kycBucket,
+      depositBucket: depositBucket,
     );
   }
   if (_isProd) {
     throw StateError(
       'Object storage must be configured in production: set R2_ENDPOINT (or '
       'R2_ACCOUNT_ID), R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, '
-      'R2_PUBLIC_BASE_URL, R2_KYC_BUCKET (a separate private bucket).',
+      'R2_PUBLIC_BASE_URL, R2_KYC_BUCKET and R2_DEPOSIT_BUCKET (two separate '
+      'private buckets).',
     );
   }
   return const FakeStorageService();

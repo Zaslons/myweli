@@ -40,7 +40,7 @@ No structural change. Book → (deposit on) **deposit sheet**: "Acompte X · Sol
 Errors: 400 `invalid_input` (foreign/missing key, wrong content-type), 401, 403, 404, 405. No new money endpoints (Myweli moves nothing).
 
 ## 4. Data model
-None new. `appointments.deposit_screenshot_url` now holds a **private object key** (not a public URL). The deposit "intent" is the appointment itself (`depositAmount` + `depositScreenshotUrl` + `pending` status); "receipt confirmed" = the salon's `accept` (`pending → confirmed`) — no separate payment entity (matches FR: no Myweli-side transaction). Private screenshots live in the existing **private bucket** (`R2_KYC_BUCKET`) under a `deposit/` prefix — consider renaming the env to `R2_PRIVATE_BUCKET` later (now shared by KYC + deposit).
+None new. `appointments.deposit_screenshot_url` now holds a **private object key** (not a public URL). The deposit "intent" is the appointment itself (`depositAmount` + `depositScreenshotUrl` + `pending` status); "receipt confirmed" = the salon's `accept` (`pending → confirmed`) — no separate payment entity (matches FR: no Myweli-side transaction). Screenshots live in a **dedicated private bucket `R2_DEPOSIT_BUCKET`**, kept apart from `R2_KYC_BUCKET` so the two can have independent retention (deposits are transient → can auto-expire; KYC is retained for compliance), credential scoping, and blast-radius isolation. Bucket selection is a typed `StorageBucket { public, kyc, deposit }`.
 
 ## 5. Architecture & patterns
 - **`StorageService.presignGet({key, ttl})`** → a short-lived **signed GET** URL for a private-bucket object. `R2StorageService`: AWS **SigV4 query-string presign** (GET, `X-Amz-*` params, `SignedHeaders=host`, `UNSIGNED-PAYLOAD`) — in-house with `crypto`. `FakeStorageService`: a deterministic fake URL.
@@ -71,13 +71,14 @@ None new. `appointments.deposit_screenshot_url` now holds a **private object key
 - [ ] `dart format` clean · `dart analyze` 0 · tests green (incl. DB-gated where relevant).
 - [ ] OpenAPI: the deposit upload purpose + `/appointments/{id}/deposit` + `/appointments/{id}/deposit-screenshot`.
 - [ ] Threat model **T16**; ROADMAP entry; spec cross-linked; status → Built.
-- [ ] No secrets; reuse `R2_KYC_BUCKET` (private). Feature-branch + PRs; CI green; no Claude attribution.
+- [ ] No secrets; new `R2_DEPOSIT_BUCKET` (private) via env + `.env.example`. Feature-branch + PRs; CI green; no Claude attribution.
 
 ## 10. Decisions (signed off)
 1. **Private + signed-GET** for the screenshot (not public). ✓
 2. **Pay-later** `POST /appointments/{id}/deposit` (book now, attach proof later); booking-with-key still works. ✓
 3. **Two PRs** — B1 backend → B2 app. ✓
-4. Carried in (binding): **no custody**; Wave deep-link / copy-number; **opt-in per salon**; refunds salon↔client; **no aggregator** (V1). ✓
+4. **Dedicated private bucket** `R2_DEPOSIT_BUCKET`, separate from KYC (independent retention / credential scope / blast radius; R2 has no per-bucket fee). Bucket selection is a typed `StorageBucket` enum. ✓
+5. Carried in (binding): **no custody**; Wave deep-link / copy-number; **opt-in per salon**; refunds salon↔client; **no aggregator** (V1). ✓
 
 ## 11. Open questions
-1. Reuse the existing **private bucket** (`R2_KYC_BUCKET`) for deposit screenshots (prefix `deposit/`) vs. a separate bucket — recommend **reuse** now, rename to `R2_PRIVATE_BUCKET` if a third private use appears. OK?
+_None open._

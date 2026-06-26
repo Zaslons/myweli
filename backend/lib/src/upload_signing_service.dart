@@ -54,20 +54,20 @@ class UploadSigningService {
       return (ok: false, error: 'invalid_input', data: null);
     }
 
-    // Prefix + privacy per purpose. Deposit is a CONSUMER upload scoped to the
-    // user id (no provider account); kyc → the provider account; gallery → the
-    // linked salon (public).
+    // Prefix + target bucket per purpose. Deposit is a CONSUMER upload scoped
+    // to the user id (no provider account); kyc → the provider account; gallery
+    // → the linked salon (public).
     final String prefixId;
-    final bool private;
+    final StorageBucket bucket;
     if (isDeposit) {
       prefixId = accountId;
-      private = true;
+      bucket = StorageBucket.deposit;
     } else if (isKyc) {
       if (await _providerAuth.accountById(accountId) == null) {
         return (ok: false, error: 'forbidden', data: null);
       }
       prefixId = accountId;
-      private = true;
+      bucket = StorageBucket.kyc;
     } else {
       final providerId = (await _providerAuth.accountById(
         accountId,
@@ -76,7 +76,7 @@ class UploadSigningService {
         return (ok: false, error: 'forbidden', data: null);
       }
       prefixId = providerId;
-      private = false;
+      bucket = StorageBucket.public;
     }
 
     final key = '$purpose/$prefixId/${_objectId()}.$ext';
@@ -85,7 +85,7 @@ class UploadSigningService {
       contentType: contentType,
       maxBytes: _maxBytes,
       ttl: _ttl,
-      private: private,
+      bucket: bucket,
     );
 
     return (
@@ -97,7 +97,8 @@ class UploadSigningService {
         'fields': post.fields,
         'key': key,
         // Private objects (kyc/deposit) are never publicly served.
-        if (!private) 'publicUrl': _storage.publicUrl(key),
+        if (bucket == StorageBucket.public)
+          'publicUrl': _storage.publicUrl(key),
         'maxBytes': _maxBytes,
         'expiresInSeconds': _ttl.inSeconds,
       },
