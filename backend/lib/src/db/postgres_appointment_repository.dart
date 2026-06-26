@@ -16,20 +16,23 @@ class PostgresAppointmentRepository implements AppointmentRepository {
 
   @override
   Future<Map<String, dynamic>?> create(Map<String, dynamic> a) async {
+    final start = DateTime.parse(a['appointmentDate'] as String);
+    final durationMinutes = (a['durationMinutes'] as num?)?.toInt() ?? 30;
     try {
       final result = await _pool.execute(
         Sql.named(
           'INSERT INTO appointments '
           '(id, user_id, provider_id, service_ids, artist_id, '
-          'appointment_date, duration_minutes, status, total_price, '
+          'appointment_date, duration_minutes, ends_at, status, total_price, '
           'deposit_amount, balance_due, cancellation_window_hours, '
           'client_name, client_phone, notes, deposit_screenshot_url, '
           'created_at) '
           'VALUES (@id, @user_id, @provider_id, @service_ids:jsonb, '
           '@artist_id:text, @appointment_date:timestamptz, @duration_minutes, '
-          '@status, @total_price, @deposit_amount, @balance_due, '
-          '@cancellation_window_hours, @client_name:text, @client_phone:text, '
-          '@notes:text, @deposit_screenshot_url:text, @created_at:timestamptz) '
+          '@ends_at:timestamptz, @status, @total_price, @deposit_amount, '
+          '@balance_due, @cancellation_window_hours, @client_name:text, '
+          '@client_phone:text, @notes:text, @deposit_screenshot_url:text, '
+          '@created_at:timestamptz) '
           "ON CONFLICT (provider_id, appointment_date) "
           "WHERE (status IN ('pending', 'confirmed')) DO NOTHING "
           'RETURNING *',
@@ -40,8 +43,9 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           'provider_id': a['providerId'],
           'service_ids': jsonEncode(a['serviceIds']),
           'artist_id': a['artistId'],
-          'appointment_date': DateTime.parse(a['appointmentDate'] as String),
-          'duration_minutes': (a['durationMinutes'] as num?)?.toInt() ?? 30,
+          'appointment_date': start,
+          'duration_minutes': durationMinutes,
+          'ends_at': start.add(Duration(minutes: durationMinutes)),
           'status': a['status'],
           'total_price': (a['totalPrice'] as num).toDouble(),
           'deposit_amount': (a['depositAmount'] as num?)?.toDouble() ?? 0,
@@ -119,6 +123,10 @@ class PostgresAppointmentRepository implements AppointmentRepository {
     if (changes.containsKey('appointmentDate')) {
       sets.add('appointment_date = @ad:timestamptz');
       params['ad'] = DateTime.parse(changes['appointmentDate'] as String);
+    }
+    if (changes.containsKey('endsAt')) {
+      sets.add('ends_at = @ends_at:timestamptz');
+      params['ends_at'] = DateTime.parse(changes['endsAt'] as String);
     }
     if (sets.isEmpty) return byId(id);
     try {

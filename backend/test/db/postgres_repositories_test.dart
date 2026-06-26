@@ -211,17 +211,19 @@ void main() {
             durationMinutes: 60,
           ),
         );
-        // Move r2 to 10:00 → overlaps r1's [09:00, 11:00) → null.
+        // Move r2 to 10:00–11:00 → overlaps r1's [09:00, 11:00) → null.
         expect(
           await repo.update('r2', {
             'appointmentDate': DateTime.utc(2030, 6, 25, 10).toIso8601String(),
+            'endsAt': DateTime.utc(2030, 6, 25, 11).toIso8601String(),
           }),
           isNull,
         );
-        // A non-overlapping move (12:00) succeeds.
+        // A non-overlapping move (12:00–13:00) succeeds.
         expect(
           await repo.update('r2', {
             'appointmentDate': DateTime.utc(2030, 6, 25, 12).toIso8601String(),
+            'endsAt': DateTime.utc(2030, 6, 25, 13).toIso8601String(),
           }),
           isNotNull,
         );

@@ -256,15 +256,18 @@ CREATE TABLE IF NOT EXISTS reviews (
     statements: [
       'ALTER TABLE appointments '
           'ADD COLUMN IF NOT EXISTS duration_minutes int NOT NULL DEFAULT 30',
+      // `ends_at` is stored (computed in Dart = start + duration) because
+      // `timestamptz + interval` is STABLE, not IMMUTABLE, so it can't appear
+      // in the constraint expression. Ranging over two plain columns is
+      // immutable. Empty table at migration time → the default is unused.
+      'ALTER TABLE appointments '
+          'ADD COLUMN IF NOT EXISTS ends_at timestamptz NOT NULL DEFAULT now()',
       'CREATE EXTENSION IF NOT EXISTS btree_gist',
       '''
 ALTER TABLE appointments ADD CONSTRAINT appointments_no_overlap
   EXCLUDE USING gist (
     provider_id WITH =,
-    tstzrange(
-      appointment_date,
-      appointment_date + make_interval(mins => duration_minutes)
-    ) WITH &&
+    tstzrange(appointment_date, ends_at) WITH &&
   ) WHERE (status IN ('pending', 'confirmed'))''',
     ],
   ),
