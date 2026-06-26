@@ -6,6 +6,8 @@ import '../../screens/admin/admin_kyc_detail_screen.dart';
 import '../../screens/admin/admin_kyc_queue_screen.dart';
 import '../../screens/admin/admin_login_screen.dart';
 import '../../screens/admin/admin_moderation_screen.dart';
+import '../../screens/admin/admin_providers_screen.dart';
+import '../../screens/admin/admin_users_screen.dart';
 
 /// Admin console routes. Redirects on [AdminAuthProvider] (login when signed
 /// out; dashboard when signed in and on the login screen). Each authed screen
@@ -36,6 +38,14 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
         GoRoute(
           path: '/admin/reviews',
           builder: (_, __) => const AdminModerationScreen(),
+        ),
+        GoRoute(
+          path: '/admin/providers',
+          builder: (_, __) => const AdminProvidersScreen(),
+        ),
+        GoRoute(
+          path: '/admin/users',
+          builder: (_, __) => const AdminUsersScreen(),
         ),
         GoRoute(
           path: '/admin/kyc/:id',
