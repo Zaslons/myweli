@@ -12,10 +12,18 @@ typedef CatalogResult = ({bool ok, String? error, Object? data});
 /// (→ `forbidden` otherwise). The server validates every input and is the
 /// authority on ids; the provider is the price authority for its own salon.
 class ProviderCatalogService {
-  ProviderCatalogService(this._providers, this._providerAuth);
+  ProviderCatalogService(
+    this._providers,
+    this._providerAuth, {
+    List<String> allowedImageOrigins = const [],
+  }) : _allowedImageOrigins = allowedImageOrigins;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _providerAuth;
+
+  /// Gallery URL origins accepted on write. Empty → accept any (dev). When set
+  /// (prod), each gallery URL must start with one of these (anti-SSRF/hotlink).
+  final List<String> _allowedImageOrigins;
 
   Future<CatalogResult> listServices(
     String accountId,
@@ -164,6 +172,10 @@ class ProviderCatalogService {
       if (e is! String) return (ok: false, error: 'invalid_input', data: null);
       final url = e.trim();
       if (url.isEmpty || url.length > _maxUrlLength) {
+        return (ok: false, error: 'invalid_input', data: null);
+      }
+      if (_allowedImageOrigins.isNotEmpty &&
+          !_allowedImageOrigins.any(url.startsWith)) {
         return (ok: false, error: 'invalid_input', data: null);
       }
       urls.add(url);
