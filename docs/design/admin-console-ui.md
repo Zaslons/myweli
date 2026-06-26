@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | UX signed off · UI-2a/2b · UI-3a/3b (mgmt + support views) · **UI-4 Built** (disputes: list + detail with deposit-evidence + résoudre; open-from-booking) · audit-log viewer next |
+| **Status** | **Console complete** — UI-1 (auth/shell/dashboard/KYC) · UI-2 (moderation) · UI-3 (Salons/Clients mgmt + support views) · UI-4 (disputes) · **UI-5 (audit-log viewer — Journal)**. All on the shared admin design system. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **Backend** | [admin-console.md](admin-console.md) (Slices 1–3 — the API this UI drives) |

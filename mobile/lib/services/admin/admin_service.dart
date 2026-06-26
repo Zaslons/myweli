@@ -182,6 +182,16 @@ class AdminService {
   ) =>
       _post('/admin/disputes/$id/resolve', body: {'resolution': resolution});
 
+  // --- audit log -------------------------------------------------------------
+  Future<ApiResponse<Map<String, dynamic>>> audit({
+    String? action,
+    int page = 1,
+  }) {
+    final params = <String, String>{'page': '$page', 'pageSize': '50'};
+    if (action != null && action.isNotEmpty) params['action'] = action;
+    return _get('/admin/audit?${_query(params)}');
+  }
+
   // ---- helpers --------------------------------------------------------------
 
   String _query(Map<String, String> params) => params.entries
