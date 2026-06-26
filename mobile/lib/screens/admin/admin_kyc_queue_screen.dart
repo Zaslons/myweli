@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/admin/admin_kyc_provider.dart';
-import '../../widgets/common/empty_state.dart';
-import '../../widgets/common/loading_indicator.dart';
+import 'widgets/admin_data_table.dart';
+import 'widgets/admin_scaffold.dart';
 
-/// KYC approval queue — pending providers. Tap a row → detail.
+/// KYC approval queue — pending providers in a data table. Row → detail.
+/// Design: docs/design/admin-console-ui.md §3.
 class AdminKycQueueScreen extends StatefulWidget {
   const AdminKycQueueScreen({super.key});
 
@@ -26,52 +26,58 @@ class _AdminKycQueueScreenState extends State<AdminKycQueueScreen> {
     );
   }
 
+  String _date(Object? iso) {
+    final s = iso?.toString() ?? '';
+    return s.length >= 10 ? s.substring(0, 10) : s;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AdminKycProvider>();
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(title: const Text('KYC — en attente')),
-      body: Builder(
-        builder: (context) {
-          if (p.isLoading && p.queue.isEmpty) return const LoadingIndicator();
-          if (p.error != null && p.queue.isEmpty) {
-            return Center(child: Text(p.error!));
-          }
-          if (p.queue.isEmpty) {
-            return const EmptyState(
-              icon: Icons.verified_user_outlined,
-              title: 'Aucune vérification en attente',
-              description: 'Les nouvelles soumissions KYC apparaîtront ici.',
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () => context.read<AdminKycProvider>().loadQueue(),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              itemCount: p.queue.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, i) {
-                final item = p.queue[i];
-                return ListTile(
-                  tileColor: AppColors.secondary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  ),
-                  title: Text('${item['businessName'] ?? '—'}'),
-                  subtitle: Text(
-                    '${item['businessType'] ?? ''} · '
-                    '${item['docCount'] ?? 0} document(s)',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textTertiary),
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go('/admin/kyc/${item['accountId']}'),
-                );
-              },
-            ),
-          );
-        },
+    return AdminScaffold(
+      title: 'KYC — en attente',
+      actions: [
+        IconButton(
+          tooltip: 'Rafraîchir',
+          icon: const Icon(Icons.refresh, size: 20),
+          onPressed: () => context.read<AdminKycProvider>().loadQueue(),
+        ),
+      ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: AdminDataTable(
+          isLoading: p.isLoading,
+          error: p.error,
+          onRetry: () => context.read<AdminKycProvider>().loadQueue(),
+          emptyIcon: Icons.verified_user_outlined,
+          emptyTitle: 'Aucune vérification en attente',
+          emptyDescription: 'Les nouvelles soumissions KYC apparaîtront ici.',
+          columns: const [
+            AdminColumn('Salon', flex: 3),
+            AdminColumn('Type', flex: 2),
+            AdminColumn('Soumis le', flex: 2),
+            AdminColumn('Documents', flex: 2),
+          ],
+          rows: [
+            for (final item in p.queue)
+              AdminRow(
+                onTap: () => context.go('/admin/kyc/${item['accountId']}'),
+                cells: [
+                  Text('${item['businessName'] ?? '—'}',
+                      style: AppTextStyles.bodyMedium),
+                  Text('${item['businessType'] ?? ''}',
+                      style: AppTextStyles.bodyMedium
+                          .copyWith(color: AppColors.textSecondary)),
+                  Text(_date(item['submittedAt']),
+                      style: AppTextStyles.bodyMedium
+                          .copyWith(color: AppColors.textSecondary)),
+                  Text('${item['docCount'] ?? 0} document(s)',
+                      style: AppTextStyles.bodyMedium
+                          .copyWith(color: AppColors.textSecondary)),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
