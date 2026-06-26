@@ -14,8 +14,11 @@ import 'db/database.dart';
 import 'db/migrations.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_auth_repository.dart';
+import 'db/postgres_favorites_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
+import 'favorites_repository.dart';
+import 'favorites_service.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
@@ -85,6 +88,15 @@ final ProviderAuthRepository providerAuthRepository = _pool == null
 final AppointmentRepository appointmentRepository = _pool == null
     ? InMemoryAppointmentRepository()
     : PostgresAppointmentRepository(_pool!);
+
+final FavoritesRepository favoritesRepository = _pool == null
+    ? InMemoryFavoritesRepository()
+    : PostgresFavoritesRepository(_pool!);
+
+final FavoritesService favoritesService = FavoritesService(
+  favoritesRepository,
+  providersRepository,
+);
 
 final SlotService slotService = SlotService(
   providersRepository,

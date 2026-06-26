@@ -8,6 +8,7 @@ import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/dependencies.dart';
+import 'package:myweli_backend/src/favorites_service.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
@@ -34,6 +35,7 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))
       .use(provider<UploadSigningService>((_) => uploadSigningService))
+      .use(provider<FavoritesService>((_) => favoritesService))
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository));
 }

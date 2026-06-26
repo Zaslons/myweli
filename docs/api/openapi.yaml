@@ -130,6 +130,50 @@ paths:
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /me/favorites:
+    get:
+      tags: [favorites]
+      summary: The signed-in consumer's saved provider ids (B-favorites)
+      description: >
+        Consumer-only; scoped to the token's `sub` (no user id is accepted, so
+        a caller only ever sees their own favorites).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The user's favorite provider ids
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providerIds]
+                properties:
+                  providerIds:
+                    type: array
+                    items: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /me/favorites/{providerId}:
+    parameters:
+      - { in: path, name: providerId, required: true, schema: { type: string } }
+    post:
+      tags: [favorites]
+      summary: Save a provider as a favorite (idempotent)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Added (or already a favorite) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [favorites]
+      summary: Remove a favorite (idempotent)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Removed (or was not a favorite) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /auth/provider/otp/request:
     post:
       tags: [auth]
