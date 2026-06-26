@@ -228,6 +228,30 @@ LIMIT @lim OFFSET @off'''),
   }
 
   @override
+  Future<({List<Map<String, dynamic>> items, int total})> listHidden({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final count = await _pool.execute(
+      Sql.named(
+        "SELECT COUNT(*)::int AS n FROM reviews "
+        "WHERE moderation_status = 'hidden'",
+      ),
+    );
+    final rows = await _pool.execute(
+      Sql.named(
+        "SELECT * FROM reviews WHERE moderation_status = 'hidden' "
+        "ORDER BY created_at DESC LIMIT @ps OFFSET @off",
+      ),
+      parameters: {'ps': pageSize, 'off': (page - 1) * pageSize},
+    );
+    return (
+      items: [for (final r in rows) _dto(r.toColumnMap())],
+      total: count.first.toColumnMap()['n'] as int,
+    );
+  }
+
+  @override
   Future<Map<String, dynamic>?> setModerationStatus(
     String reviewId,
     String status,

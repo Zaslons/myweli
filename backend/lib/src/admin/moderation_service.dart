@@ -53,6 +53,24 @@ class ModerationService {
     );
   }
 
+  /// The "Avis masqués" view — currently-hidden reviews (restore entry point).
+  Future<ModerationResult> hiddenQueue({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final res = await _reviews.listHidden(page: page, pageSize: pageSize);
+    return (
+      ok: true,
+      error: null,
+      data: {
+        'items': res.items,
+        'page': page,
+        'pageSize': pageSize,
+        'total': res.total,
+      },
+    );
+  }
+
   Future<ModerationResult> hide(
     String adminId,
     String reviewId,
