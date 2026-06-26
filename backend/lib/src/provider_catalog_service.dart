@@ -189,6 +189,80 @@ class ProviderCatalogService {
   static const _maxGalleryPhotos = 20;
   static const _maxUrlLength = 2048;
 
+  // ---- before/after showcase — design: docs/design/provider-before-after.md --
+  static const _maxBeforeAfterPairs = 12;
+  static const _maxCaptionLength = 120;
+
+  /// The salon's before/after pairs (`beforeAfters`).
+  Future<CatalogResult> beforeAfters(
+    String accountId,
+    String providerId,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final provider = await _providers.byId(providerId);
+    if (provider == null) return _notFound;
+    return (
+      ok: true,
+      error: null,
+      data: {
+        'beforeAfters':
+            provider['beforeAfters'] ?? const <Map<String, dynamic>>[],
+      },
+    );
+  }
+
+  /// Replace the before/after pairs wholesale with a validated, bounded list
+  /// (bytes are uploaded out of band via the image pipeline, like the gallery).
+  Future<CatalogResult> updateBeforeAfters(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final raw = body['beforeAfters'];
+    if (raw is! List || raw.length > _maxBeforeAfterPairs) {
+      return (ok: false, error: 'invalid_input', data: null);
+    }
+    final pairs = <Map<String, dynamic>>[];
+    for (final e in raw) {
+      if (e is! Map) return (ok: false, error: 'invalid_input', data: null);
+      final before = _validUrl(e['before']);
+      final after = _validUrl(e['after']);
+      if (before == null || after == null) {
+        return (ok: false, error: 'invalid_input', data: null);
+      }
+      final captionRaw = e['caption'];
+      if (captionRaw != null && captionRaw is! String) {
+        return (ok: false, error: 'invalid_input', data: null);
+      }
+      final caption = (captionRaw as String?)?.trim() ?? '';
+      if (caption.length > _maxCaptionLength) {
+        return (ok: false, error: 'invalid_input', data: null);
+      }
+      pairs.add({
+        'before': before,
+        'after': after,
+        if (caption.isNotEmpty) 'caption': caption,
+      });
+    }
+    final saved = await _providers.updateBeforeAfters(providerId, pairs);
+    if (saved == null) return _notFound;
+    return (ok: true, error: null, data: {'beforeAfters': saved});
+  }
+
+  /// A trimmed, bounded, origin-allowlisted URL — or null if invalid (same rule
+  /// as the gallery).
+  String? _validUrl(Object? value) {
+    if (value is! String) return null;
+    final url = value.trim();
+    if (url.isEmpty || url.length > _maxUrlLength) return null;
+    if (_allowedImageOrigins.isNotEmpty &&
+        !_allowedImageOrigins.any(url.startsWith)) {
+      return null;
+    }
+    return url;
+  }
+
   // ---- staff (artists) — design: docs/design/pro-artists.md -----------------
 
   Future<CatalogResult> listArtists(String accountId, String providerId) async {

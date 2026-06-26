@@ -47,6 +47,13 @@ abstract interface class ProvidersRepository {
     List<String> imageUrls,
   );
 
+  /// Replace [providerId]'s before/after pairs (`beforeAfters`) wholesale;
+  /// returns the stored list, or null if the provider doesn't exist.
+  Future<List<Map<String, dynamic>>?> updateBeforeAfters(
+    String providerId,
+    List<Map<String, dynamic>> beforeAfters,
+  );
+
   /// Merge the deposit-policy [fields] into [providerId]'s record; returns the
   /// stored fields, or null if the provider doesn't exist. (Keys are the
   /// provider's storage names, e.g. `depositMobileMoneyOperator`.)
@@ -219,6 +226,18 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     if (p == null) return null;
     p['imageUrls'] = List<String>.from(imageUrls);
     return List<String>.from(imageUrls);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>?> updateBeforeAfters(
+    String providerId,
+    List<Map<String, dynamic>> beforeAfters,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    final stored = [for (final e in beforeAfters) Map<String, dynamic>.from(e)];
+    p['beforeAfters'] = stored;
+    return [for (final e in stored) Map<String, dynamic>.from(e)];
   }
 
   @override
