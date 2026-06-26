@@ -91,6 +91,10 @@ class AppointmentLifecycleService {
     final updated = await _appointments.update(id, {
       'appointmentDate': newDateTime.toUtc().toIso8601String(),
     });
+    // Null here means the DB rejected a concurrent overlap (exclusion guard).
+    if (updated == null) {
+      return (ok: false, error: 'slot_unavailable', appointment: null);
+    }
     return (ok: true, error: null, appointment: updated);
   }
 

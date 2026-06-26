@@ -56,6 +56,7 @@ void main() {
     String userId = 'u1',
     String providerId = 'provider1',
     String status = 'pending',
+    int durationMinutes = 30,
     required DateTime when,
   }) => {
     'id': id,
@@ -64,6 +65,7 @@ void main() {
     'serviceIds': ['service1'],
     'artistId': null,
     'appointmentDate': when.toUtc().toIso8601String(),
+    'durationMinutes': durationMinutes,
     'status': status,
     'totalPrice': 15000,
     'depositAmount': 0,
@@ -122,6 +124,105 @@ void main() {
         await repo.update('a1', {'status': 'cancelled'});
         expect(
           await repo.create(apptMap(id: 'a3', userId: 'u2', when: when)),
+          isNotNull,
+        );
+      },
+    );
+
+    test(
+      'btree_gist exclusion blocks duration overlaps (not just exact start)',
+      () async {
+        final repo = PostgresAppointmentRepository(pool);
+        final at9 = DateTime.utc(2030, 6, 25, 9);
+        // 09:00 for 120 min → occupies [09:00, 11:00).
+        expect(
+          await repo.create(apptMap(id: 'o1', when: at9, durationMinutes: 120)),
+          isNotNull,
+        );
+        // 10:00 (different start) overlaps the 09:00–11:00 booking → rejected.
+        expect(
+          await repo.create(
+            apptMap(
+              id: 'o2',
+              userId: 'u2',
+              when: DateTime.utc(2030, 6, 25, 10),
+              durationMinutes: 60,
+            ),
+          ),
+          isNull,
+        );
+        // 11:00 is back-to-back (half-open range) → allowed.
+        expect(
+          await repo.create(
+            apptMap(
+              id: 'o3',
+              userId: 'u3',
+              when: DateTime.utc(2030, 6, 25, 11),
+              durationMinutes: 60,
+            ),
+          ),
+          isNotNull,
+        );
+        // Same overlapping time at a DIFFERENT provider → allowed (per-provider).
+        expect(
+          await repo.create(
+            apptMap(
+              id: 'o4',
+              userId: 'u4',
+              providerId: 'provider2',
+              when: DateTime.utc(2030, 6, 25, 10),
+              durationMinutes: 60,
+            ),
+          ),
+          isNotNull,
+        );
+        // Cancelling o1 frees [09:00, 11:00) → a 10:00 booking now fits.
+        await repo.update('o1', {'status': 'cancelled'});
+        expect(
+          await repo.create(
+            apptMap(
+              id: 'o5',
+              userId: 'u5',
+              when: DateTime.utc(2030, 6, 25, 10),
+              durationMinutes: 60,
+            ),
+          ),
+          isNotNull,
+        );
+      },
+    );
+
+    test(
+      'reschedule update onto an overlapping slot is rejected (null)',
+      () async {
+        final repo = PostgresAppointmentRepository(pool);
+        await repo.create(
+          apptMap(
+            id: 'r1',
+            when: DateTime.utc(2030, 6, 25, 9),
+            durationMinutes: 120,
+          ),
+        );
+        await repo.create(
+          apptMap(
+            id: 'r2',
+            userId: 'u2',
+            when: DateTime.utc(2030, 6, 25, 14),
+            durationMinutes: 60,
+          ),
+        );
+        // Move r2 to 10:00 → overlaps r1's [09:00, 11:00) → null.
+        expect(
+          await repo.update('r2', {
+            'appointmentDate': DateTime.utc(2030, 6, 25, 10).toIso8601String(),
+          }),
+          isNull,
+        );
+        // A non-overlapping move (12:00) succeeds.
+        expect(
+          await repo.update('r2', {
+            'appointmentDate': DateTime.utc(2030, 6, 25, 12).toIso8601String(),
+          }),
           isNotNull,
         );
       },

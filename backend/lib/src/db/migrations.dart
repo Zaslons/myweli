@@ -246,6 +246,28 @@ CREATE TABLE IF NOT EXISTS reviews (
           "ADD COLUMN IF NOT EXISTS kyc_docs jsonb NOT NULL DEFAULT '[]'",
     ],
   ),
+  (
+    // Booking duration-overlap exclusion (T11 follow-up). The exact-start
+    // unique index only blocks identical starts; this rejects any time-range
+    // overlap per provider atomically (concurrency-safe). Range is half-open
+    // [start, start+duration) so back-to-back bookings are allowed. Buffer
+    // stays an app-level slot-engine concern.
+    id: '0009_booking_overlap_exclusion',
+    statements: [
+      'ALTER TABLE appointments '
+          'ADD COLUMN IF NOT EXISTS duration_minutes int NOT NULL DEFAULT 30',
+      'CREATE EXTENSION IF NOT EXISTS btree_gist',
+      '''
+ALTER TABLE appointments ADD CONSTRAINT appointments_no_overlap
+  EXCLUDE USING gist (
+    provider_id WITH =,
+    tstzrange(
+      appointment_date,
+      appointment_date + make_interval(mins => duration_minutes)
+    ) WITH &&
+  ) WHERE (status IN ('pending', 'confirmed'))''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
