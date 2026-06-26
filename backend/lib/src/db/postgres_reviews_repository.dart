@@ -60,7 +60,9 @@ ON CONFLICT (appointment_id) DO UPDATE SET
       },
     );
     final count = await _pool.execute(
-      Sql.named('SELECT count(*) AS n FROM reviews WHERE provider_id = @pid'),
+      Sql.named(
+        'SELECT count(*)::int AS n FROM reviews WHERE provider_id = @pid',
+      ),
       parameters: {'pid': providerId},
     );
     return (
@@ -88,7 +90,7 @@ ON CONFLICT (appointment_id) DO UPDATE SET
   Future<RatingAgg> aggregateProvider(String providerId) async {
     final rows = await _pool.execute(
       Sql.named(
-        'SELECT COALESCE(AVG(rating), 0) AS avg, COUNT(*) AS n '
+        'SELECT COALESCE(AVG(rating), 0)::float8 AS avg, COUNT(*)::int AS n '
         'FROM reviews WHERE provider_id = @pid',
       ),
       parameters: {'pid': providerId},
@@ -101,8 +103,9 @@ ON CONFLICT (appointment_id) DO UPDATE SET
   Future<Map<String, RatingAgg>> aggregateByArtist(String providerId) async {
     final rows = await _pool.execute(
       Sql.named(
-        'SELECT artist_id, AVG(rating) AS avg, COUNT(*) AS n FROM reviews '
-        'WHERE provider_id = @pid AND artist_id IS NOT NULL GROUP BY artist_id',
+        'SELECT artist_id, AVG(rating)::float8 AS avg, COUNT(*)::int AS n '
+        'FROM reviews WHERE provider_id = @pid AND artist_id IS NOT NULL '
+        'GROUP BY artist_id',
       ),
       parameters: {'pid': providerId},
     );
