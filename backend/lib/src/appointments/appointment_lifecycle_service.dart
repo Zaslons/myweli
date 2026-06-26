@@ -42,8 +42,39 @@ class AppointmentLifecycleService {
     if (_terminal.contains(appointment['status'])) {
       return (ok: false, error: 'invalid_state', appointment: null);
     }
+    return _moveTo(id, appointment, newDateTime);
+  }
 
-    // The new time must be a free slot (rejects past/closed/already-taken).
+  /// Pro-side reschedule: the **salon** moves one of its own bookings (design:
+  /// docs/design/pro-reschedule.md). Same state + slot guards as [reschedule],
+  /// but ownership is by salon — [managedProviderId] is the resolved Provider
+  /// the calling account manages (the route resolves it from the token).
+  Future<LifecycleResult> rescheduleByProvider(
+    String id,
+    String managedProviderId,
+    DateTime newDateTime,
+  ) async {
+    final appointment = await _appointments.byId(id);
+    if (appointment == null) {
+      return (ok: false, error: 'not_found', appointment: null);
+    }
+    if (appointment['providerId'] != managedProviderId) {
+      return (ok: false, error: 'forbidden', appointment: null);
+    }
+    if (_terminal.contains(appointment['status'])) {
+      return (ok: false, error: 'invalid_state', appointment: null);
+    }
+    return _moveTo(id, appointment, newDateTime);
+  }
+
+  /// Shared by both reschedule paths: the new time must be a free slot
+  /// (rejects past/closed/already-taken), then move the date only —
+  /// deposit/balance/services carry over unchanged.
+  Future<LifecycleResult> _moveTo(
+    String id,
+    Map<String, dynamic> appointment,
+    DateTime newDateTime,
+  ) async {
     final slotResult = await _slots.availableSlots(
       providerId: appointment['providerId'] as String,
       date: newDateTime,
@@ -57,7 +88,6 @@ class AppointmentLifecycleService {
       return (ok: false, error: 'slot_unavailable', appointment: null);
     }
 
-    // Deposit/balance carry over unchanged; only the date moves.
     final updated = await _appointments.update(id, {
       'appointmentDate': newDateTime.toUtc().toIso8601String(),
     });

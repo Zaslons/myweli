@@ -615,8 +615,13 @@ paths:
   /appointments/{id}/reschedule:
     post:
       tags: [appointments]
-      summary: Move the caller's appointment to a new time (B-life)
-      description: Deposit + balance carry over unchanged.
+      summary: Move an appointment to a new time (B-life; B-pro-resched)
+      description: >
+        Role-aware: a `user` reschedules their own booking; a `provider`
+        reschedules one of its own salon's bookings (ownership by the account's
+        linked providerId → 403 cross-salon/unlinked). Both re-validate the new
+        slot (→ 409 slot_unavailable for past/closed/taken). Deposit + balance
+        carry over unchanged.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
@@ -640,7 +645,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: Not in a reschedulable state
+          description: Not in a reschedulable state, or the new slot is taken
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

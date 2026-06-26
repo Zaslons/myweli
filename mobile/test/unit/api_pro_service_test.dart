@@ -407,4 +407,36 @@ void main() {
     expect(body!['clientName'], 'Awa');
     expect(body!['serviceIds'], ['service1']);
   });
+
+  test('rescheduleAppointment POSTs /appointments/{id}/reschedule → true',
+      () async {
+    Map<String, dynamic>? body;
+    final client = MockClient((req) async {
+      expect(req.method, 'POST');
+      expect(req.url.path, '/appointments/a1/reschedule');
+      body = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(jsonEncode(_apptJson(status: 'confirmed')), 200);
+    });
+    final res = await _linked(client).rescheduleAppointment(
+      'a1',
+      DateTime.utc(2030, 6, 25, 10),
+    );
+    expect(res.success, isTrue);
+    expect(res.data, isTrue);
+    expect(body!['newDateTime'], '2030-06-25T10:00:00.000Z');
+  });
+
+  test('rescheduleAppointment surfaces a conflict (slot_unavailable)',
+      () async {
+    final client = MockClient(
+      (req) async =>
+          http.Response(jsonEncode({'error': 'slot_unavailable'}), 409),
+    );
+    final res = await _linked(client).rescheduleAppointment(
+      'a1',
+      DateTime.utc(2030, 6, 25, 10),
+    );
+    expect(res.success, isFalse);
+    expect(res.code, 'slot_unavailable');
+  });
 }

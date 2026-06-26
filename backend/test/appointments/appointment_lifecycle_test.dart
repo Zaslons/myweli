@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
@@ -32,6 +33,7 @@ DateTime _slotAt(int hour) {
 void main() {
   late InMemoryAppointmentRepository appts;
   late AppointmentLifecycleService lifecycle;
+  late InMemoryProviderAuthRepository providerAuth;
   final tokens = TokenService(secret: 'test-secret');
   final accessA = tokens
       .issueAccessToken(subject: 'user_A', role: 'user')
@@ -39,14 +41,40 @@ void main() {
   final accessB = tokens
       .issueAccessToken(subject: 'user_B', role: 'user')
       .token;
+  // Provider tokens: pro1 manages provider1 (owns the seeded bookings); pro2
+  // manages provider2 (cross-salon).
+  late String proAccess1;
+  late String proAccess2;
 
-  setUp(() {
+  setUp(() async {
     final providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     lifecycle = AppointmentLifecycleService(
       appts,
       SlotService(providers, appts),
     );
+    providerAuth = InMemoryProviderAuthRepository(
+      tokens: tokens,
+      isProd: false,
+    );
+    final pro1 = await providerAuth.register(
+      phoneNumber: '+2250500000050',
+      businessName: 'Salon 1',
+      businessType: 'salon',
+      providerId: 'provider1',
+    );
+    final pro2 = await providerAuth.register(
+      phoneNumber: '+2250500000051',
+      businessName: 'Salon 2',
+      businessType: 'salon',
+      providerId: 'provider2',
+    );
+    proAccess1 = tokens
+        .issueAccessToken(subject: pro1.provider!.id, role: 'provider')
+        .token;
+    proAccess2 = tokens
+        .issueAccessToken(subject: pro2.provider!.id, role: 'provider')
+        .token;
   });
 
   Future<String> seedFor(String userId, {String status = 'pending'}) async {
@@ -111,6 +139,53 @@ void main() {
         expect(res.error, 'slot_unavailable');
       },
     );
+
+    test(
+      'rescheduleByProvider: salon ownership + state + slot guards',
+      () async {
+        final id = await seedFor('user_A'); // provider1's booking
+        final newDate = _slotAt(10);
+
+        // Owning salon moves it; deposit carries over.
+        final r = await lifecycle.rescheduleByProvider(
+          id,
+          'provider1',
+          newDate,
+        );
+        expect(r.ok, isTrue);
+        expect(r.appointment!['appointmentDate'], newDate.toIso8601String());
+        expect(r.appointment!['depositAmount'], 6000);
+
+        // Another salon cannot move it.
+        expect(
+          (await lifecycle.rescheduleByProvider(
+            id,
+            'provider2',
+            _slotAt(11),
+          )).error,
+          'forbidden',
+        );
+        // Off-grid time → slot_unavailable.
+        expect(
+          (await lifecycle.rescheduleByProvider(
+            id,
+            'provider1',
+            _slotAt(10).add(const Duration(minutes: 15)),
+          )).error,
+          'slot_unavailable',
+        );
+        // Terminal → invalid_state.
+        await lifecycle.cancel(id, 'user_A');
+        expect(
+          (await lifecycle.rescheduleByProvider(
+            id,
+            'provider1',
+            _slotAt(12),
+          )).error,
+          'invalid_state',
+        );
+      },
+    );
   });
 
   group('routes', () {
@@ -121,6 +196,9 @@ void main() {
       when(
         () => context.read<AppointmentLifecycleService>(),
       ).thenReturn(lifecycle);
+      when(
+        () => context.read<ProviderAuthRepository>(),
+      ).thenReturn(providerAuth);
       return context;
     }
 
@@ -179,6 +257,35 @@ void main() {
       );
       expect(bad.statusCode, HttpStatus.badRequest);
     });
+
+    test(
+      'reschedule (provider): owning salon → 200; cross-salon → 403',
+      () async {
+        final id = await seedFor('user_A'); // provider1's booking
+        final newDate = _slotAt(10).toIso8601String();
+
+        final owner = await reschedule_route.onRequest(
+          ctx(
+            post('/appointments/$id/reschedule', proAccess1, {
+              'newDateTime': newDate,
+            }),
+          ),
+          id,
+        );
+        expect(owner.statusCode, HttpStatus.ok);
+        expect((await owner.json() as Map)['appointmentDate'], newDate);
+
+        final cross = await reschedule_route.onRequest(
+          ctx(
+            post('/appointments/$id/reschedule', proAccess2, {
+              'newDateTime': _slotAt(11).toIso8601String(),
+            }),
+          ),
+          id,
+        );
+        expect(cross.statusCode, HttpStatus.forbidden);
+      },
+    );
 
     test('cancel on a missing appointment → 404', () async {
       final res = await cancel_route.onRequest(

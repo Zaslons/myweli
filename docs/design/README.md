@@ -23,6 +23,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Pro-side reschedule | [pro-reschedule.md](pro-reschedule.md) | Built |
 | Provider earnings detail | [provider-earnings.md](provider-earnings.md) | Built |
 | Pro manual (walk-in/phone) booking | [pro-manual-booking.md](pro-manual-booking.md) | Built |
 | Provider dashboard stats | [provider-dashboard-stats.md](provider-dashboard-stats.md) | Built |
