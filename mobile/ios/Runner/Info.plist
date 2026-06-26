@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Myweli utilise l’appareil photo pour ajouter des photos à la galerie de votre salon.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Myweli accède à vos photos pour ajouter des images à la galerie de votre salon.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
