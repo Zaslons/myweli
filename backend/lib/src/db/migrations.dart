@@ -331,6 +331,17 @@ CREATE TABLE review_reports (
           "ON review_reports(review_id) WHERE status = 'open'",
     ],
   ),
+  (
+    id: '0012_provider_mgmt',
+    statements: [
+      // Admin marketplace management: suspend (hide from discovery + block new
+      // bookings) and feature (homepage placement). Real columns so discovery
+      // can filter/order on them (the rest of the provider lives in `data`).
+      "ALTER TABLE providers ADD COLUMN status text NOT NULL DEFAULT 'active'",
+      'ALTER TABLE providers '
+          'ADD COLUMN featured boolean NOT NULL DEFAULT false',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

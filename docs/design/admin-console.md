@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slice 1 **Built** — A1 (foundation + KYC) + A2 (review moderation) · Slice 2 next |
+| **Status** | Slice 1 **Built** · Slice 2 A3 (provider mgmt + featured) **Built** · A3b (user) + A4 (disputes) next — see §12 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | §11.4 (FR-WEB-AD-001…008), §16 trust & safety, §17 analytics, §18 compliance · V1 basic → V2 full |
@@ -26,6 +26,7 @@ Stand up Myweli's **internal admin/ops capability** — the back-office the Mywe
 
 ### Out of scope (later slices — recorded so the full plan is captured)
 - **Slice 2:** provider/user **suspend/ban**, **audited impersonation** (FR-WEB-AD-002); **dispute records** (FR-WEB-AD-003, no money movement); **featured placement** (FR-WEB-AD-005).
+- **Slice 2 (now — specced in §12):** provider/user **management** (suspend/ban), **read-only support views**, **featured placement** (FR-WEB-AD-002/005), and admin **dispute records** (FR-WEB-AD-003).
 - **Slice 3:** **marketplace-health analytics** read models (FR-WEB-AD-006) — North Star (paid completions/week by commune), supply/demand funnels, guardrails (no-show, dispute rate).
 - **Slice 4+:** anti-fraud signals (§16: off-platform leakage, no-show fairness, promo abuse); full product-analytics stack (PostHog/Firebase); **compliance tooling** (ARTCI data export/delete, FR-AUTH-005); admin **sub-roles** (super-admin/moderator/support); the **console UI**.
 
@@ -105,3 +106,42 @@ Errors: standard envelope (400/401/403/404/409/422/429). Non-admin token on `/ad
 
 ## 11. Open questions
 _None open._
+
+---
+
+## 12. Slice 2 — Marketplace management, disputes & featured
+
+| | |
+|---|---|
+| **Status** | A3 (management + featured) **Approved — building** · A4 (disputes) next |
+| **PRD** | FR-WEB-AD-002 (provider/user mgmt, suspend/ban, support views), FR-WEB-AD-005 (featured), FR-WEB-AD-003 (disputes) |
+
+### 12.1 Decisions (signed off)
+1. **Read-only admin support views** — no act-as token; admins view any user/provider + their bookings (+ dispute evidence). True impersonation deferred to when the console UI exists. ✓
+2. **Provider suspend** = hidden from discovery + new bookings blocked; **login still works** (manage existing). **Consumer ban** = stricter: login blocked + booking blocked. ✓
+3. **Disputes = admin-created case records** on a booking (reason + evidence + resolution + consequence); **no money moves** (no-custody) — resolution is advisory + consequence. No consumer-initiated endpoint yet (gated on app UI). ✓
+4. **PR split:** A3 (**provider** suspend/restore + featured + provider support views + discovery/booking enforcement) → A3b (**user** ban + login enforcement + user support views) → A4 (disputes). Kept small/correct given the provider jsonb `data` model. ✓
+
+### 12.2 Data model (migration `0012_marketplace_mgmt`)
+- `providers` += `status text not null default 'active'` (active|suspended), `featured boolean not null default false`.
+- `users` += `status text not null default 'active'` (active|banned).
+- (A4) `disputes` table — `id, appointment_id REFERENCES appointments, opened_by text (admin), status (open|resolved), reason, resolution, created_at, resolved_by, resolved_at`.
+
+### 12.3 Endpoints (A3)
+- `GET /admin/providers?status=&q=&page=&pageSize=` · `GET /admin/providers/{id}` (provider + recent bookings) — support views.
+- `GET /admin/users?status=&q=&page=&pageSize=` · `GET /admin/users/{id}` (user + their bookings).
+- `POST /admin/providers/{id}/suspend` `{reason}` · `/restore` — audited.
+- `POST /admin/users/{id}/ban` `{reason}` · `/unban` — audited.
+- `POST /admin/providers/{id}/feature` `{featured: bool}` — audited.
+- **(A4)** `POST /admin/disputes` `{appointmentId, reason}` · `GET /admin/disputes?status=` · `GET /admin/disputes/{id}` · `POST /admin/disputes/{id}/resolve` `{resolution}` — audited; admin gains read access to the deposit screenshot (extend `DepositService.screenshotUrl` to authorize `role=admin`).
+
+### 12.4 Enforcement
+- **Discovery** (`ProvidersRepository.query`) excludes `status='suspended'` and orders **featured first**. `featured` is exposed in the provider DTO; `status` is admin-only.
+- **Booking** (`BookingService`) rejects when the provider is `suspended` or the user is `banned` (`provider_suspended` / `account_suspended` → 403/409).
+- **Consumer login** (`verifyOtp`) rejects a `banned` user.
+
+### 12.5 Security (extends T17)
+All under `/admin/*` (role=admin, deny-by-default); every mutation audited with actor + reason. Suspend/ban/feature are server-owned status transitions (reversible, logged). Support views are **read-only** (no act-as). Disputes never move money. Update **T17** (management + disputes added) and note booking/discovery now honor account status.
+
+### 12.6 Tests
+Admin: list/filter + detail (with bookings); suspend → excluded from discovery + booking blocked (login still works); ban → login + booking blocked; feature → featured-first ordering; each mutation writes one audit row; non-admin → 403. Booking/discovery enforcement unit tests. (A4) dispute open/list/resolve + audit + admin screenshot access. DB-gated migration tests.

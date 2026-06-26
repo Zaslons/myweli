@@ -29,7 +29,8 @@ class PostgresProvidersRepository implements ProvidersRepository {
     String? commune,
     String? category,
   }) async {
-    final conditions = <String>[];
+    // Discovery hides suspended providers and surfaces featured ones first.
+    final conditions = <String>["status <> 'suspended'"];
     final parameters = <String, Object?>{};
     if (category != null && category.isNotEmpty) {
       conditions.add('category = @category');
@@ -45,12 +46,15 @@ class PostgresProvidersRepository implements ProvidersRepository {
       );
       parameters['q'] = '%$q%';
     }
-    final where = conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
+    final where = 'WHERE ${conditions.join(' AND ')}';
     final rows = await _pool.execute(
-      Sql.named('SELECT data FROM providers $where ORDER BY rating DESC'),
+      Sql.named(
+        'SELECT data, featured, status FROM providers $where '
+        'ORDER BY featured DESC, rating DESC',
+      ),
       parameters: parameters,
     );
-    final docs = rows.map(_data).toList();
+    final docs = rows.map(_withFlags).toList();
     if (docs.isEmpty) return docs;
 
     final ids = [for (final d in docs) d['id'] as String];
@@ -67,11 +71,11 @@ class PostgresProvidersRepository implements ProvidersRepository {
   @override
   Future<Map<String, dynamic>?> byId(String id) async {
     final result = await _pool.execute(
-      Sql.named('SELECT data FROM providers WHERE id = @id'),
+      Sql.named('SELECT data, featured, status FROM providers WHERE id = @id'),
       parameters: {'id': id},
     );
     if (result.isEmpty) return null;
-    final doc = _data(result.first);
+    final doc = _withFlags(result.first);
     final services = await _servicesByProvider([id]);
     final availability = await _availabilityByProvider([id]);
     doc['services'] = services[id] ?? const <Map<String, dynamic>>[];
@@ -496,5 +500,77 @@ class PostgresProvidersRepository implements ProvidersRepository {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  /// The provider `data` doc with the real `featured`/`status` columns merged in.
+  Map<String, dynamic> _withFlags(ResultRow row) {
+    final doc = _data(row);
+    final m = row.toColumnMap();
+    doc['featured'] = m['featured'] ?? false;
+    doc['status'] = m['status'] ?? 'active';
+    return doc;
+  }
+
   Object? _json(Object? v) => v is String ? jsonDecode(v) : v;
+
+  @override
+  Future<Map<String, dynamic>?> setStatus(
+    String providerId,
+    String status,
+  ) async {
+    final r = await _pool.execute(
+      Sql.named('UPDATE providers SET status = @s WHERE id = @id RETURNING id'),
+      parameters: {'id': providerId, 's': status},
+    );
+    if (r.isEmpty) return null;
+    return byId(providerId);
+  }
+
+  @override
+  Future<Map<String, dynamic>?> setFeatured(
+    String providerId,
+    bool featured,
+  ) async {
+    final r = await _pool.execute(
+      Sql.named(
+        'UPDATE providers SET featured = @f WHERE id = @id RETURNING id',
+      ),
+      parameters: {'id': providerId, 'f': featured},
+    );
+    if (r.isEmpty) return null;
+    return byId(providerId);
+  }
+
+  @override
+  Future<({List<Map<String, dynamic>> items, int total})> listForAdmin({
+    String? status,
+    String? q,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final conditions = <String>[];
+    final params = <String, Object?>{};
+    if (status != null && status.isNotEmpty) {
+      conditions.add('status = @status');
+      params['status'] = status;
+    }
+    if (q != null && q.isNotEmpty) {
+      conditions.add('(name ILIKE @q OR address ILIKE @q)');
+      params['q'] = '%$q%';
+    }
+    final where = conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
+    final count = await _pool.execute(
+      Sql.named('SELECT COUNT(*)::int AS n FROM providers $where'),
+      parameters: params,
+    );
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT data, featured, status FROM providers $where '
+        'ORDER BY rating DESC LIMIT @ps OFFSET @off',
+      ),
+      parameters: {...params, 'ps': pageSize, 'off': (page - 1) * pageSize},
+    );
+    return (
+      items: rows.map(_withFlags).toList(),
+      total: count.first.toColumnMap()['n'] as int,
+    );
+  }
 }

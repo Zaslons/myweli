@@ -67,6 +67,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
     final status = switch (result.error) {
       'provider_not_found' => HttpStatus.notFound,
       'slot_unavailable' => HttpStatus.conflict,
+      'provider_suspended' => HttpStatus.conflict,
       _ => HttpStatus.badRequest,
     };
     return jsonError(status, result.error!);

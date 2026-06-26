@@ -41,6 +41,9 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
+    if (provider['status'] == 'suspended') {
+      return (ok: false, error: 'provider_suspended', appointment: null);
+    }
 
     final services = (provider['services'] as List)
         .cast<Map<String, dynamic>>();
@@ -135,6 +138,9 @@ class BookingService {
     final provider = await _providers.byId(providerId);
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
+    }
+    if (provider['status'] == 'suspended') {
+      return (ok: false, error: 'provider_suspended', appointment: null);
     }
 
     final services = (provider['services'] as List)
