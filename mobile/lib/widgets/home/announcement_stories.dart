@@ -18,9 +18,8 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
   StorySeenService? _seenService;
   Set<String> _seenIds = <String>{};
 
-  // Subtle but lively on a black/white UI: warm gold → soft rose.
-  static const Color _ringA = Color(0xFFFFB800);
-  static const Color _ringB = Color(0xFFFF4D8D);
+  // On-brand "unseen" ring: a single warm gold (reuses AppColors.starRating);
+  // seen → neutral border. See docs/design/DESIGN-STANDARDS.md §7.
   static const double _ringWidth = 2.5;
 
   @override
@@ -130,20 +129,11 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
                   decoration: BoxDecoration(
                     borderRadius: outerRadius,
                     boxShadow: AppTheme.elevation1,
-                    // Unseen: gradient ring. Seen: neutral “empty” ring.
-                    gradient: isSeen
-                        ? null
-                        : const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [_ringA, _ringB],
-                          ),
-                    border: isSeen
-                        ? Border.all(
-                            color: AppColors.border,
-                            width: _ringWidth,
-                          )
-                        : null,
+                    // Unseen: gold ring. Seen: neutral “empty” ring.
+                    border: Border.all(
+                      color: isSeen ? AppColors.border : AppColors.starRating,
+                      width: _ringWidth,
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(_ringWidth),

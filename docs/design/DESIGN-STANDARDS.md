@@ -62,8 +62,21 @@ screens — appointment **status** colors now go through `appointmentStatusColor
 `AppColors.starRating`; **favorite** hearts → `AppColors.favorite`; the snackbar
 error → `AppColors.error`. (~37 live `Colors.<named>` → tokens.)
 
+**Sanctioned exceptions (deliberate, bounded — not debt; decided 2026-06-26):**
+- **Service-category accents** — color *does* aid wayfinding on the map + category
+  chips, so a small **muted/earthy** palette is allowed as an explicit exception to
+  monochrome: `AppColors.categorySpa` (sage `#5B6B4F`), `categoryBarber` (taupe
+  `#6D5A4C`), `categorySalon` (slate `#4F5B6B`), unknown → `primary`. **Always via
+  `categoryColor()`** (`core/utils/category_colors.dart`) — never an inline hex; one
+  source, used by `map_screen` + `highlight_stories`. Adding a category = add a token
+  + a switch arm here.
+- **"Unseen" story ring** — single warm gold `AppColors.starRating` (seen → neutral
+  `AppColors.border`); the old gold→pink gradient is retired.
+- **Map-marker semantics** — now tokens: rating star → `starRating`, favorite →
+  `favorite`, "you are here" dot → `info` (white outline kept for contrast).
+- **Story scrims** (`story_viewer` / `announcement_stories` black→transparent
+  gradient) — neutral readability overlays; **acceptable** literal (alpha black).
+
 **Remaining (separate follow-ups):**
-- **Category / marker palette** — `map_screen` markers + category hex, `highlight_stories` category hex, `announcement_stories` rings. These are intentional *non-monochrome* accents → need a **deliberate category-palette decision** (define named `AppColors` category tokens or accept as a documented exception), not a blind swap. Until then they stay as-is.
-- **Story scrims** (`story_viewer` `Color(0x99000000)` black gradient) — neutral overlays; **acceptable** literal.
 - **~39 in deferred V2/V3 `screens/provider/features/*`** (flag-hidden `ComingSoon`) — fix if/when un-shelved.
 - A few inline `fontSize:` / `TextStyle(` (OTP digit fields, `provider_detail`) — minor; fold into the next pass.
