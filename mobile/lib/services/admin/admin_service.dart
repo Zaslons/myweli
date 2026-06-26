@@ -105,7 +105,56 @@ class AdminService {
   Future<ApiResponse<Map<String, dynamic>>> restoreReview(String reviewId) =>
       _post('/admin/reviews/$reviewId/restore');
 
+  // --- provider management ---------------------------------------------------
+  Future<ApiResponse<Map<String, dynamic>>> providers({
+    String? status,
+    String? q,
+    int page = 1,
+  }) {
+    final params = <String, String>{'page': '$page', 'pageSize': '50'};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
+    return _get('/admin/providers?${_query(params)}');
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> suspendProvider(
+    String id,
+    String reason,
+  ) =>
+      _post('/admin/providers/$id/suspend', body: {'reason': reason});
+
+  Future<ApiResponse<Map<String, dynamic>>> restoreProvider(String id) =>
+      _post('/admin/providers/$id/restore');
+
+  Future<ApiResponse<Map<String, dynamic>>> featureProvider(
+    String id,
+    bool featured,
+  ) =>
+      _post('/admin/providers/$id/feature', body: {'featured': featured});
+
+  // --- consumer management ---------------------------------------------------
+  Future<ApiResponse<Map<String, dynamic>>> users({
+    String? status,
+    String? q,
+    int page = 1,
+  }) {
+    final params = <String, String>{'page': '$page', 'pageSize': '50'};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
+    return _get('/admin/users?${_query(params)}');
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> banUser(String id, String reason) =>
+      _post('/admin/users/$id/ban', body: {'reason': reason});
+
+  Future<ApiResponse<Map<String, dynamic>>> unbanUser(String id) =>
+      _post('/admin/users/$id/unban');
+
   // ---- helpers --------------------------------------------------------------
+
+  String _query(Map<String, String> params) => params.entries
+      .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+      .join('&');
 
   Future<ApiResponse<Map<String, dynamic>>> _get(String path) async {
     final res = await _authed.send(

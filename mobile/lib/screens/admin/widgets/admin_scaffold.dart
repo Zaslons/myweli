@@ -30,6 +30,10 @@ const _groups = [
     _NavItem('/admin/kyc', Icons.verified_user_outlined, 'KYC'),
     _NavItem('/admin/reviews', Icons.flag_outlined, 'Avis'),
   ]),
+  _NavGroup('Marché', [
+    _NavItem('/admin/providers', Icons.storefront_outlined, 'Salons'),
+    _NavItem('/admin/users', Icons.people_outline, 'Clients'),
+  ]),
 ];
 
 /// The admin console frame: a grouped sidebar + a top bar with the page [title]
