@@ -32,6 +32,11 @@ abstract interface class AppointmentRepository {
   /// Admin analytics: a count of appointments per `status`
   /// (`pending`/`confirmed`/`completed`/`cancelled`/`noShow`).
   Future<Map<String, int>> countsByStatus();
+
+  /// Admin analytics (North Star): completed appointments with
+  /// `appointment_date >= from`, as `{providerId, appointmentDate}` — the
+  /// caller buckets by week + resolves the provider's commune.
+  Future<List<Map<String, dynamic>>> completedForAnalytics(DateTime from);
 }
 
 class InMemoryAppointmentRepository implements AppointmentRepository {
@@ -45,6 +50,23 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
       counts[s] = (counts[s] ?? 0) + 1;
     }
     return counts;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> completedForAnalytics(
+    DateTime from,
+  ) async {
+    return [
+      for (final a in _all)
+        if (a['status'] == 'completed' &&
+            !DateTime.parse(
+              a['appointmentDate'] as String,
+            ).toUtc().isBefore(from))
+          {
+            'providerId': a['providerId'],
+            'appointmentDate': a['appointmentDate'],
+          },
+    ];
   }
 
   @override

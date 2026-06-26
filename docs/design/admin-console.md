@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Slices 1–2 **Built** · Slice 3 A5 (analytics overview) **Built** · A5b (North-Star by commune) next — see §13 |
+| **Status** | Slices 1–3 **Built** (admin foundation · KYC · moderation · mgmt · disputes · analytics). Slice 4+ (anti-fraud · compliance · sub-roles · console UI) remains. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-06-26 |
 | **PRD ref / phase** | §11.4 (FR-WEB-AD-001…008), §16 trust & safety, §17 analytics, §18 compliance · V1 basic → V2 full |
@@ -147,13 +147,13 @@ All under `/admin/*` (role=admin, deny-by-default); every mutation audited with 
 
 | | |
 |---|---|
-| **Status** | A5 (overview KPIs) **Built** · A5b (North-Star by commune) next |
+| **Status** | **Built** — A5 (overview KPIs) · A5b (North Star by commune) |
 | **PRD** | FR-WEB-AD-006, §17. DB-derived only — the event-based funnels (search→book) need a product-analytics stack (Slice 4). |
 
 - **`GET /admin/analytics/overview`** — a KPI snapshot (read-only, role=admin): users (active/banned), providers (active/suspended), provider verification (pending/verified/rejected), bookings **by status**, **no-show rate** + **cancellation rate**, open/total **disputes**, **reported reviews** count.
 - **`AnalyticsService`** composes existing repo `.total`s (listUsers / listForAdmin / listByVerificationStatus / disputes.list / listReportedReviews) + one new `AppointmentRepository.countsByStatus()` (InMemory iterate · Postgres `GROUP BY status`). No new table; on-the-fly aggregates (fine at V1 volume).
 - Read-only → no new mutations to audit; still behind the `/admin/*` guard.
-- **Deferred to A5b:** North Star (completed/week × commune — needs the appointment↔provider commune join + weekly bucketing).
+- **`GET /admin/analytics/north-star?weeks=12`** (A5b — built) — completed bookings per ISO week (Monday start) × commune. `AppointmentRepository.completedForAnalytics(from)` returns completed bookings since the window start; the service buckets by week **in Dart** (so both backends agree) and resolves commune from `providers.listForAdmin`. Output: `{weeks, fromWeek, totalCompleted, series:[{week, commune, completed}]}`.
 
 ## 12.6 Tests
 Admin: list/filter + detail (with bookings); suspend → excluded from discovery + booking blocked (login still works); ban → login + booking blocked; feature → featured-first ordering; each mutation writes one audit row; non-admin → 403. Booking/discovery enforcement unit tests. (A4) dispute open/list/resolve + audit + admin screenshot access. DB-gated migration tests.

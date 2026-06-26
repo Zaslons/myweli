@@ -91,4 +91,59 @@ class AnalyticsService {
       },
     );
   }
+
+  /// North Star (FR-WEB-AD-006 / §17): completed bookings per ISO week ×
+  /// commune over the last [weeks]. Weeks are bucketed in Dart (Monday start)
+  /// so both repo backends agree.
+  Future<AdminResult> northStar({int weeks = 12}) async {
+    final w = weeks.clamp(1, 52);
+    final from = _weekStart(
+      DateTime.now().toUtc(),
+    ).subtract(Duration(days: (w - 1) * 7));
+    final completed = await _appointments.completedForAnalytics(from);
+
+    // id → commune (one pull; V1 provider counts are small).
+    final provs = await _providers.listForAdmin(pageSize: 100000);
+    final commune = {
+      for (final p in provs.items)
+        p['id'] as String: (p['commune'] as String?) ?? 'unknown',
+    };
+
+    final counts = <String, Map<String, int>>{}; // week → commune → n
+    for (final a in completed) {
+      final week = _fmt(
+        _weekStart(DateTime.parse(a['appointmentDate'] as String).toUtc()),
+      );
+      final c = commune[a['providerId']] ?? 'unknown';
+      (counts[week] ??= {})[c] = ((counts[week]?[c]) ?? 0) + 1;
+    }
+
+    final series = [
+      for (final week in counts.keys.toList()..sort())
+        for (final c in counts[week]!.keys.toList()..sort())
+          {'week': week, 'commune': c, 'completed': counts[week]![c]},
+    ];
+
+    return (
+      ok: true,
+      error: null,
+      data: {
+        'weeks': w,
+        'fromWeek': _fmt(from),
+        'totalCompleted': completed.length,
+        'series': series,
+      },
+    );
+  }
+
+  /// Monday 00:00 UTC of the week containing [d].
+  static DateTime _weekStart(DateTime d) {
+    final day = DateTime.utc(d.year, d.month, d.day);
+    return day.subtract(Duration(days: day.weekday - 1));
+  }
+
+  static String _fmt(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 }

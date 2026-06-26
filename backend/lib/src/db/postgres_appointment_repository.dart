@@ -188,4 +188,26 @@ class PostgresAppointmentRepository implements AppointmentRepository {
         (r.toColumnMap()['status'] as String): r.toColumnMap()['n'] as int,
     };
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> completedForAnalytics(
+    DateTime from,
+  ) async {
+    final rows = await _pool.execute(
+      Sql.named(
+        "SELECT provider_id, appointment_date FROM appointments "
+        "WHERE status = 'completed' AND appointment_date >= @from",
+      ),
+      parameters: {'from': from.toUtc()},
+    );
+    return [
+      for (final r in rows)
+        {
+          'providerId': r.toColumnMap()['provider_id'],
+          'appointmentDate': (r.toColumnMap()['appointment_date'] as DateTime)
+              .toUtc()
+              .toIso8601String(),
+        },
+    ];
+  }
 }
