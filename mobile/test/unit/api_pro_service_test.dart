@@ -355,4 +355,26 @@ void main() {
     expect(res.success, isFalse);
     expect(res.code, 'forbidden');
   });
+
+  test('createManualBooking POSTs /providers/{id}/appointments → Appointment',
+      () async {
+    Map<String, dynamic>? body;
+    final client = MockClient((req) async {
+      expect(req.method, 'POST');
+      expect(req.url.path, '/providers/provider1/appointments');
+      body = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(jsonEncode(_apptJson(status: 'confirmed')), 201);
+    });
+    final res = await _linked(client).createManualBooking(
+      providerId: 'provider1',
+      serviceIds: ['service1'],
+      appointmentDateTime: DateTime.utc(2030, 6, 25, 9),
+      clientName: 'Awa',
+      clientPhone: '+2250700000000',
+    );
+    expect(res.success, isTrue);
+    expect(res.data!.status, AppointmentStatus.confirmed);
+    expect(body!['clientName'], 'Awa');
+    expect(body!['serviceIds'], ['service1']);
+  });
 }

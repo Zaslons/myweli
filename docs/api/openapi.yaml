@@ -427,6 +427,54 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /providers/{id}/appointments:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [providers]
+      summary: Salon-entered (walk-in / phone) booking (B-manual)
+      description: >
+        A booking the salon enters itself for a client with no app account —
+        walk-in, after-the-fact, or a future phone booking. Provider-only and
+        ownership-scoped. Server-priced; created `confirmed` with no online
+        deposit (`userId` = `"manual"`). No slot-engine validation (the salon
+        owns its calendar); the exact-start unique index still guards
+        double-booking (409). `sendSmsInvite` is accepted but a no-op until the
+        notifications slice.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceIds, appointmentDateTime]
+              properties:
+                serviceIds:
+                  type: array
+                  items: { type: string }
+                appointmentDateTime: { type: string, format: date-time }
+                artistId: { type: string }
+                clientName: { type: string }
+                clientPhone: { type: string, description: E.164 if provided. }
+                notes: { type: string }
+                sendSmsInvite: { type: boolean }
+      responses:
+        '201':
+          description: The created (confirmed) appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Exact-start slot already booked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /appointments:
     get:
       tags: [appointments]
