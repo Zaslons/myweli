@@ -18,9 +18,10 @@ import 'refreshing_http_client.dart';
 /// supports today: the **provider appointment surface** (list + accept / reject
 /// / complete / no-show + **manual booking** + **reschedule**), the
 /// **catalogue** (services CRUD + enable/disable, availability read/replace),
-/// the **dashboard** stats, and the **earnings** ledger. Designs:
-/// docs/design/pro-catalogue-app-wiring.md, provider-dashboard-stats.md,
-/// pro-manual-booking.md, provider-earnings.md, pro-reschedule.md.
+/// the **dashboard** stats, the **earnings** ledger, and the **gallery** URL
+/// list. Designs: docs/design/pro-catalogue-app-wiring.md,
+/// provider-dashboard-stats.md, pro-manual-booking.md, provider-earnings.md,
+/// pro-reschedule.md, pro-gallery.md.
 ///
 /// Authenticated calls go through [RefreshingHttpClient] pointed at the
 /// **provider** session (its own secure key) and `/auth/provider/refresh`, so a
@@ -30,9 +31,9 @@ import 'refreshing_http_client.dart';
 /// (or — for the serviceId-only edits — read it from the session), with
 /// ownership re-checked server-side.
 ///
-/// Still without a backend (gallery photos, deposit policy) → delegated to an
-/// embedded [MockProService], so the pro app keeps working. Wired in by DI only
-/// when `AppConfig.useApiBackend` is true.
+/// Still without a backend (deposit policy) → delegated to an embedded
+/// [MockProService], so the pro app keeps working. Wired in by DI only when
+/// `AppConfig.useApiBackend` is true.
 class ApiProService implements ProServiceInterface {
   ApiProService({
     http.Client? client,
@@ -314,15 +315,46 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId) =>
-      _fallback.getGalleryPhotos(providerId);
+  Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/providers/$providerId/gallery'),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(_imageUrlsFrom(res.body));
+  }
 
   @override
   Future<ApiResponse<List<String>>> updateGalleryPhotos(
     String providerId,
     List<String> imageUrls,
-  ) =>
-      _fallback.updateGalleryPhotos(providerId, imageUrls);
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((t) => _client.put(
+          _uri('/providers/$providerId/gallery'),
+          headers: _bearer(t),
+          body: jsonEncode({'imageUrls': imageUrls}),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(
+      _imageUrlsFrom(res.body),
+      message: 'Galerie mise à jour',
+    );
+  }
+
+  List<String> _imageUrlsFrom(String body) =>
+      ((_decode(body)['imageUrls'] as List?) ?? const [])
+          .map((e) => e as String)
+          .toList();
 
   @override
   Future<ApiResponse<Availability>> getProviderAvailability(

@@ -439,4 +439,40 @@ void main() {
     expect(res.success, isFalse);
     expect(res.code, 'slot_unavailable');
   });
+
+  test('getGalleryPhotos GETs /providers/{id}/gallery → imageUrls', () async {
+    final client = MockClient((req) async {
+      expect(req.method, 'GET');
+      expect(req.url.path, '/providers/provider1/gallery');
+      return http.Response(
+        jsonEncode({
+          'imageUrls': ['https://cdn/a.jpg', 'https://cdn/b.jpg']
+        }),
+        200,
+      );
+    });
+    final res = await _linked(client).getGalleryPhotos('provider1');
+    expect(res.success, isTrue);
+    expect(res.data, ['https://cdn/a.jpg', 'https://cdn/b.jpg']);
+  });
+
+  test('updateGalleryPhotos PUTs {imageUrls} → parsed list', () async {
+    Map<String, dynamic>? body;
+    final client = MockClient((req) async {
+      expect(req.method, 'PUT');
+      expect(req.url.path, '/providers/provider1/gallery');
+      body = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(
+        jsonEncode({
+          'imageUrls': ['https://cdn/x.jpg']
+        }),
+        200,
+      );
+    });
+    final res = await _linked(client)
+        .updateGalleryPhotos('provider1', ['https://cdn/x.jpg']);
+    expect(res.success, isTrue);
+    expect(res.data, ['https://cdn/x.jpg']);
+    expect(body!['imageUrls'], ['https://cdn/x.jpg']);
+  });
 }

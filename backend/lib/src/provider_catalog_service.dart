@@ -134,6 +134,48 @@ class ProviderCatalogService {
     return (ok: true, error: null, data: saved);
   }
 
+  /// The salon's gallery (`imageUrls`). Design: docs/design/pro-gallery.md.
+  Future<CatalogResult> gallery(String accountId, String providerId) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final provider = await _providers.byId(providerId);
+    if (provider == null) return _notFound;
+    return (
+      ok: true,
+      error: null,
+      data: {'imageUrls': provider['imageUrls'] ?? const <String>[]},
+    );
+  }
+
+  /// Replace the gallery wholesale with a validated, bounded list of URLs (the
+  /// byte upload happens out of band via the image pipeline; see the spec).
+  Future<CatalogResult> updateGallery(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final raw = body['imageUrls'];
+    if (raw is! List) return (ok: false, error: 'invalid_input', data: null);
+    if (raw.length > _maxGalleryPhotos) {
+      return (ok: false, error: 'invalid_input', data: null);
+    }
+    final urls = <String>[];
+    for (final e in raw) {
+      if (e is! String) return (ok: false, error: 'invalid_input', data: null);
+      final url = e.trim();
+      if (url.isEmpty || url.length > _maxUrlLength) {
+        return (ok: false, error: 'invalid_input', data: null);
+      }
+      urls.add(url);
+    }
+    final saved = await _providers.updateGallery(providerId, urls);
+    if (saved == null) return _notFound;
+    return (ok: true, error: null, data: {'imageUrls': saved});
+  }
+
+  static const _maxGalleryPhotos = 20;
+  static const _maxUrlLength = 2048;
+
   /// Ownership: the account behind the token must be linked to [providerId].
   Future<bool> _owns(String accountId, String providerId) async {
     final account = await _providerAuth.accountById(accountId);

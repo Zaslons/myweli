@@ -342,6 +342,20 @@ void main() {
       expect((avail['weeklySchedule'] as Map)['0'], isNotEmpty);
       expect((avail['blockedDates'] as List).length, 1);
     });
+
+    test('updateGallery persists into data and survives re-read', () async {
+      final repo = PostgresProvidersRepository(pool);
+      final saved = await repo.updateGallery('provider3', [
+        'https://cdn/p3-a.jpg',
+        'https://cdn/p3-b.jpg',
+      ]);
+      expect(saved, ['https://cdn/p3-a.jpg', 'https://cdn/p3-b.jpg']);
+
+      final urls = (await repo.byId('provider3'))!['imageUrls'] as List;
+      expect(urls, ['https://cdn/p3-a.jpg', 'https://cdn/p3-b.jpg']);
+
+      expect(await repo.updateGallery('nope', const []), isNull);
+    });
   });
 
   group('PostgresAuthRepository', () {

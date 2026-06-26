@@ -406,6 +406,47 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /providers/{id}/gallery:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: Read a salon's gallery photo URLs (B-gallery, provider-owned)
+      description: >
+        Provider-authenticated and ownership-scoped (→ 403). Image bytes are
+        uploaded out of band to object storage; only URLs pass through the API.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The salon's gallery
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Gallery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [providers]
+      summary: Replace a salon's gallery wholesale (B-gallery)
+      description: >
+        Validated: a list of non-empty URL strings, at most 20, each ≤ 2048
+        chars. Server stores exactly what's sent.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Gallery' }
+      responses:
+        '200':
+          description: The stored gallery
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Gallery' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /providers/{id}/dashboard:
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
@@ -1015,6 +1056,16 @@ components:
         weekRevenue: { type: number, description: Same, Monday-based week. }
         monthRevenue: { type: number, description: Same, calendar month. }
         totalAppointments: { type: integer, description: All-time, any status. }
+
+    Gallery:
+      type: object
+      required: [imageUrls]
+      properties:
+        imageUrls:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 2048 }
+          description: Ordered list of hosted photo URLs (bytes live in storage).
 
     EarningsData:
       type: object
