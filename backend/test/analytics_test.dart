@@ -70,4 +70,64 @@ void main() {
 
     expect((data['disputes'] as Map)['open'], 1);
   });
+
+  test('northStar buckets completed bookings by week × commune', () async {
+    final appts = InMemoryAppointmentRepository();
+    final providers = InMemoryProvidersRepository();
+    final auth = InMemoryAuthRepository(tokens: tokens, isProd: false);
+    final providerAuth = InMemoryProviderAuthRepository(
+      tokens: tokens,
+      isProd: false,
+    );
+    final disputes = InMemoryDisputesRepository();
+    final reviews = InMemoryReviewsRepository();
+
+    // provider1 = Cocody, provider3 = Yopougon (from the seed). Two completed
+    // in the same recent week for provider1, one for provider3.
+    final base = DateTime.now().toUtc().subtract(const Duration(days: 2));
+    Future<void> done(String id, String providerId) => appts.create({
+      'id': id,
+      'userId': 'u1',
+      'providerId': providerId,
+      'serviceIds': ['s1'],
+      'appointmentDate': base.toIso8601String(),
+      'status': 'completed',
+      'totalPrice': 10000,
+      'createdAt': base.toIso8601String(),
+    });
+    await done('a1', 'provider1');
+    await done('a2', 'provider1');
+    await done('a3', 'provider3');
+    // An old completed booking (outside the window) is excluded.
+    await appts.create({
+      'id': 'old',
+      'userId': 'u1',
+      'providerId': 'provider1',
+      'serviceIds': ['s1'],
+      'appointmentDate': DateTime.now()
+          .toUtc()
+          .subtract(const Duration(days: 400))
+          .toIso8601String(),
+      'status': 'completed',
+      'totalPrice': 10000,
+      'createdAt': base.toIso8601String(),
+    });
+
+    final svc = AnalyticsService(
+      appts,
+      providers,
+      auth,
+      providerAuth,
+      disputes,
+      reviews,
+    );
+    final data = (await svc.northStar(weeks: 4)).data! as Map;
+
+    expect(data['totalCompleted'], 3); // the 400-days-old one is excluded
+    final series = (data['series'] as List).cast<Map<String, dynamic>>();
+    final cocody = series.firstWhere((e) => e['commune'] == 'Cocody');
+    final yop = series.firstWhere((e) => e['commune'] == 'Yopougon');
+    expect(cocody['completed'], 2);
+    expect(yop['completed'], 1);
+  });
 }
