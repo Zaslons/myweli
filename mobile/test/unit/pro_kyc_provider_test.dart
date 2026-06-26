@@ -24,6 +24,12 @@ void main() {
       (_) async => ApiResponse.success(
           const KycStatus(status: VerificationStatus.pending)),
     );
+    when(
+      () => service.uploadDocument(
+        source: any(named: 'source'),
+        contentType: any(named: 'contentType'),
+      ),
+    ).thenAnswer((_) async => ApiResponse.success('kyc/acc1/x.jpg'));
   });
 
   test('load populates status, reason and documents', () async {
@@ -56,14 +62,18 @@ void main() {
     await p.load('p1');
 
     expect(p.canSubmit(BusinessType.salon), isFalse);
-    p.addDocument(KycDocumentType.idCard, 'a.jpg');
-    p.addDocument(KycDocumentType.selfie, 'b.jpg');
+    await p.addDocument(KycDocumentType.idCard, 'a.jpg', 'image/jpeg');
+    await p.addDocument(KycDocumentType.selfie, 'b.jpg', 'image/jpeg');
 
     // Freelancer (other) is good with ID + selfie; a salon still needs RCCM.
     expect(p.canSubmit(BusinessType.other), isTrue);
     expect(p.canSubmit(BusinessType.salon), isFalse);
 
-    p.addDocument(KycDocumentType.businessRegistration, 'c.jpg');
+    await p.addDocument(
+      KycDocumentType.businessRegistration,
+      'c.jpg',
+      'image/jpeg',
+    );
     expect(p.canSubmit(BusinessType.salon), isTrue);
 
     p.removeDocument(KycDocumentType.idCard);
@@ -83,8 +93,8 @@ void main() {
 
     final p = ProKycProvider();
     await p.load('p1');
-    p.addDocument(KycDocumentType.idCard, 'a.jpg');
-    p.addDocument(KycDocumentType.selfie, 'b.jpg');
+    await p.addDocument(KycDocumentType.idCard, 'a.jpg', 'image/jpeg');
+    await p.addDocument(KycDocumentType.selfie, 'b.jpg', 'image/jpeg');
 
     expect(await p.submit('p1'), isTrue);
   });

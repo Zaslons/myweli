@@ -1,6 +1,8 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -95,7 +97,8 @@ class _ProKycScreenState extends State<ProKycScreen> {
             required: isKycDocumentRequired(type, pro.businessType),
             document: kyc.documentFor(type),
             readOnly: verified,
-            onAdd: () => kyc.addDocument(type, _mockFileName(type)),
+            uploading: kyc.uploadingType == type,
+            onAdd: () => _provideDoc(context, kyc, type),
             onRemove: () => kyc.removeDocument(type),
           ),
           const SizedBox(height: 8),
@@ -140,6 +143,54 @@ class _ProKycScreenState extends State<ProKycScreen> {
         ],
       ],
     );
+  }
+
+  /// Pick a document (image or PDF) and upload it. In demo (mock) mode the
+  /// sample filename is used so the flow works without a device file.
+  Future<void> _provideDoc(
+    BuildContext context,
+    ProKycProvider kyc,
+    KycDocumentType type,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final String source;
+    final String contentType;
+    if (AppConfig.useApiBackend) {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      );
+      final path = picked?.files.single.path;
+      if (path == null) return;
+      source = path;
+      contentType = _contentTypeFor(path);
+    } else {
+      source = _mockFileName(type);
+      contentType = 'image/jpeg';
+    }
+    final ok = await kyc.addDocument(type, source, contentType);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(kyc.error ?? 'Échec de l’envoi du document'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  String _contentTypeFor(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return 'image/jpeg';
+    }
   }
 
   String _mockFileName(KycDocumentType type) {
@@ -228,6 +279,7 @@ class _DocumentTile extends StatelessWidget {
   final bool required;
   final KycDocument? document;
   final bool readOnly;
+  final bool uploading;
   final VoidCallback onAdd;
   final VoidCallback onRemove;
 
@@ -236,6 +288,7 @@ class _DocumentTile extends StatelessWidget {
     required this.required,
     required this.document,
     required this.readOnly,
+    required this.uploading,
     required this.onAdd,
     required this.onRemove,
   });
@@ -273,7 +326,16 @@ class _DocumentTile extends StatelessWidget {
               ],
             ),
           ),
-          if (!readOnly) ...[
+          if (uploading)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (!readOnly) ...[
             if (provided)
               IconButton(
                 icon: const Icon(Icons.close, size: 18),

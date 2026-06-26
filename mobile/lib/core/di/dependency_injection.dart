@@ -3,6 +3,7 @@ import '../../services/api/api_auth_service.dart';
 import '../../services/api/api_favorites_service.dart';
 import '../../services/api/api_image_upload_service.dart';
 import '../../services/api/api_pro_artist_service.dart';
+import '../../services/api/api_pro_kyc_service.dart';
 import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/api/api_review_service.dart';
@@ -94,7 +95,14 @@ class ServiceLocator {
                 SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockProArtistService();
-    proKycService = MockProKycService();
+    // KYC on the real backend: docs upload to private storage, submit + status
+    // (provider session + silent refresh).
+    proKycService = AppConfig.useApiBackend
+        ? ApiProKycService(
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockProKycService();
     // Real upload pipeline (compress → presigned direct-to-R2) with provider
     // silent refresh; mock echoes the source in demo mode.
     imageUploadService = AppConfig.useApiBackend

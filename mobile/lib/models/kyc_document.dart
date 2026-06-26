@@ -10,20 +10,26 @@ enum KycDocumentType { idCard, selfie, businessRegistration, addressProof }
 class KycDocument extends Equatable {
   final KycDocumentType type;
   final String fileName;
+
+  /// Private storage object key (from `/uploads/sign?purpose=kyc`). Empty for
+  /// legacy/mock docs.
+  final String key;
   final DateTime submittedAt;
 
   const KycDocument({
     required this.type,
     required this.fileName,
+    this.key = '',
     required this.submittedAt,
   });
 
   @override
-  List<Object?> get props => [type, fileName, submittedAt];
+  List<Object?> get props => [type, fileName, key, submittedAt];
 
   Map<String, dynamic> toJson() => {
         'type': type.name,
         'fileName': fileName,
+        'key': key,
         'submittedAt': submittedAt.toIso8601String(),
       };
 
@@ -32,8 +38,11 @@ class KycDocument extends Equatable {
           (e) => e.name == json['type'],
           orElse: () => KycDocumentType.idCard,
         ),
-        fileName: json['fileName'] as String,
-        submittedAt: DateTime.parse(json['submittedAt'] as String),
+        fileName: json['fileName'] as String? ?? '',
+        key: json['key'] as String? ?? '',
+        submittedAt: json['submittedAt'] != null
+            ? DateTime.parse(json['submittedAt'] as String)
+            : DateTime.now(),
       );
 }
 
@@ -51,6 +60,17 @@ class KycStatus extends Equatable {
 
   @override
   List<Object?> get props => [status, documents, rejectionReason];
+
+  factory KycStatus.fromJson(Map<String, dynamic> json) => KycStatus(
+        status: VerificationStatus.values.firstWhere(
+          (s) => s.name == json['status'],
+          orElse: () => VerificationStatus.pending,
+        ),
+        documents: ((json['documents'] as List?) ?? const [])
+            .map((e) => KycDocument.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        rejectionReason: json['rejectionReason'] as String?,
+      );
 }
 
 /// Whether a document type is required for a given business type. ID + selfie
