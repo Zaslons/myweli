@@ -9,6 +9,8 @@ import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
 
+import '../routes/providers/[id]/artists/[artistId].dart' as artist_detail;
+import '../routes/providers/[id]/artists/index.dart' as artists_route;
 import '../routes/providers/[id]/availability.dart' as availability;
 import '../routes/providers/[id]/deposit-policy.dart' as deposit_route;
 import '../routes/providers/[id]/gallery.dart' as gallery_route;
@@ -305,6 +307,75 @@ void main() {
         'forbidden',
       );
     });
+
+    test(
+      'artists: create (server-owned id/rating), list, update, delete',
+      () async {
+        final created = await catalog.createArtist(accountId, 'provider1', {
+          'name': 'Awa',
+          'specialization': 'Tresses',
+          'rating': 5, // client value must be ignored
+          'reviewCount': 99,
+        });
+        expect(created.ok, isTrue);
+        final a = created.data! as Map<String, dynamic>;
+        expect(a['providerId'], 'provider1');
+        expect((a['id'] as String).isNotEmpty, isTrue);
+        expect(a['rating'], isNull); // server-owned, not the client's 5
+        expect(a['reviewCount'], isNull);
+
+        final list = await catalog.listArtists(accountId, 'provider1');
+        expect((list.data! as List).any((x) => x['id'] == a['id']), isTrue);
+
+        final upd = await catalog.updateArtist(
+          accountId,
+          'provider1',
+          a['id'] as String,
+          {'name': 'Awa K.', 'rating': 1}, // rating ignored
+        );
+        expect((upd.data! as Map)['name'], 'Awa K.');
+        expect((upd.data! as Map)['rating'], isNull);
+
+        // Empty name → invalid_input.
+        expect(
+          (await catalog.createArtist(accountId, 'provider1', {
+            'name': ' ',
+          })).error,
+          'invalid_input',
+        );
+        // Unknown artist → not_found.
+        expect(
+          (await catalog.updateArtist(accountId, 'provider1', 'nope', {
+            'name': 'X',
+          })).error,
+          'not_found',
+        );
+        // Cross-salon → forbidden.
+        expect(
+          (await catalog.createArtist(accountId, 'provider2', {
+            'name': 'X',
+          })).error,
+          'forbidden',
+        );
+
+        expect(
+          (await catalog.deleteArtist(
+            accountId,
+            'provider1',
+            a['id'] as String,
+          )).ok,
+          isTrue,
+        );
+        expect(
+          (await catalog.deleteArtist(
+            accountId,
+            'provider1',
+            a['id'] as String,
+          )).error,
+          'not_found',
+        );
+      },
+    );
   });
 
   group('routes', () {
@@ -567,6 +638,85 @@ void main() {
         ctx(
           req('DELETE', '/providers/provider1/deposit-policy', bearer: token),
         ),
+        'provider1',
+      );
+      expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
+    });
+
+    test('artists: POST → 201; GET → 200; PATCH unknown → 404; DELETE → 204; '
+        'cross-salon → 403; bad verb → 405', () async {
+      final created = await artists_route.onRequest(
+        ctx(
+          req(
+            'POST',
+            '/providers/provider1/artists',
+            bearer: token,
+            body: {'name': 'Awa'},
+          ),
+        ),
+        'provider1',
+      );
+      expect(created.statusCode, HttpStatus.created);
+      final aid = (await jsonOf(created))['id'] as String;
+
+      final list = await artists_route.onRequest(
+        ctx(req('GET', '/providers/provider1/artists', bearer: token)),
+        'provider1',
+      );
+      expect(list.statusCode, HttpStatus.ok);
+      expect((await jsonOf(list))['total'], greaterThanOrEqualTo(1));
+
+      final patched = await artist_detail.onRequest(
+        ctx(
+          req(
+            'PATCH',
+            '/providers/provider1/artists/$aid',
+            bearer: token,
+            body: {'specialization': 'Coloriste'},
+          ),
+        ),
+        'provider1',
+        aid,
+      );
+      expect(patched.statusCode, HttpStatus.ok);
+      expect((await jsonOf(patched))['specialization'], 'Coloriste');
+
+      final missing = await artist_detail.onRequest(
+        ctx(
+          req(
+            'PATCH',
+            '/providers/provider1/artists/nope',
+            bearer: token,
+            body: {'name': 'X'},
+          ),
+        ),
+        'provider1',
+        'nope',
+      );
+      expect(missing.statusCode, HttpStatus.notFound);
+
+      final cross = await artists_route.onRequest(
+        ctx(
+          req(
+            'POST',
+            '/providers/provider2/artists',
+            bearer: token,
+            body: {'name': 'X'},
+          ),
+        ),
+        'provider2',
+      );
+      expect(cross.statusCode, HttpStatus.forbidden);
+
+      final deleted = await artist_detail.onRequest(
+        ctx(req('DELETE', '/providers/provider1/artists/$aid', bearer: token)),
+        'provider1',
+        aid,
+      );
+      expect(deleted.statusCode, HttpStatus.noContent);
+
+      final badVerb = await artists_route.onRequest(
+        ctx(req('DELETE', '/providers/provider1/artists', bearer: token)),
         'provider1',
       );
       expect(badVerb.statusCode, HttpStatus.methodNotAllowed);

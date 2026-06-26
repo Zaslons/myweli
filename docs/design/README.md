@@ -23,6 +23,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Pro staff (artists) management | [pro-artists.md](pro-artists.md) | Built |
 | Consumer reviews | [consumer-reviews.md](consumer-reviews.md) | Built |
 | Consumer favorites | [consumer-favorites.md](consumer-favorites.md) | Built |
 | Pro deposit policy management | [pro-deposit-policy.md](pro-deposit-policy.md) | Built |

@@ -346,6 +346,39 @@ void main() {
       expect((avail['blockedDates'] as List).length, 1);
     });
 
+    test('addArtist / updateArtist / deleteArtist persist into data', () async {
+      final repo = PostgresProvidersRepository(pool);
+      final created = await repo.addArtist('provider3', {
+        'id': 'artist_pr3_1',
+        'name': 'Awa',
+        'specialization': 'Tresses',
+        'imageUrl': null,
+        'providerId': 'provider3',
+        'rating': null,
+        'reviewCount': null,
+        'workingHours': const <String, dynamic>{},
+      });
+      expect(created!['name'], 'Awa');
+      expect(
+        ((await repo.byId('provider3'))!['artists'] as List).any(
+          (a) => a['id'] == 'artist_pr3_1',
+        ),
+        isTrue,
+      );
+
+      final upd = await repo.updateArtist('provider3', 'artist_pr3_1', {
+        'name': 'Awa K.',
+      });
+      expect(upd!['name'], 'Awa K.');
+      expect(
+        await repo.updateArtist('provider3', 'nope', {'name': 'X'}),
+        isNull,
+      );
+
+      expect(await repo.deleteArtist('provider3', 'artist_pr3_1'), isTrue);
+      expect(await repo.deleteArtist('provider3', 'artist_pr3_1'), isFalse);
+    });
+
     test('updateGallery persists into data and survives re-read', () async {
       final repo = PostgresProvidersRepository(pool);
       final saved = await repo.updateGallery('provider3', [

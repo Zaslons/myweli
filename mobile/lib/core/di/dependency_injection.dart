@@ -2,6 +2,7 @@ import '../../services/api/api_appointment_service.dart';
 import '../../services/api/api_auth_service.dart';
 import '../../services/api/api_favorites_service.dart';
 import '../../services/api/api_image_upload_service.dart';
+import '../../services/api/api_pro_artist_service.dart';
 import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/api/api_review_service.dart';
@@ -85,7 +86,14 @@ class ServiceLocator {
                 SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockProService();
-    proArtistService = MockProArtistService();
+    // Staff (artists) CRUD on the real backend (provider session + silent
+    // refresh) when the backend is on.
+    proArtistService = AppConfig.useApiBackend
+        ? ApiProArtistService(
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockProArtistService();
     proKycService = MockProKycService();
     // Real upload pipeline (compress → presigned direct-to-R2) with provider
     // silent refresh; mock echoes the source in demo mode.

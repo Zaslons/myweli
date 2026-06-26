@@ -189,6 +189,83 @@ class ProviderCatalogService {
   static const _maxGalleryPhotos = 20;
   static const _maxUrlLength = 2048;
 
+  // ---- staff (artists) — design: docs/design/pro-artists.md -----------------
+
+  Future<CatalogResult> listArtists(String accountId, String providerId) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final provider = await _providers.byId(providerId);
+    if (provider == null) return _notFound;
+    return (
+      ok: true,
+      error: null,
+      data: provider['artists'] ?? const <Map<String, dynamic>>[],
+    );
+  }
+
+  Future<CatalogResult> createArtist(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final name = body['name'];
+    if (name is! String || name.trim().isEmpty) {
+      return (ok: false, error: 'invalid_input', data: null);
+    }
+    final artist = {
+      'id': _newId('artist'),
+      'name': name.trim(),
+      'specialization': (body['specialization'] as String?)?.trim(),
+      'imageUrl': (body['imageUrl'] as String?)?.trim(),
+      'providerId': providerId,
+      'rating': null, // server-owned; recomputed from reviews
+      'reviewCount': null,
+      'workingHours': body['workingHours'] ?? const <String, dynamic>{},
+    };
+    final created = await _providers.addArtist(providerId, artist);
+    if (created == null) return _notFound;
+    return (ok: true, error: null, data: created);
+  }
+
+  Future<CatalogResult> updateArtist(
+    String accountId,
+    String providerId,
+    String artistId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (body.containsKey('name')) {
+      final name = body['name'];
+      if (name is! String || name.trim().isEmpty) {
+        return (ok: false, error: 'invalid_input', data: null);
+      }
+    }
+    // `rating`/`reviewCount`/`id`/`providerId` are server-owned — not editable.
+    const editable = ['name', 'specialization', 'imageUrl', 'workingHours'];
+    final changes = {
+      for (final k in editable)
+        if (body.containsKey(k))
+          k: body[k] is String ? (body[k] as String).trim() : body[k],
+    };
+    final updated = await _providers.updateArtist(
+      providerId,
+      artistId,
+      changes,
+    );
+    if (updated == null) return _notFound;
+    return (ok: true, error: null, data: updated);
+  }
+
+  Future<CatalogResult> deleteArtist(
+    String accountId,
+    String providerId,
+    String artistId,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final removed = await _providers.deleteArtist(providerId, artistId);
+    return removed ? (ok: true, error: null, data: null) : _notFound;
+  }
+
   /// The salon's deposit policy (design: docs/design/pro-deposit-policy.md).
   /// Maps the provider's stored `depositMobileMoney*` fields to the DTO's
   /// `mobileMoney*` names.
