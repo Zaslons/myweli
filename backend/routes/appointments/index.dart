@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
+import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
@@ -45,7 +46,17 @@ Future<Response> _list(RequestContext context, Principal principal) async {
     }
     items = await repo.listForProvider(providerId, status: status);
   } else {
-    items = await repo.listForUser(principal.userId, status: status);
+    // Auto-sync (FR-APPT-008): also surface provider-entered bookings made to
+    // this account's **OTP-verified** phone (resolved server-side — never from
+    // the request). Design: docs/design/appointment-auto-sync.md.
+    final account = await context.read<AuthRepository>().userById(
+      principal.userId,
+    );
+    items = await repo.listForUser(
+      principal.userId,
+      status: status,
+      matchPhone: account?.phoneNumber,
+    );
   }
 
   return Response.json(

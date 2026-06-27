@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
@@ -16,6 +17,8 @@ import '../../routes/appointments/[id]/index.dart' as detail;
 import '../../routes/appointments/index.dart' as list;
 
 class _MockRequestContext extends Mock implements RequestContext {}
+
+class _MockAuth extends Mock implements AuthRepository {}
 
 /// A future Mon–Sat at [hour]:00 UTC — an open slot in the seed schedule.
 DateTime _slotAt(int hour) {
@@ -36,6 +39,7 @@ void main() {
   late InMemoryProvidersRepository providers;
   late BookingService booking;
   late InMemoryProviderAuthRepository providerAuth;
+  late _MockAuth auth;
   final tokens = TokenService(secret: 'test-secret');
   final accessA = tokens
       .issueAccessToken(subject: 'user_A', role: 'user')
@@ -52,6 +56,10 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
+    auth = _MockAuth();
+    // By default a token subject has no consumer account on file → no phone →
+    // auto-sync match is off (own bookings only).
+    when(() => auth.userById(any())).thenAnswer((_) async => null);
   });
 
   /// Registers a provider account (optionally linked to [providerId]) and
@@ -212,6 +220,70 @@ void main() {
     );
   });
 
+  group('listForUser (auto-sync match)', () {
+    Map<String, dynamic> manual(
+      String id,
+      String phone, {
+      String status = 'confirmed',
+    }) => {
+      'id': id,
+      'userId': 'manual',
+      'providerId': 'provider1',
+      'serviceIds': ['service1'],
+      'clientName': 'Awa',
+      'clientPhone': phone,
+      'status': status,
+      'appointmentDate': _slotAt(10).toIso8601String(),
+      'totalPrice': 1000,
+    };
+
+    test('returns own + phone-matched manual; isolates by phone', () async {
+      await booking.book(
+        userId: 'user_A',
+        providerId: 'provider1',
+        serviceIds: const ['service1'],
+        appointmentDateTime: _slotAt(9),
+      );
+      await appts.create(manual('m1', '+2250777000111'));
+
+      expect(
+        (await appts.listForUser(
+          'user_A',
+          matchPhone: '+2250777000111',
+        )).length,
+        2, // own + matched manual
+      );
+      expect((await appts.listForUser('user_A')).length, 1); // own only
+      expect(
+        (await appts.listForUser(
+          'user_A',
+          matchPhone: '+2250700000000',
+        )).length,
+        1, // different phone → own only
+      );
+    });
+
+    test('honours the status filter across matched rows', () async {
+      await appts.create(manual('m2', '+2250777000222'));
+      expect(
+        (await appts.listForUser(
+          'userX',
+          matchPhone: '+2250777000222',
+          status: 'confirmed',
+        )).length,
+        1,
+      );
+      expect(
+        await appts.listForUser(
+          'userX',
+          matchPhone: '+2250777000222',
+          status: 'pending',
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   group('routes', () {
     RequestContext ctx(Request request) {
       final context = _MockRequestContext();
@@ -222,6 +294,7 @@ void main() {
       when(
         () => context.read<ProviderAuthRepository>(),
       ).thenReturn(providerAuth);
+      when(() => context.read<AuthRepository>()).thenReturn(auth);
       return context;
     }
 
@@ -295,6 +368,58 @@ void main() {
       expect(body['total'], 1);
       expect((body['items'] as List).single['userId'], 'user_A');
     });
+
+    test(
+      'GET auto-syncs a provider-entered booking matched by verified phone',
+      () async {
+        const phone = '+2250777000111';
+        // A salon manually booked this number (no app account).
+        await appts.create({
+          'id': 'manual_1',
+          'userId': 'manual',
+          'providerId': 'provider1',
+          'serviceIds': ['service1'],
+          'clientName': 'Awa',
+          'clientPhone': phone,
+          'status': 'confirmed',
+          'appointmentDate': _slotAt(11).toIso8601String(),
+          'totalPrice': 1000,
+        });
+        // user_C's account verified that same phone → it should appear.
+        when(() => auth.userById('user_C')).thenAnswer(
+          (_) async => AuthUser(
+            id: 'user_C',
+            phoneNumber: phone,
+            createdAt: DateTime.utc(2026),
+          ),
+        );
+        final token = tokens
+            .issueAccessToken(subject: 'user_C', role: 'user')
+            .token;
+
+        final res = await list.onRequest(ctx(getReq(token)));
+        final body = await jsonOf(res);
+        expect(body['total'], 1);
+        expect((body['items'] as List).single['id'], 'manual_1');
+
+        // A different verified phone must not see it.
+        when(() => auth.userById('user_D')).thenAnswer(
+          (_) async => AuthUser(
+            id: 'user_D',
+            phoneNumber: '+2250799999999',
+            createdAt: DateTime.utc(2026),
+          ),
+        );
+        final other = await list.onRequest(
+          ctx(
+            getReq(
+              tokens.issueAccessToken(subject: 'user_D', role: 'user').token,
+            ),
+          ),
+        );
+        expect((await jsonOf(other))['total'], 0);
+      },
+    );
 
     test(
       'GET as a provider lists its salon’s appointments (not by user)',

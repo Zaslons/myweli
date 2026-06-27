@@ -1049,10 +1049,12 @@ paths:
       tags: [appointments]
       summary: List the caller's appointments (B-appt)
       description: >
-        Role-scoped: a **user** token returns that user's own bookings; a
-        **provider** token returns the bookings of the salon it manages
-        (the account's linked `providerId`). A provider account not yet linked
-        to a Provider gets 403.
+        Role-scoped: a **user** token returns that user's own bookings **plus
+        provider-entered (manual) bookings made to the account's OTP-verified
+        phone** (auto-sync, FR-APPT-008 — the match phone is resolved
+        server-side, never from the request); a **provider** token returns the
+        bookings of the salon it manages (the account's linked `providerId`). A
+        provider account not yet linked to a Provider gets 403.
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query
