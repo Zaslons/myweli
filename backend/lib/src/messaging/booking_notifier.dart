@@ -1,4 +1,5 @@
 import '../auth/auth_repository.dart';
+import '../notifications/notification_prefs_repository.dart';
 import '../notifications/notifications_repository.dart';
 import '../providers_repository.dart';
 import '../push/push_service.dart';
@@ -18,6 +19,7 @@ class BookingNotifier {
     this._providers,
     this._push,
     this._notifications,
+    this._prefs,
   );
 
   final MessagingService _messaging;
@@ -25,6 +27,7 @@ class BookingNotifier {
   final ProvidersRepository _providers;
   final PushService _push;
   final NotificationsRepository _notifications;
+  final NotificationPrefsRepository _prefs;
 
   /// Sends [template] for [appointment] (a no-op when null / unresolvable).
   Future<void> notify(
@@ -38,8 +41,17 @@ class BookingNotifier {
       );
       final params = _params(appointment, providerName);
 
+      // Per-user opt-out prefs (FR-NOTIF-004). Manual bookings (no app user) →
+      // all-true defaults, unchanged behaviour.
+      final userId = appointment['userId'] as String?;
+      final prefs = userId != null
+          ? await _prefs.get(userId)
+          : const NotificationPrefs();
+
+      final allowCategory = _allowCategory(template, prefs);
+
       final phone = await _recipient(appointment);
-      if (phone != null && phone.isNotEmpty) {
+      if (phone != null && phone.isNotEmpty && allowCategory) {
         await _messaging.sendTemplate(
           recipientPhone: phone,
           template: template,
@@ -48,20 +60,23 @@ class BookingNotifier {
       }
 
       // Consumer-app touches (app bookings only — manual bookings have no app
-      // user): push to devices + an in-app notification-center entry.
-      final userId = appointment['userId'] as String?;
+      // user): push to devices (when the push channel is on AND the category is
+      // allowed) + an in-app notification-center entry (always — a passive
+      // history log, not a proactive notification).
       if (userId != null) {
         final body = renderTemplate(template, params);
-        await _push.sendToUser(
-          userId,
-          title: _pushTitle(template),
-          body: body,
-          data: {
-            'template': template.name,
-            if (appointment['id'] != null)
-              'appointmentId': '${appointment['id']}',
-          },
-        );
+        if (prefs.push && allowCategory) {
+          await _push.sendToUser(
+            userId,
+            title: _pushTitle(template),
+            body: body,
+            data: {
+              'template': template.name,
+              if (appointment['id'] != null)
+                'appointmentId': '${appointment['id']}',
+            },
+          );
+        }
         await _notifications.add(
           userId: userId,
           type: _notificationType(template),
@@ -73,6 +88,19 @@ class BookingNotifier {
     } catch (_) {
       // best-effort — a notification failure never affects the transition.
     }
+  }
+
+  /// Whether [template]'s **category** is allowed under [prefs] (applies to both
+  /// the WhatsApp/SMS message and the device push): reminders gate the 24h/2h
+  /// templates, marketing gates promotional ones, all other (transactional)
+  /// service messages always pass. (The push channel is additionally gated by
+  /// `prefs.push`.)
+  bool _allowCategory(MessageTemplate t, NotificationPrefs prefs) {
+    if (t == MessageTemplate.reminder24h || t == MessageTemplate.reminder2h) {
+      return prefs.reminders;
+    }
+    if (t.category == MessageCategory.promotional) return prefs.marketing;
+    return true;
   }
 
   /// Maps a template to the app's `AppNotificationType.name` (in-app feed).

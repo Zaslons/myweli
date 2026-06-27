@@ -450,6 +450,21 @@ CREATE TABLE notifications (
           'ON notifications(user_id, created_at DESC)',
     ],
   ),
+  (
+    id: '0019_notification_preferences',
+    statements: [
+      // Per-user notification opt-out prefs (default all on). Design:
+      // docs/design/notification-preferences.md.
+      '''
+CREATE TABLE notification_preferences (
+  user_id text PRIMARY KEY,
+  reminders boolean NOT NULL DEFAULT true,
+  marketing boolean NOT NULL DEFAULT true,
+  push boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

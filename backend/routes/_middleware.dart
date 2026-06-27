@@ -22,6 +22,7 @@ import 'package:myweli_backend/src/kyc_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
+import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
@@ -60,6 +61,11 @@ Handler middleware(Handler handler) {
       .use(provider<ReminderScheduler>((_) => reminderScheduler))
       .use(provider<PushService>((_) => pushService))
       .use(provider<NotificationsRepository>((_) => notificationsRepository))
+      .use(
+        provider<NotificationPrefsRepository>(
+          (_) => notificationPrefsRepository,
+        ),
+      )
       .use(provider<AdminAuthRepository>((_) => adminAuthRepository))
       .use(provider<AuditLogRepository>((_) => auditLogRepository))
       .use(provider<AdminKycService>((_) => adminKycService))
