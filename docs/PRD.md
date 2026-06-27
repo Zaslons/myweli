@@ -669,8 +669,8 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 - **OQ-1** ✅ **Resolved (V1): no custody.** Deposits flow **directly client→salon** on the salon's own Mobile Money handle; Myweli facilitates + records intent but never holds/settles funds — avoiding BCEAO e-money/PSP licensing and an aggregator merchant account (both need a registered company Myweli lacks at launch). *Revisit post-incorporation:* a licensed aggregator + optional **escrow** for salons wanting guaranteed/auto-refundable deposits. This makes `FR-PRO-PAYOUT-001` (Myweli paying out collected deposits) **not applicable in V1**.
 - **OQ-2** Exact subscription pricing & free-tier caps — needs field validation with ~20 Cocody salons.
 - **OQ-3** Apple/Google IAP treatment of provider SaaS billing — confirm B2B carve-out vs. web-only billing.
-- **OQ-4** Which Mobile Money aggregator gives the best Wave + OM coverage and payout support in CI?
-- **OQ-5** WhatsApp BSP choice & template approval timeline (gates V1 reminder feature).
+- **OQ-4** 🚫 **Moot (V1): no aggregator.** Deposits stay no-custody/screenshot (OQ-1; user decision 2026-06-27) — Myweli integrates no Mobile Money aggregator. Revisit only post-incorporation if escrow is ever pursued.
+- **OQ-5** ✅ **Decided: Twilio** (WhatsApp + SMS). The backend adapter + OTP + reminders are built; remaining is the ops step (register the account, get templates approved). See docs/design/messaging-notifications.md.
 - **OQ-6** Home-service transport-fee model: flat, distance-based, or provider-set? (V2 design input.)
 - **OQ-7** Data residency expectations under ARTCI — any local-hosting requirement?
 - **OQ-8** Provider dashboard web stack: share React with public web vs. Flutter Web reuse?
