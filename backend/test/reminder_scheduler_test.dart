@@ -8,6 +8,7 @@ import 'package:myweli_backend/src/messaging/messaging_provider.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_log_repository.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
+import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/device_token_repository.dart';
@@ -49,6 +50,7 @@ void main() {
       providers,
       PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),
       InMemoryNotificationsRepository(),
+      InMemoryNotificationPrefsRepository(),
     );
     scheduler = ReminderScheduler(
       appts,

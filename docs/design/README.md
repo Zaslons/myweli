@@ -31,6 +31,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Push notifications (FCM) — backend | [push-notifications-fcm.md](push-notifications-fcm.md) | Building (token registry + FCM v1 adapter + event wiring); app plugin + creds = ops |
 | Provider before/after showcase (FR-DISC-006) | [provider-before-after.md](provider-before-after.md) | Complete — backend + pro editor + consumer drag-reveal slider |
 | Discovery sort & filter (FR-DISC-007) | [discovery-sort-filter.md](discovery-sort-filter.md) | Complete — backend sort + available-today · app Trier sheet + toggle (à domicile = V2) |
+| Notification preferences (FR-NOTIF-004) | [notification-preferences.md](notification-preferences.md) | PR1 backend built (prefs + send-path enforcement) · PR2 app next |
 | Add appointment to calendar (FR-APPT-006) | [appointment-calendar.md](appointment-calendar.md) | Built — native add (add_2_calendar) from appointment detail; iOS plist set, Android `<queries>` TODO when scaffolded |
 | In-app notification center (FR-NOTIF-002) | [notification-center.md](notification-center.md) | Complete — backend feed + write-on-events · app ApiNotificationService |
 | Consumer deposit / Mobile Money flow | [consumer-deposit.md](consumer-deposit.md) | Built (B1 + B2) |

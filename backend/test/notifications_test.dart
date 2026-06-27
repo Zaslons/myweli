@@ -10,6 +10,7 @@ import 'package:myweli_backend/src/messaging/messaging_outbox_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_prefs_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_provider.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
+import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/device_token_repository.dart';
@@ -153,6 +154,7 @@ void main() {
           InMemoryProvidersRepository(),
           PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),
           notifications,
+          InMemoryNotificationPrefsRepository(),
         );
 
         await notifier.notify({
