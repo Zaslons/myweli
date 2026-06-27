@@ -56,6 +56,8 @@ Estimates of V1-frontend completeness by area (UI built & wired to mock services
 All data flows through `lib/services/mock/*` behind `lib/services/interfaces/*`. Simulated: OTP (`123456`), provider/appointment/favorites data, slot generation (30-min, ~90% availability), review eligibility, booking lifecycle. **This is the asset that makes frontend-first viable** (see Part 2).
 
 ### 1.5 What's MISSING entirely (no code yet)
+> ⚠️ **Original snapshot (project start) — superseded by §1.8.** Most of this is now built (backend, payments-no-custody, notifications WhatsApp/SMS/FCM, image upload, KYC, the admin console). Kept for history; read **§1.8** for the current audit.
+
 - **Backend / API** (everything is mock).
 - **Payments / Mobile Money deposits** — the core CI value prop. Not started.
 - **Notifications**: push (FCM), SMS, WhatsApp — not started.
@@ -73,6 +75,30 @@ All data flows through `lib/services/mock/*` behind `lib/services/interfaces/*`.
 2. Stand up **CI** (analyze + test on every push).
 3. **Clear the 230 analyze issues to zero** and fix the `appointment_card.dart` correctness warnings.
 4. Add the **test harness + first real tests** (Part 4).
+
+### 1.8 V1 completeness audit — current ground truth (2026-06-27)
+Requirement-by-requirement pass over every PRD `[V1]` FR vs the codebase. **109 PRs merged · 224 backend + 296 mobile tests · analyze 0.** §1.6/§1.7 above are the original-start snapshot; this is the live state.
+
+**✅ Built (verified).** Consumer: auth + **account deletion/data export** (AUTH-001..005), discovery incl. commune + sort + available-today (DISC-001..007), booking + rebook (BOOK-001..009), no-custody deposit (PAY-001..005), appointments incl. policy engine + visit history (APPT-001..005, 009), reviews + moderation (REV-001..005), favorites (FAV-001), notifications WhatsApp/SMS + FCM + **in-app center** (NOTIF-001/002), before/after showcase (DISC-006). Pro: auth, KYC, onboarding, profile, media + before/after, services, staff, availability, day-view, accept/reject, manual booking, complete/cancel, no-show, deposit settings, earnings, dashboard, review view, reminders (PRO-*). Admin console: KYC, mgmt + support, disputes, moderation, featured, analytics, audit, RBAC (WEB-AD-001/003..008).
+
+**⚠️ Open V1 gaps (not built / partial) — do not lose these:**
+- 🔴 **Public web surface — NOT built (biggest).** `FR-WEB-PP-001..005` (shareable `myweli.ci/<slug>` provider pages, **SSR/SEO**, full **web booking flow**, web deposit, "open in app" banner) + `FR-WEB-MP-001` (SEO landing + commune/category pages). No web project exists. The PRD's "single biggest organic-acquisition channel." Separate stack — gated on **OQ-8** (web stack) and deployment. Large workstream.
+- 🟠 **Subscriptions / monetization view (`FR-PRO-SUB-001`) — NOT built.** No plan/trial/entitlements screen. Paid *collection* is no-custody-deferred (rides the 30-day trial + free tier until incorporation; OQ-3), but the **plan & trial view** is V1.
+- 🟠 **Auto-sync provider-entered bookings (`FR-APPT-008`) — NOT built.** Manual bookings use `userId: 'manual'`; they don't link to a consumer account by phone, so they don't auto-appear in the client's app. Real adoption driver. Moderate backend work (link by phone at register/login).
+- 🟡 **Notification preferences (`FR-NOTIF-004`) — NOT built.** No consumer channel/category opt-out screen (backend has promotional opt-out only). Small.
+- 🟡 **Add-to-calendar `.ics` (`FR-APPT-006`) — partial.** Directions/maps ✅; calendar-add (.ics) missing. Minor.
+
+**🔵 Deferred by design (correct).** Admin **impersonate / act-as** (`WEB-AD-002`); full-team **booking journal** (`FR-PRO-CAL-002`, behind `futureProviderFeatures=false`); à-domicile/home-service (V2); **Mobile Money aggregator** (non-goal, OQ-1/OQ-4); loyalty/memberships/gifting + the 8 `screens/provider/features/*` (V2/V3).
+
+**🟣 Cross-cutting / launch readiness (deploy → activate → harden, mostly account-gated):**
+- **Deployment/infra** — none in repo (no Dockerfile/host config); backend never run vs real Postgres/R2. The critical path to "on."
+- **Activation** — Twilio account + WhatsApp template approval + reminder **cron**; **Firebase** project + creds; app-side **`firebase_messaging`** plugin; flip apps to `USE_API_BACKEND`.
+- **Quality** — **no E2E/integration tests vs a real backend** (unit/handler only); low-end-Android **perf pass** (budgets); **release hardening** (obfuscation, no debug logs, APK size); store **data-safety** disclosures.
+- **Analytics & instrumentation (§17)** — funnel events not instrumented (deferred; needs a product-analytics stack). **Crash reporting** ⏳ (needs DSN). **PII-at-rest / data residency** (OQ-7) — hosting decision.
+
+**❓ Open questions still live:** OQ-2 (pricing — field validation), OQ-3 (store IAP vs web billing — gates subscriptions + web), OQ-7 (ARTCI data residency), OQ-8 (web stack — gates the public web surface). *Resolved:* OQ-1 (no custody), OQ-4 (no aggregator), OQ-5 (Twilio).
+
+**📝 Doc debt:** the PRD's inline status notes (`*(stub / does not exist / needs …)*` on several shipped FRs — e.g. NOTIF-002, PRO-KYC-001, PRO-MEDIA-001, PRO-BOOK-004, DISC-006) are **stale** and should be refreshed or removed (status lives here in the ROADMAP). Foundational consumer screens (auth, discovery, booking hub, my-bookings, favorites) predate the spec-per-part rule and have **no `docs/design/<part>.md`** — retroactive specs optional.
 
 ---
 
