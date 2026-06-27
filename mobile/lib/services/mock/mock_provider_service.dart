@@ -10,6 +10,8 @@ class MockProviderService implements ProviderServiceInterface {
     String? category,
     String? searchQuery,
     String? commune,
+    ProviderSort sort = ProviderSort.relevance,
+    bool availableToday = false,
     int page = 1,
     int limit = 20,
   }) async {
@@ -37,6 +39,22 @@ class MockProviderService implements ProviderServiceInterface {
       }).toList();
     }
 
+    // Filter: available today (FR-DISC-007). Cheap proxy for the slot engine —
+    // open on today's weekday and not blocked today.
+    if (availableToday) {
+      providers = providers.where(_openToday).toList();
+    }
+
+    // Sort (FR-DISC-007). relevance → keep the seed order.
+    switch (sort) {
+      case ProviderSort.rating:
+        providers.sort((a, b) => b.rating.compareTo(a.rating));
+      case ProviderSort.price:
+        providers.sort((a, b) => _minPrice(a).compareTo(_minPrice(b)));
+      case ProviderSort.relevance:
+        break;
+    }
+
     // Pagination
     final start = (page - 1) * limit;
     final end = start + limit;
@@ -48,6 +66,26 @@ class MockProviderService implements ProviderServiceInterface {
         : <Provider>[];
 
     return ApiResponse.success(paginatedProviders);
+  }
+
+  /// Cheap "open today" proxy for the mock: open on today's weekday (0=Mon) and
+  /// not blocked today. (The API uses the real slot engine.)
+  bool _openToday(Provider p) {
+    final now = DateTime.now();
+    final blocked = p.availability.blockedDates.any(
+      (d) => d.year == now.year && d.month == now.month && d.day == now.day,
+    );
+    if (blocked) return false;
+    final slots = p.availability.weeklySchedule[now.weekday - 1] ?? const [];
+    return slots.any((s) => s.isAvailable);
+  }
+
+  /// Lowest active service price; `infinity` when none (sorts such salons last).
+  double _minPrice(Provider p) {
+    final prices = p.services.where((s) => s.active).map((s) => s.price);
+    return prices.isEmpty
+        ? double.infinity
+        : prices.reduce((a, b) => a < b ? a : b);
   }
 
   @override

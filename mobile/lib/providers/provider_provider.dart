@@ -24,6 +24,8 @@ class ProviderProvider extends ChangeNotifier {
   String? _error;
   String? _selectedCategory;
   String? _selectedCommune;
+  ProviderSort _sort = ProviderSort.relevance;
+  bool _availableToday = false;
 
   static const _communeKey = 'myweli_selected_commune_v1';
 
@@ -35,6 +37,8 @@ class ProviderProvider extends ChangeNotifier {
   String? get error => _error;
   String? get selectedCategory => _selectedCategory;
   String? get selectedCommune => _selectedCommune;
+  ProviderSort get sort => _sort;
+  bool get availableToday => _availableToday;
 
   Future<void> loadProviders({
     String? category,
@@ -50,6 +54,8 @@ class ProviderProvider extends ChangeNotifier {
         category: category,
         searchQuery: searchQuery,
         commune: _selectedCommune,
+        sort: _sort,
+        availableToday: _availableToday,
       );
       if (response.success && response.data != null) {
         _providers = response.data!;
@@ -90,6 +96,22 @@ class ProviderProvider extends ChangeNotifier {
       await prefs.setString(_communeKey, _selectedCommune!);
     }
 
+    await loadProviders(category: _selectedCategory);
+  }
+
+  /// Change the sort (FR-DISC-007) and reload.
+  Future<void> setSort(ProviderSort sort) async {
+    if (_sort == sort) return;
+    _sort = sort;
+    notifyListeners();
+    await loadProviders(category: _selectedCategory);
+  }
+
+  /// Toggle the "available today" filter (FR-DISC-007) and reload.
+  Future<void> setAvailableToday(bool value) async {
+    if (_availableToday == value) return;
+    _availableToday = value;
+    notifyListeners();
     await loadProviders(category: _selectedCategory);
   }
 

@@ -26,6 +26,8 @@ class ApiProviderService implements ProviderServiceInterface {
     String? category,
     String? searchQuery,
     String? commune,
+    ProviderSort sort = ProviderSort.relevance,
+    bool availableToday = false,
     int page = 1,
     int limit = 20,
   }) async {
@@ -34,6 +36,8 @@ class ApiProviderService implements ProviderServiceInterface {
         if (category != null && category.isNotEmpty) 'category': category,
         if (searchQuery != null && searchQuery.isNotEmpty) 'q': searchQuery,
         if (commune != null && commune.isNotEmpty) 'commune': commune,
+        if (sort != ProviderSort.relevance) 'sort': sort.query,
+        if (availableToday) 'availableToday': 'true',
         'page': '$page',
         'pageSize': '$limit',
       },
