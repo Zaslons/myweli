@@ -86,7 +86,7 @@ Requirement-by-requirement pass over every PRD `[V1]` FR vs the codebase. **109 
 - 🟠 **Subscriptions / monetization view (`FR-PRO-SUB-001`) — NOT built.** No plan/trial/entitlements screen. Paid *collection* is no-custody-deferred (rides the 30-day trial + free tier until incorporation; OQ-3), but the **plan & trial view** is V1.
 - 🟠 **Auto-sync provider-entered bookings (`FR-APPT-008`) — NOT built.** Manual bookings use `userId: 'manual'`; they don't link to a consumer account by phone, so they don't auto-appear in the client's app. Real adoption driver. Moderate backend work (link by phone at register/login).
 - 🟡 **Notification preferences (`FR-NOTIF-004`) — NOT built.** No consumer channel/category opt-out screen (backend has promotional opt-out only). Small.
-- 🟡 **Add-to-calendar `.ics` (`FR-APPT-006`) — partial.** Directions/maps ✅; calendar-add (.ics) missing. Minor.
+- 🟢 **Add-to-calendar (`FR-APPT-006`) — done (2026-06-27).** Directions/maps ✅; native add-to-calendar shipped (`add_2_calendar`, one-tap from the appointment detail; iOS plist keys set, Android `<queries>` noted as TODO for when `android/` is scaffolded). Design: [docs/design/appointment-calendar.md](design/appointment-calendar.md).
 
 **🔵 Deferred by design (correct).** Admin **impersonate / act-as** (`WEB-AD-002`); full-team **booking journal** (`FR-PRO-CAL-002`, behind `futureProviderFeatures=false`); à-domicile/home-service (V2); **Mobile Money aggregator** (non-goal, OQ-1/OQ-4); loyalty/memberships/gifting + the 8 `screens/provider/features/*` (V2/V3).
 
@@ -98,7 +98,7 @@ Requirement-by-requirement pass over every PRD `[V1]` FR vs the codebase. **109 
 
 **❓ Open questions still live:** OQ-2 (pricing — field validation), OQ-3 (store IAP vs web billing — gates subscriptions + web), OQ-7 (ARTCI data residency), OQ-8 (web stack — gates the public web surface). *Resolved:* OQ-1 (no custody), OQ-4 (no aggregator), OQ-5 (Twilio).
 
-**📝 Doc debt:** the PRD's inline status notes (`*(stub / does not exist / needs …)*` on several shipped FRs — e.g. NOTIF-002, PRO-KYC-001, PRO-MEDIA-001, PRO-BOOK-004, DISC-006) are **stale** and should be refreshed or removed (status lives here in the ROADMAP). Foundational consumer screens (auth, discovery, booking hub, my-bookings, favorites) predate the spec-per-part rule and have **no `docs/design/<part>.md`** — retroactive specs optional.
+**📝 Doc debt:** ✅ the PRD's stale inline status notes were refreshed (2026-06-27) — shipped FRs (AUTH-002, DISC-006, BOOK-007, NOTIF-001/002, PRO-KYC-001, PRO-ONB-001, PRO-MEDIA-001, PRO-CAL-001, PRO-BOOK-004, PRO-MKT-001) now read accurately and `PRO-CAL-002` is marked V2-deferred. Remaining: the foundational consumer screens (auth, discovery, booking hub, my-bookings, favorites) predate the spec-per-part rule and have **no `docs/design/<part>.md`** — retroactive specs optional.
 
 ---
 
