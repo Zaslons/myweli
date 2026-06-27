@@ -10,9 +10,14 @@ abstract interface class AppointmentRepository {
   Future<Map<String, dynamic>?> create(Map<String, dynamic> appointment);
 
   /// The caller's appointments, newest first, optionally filtered by status.
+  ///
+  /// When [matchPhone] is given, also returns provider-entered (manual) bookings
+  /// whose `clientPhone` equals it — the auto-sync of FR-APPT-008. The caller
+  /// passes the account's **OTP-verified** phone (never a client-supplied value).
   Future<List<Map<String, dynamic>>> listForUser(
     String userId, {
     String? status,
+    String? matchPhone,
   });
 
   /// A provider's appointments, newest first, optionally filtered by status.
@@ -103,10 +108,17 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
   Future<List<Map<String, dynamic>>> listForUser(
     String userId, {
     String? status,
+    String? matchPhone,
   }) async {
     final list =
         _all
-            .where((a) => a['userId'] == userId)
+            .where(
+              (a) =>
+                  a['userId'] == userId ||
+                  (matchPhone != null &&
+                      matchPhone.isNotEmpty &&
+                      a['clientPhone'] == matchPhone),
+            )
             .where((a) => status == null || a['status'] == status)
             .toList()
           ..sort(

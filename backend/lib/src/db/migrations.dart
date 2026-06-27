@@ -465,6 +465,15 @@ CREATE TABLE notification_preferences (
 )''',
     ],
   ),
+  (
+    id: '0020_appointments_client_phone_idx',
+    statements: [
+      // Index the manual-booking phone so the consumer list's auto-sync match
+      // (FR-APPT-008) stays index-backed. Design: docs/design/appointment-auto-sync.md.
+      'CREATE INDEX appointments_client_phone_idx '
+          'ON appointments(client_phone) WHERE client_phone IS NOT NULL',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

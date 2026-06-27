@@ -222,6 +222,35 @@ class AppointmentCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
+                // Auto-synced from the salon's manual booking (FR-APPT-008):
+                // surfaced because it was made to this account's verified phone.
+                if (appointment.clientName != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.store_mall_directory_outlined,
+                            size: 14, color: AppColors.info),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Réservé par votre salon',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.info,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 // Services
                 if (services.isNotEmpty) ...[
                   Text(
