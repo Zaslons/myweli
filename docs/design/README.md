@@ -31,6 +31,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Push notifications (FCM) — backend | [push-notifications-fcm.md](push-notifications-fcm.md) | Building (token registry + FCM v1 adapter + event wiring); app plugin + creds = ops |
 | Provider before/after showcase (FR-DISC-006) | [provider-before-after.md](provider-before-after.md) | Complete — backend + pro editor + consumer drag-reveal slider |
 | Discovery sort & filter (FR-DISC-007) | [discovery-sort-filter.md](discovery-sort-filter.md) | Complete — backend sort + available-today · app Trier sheet + toggle (à domicile = V2) |
+| In-app notification center (FR-NOTIF-002) | [notification-center.md](notification-center.md) | Building — PR1 backend (feed + write-on-events) · PR2 app |
 | Consumer deposit / Mobile Money flow | [consumer-deposit.md](consumer-deposit.md) | Built (B1 + B2) |
 | Booking duration-overlap exclusion (btree_gist) | [booking-overlap-exclusion.md](booking-overlap-exclusion.md) | Built |
 | Pro KYC (provider verification) | [pro-kyc.md](pro-kyc.md) | Built (provider side) |

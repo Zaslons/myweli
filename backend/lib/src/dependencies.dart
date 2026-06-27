@@ -30,6 +30,7 @@ import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
 import 'db/postgres_messaging_outbox_repository.dart';
 import 'db/postgres_messaging_prefs_repository.dart';
+import 'db/postgres_notifications_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reminder_log_repository.dart';
@@ -46,6 +47,7 @@ import 'messaging/messaging_service.dart';
 import 'messaging/reminder_log_repository.dart';
 import 'messaging/reminder_scheduler.dart';
 import 'messaging/twilio_messaging_provider.dart';
+import 'notifications/notifications_repository.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
@@ -369,13 +371,18 @@ final PushService pushService = PushService(
   deviceTokenRepository,
 );
 
+final NotificationsRepository notificationsRepository = _pool == null
+    ? InMemoryNotificationsRepository()
+    : PostgresNotificationsRepository(_pool!);
+
 /// Turns booking transitions into notifications (recipient + params resolution),
-/// across WhatsApp/SMS + push.
+/// across WhatsApp/SMS + push + the in-app feed.
 final BookingNotifier bookingNotifier = BookingNotifier(
   messagingService,
   authRepository,
   providersRepository,
   pushService,
+  notificationsRepository,
 );
 
 final ReminderLogRepository reminderLogRepository = _pool == null

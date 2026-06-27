@@ -430,6 +430,26 @@ CREATE TABLE device_tokens (
       'CREATE INDEX device_tokens_user_idx ON device_tokens(user_id)',
     ],
   ),
+  (
+    id: '0018_notifications',
+    statements: [
+      // In-app notification feed (per consumer). Design:
+      // docs/design/notification-center.md.
+      '''
+CREATE TABLE notifications (
+  id text PRIMARY KEY,
+  user_id text NOT NULL,
+  type text NOT NULL,
+  title text NOT NULL,
+  body text NOT NULL,
+  route text,
+  read boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX notifications_user_idx '
+          'ON notifications(user_id, created_at DESC)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

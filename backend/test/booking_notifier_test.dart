@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/messaging/messaging_outbox_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_prefs_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_provider.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
+import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/device_token_repository.dart';
 import 'package:myweli_backend/src/push/push_provider.dart';
@@ -41,6 +42,7 @@ void main() {
     users,
     providers,
     PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),
+    InMemoryNotificationsRepository(),
   );
 
   test('uses clientPhone (manual booking) without a user lookup', () async {
