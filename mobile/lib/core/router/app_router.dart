@@ -14,6 +14,7 @@ import '../../screens/map/map_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
 import '../../screens/profile/data_export_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
+import '../../screens/profile/notification_preferences_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/providers/provider_detail_screen.dart';
 import '../../screens/providers/provider_list_screen.dart';
@@ -204,6 +205,11 @@ class AppRouter {
             path: 'data',
             name: 'profile-data',
             builder: (context, state) => const DataExportScreen(),
+          ),
+          GoRoute(
+            path: 'notifications',
+            name: 'profile-notifications',
+            builder: (context, state) => const NotificationPreferencesScreen(),
           ),
         ],
       ),

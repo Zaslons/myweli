@@ -401,7 +401,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-NOTIF-001 [V1]** Push (FCM) + SMS fallback + WhatsApp for: booking confirmed, deposit received, reminder (24h & 2h), provider accepted/declined, reschedule, cancellation, refund. *(✅ built — Twilio WhatsApp/SMS adapter + OTP-over-SMS + booking lifecycle events + 24h/2h reminder scheduler + FCM push; real BSP creds/templates are the ops step. ROADMAP §1.8.)*
 - **FR-NOTIF-002 [V1]** In-app notification center. *(✅ done — backend feed + write-on-events + `ApiNotificationService`.)*
 - **FR-NOTIF-003 [V2]** **Rebook lifecycle reminder** — "Il y a 6 semaines depuis vos dernières tresses chez Beauté Divine — réserver à nouveau ?" (single biggest repeat-booking driver).
-- **FR-NOTIF-004 [V1]** Notification preferences (channel & category opt-out where law/store requires).
+- **FR-NOTIF-004 [V1]** Notification preferences (channel & category opt-out where law/store requires). *(✅ built — per-user reminders/marketing/push opt-out, stored server-side and enforced at send time; consumer screen under Profile.)*
 - **FR-REF-001 [V2]** **Referral program** — "Invite un ami : 2 000 FCFA chacun sur le prochain rendez-vous." Unique codes/links, attribution, credit to wallet, anti-abuse.
 
 ### 9.8 Localization & accessibility (consumer)

@@ -1,10 +1,12 @@
 import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
 import '../../models/app_notification.dart';
+import '../../models/notification_preferences.dart';
 import '../interfaces/notification_service_interface.dart';
 
 class MockNotificationService implements NotificationServiceInterface {
   final List<AppNotification> _items = _seed();
+  NotificationPreferences _prefs = const NotificationPreferences();
 
   static List<AppNotification> _seed() {
     final now = DateTime.now();
@@ -76,5 +78,26 @@ class MockNotificationService implements NotificationServiceInterface {
       _items[i] = _items[i].copyWith(read: true);
     }
     return ApiResponse.success(true);
+  }
+
+  @override
+  Future<ApiResponse<NotificationPreferences>> getPreferences() async {
+    await Future.delayed(AppConstants.mockDelay);
+    return ApiResponse.success(_prefs);
+  }
+
+  @override
+  Future<ApiResponse<NotificationPreferences>> updatePreferences({
+    bool? reminders,
+    bool? marketing,
+    bool? push,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    _prefs = _prefs.copyWith(
+      reminders: reminders,
+      marketing: marketing,
+      push: push,
+    );
+    return ApiResponse.success(_prefs);
   }
 }
