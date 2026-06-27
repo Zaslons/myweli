@@ -264,6 +264,43 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /me/notifications:
+    get:
+      tags: [messaging]
+      summary: In-app notification feed (FR-NOTIF-002) — self-scoped, newest first
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The caller's notifications (≤50)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /me/notifications/read-all:
+    post:
+      tags: [messaging]
+      summary: Mark all the caller's notifications read
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /me/notifications/{id}/read:
+    post:
+      tags: [messaging]
+      summary: Mark one of the caller's notifications read (self-scoped)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /me/favorites:
     get:
       tags: [favorites]
@@ -2343,6 +2380,21 @@ components:
           maxItems: 20
           items: { type: string, maxLength: 2048 }
           description: Ordered list of hosted photo URLs (bytes live in storage).
+
+    Notification:
+      type: object
+      description: In-app notification — mirrors the app's AppNotification.
+      required: [id, type, title, body, createdAt, read]
+      properties:
+        id: { type: string }
+        type:
+          type: string
+          enum: [bookingConfirmed, depositReceived, reminder, reschedule, cancellation, reviewRequest, general]
+        title: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        read: { type: boolean }
+        route: { type: string, nullable: true, description: Optional in-app deep link (e.g. /bookings). }
 
     BeforeAfterPair:
       type: object

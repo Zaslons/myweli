@@ -1,4 +1,5 @@
 import '../auth/auth_repository.dart';
+import '../notifications/notifications_repository.dart';
 import '../providers_repository.dart';
 import '../push/push_service.dart';
 import 'messaging_models.dart';
@@ -6,16 +7,24 @@ import 'messaging_service.dart';
 
 /// Turns a booking transition into a notification: resolves the recipient
 /// (manual `clientPhone`, else the consumer's phone) + the salon name, builds the
-/// template params, and hands off to [MessagingService] (WhatsApp/SMS) **and**
-/// [PushService] (FCM, to the consumer's devices) — all best-effort. Keeps the
-/// transition services pure. Design: docs/design/messaging-notifications.md.
+/// template params, and hands off to [MessagingService] (WhatsApp/SMS),
+/// [PushService] (FCM), **and** the in-app feed ([NotificationsRepository]) — all
+/// best-effort. Keeps the transition services pure.
+/// Design: docs/design/messaging-notifications.md + notification-center.md.
 class BookingNotifier {
-  BookingNotifier(this._messaging, this._users, this._providers, this._push);
+  BookingNotifier(
+    this._messaging,
+    this._users,
+    this._providers,
+    this._push,
+    this._notifications,
+  );
 
   final MessagingService _messaging;
   final AuthRepository _users;
   final ProvidersRepository _providers;
   final PushService _push;
+  final NotificationsRepository _notifications;
 
   /// Sends [template] for [appointment] (a no-op when null / unresolvable).
   Future<void> notify(
@@ -38,25 +47,45 @@ class BookingNotifier {
         );
       }
 
-      // Push to the consumer's devices (app bookings only — manual bookings have
-      // no app user). Best-effort; no-op when no tokens are registered.
+      // Consumer-app touches (app bookings only — manual bookings have no app
+      // user): push to devices + an in-app notification-center entry.
       final userId = appointment['userId'] as String?;
       if (userId != null) {
+        final body = renderTemplate(template, params);
         await _push.sendToUser(
           userId,
           title: _pushTitle(template),
-          body: renderTemplate(template, params),
+          body: body,
           data: {
             'template': template.name,
             if (appointment['id'] != null)
               'appointmentId': '${appointment['id']}',
           },
         );
+        await _notifications.add(
+          userId: userId,
+          type: _notificationType(template),
+          title: _pushTitle(template),
+          body: body,
+          route: '/bookings',
+        );
       }
     } catch (_) {
       // best-effort — a notification failure never affects the transition.
     }
   }
+
+  /// Maps a template to the app's `AppNotificationType.name` (in-app feed).
+  String _notificationType(MessageTemplate t) => switch (t) {
+    MessageTemplate.bookingConfirmed ||
+    MessageTemplate.bookingAccepted => 'bookingConfirmed',
+    MessageTemplate.depositReceived => 'depositReceived',
+    MessageTemplate.reminder24h || MessageTemplate.reminder2h => 'reminder',
+    MessageTemplate.rescheduled => 'reschedule',
+    MessageTemplate.bookingDeclined ||
+    MessageTemplate.cancelled => 'cancellation',
+    MessageTemplate.refund || MessageTemplate.rebookReminder => 'general',
+  };
 
   String _pushTitle(MessageTemplate t) => switch (t) {
     MessageTemplate.bookingConfirmed => 'Réservation confirmée',
