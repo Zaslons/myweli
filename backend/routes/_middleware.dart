@@ -15,6 +15,7 @@ import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/cors.dart';
 import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/favorites_service.dart';
@@ -77,5 +78,7 @@ Handler middleware(Handler handler) {
       .use(provider<ReviewsRepository>((_) => reviewsRepository))
       .use(provider<ReviewsService>((_) => reviewsService))
       .use(provider<TokenService>((_) => tokenService))
-      .use(provider<ProvidersRepository>((_) => providersRepository));
+      .use(provider<ProvidersRepository>((_) => providersRepository))
+      // Outermost: browser CORS for the Next.js web app(s).
+      .use(corsMiddleware(webOrigins));
 }

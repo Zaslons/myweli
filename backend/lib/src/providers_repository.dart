@@ -15,6 +15,9 @@ abstract interface class ProvidersRepository {
   });
   Future<Map<String, dynamic>?> byId(String id);
 
+  /// Public read by URL slug (`myweli.ci/<slug>`), same shape as [byId] or null.
+  Future<Map<String, dynamic>?> bySlug(String slug);
+
   /// Append [service] to [providerId]'s catalogue; returns the stored service,
   /// or null if the provider doesn't exist.
   Future<Map<String, dynamic>?> addService(
@@ -156,6 +159,14 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   Future<Map<String, dynamic>?> byId(String id) async {
     for (final p in _all) {
       if (p['id'] == id) return p;
+    }
+    return null;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> bySlug(String slug) async {
+    for (final p in _all) {
+      if (p['slug'] == slug) return p;
     }
     return null;
   }
@@ -407,6 +418,7 @@ Map<String, dynamic> _defaultWeeklySchedule() {
 final List<Map<String, dynamic>> seedProviders = [
   {
     'id': 'provider1',
+    'slug': 'beaute-divine',
     'name': 'Beauté Divine',
     'description': 'Salon de coiffure et soins à Cocody.',
     'address': 'Rue des Jardins, Cocody, Abidjan',
@@ -451,6 +463,7 @@ final List<Map<String, dynamic>> seedProviders = [
   },
   {
     'id': 'provider2',
+    'slug': 'elegance-coiffure',
     'name': 'Élégance Coiffure',
     'description': 'Coiffure et maquillage, acompte requis.',
     'address': 'Boulevard Latrille, Cocody, Abidjan',
@@ -487,6 +500,7 @@ final List<Map<String, dynamic>> seedProviders = [
   },
   {
     'id': 'provider3',
+    'slug': 'barber-king',
     'name': 'Barber King',
     'description': 'Barbier moderne à Yopougon.',
     'address': 'Avenue Principale, Yopougon, Abidjan',
@@ -522,6 +536,7 @@ final List<Map<String, dynamic>> seedProviders = [
   },
   {
     'id': 'provider4',
+    'slug': 'nails-co',
     'name': 'Nails & Co',
     'description': 'Onglerie et soins des mains à Marcory.',
     'address': 'Zone 4, Marcory, Abidjan',

@@ -474,6 +474,16 @@ CREATE TABLE notification_preferences (
           'ON appointments(client_phone) WHERE client_phone IS NOT NULL',
     ],
   ),
+  (
+    id: '0021_providers_slug',
+    statements: [
+      // Public web slug per provider (myweli.ci/<slug>). Backfill from the seed
+      // data jsonb, then enforce uniqueness. Design: docs/design/web-m1-backend-glue.md.
+      'ALTER TABLE providers ADD COLUMN IF NOT EXISTS slug text',
+      "UPDATE providers SET slug = data->>'slug' WHERE slug IS NULL",
+      'CREATE UNIQUE INDEX IF NOT EXISTS providers_slug_idx ON providers(slug)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
@@ -509,12 +519,13 @@ Future<void> seedProvidersIfEmpty(Pool<void> pool) async {
     await pool.execute(
       Sql.named(
         'INSERT INTO providers '
-        '(id, category, commune, rating, name, description, address, data) '
-        'VALUES (@id, @category, @commune, @rating, @name, @description, '
+        '(id, slug, category, commune, rating, name, description, address, data) '
+        'VALUES (@id, @slug, @category, @commune, @rating, @name, @description, '
         '@address, @data:jsonb)',
       ),
       parameters: {
         'id': p['id'],
+        'slug': p['slug'],
         'category': p['category'],
         'commune': p['commune'],
         'rating': p['rating'],

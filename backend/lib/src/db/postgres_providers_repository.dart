@@ -83,6 +83,24 @@ class PostgresProvidersRepository implements ProvidersRepository {
     return doc;
   }
 
+  @override
+  Future<Map<String, dynamic>?> bySlug(String slug) async {
+    final result = await _pool.execute(
+      Sql.named(
+        'SELECT id, data, featured, status FROM providers WHERE slug = @slug',
+      ),
+      parameters: {'slug': slug},
+    );
+    if (result.isEmpty) return null;
+    final id = result.first.toColumnMap()['id'] as String;
+    final doc = _withFlags(result.first);
+    final services = await _servicesByProvider([id]);
+    final availability = await _availabilityByProvider([id]);
+    doc['services'] = services[id] ?? const <Map<String, dynamic>>[];
+    doc['availability'] = availability[id] ?? _emptyAvailability(id);
+    return doc;
+  }
+
   // ---- writes (PR 2) --------------------------------------------------------
 
   @override

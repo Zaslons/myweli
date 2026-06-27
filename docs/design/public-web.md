@@ -88,7 +88,7 @@ Public pages: SSG/ISR + edge cache, minimal JS, optimised images → fast first 
 
 ## 11. Rollout — milestones (each spec-linked PR; deploy in the accounts phase)
 - **M0 — web foundations (✅ this PR):** [WEB.md](../WEB.md) + [WEB-DESIGN-STANDARDS.md](WEB-DESIGN-STANDARDS.md) + the `myweli-web-guardrails` skill. The rulebook every later milestone references.
-- **M1 — backend glue:** slug + `bySlug` + CORS + public DTOs + sitemap source. *(backend)*
+- **M1 — backend glue (✅ done):** slug (migration `0021` + `bySlug`) + `GET /providers/by-slug/{slug}` + `GET /sitemap/providers` + CORS middleware (`WEB_ORIGINS`). Spec: [web-m1-backend-glue.md](web-m1-backend-glue.md); threat model **T27**. *(backend)*
 - **M2 — `web/` scaffold + SEO foundation:** Next.js app, OpenAPI-typed client, Tailwind+tokens, CI job, base layout + metadata/JSON-LD/robots/sitemap/`llms.txt` helpers.
 - **M3 — provider page `/<slug>`:** SSG/ISR + full SEO/AEO/GEO (LocalBusiness+FAQPage+Review schema) + smart banner + booking entry.
 - **M4 — SEO landing `/<categorie>-<commune>`** + hubs/internal linking.
