@@ -5,6 +5,8 @@ Every non-trivial part of Myweli gets a **design spec here before any code is wr
 This is a standing rule, not a suggestion (see the `myweli-dev-guardrails` / `myweli-backend-guardrails` skills and the `design-spec-per-part` memory).
 
 > **Before any UI/design work, read [DESIGN-STANDARDS.md](DESIGN-STANDARDS.md)** — the canonical design + UX standards (identity, tokens, components, the four-states/French rules, the consistency sweep). Plus the part's spec below. (Rule: `check-design-standards-first`.)
+>
+> **Working on the web (`web/`)?** Read **[WEB-DESIGN-STANDARDS.md](WEB-DESIGN-STANDARDS.md)** (web design system) + **[../WEB.md](../WEB.md)** (web architecture/conventions) first, and invoke the **`myweli-web-guardrails`** skill.
 
 ## The workflow — for every part
 
@@ -31,6 +33,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Push notifications (FCM) — backend | [push-notifications-fcm.md](push-notifications-fcm.md) | Building (token registry + FCM v1 adapter + event wiring); app plugin + creds = ops |
 | Provider before/after showcase (FR-DISC-006) | [provider-before-after.md](provider-before-after.md) | Complete — backend + pro editor + consumer drag-reveal slider |
 | Discovery sort & filter (FR-DISC-007) | [discovery-sort-filter.md](discovery-sort-filter.md) | Complete — backend sort + available-today · app Trier sheet + toggle (à domicile = V2) |
+| Web surface — Next.js, SEO/AEO/GEO (FR-WEB-PP/MP) | [public-web.md](public-web.md) | Planned — OQ-8 resolved (Next.js for all web; shared API); milestone breakdown, awaiting sign-off |
 | Auto-sync provider-entered bookings (FR-APPT-008) | [appointment-auto-sync.md](appointment-auto-sync.md) | Built — read-time match on the account's verified phone + "Réservé par votre salon" badge |
 | Pro subscription — plan & trial (FR-PRO-SUB-001) | [pro-subscription.md](pro-subscription.md) | View built — derived trial (`GET /me/subscription`) + "Mon abonnement" screen; in-app billing deferred |
 | Notification preferences (FR-NOTIF-004) | [notification-preferences.md](notification-preferences.md) | Complete — backend (prefs + send-path enforcement) · app preferences screen |
