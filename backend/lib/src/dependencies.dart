@@ -96,6 +96,22 @@ String? _envOrNull(String key) {
   return (v == null || v.isEmpty) ? null : v;
 }
 
+/// Browser origins allowed to call the API (CORS) — the Next.js web app(s).
+/// Comma-separated `WEB_ORIGINS`; dev defaults to the Next dev server, prod is
+/// empty until configured (deny-by-default — no `*`). Design:
+/// docs/design/web-m1-backend-glue.md.
+final List<String> webOrigins = () {
+  final raw = _envOrNull('WEB_ORIGINS');
+  if (raw != null) {
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+  return _isProd ? const <String>[] : const ['http://localhost:3000'];
+}();
+
 /// R2 API endpoint: explicit `R2_ENDPOINT` wins, else derived from
 /// `R2_ACCOUNT_ID` (so AWS S3 / Supabase / MinIO can drop in via `R2_ENDPOINT`).
 String? get _r2Endpoint {
