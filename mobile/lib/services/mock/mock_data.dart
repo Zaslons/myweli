@@ -1,6 +1,7 @@
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart';
+import '../../models/before_after_pair.dart';
 import '../../models/payment.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
@@ -259,6 +260,17 @@ class MockData {
       imageUrls: const [
         'asset:assets/images/providers/salon_excellence_photo.png',
         'asset:assets/images/providers/spa_relax_photo.png',
+      ],
+      beforeAfters: const [
+        BeforeAfterPair(
+          before: 'asset:assets/images/providers/spa_relax_photo.png',
+          after: 'asset:assets/images/providers/beaute_divine_photo.png',
+          caption: 'Tresses collées',
+        ),
+        BeforeAfterPair(
+          before: 'asset:assets/images/providers/salon_excellence_photo.png',
+          after: 'asset:assets/images/providers/spa_relax_photo.png',
+        ),
       ],
       rating: 4.5,
       reviewCount: 120,
