@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-DISC-006 (provider profile: before/after gallery) |
 | **Phase** | Phase 3 — backend build + integration (discovery polish) |
-| **Status** | PR1 backend ✅ · PR2 pro app ✅ · **PR3 consumer app — next**. |
+| **Status** | **Complete** — PR1 backend ✅ · PR2 pro app ✅ · PR3 consumer slider ✅. |
 | **Decision** | Build the full vertical, UX-first. Consumer display = **drag-to-reveal slider** (signed off 2026-06-27). |
 | **Reuses** | The gallery pattern ([pro-gallery.md](pro-gallery.md)) + image-upload pipeline ([pro-image-upload-pipeline.md](pro-image-upload-pipeline.md)) — **no migration**, same signed upload. |
 

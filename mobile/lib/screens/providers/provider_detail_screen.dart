@@ -19,6 +19,7 @@ import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
+import '../../widgets/providers/before_after_section.dart';
 import '../../widgets/review/review_tile.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
@@ -649,6 +650,13 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 ),
                               ),
                       ),
+
+                      // Section: Avant / Après (only when the salon has pairs)
+                      if (p.beforeAfters.isNotEmpty)
+                        _SectionCard(
+                          title: 'Avant / Après',
+                          child: BeforeAfterSection(pairs: p.beforeAfters),
+                        ),
 
                       // Section: Avis (rating summary + reviews list + conditional CTA)
                       _SectionCard(
