@@ -6,6 +6,7 @@ import '../../services/api/api_notification_service.dart';
 import '../../services/api/api_pro_artist_service.dart';
 import '../../services/api/api_pro_kyc_service.dart';
 import '../../services/api/api_pro_service.dart';
+import '../../services/api/api_pro_subscription_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/api/api_review_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
@@ -19,6 +20,7 @@ import '../../services/interfaces/pro_kyc_service_interface.dart';
 import '../../services/interfaces/pro_service_interface.dart';
 import '../../services/interfaces/provider_service_interface.dart';
 import '../../services/interfaces/review_service_interface.dart';
+import '../../services/interfaces/subscription_service_interface.dart';
 import '../../services/mock/mock_appointment_service.dart';
 import '../../services/mock/mock_auth_service.dart';
 import '../../services/mock/mock_favorites_service.dart';
@@ -30,6 +32,7 @@ import '../../services/mock/mock_pro_kyc_service.dart';
 import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_provider_service.dart';
 import '../../services/mock/mock_review_service.dart';
+import '../../services/mock/mock_subscription_service.dart';
 import '../../services/secure_session_store.dart';
 import '../config/app_config.dart';
 
@@ -52,6 +55,7 @@ class ServiceLocator {
   late final ProServiceInterface proService;
   late final ProArtistServiceInterface proArtistService;
   late final ProKycServiceInterface proKycService;
+  late final SubscriptionServiceInterface subscriptionService;
   late final ImageUploadServiceInterface imageUploadService;
   late final ReviewServiceInterface reviewService;
   late final MessagingServiceInterface messagingService;
@@ -106,6 +110,13 @@ class ServiceLocator {
                 SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockProKycService();
+    // Provider plan & trial status (read-only; derived server-side).
+    subscriptionService = AppConfig.useApiBackend
+        ? ApiProSubscriptionService(
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockSubscriptionService();
     // Real upload pipeline (compress → presigned direct-to-R2) with provider
     // silent refresh; mock echoes the source in demo mode.
     imageUploadService = AppConfig.useApiBackend

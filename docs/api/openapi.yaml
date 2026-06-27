@@ -336,6 +336,24 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /me/subscription:
+    get:
+      tags: [provider]
+      summary: The signed-in provider's plan & trial status (FR-PRO-SUB-001) — derived
+      description: >
+        Provider-role, self-scoped. Derived from the account's signup date (no
+        billing state in V1): Pro during the 90-day trial, else Free.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The caller's subscription status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /me/favorites:
     get:
       tags: [favorites]
@@ -2442,6 +2460,18 @@ components:
         reminders: { type: boolean, description: 24h/2h appointment reminders. }
         marketing: { type: boolean, description: Marketing/promotional messages (ARTCI opt-out). }
         push: { type: boolean, description: Device push notifications. }
+
+    Subscription:
+      type: object
+      description: >
+        Provider plan & trial status (FR-PRO-SUB-001), derived from signup. V1
+        has no billing state; paid tiers/auto-renew land post-incorporation.
+      required: [tier, status, trialEndsAt, trialDaysLeft]
+      properties:
+        tier: { type: string, enum: [free, pro] }
+        status: { type: string, enum: [trial, free] }
+        trialEndsAt: { type: string, format: date-time }
+        trialDaysLeft: { type: integer, description: Days left in the free trial (0 once ended). }
 
     BeforeAfterPair:
       type: object

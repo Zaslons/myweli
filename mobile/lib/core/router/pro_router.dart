@@ -23,6 +23,7 @@ import '../../screens/provider/reviews/reviews_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
+import '../../screens/provider/subscription/pro_subscription_screen.dart';
 
 class ProRouter {
   static final GoRouter router = GoRouter(
@@ -133,6 +134,11 @@ class ProRouter {
               context.read<ProAuthProvider>().provider?.providerId ?? '';
           return DepositSettingsScreen(providerId: providerId);
         },
+      ),
+      GoRoute(
+        path: '/pro/subscription',
+        name: 'pro-subscription',
+        builder: (context, state) => const ProSubscriptionScreen(),
       ),
       GoRoute(
         path: '/pro/verification',

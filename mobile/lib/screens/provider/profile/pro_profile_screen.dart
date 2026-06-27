@@ -118,6 +118,15 @@ class ProProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Card(
                   child: ListTile(
+                    leading: const Icon(Icons.workspace_premium_outlined),
+                    title: const Text('Mon abonnement'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/pro/subscription'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: ListTile(
                     leading: const Icon(Icons.payments_outlined),
                     title: const Text('Paramètres d\'acompte'),
                     trailing: const Icon(Icons.chevron_right),

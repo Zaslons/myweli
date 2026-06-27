@@ -21,6 +21,7 @@ import 'providers/pro_kyc_provider.dart';
 import 'providers/pro_onboarding_provider.dart';
 import 'providers/pro_reviews_provider.dart';
 import 'providers/pro_service_provider.dart';
+import 'providers/pro_subscription_provider.dart';
 
 void main() {
   // Run inside a guarded zone so framework errors and uncaught async errors
@@ -68,6 +69,7 @@ class MyweliProApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProOnboardingProvider()),
         ChangeNotifierProvider(create: (_) => ProGalleryProvider()),
         ChangeNotifierProvider(create: (_) => ProBeforeAfterProvider()),
+        ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
       ],
       child: MaterialApp.router(
         title: 'Myweli Pro',
