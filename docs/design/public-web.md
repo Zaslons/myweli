@@ -1,126 +1,95 @@
-# Public web surface — SSR provider pages, SEO & web booking (FR-WEB-PP/MP)
+# Web surface — Next.js (SEO + AEO + GEO), shared backend (FR-WEB-PP/MP)
 
 | | |
 |---|---|
-| **Requirements** | FR-WEB-PP-001..005, FR-WEB-MP-001 [V1] (PP-006 / MP-002/003 = V2). |
-| **Phase** | V1 — the last remaining V1 **feature** gap (ROADMAP §1.8). |
-| **Stack (OQ-8 resolved 2026-06-28)** | **dart_frog SSR (Dart)** — server-rendered HTML from a dedicated public web app that reuses the backend's data layer. *Not* Flutter Web (no SEO); *not* a separate JS/React stack (avoids a second language/toolchain + duplicated DTOs/tokens for a solo Dart team). The PRD's hard constraint is crawlable SSR HTML (FR-WEB-PP-002) — dart_frog satisfies it. |
-| **Status** | Plan / spec — **awaiting sign-off**. Multi-PR; nothing built yet. |
+| **Requirements** | FR-WEB-PP-001..005, FR-WEB-MP-001..003 + provider-dashboard web. (Scope pulled up — see §2.) |
+| **Phase** | V1 web surface (the last V1 feature area). |
+| **Stack (OQ-8 — re-resolved 2026-06-28)** | **Next.js (React, TypeScript) for ALL web**; **Flutter** stays for mobile; **one shared `dart_frog` REST API**. Supersedes the earlier "dart_frog SSR" note — chosen on **UX** (best first-paint/SEO for cold mobile-web; desktop-grade pro tool) now that the owner is building the web in Next.js. |
+| **Status** | Plan / spec — **awaiting sign-off**. Large multi-PR epic; nothing built yet. |
 
-## 1. Goal & scope
-Give every provider a fast, shareable, **SEO-ranking** public page
-(`myweli.ci/<slug>`) — the "single biggest organic-acquisition channel" — plus
-SEO landing pages and a **no-install web booking** funnel. Mobile-web first (most
-traffic is mobile browsers).
+## 1. Architecture
+```
+                ┌───────────────────────────────┐
+                │  dart_frog REST API + Postgres │  ← the one backend (unchanged)
+                └───────────────▲───────────────┘
+         Flutter (mobile)       │        Next.js (all web)
+   consumer app · pro app       │   public SEO · consumer web · pro web
+        (native UX)             │        (web-native UX, SSR/SSG)
+                          admin = Flutter Web (already built)
+```
+- **New top-level `web/`** Next.js app (App Router, **TypeScript**) alongside `mobile/` + `backend/`.
+- **Typed API client generated from `docs/api/openapi.yaml`** (e.g. `openapi-typescript`) → no hand-duplicated DTOs; the contract can't drift.
+- **Design tokens shared:** export the monochrome palette/spacing/type to a tokens JSON consumed by **Tailwind** (web) and the Flutter theme (one source of truth) so web ≈ app visually.
+- **Rendering per surface:** provider/landing pages = **SSG + ISR** (instant, cheap, fresh on edit); discovery/account/pro dashboard = SSR + client components behind auth.
+- **Hosting** (accounts phase): Vercel/Cloudflare/Netlify; the API on its own host. Buildable + CI-tested in-repo now.
 
-**In V1:** provider page (PP-001/002), web booking funnel (PP-003), no-custody web
-deposit (PP-004 — see §2), "open in app" banner (PP-005), SEO landing /
-category·commune pages (MP-001), `sitemap.xml` + `robots.txt` + structured data.
-**Deferred (V2):** per-provider custom branding (PP-006), full web marketplace
-browse/search/login/my-bookings (MP-002/003).
+## 2. Surfaces & scope
+1. **Public SEO pages** (FR-WEB-PP-001/002, FR-WEB-MP-001): `myweli.ci/<slug>` provider pages + `/<categorie>-<commune>` landings + home. SSG/ISR, full SEO/AEO/GEO (§4).
+2. **Consumer web app** (FR-WEB-MP-002): login (phone/OTP), discovery (search/filter/map), booking, account/my-bookings.
+3. **Pro web dashboard** (provider on PC — Planity-style): login, agenda/day view, manage bookings, services/staff/availability, etc. **Desktop-optimized.**
+4. **Install push** everywhere: "Télécharger l'app" / smart banner (FR-WEB-PP-005) — web converts, app deepens.
+- **Deferred V2:** per-provider custom branding (PP-006), web group/packages/promos parity (MP-003).
 
-## 2. Corrections to keep the docs honest
-- **FR-WEB-PP-004 (deposit):** the PRD says "aggregator hosted/redirect flow" —
-  this **conflicts with the no-custody decision** (OQ-1/OQ-4). The web deposit
-  **mirrors the app**: a facilitated **Wave deep link / copyable number + amount**,
-  client authorises in their own app; Myweli never holds funds. (PRD updated.)
-- **Slug (FR-WEB-PP-001):** no `slug` exists yet → a small backend add (§5, PR1).
+## 3. No-custody on web (correction kept)
+Web deposit = the **no-custody facilitated flow** (Wave link / copy number), mirroring the app — **not** an aggregator (FR-WEB-PP-004 corrected; OQ-1/OQ-4).
 
-## 3. Architecture
-- A **new dart_frog application** `web_public/` (its own entrypoint/deploy, e.g.
-  `myweli.ci`), **separate from the JSON API** (`api.myweli.ci`) but depending on
-  the **`backend` package** so it reuses models, repositories, validators, and the
-  DB pool — no duplication. (One language, two small deploys sharing one codebase.)
-- **SSR reads go straight to the repositories** (e.g. `ProvidersRepository`) for
-  the fastest TTFB — no HTTP hop. **Writes** (create booking, request OTP) call the
-  existing **JSON API**/`BookingService` so all the server-authority + validation +
-  notification logic is reused, never reimplemented.
-- **Rendering:** small pure Dart **HTML view functions** (`String render…(dto)`),
-  unit-testable, no template engine. A tiny shared layout (head, meta, JSON-LD,
-  "open in app" banner, footer).
-- **Interactivity:** progressive enhancement — pages work without JS; the booking
-  funnel adds **minimal vanilla-JS islands** (fetch open slots, submit booking).
-  No SPA framework.
+## 4. SEO + AEO + GEO — first-class strategy
+The web's job is discovery; optimise for **all three** discovery engines.
 
-### Routes (on the web host)
-- `/` — marketing/landing home.
-- `/<slug>` — provider public page (PP-001/002).
-- `/<slug>/reserver` — booking funnel (PP-003).
-- `/<categorie>-<commune>` — SEO landing (MP-001), e.g. `/tresses-cocody`.
-- `/sitemap.xml`, `/robots.txt`.
-Slug/landing patterns are matched explicitly (no greedy catch-all that could mask
-real paths); unknown slug → **404** page.
+### 4.1 SEO (classic ranking)
+- **SSR/SSG crawlable HTML**, semantic structure, one `<h1>`, clean URLs, `<title>`/meta/canonical, **OpenGraph + Twitter** cards.
+- **Core Web Vitals budgets** (ranking factor): LCP < 2.5s, INP < 200ms, CLS < 0.1 on mid-range mobile/3G — `next/image`, font-display, minimal JS on public pages.
+- **`sitemap.xml`** (all slugs + landings, auto-generated), **`robots.txt`**, `hreflang` (`fr`/`fr-CI`), internal linking (commune/category hubs ↔ providers), descriptive `alt` text.
+- **Schema.org JSON-LD:** `LocalBusiness`/`HairSalon`/`BeautySalon` (name, address, geo, `openingHours`, `priceRange`, `image`, `telephone`, `areaServed`), `AggregateRating` + `Review`, `Service`/`Offer`, `BreadcrumbList`.
 
-## 4. SEO (FR-WEB-PP-002)
-- Server-rendered, crawlable HTML; **mobile-first**, minimal CSS inlined for first
-  paint.
-- Per page: `<title>`, `<meta name=description>`, **canonical**, **OpenGraph** +
-  Twitter card (provider name, commune, hero image).
-- **Schema.org JSON-LD** `BeautySalon`/`LocalBusiness` (name, address, commune,
-  geo, hours, `aggregateRating`, price range, photos, `telephone`).
-- `sitemap.xml` enumerates provider slugs + landing pages; `robots.txt` allows
-  crawl + points to the sitemap.
-- FR copy; FCFA/hours via the same formatting rules.
+### 4.2 AEO (Google AI Overviews / answer engines / featured snippets)
+- **Answer-first content**: each page leads with a concise, extractable answer, then detail. Headings phrased as real queries (« Combien coûte une pose de tresses à Cocody ? », « Meilleur barbier à Plateau »).
+- **`FAQPage` schema** on provider + landing pages (price ranges, hours, "à domicile ?", deposit, cancellation) — directly feeds AI Overviews + snippets.
+- **Structured, liftable blocks**: short paragraphs, lists, comparison tables; explicit entities (salon name + commune + service).
+- **Authority/freshness signals**: visible ratings/review counts, NAP consistency, `dateModified`.
 
-## 5. Data / backend (PR1)
-- Add **`slug`** to providers: unique, generated from name (kebab, deaccented,
-  collision-suffixed), backfilled for existing rows; immutable once set (or
-  redirect on change — V2). Migration + `ProvidersRepository.bySlug(slug)`.
-- Public read DTO = only **public** fields (no deposit-handle internals beyond
-  what booking needs, no other users' data). Reviews are already public.
+### 4.3 GEO (get ChatGPT/Perplexity/Gemini to recommend Myweli by name)
+- **Strong, unambiguous brand entity**: an `Organization` JSON-LD + a canonical **"À propos / Myweli"** entity page (what it is, where — Côte d'Ivoire, what it does), `sameAs` → social profiles; pursue a **Wikidata** entry (off-site, ops).
+- **`llms.txt`** at the web root (emerging convention) describing the site + key pages for LLM ingestion; keep `robots.txt` permissive to reputable AI crawlers (configurable).
+- **Citable, factual, well-structured content** with concrete specifics (services, communes, prices, stats) — generative engines favour clear, stat-backed, attributable text.
+- **Off-site presence (ops, but the site enables it)**: consistent NAP + brand mentions in directories/press so models repeatedly associate "réservation beauté Abidjan/CI" → **Myweli**.
+- **Measurement**: track referrals from AI sources + periodic prompts to the engines ("meilleure app de réservation beauté en Côte d'Ivoire ?") to watch name-recall.
 
-## 6. Web booking funnel (PP-003) + deposit (PP-004)
-- Steps: **service(s) → staff (optional) → slot → confirm**. Slots come from the
-  existing `SlotService` (same availability rules as the app).
-- **Auth at confirm** (mirrors the app's gate): phone + **OTP** via the existing
-  `/auth/otp/*`. Creating the booking under the verified account means it also
-  shows up in their app (dovetails with **FR-APPT-008** auto-sync). No separate
-  guest-booking path in V1.
-- **Deposit:** if the salon requires one, show the **no-custody** facilitated step
-  (Wave link / copy number + amount + "j'ai payé" → attach screenshot later in the
-  app), identical posture to the consumer app. Booking stays **pending** until the
-  salon confirms.
+## 5. Auth on web
+- Phone/OTP via the existing `/auth/otp/*`. **Refresh token in an `httpOnly`, `Secure`, `SameSite` cookie** (set by the backend / Next route handlers) — safer + better UX than `localStorage`; access token kept in memory. Needs a small **backend web-cookie session path** + **CORS** for the web origin.
 
-## 7. "Open in app" smart banner + attribution (PP-005)
-- A dismissible banner / `Réserver dans l'app` deep link (store links + a deferred
-  deep link to the provider). Attribution params recorded on the click-through.
+## 6. Backend additions (the small "glue" — each its own PR, backend-guardrails)
+- **`slug`** on providers (unique, generated/backfilled) + `bySlug`.
+- **CORS** middleware allowlisting the web origin(s).
+- **Public read DTOs** (only public fields) + a **sitemap source** (slugs/landings).
+- **Web-cookie auth** path (httpOnly refresh) + **rate-limit / bot hardening** on public + OTP.
+- (Storage **CORS** on R2 for browser uploads, when pro-web media lands.)
+
+## 7. Booking on web
+Service → staff → slot (existing `SlotService`) → **OTP at confirm** → **no-custody deposit**. Booking under the verified account ⇒ it also appears in the mobile app (dovetails with **FR-APPT-008** auto-sync).
 
 ## 8. Security
-- Public pages are **unauthenticated reads of already-public data** — no PII, no
-  tokens, no other users' data; only the provider's public profile + public
-  reviews. Render-time allowlist of fields.
-- **Rate-limit** public endpoints (esp. the OTP request reused by the funnel) and
-  add basic bot hardening; no secrets in HTML; standard headers (CSP where
-  feasible). Booking/OTP go through the existing hardened API (its authz/validation
-  apply). Threat-model rows added when the routes land (`T27+`).
+Public pages = unauthenticated reads of already-public data (render-time field allowlist; no PII/tokens). Authed surfaces via httpOnly-cookie session over the hardened API (its authz/validation apply). CORS locked to known origins; standard security headers/CSP; rate-limit public + OTP. Threat-model rows (`T27+`) added as routes land.
 
 ## 9. Performance
-- SSR string render → low TTFB; **cache** provider pages (short TTL, CDN-friendly
-  `Cache-Control`) with invalidation on profile edit. Responsive/lazy images from
-  the existing CDN; minimal/inlined critical CSS; tiny JS. Target fast first paint
-  on 3G mobile.
+Public pages: SSG/ISR + edge cache, minimal JS, optimised images → fast first paint on low-end mobile/3G (the CI reality + a ranking + conversion factor). Authed app: code-split, lazy routes.
 
-## 10. Testing
-- Handler/unit tests: provider page renders the right HTML + **JSON-LD** + meta;
-  unknown slug → 404; landing page lists matching providers; `sitemap.xml`
-  well-formed. Slug generation (collisions, accents). Booking funnel handlers
-  (slot fetch, OTP-gated create, no-custody deposit). No PII in output.
+## 10. Testing & CI
+- **New CI job** for `web/`: typecheck + lint + `next build` + unit (Vitest/RTL).
+- **Playwright e2e** for critical flows (provider page renders + JSON-LD; booking funnel; login).
+- **Lighthouse CI** budget gate on public pages (CWV + SEO score). Contract types regenerated from `openapi.yaml` in CI (drift check).
 
-## 11. Rollout — PR breakdown (each spec-linked, own PR)
-1. **PR1 — slug + public read:** migration + slug gen/backfill + `bySlug`; tests.
-2. **PR2 — `web_public/` app + provider page:** scaffold the SSR app, the layout,
-   the `/<slug>` page (PP-001/002) + JSON-LD/meta + smart banner (PP-005) +
-   `robots.txt`/`sitemap.xml`. CI builds it.
-3. **PR3 — SEO landing pages (MP-001):** `/<categorie>-<commune>` + internal
-   linking + sitemap entries.
-4. **PR4 — web booking funnel (PP-003 + PP-004):** service→staff→slot→confirm,
-   OTP at confirm, no-custody deposit; reuses `SlotService`/`BookingService`.
-- Built + CI-green in-repo now; **deployed in the accounts/hosting phase** (host +
-  `myweli.ci` DNS + TLS are yours-at-the-end, like the rest of activation).
+## 11. Rollout — milestones (each spec-linked PR; deploy in the accounts phase)
+- **M1 — backend glue:** slug + `bySlug` + CORS + public DTOs + sitemap source. *(backend)*
+- **M2 — `web/` scaffold + SEO foundation:** Next.js app, OpenAPI-typed client, Tailwind+tokens, CI job, base layout + metadata/JSON-LD/robots/sitemap/`llms.txt` helpers.
+- **M3 — provider page `/<slug>`:** SSG/ISR + full SEO/AEO/GEO (LocalBusiness+FAQPage+Review schema) + smart banner + booking entry.
+- **M4 — SEO landing `/<categorie>-<commune>`** + hubs/internal linking.
+- **M5 — web booking funnel** (OTP + no-custody deposit; web-cookie auth).
+- **M6 — consumer web account** (my bookings, discovery/search/map).
+- **M7 — pro web dashboard** (desktop-optimised; likely several PRs: auth → agenda/day view → manage bookings → catalogue/availability).
 
 ## 12. Open questions
-- **OQ-WEB-1** Host topology: `myweli.ci` (web) + `api.myweli.ci` (API) vs a path
-  split — a deploy-phase detail; doesn't block building.
-- **OQ-WEB-2** Exact slug format + whether to allow provider-chosen slugs (V2).
-- **OQ-WEB-3** How much funnel interactivity is "minimal JS" vs a small island —
-  settle in PR4's spec pass.
+- **OQ-WEB-1** Host topology + platform (Vercel/Cloudflare/…); a deploy-phase call.
+- **OQ-WEB-2** Slug format + provider-chosen slugs (V2?).
+- **OQ-WEB-3** Pro-web dashboard scope/order for V1 (full parity vs. agenda + bookings first).
+- **OQ-WEB-4** Token model: httpOnly-cookie session details (rotation reuse of the existing refresh family).

@@ -291,11 +291,11 @@ The minimum to onboard salons in 3 communes and run real, deposit-backed booking
 |---|---|---|
 | Consumer iOS + Android | **Flutter** (existing) | One codebase, good perf on low-end Android, current investment. |
 | Pro iOS + Android | **Flutter** (existing, `main_pro.dart`) | Same. |
-| **Public web** (per-provider booking pages + consumer marketplace) | **`dart_frog` SSR (Dart)** — *revised 2026-06-28 from Next.js (OQ-8)* | **SEO and shareability are the entire point** → must be **server-rendered crawlable HTML** (Flutter Web can't rank). With the project now all-Dart, the public surface is SSR'd from a dedicated dart_frog app reusing the backend data layer — meeting the SSR constraint without a second JS stack/duplicated DTOs. Design: docs/design/public-web.md. |
+| **All web** (public SEO pages + consumer web + provider dashboard) | **Next.js (React/TS)** — *OQ-8, 2026-06-28* | **SEO/AEO/GEO + first-paint are the point** → must be SSR/SSG crawlable HTML (Flutter Web can't rank). Chosen on **UX** (best cold-mobile-web first paint; desktop-grade pro tool) over Flutter-Web reuse. Consumes the shared `dart_frog` API; DTOs generated from `openapi.yaml`, design tokens shared. Design: docs/design/public-web.md. |
 | Provider dashboard (web) | React (shared with public web) **or** Flutter Web | Behind login, SEO irrelevant; choose by team velocity. Recommend React to share components/design system with public web. |
 | Admin/ops console | **Flutter Web** (revised from React) | Internal, behind auth → SEO/SSR (React's edge) is irrelevant here. Built as a 3rd Flutter entrypoint (`main_admin.dart`) reusing the existing models, `interface+Api` services, `RefreshingHttpClient` (silent refresh), theme + widgets — fastest for a solo Flutter team ("choose by team velocity"). The React preference was justified by sharing with the **public** web (V2, not built); revisit only if that materializes. Design: docs/design/admin-console-ui.md. |
 
-**Decision:** Do **not** build the public-facing web on Flutter Web. Public booking pages and the marketplace are SEO-first and must be **server-rendered crawlable HTML** — built with **`dart_frog` SSR (Dart)** (OQ-8 resolved 2026-06-28), reusing the backend data layer rather than adding a Next.js/React stack. Admin = Flutter Web (built); provider-dashboard web = V2.
+**Decision (OQ-8, 2026-06-28):** all web — public SEO pages, consumer web, **and** the provider dashboard — is built in **Next.js (React/TS)**, consuming the shared `dart_frog` API (DTOs generated from `openapi.yaml`; design tokens shared with Flutter). Chosen on **UX**: SSR/SSG gives the best first paint for cold mobile-web (the CI reality) + the SEO/AEO/GEO ranking the surface exists for, and a desktop-grade provider tool. **Flutter stays for the mobile apps**; admin stays Flutter Web. Flutter Web is **not** used for the public surface (can't rank). Earlier "dart_frog SSR" idea is superseded (Next.js does SSR/SEO natively + better).
 
 ### 8.2 Backend
 - Single API (REST or GraphQL) serving all clients. Replace the existing mock `*ServiceInterface` implementations with real HTTP implementations — **the interface-then-mock architecture already in the codebase is preserved** and makes this swap localized.
@@ -486,7 +486,7 @@ These exist today as **unrouted UI mocks** in `screens/provider/features/`. They
 
 ## 11. Functional requirements — Web surfaces
 
-Public surface = **`dart_frog` SSR (Dart)** — server-rendered HTML reusing the backend data layer (OQ-8 resolved 2026-06-28; supersedes the earlier Next.js note below). Admin = Flutter Web (built); provider-dashboard web = V2. Design: docs/design/public-web.md.
+All web (public SEO pages + consumer web + provider dashboard) = **Next.js (React/TS)** consuming the shared `dart_frog` API (OQ-8, 2026-06-28) — optimised for **SEO + AEO + GEO**. Mobile stays Flutter; admin = Flutter Web (built). Design: docs/design/public-web.md.
 
 ### 11.1 Per-provider public booking pages — [V1] (SEO-first)
 - **FR-WEB-PP-001 [V1]** Each provider gets a public, shareable URL: `myweli.ci/<slug>` (e.g., `myweli.ci/salon-excellence`). For Instagram bios — the single biggest organic acquisition channel.
@@ -675,7 +675,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 - **OQ-5** ✅ **Decided: Twilio** (WhatsApp + SMS). The backend adapter + OTP + reminders are built; remaining is the ops step (register the account, get templates approved). See docs/design/messaging-notifications.md.
 - **OQ-6** Home-service transport-fee model: flat, distance-based, or provider-set? (V2 design input.)
 - **OQ-7** Data residency expectations under ARTCI — any local-hosting requirement?
-- **OQ-8** ✅ **Resolved (2026-06-28): public web = `dart_frog` SSR (Dart).** The hard constraint is crawlable SSR HTML (FR-WEB-PP-002); since the project consolidated on Dart (Flutter + dart_frog), the public surface is **server-rendered from a dedicated dart_frog app reusing the backend data layer** — avoiding a second JS/React stack + duplicated DTOs/tokens for a solo team. (Admin stays Flutter Web; provider dashboard web = V2.) Design: docs/design/public-web.md.
+- **OQ-8** ✅ **Resolved (2026-06-28): all web = Next.js (React/TS) on the shared `dart_frog` API.** Public SEO pages, consumer web, and the **provider dashboard** are built in Next.js — chosen on **UX** (best cold-mobile-web first paint + SEO/AEO/GEO + a desktop-grade pro tool); the owner is comfortable building it. DTOs generated from `openapi.yaml`, design tokens shared with Flutter. Mobile stays Flutter; admin stays Flutter Web. (Supersedes the interim "dart_frog SSR" idea.) Design: docs/design/public-web.md.
 
 ---
 
