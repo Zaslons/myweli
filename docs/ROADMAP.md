@@ -86,7 +86,7 @@ Requirement-by-requirement pass over every PRD `[V1]` FR vs the codebase. **109 
 - 🟠 **Subscriptions / monetization view (`FR-PRO-SUB-001`) — NOT built.** No plan/trial/entitlements screen. Paid *collection* is no-custody-deferred (rides the 30-day trial + free tier until incorporation; OQ-3), but the **plan & trial view** is V1.
 - 🟠 **Auto-sync provider-entered bookings (`FR-APPT-008`) — NOT built.** Manual bookings use `userId: 'manual'`; they don't link to a consumer account by phone, so they don't auto-appear in the client's app. Real adoption driver. Moderate backend work (link by phone at register/login).
 - 🟡 **Notification preferences (`FR-NOTIF-004`) — NOT built.** No consumer channel/category opt-out screen (backend has promotional opt-out only). Small.
-- 🟡 **Add-to-calendar `.ics` (`FR-APPT-006`) — partial.** Directions/maps ✅; calendar-add (.ics) missing. Minor.
+- 🟢 **Add-to-calendar (`FR-APPT-006`) — done (2026-06-27).** Directions/maps ✅; native add-to-calendar shipped (`add_2_calendar`, one-tap from the appointment detail; iOS plist keys set, Android `<queries>` noted as TODO for when `android/` is scaffolded). Design: [docs/design/appointment-calendar.md](design/appointment-calendar.md).
 
 **🔵 Deferred by design (correct).** Admin **impersonate / act-as** (`WEB-AD-002`); full-team **booking journal** (`FR-PRO-CAL-002`, behind `futureProviderFeatures=false`); à-domicile/home-service (V2); **Mobile Money aggregator** (non-goal, OQ-1/OQ-4); loyalty/memberships/gifting + the 8 `screens/provider/features/*` (V2/V3).
 

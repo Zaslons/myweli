@@ -6,6 +6,10 @@
 	<string>Myweli utilise l’appareil photo pour ajouter des photos à la galerie de votre salon.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Myweli accède à vos photos pour ajouter des images à la galerie de votre salon.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Myweli ajoute vos rendez-vous à votre calendrier.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Myweli ajoute vos rendez-vous à votre calendrier.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

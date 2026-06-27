@@ -382,7 +382,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-APPT-003 [V1]** Cancel — **policy-bound**: shows deposit consequence before confirming ("Annulation à moins de 24h : acompte non remboursable").
 - **FR-APPT-004 [V1]** Reschedule — within policy; re-checks availability; deposit carries over.
 - **FR-APPT-005 [V1]** **Cancellation policy engine** — provider sets window (e.g., free cancel >24h, deposit forfeit <24h, full charge on no-show). Enforced automatically on deposit/refund.
-- **FR-APPT-006 [V1]** Calendar add (.ics / native calendar) and directions (maps) to the provider.
+- **FR-APPT-006 [V1]** Calendar add (.ics / native calendar) and directions (maps) to the provider. *(✅ built — directions + native add-to-calendar (`add_2_calendar`) from the appointment detail.)*
 - **FR-APPT-007 [V2]** In-app chat or WhatsApp handoff with provider for booking edge cases.
 - **FR-APPT-008 [V1]** **Auto-sync of provider-entered bookings** (YPLACES-style) — when a provider books a client manually (FR-PRO-BOOK-002), matched by phone number, the appointment appears automatically in that client's app with full details. Bridges the paper journal and the consumer app and drives organic install ("your salon already booked you — see it here").
 - **FR-APPT-009 [V1]** **Rich visit history** — a personal record per visit: date/time, provider, address, services, artist, amount paid (deposit/balance), receipts. The consumer's beauty journal; basis for rebook (FR-BOOK-009), loyalty, and lifecycle reminders.

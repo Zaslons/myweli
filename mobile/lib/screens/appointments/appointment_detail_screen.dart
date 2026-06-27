@@ -6,6 +6,7 @@ import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/calendar_event.dart';
 import '../../core/utils/cancellation_policy.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/appointment.dart';
@@ -291,6 +292,53 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
   }
 
+  /// Add this upcoming appointment to the phone's native calendar. Loads the
+  /// provider (reusing the cached fetch) for the title/location/services, then
+  /// opens the OS "new event" sheet — the user saves it in their own calendar
+  /// app (Myweli never writes the entry). Design: docs/design/appointment-calendar.md.
+  Future<void> _addToCalendar(Appointment appointment) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final providerProvider =
+        Provider.of<ProviderProvider>(context, listen: false);
+    await providerProvider.loadProviderById(appointment.providerId);
+    if (!mounted) return;
+    final p = providerProvider.selectedProvider;
+
+    final serviceNames = <String>[];
+    var totalDuration = 0;
+    if (p != null) {
+      for (final s in p.services) {
+        if (appointment.serviceIds.contains(s.id)) {
+          serviceNames.add(s.name);
+          totalDuration += s.durationMinutes;
+        }
+      }
+    }
+
+    final ok = await addAppointmentToCalendar(
+      buildAppointmentCalendarEvent(
+        providerName: p?.name ?? 'le salon',
+        providerAddress: p?.address,
+        serviceNames: serviceNames,
+        start: appointment.appointmentDate,
+        totalDurationMinutes: totalDuration,
+        depositAmount: appointment.depositAmount,
+        balanceDue: appointment.balanceDue,
+      ),
+    );
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Rendez-vous ajouté à votre calendrier'
+              : 'Impossible d\'ouvrir le calendrier',
+        ),
+        backgroundColor: ok ? AppColors.success : AppColors.error,
+      ),
+    );
+  }
+
   Future<void> _leaveReview(Appointment appointment) async {
     final providerProvider =
         Provider.of<ProviderProvider>(context, listen: false);
@@ -416,6 +464,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       icon: Icons.event_repeat,
                       isLoading: provider.isLoading,
                       onPressed: () => _handleReschedule(appointment),
+                    ),
+                    const SizedBox(height: 8),
+                    AppButton(
+                      text: 'Ajouter au calendrier',
+                      type: AppButtonType.secondary,
+                      icon: Icons.event_available,
+                      onPressed: () => _addToCalendar(appointment),
                     ),
                     const SizedBox(height: 8),
                   ],
