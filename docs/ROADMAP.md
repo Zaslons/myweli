@@ -98,7 +98,7 @@ Requirement-by-requirement pass over every PRD `[V1]` FR vs the codebase. **109 
 
 **❓ Open questions still live:** OQ-2 (pricing — field validation), OQ-3 (store IAP vs web billing — gates subscriptions + web), OQ-7 (ARTCI data residency), OQ-8 (web stack — gates the public web surface). *Resolved:* OQ-1 (no custody), OQ-4 (no aggregator), OQ-5 (Twilio).
 
-**📝 Doc debt:** the PRD's inline status notes (`*(stub / does not exist / needs …)*` on several shipped FRs — e.g. NOTIF-002, PRO-KYC-001, PRO-MEDIA-001, PRO-BOOK-004, DISC-006) are **stale** and should be refreshed or removed (status lives here in the ROADMAP). Foundational consumer screens (auth, discovery, booking hub, my-bookings, favorites) predate the spec-per-part rule and have **no `docs/design/<part>.md`** — retroactive specs optional.
+**📝 Doc debt:** ✅ the PRD's stale inline status notes were refreshed (2026-06-27) — shipped FRs (AUTH-002, DISC-006, BOOK-007, NOTIF-001/002, PRO-KYC-001, PRO-ONB-001, PRO-MEDIA-001, PRO-CAL-001, PRO-BOOK-004, PRO-MKT-001) now read accurately and `PRO-CAL-002` is marked V2-deferred. Remaining: the foundational consumer screens (auth, discovery, booking hub, my-bookings, favorites) predate the spec-per-part rule and have **no `docs/design/<part>.md`** — retroactive specs optional.
 
 ---
 

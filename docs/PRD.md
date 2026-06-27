@@ -321,7 +321,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 ### 9.1 Authentication & account
 
 - **FR-AUTH-001 [V1]** Phone-number login with country code defaulted to **+225**, validated to Ivorian formats. *(exists: `phone_login_screen.dart`)*
-- **FR-AUTH-002 [V1]** OTP verification via SMS; auto-read OTP on Android where possible; resend with cooldown; max attempts + lockout. *(exists in mock as `123456`)*
+- **FR-AUTH-002 [V1]** OTP verification via SMS; auto-read OTP on Android where possible; resend with cooldown; max attempts + lockout. *(✅ built — real-OTP UX + backend OTP (hashed, rate-limit/lockout); SMS delivery via Twilio. ROADMAP §1.8.)*
   - **AC:** Given a valid CI number, when the user requests OTP, then an SMS is delivered within 30s (p95) and a 6-digit code is accepted; after 5 failed attempts the number is rate-limited for 15 min.
 - **FR-AUTH-003 [V1]** Session persistence via secure storage; silent re-auth on launch; explicit logout. *(exists: `flutter_secure_storage`)*
 - **FR-AUTH-004 [V1]** Profile: name, optional email, optional photo. Edit profile. *(exists: `edit_profile_screen.dart`)*
@@ -335,7 +335,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-DISC-003 [V1]** Category browse using **CI service taxonomy** (Appendix A), not generic "hair/nails".
 - **FR-DISC-004 [V1]** Search by provider name, service, and locality; typo-tolerant; French-aware.
 - **FR-DISC-005 [V1]** Map discovery (flutter_map/OSM) with provider markers, commune awareness, tap-to-card. *(exists: `map_screen.dart`)*
-- **FR-DISC-006 [V1]** Provider profile: hero gallery (pinch-zoom), description, services with **price ranges & durations**, staff/artists, working hours, reviews summary + list, contact (call + **WhatsApp deep link**), favorite toggle, sticky Book CTA, verified badge. *(exists: `provider_detail_screen.dart` — needs price ranges, WhatsApp, verified badge, before/after gallery)*
+- **FR-DISC-006 [V1]** Provider profile: hero gallery (pinch-zoom), description, services with **price ranges & durations**, staff/artists, working hours, reviews summary + list, contact (call + **WhatsApp deep link**), favorite toggle, sticky Book CTA, verified badge. *(✅ done — price ranges, WhatsApp link, verified badge, and the before/after slider all shipped.)*
 - **FR-DISC-007 [V1]** Sort & filter: by rating, price, availability ("available today"), commune, home-service capability.
 - **FR-DISC-008 [V2]** "Open now" / "Available today" / "Open Sunday" / "Open late" time filters.
 - **FR-DISC-009 [V2]** Home-service ("à domicile") filter and provider badge.
@@ -350,7 +350,7 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 - **FR-BOOK-004 [V1]** Slot availability respects provider hours, **buffer time between appointments**, blocked dates, and existing bookings. *(done — provider hours, blocked dates, existing bookings + a provider-wide buffer all honoured in slot computation)*
 - **FR-BOOK-005 [V1]** **Price ranges & length/type modifiers** — a service may price as min–max (e.g., tresses "15 000–25 000 selon la longueur"); booking shows estimated range, final confirmed by provider.
 - **FR-BOOK-006 [V1]** **Variable duration by hair length/type** — service can declare duration variants (court/moyen/long) affecting slot length. *(done in the booking hub: a length selector drives the estimated duration → slot availability; carried through confirmation. Step-by-step screens + persisting the choice on the booking DTO are follow-ups.)*
-- **FR-BOOK-007 [V1]** Booking confirmation summary → (**optional, only if the salon enabled deposits**) deposit step (§9.4) → **salon confirms** → confirmed booking. With deposits off, the summary leads straight to a pending booking the salon confirms. *(confirmation exists; opt-in deposit hand-off to be added)*
+- **FR-BOOK-007 [V1]** Booking confirmation summary → (**optional, only if the salon enabled deposits**) deposit step (§9.4) → **salon confirms** → confirmed booking. With deposits off, the summary leads straight to a pending booking the salon confirms. *(✅ done — confirmation + opt-in no-custody deposit hand-off; salon confirms.)*
 - **FR-BOOK-008 [V1]** Auth gating: unauthenticated users can browse and assemble a booking; auth is required at confirm, with `returnTo` continuity. *(returnTo pattern exists)*
 - **FR-BOOK-009 [V1]** **Rebook ("Réserver à nouveau")** — one tap to repeat a prior appointment (same services/artist), then pick a slot.
 - **FR-BOOK-010 [V2]** **Home service booking** — when provider offers à domicile: capture client location (GPS pin + landmark text), compute/display transport fee, "send my location" share.
@@ -398,8 +398,8 @@ Dev / Staging / Prod. Feature flags for phased rollout and commune-by-commune la
 ### 9.7 Favorites, notifications, retention
 
 - **FR-FAV-001 [V1]** Add/remove favorites; favorites map view; deep-link focus. *(exists: `favorites/`)*
-- **FR-NOTIF-001 [V1]** Push (FCM) + SMS fallback + WhatsApp for: booking confirmed, deposit received, reminder (24h & 2h), provider accepted/declined, reschedule, cancellation, refund. *(messaging seam scaffolded: `MessagingServiceInterface` + mock (WhatsApp→SMS fallback, delivery status, transactional/promotional opt-in, outbox), typed template catalog, booking-confirmed wired. Real BSP + reminder scheduler are backend.)*
-- **FR-NOTIF-002 [V1]** In-app notification center. *(stub: `notifications_screen.dart`)*
+- **FR-NOTIF-001 [V1]** Push (FCM) + SMS fallback + WhatsApp for: booking confirmed, deposit received, reminder (24h & 2h), provider accepted/declined, reschedule, cancellation, refund. *(✅ built — Twilio WhatsApp/SMS adapter + OTP-over-SMS + booking lifecycle events + 24h/2h reminder scheduler + FCM push; real BSP creds/templates are the ops step. ROADMAP §1.8.)*
+- **FR-NOTIF-002 [V1]** In-app notification center. *(✅ done — backend feed + write-on-events + `ApiNotificationService`.)*
 - **FR-NOTIF-003 [V2]** **Rebook lifecycle reminder** — "Il y a 6 semaines depuis vos dernières tresses chez Beauté Divine — réserver à nouveau ?" (single biggest repeat-booking driver).
 - **FR-NOTIF-004 [V1]** Notification preferences (channel & category opt-out where law/store requires).
 - **FR-REF-001 [V2]** **Referral program** — "Invite un ami : 2 000 FCFA chacun sur le prochain rendez-vous." Unique codes/links, attribution, credit to wallet, anti-abuse.
@@ -427,14 +427,14 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 ### 10.1 Onboarding, auth & KYC
 
 - **FR-PRO-AUTH-001 [V1]** Phone/OTP login & registration: business name, **business type** (salon/barber/spa/nail/massage/freelance/other), address (pin + landmark), commune. *(exists: `pro_register_screen.dart`)*
-- **FR-PRO-KYC-001 [V1]** **KYC & verification flow** (currently a data field with no UI): upload business registration / ID, owner photo, business address proof; status pending → verified/rejected; **"Verified" badge** surfaced on consumer profile.
+- **FR-PRO-KYC-001 [V1]** **KYC & verification flow** (✅ built — pro uploader + admin approve/reject queue; signed-GET doc viewing): upload business registration / ID, owner photo, business address proof; status pending → verified/rejected; **"Verified" badge** surfaced on consumer profile.
   - **AC:** A provider cannot receive bookings with deposits until verified; admin can approve/reject with reason; provider sees status and required actions.
-- **FR-PRO-ONB-001 [V1]** Guided onboarding (the empty `onboarding/` folder): create profile → add ≥3 services → add staff → set availability → upload ≥3 photos → set deposit & cancellation policy → go live. Progress checklist.
+- **FR-PRO-ONB-001 [V1]** Guided onboarding (✅ built — progress checklist): create profile → add ≥3 services → add staff → set availability → upload ≥3 photos → set deposit & cancellation policy → go live. Progress checklist.
 - **FR-PRO-AUTH-002 [V2]** Roles: owner / manager / stylist with permissions (the empty `settings/` + multi-staff needs).
 
 ### 10.2 Profile & media
 - **FR-PRO-PROF-001 [V1]** Edit business profile: name, description, category, commune, address (pin + landmark), hours, contact, WhatsApp number, home-service capability + zone + transport fee. *(profile screen exists; add fields)*
-- **FR-PRO-MEDIA-001 [V1]** **Image upload pipeline** (does not exist): hero photos, gallery, before/after, per-stylist photos; client-side compression; moderation queue.
+- **FR-PRO-MEDIA-001 [V1]** **Image upload pipeline** (✅ built — R2 signed upload; gallery + before/after editor; moderation via the admin console): hero photos, gallery, before/after, per-stylist photos; client-side compression; moderation queue.
 - **FR-PRO-STORY-001 [V2]** Provider-posted stories (UGC supply, free engagement; extends existing consumer story UI).
 
 ### 10.3 Services, staff, availability
@@ -444,12 +444,12 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 - **FR-PRO-AVAIL-002 [V2]** Resources/rooms (a spa room, a chair) as bookable constraints.
 
 ### 10.4 Calendar, bookings & day-of operations
-- **FR-PRO-CAL-001 [V1]** **Today/day view** = the stylist's home screen: chronological list of today's appointments, who's next, client name, services, status. *(calendar exists; make day-view the default landing for stylists)*
-- **FR-PRO-CAL-002 [V1]** Week/month calendar; full-team "booking journal" view (all staff in one grid). *(`booking_journal` UI mock exists — wire it to real data)*
+- **FR-PRO-CAL-001 [V1]** **Today/day view** = the stylist's home screen: chronological list of today's appointments, who's next, client name, services, status. *(✅ built — calendar + day view.)*
+- **FR-PRO-CAL-002 [V1]** Week/month calendar; full-team "booking journal" view (all staff in one grid). *(⏸ deferred to V2 — `booking_journal_screen` is flag-hidden (`futureProviderFeatures=false`), not wired. See ROADMAP §1.8.)*
 - **FR-PRO-BOOK-001 [V1]** Incoming booking request → **accept / reject (with reason)**. *(exists in interface)*
 - **FR-PRO-BOOK-002 [V1]** **Manual booking entry** — stylist books a walk-in/phone client into the calendar (replaces the paper cahier; critical adoption feature).
 - **FR-PRO-BOOK-003 [V1]** Mark complete; reschedule; cancel (policy-bound). *(exists)*
-- **FR-PRO-BOOK-004 [V1]** **No-show marking** + no-show consequences (deposit forfeit, customer flagged). *(does not exist)*
+- **FR-PRO-BOOK-004 [V1]** **No-show marking** + no-show consequences (deposit forfeit, customer flagged). *(✅ built — no-show marking + status.)*
 - **FR-PRO-BOOK-005 [V2]** Waitlist management; fill cancellations from waitlist.
 - **FR-PRO-BOOK-006 [V2]** Block/unblock slots quickly (lunch, personal).
 
@@ -463,7 +463,7 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 ### 10.6 Dashboard, reviews, marketing
 - **FR-PRO-DASH-001 [V1]** Dashboard: today's appointments, pending requests, today/week/month revenue, no-show rate. *(exists)*
 - **FR-PRO-REV-001 [V1]** View reviews; **respond to reviews** [V2]. *(view exists)*
-- **FR-PRO-MKT-001 [V1]** Automated client comms: confirmations + **WhatsApp/SMS reminders** (24h/2h). *(the `whatsapp_notifications` mock — ship it for real; this is the #1 paid value driver)*
+- **FR-PRO-MKT-001 [V1]** Automated client comms: confirmations + **WhatsApp/SMS reminders** (24h/2h). *(✅ built — automated confirmations + 24h/2h WhatsApp/SMS reminders (Twilio + scheduler); creds/templates = ops.)*
 - **FR-PRO-MKT-002 [V2]** Promo creation, broadcast messages to clients, client segments (VIP/new/inactive) — the `loyalty_programs` + `client_database` mocks, wired to real data.
 - **FR-PRO-CLIENT-001 [V2]** **Client database** with visit history, notes (allergies/preferences), loyalty points — the `client_database` mock made real. **Per-stylist client notes** is a Fresha-killer feature in this market.
 - **FR-PRO-LOY-001 [V2]** **Issue loyalty, memberships & certificates** (YCLIENTS-style) — provider creates bonus/points programs, memberships/abonnements (session packs), and gift certificates; these surface in the consumer wallet (FR-LOY-001 / FR-MEMB-001 / FR-GIFT-001). **Pulled forward from the V3 ops suite because retention is on-thesis** (see §2.6).
