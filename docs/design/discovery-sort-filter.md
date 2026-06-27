@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-DISC-007 (sort & filter: rating, price, availability, commune, home-service) |
 | **Phase** | Phase 3 — backend build + integration (discovery) |
-| **Status** | Spec; building. PR1 backend · PR2 app. |
+| **Status** | **Complete** — PR1 backend ✅ · PR2 app ✅ (sort sheet + available-today toggle). |
 | **Decision** | Sort (Pertinence / Mieux notés / Prix croissant) **+ "Disponible aujourd'hui"** (signed off 2026-06-27). Commune already shipped. **À domicile = V2** (deferred — no model field). |
 
 ## 1. Goal & scope

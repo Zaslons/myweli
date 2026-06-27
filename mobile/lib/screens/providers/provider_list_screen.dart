@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/provider_provider.dart';
+import '../../services/interfaces/provider_service_interface.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
 import '../../widgets/common/empty_state.dart';
@@ -80,29 +81,126 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
 
   Widget _buildFilterBar(ProviderProvider provider) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.spacingM,
-        AppTheme.spacingM,
-        AppTheme.spacingM,
-        AppTheme.spacingS,
-      ),
-      child: Row(
+      padding: const EdgeInsets.only(top: AppTheme.spacingM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CommunePill(
-            commune: provider.selectedCommune,
-            onTap: () => _openCommunePicker(provider),
-          ),
-          const Spacer(),
-          if (!provider.isLoading && provider.providers.isNotEmpty)
-            Text(
-              _countLabel(provider),
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+            child: Row(
+              children: [
+                CommunePill(
+                  commune: provider.selectedCommune,
+                  onTap: () => _openCommunePicker(provider),
+                ),
+                const Spacer(),
+                if (!provider.isLoading && provider.providers.isNotEmpty)
+                  Text(
+                    _countLabel(provider),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
             ),
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+            child: Row(
+              children: [
+                _filterPill(
+                  icon: Icons.swap_vert,
+                  label: 'Trier',
+                  active: provider.sort != ProviderSort.relevance,
+                  onTap: () => _openSortSheet(provider),
+                ),
+                const SizedBox(width: AppTheme.spacingS),
+                _filterPill(
+                  icon: Icons.event_available,
+                  label: "Disponible aujourd'hui",
+                  active: provider.availableToday,
+                  onTap: () =>
+                      provider.setAvailableToday(!provider.availableToday),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _filterPill({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    final fg = active ? AppColors.secondary : AppColors.textPrimary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingM,
+          vertical: AppTheme.spacingS,
+        ),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(999),
+          border:
+              Border.all(color: active ? AppColors.primary : AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: fg),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: fg, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSortSheet(ProviderProvider provider) async {
+    final chosen = await showModalBottomSheet<ProviderSort>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLarge)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppTheme.spacingL,
+                  AppTheme.spacingL, AppTheme.spacingL, AppTheme.spacingS),
+              child: Text('Trier par', style: AppTextStyles.titleMedium),
+            ),
+            for (final option in ProviderSort.values)
+              ListTile(
+                title: Text(option.label),
+                trailing: provider.sort == option
+                    ? const Icon(Icons.check, color: AppColors.primary)
+                    : null,
+                onTap: () => Navigator.pop(ctx, option),
+              ),
+            const SizedBox(height: AppTheme.spacingS),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) await provider.setSort(chosen);
   }
 
   Widget _buildResults(ProviderProvider provider) {
