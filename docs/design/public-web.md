@@ -24,6 +24,13 @@
 - **Hosting** (accounts phase): Vercel/Cloudflare/Netlify; the API on its own host. Buildable + CI-tested in-repo now.
 
 ## 2. Surfaces & scope
+> **Feature parity with the mobile apps is a requirement** (not a cut-down web):
+> the **consumer web** matches the consumer app (discovery/search/map · booking ·
+> account/my-bookings · reviews · favorites · notifications · profile) and the
+> **provider dashboard** matches the pro app, each adapted to web/desktop. Plus a
+> first-class **install-the-app push** on every appropriate surface. Conventions:
+> [WEB.md](../WEB.md) + [WEB-DESIGN-STANDARDS.md](WEB-DESIGN-STANDARDS.md);
+> enforced by the **`myweli-web-guardrails`** skill.
 1. **Public SEO pages** (FR-WEB-PP-001/002, FR-WEB-MP-001): `myweli.ci/<slug>` provider pages + `/<categorie>-<commune>` landings + home. SSG/ISR, full SEO/AEO/GEO (§4).
 2. **Consumer web app** (FR-WEB-MP-002): login (phone/OTP), discovery (search/filter/map), booking, account/my-bookings.
 3. **Pro web dashboard** (provider on PC — Planity-style): login, agenda/day view, manage bookings, services/staff/availability, etc. **Desktop-optimized.**
@@ -80,6 +87,7 @@ Public pages: SSG/ISR + edge cache, minimal JS, optimised images → fast first 
 - **Lighthouse CI** budget gate on public pages (CWV + SEO score). Contract types regenerated from `openapi.yaml` in CI (drift check).
 
 ## 11. Rollout — milestones (each spec-linked PR; deploy in the accounts phase)
+- **M0 — web foundations (✅ this PR):** [WEB.md](../WEB.md) + [WEB-DESIGN-STANDARDS.md](WEB-DESIGN-STANDARDS.md) + the `myweli-web-guardrails` skill. The rulebook every later milestone references.
 - **M1 — backend glue:** slug + `bySlug` + CORS + public DTOs + sitemap source. *(backend)*
 - **M2 — `web/` scaffold + SEO foundation:** Next.js app, OpenAPI-typed client, Tailwind+tokens, CI job, base layout + metadata/JSON-LD/robots/sitemap/`llms.txt` helpers.
 - **M3 — provider page `/<slug>`:** SSG/ISR + full SEO/AEO/GEO (LocalBusiness+FAQPage+Review schema) + smart banner + booking entry.
