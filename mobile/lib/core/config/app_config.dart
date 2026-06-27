@@ -21,4 +21,12 @@ class AppConfig {
   /// interfaces that have a backend slice; everything else stays on mocks.
   /// Off by default so the app runs end-to-end without a server.
   static const bool useApiBackend = bool.fromEnvironment('USE_API_BACKEND');
+
+  /// Myweli support WhatsApp number in E.164 without `+` (e.g. `2250700000000`).
+  /// Used by "Nous contacter" CTAs (e.g. the provider subscription screen).
+  /// Empty by default → the CTA degrades gracefully until set at launch via
+  /// `--dart-define=SUPPORT_WHATSAPP=225...`.
+  static const String supportWhatsApp = String.fromEnvironment(
+    'SUPPORT_WHATSAPP',
+  );
 }

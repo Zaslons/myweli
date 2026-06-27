@@ -214,6 +214,8 @@ This section is the "why" behind many requirements. Treat it as binding context.
 
 ### 6.2 Tiers (indicative FCFA — validate with market testing)
 
+> **Pricing direction (2026-06-28, provisional — OQ-2):** planned **base monthly ≈ 20 000–40 000 FCFA** (without add-ons), launched with a deliberate **anchor price of 70 000 FCFA/mo** shown as the "regular" Pro price so the eventual paid price reads as a discount. Advertised **free period = 3 months** (supersedes the 30-day note below). Figures live in `mobile/lib/core/config/subscription_plans.dart`; the trial length is `kProTrialDays = 90` (backend). The table below is the original indicative scaffold.
+
 | Tier | Price (indicative) | Who | Key entitlements |
 |---|---|---|---|
 | **Découverte** (Free) | 0 | New/solo providers, freelancers | Public profile + booking page, accept bookings, calendar, 1 staff, **deposits enabled**, basic WhatsApp/SMS confirmations, capped at N bookings/month, Myweli branding on booking page |
@@ -478,7 +480,7 @@ These exist today as **unrouted UI mocks** in `screens/provider/features/`. They
 - **FR-PRO-OPS-006 [V3]** Multi-location & freelancer-network management (the empty `freelancers/`, `more/` folders).
 
 ### 10.8 Subscription (in-app)
-- **FR-PRO-SUB-001 [V1]** View plan, entitlements, usage; 30-day Pro trial; upgrade/downgrade; pay via Mobile Money; renewal reminders; invoices/receipts (TVA). *(see §6; store-IAP constraint OQ-3)*
+- **FR-PRO-SUB-001 [V1]** View plan, entitlements, usage; Pro trial; upgrade/downgrade; pay via Mobile Money; renewal reminders; invoices/receipts (TVA). *(✅ **view built** — "Mon abonnement": plan + **3-month** trial status (derived from signup, `GET /me/subscription`), Pro entitlements, anchor pricing, "Nous contacter" CTA. **In-app billing / upgrade-downgrade / renewals / TVA invoices deferred** with paid collection — same no-custody/incorporation block + store-IAP OQ-3; early paid salons handled manually. See §6.)*
 
 ---
 
@@ -667,7 +669,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 ## 21. Open questions
 
 - **OQ-1** ✅ **Resolved (V1): no custody.** Deposits flow **directly client→salon** on the salon's own Mobile Money handle; Myweli facilitates + records intent but never holds/settles funds — avoiding BCEAO e-money/PSP licensing and an aggregator merchant account (both need a registered company Myweli lacks at launch). *Revisit post-incorporation:* a licensed aggregator + optional **escrow** for salons wanting guaranteed/auto-refundable deposits. This makes `FR-PRO-PAYOUT-001` (Myweli paying out collected deposits) **not applicable in V1**.
-- **OQ-2** Exact subscription pricing & free-tier caps — needs field validation with ~20 Cocody salons.
+- **OQ-2** Exact subscription pricing & free-tier caps — needs field validation with ~20 Cocody salons. *(Working direction 2026-06-28: base ≈ 20 000–40 000 FCFA/mo, **70 000 anchor**, 3-month free trial — see §6.2; provisional config in `subscription_plans.dart`.)*
 - **OQ-3** Apple/Google IAP treatment of provider SaaS billing — confirm B2B carve-out vs. web-only billing.
 - **OQ-4** 🚫 **Moot (V1): no aggregator.** Deposits stay no-custody/screenshot (OQ-1; user decision 2026-06-27) — Myweli integrates no Mobile Money aggregator. Revisit only post-incorporation if escrow is ever pursued.
 - **OQ-5** ✅ **Decided: Twilio** (WhatsApp + SMS). The backend adapter + OTP + reminders are built; remaining is the ops step (register the account, get templates approved). See docs/design/messaging-notifications.md.
