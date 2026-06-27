@@ -291,11 +291,11 @@ The minimum to onboard salons in 3 communes and run real, deposit-backed booking
 |---|---|---|
 | Consumer iOS + Android | **Flutter** (existing) | One codebase, good perf on low-end Android, current investment. |
 | Pro iOS + Android | **Flutter** (existing, `main_pro.dart`) | Same. |
-| **Public web** (per-provider booking pages + consumer marketplace) | **Next.js / React (SSR/SSG)** | **SEO and shareability are the entire point** of these surfaces. Flutter Web cannot rank on Google or render fast on first paint. Public pages must be server-rendered. |
+| **Public web** (per-provider booking pages + consumer marketplace) | **`dart_frog` SSR (Dart)** — *revised 2026-06-28 from Next.js (OQ-8)* | **SEO and shareability are the entire point** → must be **server-rendered crawlable HTML** (Flutter Web can't rank). With the project now all-Dart, the public surface is SSR'd from a dedicated dart_frog app reusing the backend data layer — meeting the SSR constraint without a second JS stack/duplicated DTOs. Design: docs/design/public-web.md. |
 | Provider dashboard (web) | React (shared with public web) **or** Flutter Web | Behind login, SEO irrelevant; choose by team velocity. Recommend React to share components/design system with public web. |
 | Admin/ops console | **Flutter Web** (revised from React) | Internal, behind auth → SEO/SSR (React's edge) is irrelevant here. Built as a 3rd Flutter entrypoint (`main_admin.dart`) reusing the existing models, `interface+Api` services, `RefreshingHttpClient` (silent refresh), theme + widgets — fastest for a solo Flutter team ("choose by team velocity"). The React preference was justified by sharing with the **public** web (V2, not built); revisit only if that materializes. Design: docs/design/admin-console-ui.md. |
 
-**Decision:** Do **not** build the public-facing web on Flutter Web. Public booking pages and the marketplace are SEO-first and must be SSR (Next.js). Authenticated surfaces (provider dashboard, admin) may use the same React stack.
+**Decision:** Do **not** build the public-facing web on Flutter Web. Public booking pages and the marketplace are SEO-first and must be **server-rendered crawlable HTML** — built with **`dart_frog` SSR (Dart)** (OQ-8 resolved 2026-06-28), reusing the backend data layer rather than adding a Next.js/React stack. Admin = Flutter Web (built); provider-dashboard web = V2.
 
 ### 8.2 Backend
 - Single API (REST or GraphQL) serving all clients. Replace the existing mock `*ServiceInterface` implementations with real HTTP implementations — **the interface-then-mock architecture already in the codebase is preserved** and makes this swap localized.
@@ -486,13 +486,13 @@ These exist today as **unrouted UI mocks** in `screens/provider/features/`. They
 
 ## 11. Functional requirements — Web surfaces
 
-Four surfaces, two stacks: **public (SSR, Next.js)** and **authenticated (React app)**.
+Public surface = **`dart_frog` SSR (Dart)** — server-rendered HTML reusing the backend data layer (OQ-8 resolved 2026-06-28; supersedes the earlier Next.js note below). Admin = Flutter Web (built); provider-dashboard web = V2. Design: docs/design/public-web.md.
 
 ### 11.1 Per-provider public booking pages — [V1] (SEO-first)
 - **FR-WEB-PP-001 [V1]** Each provider gets a public, shareable URL: `myweli.ci/<slug>` (e.g., `myweli.ci/salon-excellence`). For Instagram bios — the single biggest organic acquisition channel.
 - **FR-WEB-PP-002 [V1]** Server-rendered (SSR/SSG) for SEO: title, description, services, prices, hours, photos, reviews, commune, map, verified badge — all in crawlable HTML with structured data (Schema.org `LocalBusiness`/`BeautySalon`).
 - **FR-WEB-PP-003 [V1]** Full booking flow on web (service → staff → slot → deposit) without forcing app install; mobile-web optimized (most traffic is mobile browsers).
-- **FR-WEB-PP-004 [V1]** Mobile Money deposit on web (aggregator hosted/redirect flow).
+- **FR-WEB-PP-004 [V1]** Mobile Money deposit on web — **no-custody facilitated flow** (Wave deep link / copyable number + amount), mirroring the app; the client authorises in their own app and Myweli never holds funds. *(Corrected 2026-06-28: the original "aggregator hosted/redirect flow" conflicts with the no-custody decision — OQ-1/OQ-4. An aggregator/escrow web flow is revisited only post-incorporation.)*
 - **FR-WEB-PP-005 [V1]** "Open in app" smart banner; app-install attribution.
 - **FR-WEB-PP-006 [V2]** Custom branding/colors per provider (Pro tier removes Myweli branding).
 
@@ -675,7 +675,7 @@ Builds on existing models (`User`, `ProviderUser`, `Provider`, `Service`, `Artis
 - **OQ-5** ✅ **Decided: Twilio** (WhatsApp + SMS). The backend adapter + OTP + reminders are built; remaining is the ops step (register the account, get templates approved). See docs/design/messaging-notifications.md.
 - **OQ-6** Home-service transport-fee model: flat, distance-based, or provider-set? (V2 design input.)
 - **OQ-7** Data residency expectations under ARTCI — any local-hosting requirement?
-- **OQ-8** Provider dashboard web stack: share React with public web vs. Flutter Web reuse?
+- **OQ-8** ✅ **Resolved (2026-06-28): public web = `dart_frog` SSR (Dart).** The hard constraint is crawlable SSR HTML (FR-WEB-PP-002); since the project consolidated on Dart (Flutter + dart_frog), the public surface is **server-rendered from a dedicated dart_frog app reusing the backend data layer** — avoiding a second JS/React stack + duplicated DTOs/tokens for a solo team. (Admin stays Flutter Web; provider dashboard web = V2.) Design: docs/design/public-web.md.
 
 ---
 
