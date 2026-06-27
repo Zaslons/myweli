@@ -5,7 +5,7 @@
 | **Requirement** | FR-NOTIF-004 — "Notification preferences (channel & category opt-out where law/store requires)." |
 | **Phase** | V1 small-gap sweep (ROADMAP §1.8). |
 | **Surfaces** | Backend (`/me/notification-preferences` + send-path enforcement) · Consumer app (`NotificationPreferencesScreen`). |
-| **Status** | PR1 backend ✅ (prefs storage + routes + send-path enforcement) · PR2 app (screen) — next. |
+| **Status** | **Complete** — PR1 backend ✅ (prefs storage + routes + send-path enforcement) · PR2 app ✅ (preferences screen + service wiring). |
 | **Builds on** | The existing per-phone promotional opt-out (`MessagingPrefsRepository`, consulted in `MessagingService.sendTemplate`) and the `BookingNotifier` orchestrator. |
 
 ## 1. Goal & scope

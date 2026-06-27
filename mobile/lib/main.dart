@@ -12,6 +12,7 @@ import 'providers/appointment_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/favorites_provider.dart';
 import 'providers/messaging_provider.dart';
+import 'providers/notification_preferences_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/provider_provider.dart';
 
@@ -54,6 +55,9 @@ class MyweliApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ChangeNotifierProvider(create: (_) => MessagingProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+        ChangeNotifierProvider(
+          create: (_) => NotificationPreferencesProvider(),
+        ),
       ],
       child: MaterialApp.router(
         title: 'Myweli',

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
 import '../../models/app_notification.dart';
+import '../../models/notification_preferences.dart';
 import '../interfaces/notification_service_interface.dart';
 import '../interfaces/session_store.dart';
 import 'refreshing_http_client.dart';
@@ -57,6 +58,54 @@ class ApiNotificationService implements NotificationServiceInterface {
   @override
   Future<ApiResponse<bool>> markAllRead() =>
       _post('/me/notifications/read-all');
+
+  @override
+  Future<ApiResponse<NotificationPreferences>> getPreferences() async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(_uri('/me/notification-preferences'),
+          headers: _bearer(t)),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(
+      NotificationPreferences.fromJson(
+        jsonDecode(res.body) as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  @override
+  Future<ApiResponse<NotificationPreferences>> updatePreferences({
+    bool? reminders,
+    bool? marketing,
+    bool? push,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final body = jsonEncode({
+      if (reminders != null) 'reminders': reminders,
+      if (marketing != null) 'marketing': marketing,
+      if (push != null) 'push': push,
+    });
+    final res = await _authed.send(
+      (t) => _client.put(
+        _uri('/me/notification-preferences'),
+        headers: {..._bearer(t), 'Content-Type': 'application/json'},
+        body: body,
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(
+      NotificationPreferences.fromJson(
+        jsonDecode(res.body) as Map<String, dynamic>,
+      ),
+    );
+  }
 
   Future<ApiResponse<bool>> _post(String path) async {
     if (await _authed.accessToken() == null) {

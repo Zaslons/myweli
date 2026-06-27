@@ -60,6 +60,37 @@ void main() {
     ]);
   });
 
+  test('getPreferences parses prefs', () async {
+    final s = svc(MockClient((req) async {
+      expect(req.url.path, '/me/notification-preferences');
+      return http.Response(
+        jsonEncode({'reminders': false, 'marketing': true, 'push': true}),
+        200,
+      );
+    }));
+    final res = await s.getPreferences();
+    expect(res.success, isTrue);
+    expect(res.data!.reminders, isFalse);
+    expect(res.data!.marketing, isTrue);
+  });
+
+  test('updatePreferences PUTs only the changed fields', () async {
+    String? method;
+    Map<String, dynamic>? sent;
+    final s = svc(MockClient((req) async {
+      method = req.method;
+      sent = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(
+        jsonEncode({'reminders': false, 'marketing': true, 'push': true}),
+        200,
+      );
+    }));
+    final res = await s.updatePreferences(reminders: false);
+    expect(res.success, isTrue);
+    expect(method, 'PUT');
+    expect(sent, {'reminders': false});
+  });
+
   test('not connected → error (no token)', () async {
     final s = ApiNotificationService(
       client: MockClient((_) async => http.Response('{}', 200)),

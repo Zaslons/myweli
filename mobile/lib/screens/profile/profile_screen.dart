@@ -84,14 +84,12 @@ class ProfileScreen extends StatelessWidget {
                       context.push('/favorites');
                     },
                   ),
-                _SettingsItem(
-                  icon: Icons.notifications,
-                  title: 'Notifications',
-                  trailing: Switch(
-                    value: true,
-                    onChanged: (value) {},
+                if (user != null)
+                  _SettingsItem(
+                    icon: Icons.notifications,
+                    title: 'Notifications',
+                    onTap: () => context.push('/profile/notifications'),
                   ),
-                ),
                 _SettingsItem(
                   icon: Icons.language,
                   title: 'Langue',
