@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-NOTIF-002 (in-app notification center) |
 | **Phase** | Phase 3 — backend build + integration |
-| **Status** | Spec; building. PR1 backend (feed + write-on-events) · PR2 app (ApiNotificationService). |
+| **Status** | **Complete** — PR1 backend (feed + write-on-events) ✅ · PR2 app (ApiNotificationService) ✅. |
 | **Mirrors** | App `models/app_notification.dart` + `NotificationServiceInterface` (field-for-field). |
 
 ## 1. Goal & scope
