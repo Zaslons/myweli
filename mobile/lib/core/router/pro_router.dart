@@ -16,6 +16,7 @@ import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
 import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
+import '../../screens/provider/photos/pro_before_after_screen.dart';
 import '../../screens/provider/photos/pro_photos_screen.dart';
 import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
@@ -152,6 +153,11 @@ class ProRouter {
         path: '/pro/photos',
         name: 'pro-photos',
         builder: (context, state) => const ProPhotosScreen(),
+      ),
+      GoRoute(
+        path: '/pro/before-after',
+        name: 'pro-before-after',
+        builder: (context, state) => const ProBeforeAfterScreen(),
       ),
       GoRoute(
         path: '/pro/reviews',

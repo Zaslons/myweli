@@ -1,6 +1,7 @@
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
+import '../../models/before_after_pair.dart';
 import '../../models/payment.dart';
 import '../../models/service.dart';
 
@@ -126,6 +127,13 @@ abstract class ProServiceInterface {
   Future<ApiResponse<List<String>>> updateGalleryPhotos(
     String providerId,
     List<String> imageUrls,
+  );
+
+  // Before/after showcase (FR-DISC-006)
+  Future<ApiResponse<List<BeforeAfterPair>>> getBeforeAfters(String providerId);
+  Future<ApiResponse<List<BeforeAfterPair>>> updateBeforeAfters(
+    String providerId,
+    List<BeforeAfterPair> pairs,
   );
 
   // Availability

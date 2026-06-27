@@ -12,6 +12,7 @@ import 'providers/pro_appointment_provider.dart';
 import 'providers/pro_artist_provider.dart';
 import 'providers/pro_auth_provider.dart';
 import 'providers/pro_availability_provider.dart';
+import 'providers/pro_before_after_provider.dart';
 import 'providers/pro_dashboard_provider.dart';
 import 'providers/pro_deposit_settings_provider.dart';
 import 'providers/pro_earnings_provider.dart';
@@ -66,6 +67,7 @@ class MyweliProApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProKycProvider()),
         ChangeNotifierProvider(create: (_) => ProOnboardingProvider()),
         ChangeNotifierProvider(create: (_) => ProGalleryProvider()),
+        ChangeNotifierProvider(create: (_) => ProBeforeAfterProvider()),
       ],
       child: MaterialApp.router(
         title: 'Myweli Pro',

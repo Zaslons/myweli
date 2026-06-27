@@ -6,6 +6,7 @@ import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
+import '../../models/before_after_pair.dart';
 import '../../models/payment.dart';
 import '../../models/provider_session.dart';
 import '../../models/service.dart';
@@ -364,6 +365,54 @@ class ApiProService implements ProServiceInterface {
   List<String> _imageUrlsFrom(String body) =>
       ((_decode(body)['imageUrls'] as List?) ?? const [])
           .map((e) => e as String)
+          .toList();
+
+  @override
+  Future<ApiResponse<List<BeforeAfterPair>>> getBeforeAfters(
+    String providerId,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(
+        _uri('/providers/$providerId/before-after'),
+        headers: _bearer(t),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(_beforeAftersFrom(res.body));
+  }
+
+  @override
+  Future<ApiResponse<List<BeforeAfterPair>>> updateBeforeAfters(
+    String providerId,
+    List<BeforeAfterPair> pairs,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.put(
+        _uri('/providers/$providerId/before-after'),
+        headers: _bearer(t),
+        body: jsonEncode({
+          'beforeAfters': pairs.map((p) => p.toJson()).toList(),
+        }),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(
+      _beforeAftersFrom(res.body),
+      message: 'Avant / Après mis à jour',
+    );
+  }
+
+  List<BeforeAfterPair> _beforeAftersFrom(String body) =>
+      ((_decode(body)['beforeAfters'] as List?) ?? const [])
+          .map((e) => BeforeAfterPair.fromJson(e as Map<String, dynamic>))
           .toList();
 
   @override
