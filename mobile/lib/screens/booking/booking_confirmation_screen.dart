@@ -113,7 +113,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   /// Best-effort — never blocks navigation.
   Future<void> _maybeAskPush() async {
     if (!mounted) return;
-    await serviceLocator.pushRegistration.maybePromptAfterFirstBooking(
+    await serviceLocator.pushRegistration.maybePromptOnce(
       () => showPushPermissionSheet(context),
     );
   }

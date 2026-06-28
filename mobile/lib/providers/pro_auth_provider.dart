@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
@@ -27,6 +29,7 @@ class ProAuthProvider extends ChangeNotifier {
     try {
       _provider = await _authService.getCurrentProvider();
       _error = null;
+      if (_provider != null) _syncPush();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -69,6 +72,7 @@ class ProAuthProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _provider = response.data;
         _error = null;
+        _syncPush();
         return true;
       } else {
         _error = response.error ?? 'Code OTP invalide';
@@ -116,11 +120,23 @@ class ProAuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Best-effort: register this device under the provider session if push
+  /// permission is already granted. Never throws into the auth flow.
+  void _syncPush() {
+    try {
+      unawaited(serviceLocator.proPushRegistration.registerIfGranted());
+    } catch (_) {/* best-effort */}
+  }
+
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      // Unregister this device first — the call needs the live provider session.
+      try {
+        await serviceLocator.proPushRegistration.unregister();
+      } catch (_) {/* best-effort */}
       await _authService.logoutProvider();
       _provider = null;
       _error = null;

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
+import '../../../widgets/push/push_permission_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -31,8 +33,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final dashboardProvider =
             Provider.of<ProDashboardProvider>(context, listen: false);
         dashboardProvider.loadDashboardStats(_resolvedProviderId(context));
+        _maybeAskPush();
       }
     });
+  }
+
+  /// On the first dashboard visit, offer to enable push (once). Best-effort —
+  /// pros want new-booking alerts immediately, so we ask here rather than later.
+  Future<void> _maybeAskPush() async {
+    if (!mounted) return;
+    await serviceLocator.proPushRegistration.maybePromptOnce(
+      () => showPushPermissionSheet(
+        context,
+        body: 'Soyez prévenu·e dès qu’un client réserve, annule ou modifie '
+            'un rendez-vous, et ne manquez aucune demande.',
+      ),
+    );
   }
 
   @override

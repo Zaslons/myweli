@@ -5,21 +5,31 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../common/app_button.dart';
 
-/// Pre-permission rationale shown after the user's first successful booking.
-/// Returns true if the user chose to enable (→ trigger the OS prompt), false if
-/// they deferred or dismissed. Design: docs/design/push-notifications-app.md.
-Future<bool> showPushPermissionSheet(BuildContext context) async {
+/// Pre-permission rationale shown at the first appropriate moment (consumer:
+/// after the first booking; pro: first dashboard visit). Returns true if the
+/// user chose to enable (→ trigger the OS prompt), false if they deferred or
+/// dismissed. Copy defaults to the consumer wording; pass [title]/[body] to
+/// override. Design: docs/design/push-notifications-app.md.
+Future<bool> showPushPermissionSheet(
+  BuildContext context, {
+  String title = 'Activer les notifications',
+  String body = 'Recevez vos rappels et confirmations de rendez-vous, et soyez '
+      'prévenu·e dès que votre salon répond.',
+}) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => const _PushPermissionSheet(),
+    builder: (_) => _PushPermissionSheet(title: title, body: body),
   );
   return result ?? false;
 }
 
 class _PushPermissionSheet extends StatelessWidget {
-  const _PushPermissionSheet();
+  const _PushPermissionSheet({required this.title, required this.body});
+
+  final String title;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
@@ -60,15 +70,14 @@ class _PushPermissionSheet extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
               const SizedBox(height: AppTheme.spacingM),
-              const Text(
-                'Activer les notifications',
+              Text(
+                title,
                 style: AppTextStyles.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppTheme.spacingS),
               Text(
-                'Recevez vos rappels et confirmations de rendez-vous, et soyez '
-                'prévenu·e dès que votre salon répond.',
+                body,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),
