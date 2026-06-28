@@ -7,7 +7,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: 'Aujourd’hui', href: '/pro' },
   { label: 'Rendez-vous', href: '/pro/rendez-vous' },
   { label: 'Catalogue', href: '/pro/catalogue' },
-  { label: 'Disponibilités' },
+  { label: 'Disponibilités', href: '/pro/disponibilites' },
   { label: 'Profil' },
   { label: 'Abonnement' },
 ];

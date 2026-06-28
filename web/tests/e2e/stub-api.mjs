@@ -237,6 +237,15 @@ createServer(async (req, res) => {
     }
     return json(res, 404, { error: 'not_found' });
   }
+  // disponibilités (7.3c) — PUT replaces the salon availability.
+  if (url.pathname.match(/^\/providers\/[^/]+\/availability$/)) {
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      proProvider.availability = body;
+      return json(res, 200, body);
+    }
+    return json(res, 405, { error: 'method_not_allowed' });
+  }
   // catalogue artists CRUD (7.3b)
   const artMatch = url.pathname.match(
     /^\/providers\/[^/]+\/artists(?:\/([^/]+))?$/,
