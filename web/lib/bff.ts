@@ -68,7 +68,10 @@ export async function callApi(
 
 /// Build the handler's NextResponse, re-cookie-ing if the session was refreshed.
 export function respond(result: ApiResult): NextResponse {
-  const res = NextResponse.json(result.body, { status: result.status });
+  const res =
+    result.status === 204
+      ? new NextResponse(null, { status: 204 })
+      : NextResponse.json(result.body, { status: result.status });
   if (result.tokens) setSessionCookies(res, result.tokens.at, result.tokens.rt);
   return res;
 }

@@ -14,6 +14,7 @@ import { JsonLd } from '../JsonLd';
 import { BeforeAfter } from './BeforeAfter';
 import { BookingPanel } from './BookingPanel';
 import { Faq } from './Faq';
+import { FavoriteButton } from './FavoriteButton';
 import { Gallery } from './Gallery';
 import { ProviderHero } from './Hero';
 import { Hours } from './Hours';
@@ -105,6 +106,10 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
             Réservez en ligne chez {p.name}, {cat} à {commune} (Côte d’Ivoire).
             Services, tarifs, horaires et avis — réservation 24/7, sans appel.
           </p>
+
+          <div className="px-m pt-s">
+            <FavoriteButton providerId={p.id} slug={slug} />
+          </div>
 
           <Gallery images={(p.imageUrls ?? []).slice(1)} />
 

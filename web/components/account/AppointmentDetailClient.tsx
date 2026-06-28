@@ -8,9 +8,11 @@ import {
   canCancel,
   statusLabelFr,
 } from '../../lib/account/appointments';
+import { canRebook, canReview } from '../../lib/account/extras';
 import { cancelAppointment, getAppointment } from '../../lib/api/account';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { Button } from '../Button';
+import { ReviewForm } from './ReviewForm';
 
 export function AppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -137,6 +139,23 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 </div>
               </div>
             )}
+          </div>
+        ) : null}
+
+        {canRebook(appt.status) && appt.providerSlug ? (
+          <div className="mt-l">
+            <Link
+              href={`/${appt.providerSlug}/reserver`}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+            >
+              Réserver à nouveau
+            </Link>
+          </div>
+        ) : null}
+
+        {canReview(appt.status) ? (
+          <div className="mt-l border-t border-divider pt-l">
+            <ReviewForm appointmentId={appt.id} />
           </div>
         ) : null}
       </section>
