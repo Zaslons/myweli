@@ -1,0 +1,19 @@
+# Myweli
+
+Myweli is the beauty & wellness booking platform for Côte d'Ivoire. Consumers
+find and book salons — coiffure (hair), barbier (barber), onglerie (nails) and
+spa — online, 24/7, in French. Salons manage bookings, deposits and automated
+WhatsApp/SMS reminders. Mobile-first; native apps on Android & iOS plus the web.
+
+## About
+- Name: Myweli
+- Area served: Côte d'Ivoire — Abidjan and its communes (Cocody, Plateau,
+  Yopougon, Marcory, Treichville, Adjamé, Abobo, Koumassi, …).
+- Offering: online appointment booking for beauty & wellness providers; no-custody
+  Mobile Money deposits (Wave / Orange Money / MTN / Moov), paid directly to the
+  salon.
+
+## Key pages
+- Home: /
+- Provider page: /<slug>  (e.g. /beaute-divine)
+- Category by commune: /<categorie>-<commune>  (e.g. /tresses-cocody)
