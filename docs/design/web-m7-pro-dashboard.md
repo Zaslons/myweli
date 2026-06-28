@@ -6,7 +6,7 @@
 | **Milestone** | M7 ([public-web.md](public-web.md) §11). The last web surface. |
 | **Surface** | Backend (tiny: `GET /me/provider`) + `web/app/pro/*` + a **pro BFF**. |
 | **Skills** | `myweli-web-guardrails` (+ `myweli-backend-guardrails` for `GET /me/provider`). |
-| **Status** | **M7.0 built** — `GET /me/provider` (backend) + pro BFF (`/api/pro/*`, separate `myweli_pro_*` cookies + `callApiPro` silent refresh) + `/pro/connexion` + `/pro` shell (sidebar) + Aujourd'hui; backend +6 tests, web +4 unit + 2 e2e. **M7.1–M7.3 pending.** |
+| **Status** | **M7.0 ✅** (`GET /me/provider` + pro BFF + `/pro/connexion` + shell + Aujourd'hui) · **M7.1 ✅** (« Rendez-vous »: Calendrier + Liste). **M7.2–M7.3 pending.** |
 
 ## 1. Goal
 A **desktop-grade** tool so a salon can run Myweli from a PC: log in, see today's
@@ -40,8 +40,11 @@ account, and there's no endpoint to read "my own salon". Add **`GET /me/provider
   (sidebar — later sections show "Bientôt") + **Aujourd'hui** (today's bookings +
   counts from `GET /appointments`); logout. **Login only** (new-salon registration
   stays in the app for now — flagged parity gap).
-- **M7.1 — Agenda**: day/date view of the salon's bookings (date picker → list by
-  time; status chips).
+- **M7.1 — « Rendez-vous » (✅ done):** mirrors the app's `/pro/appointments` —
+  **Calendrier** (month grid + day list) **+ Liste** (Aujourd'hui/À venir/En
+  attente/Tous); shared `ProAppointmentRow`; client-side day/tab filter over the
+  pro list (no backend change). Sidebar's separate "Agenda" dropped (the app has
+  none). 5 unit + 1 e2e. Spec: [web-m7-1-agenda.md](web-m7-1-agenda.md).
 - **M7.2 — Manage bookings**: booking detail + **accept / reject / complete /
   no-show / cancel** (the lifecycle endpoints), with confirmations.
 - **M7.3 — Catalogue & dispo (+ profil/abonnement)**: services CRUD,

@@ -97,7 +97,8 @@ Public pages: SSG/ISR + edge cache, minimal JS, optimised images → fast first 
 - **M6 — consumer web account (✅ done):** `/connexion` (phone/OTP) + `/mon-compte` (profile + my bookings, À venir/Passés/Annulés) + `/mon-compte/[id]` (detail + **cancel**); BFF **silent refresh** (`callApi` → `/auth/refresh`, long-lived sessions) + logout + backend `GET /me`. 32 unit + 9 e2e. Spec: [web-m6-account.md](web-m6-account.md). (Reschedule / profile-edit / reviews / favorites / account-deletion deferred to the app — discovery/search/map is a later slice.)
 - **M7 — pro web dashboard** (desktop-optimised; several PRs). Spec: [web-m7-pro-dashboard.md](web-m7-pro-dashboard.md).
   - **M7.0 (✅ done):** backend `GET /me/provider` (threat **T29**) + **pro BFF** (`/api/pro/*`, separate `myweli_pro_*` cookies + `callApiPro` silent refresh via `/auth/provider/refresh`) + `/pro/connexion` (provider OTP) + `/pro` sidebar shell + **Aujourd'hui** (today's bookings + counts) + logout. Login only (new-salon registration stays in the app — flagged). 4 unit + 2 e2e + backend 6.
-  - **M7.1** agenda/day view · **M7.2** manage bookings (accept/reject/complete/no-show/cancel) · **M7.3** catalogue/availability/profile/abonnement.
+  - **M7.1 (✅ done):** « Rendez-vous » mirroring the app's `/pro/appointments` — **Calendrier** (month grid → day list) **+ Liste** (Aujourd'hui/À venir/En attente/Tous); shared `ProAppointmentRow`; client-side filter (no backend change). 5 unit + 1 e2e. Spec: [web-m7-1-agenda.md](web-m7-1-agenda.md).
+  - **M7.2** manage bookings (detail + accept/reject/complete/no-show/cancel) · **M7.3** catalogue/availability/profile/abonnement.
 
 ## 12. Open questions
 - **OQ-WEB-1** Host topology + platform (Vercel/Cloudflare/…); a deploy-phase call.
