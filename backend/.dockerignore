@@ -1,0 +1,12 @@
+# Keep the build context small + never ship secrets/artifacts.
+.git/
+.github/
+build/
+.dart_frog/
+.dart_tool/
+test/
+coverage/
+*.md
+.env
+.env.*
+!.env.example
