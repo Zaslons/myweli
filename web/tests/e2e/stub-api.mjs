@@ -237,6 +237,26 @@ createServer(async (req, res) => {
     }
     return json(res, 404, { error: 'not_found' });
   }
+  // abonnement (7.3d) — read-only plan/trial.
+  if (url.pathname === '/me/subscription') {
+    return json(res, 200, {
+      tier: 'pro',
+      status: 'trial',
+      trialEndsAt: '2026-09-26T00:00:00.000Z',
+      trialDaysLeft: 90,
+    });
+  }
+  // tableau de bord (7.3d) — server-computed stats.
+  if (url.pathname.match(/^\/providers\/[^/]+\/dashboard$/)) {
+    return json(res, 200, {
+      todayAppointments: 1,
+      pendingRequests: 1,
+      todayRevenue: 15000,
+      weekRevenue: 15000,
+      monthRevenue: 45000,
+      totalAppointments: 1,
+    });
+  }
   // disponibilités (7.3c) — PUT replaces the salon availability.
   if (url.pathname.match(/^\/providers\/[^/]+\/availability$/)) {
     if (req.method === 'PUT') {

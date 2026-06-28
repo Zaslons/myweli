@@ -14,9 +14,12 @@
   Ouvert/Fermé + range) + tampon + dates bloquées; load reuses `GET /me/provider`,
   save via pro-BFF PUT; multi-slot/pause round-tripped. 3 unit + 1 e2e. Spec:
   [web-m7-3c-dispo.md](web-m7-3c-dispo.md).
-- **7.3d — Acompte + Abonnement + Tableau de bord (G3)** — deposit-policy form +
-  PRO-SUB view + dashboard revenue stats (consume `GET /providers/{id}/dashboard`).
-- **7.3e — Profil + médias** — salon profile edit + gallery/before-after.
+- **7.3d — Abonnement + Tableau de bord (G3) (✅ done)** — `/pro/abonnement`
+  (read-only PRO-SUB: trial status + Pro offer card + Nous contacter) + **revenue
+  cards** on `/pro` home (consume `GET /providers/{id}/dashboard` — **closes G3**).
+  4 unit + 1 e2e. Spec: [web-m7-3d-abo-stats.md](web-m7-3d-abo-stats.md).
+- **7.3e — Profil + médias + Acompte** — salon profile edit + gallery/before-after
+  + deposit-policy form (+ the « Configurer mon profil » nudge on the home).
 
 ---
 

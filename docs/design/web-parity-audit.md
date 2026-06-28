@@ -20,7 +20,7 @@
 |---|---|---|---|
 | **G1** | **Home `/`** | The web home is a **placeholder**. App `home_screen` = **search bar + category chips + "Près de vous" + "Voir la carte" (map) + featured sections**. No on-site discovery/search/browse on web (SEO landings exist, but not interactive discovery). | **High** |
 | **G2** | Provider `/(slug)` | Missing **carte / localisation (map)**, **Avant / Après** (before-after gallery), **artistes / équipe**. | Medium |
-| **G3** | Pro home `/pro` "Aujourd'hui" | App `dashboard` = **"Tableau de bord"**, revenue-centric: **Revenus aujourd'hui + ce mois**, pending count, **"Configurer mon profil"** nudge. Web shows counts + today's list only. Backend stats **already exist** (`GET /providers/{id}/dashboard`, [provider-dashboard-stats.md](provider-dashboard-stats.md)) → web just **consumes them via the pro BFF** (no new endpoint). | Medium |
+| ~~**G3**~~ ✅ | Pro home `/pro` "Aujourd'hui" | **Closed (7.3d):** revenue cards (aujourd'hui + ce mois) added to `/pro` from `GET /providers/{id}/dashboard`. (The « Configurer mon profil » nudge follows in 7.3e with `/pro/profil`.) | ~~Medium~~ done |
 | **G4** | Account `/mon-compte` | App offers, beyond cancel: **"Réserver à nouveau" (rebook)**, **laisser un avis**, **favoris**, profile **edit**, notif-prefs, data export, deposit-screenshot submit. (Already logged as M6 deferrals.) | Medium |
 
 **Deliberate, not gaps:** deposit-screenshot **upload** stays app-side for now; account **deletion / data export** stay app-only (sensitive). Provider-page contact (Appeler/WhatsApp) is already on web.

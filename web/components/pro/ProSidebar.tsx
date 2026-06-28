@@ -9,7 +9,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: 'Catalogue', href: '/pro/catalogue' },
   { label: 'Disponibilités', href: '/pro/disponibilites' },
   { label: 'Profil' },
-  { label: 'Abonnement' },
+  { label: 'Abonnement', href: '/pro/abonnement' },
 ];
 
 export function ProSidebar() {
