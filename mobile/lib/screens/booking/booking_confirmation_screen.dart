@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -17,6 +18,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/push/push_permission_sheet.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
   final String providerId;
@@ -107,6 +109,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     );
   }
 
+  /// After a successful booking, offer to enable push notifications (once).
+  /// Best-effort — never blocks navigation.
+  Future<void> _maybeAskPush() async {
+    if (!mounted) return;
+    await serviceLocator.pushRegistration.maybePromptAfterFirstBooking(
+      () => showPushPermissionSheet(context),
+    );
+  }
+
   Future<void> _handleConfirm(double depositAmount, double balanceDue) async {
     final notes = _notesController.text.isEmpty ? null : _notesController.text;
 
@@ -128,6 +139,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         notes: notes,
       );
       if (!mounted || paid != true) return;
+      await _maybeAskPush();
+      if (!mounted) return;
       context.go('/bookings');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -155,6 +168,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
     if (success) {
       _fireBookingConfirmation(depositAmount);
+      await _maybeAskPush();
+      if (!mounted) return;
       context.go('/bookings');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

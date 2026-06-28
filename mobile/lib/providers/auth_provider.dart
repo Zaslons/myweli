@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
@@ -41,12 +43,21 @@ class AuthProvider extends ChangeNotifier {
     try {
       _user = await _authService.getCurrentUser();
       _error = null;
+      if (_user != null) _syncPush();
     } catch (e) {
       _error = e.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Best-effort: register this device's push token if permission is already
+  /// granted. Never throws into the auth flow.
+  void _syncPush() {
+    try {
+      unawaited(serviceLocator.pushRegistration.registerIfGranted());
+    } catch (_) {/* best-effort */}
   }
 
   Future<bool> sendOtp(String phoneNumber) async {
@@ -85,6 +96,7 @@ class AuthProvider extends ChangeNotifier {
         _user = response.data;
         _error = null;
         _otpErrorCode = null;
+        _syncPush();
         return true;
       } else {
         _error = response.error ?? 'Code OTP invalide';
@@ -105,6 +117,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Unregister this device first — the call needs the live session.
+      try {
+        await serviceLocator.pushRegistration.unregister();
+      } catch (_) {/* best-effort */}
       await _authService.logout();
       _user = null;
       _error = null;
