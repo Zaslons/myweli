@@ -8,10 +8,16 @@ import {
   localBusinessJsonLd,
   siteUrl,
 } from '../../lib/seo/jsonld';
+import { minActivePrice } from '../../lib/provider-summary';
+import { BookingCta } from '../BookingCta';
 import { JsonLd } from '../JsonLd';
+import { BeforeAfter } from './BeforeAfter';
+import { BookingPanel } from './BookingPanel';
 import { Faq } from './Faq';
+import { Gallery } from './Gallery';
 import { ProviderHero } from './Hero';
 import { Hours } from './Hours';
+import { MapEmbed } from './MapEmbed';
 import { ReviewList } from './ReviewList';
 import { ServiceList } from './ServiceList';
 
@@ -78,9 +84,10 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
   const cat = categoryLabelFr(p.category).toLowerCase();
   const faq = buildFaq(p);
   const artists = p.artists ?? [];
+  const min = minActivePrice(p.services);
 
   return (
-    <main className="mx-auto max-w-3xl">
+    <main className="mx-auto max-w-5xl pb-xxl lg:pb-0">
       <JsonLd data={localBusinessJsonLd(p, url)} />
       <JsonLd data={faqJsonLd(faq)} />
       <JsonLd
@@ -92,78 +99,100 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
 
       <ProviderHero provider={p} />
 
-      <p className="px-m text-textSecondary">
-        Réservez en ligne chez {p.name}, {cat} à {commune} (Côte d’Ivoire).
-        Services, tarifs, horaires et avis — réservation 24/7, sans appel.
-      </p>
+      <div className="lg:grid lg:grid-cols-3 lg:gap-l">
+        <div className="lg:col-span-2">
+          <p className="px-m pt-m text-textSecondary">
+            Réservez en ligne chez {p.name}, {cat} à {commune} (Côte d’Ivoire).
+            Services, tarifs, horaires et avis — réservation 24/7, sans appel.
+          </p>
 
-      <ServiceList services={p.services ?? []} />
+          <Gallery images={(p.imageUrls ?? []).slice(1)} />
 
-      {artists.length > 0 ? (
-        <section className="px-m py-l">
-          <h2 className="text-xl font-semibold text-textPrimary">Équipe</h2>
-          <ul className="mt-m flex flex-wrap gap-m text-sm">
-            {artists.map((a) => (
-              <li key={a.id}>
-                <span className="text-textPrimary">{a.name}</span>
-                {a.specialization ? (
-                  <span className="text-textTertiary"> · {a.specialization}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+          <ServiceList services={p.services ?? []} />
 
-      <Hours availability={p.availability} />
+          <BeforeAfter pairs={p.beforeAfters ?? []} />
 
-      <section className="px-m py-l">
-        <h2 className="text-xl font-semibold text-textPrimary">Localisation</h2>
-        <p className="mt-xs text-textSecondary">
-          {p.address}
-          {p.commune ? `, ${p.commune}` : ''}
-        </p>
-        {p.latitude != null && p.longitude != null ? (
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${p.latitude},${p.longitude}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-s inline-block text-sm font-medium text-textPrimary underline"
-          >
-            Itinéraire
-          </a>
-        ) : null}
-      </section>
-
-      <ReviewList
-        reviews={p.reviews ?? []}
-        rating={p.rating}
-        reviewCount={p.reviewCount}
-      />
-
-      <section className="px-m py-l">
-        <h2 className="text-xl font-semibold text-textPrimary">Contact</h2>
-        <div className="mt-m flex flex-wrap gap-s">
-          <a
-            href={`tel:${p.phoneNumber}`}
-            className="rounded-lg border border-border bg-secondary px-l py-s text-sm font-medium text-textPrimary"
-          >
-            Appeler
-          </a>
-          {p.whatsapp ? (
-            <a
-              href={`https://wa.me/${p.whatsapp.replace(/[^0-9]/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-border bg-secondary px-l py-s text-sm font-medium text-textPrimary"
-            >
-              WhatsApp
-            </a>
+          {artists.length > 0 ? (
+            <section className="px-m py-l">
+              <h2 className="text-xl font-semibold text-textPrimary">Équipe</h2>
+              <ul className="mt-m flex flex-wrap gap-m text-sm">
+                {artists.map((a) => (
+                  <li key={a.id}>
+                    <span className="text-textPrimary">{a.name}</span>
+                    {a.specialization ? (
+                      <span className="text-textTertiary">
+                        {' '}
+                        · {a.specialization}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
-        </div>
-      </section>
 
-      <Faq items={faq} />
+          <Hours availability={p.availability} />
+
+          <ReviewList
+            reviews={p.reviews ?? []}
+            rating={p.rating}
+            reviewCount={p.reviewCount}
+          />
+
+          <MapEmbed
+            address={p.address}
+            commune={p.commune}
+            latitude={p.latitude}
+            longitude={p.longitude}
+          />
+
+          {/* Contact — desktop uses the sticky panel; shown here on mobile. */}
+          <section className="px-m py-l lg:hidden">
+            <h2 className="text-xl font-semibold text-textPrimary">Contact</h2>
+            <div className="mt-m flex flex-wrap gap-s">
+              <a
+                href={`tel:${p.phoneNumber}`}
+                className="rounded-lg border border-border bg-secondary px-l py-s text-sm font-medium text-textPrimary"
+              >
+                Appeler
+              </a>
+              {p.whatsapp ? (
+                <a
+                  href={`https://wa.me/${p.whatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-border bg-secondary px-l py-s text-sm font-medium text-textPrimary"
+                >
+                  WhatsApp
+                </a>
+              ) : null}
+            </div>
+          </section>
+
+          <Faq items={faq} />
+        </div>
+
+        <aside className="hidden px-m pt-m lg:block">
+          <div className="sticky top-l">
+            <BookingPanel provider={p} slug={slug} />
+          </div>
+        </aside>
+      </div>
+
+      {/* Mobile sticky booking bar */}
+      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden">
+        {min != null ? (
+          <div className="text-sm">
+            <span className="text-textTertiary">À partir de </span>
+            <span className="font-semibold text-textPrimary">
+              {formatFcfa(min)}
+            </span>
+          </div>
+        ) : (
+          <span />
+        )}
+        <BookingCta slug={slug} />
+      </div>
     </main>
   );
 }
