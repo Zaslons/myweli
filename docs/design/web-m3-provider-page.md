@@ -6,7 +6,7 @@
 | **Milestone** | M3 ([public-web.md](public-web.md) §11). |
 | **Surface** | `web/` Next.js — `app/(public)/[slug]/page.tsx`. |
 | **Skill** | `myweli-web-guardrails`. |
-| **Status** | **Built** — page + sections + JSON-LD/FAQ; 14 web unit/component tests. e2e (Playwright) + Lighthouse CI **deferred to a follow-up** (M3.1). |
+| **Status** | **Built** — page + sections + JSON-LD/FAQ (14 unit tests) + **M3.1**: Playwright e2e (hermetic, blocking) + Lighthouse CI (report-only). |
 | **Data** | `GET /providers/by-slug/{slug}` (M1), via the typed client. |
 
 ## 1. Goal
@@ -85,12 +85,16 @@ JSON-LD builders extend `lib/seo/` (`localBusinessJsonLd`, `faqJsonLd`,
 - **Unit (Vitest):** the JSON-LD builders (LocalBusiness/FAQ/Breadcrumb valid +
   required fields), `generateMetadata` output, section components (render +
   empty-state hide).
-- **e2e (Playwright) + Lighthouse CI — deferred to a follow-up (M3.1).** They
-  need a served app + headless browser downloads (heavy/flaky to add inline);
-  M3 ships with strong **unit/component** coverage instead (14 web tests:
-  JSON-LD builders, formatters, ServiceList/ReviewList/Faq). The Playwright e2e
-  (renders hero/services/reviews + valid JSON-LD; unknown slug → 404) + the
-  Lighthouse CWV/SEO budget gate are a tracked next step on the `web` CI job.
+- **Unit/component (Vitest):** 14 web tests (JSON-LD builders, formatters,
+  ServiceList/ReviewList/Faq).
+- **e2e (Playwright) — ✅ M3.1, blocking:** hermetic via a **stub API**
+  (`tests/e2e/stub-api.mjs`; the Next server fetches it, no real backend). The
+  app is built with the stub URL + served via Playwright `webServer`. Tests:
+  provider page renders hero/services/reviews + a **valid `LocalBusiness` +
+  `FAQPage` JSON-LD**; unknown slug → **404**. CI job `web-e2e`.
+- **Lighthouse (LHCI) — ✅ M3.1, report-only:** CWV/SEO budgets
+  (`lighthouserc.json`) on the home; CI job `web-lighthouse` (`continue-on-error`
+  for now — promote to blocking once stable).
 
 ## 8. Security
 Public read of already-public data only (field allowlist; no PII/tokens). No auth

@@ -225,6 +225,62 @@ jobs:
       - name: Build
         run: npm run build
 
+  web-e2e:
+    name: Web — e2e (Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # Builds + serves the app against a stub API (hermetic) and runs the e2e.
+      - name: Run e2e
+        run: npm run e2e
+
+  web-lighthouse:
+    name: Web — Lighthouse (report-only)
+    runs-on: ubuntu-latest
+    # Surfaced but not yet blocking (CWV/SEO budgets in lighthouserc.json);
+    # promote to blocking once stable.
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lighthouse budgets (home)
+        run: npm run lhci
+
   security:
     name: Security — secrets & dependencies
     runs-on: ubuntu-latest
