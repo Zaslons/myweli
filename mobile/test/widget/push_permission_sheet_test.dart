@@ -41,4 +41,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(result, isFalse);
   });
+
+  testWidgets('accepts overridden copy (pro variant)', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => showPushPermissionSheet(
+                context,
+                body: 'Soyez prévenu·e dès qu’un client réserve.',
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Soyez prévenu·e dès qu’un client réserve.'),
+      findsOneWidget,
+    );
+  });
 }

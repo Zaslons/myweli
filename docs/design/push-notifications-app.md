@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-NOTIF-001 (push channel — FCM), app side |
 | **Phase** | Phase 4 — productionize integrations (accounts/deploy phase) |
-| **Status** | **Built** (consumer, on mocks): seam (`PushNotificationService` + `DeviceRegistrationService`) + `ApiDeviceRegistrationService` (`/me/devices`) + `PushRegistration` coordinator + after-first-booking rationale; analyze 0, +12 tests. The real `firebase_messaging` impl + platform config land in the accounts phase; pro app = #2b. |
+| **Status** | **Built** (consumer + pro, on mocks): seam (`PushNotificationService` + `DeviceRegistrationService`) + `ApiDeviceRegistrationService` (`/me/devices`) + `PushRegistration` coordinator + permission rationale (consumer: after first booking; pro: first dashboard visit, provider-session registration — #2b). analyze 0; tests green. The real `firebase_messaging` impl + platform config land in the accounts phase. |
 | **Companion** | Backend foundation: [push-notifications-fcm.md](push-notifications-fcm.md). Runbook: [../DEPLOYMENT.md](../DEPLOYMENT.md). |
 
 ## 1. Goal & scope
@@ -32,7 +32,10 @@ without a Firebase project.
   and platform config (`google-services.json` / `GoogleService-Info.plist` / web
   config) — needs the Firebase project + the `android/` folder (#3). Accounts
   phase. The DI line swaps mock → Fcm; nothing else changes.
-- **Pro app push** (register/unregister + its own prompt placement) → **#2b**.
+- **Pro app push** — **done (#2b):** a separate `proPushRegistration` scoped to
+  the **provider session**, register-on-login / unregister-on-logout via
+  `ProAuthProvider`, and the rationale **on the first dashboard visit** (pros
+  want new-booking alerts immediately) with pro-specific copy.
 
 ## 2. Contract (already shipped)
 - `POST /me/devices` `{ token, platform: android|ios|web }` — self-scoped, upsert.
@@ -95,4 +98,4 @@ tokens register and the backend's pushes/reminders land. Then **#2b** (pro app).
 
 ## 9. Open questions
 - Deep-link target per event (tap → screen) — settled with the real plugin.
-- Pro-app prompt placement (after first accepted booking?) — **#2b**.
+- Pro-app prompt placement — **resolved (#2b):** first dashboard visit.

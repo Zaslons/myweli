@@ -36,10 +36,11 @@ class PushRegistration {
     } catch (_) {/* best-effort */}
   }
 
-  /// Called after the user's first successful booking. Shows [showRationale]
-  /// (the pre-permission sheet) once if permission is undetermined; on accept,
-  /// triggers the OS prompt and registers. Guarded so the user is asked once.
-  Future<void> maybePromptAfterFirstBooking(
+  /// Asks for push permission **once** at the first appropriate moment (consumer:
+  /// after the first booking; pro: on the first dashboard visit). Shows
+  /// [showRationale] if permission is undetermined; on accept, triggers the OS
+  /// prompt and registers. Guarded by a persisted flag so we never nag.
+  Future<void> maybePromptOnce(
     Future<bool> Function() showRationale,
   ) async {
     try {

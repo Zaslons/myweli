@@ -33,7 +33,7 @@ void main() {
       devices: devices,
     );
     var prompts = 0;
-    await coord.maybePromptAfterFirstBooking(() async {
+    await coord.maybePromptOnce(() async {
       prompts++;
       return true;
     });
@@ -41,7 +41,7 @@ void main() {
     expect(devices.registeredTokens, contains('mock-fcm-token'));
 
     // A second booking must not prompt again.
-    await coord.maybePromptAfterFirstBooking(() async {
+    await coord.maybePromptOnce(() async {
       prompts++;
       return true;
     });
@@ -56,14 +56,14 @@ void main() {
       devices: devices,
     );
     var prompts = 0;
-    await coord.maybePromptAfterFirstBooking(() async {
+    await coord.maybePromptOnce(() async {
       prompts++;
       return false;
     });
     expect(prompts, 1);
     expect(devices.registeredTokens, isEmpty);
 
-    await coord.maybePromptAfterFirstBooking(() async {
+    await coord.maybePromptOnce(() async {
       prompts++;
       return false;
     });
@@ -76,7 +76,7 @@ void main() {
     await PushRegistration(
       push: MockPushNotificationService(initial: PushPermissionStatus.granted),
       devices: devices,
-    ).maybePromptAfterFirstBooking(() async {
+    ).maybePromptOnce(() async {
       prompts++;
       return true;
     });
@@ -90,7 +90,7 @@ void main() {
     await PushRegistration(
       push: MockPushNotificationService(initial: PushPermissionStatus.denied),
       devices: devices,
-    ).maybePromptAfterFirstBooking(() async {
+    ).maybePromptOnce(() async {
       prompts++;
       return true;
     });

@@ -128,7 +128,7 @@ again** with a small Actions spending limit (or accept the monthly quota).
   `firebase_messaging` impl deferred to the accounts phase.
 - ✅ Android project scaffolded (#3) — flavors `consumer` (`com.myweli.app`) +
   `pro` (`com.myweli.pro`); real launcher icons + `google-services.json` later.
-- ☐ Pro-app push wiring (#2b).
+- ✅ Pro-app push wiring (#2b) — provider-session registration + first-dashboard-visit prompt.
 - ☐ `next.config` image domain for `cdn.myweli.com` (switch `<img>`→`next/image`)
   + real OG image + `logo.png`.
 - ☐ Cloud Run config (`service.yaml` + Cloud Build trigger, `--min-instances=1`,

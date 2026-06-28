@@ -68,6 +68,8 @@ class ServiceLocator {
   late final PushNotificationServiceInterface pushNotificationService;
   late final DeviceRegistrationServiceInterface deviceRegistrationService;
   late final PushRegistration pushRegistration;
+  late final DeviceRegistrationServiceInterface proDeviceRegistrationService;
+  late final PushRegistration proPushRegistration;
 
   void setup() {
     // Consumer auth (B2) + provider auth (B-prov), each on the real backend.
@@ -152,6 +154,17 @@ class ServiceLocator {
     pushRegistration = PushRegistration(
       push: pushNotificationService,
       devices: deviceRegistrationService,
+    );
+    // Pro app: same device token, but registered under the PROVIDER session so
+    // /me/devices is scoped to the provider principal (#2b).
+    proDeviceRegistrationService = AppConfig.useApiBackend
+        ? ApiDeviceRegistrationService(
+            sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockDeviceRegistrationService();
+    proPushRegistration = PushRegistration(
+      push: pushNotificationService,
+      devices: proDeviceRegistrationService,
     );
   }
 }
