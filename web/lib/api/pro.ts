@@ -1,3 +1,4 @@
+import type { Availability } from '../pro/availability';
 import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
 import type { ProAppointment } from '../pro/today';
 
@@ -17,6 +18,7 @@ export type ProProfile = {
     commune?: string;
     services?: Service[];
     artists?: Artist[];
+    availability?: Availability;
   };
 };
 
@@ -166,6 +168,15 @@ export function deleteArtist(
     `/api/pro/catalogue/artists/${artistId}?providerId=${encodeURIComponent(providerId)}`,
     'DELETE',
   );
+}
+
+// --- disponibilités (7.3c) ---------------------------------------------------
+
+export function saveAvailability(
+  providerId: string,
+  availability: Availability,
+): Promise<MutationResult> {
+  return mutate('/api/pro/disponibilites', 'PUT', { providerId, availability });
 }
 
 export async function logoutPro(): Promise<void> {

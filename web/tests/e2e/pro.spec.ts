@@ -110,3 +110,23 @@ test('catalogue Équipe: list members + add one', async ({ page }) => {
 
   await expect(page.getByText('Koffi')).toBeVisible();
 });
+
+test('disponibilités: edit hours + save', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Disponibilités' }).click();
+  await expect(page).toHaveURL(/\/pro\/disponibilites/);
+  await expect(
+    page.getByRole('heading', { name: 'Disponibilités' }),
+  ).toBeVisible();
+
+  // Monday is seeded open 09:00–18:00; change the end time then save.
+  await page.getByLabel('Lundi fin').fill('17:00');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Disponibilités enregistrées.')).toBeVisible();
+});
