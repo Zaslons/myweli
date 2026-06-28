@@ -170,9 +170,13 @@ createServer(async (req, res) => {
     return json(res, 200, { devCode: '123456' });
   }
   if (url.pathname === '/auth/otp/verify') {
+    // Real API shape (AuthSession): tokens are NESTED under `tokens`, not flat.
     return json(res, 200, {
-      accessToken: 'stub-access',
-      refreshToken: 'stub-refresh',
+      tokens: {
+        accessToken: 'stub-access',
+        refreshToken: 'stub-refresh',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      },
       user: { id: 'u1', phoneNumber: '+2250700000000' },
     });
   }
