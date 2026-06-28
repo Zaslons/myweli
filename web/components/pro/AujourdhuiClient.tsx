@@ -2,21 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { statusLabelFr } from '../../lib/account/appointments';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
-import { formatFcfa } from '../../lib/format';
 import {
   type ProAppointment,
   todayCounts,
   todaysAppointments,
 } from '../../lib/pro/today';
-
-const slotTime = (iso: string) =>
-  new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  }).format(new Date(iso));
+import { ProAppointmentRow } from './ProAppointmentRow';
 
 export function AujourdhuiClient() {
   const router = useRouter();
@@ -80,32 +72,7 @@ export function AujourdhuiClient() {
           </p>
         ) : (
           today.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m"
-            >
-              <div>
-                <p className="font-medium text-textPrimary">
-                  {slotTime(a.appointmentDate)} · {a.clientName ?? 'Client'}
-                </p>
-                <p className="text-sm text-textTertiary">
-                  {(a.serviceIds ?? [])
-                    .map(serviceName)
-                    .filter(Boolean)
-                    .join(', ')}
-                </p>
-              </div>
-              <div className="text-right">
-                <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
-                  {statusLabelFr(a.status)}
-                </span>
-                {typeof a.totalPrice === 'number' ? (
-                  <p className="mt-s text-sm text-textPrimary">
-                    {formatFcfa(a.totalPrice)}
-                  </p>
-                ) : null}
-              </div>
-            </div>
+            <ProAppointmentRow key={a.id} appt={a} serviceName={serviceName} />
           ))
         )}
       </div>

@@ -22,3 +22,27 @@ test('provider login → Aujourd’hui shows today’s bookings', async ({ page 
   // The enriched today booking row (service name mapped from the salon).
   await expect(page.getByText('Tresses')).toBeVisible();
 });
+
+test('Rendez-vous mirrors the app: Calendrier + Liste show today’s booking', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Rendez-vous' }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous/);
+  await expect(
+    page.getByRole('heading', { name: 'Rendez-vous' }),
+  ).toBeVisible();
+
+  // Calendrier (default): today is selected → today's booking shows.
+  await expect(page.getByText('Tresses').first()).toBeVisible();
+
+  // Liste → Aujourd'hui sub-tab also shows it.
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await expect(page.getByText('Tresses').first()).toBeVisible();
+});

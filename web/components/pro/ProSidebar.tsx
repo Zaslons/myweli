@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { ProLogoutButton } from './ProLogoutButton';
 
-// Sidebar nav. Sections land across M7.1–M7.3; until then they show "Bientôt".
+// Sidebar nav (mirrors the pro app's sections). Later ones show "Bientôt" until
+// their PR lands (M7.2–M7.3).
 const NAV: { label: string; href?: string }[] = [
   { label: 'Aujourd’hui', href: '/pro' },
-  { label: 'Agenda' },
-  { label: 'Rendez-vous' },
+  { label: 'Rendez-vous', href: '/pro/rendez-vous' },
   { label: 'Catalogue' },
   { label: 'Disponibilités' },
   { label: 'Profil' },
