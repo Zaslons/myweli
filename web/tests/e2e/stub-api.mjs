@@ -61,6 +61,21 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+// Stateful so the cancel e2e reflects the new status on reload.
+const cancelled = new Set();
+const appt = (id) => ({
+  id,
+  userId: 'u1',
+  providerId: 'p1',
+  serviceIds: ['s1'],
+  appointmentDate: '2026-12-01T09:00:00.000Z',
+  status: cancelled.has(id) ? 'cancelled' : 'confirmed',
+  totalPrice: 15000,
+  depositAmount: 0,
+  balanceDue: 15000,
+  cancellationWindowHours: 24,
+});
+
 createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   if (url.pathname === '/sitemap/providers') {
@@ -102,14 +117,51 @@ createServer((req, res) => {
       user: { id: 'u1', phoneNumber: '+2250700000000' },
     });
   }
-  if (url.pathname === '/appointments') {
-    return json(res, 201, {
-      id: 'appt1',
-      status: 'pending',
-      totalPrice: 15000,
-      depositAmount: 0,
-      balanceDue: 15000,
+  // --- consumer account (M6) ---
+  if (url.pathname === '/me') {
+    return json(res, 200, {
+      id: 'u1',
+      name: 'Awa',
+      phoneNumber: '+2250700000000',
     });
+  }
+  if (url.pathname === '/auth/refresh') {
+    return json(res, 200, {
+      accessToken: 'stub-access-2',
+      refreshToken: 'stub-refresh-2',
+    });
+  }
+  const apptMatch = url.pathname.match(
+    /^\/appointments(?:\/([^/]+)(\/cancel)?)?$/,
+  );
+  if (apptMatch) {
+    const [, id, cancel] = apptMatch;
+    if (!id) {
+      if (req.method === 'POST') {
+        return json(res, 201, {
+          id: 'appt1',
+          status: 'pending',
+          totalPrice: 15000,
+          depositAmount: 0,
+          balanceDue: 15000,
+        });
+      }
+      return json(res, 200, {
+        items: [appt('appt1')],
+        page: 1,
+        pageSize: 1,
+        total: 1,
+      });
+    }
+    if (cancel) cancelled.add(id);
+    return json(res, 200, appt(id));
+  }
+  // single-provider lookup for enrichment: /providers/{id}
+  const provMatch = url.pathname.match(/^\/providers\/([^/]+)$/);
+  if (provMatch) {
+    return provMatch[1] === 'p1'
+      ? json(res, 200, provider)
+      : json(res, 404, { error: 'not_found' });
   }
   return json(res, 404, { error: 'not_found' });
 }).listen(port, () => {

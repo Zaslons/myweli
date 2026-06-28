@@ -59,9 +59,12 @@ web/
   `/auth/otp/*`; on verify the BFF stores the **access + refresh tokens in
   `httpOnly`, `Secure`, `SameSite=Lax` cookies** (`myweli_web_at`/`_rt`). No
   backend change.
-- Booking happens seconds after verify (access token fresh); **silent refresh in
-  the BFF (`/auth/refresh`) is a follow-up** (needed once long-lived web sessions
-  land in M6). Logout clears the cookies. CSRF: `SameSite=Lax` + same-origin.
+- **Silent refresh (M6):** the shared `callApi` (`lib/bff.ts`) attaches the access
+  cookie; on 401 it uses the refresh cookie → `POST /auth/refresh` → rotates →
+  re-cookies → retries once (refresh fail → 401 → the page routes to `/connexion`).
+  Long-lived web sessions. Logout (`/api/auth/logout`) clears the cookies. CSRF:
+  `SameSite=Lax` + same-origin. Account reads/writes are **self-scoped** server-side
+  (the principal), never a client-supplied id.
 - Consumer and provider web sessions will use **distinct cookie names** (M7 pro).
 
 ## 5. Security (first-order)

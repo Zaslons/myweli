@@ -1,24 +1,12 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { apiBase } from '../../../lib/server-api';
-import { AT_COOKIE } from '../../../lib/session';
+import type { NextRequest } from 'next/server';
+import { callApi, respond } from '../../../lib/bff';
 
-/// BFF: create a booking under the session (access token from the httpOnly
-/// cookie). The server prices it + derives the deposit; we forward only the
-/// selection. Booking happens seconds after OTP verify, so the access token is
-/// fresh — silent refresh is a follow-up (M6).
+/// BFF: create a booking under the session. The server prices it + derives the
+/// deposit; we forward only the selection. Silent refresh via callApi (M6).
 export async function POST(req: NextRequest) {
-  const accessToken = req.cookies.get(AT_COOKIE)?.value;
-  if (!accessToken) {
-    return NextResponse.json({ error: 'not_authenticated' }, { status: 401 });
-  }
-
   const payload = await req.json().catch(() => ({}));
-  const r = await fetch(`${apiBase}/appointments`, {
+  const result = await callApi(req, '/appointments', {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${accessToken}`,
-    },
     body: JSON.stringify({
       providerId: payload.providerId,
       serviceIds: payload.serviceIds,
@@ -26,9 +14,9 @@ export async function POST(req: NextRequest) {
       artistId: payload.artistId ?? undefined,
     }),
   });
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    return NextResponse.json({ error: body.error ?? 'error' }, { status: r.status });
+  // Keep the M5 client contract: { ok, appointment }.
+  if (result.status >= 200 && result.status < 300) {
+    return respond({ ...result, body: { ok: true, appointment: result.body } });
   }
-  return NextResponse.json({ ok: true, appointment: body });
+  return respond(result);
 }
