@@ -15,7 +15,10 @@ const provider = {
   commune: 'Cocody',
   latitude: 5.35,
   longitude: -3.99,
-  imageUrls: [], // empty → no external image fetch during e2e
+  imageUrls: ['https://cdn.stub/p1.jpg', 'https://cdn.stub/p2.jpg'],
+  beforeAfters: [
+    { before: 'https://cdn.stub/b1.jpg', after: 'https://cdn.stub/a1.jpg', caption: 'Belle transformation' },
+  ],
   rating: 4.8,
   reviewCount: 2,
   phoneNumber: '+2250700000000',

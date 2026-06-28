@@ -29,6 +29,29 @@ test('provider page renders sections + valid structured data', async ({
   expect(types.some((t) => localBusinessTypes.includes(t))).toBe(true);
 });
 
+test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
+  page,
+}) => {
+  await page.goto('/beaute-divine');
+
+  // Avant/Après section (seeded pair).
+  await expect(
+    page.getByRole('heading', { name: 'Avant / Après' }),
+  ).toBeVisible();
+  await expect(page.getByText('Avant', { exact: true }).first()).toBeVisible();
+
+  // Interactive map (OpenStreetMap embed).
+  await expect(page.locator('iframe[title^="Carte"]')).toHaveCount(1);
+
+  // Booking panel: "À partir de" + a Réserver link to the funnel.
+  await expect(
+    page.getByText('À partir de', { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Réserver' }).first(),
+  ).toHaveAttribute('href', '/beaute-divine/reserver');
+});
+
 test('unknown slug → 404', async ({ page }) => {
   const res = await page.goto('/no-such-salon');
   expect(res?.status()).toBe(404);
