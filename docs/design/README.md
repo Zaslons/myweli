@@ -31,6 +31,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Admin / ops console — UI (Flutter Web) | [admin-console-ui.md](admin-console-ui.md) | Complete — dashboard · KYC · moderation · mgmt + support views · disputes · audit log (Journal) |
 | Messaging & notifications (WhatsApp + SMS, Twilio) | [messaging-notifications.md](messaging-notifications.md) | Built (PR A foundation + OTP · PR B events + reminder scheduler); real BSP creds = ops |
 | Push notifications (FCM) — backend | [push-notifications-fcm.md](push-notifications-fcm.md) | Building (token registry + FCM v1 adapter + event wiring); app plugin + creds = ops |
+| Push notifications (FCM) — app | [push-notifications-app.md](push-notifications-app.md) | Built (token-registration seam + permission UX on mocks, consumer); real firebase_messaging + pro app (#2b) = accounts phase |
 | Provider before/after showcase (FR-DISC-006) | [provider-before-after.md](provider-before-after.md) | Complete — backend + pro editor + consumer drag-reveal slider |
 | Discovery sort & filter (FR-DISC-007) | [discovery-sort-filter.md](discovery-sort-filter.md) | Complete — backend sort + available-today · app Trier sheet + toggle (à domicile = V2) |
 | Web ↔ app parity audit (flow/user-story) | [web-parity-audit.md](web-parity-audit.md) | Recorded — most surfaces match; gaps G1 home discovery · G2 provider map/before-after/artistes · G3 pro Tableau de bord stats · G4 account rebook/avis/favoris; remediation M7.2→M7.3→M8 |

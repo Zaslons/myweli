@@ -1,5 +1,6 @@
 import '../../services/api/api_appointment_service.dart';
 import '../../services/api/api_auth_service.dart';
+import '../../services/api/api_device_registration_service.dart';
 import '../../services/api/api_favorites_service.dart';
 import '../../services/api/api_image_upload_service.dart';
 import '../../services/api/api_notification_service.dart';
@@ -11,6 +12,7 @@ import '../../services/api/api_provider_service.dart';
 import '../../services/api/api_review_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
 import '../../services/interfaces/auth_service_interface.dart';
+import '../../services/interfaces/device_registration_service_interface.dart';
 import '../../services/interfaces/favorites_service_interface.dart';
 import '../../services/interfaces/image_upload_service_interface.dart';
 import '../../services/interfaces/messaging_service_interface.dart';
@@ -19,10 +21,12 @@ import '../../services/interfaces/pro_artist_service_interface.dart';
 import '../../services/interfaces/pro_kyc_service_interface.dart';
 import '../../services/interfaces/pro_service_interface.dart';
 import '../../services/interfaces/provider_service_interface.dart';
+import '../../services/interfaces/push_notification_service_interface.dart';
 import '../../services/interfaces/review_service_interface.dart';
 import '../../services/interfaces/subscription_service_interface.dart';
 import '../../services/mock/mock_appointment_service.dart';
 import '../../services/mock/mock_auth_service.dart';
+import '../../services/mock/mock_device_registration_service.dart';
 import '../../services/mock/mock_favorites_service.dart';
 import '../../services/mock/mock_image_upload_service.dart';
 import '../../services/mock/mock_messaging_service.dart';
@@ -31,10 +35,12 @@ import '../../services/mock/mock_pro_artist_service.dart';
 import '../../services/mock/mock_pro_kyc_service.dart';
 import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_provider_service.dart';
+import '../../services/mock/mock_push_notification_service.dart';
 import '../../services/mock/mock_review_service.dart';
 import '../../services/mock/mock_subscription_service.dart';
 import '../../services/secure_session_store.dart';
 import '../config/app_config.dart';
+import '../push/push_registration.dart';
 
 /// Service Locator for Dependency Injection.
 ///
@@ -59,6 +65,9 @@ class ServiceLocator {
   late final ImageUploadServiceInterface imageUploadService;
   late final ReviewServiceInterface reviewService;
   late final MessagingServiceInterface messagingService;
+  late final PushNotificationServiceInterface pushNotificationService;
+  late final DeviceRegistrationServiceInterface deviceRegistrationService;
+  late final PushRegistration pushRegistration;
 
   void setup() {
     // Consumer auth (B2) + provider auth (B-prov), each on the real backend.
@@ -131,6 +140,19 @@ class ServiceLocator {
         ? ApiReviewService(sessionStore: SecureSessionStore())
         : MockReviewService();
     messagingService = MockMessagingService();
+    // Push (FR-NOTIF-001, app side). The FCM token/permission seam stays on the
+    // mock until the real FcmPushNotificationService + Firebase config land in
+    // the accounts phase (docs/design/push-notifications-app.md); only this line
+    // changes then. Device registration (/me/devices) is real when the backend
+    // is on, scoped to the consumer session.
+    pushNotificationService = MockPushNotificationService();
+    deviceRegistrationService = AppConfig.useApiBackend
+        ? ApiDeviceRegistrationService(sessionStore: SecureSessionStore())
+        : MockDeviceRegistrationService();
+    pushRegistration = PushRegistration(
+      push: pushNotificationService,
+      devices: deviceRegistrationService,
+    );
   }
 }
 
