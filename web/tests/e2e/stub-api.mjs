@@ -72,6 +72,20 @@ createServer((req, res) => {
       ? json(res, 200, provider)
       : json(res, 404, { error: 'not_found' });
   }
+  if (url.pathname === '/providers') {
+    const category = url.searchParams.get('category');
+    const commune = url.searchParams.get('commune');
+    const matches =
+      (!category || category === provider.category) &&
+      (!commune || commune === provider.commune);
+    const items = matches ? [provider] : [];
+    return json(res, 200, {
+      items,
+      page: 1,
+      pageSize: 20,
+      total: items.length,
+    });
+  }
   return json(res, 404, { error: 'not_found' });
 }).listen(port, () => {
   // eslint-disable-next-line no-console
