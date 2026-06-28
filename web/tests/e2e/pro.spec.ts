@@ -69,3 +69,24 @@ test('pro detail: open a pending booking → Accepter → Confirmé', async ({
   await page.getByRole('button', { name: 'Accepter' }).click();
   await expect(page.getByText('Confirmé')).toBeVisible();
 });
+
+test('catalogue: list services + add one', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Catalogue' }).click();
+  await expect(page).toHaveURL(/\/pro\/catalogue/);
+  await expect(page.getByText('Tresses').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Ajouter un service' }).click();
+  await page.getByLabel('Nom du service').fill('Coupe homme');
+  await page.getByLabel('Prix — à partir de (FCFA)').fill('5000');
+  await page.getByLabel('Durée (minutes)').fill('30');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+
+  await expect(page.getByText('Coupe homme')).toBeVisible();
+});

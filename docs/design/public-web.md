@@ -99,7 +99,7 @@ Public pages: SSG/ISR + edge cache, minimal JS, optimised images → fast first 
   - **M7.0 (✅ done):** backend `GET /me/provider` (threat **T29**) + **pro BFF** (`/api/pro/*`, separate `myweli_pro_*` cookies + `callApiPro` silent refresh via `/auth/provider/refresh`) + `/pro/connexion` (provider OTP) + `/pro` sidebar shell + **Aujourd'hui** (today's bookings + counts) + logout. Login only (new-salon registration stays in the app — flagged). 4 unit + 2 e2e + backend 6.
   - **M7.1 (✅ done):** « Rendez-vous » mirroring the app's `/pro/appointments` — **Calendrier** (month grid → day list) **+ Liste** (Aujourd'hui/À venir/En attente/Tous); shared `ProAppointmentRow`; client-side filter (no backend change). 5 unit + 1 e2e. Spec: [web-m7-1-agenda.md](web-m7-1-agenda.md).
   - **M7.2 (✅ done):** booking detail `/pro/rendez-vous/[id]` + lifecycle **Accepter/Refuser/Terminé/Absent** (mirrors `pro_appointment_detail`; detail derived from the provider list; deposit justificatif; status-string fix noShow/Absent). 3 unit + 1 e2e. Spec: [web-m7-2-manage.md](web-m7-2-manage.md).
-  - **M7.3** catalogue/availability/profile/abonnement (+ fold G3 pro Tableau de bord stats).
+  - **M7.3 catalogue/dispo/profil/abonnement — building** (split): **7.3a ✅** Catalogue : Services (`/pro/catalogue` list + inline create/edit/delete; list reuses `GET /me/provider`; mutations via pro BFF, backend-enforced ownership; 6 unit + 1 e2e — spec [web-m7-3-catalogue.md](web-m7-3-catalogue.md)) · 7.3b Équipe (artistes) · 7.3c Disponibilités + acompte · 7.3d Profil + médias + abonnement + Tableau de bord stats (G3).
 
 ## 12. Open questions
 - **OQ-WEB-1** Host topology + platform (Vercel/Cloudflare/…); a deploy-phase call.

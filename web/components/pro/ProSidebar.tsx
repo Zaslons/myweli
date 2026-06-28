@@ -6,7 +6,7 @@ import { ProLogoutButton } from './ProLogoutButton';
 const NAV: { label: string; href?: string }[] = [
   { label: 'Aujourd’hui', href: '/pro' },
   { label: 'Rendez-vous', href: '/pro/rendez-vous' },
-  { label: 'Catalogue' },
+  { label: 'Catalogue', href: '/pro/catalogue' },
   { label: 'Disponibilités' },
   { label: 'Profil' },
   { label: 'Abonnement' },

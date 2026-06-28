@@ -106,7 +106,28 @@ const proAppt = (id) => ({
 });
 const isPro = (req) => (req.headers.authorization || '').includes('pro');
 
-createServer((req, res) => {
+// Pro-side mutable salon (catalogue 7.3a) — its own copy so consumer reads of
+// `provider` stay stable. /me/provider returns this.
+const proProvider = JSON.parse(JSON.stringify(provider));
+let svcSeq = 1;
+
+function readBody(req) {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (c) => {
+      data += c;
+    });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data || '{}'));
+      } catch {
+        resolve({});
+      }
+    });
+  });
+}
+
+createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   if (url.pathname === '/sitemap/providers') {
     return json(res, 200, { items: [{ slug: 'beaute-divine' }] });
@@ -186,8 +207,34 @@ createServer((req, res) => {
         phoneNumber: '+2250700000000',
         providerId: 'p1',
       },
-      provider,
+      provider: proProvider,
     });
+  }
+  // catalogue services CRUD (7.3a) — mutates the pro salon copy.
+  const svcMatch = url.pathname.match(
+    /^\/providers\/[^/]+\/services(?:\/([^/]+))?$/,
+  );
+  if (svcMatch) {
+    const sid = svcMatch[1];
+    if (req.method === 'POST') {
+      const body = await readBody(req);
+      const created = { id: `svc${++svcSeq}`, providerId: 'p1', active: true, ...body };
+      proProvider.services.push(created);
+      return json(res, 201, created);
+    }
+    if (req.method === 'PATCH' && sid) {
+      const body = await readBody(req);
+      const s = proProvider.services.find((x) => x.id === sid);
+      if (!s) return json(res, 404, { error: 'not_found' });
+      Object.assign(s, body);
+      return json(res, 200, s);
+    }
+    if (req.method === 'DELETE' && sid) {
+      proProvider.services = proProvider.services.filter((x) => x.id !== sid);
+      res.writeHead(204);
+      return res.end();
+    }
+    return json(res, 404, { error: 'not_found' });
   }
   const apptMatch = url.pathname.match(
     /^\/appointments(?:\/([^/]+)(?:\/([^/]+))?)?$/,
