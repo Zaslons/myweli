@@ -178,3 +178,35 @@ test('profil: edit + save; acompte: enable + save', async ({ page }) => {
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByText('Acompte enregistré.')).toBeVisible();
 });
+
+test('médias: manage photos (remove + save) + upload a new one', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.goto('/pro/medias');
+  await expect(
+    page.getByRole('heading', { name: 'Médias' }),
+  ).toBeVisible();
+  // Seeded with 2 photos → 2 images.
+  await expect(page.locator('main img')).toHaveCount(2);
+
+  // Upload a new one (stubbed sign + R2 POST).
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles({
+      name: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from('fake-jpeg-bytes'),
+    });
+  await expect(page.locator('main img')).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Enregistrer' }).first().click();
+  await expect(page.getByText('Photos enregistrées.')).toBeVisible();
+});

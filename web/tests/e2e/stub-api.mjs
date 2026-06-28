@@ -109,8 +109,11 @@ const isPro = (req) => (req.headers.authorization || '').includes('pro');
 // Pro-side mutable salon (catalogue 7.3a) — its own copy so consumer reads of
 // `provider` stay stable. /me/provider returns this.
 const proProvider = JSON.parse(JSON.stringify(provider));
+proProvider.imageUrls = ['https://cdn.stub/a.jpg', 'https://cdn.stub/b.jpg'];
+proProvider.beforeAfters = [];
 let svcSeq = 1;
 let artSeq = 1;
+let imgSeq = 1;
 
 function readBody(req) {
   return new Promise((resolve) => {
@@ -265,6 +268,37 @@ createServer(async (req, res) => {
       return json(res, 200, body);
     }
     return json(res, 405, { error: 'method_not_allowed' });
+  }
+  // médias (7.3e-ii) — presigned upload + R2 POST + gallery/before-after PUT.
+  if (url.pathname === '/uploads/sign') {
+    return json(res, 200, {
+      method: 'POST',
+      uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
+      fields: {},
+      key: `gallery/p1/${imgSeq}.jpg`,
+      publicUrl: `https://cdn.stub/gallery/p1/${imgSeq++}.jpg`,
+    });
+  }
+  if (url.pathname === '/r2-upload') {
+    // The browser POSTs bytes here directly (cross-origin) — accept + CORS-allow.
+    res.writeHead(204, { 'access-control-allow-origin': '*' });
+    return res.end();
+  }
+  if (url.pathname.match(/^\/providers\/[^/]+\/gallery$/)) {
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      proProvider.imageUrls = body.imageUrls ?? [];
+      return json(res, 200, { imageUrls: proProvider.imageUrls });
+    }
+    return json(res, 200, { imageUrls: proProvider.imageUrls ?? [] });
+  }
+  if (url.pathname.match(/^\/providers\/[^/]+\/before-after$/)) {
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      proProvider.beforeAfters = body.beforeAfters ?? [];
+      return json(res, 200, proProvider.beforeAfters);
+    }
+    return json(res, 200, proProvider.beforeAfters ?? []);
   }
   // acompte (7.3e-i) — deposit policy GET/PUT.
   if (url.pathname.match(/^\/providers\/[^/]+\/deposit-policy$/)) {

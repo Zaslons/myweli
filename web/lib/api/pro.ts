@@ -1,6 +1,7 @@
 import type { Availability } from '../pro/availability';
 import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
 import type { DepositPolicy } from '../pro/deposit';
+import type { BeforeAfterPair } from '../pro/medias';
 import type { Subscription } from '../pro/subscription-plans';
 import type { ProAppointment } from '../pro/today';
 
@@ -34,6 +35,8 @@ export type ProProfile = {
     services?: Service[];
     artists?: Artist[];
     availability?: Availability;
+    imageUrls?: string[];
+    beforeAfters?: BeforeAfterPair[];
   };
 };
 
@@ -239,6 +242,25 @@ export function saveDepositPolicy(
   policy: DepositPolicy,
 ): Promise<MutationResult> {
   return mutate('/api/pro/acompte', 'PUT', { providerId, policy });
+}
+
+// --- médias (7.3e-ii) -------------------------------------------------------
+
+export function saveGallery(
+  providerId: string,
+  imageUrls: string[],
+): Promise<MutationResult> {
+  return mutate('/api/pro/medias/gallery', 'PUT', { providerId, imageUrls });
+}
+
+export function saveBeforeAfters(
+  providerId: string,
+  beforeAfters: BeforeAfterPair[],
+): Promise<MutationResult> {
+  return mutate('/api/pro/medias/before-after', 'PUT', {
+    providerId,
+    beforeAfters,
+  });
 }
 
 export async function logoutPro(): Promise<void> {

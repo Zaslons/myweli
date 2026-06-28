@@ -150,9 +150,7 @@ export function ProfilClient() {
       <section className="mt-l space-y-s">
         <SectionLink href="/pro/acompte" label="Acompte" />
         <SectionLink href="/pro/abonnement" label="Abonnement" />
-        <span className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-textTertiary">
-          Photos &amp; Avant/Après<span className="text-xs">Bientôt</span>
-        </span>
+        <SectionLink href="/pro/medias" label="Photos & Avant/Après" />
       </section>
     </div>
   );
