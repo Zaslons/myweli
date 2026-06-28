@@ -66,6 +66,55 @@ void main() {
     expect(seen.bodyFields['From'], 'whatsapp:+15550002222');
   });
 
+  test(
+    'WhatsApp without a sender → not-ok (falls back to SMS), no call',
+    () async {
+      var called = false;
+      final p = TwilioMessagingProvider(
+        accountSid: 'AC123',
+        authToken: 'tok',
+        smsFrom: '+15550001111',
+        // whatsAppFrom omitted — SMS-first launch
+        client: MockClient((req) async {
+          called = true;
+          return http.Response('{}', 201);
+        }),
+      );
+
+      final res = await p.send(
+        to: '+2250700000000',
+        channel: MessageChannel.whatsApp,
+        body: 'Salut',
+      );
+
+      expect(res.ok, isFalse);
+      expect(res.error, 'whatsapp_not_configured');
+      expect(
+        called,
+        isFalse,
+        reason: 'no network call when WhatsApp unconfigured',
+      );
+    },
+  );
+
+  test('SMS still works when no WhatsApp sender is configured', () async {
+    final p = TwilioMessagingProvider(
+      accountSid: 'AC123',
+      authToken: 'tok',
+      smsFrom: '+15550001111',
+      client: MockClient(
+        (req) async => http.Response(jsonEncode({'sid': 'SM2'}), 201),
+      ),
+    );
+    final res = await p.send(
+      to: '+2250700000000',
+      channel: MessageChannel.sms,
+      body: 'Bonjour',
+    );
+    expect(res.ok, isTrue);
+    expect(res.providerMessageId, 'SM2');
+  });
+
   test('non-2xx → failed with a coded error', () async {
     final p = provider(
       MockClient(

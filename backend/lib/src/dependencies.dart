@@ -316,8 +316,10 @@ final MessagingProvider messagingProvider = () {
   final sid = _envOrNull('TWILIO_ACCOUNT_SID');
   final token = _envOrNull('TWILIO_AUTH_TOKEN');
   final smsFrom = _envOrNull('TWILIO_SMS_FROM');
+  // WhatsApp is optional (SMS-first launch): until a WhatsApp sender is approved,
+  // WhatsApp sends fall back to SMS. SMS stays mandatory in production.
   final waFrom = _envOrNull('TWILIO_WHATSAPP_FROM');
-  if (sid != null && token != null && smsFrom != null && waFrom != null) {
+  if (sid != null && token != null && smsFrom != null) {
     return TwilioMessagingProvider(
       accountSid: sid,
       authToken: token,
@@ -327,8 +329,9 @@ final MessagingProvider messagingProvider = () {
   }
   if (_isProd) {
     throw StateError(
-      'Messaging must be configured in production: set TWILIO_ACCOUNT_SID, '
-      'TWILIO_AUTH_TOKEN, TWILIO_SMS_FROM and TWILIO_WHATSAPP_FROM.',
+      'Messaging (SMS) must be configured in production: set TWILIO_ACCOUNT_SID, '
+      'TWILIO_AUTH_TOKEN and TWILIO_SMS_FROM (TWILIO_WHATSAPP_FROM is optional '
+      'until WhatsApp is approved).',
     );
   }
   return LogMessagingProvider();

@@ -17,14 +17,17 @@ class TwilioMessagingProvider implements MessagingProvider {
     required this.accountSid,
     required this.authToken,
     required this.smsFrom,
-    required this.whatsAppFrom,
+    this.whatsAppFrom,
     http.Client? client,
   }) : _client = client ?? http.Client();
 
   final String accountSid;
   final String authToken;
   final String smsFrom;
-  final String whatsAppFrom;
+
+  /// WhatsApp sender (E.164, no `whatsapp:` prefix). Null until a WhatsApp
+  /// sender is approved (SMS-first launch) — WhatsApp sends then fall back to SMS.
+  final String? whatsAppFrom;
   final http.Client _client;
 
   Uri get _endpoint => Uri.parse(
@@ -38,6 +41,15 @@ class TwilioMessagingProvider implements MessagingProvider {
     required String body,
   }) async {
     final isWhatsApp = channel == MessageChannel.whatsApp;
+    if (isWhatsApp && whatsAppFrom == null) {
+      // No WhatsApp sender configured yet — signal not-ok so the service falls
+      // back to SMS, without a wasted API call.
+      return (
+        ok: false,
+        providerMessageId: null,
+        error: 'whatsapp_not_configured',
+      );
+    }
     final from = isWhatsApp ? 'whatsapp:$whatsAppFrom' : smsFrom;
     final dest = isWhatsApp ? 'whatsapp:$to' : to;
     final auth = base64Encode(utf8.encode('$accountSid:$authToken'));
