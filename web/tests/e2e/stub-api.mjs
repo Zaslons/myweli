@@ -86,6 +86,31 @@ createServer((req, res) => {
       total: items.length,
     });
   }
+  // --- booking funnel (M5) ---
+  if (url.pathname === '/availability') {
+    return json(res, 200, {
+      slots: ['2026-12-01T09:00:00.000Z', '2026-12-01T10:30:00.000Z'],
+    });
+  }
+  if (url.pathname === '/auth/otp/request') {
+    return json(res, 200, { devCode: '123456' });
+  }
+  if (url.pathname === '/auth/otp/verify') {
+    return json(res, 200, {
+      accessToken: 'stub-access',
+      refreshToken: 'stub-refresh',
+      user: { id: 'u1', phoneNumber: '+2250700000000' },
+    });
+  }
+  if (url.pathname === '/appointments') {
+    return json(res, 201, {
+      id: 'appt1',
+      status: 'pending',
+      totalPrice: 15000,
+      depositAmount: 0,
+      balanceDue: 15000,
+    });
+  }
   return json(res, 404, { error: 'not_found' });
 }).listen(port, () => {
   // eslint-disable-next-line no-console
