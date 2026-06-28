@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import '../styles/globals.css';
 import { AppInstallBanner } from '../components/AppInstallBanner';
+import { Header } from '../components/Header';
 import { jsonLdScript, organizationJsonLd } from '../lib/seo/jsonld';
 import { defaultMetadata } from '../lib/seo/metadata';
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
         <AppInstallBanner />
+        <Header />
         {children}
       </body>
     </html>

@@ -7,7 +7,8 @@ import 'package:myweli_backend/src/responses.dart';
 
 /// `/me` — the signed-in user's own account. Protected: the principal comes
 /// from the access token, so a caller can only ever read/mutate themselves
-/// (docs/BACKEND.md §3.3). PATCH updates profile fields; DELETE removes it.
+/// (docs/BACKEND.md §3.3). GET reads the profile; PATCH updates profile fields;
+/// DELETE removes it.
 Future<Response> onRequest(RequestContext context) async {
   final principal = principalOf(context);
   if (principal == null) {
@@ -17,6 +18,13 @@ Future<Response> onRequest(RequestContext context) async {
   final repo = context.read<AuthRepository>();
 
   switch (context.request.method) {
+    case HttpMethod.get:
+      final user = await repo.userById(principal.userId);
+      if (user == null) {
+        return jsonError(HttpStatus.notFound, 'not_found');
+      }
+      return Response.json(body: user.toJson());
+
     case HttpMethod.patch:
       final Map<String, dynamic> body;
       try {

@@ -6,7 +6,7 @@
 | **Milestone** | M5 ([public-web.md](public-web.md) §11). The conversion step. |
 | **Surface** | `web/` — `app/[slug]/reserver` + BFF route handlers (`app/api/*`). |
 | **Skill** | `myweli-web-guardrails`. |
-| **Status** | **Built** — `/(slug)/reserver` stepper + BFF (`/api/*`) + httpOnly-cookie session; 25 unit + 7 e2e (full funnel). Silent refresh + web deposit-screenshot deferred (M6/follow-up). |
+| **Status** | **Built** — `/(slug)/reserver` stepper + BFF (`/api/*`) + httpOnly-cookie session; 25 unit + 7 e2e (full funnel). Silent refresh **landed in M6**; web deposit-screenshot upload still deferred. |
 | **First** | authed + write web flow → brings the **web session** online. |
 
 ## 1. Goal

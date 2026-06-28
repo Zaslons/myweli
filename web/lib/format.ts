@@ -31,6 +31,23 @@ export function formatDateFr(iso: string): string {
   }).format(d);
 }
 
+/// Date + time (e.g. "1 décembre 2026 à 09:00"). UTC to match the API.
+export function formatDateTimeFr(iso: string): string {
+  const d = new Date(iso);
+  const date = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(d);
+  const time = new Intl.DateTimeFormat('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  }).format(d);
+  return `${date} à ${time}`;
+}
+
 /// Weekly-schedule keys are "0".."6" = Mon..Sun.
 export const weekdaysFr = [
   'Lundi',
