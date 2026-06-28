@@ -52,15 +52,17 @@ web/
   validation/authz/notifications; never reimplement business logic on web.
 - Lists use the API's `{items,page,pageSize,total}` pagination.
 
-## 4. Auth & session (web)
-- Phone/OTP via the existing `/auth/otp/*`. The **refresh token lives in an
-  `httpOnly`, `Secure`, `SameSite=Lax` cookie** set by a Next route handler / the
-  backend web-session path; the access token is held **in memory** and refreshed
-  silently. **No tokens in `localStorage`/JS.**
-- Consumer and provider sessions are **separate** (distinct cookie names), mirroring
-  the app's split session keys.
-- Logout clears the cookie + memory. CSRF: `SameSite` + a token on state-changing
-  POSTs.
+## 4. Auth & session (web) — BFF + httpOnly cookies
+- **BFF pattern (M5):** the browser only talks to **Next route handlers**
+  (`app/api/*`, same-origin → no CORS, **no tokens in JS**); the handlers call the
+  `dart_frog` API server-side with the bearer. Phone/OTP via the existing
+  `/auth/otp/*`; on verify the BFF stores the **access + refresh tokens in
+  `httpOnly`, `Secure`, `SameSite=Lax` cookies** (`myweli_web_at`/`_rt`). No
+  backend change.
+- Booking happens seconds after verify (access token fresh); **silent refresh in
+  the BFF (`/auth/refresh`) is a follow-up** (needed once long-lived web sessions
+  land in M6). Logout clears the cookies. CSRF: `SameSite=Lax` + same-origin.
+- Consumer and provider web sessions will use **distinct cookie names** (M7 pro).
 
 ## 5. Security (first-order)
 - **CORS** on the API locked to the known web origin(s); credentials mode for the

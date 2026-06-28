@@ -30,7 +30,7 @@ export function ProviderHero({ provider }: { provider: Provider }) {
           </p>
         ) : null}
         <div className="mt-m">
-          <BookingCta />
+          <BookingCta slug={provider.slug ?? ''} />
         </div>
       </div>
     </header>
