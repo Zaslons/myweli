@@ -68,7 +68,7 @@ services:
         sync: false
       - key: R2_KYC_BUCKET
         sync: false
-      - key: R2_DEPOSIT_BUCKET
+      - key: R2_DEPOSIT_BUCKET # gitleaks:allow — env var name, not a secret
         sync: false
       - key: FCM_PROJECT_ID
         sync: false
