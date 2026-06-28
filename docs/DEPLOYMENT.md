@@ -89,7 +89,8 @@ Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side B
 · `NEXT_PUBLIC_MYWELI_WHATSAPP=225…` · `NEXT_PUBLIC_IOS_APP_URL` /
 `NEXT_PUBLIC_ANDROID_APP_URL` (after the apps ship). Point `myweli.com` DNS →
 Vercel; confirm `WEB_ORIGINS` matches. Verify `/sitemap.xml`, `/robots.txt`,
-`/llms.txt`, JSON-LD; add real `/logo.png` + OG image.
+`/llms.txt`, JSON-LD, `/opengraph-image`, `/logo.svg` (a real raster `logo.png` +
+designed OG art can replace the generated ones later).
 
 ## Phase E — Deploy the admin
 `flutter build web --target lib/main_admin.dart` → static host at
@@ -129,7 +130,11 @@ again** with a small Actions spending limit (or accept the monthly quota).
 - ✅ Android project scaffolded (#3) — flavors `consumer` (`com.myweli.app`) +
   `pro` (`com.myweli.pro`); real launcher icons + `google-services.json` later.
 - ✅ Pro-app push wiring (#2b) — provider-session registration + first-dashboard-visit prompt.
-- ☐ `next.config` image domain for `cdn.myweli.com` (switch `<img>`→`next/image`)
-  + real OG image + `logo.png`.
+- ✅ Web `next/image` + CDN allowlist (`cdn.myweli.com`) + OG image
+  (`app/opengraph-image.tsx`) + favicon + `logo.svg` (#4). Real raster `logo.png`
+  / designed OG art = optional later polish.
 - ☐ Cloud Run config (`service.yaml` + Cloud Build trigger, `--min-instances=1`,
   Cloud SQL connector) — **host decided: Cloud Run + Cloud SQL**.
+
+**→ The no-account deployment-readiness track (#1–#4 + #2b) is complete.**
+Everything remaining is the accounts phase (provision services + supply keys).
