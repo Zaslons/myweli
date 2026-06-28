@@ -76,7 +76,8 @@ const consumerAppt = (id) => ({
   serviceIds: ['s1'],
   clientName: 'Awa',
   appointmentDate: todayAt9,
-  status: cancelled.has(id) ? 'cancelled' : 'confirmed',
+  status:
+    id === 'appt2' ? 'completed' : cancelled.has(id) ? 'cancelled' : 'confirmed',
   totalPrice: 15000,
   depositAmount: 0,
   balanceDue: 15000,
@@ -188,6 +189,14 @@ createServer(async (req, res) => {
       accessToken: 'stub-access-2',
       refreshToken: 'stub-refresh-2',
     });
+  }
+  // favorites (M8.3)
+  if (url.pathname === '/me/favorites') {
+    return json(res, 200, { providerIds: ['p1'] });
+  }
+  if (url.pathname.match(/^\/me\/favorites\/[^/]+$/)) {
+    res.writeHead(204);
+    return res.end();
   }
   // --- pro dashboard (M7.0) ---
   if (url.pathname === '/auth/provider/otp/request') {
@@ -363,7 +372,9 @@ createServer(async (req, res) => {
         });
       }
       // Provider list (M7) vs consumer list (M6), split by token.
-      const items = isPro(req) ? [proAppt('pappt1')] : [consumerAppt('appt1')];
+      const items = isPro(req)
+        ? [proAppt('pappt1')]
+        : [consumerAppt('appt1'), consumerAppt('appt2')];
       return json(res, 200, {
         items,
         page: 1,
@@ -378,6 +389,9 @@ createServer(async (req, res) => {
     if (sub === 'cancel') {
       cancelled.add(id);
       return json(res, 200, consumerAppt(id));
+    }
+    if (sub === 'review') {
+      return json(res, 200, { id, rating: 5 });
     }
     if (sub === 'deposit-screenshot') {
       return json(res, 200, { url: 'https://example.test/justificatif.jpg' });
