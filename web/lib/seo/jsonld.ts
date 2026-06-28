@@ -15,7 +15,7 @@ export function organizationJsonLd() {
     '@type': 'Organization',
     name: 'Myweli',
     url: siteUrl,
-    logo: `${siteUrl}/logo.png`,
+    logo: `${siteUrl}/logo.svg`,
     description:
       'Myweli — réservation beauté & bien-être en Côte d’Ivoire : ' +
       'coiffure, barbier, onglerie, spa. Réservez votre salon en ligne, 24/7.',

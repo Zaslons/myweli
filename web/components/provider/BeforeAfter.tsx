@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { Provider } from '../../lib/api/providers';
 
 type Pair = NonNullable<Provider['beforeAfters']>[number];
@@ -17,25 +18,31 @@ export function BeforeAfter({ pairs }: { pairs: Pair[] }) {
           >
             <div className="grid grid-cols-2 gap-xs">
               <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={p.before}
-                  alt="Avant"
-                  loading="lazy"
-                  className="h-32 w-full rounded object-cover"
-                />
+                <div className="relative h-32 w-full overflow-hidden rounded">
+                  <Image
+                    src={p.before}
+                    alt="Avant"
+                    fill
+                    loading="lazy"
+                    sizes="(min-width: 640px) 25vw, 50vw"
+                    className="object-cover"
+                  />
+                </div>
                 <figcaption className="mt-xs text-center text-xs text-textTertiary">
                   Avant
                 </figcaption>
               </div>
               <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={p.after}
-                  alt="Après"
-                  loading="lazy"
-                  className="h-32 w-full rounded object-cover"
-                />
+                <div className="relative h-32 w-full overflow-hidden rounded">
+                  <Image
+                    src={p.after}
+                    alt="Après"
+                    fill
+                    loading="lazy"
+                    sizes="(min-width: 640px) 25vw, 50vw"
+                    className="object-cover"
+                  />
+                </div>
                 <figcaption className="mt-xs text-center text-xs text-textTertiary">
                   Après
                 </figcaption>
