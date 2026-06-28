@@ -89,7 +89,7 @@ Public pages: SSG/ISR + edge cache, minimal JS, optimised images → fast first 
 ## 11. Rollout — milestones (each spec-linked PR; deploy in the accounts phase)
 - **M0 — web foundations (✅ this PR):** [WEB.md](../WEB.md) + [WEB-DESIGN-STANDARDS.md](WEB-DESIGN-STANDARDS.md) + the `myweli-web-guardrails` skill. The rulebook every later milestone references.
 - **M1 — backend glue (✅ done):** slug (migration `0021` + `bySlug`) + `GET /providers/by-slug/{slug}` + `GET /sitemap/providers` + CORS middleware (`WEB_ORIGINS`). Spec: [web-m1-backend-glue.md](web-m1-backend-glue.md); threat model **T27**. *(backend)*
-- **M2 — `web/` scaffold + SEO foundation:** Next.js app, OpenAPI-typed client, Tailwind+tokens, CI job, base layout + metadata/JSON-LD/robots/sitemap/`llms.txt` helpers.
+- **M2 — `web/` scaffold + SEO foundation (✅ done):** Next.js (App Router/TS/Tailwind v3) app, OpenAPI-typed client (`openapi-typescript`+`openapi-fetch`) + CI drift check, shared tokens, base layout + default metadata + brand `Organization` JSON-LD, `robots.txt`/`sitemap.xml` (from `/sitemap/providers`)/`llms.txt`, `AppInstallBanner`/`OpenInAppButton`, minimal home, isolated `web` CI job. Spec: [web-m2-scaffold.md](web-m2-scaffold.md).
 - **M3 — provider page `/<slug>`:** SSG/ISR + full SEO/AEO/GEO (LocalBusiness+FAQPage+Review schema) + smart banner + booking entry.
 - **M4 — SEO landing `/<categorie>-<commune>`** + hubs/internal linking.
 - **M5 — web booking funnel** (OTP + no-custody deposit; web-cookie auth).
