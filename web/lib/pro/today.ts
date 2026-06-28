@@ -6,7 +6,10 @@ export type ProAppointment = {
   appointmentDate: string;
   serviceIds?: string[];
   clientName?: string | null;
+  clientPhone?: string | null;
   totalPrice?: number;
+  depositAmount?: number;
+  depositScreenshotUrl?: string | null;
 };
 
 export function todayKey(now: Date = new Date()): string {

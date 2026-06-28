@@ -112,6 +112,7 @@ export function RendezVousClient() {
                     key={a.id}
                     appt={a}
                     serviceName={serviceName}
+                    href={`/pro/rendez-vous/${a.id}`}
                   />
                 ))
               )}
@@ -143,7 +144,12 @@ export function RendezVousClient() {
               </p>
             ) : (
               list.map((a) => (
-                <ProAppointmentRow key={a.id} appt={a} serviceName={serviceName} />
+                <ProAppointmentRow
+                  key={a.id}
+                  appt={a}
+                  serviceName={serviceName}
+                  href={`/pro/rendez-vous/${a.id}`}
+                />
               ))
             )}
           </div>

@@ -46,3 +46,26 @@ test('Rendez-vous mirrors the app: Calendrier + Liste show today’s booking', a
   await page.getByRole('button', { name: 'Liste' }).click();
   await expect(page.getByText('Tresses').first()).toBeVisible();
 });
+
+test('pro detail: open a pending booking → Accepter → Confirmé', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Rendez-vous' }).click();
+  // Open the booking (Calendrier default → today's row links to detail).
+  await page.getByText('Koffi').first().click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\/pappt1/);
+  await expect(
+    page.getByRole('heading', { name: 'Détails du rendez-vous' }),
+  ).toBeVisible();
+  await expect(page.getByText('En attente')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Accepter' }).click();
+  await expect(page.getByText('Confirmé')).toBeVisible();
+});

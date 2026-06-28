@@ -61,11 +61,12 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-// Stateful so the cancel e2e reflects the new status on reload.
-const cancelled = new Set();
-// Dated "today" (UTC) so the pro Aujourd'hui view shows it whenever the suite runs.
+// Dated "today" (UTC) so the pro views show it whenever the suite runs.
 const todayAt9 = `${new Date().toISOString().slice(0, 10)}T09:00:00.000Z`;
-const appt = (id) => ({
+
+// Consumer side (M5/M6) — appt1; cancel is stateful.
+const cancelled = new Set();
+const consumerAppt = (id) => ({
   id,
   userId: 'u1',
   providerId: 'p1',
@@ -78,6 +79,32 @@ const appt = (id) => ({
   balanceDue: 15000,
   cancellationWindowHours: 24,
 });
+
+// Pro side (M7) — pappt1, mutable status via the lifecycle endpoints. Kept
+// separate from the consumer flow (split by token below) so parallel tests
+// don't race on shared state.
+const proStatus = { pappt1: 'pending' };
+const PRO_TRANSITION = {
+  accept: 'confirmed',
+  reject: 'cancelled',
+  complete: 'completed',
+  'no-show': 'noShow',
+};
+const proAppt = (id) => ({
+  id,
+  userId: 'u2',
+  providerId: 'p1',
+  serviceIds: ['s1'],
+  clientName: 'Koffi',
+  appointmentDate: todayAt9,
+  status: proStatus[id] ?? 'pending',
+  totalPrice: 15000,
+  depositAmount: 0,
+  balanceDue: 15000,
+  cancellationWindowHours: 24,
+  depositScreenshotUrl: null,
+});
+const isPro = (req) => (req.headers.authorization || '').includes('pro');
 
 createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
@@ -163,10 +190,10 @@ createServer((req, res) => {
     });
   }
   const apptMatch = url.pathname.match(
-    /^\/appointments(?:\/([^/]+)(\/cancel)?)?$/,
+    /^\/appointments(?:\/([^/]+)(?:\/([^/]+))?)?$/,
   );
   if (apptMatch) {
-    const [, id, cancel] = apptMatch;
+    const [, id, sub] = apptMatch;
     if (!id) {
       if (req.method === 'POST') {
         return json(res, 201, {
@@ -177,15 +204,31 @@ createServer((req, res) => {
           balanceDue: 15000,
         });
       }
+      // Provider list (M7) vs consumer list (M6), split by token.
+      const items = isPro(req) ? [proAppt('pappt1')] : [consumerAppt('appt1')];
       return json(res, 200, {
-        items: [appt('appt1')],
+        items,
         page: 1,
-        pageSize: 1,
-        total: 1,
+        pageSize: items.length,
+        total: items.length,
       });
     }
-    if (cancel) cancelled.add(id);
-    return json(res, 200, appt(id));
+    if (!sub) {
+      // GET /appointments/{id} — consumer detail (provider uses the list).
+      return json(res, 200, consumerAppt(id));
+    }
+    if (sub === 'cancel') {
+      cancelled.add(id);
+      return json(res, 200, consumerAppt(id));
+    }
+    if (sub === 'deposit-screenshot') {
+      return json(res, 200, { url: 'https://example.test/justificatif.jpg' });
+    }
+    if (PRO_TRANSITION[sub]) {
+      proStatus[id] = PRO_TRANSITION[sub];
+      return json(res, 200, proAppt(id));
+    }
+    return json(res, 404, { error: 'not_found' });
   }
   // single-provider lookup for enrichment: /providers/{id}
   const provMatch = url.pathname.match(/^\/providers\/([^/]+)$/);

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { statusLabelFr } from '../../lib/account/appointments';
 import { formatFcfa } from '../../lib/format';
 import type { ProAppointment } from '../../lib/pro/today';
@@ -10,16 +11,19 @@ const slotTime = (iso: string) =>
   }).format(new Date(iso));
 
 /// One booking row in the pro views (Aujourd'hui + Rendez-vous). Service names
-/// are resolved by the caller from the salon's catalogue.
+/// are resolved by the caller from the salon's catalogue. When `href` is set the
+/// row links to the booking detail.
 export function ProAppointmentRow({
   appt,
   serviceName,
+  href,
 }: {
   appt: ProAppointment;
   serviceName: (id: string) => string | undefined;
+  href?: string;
 }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m">
+  const card = (
+    <div className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m hover:bg-surfaceVariant">
       <div>
         <p className="font-medium text-textPrimary">
           {slotTime(appt.appointmentDate)} · {appt.clientName ?? 'Client'}
@@ -42,5 +46,13 @@ export function ProAppointmentRow({
         ) : null}
       </div>
     </div>
+  );
+
+  return href ? (
+    <Link href={href} className="block">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
