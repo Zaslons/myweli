@@ -6,7 +6,7 @@
 | **Milestone** | M6 ([public-web.md](public-web.md) §11). Completes the consumer web loop (book → manage). |
 | **Surface** | Backend (tiny: `GET /me`) + `web/` (account pages + BFF). |
 | **Skills** | `myweli-web-guardrails` (+ `myweli-backend-guardrails` for `GET /me`). |
-| **Status** | **Built** — `GET /me` (backend) + `/connexion` · `/mon-compte` · `/mon-compte/[id]` + BFF `callApi` **silent refresh** + logout; 37 web unit + 9 e2e, backend +4 (`/me` GET). Reschedule/profile-edit/reviews/favorites/delete deferred to the app. |
+| **Status** | **Built** — `GET /me` (backend) + `/connexion` · `/mon-compte` · `/mon-compte/[id]` + BFF `callApi` **silent refresh** + logout; 32 web unit + 9 e2e, backend +4 (`/me` GET). Reschedule/profile-edit/reviews/favorites/delete deferred to the app. |
 
 ## 1. Goal
 Let a signed-in consumer **manage on the web** what they booked: log in (phone/

@@ -65,7 +65,10 @@ web/
   Long-lived web sessions. Logout (`/api/auth/logout`) clears the cookies. CSRF:
   `SameSite=Lax` + same-origin. Account reads/writes are **self-scoped** server-side
   (the principal), never a client-supplied id.
-- Consumer and provider web sessions will use **distinct cookie names** (M7 pro).
+- **Pro session (M7.0):** the provider dashboard uses a **separate** cookie pair
+  (`myweli_pro_at`/`_rt`) + its own pro BFF (`app/api/pro/*`, `callApiPro` in
+  `lib/bff-pro.ts`) refreshing via `/auth/provider/refresh` — consumer and provider
+  sessions never collide. `/pro/*` is `noindex`; consumer chrome is hidden there.
 
 ## 5. Security (first-order)
 - **CORS** on the API locked to the known web origin(s); credentials mode for the

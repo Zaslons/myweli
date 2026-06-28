@@ -357,6 +357,51 @@ export interface paths {
         };
         trace?: never;
     };
+    "/me/provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in provider's own account + managed salon (web M7)
+         * @description Provider-only; the salon is resolved server-side from the account (never a client id). Non-provider or unlinked account → 403.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The provider account + its salon */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            account: components["schemas"]["ProviderUser"];
+                            provider: components["schemas"]["Provider"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/kyc": {
         parameters: {
             query?: never;

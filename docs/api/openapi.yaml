@@ -195,6 +195,29 @@ paths:
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /me/provider:
+    get:
+      tags: [auth]
+      summary: The signed-in provider's own account + managed salon (web M7)
+      description: >-
+        Provider-only; the salon is resolved server-side from the account (never
+        a client id). Non-provider or unlinked account → 403.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The provider account + its salon
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [account, provider]
+                properties:
+                  account: { $ref: '#/components/schemas/ProviderUser' }
+                  provider: { $ref: '#/components/schemas/Provider' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /me/kyc:
     get:
       tags: [kyc]
