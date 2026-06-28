@@ -1,0 +1,78 @@
+# Render Blueprint — Myweli API (dart_frog) + Postgres.
+#
+# Deploy: Render Dashboard → New → Blueprint → connect the GitHub repo. Render
+# reads this file, provisions the database + web service, and auto-deploys on
+# every push to the default branch. Secrets marked `sync: false` are NOT in git —
+# you paste them once in the dashboard (Environment tab). Generated secrets are
+# created by Render. Config reference: backend/.env.example · docs/DEPLOYMENT.md.
+#
+# The web service builds backend/Dockerfile with backend/ as the build context
+# (monorepo). The server reads $PORT (Render sets it) and connects to the DB over
+# SSL (createPool uses SslMode.require for non-local hosts). Migrations run on boot.
+
+databases:
+  - name: myweli-db
+    region: frankfurt          # EU — best latency to West Africa
+    plan: free                 # 90-day free tier; upgrade to a paid plan (with
+                               # backups) in the dashboard before real launch
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: myweli-api
+    runtime: docker
+    region: frankfurt
+    plan: starter              # always-on (~$7/mo); needed for the booking API
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENV
+        value: prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: myweli-db
+          property: connectionString
+      - key: WEB_ORIGINS
+        value: https://myweli.com,https://www.myweli.com
+      # Generated once by Render (kept stable across deploys), never in git:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MESSAGING_WEBHOOK_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      # Secrets you paste in the dashboard (Environment tab) — never committed:
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_SMS_FROM        # = Myweli
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM   # Track B — leave blank for now
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
+      - key: R2_KYC_BUCKET
+        sync: false
+      - key: R2_DEPOSIT_BUCKET
+        sync: false
+      - key: FCM_PROJECT_ID
+        sync: false
+      - key: FCM_CLIENT_EMAIL
+        sync: false
+      - key: FCM_PRIVATE_KEY
+        sync: false

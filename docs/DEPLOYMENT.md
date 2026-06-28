@@ -8,8 +8,8 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 ## 0. What runs where
 | Component | Tech | Host | Domain |
 |---|---|---|---|
-| Backend API | dart_frog (Docker) | **Google Cloud Run** (region `europe-west9`, Paris) | `api.myweli.com` |
-| Database | PostgreSQL | **Cloud SQL** (same region; → AlloyDB if ever needed) | private (VPC) |
+| Backend API | dart_frog (Docker) | **Render** (Frankfurt, EU) — `render.yaml` Blueprint | `api.myweli.com` |
+| Database | PostgreSQL | **Render Postgres** (same region) | internal |
 | Web | Next.js | **Vercel** | `myweli.com` + `www` |
 | Admin console | Flutter Web | static host (Vercel/CF Pages) | `admin.myweli.com` |
 | Mobile | Flutter (consumer + pro) | App Store + Google Play | — |
@@ -19,18 +19,21 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 | DNS/CDN | Cloudflare | Cloudflare | `myweli.com` zone |
 | Errors | Sentry (optional) | Sentry | — |
 
-**Recommended stack — built to scale without re-platforming.** Google Cloud Run
-(backend) · Cloud SQL for PostgreSQL → AlloyDB if needed (DB) · Vercel (web) ·
-Cloudflare R2 (images) · Twilio (WhatsApp/SMS) · Firebase FCM (push) · Sentry.
-What protects you from a forced migration is **standard interfaces** — Docker, the
-Postgres wire protocol, the S3 API, Next.js — not the vendor count; each piece is
-best-in-class and individually swappable. Cloud Run scales 0→massive (serverless,
-lowest ops, highest ceiling); Cloud SQL co-located with it = best app↔DB latency;
-R2's zero egress is a permanent image-CDN cost win; Vercel is UX-optimal for our
-SEO/ISR. Alternatives (drop-in via the same interfaces): Fly.io / AWS App Runner /
-Fargate (backend), Neon / Supabase (DB), Cloudflare Pages (web), Africa's Talking
-(cheaper CI SMS). Region: **EU (Paris, `europe-west9`)** — best latency to West
-Africa.
+**Stack — built to scale without re-platforming.** Render (backend + Postgres,
+Frankfurt) · Vercel (web) · Cloudflare R2 (images) · Twilio (WhatsApp/SMS) ·
+Firebase FCM (push) · Sentry. What protects you from a forced migration is
+**standard interfaces** — Docker, the Postgres wire protocol, the S3 API, Next.js
+— not the vendor; each piece is individually swappable.
+
+> **Why Render, not Cloud Run.** Cloud Run + Cloud SQL is the higher-ceiling
+> choice and stays the upgrade target, but **GCP billing rejects prepaid/virtual
+> cards** (common in CI). Render is **Stripe-billed** (accepts the same cards
+> Twilio does), **deploys from GitHub in the console** (auto-deploy on push), has
+> **built-in managed Postgres**, and runs the **same `backend/Dockerfile`** — so
+> moving to Cloud Run later (if a GCP-friendly card appears) is config, not a
+> rewrite. Alternatives via the same interfaces: Railway / DigitalOcean (PayPal!)
+> / Fly.io (backend), Neon / Supabase (DB), Cloudflare Pages (web), Africa's
+> Talking (cheaper CI SMS). Region: **EU (Frankfurt)** — good latency to West Africa.
 
 No payment gateway: deposits are **no-custody** (salons use their own Wave/MoMo);
 Myweli never holds funds.
@@ -38,15 +41,15 @@ Myweli never holds funds.
 ---
 
 ## Phase A — Accounts to open
-Domain ✅ (`myweli.com`). Then: **Google Cloud** (Cloud Run + Cloud SQL) · Vercel ·
-Cloudflare (R2+DNS) · Twilio · Firebase · Apple Developer ($99/yr) · Google Play
+Domain ✅ (`myweli.com`). Then: **Render** (backend + Postgres) · Vercel ·
+Cloudflare (R2+DNS) · Twilio ✅ · Firebase · Apple Developer ($99/yr) · Google Play
 ($25 once) · Sentry (free) · a Myweli business WhatsApp number.
 
 ## Phase B — Provision services
-**B1. Postgres (Cloud SQL):** create a PostgreSQL instance in the backend's region
-(private IP, same VPC as Cloud Run for lowest latency); copy `DATABASE_URL`. Start
-small; vertical-scale or move to **AlloyDB** (wire-compatible — config, not
-migration) as load grows. Enable automated backups + PITR.
+**B1. Postgres (Render):** provisioned by the `render.yaml` Blueprint alongside the
+web service (Frankfurt). `DATABASE_URL` is injected automatically (`fromDatabase`);
+the backend connects over SSL (`SslMode.require`). The Blueprint starts on the free
+DB tier — **upgrade to a paid plan (backups + no 90-day expiry) before launch.**
 
 **B2. Cloudflare R2** (specs: pro-image-upload-pipeline / pro-kyc / consumer-deposit):
 - Buckets: `myweli-uploads` (public), `myweli-kyc-private`, `myweli-deposits-private`.
@@ -67,21 +70,22 @@ Android apps (download `GoogleService-Info.plist` + `google-services.json`); cre
 a service account. Keys → `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`
 (keep `\n` escapes).
 
-## Phase C — Deploy the backend
-1. **Image:** `backend/Dockerfile` (multi-stage → minimal runtime; migrations on
-   boot). `gcloud run deploy --source backend/` (or Fly / App Runner — same image).
-   Set `--min-instances=1` to avoid cold starts on the booking path; connect Cloud
-   SQL via the built-in connector.
-2. **Env** (host secret manager — NEVER a committed file): `ENV=prod` ·
-   `JWT_SECRET` (48-byte random; generator in `.env.example`) · `DATABASE_URL` ·
-   all `R2_*` · all `TWILIO_*` · `MESSAGING_WEBHOOK_SECRET` · `CRON_SECRET` · all
-   `FCM_*` · `WEB_ORIGINS=https://myweli.com,https://www.myweli.com` ·
-   `ADMIN_EMAIL` + `ADMIN_PASSWORD` (seeds the first admin).
-3. Deploy → migrations run → verify `GET https://api.myweli.com/health`.
+## Phase C — Deploy the backend (Render, from `render.yaml`)
+1. **Render Dashboard → New → Blueprint** → connect the GitHub repo → it reads
+   `render.yaml` and provisions **myweli-db** (Postgres) + **myweli-api** (web,
+   builds `backend/Dockerfile`, context `backend/`). `autoDeploy` redeploys on push.
+2. **Secrets** (web service → Environment tab; `sync: false` keys, never in git):
+   `ADMIN_EMAIL` + `ADMIN_PASSWORD` (seeds the first admin) · all `TWILIO_*`
+   (`TWILIO_SMS_FROM=Myweli`) · all `R2_*` · all `FCM_*`. `DATABASE_URL`,
+   `JWT_SECRET`, `MESSAGING_WEBHOOK_SECRET`, `CRON_SECRET`, `ENV`, `WEB_ORIGINS`
+   are set by the Blueprint (generated/wired). Migrations run on boot.
+3. Verify `GET <render-url>/health`, then map the custom domain `api.myweli.com`
+   (Render → Settings → Custom Domains → add the CNAME at Cloudflare).
 4. **Twilio webhook:** status callback →
    `https://api.myweli.com/webhooks/messaging/status?secret=<MESSAGING_WEBHOOK_SECRET>`.
-5. **Reminder cron:** an external scheduler `POST /internal/cron/reminders` with
-   `X-Cron-Secret: <CRON_SECRET>` every ~15 min (24h/2h reminders).
+5. **Reminder cron:** a **Render Cron Job** (or any scheduler) that
+   `POST`s `/internal/cron/reminders` with `X-Cron-Secret: <CRON_SECRET>` every
+   ~15 min (24h/2h reminders).
 
 ## Phase D — Deploy the web (Vercel)
 Project root = `web/`. Env: `API_BASE_URL=https://api.myweli.com` (server-side BFF)
@@ -133,8 +137,7 @@ again** with a small Actions spending limit (or accept the monthly quota).
 - ✅ Web `next/image` + CDN allowlist (`cdn.myweli.com`) + OG image
   (`app/opengraph-image.tsx`) + favicon + `logo.svg` (#4). Real raster `logo.png`
   / designed OG art = optional later polish.
-- ☐ Cloud Run config (`service.yaml` + Cloud Build trigger, `--min-instances=1`,
-  Cloud SQL connector) — **host decided: Cloud Run + Cloud SQL**.
+- ✅ Render Blueprint (`render.yaml`) — backend web service + Postgres, from GitHub.
 
 **→ The no-account deployment-readiness track (#1–#4 + #2b) is complete.**
 Everything remaining is the accounts phase (provision services + supply keys).
