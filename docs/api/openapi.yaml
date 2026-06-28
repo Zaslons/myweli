@@ -596,6 +596,41 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Provider' }
         '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [providers]
+      summary: Update the salon's editable public profile (web M7.3e, owner-only)
+      description: >-
+        Provider role + ownership (account.providerId == {id} → else 403). Only
+        the editable public fields below are accepted; protected fields (slug,
+        rating, reviewCount, status, services, artists, availability, imageUrls)
+        have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                address: { type: string }
+                city: { type: string, nullable: true }
+                commune: { type: string, nullable: true }
+                phoneNumber: { type: string, description: E.164. }
+                whatsapp: { type: string, nullable: true, description: E.164. }
+      responses:
+        '200':
+          description: The updated provider
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Provider' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /providers/by-slug/{slug}:
     get:

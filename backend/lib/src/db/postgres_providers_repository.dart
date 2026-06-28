@@ -295,6 +295,40 @@ class PostgresProvidersRepository implements ProvidersRepository {
   }
 
   @override
+  Future<Map<String, dynamic>?> updateProfile(
+    String providerId,
+    Map<String, dynamic> changes,
+  ) {
+    // Editable profile fields live in `data`; name/description/address/commune
+    // are also denormalized columns (search/index) → keep both in sync.
+    return _pool.runTx<Map<String, dynamic>?>((tx) async {
+      final rows = await tx.execute(
+        Sql.named('SELECT data FROM providers WHERE id = @id FOR UPDATE'),
+        parameters: {'id': providerId},
+      );
+      if (rows.isEmpty) return null;
+      final data = _data(rows.first);
+      data.addAll(changes);
+      final sets = <String>['data = @data:jsonb'];
+      final params = <String, dynamic>{
+        'id': providerId,
+        'data': jsonEncode(data),
+      };
+      for (final col in ['name', 'description', 'address', 'commune']) {
+        if (changes.containsKey(col)) {
+          sets.add('$col = @$col');
+          params[col] = changes[col];
+        }
+      }
+      await tx.execute(
+        Sql.named('UPDATE providers SET ${sets.join(', ')} WHERE id = @id'),
+        parameters: params,
+      );
+      return data;
+    });
+  }
+
+  @override
   Future<bool> updateRatings(
     String providerId, {
     required double rating,

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -68,6 +69,14 @@ export function AujourdhuiClient() {
     <div>
       <h1 className="text-2xl font-semibold text-textPrimary">Aujourd’hui</h1>
       <p className="mt-xs text-sm text-textTertiary">{profile?.provider.name}</p>
+
+      <Link
+        href="/pro/profil"
+        className="mt-m flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+      >
+        <span>Configurer mon profil</span>
+        <span className="text-textTertiary">›</span>
+      </Link>
 
       <div className="mt-l grid grid-cols-3 gap-m">
         <Stat label="À confirmer" value={counts.pending} />

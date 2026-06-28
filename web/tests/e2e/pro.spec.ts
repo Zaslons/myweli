@@ -153,3 +153,28 @@ test('abonnement shows trial status + revenue on the home', async ({ page }) => 
     page.getByRole('link', { name: 'Nous contacter' }),
   ).toBeVisible();
 });
+
+test('profil: edit + save; acompte: enable + save', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Profil' }).click();
+  await expect(page).toHaveURL(/\/pro\/profil/);
+  await page.getByLabel('Nom du salon').fill('Beauté Divine Web');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Profil enregistré.')).toBeVisible();
+
+  // Into Acompte via the section link.
+  await page.getByRole('link', { name: 'Acompte' }).click();
+  await expect(page).toHaveURL(/\/pro\/acompte/);
+  await page.getByText('Exiger un acompte').click();
+  await page.getByLabel('Pourcentage de l’acompte (%)').fill('30');
+  await page.getByLabel('Opérateur Mobile Money').selectOption('wave');
+  await page.getByLabel('Numéro Mobile Money').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Acompte enregistré.')).toBeVisible();
+});

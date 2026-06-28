@@ -109,6 +109,65 @@ class ProviderCatalogService {
     return removed ? (ok: true, error: null, data: null) : _notFound;
   }
 
+  /// Update the salon's editable public profile (name/description/address/
+  /// city/commune/phoneNumber/whatsapp). Protected fields (slug, rating,
+  /// status, services, …) are ignored — they have their own endpoints.
+  Future<CatalogResult> updateProfile(
+    String accountId,
+    String providerId,
+    Map<String, dynamic> body,
+  ) async {
+    if (!await _owns(accountId, providerId)) return _forbidden;
+    final error = _validateProfile(body);
+    if (error != null) return (ok: false, error: error, data: null);
+
+    const editable = [
+      'name',
+      'description',
+      'address',
+      'city',
+      'commune',
+      'phoneNumber',
+      'whatsapp',
+    ];
+    final changes = {
+      for (final k in editable)
+        if (body.containsKey(k))
+          k: body[k] is String ? (body[k] as String).trim() : body[k],
+    };
+    if (changes.isEmpty) {
+      return (ok: false, error: 'invalid_input', data: null);
+    }
+    final updated = await _providers.updateProfile(providerId, changes);
+    if (updated == null) return _notFound;
+    return (ok: true, error: null, data: updated);
+  }
+
+  String? _validateProfile(Map<String, dynamic> body) {
+    if (body.containsKey('name')) {
+      final n = body['name'];
+      if (n is! String || n.trim().isEmpty) return 'invalid_input';
+    }
+    for (final k in ['description', 'address', 'city', 'commune']) {
+      final v = body[k];
+      if (body.containsKey(k) && v != null && v is! String) {
+        return 'invalid_input';
+      }
+    }
+    if (body.containsKey('phoneNumber')) {
+      final p = body['phoneNumber'];
+      if (p is! String || !isValidE164(p.trim())) return 'invalid_input';
+    }
+    final wa = body['whatsapp'];
+    if (body.containsKey('whatsapp') && wa != null) {
+      if (wa is! String) return 'invalid_input';
+      if (wa.trim().isNotEmpty && !isValidE164(wa.trim())) {
+        return 'invalid_input';
+      }
+    }
+    return null;
+  }
+
   Future<CatalogResult> getAvailability(
     String accountId,
     String providerId,
