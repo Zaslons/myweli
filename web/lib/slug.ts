@@ -17,3 +17,8 @@ export function slugify(input: string): string {
   const deaccented = [...lower].map((c) => accents[c] ?? c).join('');
   return deaccented.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
+
+/// Lowercase + deaccent, keeping spaces (for keyword substring matching).
+export function normalize(input: string): string {
+  return [...input.toLowerCase()].map((c) => accents[c] ?? c).join('');
+}

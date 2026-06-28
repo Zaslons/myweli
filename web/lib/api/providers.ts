@@ -1,4 +1,8 @@
 import { buildLandingSlug, categorySlugForApiKey } from '../landing';
+import {
+  buildServiceLandingSlug,
+  serviceSlugsForName,
+} from '../service-landing';
 import { api } from './client';
 import type { components } from './schema';
 
@@ -61,6 +65,43 @@ export async function getLandingSlugs(): Promise<string[]> {
       const catSlug = categorySlugForApiKey(p.category);
       if (!catSlug || !p.commune) continue;
       seen.add(buildLandingSlug(catSlug, p.commune));
+    }
+    return [...seen];
+  } catch {
+    return [];
+  }
+}
+
+/// Providers in a commune (all categories) — backs service landings, filtered
+/// client-side by service name.
+export async function listProvidersByCommune(
+  commune: string,
+): Promise<Provider[]> {
+  try {
+    const { data, error } = await api.GET('/providers', {
+      params: { query: { commune, sort: 'rating' } },
+    });
+    if (error || !data) return [];
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/// Service-commune landing slugs with ≥1 matching provider (catalogue-derived).
+export async function getServiceLandingSlugs(): Promise<string[]> {
+  try {
+    const { data } = await api.GET('/providers', {
+      params: { query: { pageSize: 50 } },
+    });
+    const seen = new Set<string>();
+    for (const p of data?.items ?? []) {
+      if (!p.commune) continue;
+      for (const svc of p.services ?? []) {
+        for (const slug of serviceSlugsForName(svc.name)) {
+          seen.add(buildServiceLandingSlug(slug, p.commune));
+        }
+      }
     }
     return [...seen];
   } catch {
