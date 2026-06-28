@@ -2605,3 +2605,12 @@ components:
           enum: [wave, orangeMoney, mtnMoMo, moov]
         depositMobileMoneyNumber: { type: string, nullable: true }
         cancellationWindowHours: { type: integer }
+        artists:
+          type: array
+          items: { $ref: '#/components/schemas/Artist' }
+          description: Staff/artists; may be absent/empty.
+        availability: { $ref: '#/components/schemas/Availability' }
+        reviews:
+          type: array
+          items: { $ref: '#/components/schemas/Review' }
+          description: Recent reviews embedded by the detail/by-slug reads (preview).
