@@ -6,5 +6,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    // Unit/component only; Playwright e2e (tests/e2e/*.spec.ts) runs separately.
+    include: ['tests/**/*.test.{ts,tsx}'],
   },
 });
