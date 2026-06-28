@@ -1,3 +1,4 @@
+import type { Service, ServiceInput } from '../pro/catalogue';
 import type { ProAppointment } from '../pro/today';
 
 /// Browser → pro BFF (`/api/pro/*`) wrappers. Pro session lives in the pro
@@ -14,7 +15,8 @@ export type ProProfile = {
     id: string;
     name: string;
     commune?: string;
-    services?: { id: string; name: string }[];
+    services?: Service[];
+    artists?: { id: string; name: string; specialization?: string | null }[];
   };
 };
 
@@ -90,6 +92,50 @@ export async function proDepositScreenshotUrl(id: string): Promise<string | null
   if (!res.ok) return null;
   const b = (await res.json().catch(() => ({}))) as { url?: string };
   return b.url ?? null;
+}
+
+// --- catalogue: services (7.3a) ---------------------------------------------
+// The client sends its own providerId; the backend enforces ownership.
+
+type MutationResult = { ok: boolean; status: number; error?: string };
+
+async function mutate(url: string, method: string, body?: unknown): Promise<MutationResult> {
+  const res = await fetch(url, {
+    method,
+    headers: body ? { 'content-type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.ok) return { ok: true, status: res.status };
+  const b = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: b.error };
+}
+
+export function createService(
+  providerId: string,
+  input: ServiceInput,
+): Promise<MutationResult> {
+  return mutate('/api/pro/catalogue/services', 'POST', { providerId, service: input });
+}
+
+export function updateService(
+  providerId: string,
+  serviceId: string,
+  input: ServiceInput,
+): Promise<MutationResult> {
+  return mutate(`/api/pro/catalogue/services/${serviceId}`, 'PATCH', {
+    providerId,
+    service: input,
+  });
+}
+
+export function deleteService(
+  providerId: string,
+  serviceId: string,
+): Promise<MutationResult> {
+  return mutate(
+    `/api/pro/catalogue/services/${serviceId}?providerId=${encodeURIComponent(providerId)}`,
+    'DELETE',
+  );
 }
 
 export async function logoutPro(): Promise<void> {

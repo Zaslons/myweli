@@ -70,7 +70,11 @@ export async function callApiPro(
 }
 
 export function respondPro(result: ApiResult): NextResponse {
-  const res = NextResponse.json(result.body, { status: result.status });
+  // 204 carries no body (e.g. service delete).
+  const res =
+    result.status === 204
+      ? new NextResponse(null, { status: 204 })
+      : NextResponse.json(result.body, { status: result.status });
   if (result.tokens) {
     setProSessionCookies(res, result.tokens.at, result.tokens.rt);
   }
