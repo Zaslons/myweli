@@ -4332,6 +4332,11 @@ export interface components {
             depositMobileMoneyOperator?: "wave" | "orangeMoney" | "mtnMoMo" | "moov" | null;
             depositMobileMoneyNumber?: string | null;
             cancellationWindowHours?: number;
+            /** @description Staff/artists; may be absent/empty. */
+            artists?: components["schemas"]["Artist"][];
+            availability?: components["schemas"]["Availability"];
+            /** @description Recent reviews embedded by the detail/by-slug reads (preview). */
+            reviews?: components["schemas"]["Review"][];
         };
     };
     responses: {
