@@ -1,12 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { requestOtp, verifyOtp } from '../../lib/booking/client';
 import { Button } from '../Button';
 
-/// Phone → OTP login. Reuses the M5 BFF (request-otp / verify). On success the
-/// session cookies are set by the BFF; `onSuccess` lets the caller navigate.
-export function OtpLoginForm({ onSuccess }: { onSuccess: () => void }) {
+type OtpResult = { ok: boolean; devCode?: string; error?: string };
+type VerifyResult = { ok: boolean; error?: string };
+
+/// Phone → OTP login. The request/verify calls are injected so the same form
+/// serves the consumer (M6) and the provider (M7) BFFs. On success the session
+/// cookies are set by the BFF; `onSuccess` lets the caller navigate.
+export function OtpLoginForm({
+  onSuccess,
+  requestCode,
+  verifyCode,
+  verifyErrorMessage = () => 'Code incorrect ou expiré.',
+}: {
+  onSuccess: () => void;
+  requestCode: (phone: string) => Promise<OtpResult>;
+  verifyCode: (phone: string, code: string) => Promise<VerifyResult>;
+  verifyErrorMessage?: (error?: string) => string;
+}) {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -17,7 +30,7 @@ export function OtpLoginForm({ onSuccess }: { onSuccess: () => void }) {
   async function send() {
     setBusy(true);
     setError(null);
-    const r = await requestOtp(phone);
+    const r = await requestCode(phone);
     setBusy(false);
     if (!r.ok) return setError('Numéro invalide ou envoi impossible.');
     setOtpSent(true);
@@ -27,9 +40,9 @@ export function OtpLoginForm({ onSuccess }: { onSuccess: () => void }) {
   async function verify() {
     setBusy(true);
     setError(null);
-    const r = await verifyOtp(phone, code);
+    const r = await verifyCode(phone, code);
     setBusy(false);
-    if (!r.ok) return setError('Code incorrect ou expiré.');
+    if (!r.ok) return setError(verifyErrorMessage(r.error));
     onSuccess();
   }
 

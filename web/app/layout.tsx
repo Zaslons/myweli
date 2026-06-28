@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import '../styles/globals.css';
-import { AppInstallBanner } from '../components/AppInstallBanner';
-import { Header } from '../components/Header';
+import { SiteChrome } from '../components/SiteChrome';
 import { jsonLdScript, organizationJsonLd } from '../lib/seo/jsonld';
 import { defaultMetadata } from '../lib/seo/metadata';
 
@@ -18,8 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             __html: jsonLdScript(organizationJsonLd()),
           }}
         />
-        <AppInstallBanner />
-        <Header />
+        <SiteChrome />
         {children}
       </body>
     </html>
