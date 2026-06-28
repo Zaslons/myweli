@@ -8,7 +8,8 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 ## 0. What runs where
 | Component | Tech | Host | Domain |
 |---|---|---|---|
-| Backend API | dart_frog + Postgres | **Fly.io** (Docker, region `cdg`) | `api.myweli.com` |
+| Backend API | dart_frog (Docker) | **Google Cloud Run** (region `europe-west9`, Paris) | `api.myweli.com` |
+| Database | PostgreSQL | **Cloud SQL** (same region; → AlloyDB if ever needed) | private (VPC) |
 | Web | Next.js | **Vercel** | `myweli.com` + `www` |
 | Admin console | Flutter Web | static host (Vercel/CF Pages) | `admin.myweli.com` |
 | Mobile | Flutter (consumer + pro) | App Store + Google Play | — |
@@ -18,11 +19,18 @@ truth for backend keys: [`backend/.env.example`](../backend/.env.example); for w
 | DNS/CDN | Cloudflare | Cloudflare | `myweli.com` zone |
 | Errors | Sentry (optional) | Sentry | — |
 
-**Recommended stack** (scalability + cost; all portable — Docker + S3-compatible +
-standard Postgres): Fly.io · Neon (serverless Postgres) · Vercel · Cloudflare R2 ·
-Twilio · Firebase FCM · Sentry. Alternatives: Cloud Run/Render (backend), Supabase
-(DB), Cloudflare Pages (web), Africa's Talking (cheaper CI SMS — swappable behind
-the messaging interface). Region: **EU (Paris)** — best latency to West Africa.
+**Recommended stack — built to scale without re-platforming.** Google Cloud Run
+(backend) · Cloud SQL for PostgreSQL → AlloyDB if needed (DB) · Vercel (web) ·
+Cloudflare R2 (images) · Twilio (WhatsApp/SMS) · Firebase FCM (push) · Sentry.
+What protects you from a forced migration is **standard interfaces** — Docker, the
+Postgres wire protocol, the S3 API, Next.js — not the vendor count; each piece is
+best-in-class and individually swappable. Cloud Run scales 0→massive (serverless,
+lowest ops, highest ceiling); Cloud SQL co-located with it = best app↔DB latency;
+R2's zero egress is a permanent image-CDN cost win; Vercel is UX-optimal for our
+SEO/ISR. Alternatives (drop-in via the same interfaces): Fly.io / AWS App Runner /
+Fargate (backend), Neon / Supabase (DB), Cloudflare Pages (web), Africa's Talking
+(cheaper CI SMS). Region: **EU (Paris, `europe-west9`)** — best latency to West
+Africa.
 
 No payment gateway: deposits are **no-custody** (salons use their own Wave/MoMo);
 Myweli never holds funds.
@@ -30,13 +38,15 @@ Myweli never holds funds.
 ---
 
 ## Phase A — Accounts to open
-Domain ✅ (`myweli.com`). Then: Fly.io · Neon · Vercel · Cloudflare (R2+DNS) ·
-Twilio · Firebase · Apple Developer ($99/yr) · Google Play ($25 once) · Sentry
-(free) · a Myweli business WhatsApp number.
+Domain ✅ (`myweli.com`). Then: **Google Cloud** (Cloud Run + Cloud SQL) · Vercel ·
+Cloudflare (R2+DNS) · Twilio · Firebase · Apple Developer ($99/yr) · Google Play
+($25 once) · Sentry (free) · a Myweli business WhatsApp number.
 
 ## Phase B — Provision services
-**B1. Postgres (Neon):** create a project (EU); copy `DATABASE_URL`. Keep a warm
-paid tier (no cold starts for bookings).
+**B1. Postgres (Cloud SQL):** create a PostgreSQL instance in the backend's region
+(private IP, same VPC as Cloud Run for lowest latency); copy `DATABASE_URL`. Start
+small; vertical-scale or move to **AlloyDB** (wire-compatible — config, not
+migration) as load grows. Enable automated backups + PITR.
 
 **B2. Cloudflare R2** (specs: pro-image-upload-pipeline / pro-kyc / consumer-deposit):
 - Buckets: `myweli-uploads` (public), `myweli-kyc-private`, `myweli-deposits-private`.
@@ -59,7 +69,9 @@ a service account. Keys → `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_K
 
 ## Phase C — Deploy the backend
 1. **Image:** `backend/Dockerfile` (multi-stage → minimal runtime; migrations on
-   boot). `fly launch` (or Cloud Run deploy) from `backend/`.
+   boot). `gcloud run deploy --source backend/` (or Fly / App Runner — same image).
+   Set `--min-instances=1` to avoid cold starts on the booking path; connect Cloud
+   SQL via the built-in connector.
 2. **Env** (host secret manager — NEVER a committed file): `ENV=prod` ·
    `JWT_SECRET` (48-byte random; generator in `.env.example`) · `DATABASE_URL` ·
    all `R2_*` · all `TWILIO_*` · `MESSAGING_WEBHOOK_SECRET` · `CRON_SECRET` · all
@@ -110,4 +122,5 @@ again** with a small Actions spending limit (or accept the monthly quota).
 - ☐ `flutter create --platforms=android` scaffold + app id/icons.
 - ☐ `next.config` image domain for `cdn.myweli.com` (switch `<img>`→`next/image`)
   + real OG image + `logo.png`.
-- ☐ Host-specific config (`fly.toml` / Cloud Run YAML) — once the host is chosen.
+- ☐ Cloud Run config (`service.yaml` + Cloud Build trigger, `--min-instances=1`,
+  Cloud SQL connector) — **host decided: Cloud Run + Cloud SQL**.
