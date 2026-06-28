@@ -77,3 +77,39 @@ export function buildServicePayload(f: ServiceForm): ServiceInput {
     active: f.active,
   };
 }
+
+// --- artistes (équipe, 7.3b) -------------------------------------------------
+
+export type Artist = {
+  id: string;
+  name: string;
+  specialization?: string | null;
+};
+
+export type ArtistInput = {
+  name: string;
+  specialization: string | null;
+};
+
+export type ArtistForm = {
+  name: string;
+  specialization: string;
+};
+
+export const emptyArtistForm: ArtistForm = { name: '', specialization: '' };
+
+export function artistToForm(a: Artist): ArtistForm {
+  return { name: a.name ?? '', specialization: a.specialization ?? '' };
+}
+
+export function validateArtist(f: ArtistForm): string | null {
+  if (!f.name.trim()) return 'Le nom est requis.';
+  return null;
+}
+
+export function buildArtistPayload(f: ArtistForm): ArtistInput {
+  return {
+    name: f.name.trim(),
+    specialization: f.specialization.trim() ? f.specialization.trim() : null,
+  };
+}

@@ -110,6 +110,7 @@ const isPro = (req) => (req.headers.authorization || '').includes('pro');
 // `provider` stay stable. /me/provider returns this.
 const proProvider = JSON.parse(JSON.stringify(provider));
 let svcSeq = 1;
+let artSeq = 1;
 
 function readBody(req) {
   return new Promise((resolve) => {
@@ -231,6 +232,33 @@ createServer(async (req, res) => {
     }
     if (req.method === 'DELETE' && sid) {
       proProvider.services = proProvider.services.filter((x) => x.id !== sid);
+      res.writeHead(204);
+      return res.end();
+    }
+    return json(res, 404, { error: 'not_found' });
+  }
+  // catalogue artists CRUD (7.3b)
+  const artMatch = url.pathname.match(
+    /^\/providers\/[^/]+\/artists(?:\/([^/]+))?$/,
+  );
+  if (artMatch) {
+    const aid = artMatch[1];
+    proProvider.artists = proProvider.artists ?? [];
+    if (req.method === 'POST') {
+      const body = await readBody(req);
+      const created = { id: `art${++artSeq}`, providerId: 'p1', ...body };
+      proProvider.artists.push(created);
+      return json(res, 201, created);
+    }
+    if (req.method === 'PATCH' && aid) {
+      const body = await readBody(req);
+      const a = proProvider.artists.find((x) => x.id === aid);
+      if (!a) return json(res, 404, { error: 'not_found' });
+      Object.assign(a, body);
+      return json(res, 200, a);
+    }
+    if (req.method === 'DELETE' && aid) {
+      proProvider.artists = proProvider.artists.filter((x) => x.id !== aid);
       res.writeHead(204);
       return res.end();
     }

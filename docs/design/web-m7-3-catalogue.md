@@ -9,7 +9,7 @@
 
 ## 0. M7.3 sub-split (it's the largest pro area)
 - **7.3a — Catalogue : Services (✅ done)** — `/pro/catalogue` services list + inline create/edit/delete (mirrors the app's service form). List reuses `GET /me/provider`; mutations via pro BFF (client passes its own providerId, backend enforces ownership). 6 unit + 1 e2e.
-- **7.3b — Catalogue : Équipe** — artistes list + CRUD (a tab on /pro/catalogue).
+- **7.3b — Catalogue : Équipe (✅ done)** — Services|Équipe tabs on /pro/catalogue; artistes list + inline create/edit/delete (Nom + Spécialisation). Same BFF/ownership pattern as Services. Per-staff custom hours deferred. 2 unit + 1 e2e. Spec: [web-m7-3b-equipe.md](web-m7-3b-equipe.md).
 - **7.3c — Disponibilités + acompte** — weekly hours editor + deposit policy.
 - **7.3d — Profil + médias + abonnement + Tableau de bord (G3)** — salon profile,
   gallery/before-after, the PRO-SUB view, and the dashboard revenue stats

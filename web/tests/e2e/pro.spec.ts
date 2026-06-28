@@ -90,3 +90,23 @@ test('catalogue: list services + add one', async ({ page }) => {
 
   await expect(page.getByText('Coupe homme')).toBeVisible();
 });
+
+test('catalogue Équipe: list members + add one', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Catalogue' }).click();
+  await page.getByRole('button', { name: 'Équipe' }).click();
+  await expect(page.getByText('Awa').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Ajouter un membre' }).click();
+  await page.getByLabel('Nom').fill('Koffi');
+  await page.getByLabel('Spécialisation (optionnel)').fill('Barbier');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+
+  await expect(page.getByText('Koffi')).toBeVisible();
+});
