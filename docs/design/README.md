@@ -33,6 +33,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Push notifications (FCM) — backend | [push-notifications-fcm.md](push-notifications-fcm.md) | Building (token registry + FCM v1 adapter + event wiring); app plugin + creds = ops |
 | Provider before/after showcase (FR-DISC-006) | [provider-before-after.md](provider-before-after.md) | Complete — backend + pro editor + consumer drag-reveal slider |
 | Discovery sort & filter (FR-DISC-007) | [discovery-sort-filter.md](discovery-sort-filter.md) | Complete — backend sort + available-today · app Trier sheet + toggle (à domicile = V2) |
+| Web ↔ app parity audit (flow/user-story) | [web-parity-audit.md](web-parity-audit.md) | Recorded — most surfaces match; gaps G1 home discovery · G2 provider map/before-after/artistes · G3 pro Tableau de bord stats · G4 account rebook/avis/favoris; remediation M7.2→M7.3→M8 |
 | Web surface — Next.js, SEO/AEO/GEO (FR-WEB-PP/MP) | [public-web.md](public-web.md) | Planned — OQ-8 resolved (Next.js for all web; shared API); milestone breakdown, awaiting sign-off |
 | Auto-sync provider-entered bookings (FR-APPT-008) | [appointment-auto-sync.md](appointment-auto-sync.md) | Built — read-time match on the account's verified phone + "Réservé par votre salon" badge |
 | Pro subscription — plan & trial (FR-PRO-SUB-001) | [pro-subscription.md](pro-subscription.md) | View built — derived trial (`GET /me/subscription`) + "Mon abonnement" screen; in-app billing deferred |
