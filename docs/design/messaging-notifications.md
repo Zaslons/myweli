@@ -100,7 +100,9 @@ The outbox never stores the OTP (OTP goes via `sendOtp`, not `sendTemplate`).
   configured; deny-by-default otherwise. No PII echoed.
 - **Opt-in (promotional)** — `rebookReminder` is gated on `messaging_opt_out`.
 - **Secrets** — `TWILIO_ACCOUNT_SID/AUTH_TOKEN/SMS_FROM/WHATSAPP_FROM` via env
-  only (`.env.example` documents them; gitleaks stays green).
+  only (`.env.example` documents them; gitleaks stays green). **SMS is mandatory
+  in prod; `WHATSAPP_FROM` is optional** — without it, WhatsApp sends return
+  `whatsapp_not_configured` and the service falls back to SMS (SMS-first launch).
 - **Logging** — structured, redacted: never the body, code, or `Authorization`.
 - New STRIDE rows (BACKEND.md §7): **T18** OTP-over-SMS delivery,
   **T19** messaging webhook spoofing, **T20** promotional opt-in enforcement.
