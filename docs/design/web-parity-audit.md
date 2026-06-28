@@ -1,0 +1,37 @@
+# Web ↔ app parity audit (flow / user-story)
+
+| | |
+|---|---|
+| **Purpose** | Check the shipped web surfaces against the mobile app's **flow & user story** (not visual design — desktop may differ). |
+| **Rule** | Memory `web-mirror-app-flow`: web mirrors the app's flow per screen; design adapts to the larger screen / different navigation. |
+| **Date** | 2026-06-28. **Status:** audit recorded; remediation sequenced (see §3). |
+
+## 1. Result — most surfaces already match
+| Web surface | App screen | Flow match | Notes |
+|---|---|---|---|
+| Booking `/(slug)/reserver` | `booking/booking_hub` + steps | ✅ | service→staff→slot→confirm(+OTP)→deposit. Only the deposit-screenshot **upload** is deferred to the app (flagged). |
+| Account `/mon-compte` | `appointments/my_bookings` | ✅ | Tabs **À venir / Passés / Annulés** match the app exactly; cancel + deposit-consequence match. |
+| Login `/connexion`, `/pro/connexion` | `auth/phone_login`→`otp_verify` | ✅ | One page vs two screens = desktop choice; same user story. |
+| Pro `/pro/rendez-vous` | `provider/appointments` | ✅ | Calendrier + Liste (Aujourd'hui/À venir/En attente/Tous) — built to mirror (M7.1). |
+| Provider `/(slug)` | `providers/provider_detail` | ✅ mostly | Services, Horaires, Avis, **Contact (Appeler + WhatsApp)**, À propos present. See gaps §2. |
+
+## 2. Gaps to close (flow / user-story only)
+| # | Surface | Missing vs the app | Severity |
+|---|---|---|---|
+| **G1** | **Home `/`** | The web home is a **placeholder**. App `home_screen` = **search bar + category chips + "Près de vous" + "Voir la carte" (map) + featured sections**. No on-site discovery/search/browse on web (SEO landings exist, but not interactive discovery). | **High** |
+| **G2** | Provider `/(slug)` | Missing **carte / localisation (map)**, **Avant / Après** (before-after gallery), **artistes / équipe**. | Medium |
+| **G3** | Pro home `/pro` "Aujourd'hui" | App `dashboard` = **"Tableau de bord"**, revenue-centric: **Revenus aujourd'hui + ce mois**, pending count, **"Configurer mon profil"** nudge. Web shows counts + today's list only. Backend stats **already exist** (`GET /providers/{id}/dashboard`, [provider-dashboard-stats.md](provider-dashboard-stats.md)) → web just **consumes them via the pro BFF** (no new endpoint). | Medium |
+| **G4** | Account `/mon-compte` | App offers, beyond cancel: **"Réserver à nouveau" (rebook)**, **laisser un avis**, **favoris**, profile **edit**, notif-prefs, data export, deposit-screenshot submit. (Already logged as M6 deferrals.) | Medium |
+
+**Deliberate, not gaps:** deposit-screenshot **upload** stays app-side for now; account **deletion / data export** stay app-only (sensitive). Provider-page contact (Appeler/WhatsApp) is already on web.
+
+## 3. Remediation plan (sequenced — owner approved 2026-06-28)
+1. **M7.2** — manage bookings (detail + accept/reject/complete/no-show/cancel), mirroring `provider/appointment_detail`.
+2. **M7.3** — catalogue / dispo / profil / abonnement **+ fold G3** (pro "Tableau de bord": revenue stats + "Configurer mon profil" — consume the existing `GET /providers/{id}/dashboard`, no new endpoint).
+3. **M8 — consumer parity pass:**
+   - **G1** discovery home (search + category chips → results; map optional), mirroring `home_screen`.
+   - **G2** provider page: map + Avant/Après + artistes.
+   - **G4** account: rebook + laisser un avis + favoris (+ profile edit).
+
+Each item: study the app screen first, write/extend its `web-*.md` spec, mirror the
+flow, adapt the layout for desktop. Cross-link back here as items close.
