@@ -1,4 +1,4 @@
-import type { Service, ServiceInput } from '../pro/catalogue';
+import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
 import type { ProAppointment } from '../pro/today';
 
 /// Browser → pro BFF (`/api/pro/*`) wrappers. Pro session lives in the pro
@@ -16,7 +16,7 @@ export type ProProfile = {
     name: string;
     commune?: string;
     services?: Service[];
-    artists?: { id: string; name: string; specialization?: string | null }[];
+    artists?: Artist[];
   };
 };
 
@@ -134,6 +134,36 @@ export function deleteService(
 ): Promise<MutationResult> {
   return mutate(
     `/api/pro/catalogue/services/${serviceId}?providerId=${encodeURIComponent(providerId)}`,
+    'DELETE',
+  );
+}
+
+// --- catalogue: artistes (7.3b) ---------------------------------------------
+
+export function createArtist(
+  providerId: string,
+  input: ArtistInput,
+): Promise<MutationResult> {
+  return mutate('/api/pro/catalogue/artists', 'POST', { providerId, artist: input });
+}
+
+export function updateArtist(
+  providerId: string,
+  artistId: string,
+  input: ArtistInput,
+): Promise<MutationResult> {
+  return mutate(`/api/pro/catalogue/artists/${artistId}`, 'PATCH', {
+    providerId,
+    artist: input,
+  });
+}
+
+export function deleteArtist(
+  providerId: string,
+  artistId: string,
+): Promise<MutationResult> {
+  return mutate(
+    `/api/pro/catalogue/artists/${artistId}?providerId=${encodeURIComponent(providerId)}`,
     'DELETE',
   );
 }

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type ArtistForm,
   type ServiceForm,
+  buildArtistPayload,
   buildServicePayload,
+  validateArtist,
   validateService,
 } from '../lib/pro/catalogue';
 
@@ -46,6 +49,22 @@ describe('pro catalogue — buildServicePayload', () => {
       priceMax: null,
       durationMinutes: 120,
       active: true,
+    });
+  });
+});
+
+describe('pro catalogue — artists', () => {
+  const a: ArtistForm = { name: 'Awa', specialization: 'Tresses' };
+
+  it('requires a name', () => {
+    expect(validateArtist({ ...a, name: ' ' })).toMatch(/nom/i);
+    expect(validateArtist(a)).toBeNull();
+  });
+
+  it('nulls an empty specialization', () => {
+    expect(buildArtistPayload({ name: 'Koffi', specialization: '' })).toEqual({
+      name: 'Koffi',
+      specialization: null,
     });
   });
 });
