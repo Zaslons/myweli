@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   breadcrumbJsonLd,
   faqJsonLd,
+  itemListJsonLd,
   localBusinessJsonLd,
 } from '../lib/seo/jsonld';
 import { providerFixture } from './fixtures';
@@ -36,5 +37,12 @@ describe('provider JSON-LD', () => {
     ]);
     expect(crumbs['@type']).toBe('BreadcrumbList');
     expect(crumbs.itemListElement[1].position).toBe(2);
+
+    const list = itemListJsonLd([
+      { name: 'A', url: 'https://x/a' },
+      { name: 'B', url: 'https://x/b' },
+    ]);
+    expect(list['@type']).toBe('ItemList');
+    expect(list.itemListElement[1]).toMatchObject({ position: 2, name: 'B' });
   });
 });

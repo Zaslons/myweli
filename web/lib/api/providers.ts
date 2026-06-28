@@ -1,3 +1,4 @@
+import { buildLandingSlug, categorySlugForApiKey } from '../landing';
 import { api } from './client';
 import type { components } from './schema';
 
@@ -27,6 +28,41 @@ export async function getAllProviderSlugs(): Promise<string[]> {
     return (data?.items ?? [])
       .map((i) => i.slug)
       .filter((s): s is string => typeof s === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/// Providers in a category + commune, best-rated first (backs a landing page).
+export async function listProviders(
+  apiKey: string,
+  commune: string,
+): Promise<Provider[]> {
+  try {
+    const { data, error } = await api.GET('/providers', {
+      params: { query: { category: apiKey, commune, sort: 'rating' } },
+    });
+    if (error || !data) return [];
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/// Landing slugs (category-commune) that actually have providers — for
+/// generateStaticParams + the sitemap. Derived from the live catalogue.
+export async function getLandingSlugs(): Promise<string[]> {
+  try {
+    const { data } = await api.GET('/providers', {
+      params: { query: { pageSize: 50 } },
+    });
+    const seen = new Set<string>();
+    for (const p of data?.items ?? []) {
+      const catSlug = categorySlugForApiKey(p.category);
+      if (!catSlug || !p.commune) continue;
+      seen.add(buildLandingSlug(catSlug, p.commune));
+    }
+    return [...seen];
   } catch {
     return [];
   }
