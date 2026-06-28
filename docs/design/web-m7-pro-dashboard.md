@@ -6,7 +6,7 @@
 | **Milestone** | M7 ([public-web.md](public-web.md) §11). The last web surface. |
 | **Surface** | Backend (tiny: `GET /me/provider`) + `web/app/pro/*` + a **pro BFF**. |
 | **Skills** | `myweli-web-guardrails` (+ `myweli-backend-guardrails` for `GET /me/provider`). |
-| **Status** | **M7.0 ✅** (auth + shell + Aujourd'hui) · **M7.1 ✅** (« Rendez-vous »: Calendrier + Liste) · **M7.2 ✅** (booking detail + lifecycle actions). **M7.3 pending.** |
+| **Status** | **M7 COMPLETE** — M7.0 shell+Aujourd'hui · M7.1 Rendez-vous (Calendrier+Liste) · M7.2 booking detail+lifecycle · M7.3a Services · 7.3b Équipe · 7.3c Disponibilités · 7.3d Abonnement+stats(G3) · 7.3e-i editable Profil+Acompte · 7.3e-ii Médias. The pro dashboard reaches parity with the pro app (web-adapted). |
 
 ## 1. Goal
 A **desktop-grade** tool so a salon can run Myweli from a PC: log in, see today's

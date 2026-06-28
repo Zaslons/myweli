@@ -22,7 +22,7 @@
   - **7.3e-i (✅ done)** — **editable** Profil (new backend `PATCH /providers/{id}`,
     threat T30) + Acompte (deposit policy) + home « Configurer mon profil » nudge.
     Backend +2 tests; web +8 unit + 1 e2e. Spec: [web-m7-3e-profil.md](web-m7-3e-profil.md).
-  - **7.3e-ii — Médias** (Photos + Avant/Après) — image upload approach decided then.
+  - **7.3e-ii — Médias (✅ done)** — `/pro/medias` Photos (grid, reorder/remove, **full browser upload** via `/uploads/sign` → R2) + Avant/Après pairs; 5 unit + 1 e2e. Spec: [web-m7-3e-ii-medias.md](web-m7-3e-ii-medias.md). **M7 complete.**
 
 ---
 
