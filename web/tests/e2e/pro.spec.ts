@@ -130,3 +130,26 @@ test('disponibilités: edit hours + save', async ({ page }) => {
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByText('Disponibilités enregistrées.')).toBeVisible();
 });
+
+test('abonnement shows trial status + revenue on the home', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  // G3: revenue card on the home (stub monthRevenue = 45 000).
+  await expect(page.getByText('Revenus ce mois')).toBeVisible();
+
+  // Abonnement view.
+  await page.getByRole('link', { name: 'Abonnement' }).click();
+  await expect(page).toHaveURL(/\/pro\/abonnement/);
+  await expect(
+    page.getByRole('heading', { name: 'Mon abonnement' }),
+  ).toBeVisible();
+  await expect(page.getByText(/Essai gratuit/)).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Nous contacter' }),
+  ).toBeVisible();
+});

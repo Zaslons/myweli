@@ -1,6 +1,15 @@
 import type { Availability } from '../pro/availability';
 import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
+import type { Subscription } from '../pro/subscription-plans';
 import type { ProAppointment } from '../pro/today';
+
+export type DashboardStats = {
+  todayAppointments?: number;
+  pendingRequests?: number;
+  todayRevenue?: number;
+  weekRevenue?: number;
+  monthRevenue?: number;
+};
 
 /// Browser → pro BFF (`/api/pro/*`) wrappers. Pro session lives in the pro
 /// httpOnly cookies; a 401 means "not signed in" → redirect to /pro/connexion.
@@ -177,6 +186,27 @@ export function saveAvailability(
   availability: Availability,
 ): Promise<MutationResult> {
   return mutate('/api/pro/disponibilites', 'PUT', { providerId, availability });
+}
+
+// --- abonnement + tableau de bord (7.3d) ------------------------------------
+
+export async function getSubscription(): Promise<{
+  status: number;
+  subscription?: Subscription;
+}> {
+  const res = await fetch('/api/pro/subscription');
+  if (!res.ok) return { status: res.status };
+  return { status: 200, subscription: (await res.json()) as Subscription };
+}
+
+export async function getDashboard(
+  providerId: string,
+): Promise<{ status: number; stats?: DashboardStats }> {
+  const res = await fetch(
+    `/api/pro/dashboard?providerId=${encodeURIComponent(providerId)}`,
+  );
+  if (!res.ok) return { status: res.status };
+  return { status: 200, stats: (await res.json()) as DashboardStats };
 }
 
 export async function logoutPro(): Promise<void> {

@@ -2,7 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
+import {
+  type DashboardStats,
+  type ProProfile,
+  getDashboard,
+  getMyProvider,
+  listProAppointments,
+} from '../../lib/api/pro';
+import { formatFcfa } from '../../lib/format';
 import {
   type ProAppointment,
   todayCounts,
@@ -14,6 +21,7 @@ export function AujourdhuiClient() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [items, setItems] = useState<ProAppointment[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -35,6 +43,11 @@ export function AujourdhuiClient() {
       setProfile(me.profile ?? null);
       setItems(appts.items);
       setLoading(false);
+      // Revenue stats are best-effort — don't block the bookings list.
+      if (me.profile) {
+        const dash = await getDashboard(me.profile.provider.id);
+        if (active && dash.status === 200) setStats(dash.stats ?? null);
+      }
     })();
     return () => {
       active = false;
@@ -62,6 +75,17 @@ export function AujourdhuiClient() {
         <Stat label="Total du jour" value={counts.total} />
       </div>
 
+      <div className="mt-m grid grid-cols-2 gap-m">
+        <Stat
+          label="Revenus aujourd’hui"
+          value={stats ? formatFcfa(stats.todayRevenue ?? 0) : '—'}
+        />
+        <Stat
+          label="Revenus ce mois"
+          value={stats ? formatFcfa(stats.monthRevenue ?? 0) : '—'}
+        />
+      </div>
+
       <h2 className="mt-l text-lg font-semibold text-textPrimary">
         Rendez-vous du jour
       </h2>
@@ -85,10 +109,16 @@ export function AujourdhuiClient() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
   return (
     <div className="rounded-xl border border-border bg-secondary p-m text-center">
-      <p className="text-2xl font-semibold text-textPrimary">{value}</p>
+      <p className="text-xl font-semibold text-textPrimary">{value}</p>
       <p className="text-xs text-textTertiary">{label}</p>
     </div>
   );
