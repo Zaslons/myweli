@@ -97,13 +97,19 @@ Vercel; confirm `WEB_ORIGINS` matches. Verify `/sitemap.xml`, `/robots.txt`,
 `ADMIN_EMAIL`).
 
 ## Phase F — Mobile apps
-1. **Scaffold Android** (only `ios/`,`macos/`,`web/` exist): `flutter create
-   --platforms=android .` in `mobile/`; app id `com.myweli` (or `ci.myweli`).
+1. **Android — scaffolded ✅ (#3).** Two Gradle flavors: `consumer`
+   (`com.myweli.app`, "Myweli") + `pro` (`com.myweli.pro`, "Myweli Pro"). Realign
+   the **iOS** bundle ids to match (`com.myweli.app` / `com.myweli.pro`).
 2. Add `google-services.json` (Android) + `GoogleService-Info.plist` (iOS); enable
-   iOS Push capability; wire **`firebase_messaging`** (token → `POST /me/devices`).
-3. App icons/splash; iOS bundle id + Apple signing; Android keystore.
-4. Build prod: `--dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com`
-   (consumer `main.dart` + pro `main_pro.dart`).
+   iOS Push capability; ship the real **`FcmPushNotificationService`** (the app
+   token-registration seam + permission UX already ship — #2; this is the last
+   plugin impl, then flip the DI line).
+3. Real launcher icons/splash (per flavor); iOS signing (Apple Dev); Android
+   signing keystore (`key.properties`, gitignored).
+4. Build prod (per flavor):
+   `flutter build appbundle --flavor consumer -t lib/main.dart
+   --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com`
+   (and `--flavor pro -t lib/main_pro.dart`).
 5. Store listings + privacy policy; submit to App Store + Play.
 6. Set `NEXT_PUBLIC_IOS_APP_URL` / `NEXT_PUBLIC_ANDROID_APP_URL` on the web.
 
@@ -117,9 +123,12 @@ again** with a small Actions spending limit (or accept the monthly quota).
 ---
 
 ## Remaining code work (no accounts needed — makes deploy turnkey)
-- ✅ `backend/Dockerfile` + `.dockerignore` (this PR).
-- ☐ App `firebase_messaging` wiring (token → `/me/devices`).
-- ☐ `flutter create --platforms=android` scaffold + app id/icons.
+- ✅ `backend/Dockerfile` + `.dockerignore`.
+- ✅ App push seam + permission UX on mocks (#2) — token → `/me/devices`; real
+  `firebase_messaging` impl deferred to the accounts phase.
+- ✅ Android project scaffolded (#3) — flavors `consumer` (`com.myweli.app`) +
+  `pro` (`com.myweli.pro`); real launcher icons + `google-services.json` later.
+- ☐ Pro-app push wiring (#2b).
 - ☐ `next.config` image domain for `cdn.myweli.com` (switch `<img>`→`next/image`)
   + real OG image + `logo.png`.
 - ☐ Cloud Run config (`service.yaml` + Cloud Build trigger, `--min-instances=1`,
