@@ -18,6 +18,14 @@ const categories: { slug: string; apiKey: string; label: string }[] = [
   { slug: 'massage', apiKey: 'massage', label: 'Massage' },
 ];
 
+/// The category vocabulary (read-only) — used by the discovery home tiles +
+/// commune×category directory + search routing.
+export const categoryList: ReadonlyArray<{
+  slug: string;
+  apiKey: string;
+  label: string;
+}> = categories;
+
 export const communes = [
   'Cocody',
   'Plateau',

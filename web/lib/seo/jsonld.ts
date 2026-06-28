@@ -29,6 +29,25 @@ export function jsonLdScript(data: unknown): string {
   return JSON.stringify(data);
 }
 
+/// WebSite entity + SearchAction (sitelinks search box) → /recherche. Emitted on
+/// the home so engines can wire a Myweli search box.
+export function websiteJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Myweli',
+    url: siteUrl,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${siteUrl}/recherche?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+}
+
 /// CI service category → display label + schema.org LocalBusiness subtype.
 const categoryMap: Record<string, { label: string; schemaType: string }> = {
   salon: { label: 'Salon de coiffure', schemaType: 'HairSalon' },

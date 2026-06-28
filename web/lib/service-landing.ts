@@ -61,6 +61,20 @@ export function serviceSlugsForName(serviceName: string): string[] {
     .map((s) => s.slug);
 }
 
+/// Resolve a free-text query to a single service slug (label/slug/keyword match),
+/// or null. Used by the discovery search routing.
+export function serviceSlugForQuery(query: string): string | null {
+  const n = normalize(query);
+  if (!n) return null;
+  const svc = services.find(
+    (s) =>
+      s.slug === slugify(query) ||
+      normalize(s.label) === n ||
+      s.keywords.some((k) => n.includes(k)),
+  );
+  return svc?.slug ?? null;
+}
+
 export function siblingCommunesForService(
   serviceSlug: string,
   exceptCommune: string,
