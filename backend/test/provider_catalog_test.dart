@@ -15,6 +15,7 @@ import '../routes/providers/[id]/availability.dart' as availability;
 import '../routes/providers/[id]/before-after.dart' as before_after_route;
 import '../routes/providers/[id]/deposit-policy.dart' as deposit_route;
 import '../routes/providers/[id]/gallery.dart' as gallery_route;
+import '../routes/providers/[id]/index.dart' as provider_route;
 import '../routes/providers/[id]/services/[serviceId].dart' as service_detail;
 import '../routes/providers/[id]/services/index.dart' as services;
 
@@ -854,6 +855,77 @@ void main() {
         'provider1',
       );
       expect(badVerb.statusCode, HttpStatus.methodNotAllowed);
+    });
+  });
+
+  group('provider profile (M7.3e)', () {
+    RequestContext ctx(Request request) {
+      final c = _MockRequestContext();
+      when(() => c.request).thenReturn(request);
+      when(() => c.read<TokenService>()).thenReturn(tokens);
+      when(() => c.read<ProviderCatalogService>()).thenReturn(catalog);
+      return c;
+    }
+
+    Request req(String method, {String? bearer, Object? body}) => Request(
+      method,
+      Uri.parse('http://localhost/providers/provider1'),
+      headers: {if (bearer != null) 'Authorization': 'Bearer $bearer'},
+      body: body == null ? null : jsonEncode(body),
+    );
+
+    test('service: owner updates; cross-tenant 403; validation', () async {
+      final ok = await catalog.updateProfile(accountId, 'provider1', {
+        'name': 'Salon Web',
+        'phoneNumber': '+2250700000099',
+      });
+      expect(ok.ok, isTrue);
+      expect((await providers.byId('provider1'))!['name'], 'Salon Web');
+
+      expect(
+        (await catalog.updateProfile(accountId, 'provider2', {
+          'name': 'X',
+        })).error,
+        'forbidden',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'name': '  ',
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'phoneNumber': 'abc',
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'slug': 'x',
+        })).error,
+        'invalid_input',
+      );
+    });
+
+    test('route PATCH: 200 owner · 401 anon · 405 bad verb', () async {
+      final ok = await provider_route.onRequest(
+        ctx(req('PATCH', bearer: token, body: {'name': 'Salon Z'})),
+        'provider1',
+      );
+      expect(ok.statusCode, HttpStatus.ok);
+
+      final anon = await provider_route.onRequest(
+        ctx(req('PATCH', body: {'name': 'Y'})),
+        'provider1',
+      );
+      expect(anon.statusCode, HttpStatus.unauthorized);
+
+      final bad = await provider_route.onRequest(
+        ctx(req('PUT', bearer: token)),
+        'provider1',
+      );
+      expect(bad.statusCode, HttpStatus.methodNotAllowed);
     });
   });
 }

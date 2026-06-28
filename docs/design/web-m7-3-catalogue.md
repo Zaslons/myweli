@@ -18,8 +18,11 @@
   (read-only PRO-SUB: trial status + Pro offer card + Nous contacter) + **revenue
   cards** on `/pro` home (consume `GET /providers/{id}/dashboard` — **closes G3**).
   4 unit + 1 e2e. Spec: [web-m7-3d-abo-stats.md](web-m7-3d-abo-stats.md).
-- **7.3e — Profil + médias + Acompte** — salon profile edit + gallery/before-after
-  + deposit-policy form (+ the « Configurer mon profil » nudge on the home).
+- **7.3e — Profil + Acompte + Médias** (split):
+  - **7.3e-i (✅ done)** — **editable** Profil (new backend `PATCH /providers/{id}`,
+    threat T30) + Acompte (deposit policy) + home « Configurer mon profil » nudge.
+    Backend +2 tests; web +8 unit + 1 e2e. Spec: [web-m7-3e-profil.md](web-m7-3e-profil.md).
+  - **7.3e-ii — Médias** (Photos + Avant/Après) — image upload approach decided then.
 
 ---
 

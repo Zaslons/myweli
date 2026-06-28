@@ -266,6 +266,23 @@ createServer(async (req, res) => {
     }
     return json(res, 405, { error: 'method_not_allowed' });
   }
+  // acompte (7.3e-i) — deposit policy GET/PUT.
+  if (url.pathname.match(/^\/providers\/[^/]+\/deposit-policy$/)) {
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      proProvider.depositPolicy = body;
+      return json(res, 200, body);
+    }
+    return json(
+      res,
+      200,
+      proProvider.depositPolicy ?? {
+        depositRequired: false,
+        depositPercentage: 0,
+        cancellationWindowHours: 24,
+      },
+    );
+  }
   // catalogue artists CRUD (7.3b)
   const artMatch = url.pathname.match(
     /^\/providers\/[^/]+\/artists(?:\/([^/]+))?$/,
@@ -334,9 +351,14 @@ createServer(async (req, res) => {
     }
     return json(res, 404, { error: 'not_found' });
   }
-  // single-provider lookup for enrichment: /providers/{id}
+  // single provider: GET (enrichment, const) · PATCH (profil 7.3e-i, pro copy).
   const provMatch = url.pathname.match(/^\/providers\/([^/]+)$/);
   if (provMatch) {
+    if (req.method === 'PATCH') {
+      const body = await readBody(req);
+      Object.assign(proProvider, body);
+      return json(res, 200, proProvider);
+    }
     return provMatch[1] === 'p1'
       ? json(res, 200, provider)
       : json(res, 404, { error: 'not_found' });

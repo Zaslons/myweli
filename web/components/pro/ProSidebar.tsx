@@ -8,7 +8,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: 'Rendez-vous', href: '/pro/rendez-vous' },
   { label: 'Catalogue', href: '/pro/catalogue' },
   { label: 'Disponibilités', href: '/pro/disponibilites' },
-  { label: 'Profil' },
+  { label: 'Profil', href: '/pro/profil' },
   { label: 'Abonnement', href: '/pro/abonnement' },
 ];
 

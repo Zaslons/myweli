@@ -36,6 +36,14 @@ abstract interface class ProvidersRepository {
   /// Remove a service; false if not found under [providerId].
   Future<bool> deleteService(String providerId, String serviceId);
 
+  /// Merge editable public-profile [changes] (name/description/address/city/
+  /// commune/phoneNumber/whatsapp) into [providerId]; returns the updated
+  /// provider, or null if it doesn't exist.
+  Future<Map<String, dynamic>?> updateProfile(
+    String providerId,
+    Map<String, dynamic> changes,
+  );
+
   /// Replace [providerId]'s availability wholesale; returns the stored value,
   /// or null if the provider doesn't exist.
   Future<Map<String, dynamic>?> replaceAvailability(
@@ -205,6 +213,17 @@ class InMemoryProvidersRepository implements ProvidersRepository {
       }
     }
     return null;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> updateProfile(
+    String providerId,
+    Map<String, dynamic> changes,
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    p.addAll(changes);
+    return p;
   }
 
   @override

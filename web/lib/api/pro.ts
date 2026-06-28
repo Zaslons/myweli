@@ -1,5 +1,6 @@
 import type { Availability } from '../pro/availability';
 import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
+import type { DepositPolicy } from '../pro/deposit';
 import type { Subscription } from '../pro/subscription-plans';
 import type { ProAppointment } from '../pro/today';
 
@@ -24,7 +25,12 @@ export type ProProfile = {
   provider: {
     id: string;
     name: string;
-    commune?: string;
+    description?: string;
+    address?: string;
+    commune?: string | null;
+    city?: string | null;
+    phoneNumber?: string;
+    whatsapp?: string | null;
     services?: Service[];
     artists?: Artist[];
     availability?: Availability;
@@ -207,6 +213,32 @@ export async function getDashboard(
   );
   if (!res.ok) return { status: res.status };
   return { status: 200, stats: (await res.json()) as DashboardStats };
+}
+
+// --- profil + acompte (7.3e-i) ----------------------------------------------
+
+export function updateProviderProfile(
+  providerId: string,
+  fields: Record<string, unknown>,
+): Promise<MutationResult> {
+  return mutate('/api/pro/profil', 'PATCH', { providerId, profile: fields });
+}
+
+export async function getDepositPolicy(
+  providerId: string,
+): Promise<{ status: number; policy?: DepositPolicy }> {
+  const res = await fetch(
+    `/api/pro/acompte?providerId=${encodeURIComponent(providerId)}`,
+  );
+  if (!res.ok) return { status: res.status };
+  return { status: 200, policy: (await res.json()) as DepositPolicy };
+}
+
+export function saveDepositPolicy(
+  providerId: string,
+  policy: DepositPolicy,
+): Promise<MutationResult> {
+  return mutate('/api/pro/acompte', 'PUT', { providerId, policy });
 }
 
 export async function logoutPro(): Promise<void> {

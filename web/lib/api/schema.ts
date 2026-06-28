@@ -1167,7 +1167,50 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update the salon's editable public profile (web M7.3e, owner-only)
+         * @description Provider role + ownership (account.providerId == {id} → else 403). Only the editable public fields below are accepted; protected fields (slug, rating, reviewCount, status, services, artists, availability, imageUrls) have their own endpoints and are ignored. `phoneNumber`/`whatsapp` E.164.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        description?: string;
+                        address?: string;
+                        city?: string | null;
+                        commune?: string | null;
+                        /** @description E.164. */
+                        phoneNumber?: string;
+                        /** @description E.164. */
+                        whatsapp?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description The updated provider */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Provider"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
         trace?: never;
     };
     "/providers/by-slug/{slug}": {
