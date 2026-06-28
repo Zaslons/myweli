@@ -72,7 +72,12 @@ export function AujourdhuiClient() {
           </p>
         ) : (
           today.map((a) => (
-            <ProAppointmentRow key={a.id} appt={a} serviceName={serviceName} />
+            <ProAppointmentRow
+              key={a.id}
+              appt={a}
+              serviceName={serviceName}
+              href={`/pro/rendez-vous/${a.id}`}
+            />
           ))
         )}
       </div>

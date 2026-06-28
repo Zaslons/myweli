@@ -20,8 +20,8 @@ describe('account appointment helpers', () => {
     expect(categorize('confirmed')).toBe('upcoming');
     expect(categorize('completed')).toBe('past');
     expect(categorize('cancelled')).toBe('cancelled');
-    expect(categorize('rejected')).toBe('cancelled');
-    expect(categorize('no_show')).toBe('cancelled');
+    expect(categorize('noShow')).toBe('cancelled'); // canonical camelCase
+    expect(categorize('no_show')).toBe('cancelled'); // alias
   });
 
   it('filters by tab', () => {
@@ -40,6 +40,6 @@ describe('account appointment helpers', () => {
 
   it('labels statuses in French', () => {
     expect(statusLabelFr('confirmed')).toBe('Confirmé');
-    expect(statusLabelFr('no_show')).toBe('Absence');
+    expect(statusLabelFr('noShow')).toBe('Absent'); // app label
   });
 });

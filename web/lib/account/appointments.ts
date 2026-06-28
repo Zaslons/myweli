@@ -26,7 +26,8 @@ export const TABS: { key: Tab; label: string }[] = [
 
 export function categorize(status: string): Tab {
   if (status === 'completed') return 'past';
-  if (status === 'cancelled' || status === 'rejected' || status === 'no_show') {
+  // Canonical statuses: pending/confirmed/completed/cancelled/noShow (reject → cancelled).
+  if (status === 'cancelled' || status === 'noShow' || status === 'no_show') {
     return 'cancelled';
   }
   return 'upcoming'; // pending | confirmed
@@ -45,8 +46,8 @@ const STATUS_FR: Record<string, string> = {
   confirmed: 'Confirmé',
   completed: 'Terminé',
   cancelled: 'Annulé',
-  rejected: 'Refusé',
-  no_show: 'Absence',
+  noShow: 'Absent', // app label
+  no_show: 'Absent', // alias (defensive)
 };
 
 export function statusLabelFr(status: string): string {

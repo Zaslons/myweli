@@ -62,6 +62,36 @@ export async function listProAppointments(): Promise<{
   return { status: 200, items: body.items ?? [] };
 }
 
+/// Detail = find it in the provider list (GET /appointments/{id} is consumer-
+/// scoped, so the salon's own list is the provider-scoped source).
+export async function getProAppointment(
+  id: string,
+): Promise<{ status: number; appt?: ProAppointment }> {
+  const r = await listProAppointments();
+  if (r.status !== 200) return { status: r.status };
+  const appt = r.items.find((a) => a.id === id);
+  return appt ? { status: 200, appt } : { status: 404 };
+}
+
+export async function proAction(
+  id: string,
+  action: string,
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch(`/api/pro/appointments/${id}/${action}`, {
+    method: 'POST',
+  });
+  if (res.ok) return { ok: true, status: res.status };
+  const b = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: b.error };
+}
+
+export async function proDepositScreenshotUrl(id: string): Promise<string | null> {
+  const res = await fetch(`/api/pro/appointments/${id}/deposit-screenshot`);
+  if (!res.ok) return null;
+  const b = (await res.json().catch(() => ({}))) as { url?: string };
+  return b.url ?? null;
+}
+
 export async function logoutPro(): Promise<void> {
   await fetch('/api/pro/auth/logout', { method: 'POST' });
 }
