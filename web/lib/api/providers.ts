@@ -53,6 +53,33 @@ export async function listProviders(
   }
 }
 
+/// Flexible discovery search/list (home featured + /recherche). Any of q /
+/// category / commune; sorted by rating; bounded.
+export async function searchProviders(opts: {
+  q?: string;
+  category?: string;
+  commune?: string;
+  pageSize?: number;
+}): Promise<Provider[]> {
+  try {
+    const { data, error } = await api.GET('/providers', {
+      params: {
+        query: {
+          ...(opts.q ? { q: opts.q } : {}),
+          ...(opts.category ? { category: opts.category } : {}),
+          ...(opts.commune ? { commune: opts.commune } : {}),
+          sort: 'rating',
+          pageSize: opts.pageSize ?? 12,
+        },
+      },
+    });
+    if (error || !data) return [];
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /// Landing slugs (category-commune) that actually have providers — for
 /// generateStaticParams + the sitemap. Derived from the live catalogue.
 export async function getLandingSlugs(): Promise<string[]> {

@@ -18,7 +18,7 @@
 ## 2. Gaps to close (flow / user-story only)
 | # | Surface | Missing vs the app | Severity |
 |---|---|---|---|
-| **G1** | **Home `/`** | The web home is a **placeholder**. App `home_screen` = **search bar + category chips + "Près de vous" + "Voir la carte" (map) + featured sections**. No on-site discovery/search/browse on web (SEO landings exist, but not interactive discovery). | **High** |
+| ~~**G1**~~ ✅ | **Home `/`** | **Closed (M8.1):** discovery home (hero service+commune search → landings/`/recherche` · category tiles · Salons populaires · "Partout à Abidjan" directory · value props · FAQ) + `/recherche` results. Map view → folded into M8.2. Spec: [web-m8-1-discovery.md](web-m8-1-discovery.md). | ~~High~~ done |
 | **G2** | Provider `/(slug)` | Missing **carte / localisation (map)**, **Avant / Après** (before-after gallery), **artistes / équipe**. | Medium |
 | ~~**G3**~~ ✅ | Pro home `/pro` "Aujourd'hui" | **Closed (7.3d):** revenue cards (aujourd'hui + ce mois) added to `/pro` from `GET /providers/{id}/dashboard`. (The « Configurer mon profil » nudge follows in 7.3e with `/pro/profil`.) | ~~Medium~~ done |
 | **G4** | Account `/mon-compte` | App offers, beyond cancel: **"Réserver à nouveau" (rebook)**, **laisser un avis**, **favoris**, profile **edit**, notif-prefs, data export, deposit-screenshot submit. (Already logged as M6 deferrals.) | Medium |
@@ -29,9 +29,9 @@
 1. **M7.2** — manage bookings (detail + accept/reject/complete/no-show/cancel), mirroring `provider/appointment_detail`.
 2. **M7.3** — catalogue / dispo / profil / abonnement **+ fold G3** (pro "Tableau de bord": revenue stats + "Configurer mon profil" — consume the existing `GET /providers/{id}/dashboard`, no new endpoint).
 3. **M8 — consumer parity pass:**
-   - **G1** discovery home (search + category chips → results; map optional), mirroring `home_screen`.
-   - **G2** provider page: map + Avant/Après + artistes.
-   - **G4** account: rebook + laisser un avis + favoris (+ profile edit).
+   - **M8.1 ✅ G1** discovery home + `/recherche` ([web-m8-1-discovery.md](web-m8-1-discovery.md)).
+   - **M8.2 G2** provider page: map + Avant/Après + artistes (+ map view from G1).
+   - **M8.3 G4** account: rebook + laisser un avis + favoris (+ profile edit).
 
 Each item: study the app screen first, write/extend its `web-*.md` spec, mirror the
 flow, adapt the layout for desktop. Cross-link back here as items close.
