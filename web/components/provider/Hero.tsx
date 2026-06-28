@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { Provider } from '../../lib/api/providers';
 import { categoryLabelFr } from '../../lib/seo/jsonld';
 import { BookingCta } from '../BookingCta';
@@ -10,14 +11,16 @@ export function ProviderHero({ provider }: { provider: Provider }) {
   return (
     <header>
       {hero ? (
-        // eslint-disable-next-line @next/next/no-img-element -- real CDN + next/image allowlist wired at the accounts phase
-        <img
-          src={hero}
-          alt={`Salon ${provider.name}`}
-          width={1200}
-          height={600}
-          className="h-56 w-full object-cover sm:h-80"
-        />
+        <div className="relative h-56 w-full sm:h-80">
+          <Image
+            src={hero}
+            alt={`Salon ${provider.name}`}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+        </div>
       ) : null}
       <div className="px-m py-l">
         <p className="text-sm text-textTertiary">{sub}</p>
