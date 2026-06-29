@@ -1,6 +1,7 @@
 'use client';
 
 import { useReducer, useState } from 'react';
+import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import type { Provider } from '../../lib/api/providers';
 import {
   type CreatedBooking,
@@ -20,6 +21,7 @@ import {
 import { formatDateFr, formatDuration, formatFcfa, priceRange } from '../../lib/format';
 import { Button } from '../Button';
 import { OpenInAppButton } from '../OpenInAppButton';
+import { PhoneField } from '../PhoneField';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const slotTime = (iso: string) =>
@@ -301,16 +303,12 @@ export function BookingFlow({ provider }: { provider: Provider }) {
             Confirmez avec votre numéro de téléphone (code par SMS).
           </p>
           <div className="mt-s flex flex-col gap-s">
-            <input
-              type="tel"
-              inputMode="tel"
-              placeholder="+225 07 00 00 00 00"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
-            />
+            <PhoneField onChange={setPhone} />
             {!otpSent ? (
-              <Button disabled={busy || phone.length < 8} onClick={sendCode}>
+              <Button
+                disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
+                onClick={sendCode}
+              >
                 Envoyer le code
               </Button>
             ) : (
