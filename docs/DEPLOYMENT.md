@@ -96,10 +96,19 @@ Vercel; confirm `WEB_ORIGINS` matches. Verify `/sitemap.xml`, `/robots.txt`,
 `/llms.txt`, JSON-LD, `/opengraph-image`, `/logo.svg` (a real raster `logo.png` +
 designed OG art can replace the generated ones later).
 
-## Phase E — Deploy the admin
-`flutter build web --target lib/main_admin.dart` → static host at
-`admin.myweli.com`; restrict access (internal ops; admin login + seeded
-`ADMIN_EMAIL`).
+## Phase E — Deploy the admin (Cloudflare Pages, via GitHub Actions)
+The admin is a Flutter-Web SPA that calls `api.myweli.com` **directly** (CORS), so
+`WEB_ORIGINS` must include `https://admin.myweli.com` (done in `render.yaml`).
+- **Build + deploy:** `.github/workflows/deploy-admin.yml` builds
+  `lib/main_admin.dart` (`--dart-define=API_BASE_URL=https://api.myweli.com`) and
+  deploys to the **Cloudflare Pages** project `myweli-admin`. Repo secrets:
+  `CLOUDFLARE_API_TOKEN` (Pages:Edit) + `CLOUDFLARE_ACCOUNT_ID`.
+- **Domain:** in the Pages project → Custom domains → add `admin.myweli.com`
+  (Cloudflare auto-creates the DNS record since the zone is on Cloudflare).
+- **Restrict:** put **Cloudflare Access** (Zero Trust) in front of the Pages site —
+  email-allowlist to your address(es). The backend also enforces admin authz +
+  the seeded `ADMIN_EMAIL`/`ADMIN_PASSWORD` login, but Access keeps the console
+  unreachable to the public.
 
 ## Phase F — Mobile apps
 1. **Android — scaffolded ✅ (#3).** Two Gradle flavors: `consumer`
