@@ -1,0 +1,57 @@
+name: Deploy admin console
+
+# Builds the Flutter-Web admin console (lib/main_admin.dart) and deploys it to
+# Cloudflare Pages (project: myweli-admin). The console calls api.myweli.com
+# DIRECTLY from the browser, so the backend must allowlist https://admin.myweli.com
+# in WEB_ORIGINS (already set in render.yaml). Restrict the Pages site with
+# Cloudflare Access (email allowlist) — the backend also enforces admin authz.
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN  — a token with the "Cloudflare Pages: Edit" permission
+#   CLOUDFLARE_ACCOUNT_ID — your Cloudflare account ID
+#
+# Runs on mobile changes to main + manual dispatch. (Switch to workflow_dispatch
+# only if you want to save CI minutes once the repo is private.)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/deploy-admin.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.6
+          channel: stable
+
+      - name: Build admin web bundle
+        working-directory: mobile
+        run: |
+          flutter pub get
+          flutter build web --release \
+            --target lib/main_admin.dart \
+            --dart-define=USE_API_BACKEND=true \
+            --dart-define=API_BASE_URL=https://api.myweli.com
+
+      - name: Ensure Cloudflare Pages project exists
+        uses: cloudflare/wrangler-action@v3
+        continue-on-error: true # no-op once the project exists
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create myweli-admin --production-branch=main
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy mobile/build/web --project-name=myweli-admin --branch=main
