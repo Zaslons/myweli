@@ -1,29 +1,15 @@
 class Validators {
-  /// Validates phone number (Côte d'Ivoire format: +225 XX XX XX XX)
+  /// Validates an international phone number in E.164 (`+` then 8–15 digits) —
+  /// mirrors the backend. The country-code picker ([PhoneNumberField]) also
+  /// enforces per-country length; this is the generic fallback check.
   static String? phoneNumber(String? value) {
     if (value == null || value.isEmpty) {
       return 'Le numéro de téléphone est requis';
     }
-
-    // Remove spaces and special characters
-    final cleaned = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-
-    // Check if starts with +225
-    if (!cleaned.startsWith('+225')) {
-      return 'Le numéro doit commencer par +225';
+    final cleaned = value.replaceAll(RegExp(r'[\s\-()]'), '');
+    if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(cleaned)) {
+      return 'Numéro de téléphone invalide';
     }
-
-    // Check length (+225 + 8 digits = 12 total)
-    if (cleaned.length != 12) {
-      return 'Le numéro doit contenir 8 chiffres après +225';
-    }
-
-    // Check if remaining characters are digits
-    final digits = cleaned.substring(4);
-    if (!RegExp(r'^\d{8}$').hasMatch(digits)) {
-      return 'Le numéro doit contenir uniquement des chiffres';
-    }
-
     return null;
   }
 

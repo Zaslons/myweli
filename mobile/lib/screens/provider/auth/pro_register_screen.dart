@@ -7,12 +7,11 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/utils/formatters.dart';
-import '../../../core/utils/validators.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/phone_number_field.dart';
 
 class ProRegisterScreen extends StatefulWidget {
   const ProRegisterScreen({super.key});
@@ -24,7 +23,7 @@ class ProRegisterScreen extends StatefulWidget {
 class _ProRegisterScreenState extends State<ProRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _businessNameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  String _phoneNumber = '';
   final _addressController = TextEditingController();
   BusinessType? _selectedBusinessType;
   bool _isLoading = false;
@@ -32,7 +31,6 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   @override
   void dispose() {
     _businessNameController.dispose();
-    _phoneController.dispose();
     _addressController.dispose();
     super.dispose();
   }
@@ -51,7 +49,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    final phoneNumber = _phoneController.text.trim();
+    final phoneNumber = _phoneNumber;
     final businessName = _businessNameController.text.trim();
     final address = _addressController.text.trim();
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
@@ -178,24 +176,8 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                AppTextField(
-                  label: 'Numéro de téléphone',
-                  hint: '+225 XX XX XX XX',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: const Icon(Icons.phone),
-                  validator: Validators.phoneNumber,
-                  onChanged: (value) {
-                    final formatted = Formatters.formatPhoneNumber(value);
-                    if (formatted != value) {
-                      _phoneController.value = TextEditingValue(
-                        text: formatted,
-                        selection: TextSelection.collapsed(
-                          offset: formatted.length,
-                        ),
-                      );
-                    }
-                  },
+                PhoneNumberField(
+                  onChanged: (e164) => _phoneNumber = e164,
                 ),
                 const SizedBox(height: 16),
                 AppTextField(

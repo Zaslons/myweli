@@ -1,23 +1,22 @@
 import 'package:intl/intl.dart';
 
 class Formatters {
-  /// Format phone number: +225 XX XX XX XX
+  /// Format a phone number for display. Côte d'Ivoire (+225) numbers are grouped
+  /// in pairs — both the current 10-digit and legacy 8-digit formats; any other
+  /// country (or unexpected length) is returned as-is.
   static String formatPhoneNumber(String phone) {
-    // Remove all non-digit characters except +
     final cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
-
-    if (!cleaned.startsWith('+225')) {
-      return phone; // Return as-is if not Côte d'Ivoire format
+    if (cleaned.startsWith('+225')) {
+      final digits = cleaned.substring(4); // strip +225
+      if (digits.length == 10 || digits.length == 8) {
+        final groups = <String>[];
+        for (var i = 0; i < digits.length; i += 2) {
+          groups.add(digits.substring(i, i + 2));
+        }
+        return '+225 ${groups.join(' ')}';
+      }
     }
-
-    final digits = cleaned.substring(4); // Remove +225
-
-    if (digits.length != 8) {
-      return phone; // Return as-is if incorrect length
-    }
-
-    // Format as +225 XX XX XX XX
-    return '+225 ${digits.substring(0, 2)} ${digits.substring(2, 4)} ${digits.substring(4, 6)} ${digits.substring(6, 8)}';
+    return phone; // other country / unexpected length → as-is
   }
 
   /// Format currency (XOF - West African CFA franc)
