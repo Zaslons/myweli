@@ -103,6 +103,11 @@ The outbox never stores the OTP (OTP goes via `sendOtp`, not `sendTemplate`).
   only (`.env.example` documents them; gitleaks stays green). **SMS is mandatory
   in prod; `WHATSAPP_FROM` is optional** — without it, WhatsApp sends return
   `whatsapp_not_configured` and the service falls back to SMS (SMS-first launch).
+- **Delivery status** — each Twilio send attaches a per-message `StatusCallback`
+  = `PUBLIC_BASE_URL/webhooks/messaging/status?secret=MESSAGING_WEBHOOK_SECRET`
+  (only when both env vars are set; else omitted). Twilio then POSTs status →
+  the secret-guarded webhook → outbox `updateStatus`. OTP sends aren't in the
+  outbox, so their callbacks no-op.
 - **Logging** — structured, redacted: never the body, code, or `Authorization`.
 - New STRIDE rows (BACKEND.md §7): **T18** OTP-over-SMS delivery,
   **T19** messaging webhook spoofing, **T20** promotional opt-in enforcement.

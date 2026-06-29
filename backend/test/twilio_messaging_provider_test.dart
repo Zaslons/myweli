@@ -115,6 +115,39 @@ void main() {
     expect(res.providerMessageId, 'SM2');
   });
 
+  test('attaches StatusCallback when configured; omits it otherwise', () async {
+    late http.Request withCb;
+    final p1 = TwilioMessagingProvider(
+      accountSid: 'AC123',
+      authToken: 'tok',
+      smsFrom: '+15550001111',
+      statusCallback:
+          'https://api.myweli.com/webhooks/messaging/status?secret=s',
+      client: MockClient((req) async {
+        withCb = req;
+        return http.Response(jsonEncode({'sid': 'SM3'}), 201);
+      }),
+    );
+    await p1.send(to: '+2250700000000', channel: MessageChannel.sms, body: 'x');
+    expect(
+      withCb.bodyFields['StatusCallback'],
+      'https://api.myweli.com/webhooks/messaging/status?secret=s',
+    );
+
+    late http.Request noCb;
+    final p2 = TwilioMessagingProvider(
+      accountSid: 'AC123',
+      authToken: 'tok',
+      smsFrom: '+15550001111',
+      client: MockClient((req) async {
+        noCb = req;
+        return http.Response(jsonEncode({'sid': 'SM4'}), 201);
+      }),
+    );
+    await p2.send(to: '+2250700000000', channel: MessageChannel.sms, body: 'x');
+    expect(noCb.bodyFields.containsKey('StatusCallback'), isFalse);
+  });
+
   test('non-2xx → failed with a coded error', () async {
     final p = provider(
       MockClient(

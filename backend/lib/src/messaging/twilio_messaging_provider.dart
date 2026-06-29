@@ -18,6 +18,7 @@ class TwilioMessagingProvider implements MessagingProvider {
     required this.authToken,
     required this.smsFrom,
     this.whatsAppFrom,
+    this.statusCallback,
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -28,6 +29,10 @@ class TwilioMessagingProvider implements MessagingProvider {
   /// WhatsApp sender (E.164, no `whatsapp:` prefix). Null until a WhatsApp
   /// sender is approved (SMS-first launch) — WhatsApp sends then fall back to SMS.
   final String? whatsAppFrom;
+
+  /// Delivery-status callback URL passed to Twilio per message. When set, Twilio
+  /// POSTs status updates to it (→ the status webhook → outbox). Null = no tracking.
+  final String? statusCallback;
   final http.Client _client;
 
   Uri get _endpoint => Uri.parse(
@@ -53,6 +58,12 @@ class TwilioMessagingProvider implements MessagingProvider {
     final from = isWhatsApp ? 'whatsapp:$whatsAppFrom' : smsFrom;
     final dest = isWhatsApp ? 'whatsapp:$to' : to;
     final auth = base64Encode(utf8.encode('$accountSid:$authToken'));
+    final form = {
+      'To': dest,
+      'From': from,
+      'Body': body,
+      if (statusCallback != null) 'StatusCallback': statusCallback!,
+    };
     try {
       final res = await _client.post(
         _endpoint,
@@ -60,7 +71,7 @@ class TwilioMessagingProvider implements MessagingProvider {
           'Authorization': 'Basic $auth',
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: {'To': dest, 'From': from, 'Body': body},
+        body: form,
       );
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final json = jsonDecode(res.body) as Map<String, dynamic>;
