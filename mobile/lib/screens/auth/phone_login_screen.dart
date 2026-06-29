@@ -7,11 +7,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/utils/formatters.dart';
-import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
-import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/phone_number_field.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   final String? returnTo;
@@ -24,21 +22,15 @@ class PhoneLoginScreen extends StatefulWidget {
 
 class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  String _phoneNumber = '';
   bool _isLoading = false;
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    super.dispose();
-  }
 
   Future<void> _handleContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    final phoneNumber = _phoneController.text.trim();
+    final phoneNumber = _phoneNumber;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     final success = await authProvider.sendOtp(phoneNumber);
@@ -102,25 +94,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                AppTextField(
-                  label: 'Numéro de téléphone',
-                  hint: '+225 XX XX XX XX',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: const Icon(Icons.phone),
-                  validator: Validators.phoneNumber,
-                  onChanged: (value) {
-                    // Auto-format phone number
-                    final formatted = Formatters.formatPhoneNumber(value);
-                    if (formatted != value) {
-                      _phoneController.value = TextEditingValue(
-                        text: formatted,
-                        selection: TextSelection.collapsed(
-                          offset: formatted.length,
-                        ),
-                      );
-                    }
-                  },
+                PhoneNumberField(
+                  onChanged: (e164) => _phoneNumber = e164,
                 ),
                 const SizedBox(height: 24),
                 AppButton(

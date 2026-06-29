@@ -20,7 +20,14 @@ void main() {
   });
 
   group('Formatters.formatPhoneNumber', () {
-    test('formats a valid 8-digit Côte d\'Ivoire number', () {
+    test('formats a current 10-digit Côte d\'Ivoire number', () {
+      expect(
+        Formatters.formatPhoneNumber('+2250712345678'),
+        '+225 07 12 34 56 78',
+      );
+    });
+
+    test('still formats a legacy 8-digit Côte d\'Ivoire number', () {
       expect(Formatters.formatPhoneNumber('+22507123456'), '+225 07 12 34 56');
     });
 
