@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import { Button } from '../Button';
+import { PhoneField } from '../PhoneField';
 
 type OtpResult = { ok: boolean; devCode?: string; error?: string };
 type VerifyResult = { ok: boolean; error?: string };
@@ -48,17 +50,12 @@ export function OtpLoginForm({
 
   return (
     <div className="flex flex-col gap-s">
-      <input
-        type="tel"
-        inputMode="tel"
-        placeholder="+225 07 00 00 00 00"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        disabled={otpSent}
-        className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
-      />
+      <PhoneField onChange={setPhone} disabled={otpSent} />
       {!otpSent ? (
-        <Button disabled={busy || phone.length < 8} onClick={send}>
+        <Button
+          disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
+          onClick={send}
+        >
           Envoyer le code
         </Button>
       ) : (

@@ -10,7 +10,7 @@ test('unauthenticated /mon-compte redirects to /connexion', async ({ page }) => 
 
 test('login → see booking → open detail → cancel', async ({ page }) => {
   await page.goto('/connexion');
-  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.locator('input[type=tel]').fill('0700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -34,7 +34,7 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
   page,
 }) => {
   await page.goto('/connexion');
-  await page.locator('input[type=tel]').fill('+2250700000000');
+  await page.locator('input[type=tel]').fill('0700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
