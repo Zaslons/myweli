@@ -36,6 +36,8 @@ services:
           property: connectionString
       - key: WEB_ORIGINS
         value: https://myweli.com,https://www.myweli.com
+      - key: PUBLIC_BASE_URL # this API's own URL — builds the Twilio StatusCallback
+        value: https://api.myweli.com
       # Generated once by Render (kept stable across deploys), never in git:
       - key: JWT_SECRET
         generateValue: true

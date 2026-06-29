@@ -319,12 +319,20 @@ final MessagingProvider messagingProvider = () {
   // WhatsApp is optional (SMS-first launch): until a WhatsApp sender is approved,
   // WhatsApp sends fall back to SMS. SMS stays mandatory in production.
   final waFrom = _envOrNull('TWILIO_WHATSAPP_FROM');
+  // Per-message delivery-status callback → the (secret-guarded) status webhook,
+  // which advances the outbox. Only attached when both the public base URL and
+  // the webhook secret are set; otherwise omitted (no tracking).
+  final publicBase = _envOrNull('PUBLIC_BASE_URL');
+  final statusCallback = (publicBase != null && messagingWebhookSecret != null)
+      ? '$publicBase/webhooks/messaging/status?secret=$messagingWebhookSecret'
+      : null;
   if (sid != null && token != null && smsFrom != null) {
     return TwilioMessagingProvider(
       accountSid: sid,
       authToken: token,
       smsFrom: smsFrom,
       whatsAppFrom: waFrom,
+      statusCallback: statusCallback,
     );
   }
   if (_isProd) {
