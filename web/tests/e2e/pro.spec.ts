@@ -10,7 +10,7 @@ test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
 
 test('provider login → Aujourd’hui shows today’s bookings', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -27,7 +27,7 @@ test('Rendez-vous mirrors the app: Calendrier + Liste show today’s booking', a
   page,
 }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -51,7 +51,7 @@ test('pro detail: open a pending booking → Accepter → Confirmé', async ({
   page,
 }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -72,7 +72,7 @@ test('pro detail: open a pending booking → Accepter → Confirmé', async ({
 
 test('catalogue: list services + add one', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -93,7 +93,7 @@ test('catalogue: list services + add one', async ({ page }) => {
 
 test('catalogue Équipe: list members + add one', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -113,7 +113,7 @@ test('catalogue Équipe: list members + add one', async ({ page }) => {
 
 test('disponibilités: edit hours + save', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -133,7 +133,7 @@ test('disponibilités: edit hours + save', async ({ page }) => {
 
 test('abonnement shows trial status + revenue on the home', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -156,7 +156,7 @@ test('abonnement shows trial status + revenue on the home', async ({ page }) => 
 
 test('profil: edit + save; acompte: enable + save', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -183,7 +183,7 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
   page,
 }) => {
   await page.goto('/pro/connexion');
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();

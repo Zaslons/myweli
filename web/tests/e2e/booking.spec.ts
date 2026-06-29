@@ -21,7 +21,7 @@ test('web booking funnel: service → slot → OTP → confirmed (no install)', 
   await page.getByRole('button', { name: 'Continuer' }).click();
 
   // Confirm + OTP (stub devCode 123456)
-  await page.locator('input[type=tel]').fill('0700000000');
+  await page.locator('input[type=tel]').fill('+2250700000000');
   await page.getByRole('button', { name: 'Envoyer le code' }).click();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Confirmer la réservation' }).click();

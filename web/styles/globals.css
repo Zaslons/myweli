@@ -11,3 +11,46 @@ body {
   color: theme('colors.textPrimary');
   -webkit-font-smoothing: antialiased;
 }
+
+/* Phone field — react-phone-number-input themed to the app tokens.
+   The country flag/dropdown sits in its own bordered box; the number input
+   matches the app's other text inputs. */
+.myweli-phone {
+  display: flex;
+  align-items: stretch;
+  gap: theme('spacing.s');
+}
+.myweli-phone .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  gap: theme('spacing.xs');
+  padding: 0 theme('spacing.s');
+  border: 1px solid theme('colors.border');
+  border-radius: theme('borderRadius.lg');
+  background-color: theme('colors.surface');
+}
+.myweli-phone .PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+  padding: theme('spacing.s') theme('spacing.m');
+  border: 1px solid theme('colors.border');
+  border-radius: theme('borderRadius.lg');
+  background-color: theme('colors.surface');
+  color: theme('colors.textPrimary');
+}
+.myweli-phone .PhoneInputInput::placeholder {
+  color: theme('colors.textTertiary');
+}
+.myweli-phone .PhoneInputInput:focus,
+.myweli-phone .PhoneInputCountrySelect:focus + .PhoneInputCountryIcon {
+  outline: 2px solid theme('colors.primary');
+  outline-offset: 1px;
+}
+.myweli-phone .PhoneInputCountrySelectArrow {
+  color: theme('colors.textSecondary');
+  opacity: 0.7;
+}
+.myweli-phone[aria-disabled='true'],
+.myweli-phone .PhoneInputInput:disabled {
+  opacity: 0.6;
+}
