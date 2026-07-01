@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/theme/colors.dart';
-import '../../core/theme/text_styles.dart';
+import 'package:lottie/lottie.dart';
 
+import '../../core/theme/colors.dart';
+
+/// App-open screen: the MyWeli open animation (`loader_v2`) over the brand-black
+/// background, continuing the native splash while the app initialises, then
+/// routing on. Design: docs/design/branding-integration.md.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -10,92 +14,30 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
-
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
-      ),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-      ),
-    );
-
-    _controller.forward();
     _checkAuth();
   }
 
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-
-    // Always go to home - users can browse without signing in
+    // Always go to home — users can browse without signing in.
     context.go('/home');
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // Brand black — continues the native splash into the open animation.
+      backgroundColor: AppColors.primary,
       body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo placeholder - replace with actual logo
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Icon(
-                    Icons.spa,
-                    size: 60,
-                    color: AppColors.secondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Myweli',
-                  style: AppTextStyles.displaySmall.copyWith(
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
-              ],
-            ),
-          ),
+        child: Lottie.asset(
+          'assets/lottie/open/myweli_loader_mixed_white.json',
+          width: 220,
+          repeat: true,
         ),
       ),
     );

@@ -65,6 +65,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
+  # Generates the native launch screen (app-open) from a logo + brand color.
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
@@ -79,4 +81,18 @@ flutter:
 
   # Fonts will use system defaults (SF Pro on iOS, Roboto on Android)
   # To add custom Inter font later, download from https://fonts.google.com/specimen/Inter
+
+# Native launch screen (app-open) — client brand: white mark on black.
+# Regenerate: dart run flutter_native_splash:create
+# Design: docs/design/branding-integration.md.
+flutter_native_splash:
+  color: "#000000"
+  image: assets/splash/splash_logo.png
+  fullscreen: true
+  # Native app splash only — the admin web keeps its own branded template (P2).
+  web: false
+  android_12:
+    image: assets/splash/splash_logo_android12.png
+    color: "#000000"
+    icon_background_color: "#000000"
 
