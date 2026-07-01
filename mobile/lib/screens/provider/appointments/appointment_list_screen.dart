@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -143,7 +144,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
             controller: _mainTabController,
             children: [
               // Calendar View
-              RefreshIndicator(
+              BrandRefresh(
                 onRefresh: () async {
                   if (authProvider.provider != null) {
                     await appointmentProvider
@@ -183,7 +184,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                     ],
                   ),
                   Expanded(
-                    child: RefreshIndicator(
+                    child: BrandRefresh(
                       onRefresh: () async {
                         _loadAppointmentsForListTab(_listTabController.index);
                       },

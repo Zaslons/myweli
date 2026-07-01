@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -97,7 +98,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
             );
           }
 
-          return RefreshIndicator(
+          return BrandRefresh(
             onRefresh: () async {
               if (authProvider.provider != null) {
                 await serviceProvider

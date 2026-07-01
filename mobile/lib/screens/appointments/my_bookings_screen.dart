@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -147,7 +148,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       );
     }
 
-    return RefreshIndicator(
+    return BrandRefresh(
       onRefresh: () async {
         final provider =
             Provider.of<AppointmentProvider>(context, listen: false);
@@ -248,7 +249,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       }
     }
 
-    return RefreshIndicator(
+    return BrandRefresh(
       onRefresh: () async {
         final provider =
             Provider.of<AppointmentProvider>(context, listen: false);
