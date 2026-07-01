@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -71,15 +72,15 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 32),
-                // Icon
-                const Icon(
-                  Icons.phone_android,
-                  size: 120,
-                  color: AppColors.primary,
+                // Brand lockup (mark + MyWeli wordmark) — black on the light bg.
+                SvgPicture.asset(
+                  'assets/brand/myweli_lockup_vertical_black.svg',
+                  height: 120,
+                  semanticsLabel: 'MyWeli',
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  'Bienvenue sur Myweli',
+                  'Bienvenue',
                   style: AppTextStyles.headlineLarge.copyWith(
                     color: AppColors.textPrimary,
                   ),
