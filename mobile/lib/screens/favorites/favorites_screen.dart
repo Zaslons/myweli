@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -111,7 +112,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           }
 
           // List of favorites
-          return RefreshIndicator(
+          return BrandRefresh(
             onRefresh: () async {
               final userId = authProvider.user!.id;
               await Future.wait([

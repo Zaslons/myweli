@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -80,7 +81,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   'Vos confirmations de rendez-vous et nouveautés apparaîtront ici.',
             );
           }
-          return RefreshIndicator(
+          return BrandRefresh(
             onRefresh: provider.load,
             child: ListView.separated(
               padding: const EdgeInsets.all(AppTheme.spacingM),

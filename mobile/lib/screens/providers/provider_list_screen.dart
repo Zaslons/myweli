@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -234,7 +235,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
 
     final providers = provider.providers;
     if (_isGrid) {
-      return RefreshIndicator(
+      return BrandRefresh(
         onRefresh: () => provider.loadProviders(category: widget.category),
         child: GridView.builder(
           padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -257,7 +258,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
       );
     }
 
-    return RefreshIndicator(
+    return BrandRefresh(
       onRefresh: () => provider.loadProviders(category: widget.category),
       child: ListView.builder(
         padding: const EdgeInsets.all(AppTheme.spacingM),

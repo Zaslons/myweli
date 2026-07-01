@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -87,7 +88,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             );
           }
 
-          return RefreshIndicator(
+          return BrandRefresh(
             onRefresh: () async {
               if (authProvider.provider != null) {
                 await reviewsProvider.loadReviews(_resolvedProviderId(context));
