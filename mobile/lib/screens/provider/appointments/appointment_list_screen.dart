@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -133,7 +134,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
 
           if (appointmentProvider.isLoading &&
               appointmentProvider.appointments.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final appointments = appointmentProvider.appointments;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -160,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.all(AppTheme.spacingL),
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(child: LoadingIndicator()),
                       ),
                     );
                   }
@@ -380,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (context, provider, _) {
                   if (provider.isLoading && provider.providers.isEmpty) {
                     return const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(child: LoadingIndicator()),
                     );
                   }
 

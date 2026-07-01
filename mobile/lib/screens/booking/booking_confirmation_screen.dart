@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/di/dependency_injection.dart';
@@ -200,7 +201,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         builder: (context, provider, _) {
           final p = provider.selectedProvider;
           if (p == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final selectedServices = p.services

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -263,7 +264,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                             const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: BrandLoader(size: 20, fast: true),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -374,8 +375,7 @@ class _ArtistCard extends StatelessWidget {
                             width: 60,
                             height: 60,
                             color: AppColors.surface,
-                            child: const Center(
-                                child: CircularProgressIndicator()),
+                            child: const Center(child: LoadingIndicator()),
                           ),
                           errorWidget: (context, url, error) => Container(
                             width: 60,

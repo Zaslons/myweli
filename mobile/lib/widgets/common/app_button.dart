@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/colors.dart';
+import 'brand_loader.dart';
 
 enum AppButtonType { primary, secondary, text }
 
@@ -29,11 +30,7 @@ class AppButton extends StatelessWidget {
       return TextButton(
         onPressed: isEnabled ? onPressed : null,
         child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+            ? const BrandLoader(size: 20, fast: true)
             : Row(
                 mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -56,11 +53,7 @@ class AppButton extends StatelessWidget {
               isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
         ),
         child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+            ? const BrandLoader(size: 20, fast: true)
             : Row(
                 mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -85,14 +78,7 @@ class AppButton extends StatelessWidget {
             isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
       ),
       child: isLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-              ),
-            )
+          ? const BrandLoader(size: 20, fast: true, onDark: true)
           : Row(
               mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,

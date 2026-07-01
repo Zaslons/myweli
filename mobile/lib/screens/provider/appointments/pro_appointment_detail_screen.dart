@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/di/dependency_injection.dart';
@@ -295,7 +296,7 @@ class _DepositProofState extends State<_DepositProof> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const SizedBox(
             height: 140,
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: LoadingIndicator()),
           );
         }
         final res = snapshot.data;

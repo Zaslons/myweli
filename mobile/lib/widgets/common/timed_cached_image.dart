@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 
 import '../../core/theme/colors.dart';
 import '../../core/utils/timeout_cache_manager.dart';
@@ -136,7 +137,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
         child: const SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: BrandLoader(size: 20, fast: true),
         ),
       ),
       errorWidget: (context, url, error) {

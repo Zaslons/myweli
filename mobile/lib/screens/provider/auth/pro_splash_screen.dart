@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/colors.dart';
@@ -108,9 +109,7 @@ class _ProSplashScreenState extends State<ProSplashScreen>
                   ),
                 ),
                 const SizedBox(height: 32),
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
+                const LoadingIndicator(),
               ],
             ),
           ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -51,7 +53,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
           if (availabilityProvider.isLoading &&
               availabilityProvider.availability == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final availability = availabilityProvider.availability;
@@ -569,7 +571,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: BrandLoader(size: 20, fast: true),
                         )
                       : const Text('Enregistrer'),
                 ),

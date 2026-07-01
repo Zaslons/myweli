@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -381,7 +382,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
         builder: (context, providerProvider, appointmentProvider, _) {
           if (providerProvider.isLoading &&
               providerProvider.selectedProvider == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final p = providerProvider.selectedProvider;
@@ -735,8 +736,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             if (_isLoadingSlots)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
-                                child:
-                                    Center(child: CircularProgressIndicator()),
+                                child: Center(child: LoadingIndicator()),
                               )
                             else if (_availableSlotsForSelectedDate.isEmpty)
                               Padding(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -251,7 +252,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                       child: SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: BrandLoader(size: 20, fast: true),
                       ),
                     ),
                   ),
