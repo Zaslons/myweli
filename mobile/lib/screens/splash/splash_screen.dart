@@ -31,11 +31,11 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Brand black — continues the native splash into the open animation.
-      backgroundColor: AppColors.primary,
+      // Light — matches the native splash (#FAFAFA) and flows into the app.
+      backgroundColor: AppColors.surface,
       body: Center(
         child: Lottie.asset(
-          'assets/lottie/open/myweli_loader_mixed_white.json',
+          'assets/lottie/open/myweli_loader_mixed.json',
           width: 220,
           repeat: true,
         ),
