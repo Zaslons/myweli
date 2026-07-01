@@ -35,6 +35,8 @@ dependencies:
   # UI Components
   cached_network_image: ^3.3.1
   flutter_svg: ^2.0.9
+  # Brand loader animations (Lottie): in-app loading (mark_loader) + app-open (loader_v2).
+  lottie: ^3.1.2
   intl: ^0.20.2
   # International phone entry: country-code picker (default Côte d'Ivoire) + E.164.
   intl_phone_field: ^3.2.0
@@ -71,6 +73,9 @@ flutter:
     - assets/images/
     - assets/images/providers/
     - assets/images/stories/
+    - assets/brand/
+    - assets/lottie/open/
+    - assets/lottie/loader/
 
   # Fonts will use system defaults (SF Pro on iOS, Roboto on Android)
   # To add custom Inter font later, download from https://fonts.google.com/specimen/Inter

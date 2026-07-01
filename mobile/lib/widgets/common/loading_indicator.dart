@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/colors.dart';
 
+import 'brand_loader.dart';
+
+/// App-wide loading indicator — renders the MyWeli brand loader (`mark_loader`)
+/// so every loading / refresh state is on-brand. Keeps the original API: [size]
+/// sets the box; a light [color] hint selects the white cut (for dark
+/// backgrounds). Design: docs/design/branding-integration.md.
 class LoadingIndicator extends StatelessWidget {
   final Color? color;
   final double? size;
@@ -13,17 +18,7 @@ class LoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        width: size ?? 40,
-        height: size ?? 40,
-        child: CircularProgressIndicator(
-          strokeWidth: 3,
-          valueColor: AlwaysStoppedAnimation<Color>(
-            color ?? AppColors.primary,
-          ),
-        ),
-      ),
-    );
+    final onDark = color != null && color!.computeLuminance() > 0.5;
+    return BrandLoader(size: size ?? 40, onDark: onDark);
   }
 }
