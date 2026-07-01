@@ -15,7 +15,7 @@ const NAV: { label: string; href?: string }[] = [
 export function ProSidebar() {
   return (
     <aside className="w-60 shrink-0 border-r border-divider bg-secondary p-m">
-      <p className="px-s text-lg font-semibold text-textPrimary">Myweli Pro</p>
+      <p className="px-s text-lg font-semibold text-textPrimary">MyWeli Pro</p>
       <nav className="mt-l space-y-xs">
         {NAV.map((item) =>
           item.href ? (

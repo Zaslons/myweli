@@ -8,16 +8,16 @@ export const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 /// Brand entity — emitted site-wide so search + AI consistently map
-/// "réservation beauté en Côte d'Ivoire" → Myweli.
+/// "réservation beauté en Côte d'Ivoire" → MyWeli.
 export function organizationJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'Myweli',
+    name: 'MyWeli',
     url: siteUrl,
-    logo: `${siteUrl}/logo.svg`,
+    logo: `${siteUrl}/android-chrome-512.png`,
     description:
-      'Myweli — réservation beauté & bien-être en Côte d’Ivoire : ' +
+      'MyWeli — réservation beauté & bien-être en Côte d’Ivoire : ' +
       'coiffure, barbier, onglerie, spa. Réservez votre salon en ligne, 24/7.',
     areaServed: { '@type': 'Country', name: "Côte d'Ivoire" },
     sameAs: [] as string[],
@@ -30,12 +30,12 @@ export function jsonLdScript(data: unknown): string {
 }
 
 /// WebSite entity + SearchAction (sitelinks search box) → /recherche. Emitted on
-/// the home so engines can wire a Myweli search box.
+/// the home so engines can wire a MyWeli search box.
 export function websiteJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Myweli',
+    name: 'MyWeli',
     url: siteUrl,
     potentialAction: {
       '@type': 'SearchAction',

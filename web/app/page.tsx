@@ -12,7 +12,7 @@ import { faqJsonLd, websiteJsonLd } from '../lib/seo/jsonld';
 export const revalidate = 3600; // ISR — featured refreshes hourly
 
 export const metadata: Metadata = {
-  title: 'Myweli — réservez beauté & bien-être à Abidjan',
+  title: 'MyWeli — réservez beauté & bien-être à Abidjan',
   description:
     'Réservez coiffure, tresses, barbier, onglerie et spa près de chez vous en ' +
     'Côte d’Ivoire. En ligne, 24/7, sans appel — l’acompte se règle au salon.',
@@ -39,16 +39,16 @@ const FAQ = [
       'en ligne en quelques secondes — 24h/24, sans appel.',
   },
   {
-    question: 'Faut-il payer en ligne sur Myweli ?',
+    question: 'Faut-il payer en ligne sur MyWeli ?',
     answer:
       'Non. Un éventuel acompte se règle directement au salon (Wave / Mobile ' +
-      'Money). Myweli ne prélève aucun paiement.',
+      'Money). MyWeli ne prélève aucun paiement.',
   },
   {
     question: 'Puis-je gérer mes rendez-vous ?',
     answer:
       'Oui — depuis votre compte sur le web (Mon compte) ou via l’application ' +
-      'Myweli, où vous retrouvez et annulez vos réservations.',
+      'MyWeli, où vous retrouvez et annulez vos réservations.',
   },
 ];
 
@@ -135,7 +135,7 @@ export default async function HomePage() {
             ['Réservation en ligne', '24h/24, sans appel ni attente.'],
             [
               'Acompte direct au salon',
-              'Wave / Mobile Money — Myweli ne prélève rien.',
+              'Wave / Mobile Money — MyWeli ne prélève rien.',
             ],
             ['Confirmations WhatsApp', 'Rappels avant votre rendez-vous.'],
           ].map(([title, body]) => (
@@ -152,7 +152,7 @@ export default async function HomePage() {
         <section className="mt-xl flex flex-col items-start justify-between gap-m rounded-xl border border-border bg-surfaceVariant p-l sm:flex-row sm:items-center">
           <div>
             <p className="text-lg font-semibold text-textPrimary">
-              L’app Myweli
+              L’app MyWeli
             </p>
             <p className="mt-xs text-sm text-textSecondary">
               Réservez plus vite et gérez vos rendez-vous depuis votre poche.

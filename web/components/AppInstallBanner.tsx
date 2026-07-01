@@ -27,7 +27,7 @@ export function AppInstallBanner() {
 
   return (
     <div className="flex items-center justify-between gap-m bg-primary px-m py-s text-secondary">
-      <p className="text-sm">Réservez plus vite — téléchargez l’app Myweli.</p>
+      <p className="text-sm">Réservez plus vite — téléchargez l’app MyWeli.</p>
       <div className="flex items-center gap-s">
         <a
           href={href}
