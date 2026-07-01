@@ -27,6 +27,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Brand & launch-asset integration (logo · loader · icons · splash) | [branding-integration.md](branding-integration.md) | **Approved** — phased (P1 web · P2 admin · P3 app assets+loader · P4 icon+splash · P5 flavors+pro) |
 | Admin / ops console — backend (KYC · moderation · mgmt · disputes · analytics) | [admin-console.md](admin-console.md) | Slices 1–3 built |
 | Admin / ops console — UI (Flutter Web) | [admin-console-ui.md](admin-console-ui.md) | Complete — dashboard · KYC · moderation · mgmt + support views · disputes · audit log (Journal) |
 | Messaging & notifications (WhatsApp + SMS, Twilio) | [messaging-notifications.md](messaging-notifications.md) | Built (PR A foundation + OTP · PR B events + reminder scheduler); real BSP creds = ops |
