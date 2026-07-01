@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -98,7 +99,7 @@ class _EarningsScreenState extends State<EarningsScreen>
           }
 
           if (earningsProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final earnings = earningsProvider.earnings;

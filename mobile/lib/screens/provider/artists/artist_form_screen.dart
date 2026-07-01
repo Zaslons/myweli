@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -224,8 +225,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                                   child: SizedBox(
                                     width: 24,
                                     height: 24,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 3, color: Colors.white),
+                                    child: BrandLoader(
+                                        size: 20, fast: true, onDark: true),
                                   ),
                                 ),
                               ),

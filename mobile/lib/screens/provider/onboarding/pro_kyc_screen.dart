@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
@@ -332,7 +333,7 @@ class _DocumentTile extends StatelessWidget {
               child: SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: BrandLoader(size: 20, fast: true),
               ),
             )
           else if (!readOnly) ...[

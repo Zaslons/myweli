@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -156,8 +157,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   child: SizedBox(
                                     width: 26,
                                     height: 26,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 3, color: Colors.white),
+                                    child: BrandLoader(
+                                        size: 20, fast: true, onDark: true),
                                   ),
                                 ),
                               ),

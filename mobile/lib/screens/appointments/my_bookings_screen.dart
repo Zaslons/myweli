@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -135,7 +136,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   Widget _buildAppointmentsList(
       List<Appointment> appointments, bool isLoading) {
     if (isLoading && appointments.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: LoadingIndicator());
     }
 
     if (appointments.isEmpty) {
@@ -171,7 +172,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   Widget _buildHistory(List<Appointment> visits, bool isLoading) {
     if (isLoading && visits.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: LoadingIndicator());
     }
 
     if (visits.isEmpty) {

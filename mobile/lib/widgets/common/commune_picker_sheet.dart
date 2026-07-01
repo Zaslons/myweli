@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 
 import '../../core/constants/communes.dart';
 import '../../core/theme/app_theme.dart';
@@ -162,7 +163,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: BrandLoader(size: 20, fast: true),
                           )
                         : const Icon(
                             Icons.my_location,

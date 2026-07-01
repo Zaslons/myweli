@@ -15,6 +15,10 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  // Hold the splash long enough to show the open animation (the `loader_v2`
+  // intro + redraw cycle runs ~5 s). Tune here.
+  static const _minSplashDuration = Duration(milliseconds: 3800);
+
   @override
   void initState() {
     super.initState();
@@ -22,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(_minSplashDuration);
     if (!mounted) return;
     // Always go to home — users can browse without signing in.
     context.go('/home');

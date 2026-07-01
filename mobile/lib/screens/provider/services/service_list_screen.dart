@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -55,7 +56,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           }
 
           if (serviceProvider.isLoading && serviceProvider.services.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final services = serviceProvider.services;
