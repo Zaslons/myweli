@@ -58,7 +58,7 @@ dependencies:
   # Icons
   cupertino_icons: ^1.0.6
   url_launcher: ^6.3.2
-  add_2_calendar: ^3.0.1
+  add_2_calendar: ^3.1.1
 
 dev_dependencies:
   flutter_test:
