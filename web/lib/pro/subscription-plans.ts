@@ -23,13 +23,13 @@ export const PRO_ENTITLEMENTS = [
   'Règles d’acompte & protection no-show',
   'Photos & galerie avant/après',
   'Statistiques & gestion des avis',
-  'Sans la marque Myweli · support prioritaire',
+  'Sans la marque MyWeli · support prioritaire',
 ];
 
 export const ROI_LINE = 'Un seul rendez-vous manqué évité paie le mois.';
 
 export const CONTACT_MESSAGE =
-  'Bonjour Myweli, je souhaite passer à l’offre Pro.';
+  'Bonjour MyWeli, je souhaite passer à l’offre Pro.';
 
 export type Subscription = {
   tier: string;

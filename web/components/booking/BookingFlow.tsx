@@ -124,7 +124,7 @@ export function BookingFlow({ provider }: { provider: Provider }) {
               {provider.depositMobileMoneyNumber
                 ? ` (${provider.depositMobileMoneyOperator ?? 'Mobile Money'} : ${provider.depositMobileMoneyNumber})`
                 : ''}
-              , puis joignez la capture dans l’app. Myweli ne prélève rien.
+              , puis joignez la capture dans l’app. MyWeli ne prélève rien.
             </p>
           </div>
         ) : null}

@@ -29,7 +29,7 @@ function buildFaq(l: Landing): { question: string; answer: string }[] {
     {
       question: `Où trouver un service de ${cat} à ${l.commune} ?`,
       answer:
-        `Découvrez les salons de ${cat} à ${l.commune} sur Myweli, avec ` +
+        `Découvrez les salons de ${cat} à ${l.commune} sur MyWeli, avec ` +
         `tarifs, avis et réservation en ligne.`,
     },
     {
@@ -55,7 +55,7 @@ export async function landingMetadata(
   const title = `${l.label} à ${l.commune} — réserver en ligne`;
   const description =
     `Trouvez et réservez un salon de ${l.label.toLowerCase()} à ${l.commune}, ` +
-    'Côte d’Ivoire. Tarifs, avis et disponibilités sur Myweli.';
+    'Côte d’Ivoire. Tarifs, avis et disponibilités sur MyWeli.';
   const url = `${siteUrl}/${slug}`;
   return {
     title,

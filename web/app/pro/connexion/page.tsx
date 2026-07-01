@@ -19,7 +19,7 @@ export default function ProConnexionPage() {
         <ProConnexionClient />
       </div>
       <p className="mt-l text-sm text-textTertiary">
-        Pas encore inscrit&nbsp;? Créez votre salon dans l’app Myweli Pro.
+        Pas encore inscrit&nbsp;? Créez votre salon dans l’app MyWeli Pro.
       </p>
       <div className="mt-s">
         <OpenInAppButton />

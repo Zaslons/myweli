@@ -13,7 +13,7 @@ export function ProConnexionClient() {
       verifyCode={verifyOtpPro}
       verifyErrorMessage={(e) =>
         e === 'provider_not_found'
-          ? 'Compte introuvable. Inscrivez-vous dans l’app Myweli Pro.'
+          ? 'Compte introuvable. Inscrivez-vous dans l’app MyWeli Pro.'
           : 'Code incorrect ou expiré.'
       }
     />

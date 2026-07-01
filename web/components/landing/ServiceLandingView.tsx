@@ -28,7 +28,7 @@ function buildFaq(l: ServiceLanding): { question: string; answer: string }[] {
     {
       question: `Où faire ${s} à ${l.commune} ?`,
       answer:
-        `Découvrez les salons proposant ${s} à ${l.commune} sur Myweli, ` +
+        `Découvrez les salons proposant ${s} à ${l.commune} sur MyWeli, ` +
         `avec tarifs, avis et réservation en ligne.`,
     },
     {
@@ -57,7 +57,7 @@ export async function serviceLandingMetadata(
   const title = `${l.label} à ${l.commune} — réserver en ligne`;
   const description =
     `Réservez ${l.label.toLowerCase()} à ${l.commune}, Côte d’Ivoire. ` +
-    'Salons, tarifs et avis sur Myweli.';
+    'Salons, tarifs et avis sur MyWeli.';
   const url = `${siteUrl}/${slug}`;
   return {
     title,

@@ -49,7 +49,7 @@ function buildFaq(p: Provider): { question: string; answer: string }[] {
     {
       question: `Comment réserver chez ${p.name} ?`,
       answer:
-        `Réservez en ligne sur Myweli en quelques secondes : choisissez un ` +
+        `Réservez en ligne sur MyWeli en quelques secondes : choisissez un ` +
         `service, un créneau, puis confirmez. Disponible 24/7, sans appel.`,
     },
     {
@@ -73,7 +73,7 @@ function buildFaq(p: Provider): { question: string; answer: string }[] {
     question: 'Faut-il payer un acompte ?',
     answer: p.depositRequired
       ? `Oui, ce salon demande un acompte pour confirmer, payé directement au ` +
-        `salon via Mobile Money — Myweli ne prélève rien.`
+        `salon via Mobile Money — MyWeli ne prélève rien.`
       : `Non, aucun acompte n’est requis pour réserver chez ${p.name}.`,
   });
   return items;
