@@ -36,12 +36,12 @@ android {
         create("consumer") {
             dimension = "app"
             applicationId = "com.myweli.app"
-            resValue("string", "app_name", "Myweli")
+            resValue("string", "app_name", "MyWeli")
         }
         create("pro") {
             dimension = "app"
             applicationId = "com.myweli.pro"
-            resValue("string", "app_name", "Myweli Pro")
+            resValue("string", "app_name", "MyWeli Pro")
         }
     }
 
