@@ -3,17 +3,17 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
-import 'package:myweli_backend/src/messaging/messaging_service.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
-/// `POST /auth/otp/request` — dispatch a one-time code for a phone number.
-/// Dormant at launch: `AUTH_METHODS` without `phone` disables this route
-/// (SMS to CI is ~$0.49/message until Termii unlocks — see
-/// docs/design/auth-social-email.md).
+/// `POST /auth/email/otp/request` — dispatch a one-time code to an email.
+/// The response is identical whether or not the address maps to an account
+/// (no enumeration — threat model T32). Design:
+/// docs/design/auth-social-email.md §5, §7–8.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
-  if (!context.read<AuthMethods>().contains('phone')) {
+  if (!context.read<AuthMethods>().contains('email')) {
     return jsonError(HttpStatus.notFound, 'auth_method_disabled');
   }
 
@@ -24,20 +24,24 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  final phone = (body['phoneNumber'] as String?)?.trim() ?? '';
-  if (!isValidE164(phone)) {
-    return jsonError(HttpStatus.badRequest, 'invalid_phone');
+  final email = (body['email'] as String?)?.trim() ?? '';
+  if (!isValidEmail(email)) {
+    return jsonError(HttpStatus.badRequest, 'invalid_email');
   }
 
-  final result = await context.read<AuthRepository>().requestOtp(phone);
+  final result = await context.read<AuthRepository>().requestEmailOtp(email);
   if (!result.ok) {
     return jsonError(HttpStatus.tooManyRequests, result.error!);
   }
 
-  // Deliver the code via SMS (best-effort; never logs the code). In dev the
-  // LogProvider no-ops and `devCode` is echoed below.
+  // Deliver the code (best-effort; never logs it). In dev the LogProvider
+  // no-ops and `devCode` is echoed below.
   if (result.code != null) {
-    await context.read<MessagingService>().sendOtp(phone, result.code!);
+    await context.read<EmailProvider>().send(
+      to: email,
+      subject: otpEmailSubject,
+      text: renderOtpEmailText(result.code!),
+    );
   }
 
   return Response.json(

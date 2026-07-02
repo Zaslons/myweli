@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-AUTH-001/002 (account + sign-in). Re-platforms login off SMS-OTP. |
 | **Phase** | Accounts / launch — unblock a $0, no-business sign-in for Côte d'Ivoire |
-| **Status** | **Approved** — 6 decisions locked (2026-06-30); build phased. Login mockup under review. |
+| **Status** | **Building** — 6 decisions locked (2026-06-30); **Phase 1 (backend) built 2026-07-02** (§17); web → mobile → pro next. |
 | **Decision** | **Google Sign-In** (primary) + **Apple Sign-In** (iOS **+ web**) + **Email OTP** (fallback). Phone-OTP login **deactivated** at launch (code dormant). Phone becomes **contact info**, verified later via Termii. |
 | **Supersedes (for launch)** | Phone-OTP as the *primary* login — kept **dormant** (code + Termii rails stay) for post-registration phone verification |
 | **Cross-refs** | [messaging-termii.md](messaging-termii.md) · memory `sms-channel-cost-decision` · [openapi.yaml](../api/openapi.yaml) · BACKEND.md §3 (auth) |
@@ -325,3 +325,14 @@ Build proceeds now with **labelled placeholders**; real files are a drop-in late
 | **Open animation** | **Lottie `.json`** (~1–2 s, < 200 KB) + optional MP4/GIF fallback | plays in-app right after the static splash; Flutter `lottie` + web `lottie-react` | all (web optional) |
 
 Defaults until you specify: splash background **white `#FAFAFA`**; logo + favicon shared across surfaces; consumer/pro differ only on icon + splash.
+
+## 17. Build notes — Phase 1 (backend, built 2026-07-02)
+
+Deltas from the plan (all in the spirit of "match the existing pattern"):
+- **`SocialAuthService` folded into `AuthRepository.loginWithSocial`** — find-or-create/link is storage logic, exactly like `verifyOtp`'s find-or-create; routes stay thin (parse → verify via the injected verifier → delegate → `authSessionResponse`). The verifiers (`GoogleIdTokenVerifier`/`AppleIdTokenVerifier` over a `JwksCache`) are the standalone testable core.
+- **`authSessionResponse` helper in `responses.dart`** — one place shapes the nested `{tokens:{...},user}` AuthSession (the drift that broke the web BFF once can't recur per-route).
+- **`users.phone_number` UNIQUE dropped** (migration `0022`) — phone is contact data, not identity; two accounts may share a contact number. The dormant phone-OTP path is `LIMIT 1` + disabled via `AUTH_METHODS`. Existing users get `phone_verified = true` (they proved it via SMS-OTP).
+- **`AUTH_METHODS` fail-fast is opt-in**: prod boot only *requires* per-method config (`GOOGLE_CLIENT_IDS` etc.) when `AUTH_METHODS` is set explicitly — an unset legacy deploy keeps booting, with the new endpoints failing closed (503 `auth_not_configured`). Zero-risk merge; activation = set the env vars in Render.
+- **Apple `fullName`** accepted as a display-name-only hint (never for linking); nonce accepted raw or SHA-256 (iOS convention).
+- Threat model **T31–T34** added (BACKEND.md §7); auto-sync (T26) now keys on **`phone_verified`**.
+- Tests: **+31** (verifier w/ real RSA keys + mocked JWKS incl. rotation; link rules incl. the T33 negative; email-OTP budgets/lockout/expiry; route handlers + AUTH_METHODS gate) → **285 backend tests**.

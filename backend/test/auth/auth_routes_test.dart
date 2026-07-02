@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/messaging/messaging_outbox_repository.dart';
@@ -40,6 +41,9 @@ void main() {
     final context = _MockRequestContext();
     when(() => context.request).thenReturn(request);
     when(() => context.read<AuthRepository>()).thenReturn(repo);
+    when(
+      () => context.read<AuthMethods>(),
+    ).thenReturn(const AuthMethods(AuthMethods.defaults));
     when(() => context.read<TokenService>()).thenReturn(ts);
     when(() => context.read<MessagingService>()).thenReturn(messaging);
     return context;

@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/responses.dart';
+import 'package:myweli_backend/src/validators.dart';
 
 /// `/me` — the signed-in user's own account. Protected: the principal comes
 /// from the access token, so a caller can only ever read/mutate themselves
@@ -32,11 +33,18 @@ Future<Response> onRequest(RequestContext context) async {
       } catch (_) {
         return jsonError(HttpStatus.badRequest, 'invalid_body');
       }
+      // Contact phone (auth overhaul: phone is a contact attribute, not the
+      // identity — unverified until proven via SMS later). '' clears it.
+      final phone = body['phone'] as String?;
+      if (phone != null && phone.isNotEmpty && !isValidE164(phone)) {
+        return jsonError(HttpStatus.badRequest, 'invalid_phone');
+      }
       final updated = await repo.updateUser(
         principal.userId,
         name: body['name'] as String?,
         email: body['email'] as String?,
         avatarUrl: body['avatarUrl'] as String?,
+        phone: phone,
       );
       if (updated == null) {
         return jsonError(HttpStatus.notFound, 'not_found');

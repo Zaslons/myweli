@@ -484,6 +484,41 @@ CREATE TABLE notification_preferences (
       'CREATE UNIQUE INDEX IF NOT EXISTS providers_slug_idx ON providers(slug)',
     ],
   ),
+  (
+    id: '0022_auth_social_email',
+    statements: [
+      // Auth overhaul (docs/design/auth-social-email.md): identity = verified
+      // email (Google/Apple/email-OTP); phone becomes an optional, initially
+      // unverified contact attribute (verified later via SMS/Termii).
+      'ALTER TABLE users ALTER COLUMN phone_number DROP NOT NULL',
+      // Phone is contact data now, not an identity → uniqueness is no longer
+      // an invariant (the dormant phone-OTP path is disabled via AUTH_METHODS).
+      'ALTER TABLE users DROP CONSTRAINT IF EXISTS users_phone_number_key',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified boolean NOT NULL DEFAULT false',
+      // Existing accounts proved their number via SMS-OTP.
+      'UPDATE users SET phone_verified = true WHERE phone_number IS NOT NULL',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub text',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_sub text',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider text',
+      'CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_key '
+          'ON users (lower(email)) WHERE email IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_key '
+          'ON users (google_sub) WHERE google_sub IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS users_apple_sub_key '
+          'ON users (apple_sub) WHERE apple_sub IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS users_phone_number_idx '
+          'ON users (phone_number) WHERE phone_number IS NOT NULL',
+      '''
+CREATE TABLE IF NOT EXISTS email_otp_codes (
+  email        text PRIMARY KEY,
+  code_hash    text NOT NULL,
+  expires_at   timestamptz NOT NULL,
+  attempts_left int NOT NULL,
+  resends_left  int NOT NULL
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

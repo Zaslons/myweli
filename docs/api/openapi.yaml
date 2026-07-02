@@ -43,10 +43,12 @@ paths:
   /auth/otp/request:
     post:
       tags: [auth]
-      summary: Request a one-time code for a phone number (B2)
+      summary: Request a one-time code for a phone number (B2 — dormant at launch)
       description: >
         Dispatches the code over SMS (Twilio) — best-effort. Dev builds also
-        return it inline (`devCode`); production never does.
+        return it inline (`devCode`); production never does. Dormant at launch:
+        404 `auth_method_disabled` unless `AUTH_METHODS` includes `phone`
+        (design: docs/design/auth-social-email.md).
       requestBody:
         required: true
         content:
@@ -131,6 +133,127 @@ paths:
               schema: { $ref: '#/components/schemas/AuthSession' }
         '400': { $ref: '#/components/responses/BadRequest' }
 
+  /auth/google:
+    post:
+      tags: [auth]
+      summary: Sign in with a Google ID token (auth overhaul)
+      description: >
+        Verifies the RS256 ID token against Google's JWKS (signature, iss, aud
+        allowlist, exp, verified email) before touching any account, then
+        finds/creates/links the user (link only on a **verified** email) and
+        issues our own session. Design: docs/design/auth-social-email.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken: { type: string, description: Google ID token (JWT) }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /auth/apple:
+    post:
+      tags: [auth]
+      summary: Sign in with Apple (auth overhaul)
+      description: >
+        Verifies the identity token against Apple's JWKS (signature, iss, aud,
+        exp, nonce). `fullName` is Apple's first-authorization display-name
+        hint (not part of the signed token; never used for linking).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityToken]
+              properties:
+                identityToken: { type: string, description: Apple identity token (JWT) }
+                nonce:
+                  type: string
+                  description: The raw nonce used for the sign-in request (replay defence).
+                fullName: { type: string, description: First-auth display-name hint. }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /auth/email/otp/request:
+    post:
+      tags: [auth]
+      summary: Request a one-time code by email (auth overhaul)
+      description: >
+        Sends a 6-digit code to the address (Resend). The response is identical
+        whether or not the address maps to an account (no enumeration). Dev
+        builds also return the code inline (`devCode`); production never does.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: Code dispatched (dev builds return it inline)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expiresInSeconds: { type: integer, example: 300 }
+                  devCode:
+                    type: string
+                    description: Present only in dev; never in production.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/email/otp/verify:
+    post:
+      tags: [auth]
+      summary: Verify an emailed code and issue tokens (auth overhaul)
+      description: >
+        Proving inbox ownership verifies the email; the user is found or
+        created by (lowercased) address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string, format: email }
+                code: { type: string, example: '123456' }
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /auth/refresh:
     post:
       tags: [auth]
@@ -177,8 +300,13 @@ paths:
               type: object
               properties:
                 name: { type: string }
-                email: { type: string, description: "Empty string clears it." }
+                email: { type: string, description: "Empty string clears it. Changing it resets emailVerified." }
                 avatarUrl: { type: string }
+                phone:
+                  type: string
+                  description: >
+                    Contact phone (E.164). Empty string clears it. Setting a
+                    new value resets phoneVerified (verified later via SMS).
       responses:
         '200':
           description: The updated user
@@ -2244,13 +2372,23 @@ components:
 
     User:
       type: object
-      required: [id, phoneNumber]
+      required: [id]
+      description: >
+        Auth overhaul (docs/design/auth-social-email.md): identity = verified
+        email (Google/Apple/email-OTP); phone is an optional contact attribute.
       properties:
         id: { type: string }
-        phoneNumber: { type: string }
-        name: { type: string }
-        email: { type: string }
-        avatarUrl: { type: string }
+        phoneNumber: { type: string, nullable: true }
+        phoneVerified: { type: boolean }
+        name: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        authProvider:
+          type: string
+          nullable: true
+          enum: [google, apple, email, phone]
+        avatarUrl: { type: string, nullable: true }
+        status: { type: string, enum: [active, banned] }
+        createdAt: { type: string, format: date-time }
 
     ProviderUser:
       type: object

@@ -16,7 +16,9 @@ import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
 import 'appointments/pro_appointment_service.dart';
 import 'appointments/slot_service.dart';
+import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
+import 'auth/id_token_verifier.dart';
 import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
 import 'db/database.dart';
@@ -37,6 +39,8 @@ import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'deposit_service.dart';
+import 'email/email_provider.dart';
+import 'email/resend_email_provider.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'kyc_service.dart';
@@ -122,6 +126,66 @@ String? get _r2Endpoint {
 }
 
 final TokenService tokenService = TokenService(secret: _resolveSecret());
+
+/// Consumer sign-in methods (`AUTH_METHODS`, comma-separated; unset → all).
+/// Launch config: `google,apple,email` — the SMS path stays dormant until
+/// cheap CI SMS unlocks. Design: docs/design/auth-social-email.md §14.
+final AuthMethods authMethods = AuthMethods.parse(_envOrNull('AUTH_METHODS'));
+
+List<String> _csvEnv(String key) =>
+    _envOrNull(
+      key,
+    )?.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList() ??
+    const [];
+
+/// Google Sign-In ID-token verifier. `GOOGLE_CLIENT_IDS` = the OAuth client-ID
+/// allowlist (web + Android + iOS). Unconfigured → the verifier rejects every
+/// token (fail closed); prod fails fast when the method is enabled.
+final GoogleIdTokenVerifier googleIdTokenVerifier = () {
+  final ids = _csvEnv('GOOGLE_CLIENT_IDS');
+  if (_isProd &&
+      authMethods.explicit &&
+      authMethods.contains('google') &&
+      ids.isEmpty) {
+    throw StateError(
+      'GOOGLE_CLIENT_IDS must be set in production while the "google" auth '
+      'method is enabled (AUTH_METHODS).',
+    );
+  }
+  return GoogleIdTokenVerifier(clientIds: ids);
+}();
+
+/// Sign in with Apple verifier. `APPLE_CLIENT_IDS` = iOS bundle id + the web
+/// Service ID. Same fail-closed/fail-fast posture as Google.
+final AppleIdTokenVerifier appleIdTokenVerifier = () {
+  final ids = _csvEnv('APPLE_CLIENT_IDS');
+  if (_isProd &&
+      authMethods.explicit &&
+      authMethods.contains('apple') &&
+      ids.isEmpty) {
+    throw StateError(
+      'APPLE_CLIENT_IDS must be set in production while the "apple" auth '
+      'method is enabled (AUTH_METHODS).',
+    );
+  }
+  return AppleIdTokenVerifier(clientIds: ids);
+}();
+
+/// Outbound email (the OTP channel). Configured → Resend; else a no-network
+/// log provider for dev/CI (devCode is echoed inline off-prod). Production
+/// must configure it while the "email" method is enabled (fail-fast).
+final EmailProvider emailProvider = () {
+  final apiKey = _envOrNull('RESEND_API_KEY');
+  final from = _envOrNull('EMAIL_FROM') ?? 'MyWeli <no-reply@myweli.com>';
+  if (apiKey != null) return ResendEmailProvider(apiKey: apiKey, from: from);
+  if (_isProd && authMethods.explicit && authMethods.contains('email')) {
+    throw StateError(
+      'RESEND_API_KEY must be set in production while the "email" auth '
+      'method is enabled (AUTH_METHODS).',
+    );
+  }
+  return LogEmailProvider();
+}();
 
 final AuthRepository authRepository = _pool == null
     ? InMemoryAuthRepository(tokens: tokenService, isProd: _isProd)
