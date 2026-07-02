@@ -336,3 +336,5 @@ Deltas from the plan (all in the spirit of "match the existing pattern"):
 - **Apple `fullName`** accepted as a display-name-only hint (never for linking); nonce accepted raw or SHA-256 (iOS convention).
 - Threat model **T31–T34** added (BACKEND.md §7); auto-sync (T26) now keys on **`phone_verified`**.
 - Tests: **+31** (verifier w/ real RSA keys + mocked JWKS incl. rotation; link rules incl. the T33 negative; email-OTP budgets/lockout/expiry; route handlers + AUTH_METHODS gate) → **285 backend tests**.
+
+**Fix (2026-07-02):** the resend-budget check (`requestOtp`/`requestEmailOtp`) counted an **expired, never-verified** code against the budget — nothing auto-clears an abandoned code, so a user who requested 3 codes, never entered one, and came back later got wrongly `otp_resend_limit`'d. Both `_requestOtpIn` (in-memory + Postgres) now treat an existing row as "absent" once `expires_at` has passed (Postgres: `WHERE expires_at > now()`), giving a fresh budget. Resend protection is unaffected (an *active* code still budgets normally) — no threat-model delta. +2 tests → **290 backend tests**.
