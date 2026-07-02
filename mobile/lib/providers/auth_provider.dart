@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
+import '../models/api_response.dart';
 import '../models/user.dart';
 import '../services/interfaces/auth_service_interface.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -112,6 +113,73 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ---- Auth overhaul (docs/design/app-auth-social.md) ----------------------
+
+  /// devCode returned by the last email-OTP request (dev backends only) so the
+  /// code screen can hint it — mirrors the web flow.
+  String? _emailDevCode;
+  String? get emailDevCode => _emailDevCode;
+
+  /// Shared login handling: Google/Apple/email all land here. A user-cancelled
+  /// sheet (`cancelled`) fails silently (no error banner).
+  Future<bool> _login(Future<ApiResponse<User>> Function() run) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await run();
+      if (response.success && response.data != null) {
+        _user = response.data;
+        _error = null;
+        _otpErrorCode = null;
+        _syncPush();
+        return true;
+      }
+      _otpErrorCode = response.code;
+      _error = _otpErrorCode == 'cancelled'
+          ? null
+          : (response.error ?? 'Connexion impossible.');
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> signInWithGoogle() => _login(_authService.signInWithGoogle);
+
+  Future<bool> signInWithApple() => _login(_authService.signInWithApple);
+
+  Future<bool> requestEmailOtp(String email) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await _authService.requestEmailOtp(email);
+      if (response.success) {
+        _emailDevCode =
+            (response.data?.isNotEmpty ?? false) ? response.data : null;
+        _otpErrorCode = null;
+        return true;
+      }
+      _error = response.error ?? 'Envoi du code impossible.';
+      _otpErrorCode = response.code;
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> verifyEmailOtp(String email, String code) =>
+      _login(() => _authService.verifyEmailOtp(email, code));
+
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
@@ -186,14 +254,14 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> updateUser(
-      {String? name, String? email, String? avatarUrl}) async {
+      {String? name, String? email, String? avatarUrl, String? phone}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final response = await _authService.updateUser(
-          name: name, email: email, avatarUrl: avatarUrl);
+          name: name, email: email, avatarUrl: avatarUrl, phone: phone);
       if (response.success && response.data != null) {
         _user = response.data;
         _error = null;

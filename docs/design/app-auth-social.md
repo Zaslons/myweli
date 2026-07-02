@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-AUTH-001/002 (consumer app login) — mobile slice of [auth-social-email.md](auth-social-email.md) (backend P1 ✅ #166, web P2 ✅ #167) |
 | **Phase** | Auth overhaul Phase 3 (consumer app, `main.dart`). Pro app = Phase 4. |
-| **Status** | **Draft** — awaiting sign-off |
+| **Status** | **Built** (2026-07-02) — decisions: Apple seam flag-hidden · dormant phone screens kept · clean outlined Google button |
 | **Depends on** | Live backend `POST /auth/google` · `/auth/email/otp/*` · `PATCH /me` (behind `AUTH_METHODS=google,apple,email`); Google client IDs (created 2026-07-02 — web/Android/iOS); **Apple deferred** (no Developer Program yet — decision 2026-07-02) |
 | **Cross-refs** | [DESIGN-STANDARDS.md](DESIGN-STANDARDS.md) · [web-auth-social.md](web-auth-social.md) (flow parity) · `lib/services/interfaces/auth_service_interface.dart` |
 

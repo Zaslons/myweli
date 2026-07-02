@@ -10,6 +10,7 @@ import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/phone_number_field.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/provider/mock_image_picker_sheet.dart';
 
@@ -24,14 +25,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  // Contact phone (auth overhaul: unverified contact data, not the login).
+  String _phone = '';
+  bool _prefilled = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final user = Provider.of<AuthProvider>(context, listen: false).user;
-    if (user != null && _nameController.text.isEmpty) {
+    if (user != null && !_prefilled) {
+      _prefilled = true;
       _nameController.text = user.name ?? '';
       _emailController.text = user.email ?? '';
+      _phone = user.phoneNumber ?? '';
     }
   }
 
@@ -64,6 +70,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final success = await authProvider.updateUser(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
+      phone: _phone,
     );
 
     if (!mounted) return;
@@ -198,23 +205,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacingS),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingM,
-                      vertical: AppTheme.spacingM,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Text(
-                      user.phoneNumber,
-                      style: AppTextStyles.bodyMedium.copyWith(
+                  // Contact phone — editable since the auth overhaul (the
+                  // salon uses it to reach the client; verified later via SMS).
+                  PhoneNumberField(
+                    initialValue: user.phoneNumber,
+                    onChanged: (e164) => _phone = e164,
+                  ),
+                  if (user.phoneNumber != null && !user.phoneVerified) ...[
+                    const SizedBox(height: AppTheme.spacingS),
+                    Text(
+                      'Non vérifié',
+                      style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textTertiary,
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 32),
                   AppButton(
                     text: 'Enregistrer',

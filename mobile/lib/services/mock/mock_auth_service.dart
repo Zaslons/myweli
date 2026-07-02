@@ -39,6 +39,7 @@ class MockAuthService implements AuthServiceInterface {
   User? _currentUser;
   ProviderUser? _currentProvider;
   final Map<String, _OtpState> _otpStates = {};
+  final Map<String, _OtpState> _emailOtpStates = {}; // lowercased email
   final Map<String, String> _providerOtpStore = {}; // phone -> otp
 
   Future<void> _persistSession(User user) async {
@@ -127,6 +128,118 @@ class MockAuthService implements AuthServiceInterface {
     return ApiResponse.success(user, message: 'Connexion réussie');
   }
 
+  // ---- Auth overhaul (docs/design/app-auth-social.md) ----------------------
+
+  @override
+  Future<ApiResponse<User>> signInWithGoogle() async {
+    await Future.delayed(AppConstants.mockDelay);
+    return _socialLogin(email: 'mock.google@myweli.test', provider: 'google');
+  }
+
+  @override
+  Future<ApiResponse<User>> signInWithApple() async {
+    await Future.delayed(AppConstants.mockDelay);
+    return _socialLogin(email: 'mock.apple@myweli.test', provider: 'apple');
+  }
+
+  /// Find-or-create by email — first login has NO phone, so the mandatory
+  /// contact-phone step is exercised on mocks exactly like production.
+  Future<ApiResponse<User>> _socialLogin({
+    required String email,
+    required String provider,
+  }) async {
+    final user = MockData.users.firstWhere(
+      (u) => u.email?.toLowerCase() == email,
+      orElse: () {
+        final created = User(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          email: email,
+          authProvider: provider,
+          createdAt: DateTime.now(),
+        );
+        MockData.users.add(created);
+        return created;
+      },
+    );
+    _currentUser = user;
+    await _persistSession(user);
+    return ApiResponse.success(user, message: 'Connexion réussie');
+  }
+
+  @override
+  Future<ApiResponse<String>> requestEmailOtp(String email) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final key = email.trim().toLowerCase();
+    final existing = _emailOtpStates[key];
+    final expired =
+        existing != null && DateTime.now().isAfter(existing.expiresAt);
+    if (existing != null && !expired && existing.resendsLeft <= 0) {
+      return ApiResponse.error(
+        'Trop de demandes de code. Réessayez plus tard.',
+        code: 'otp_resend_limit',
+      );
+    }
+    final resendsLeft = (existing == null || expired)
+        ? AppConstants.otpMaxResends
+        : existing.resendsLeft - 1;
+    _emailOtpStates[key] = _OtpState(
+      code: demoOtp,
+      expiresAt: DateTime.now().add(_otpValidity),
+      attemptsLeft: AppConstants.otpMaxAttempts,
+      resendsLeft: resendsLeft,
+    );
+    return ApiResponse.success(demoOtp, message: 'Code envoyé par e-mail');
+  }
+
+  @override
+  Future<ApiResponse<User>> verifyEmailOtp(String email, String code) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final key = email.trim().toLowerCase();
+    final state = _emailOtpStates[key];
+    if (state == null) {
+      return ApiResponse.error(
+        'Aucun code actif. Demandez un nouveau code.',
+        code: 'otp_none',
+      );
+    }
+    if (DateTime.now().isAfter(state.expiresAt)) {
+      _emailOtpStates.remove(key);
+      return ApiResponse.error(
+        'Code expiré. Demandez un nouveau code.',
+        code: 'otp_expired',
+      );
+    }
+    if (state.attemptsLeft <= 0 || state.code != code) {
+      state.attemptsLeft -= 1;
+      final locked = state.attemptsLeft <= 0;
+      return ApiResponse.error(
+        locked
+            ? 'Trop de tentatives. Demandez un nouveau code.'
+            : 'Code incorrect.',
+        code: locked ? 'otp_locked' : 'otp_invalid',
+      );
+    }
+    _emailOtpStates.remove(key);
+    // Inbox proven → find-or-create; a fresh account has no phone (the
+    // mandatory phone step follows).
+    final user = MockData.users.firstWhere(
+      (u) => u.email?.toLowerCase() == key,
+      orElse: () {
+        final created = User(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          email: key,
+          authProvider: 'email',
+          createdAt: DateTime.now(),
+        );
+        MockData.users.add(created);
+        return created;
+      },
+    );
+    _currentUser = user;
+    await _persistSession(user);
+    return ApiResponse.success(user, message: 'Connexion réussie');
+  }
+
   @override
   Future<void> logout() async {
     await Future.delayed(const Duration(milliseconds: 100));
@@ -157,19 +270,33 @@ class MockAuthService implements AuthServiceInterface {
 
   @override
   Future<ApiResponse<User>> updateUser(
-      {String? name, String? email, String? avatarUrl}) async {
+      {String? name, String? email, String? avatarUrl, String? phone}) async {
     await Future.delayed(AppConstants.mockDelay);
 
     if (_currentUser == null) {
       return ApiResponse.error('Utilisateur non connecté');
     }
 
-    final updatedUser = _currentUser!.copyWith(
+    var updatedUser = _currentUser!.copyWith(
       name: (name != null && name.isNotEmpty) ? name : _currentUser!.name,
       email:
           email == null ? _currentUser!.email : (email.isEmpty ? null : email),
       avatarUrl: avatarUrl ?? _currentUser!.avatarUrl,
     );
+    if (phone != null && phone != _currentUser!.phoneNumber) {
+      // Contact phone: unverified until proven via SMS later. copyWith can't
+      // null a field, so rebuild for the clear case.
+      updatedUser = phone.isEmpty
+          ? User(
+              id: updatedUser.id,
+              name: updatedUser.name,
+              email: updatedUser.email,
+              authProvider: updatedUser.authProvider,
+              avatarUrl: updatedUser.avatarUrl,
+              createdAt: updatedUser.createdAt,
+            )
+          : updatedUser.copyWith(phoneNumber: phone, phoneVerified: false);
+    }
 
     _currentUser = updatedUser;
 
