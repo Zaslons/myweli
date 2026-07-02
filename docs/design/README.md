@@ -28,6 +28,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Part | Spec | Status |
 |------|------|--------|
 | Auth overhaul — Google + Apple + Email OTP (phone → contact) | [auth-social-email.md](auth-social-email.md) | **Building** — P1 backend built (verifiers · email OTP · migration 0022 · AUTH_METHODS gate); web → mobile → pro next |
+| App consumer auth — Google + Email OTP, Apple seam (P3) | [app-auth-social.md](app-auth-social.md) | **Draft** — LoginScreen (Google + email + mandatory phone step) + service seam + platform config; awaiting sign-off |
 | Web consumer auth — Google + Apple + Email OTP (P2) | [web-auth-social.md](web-auth-social.md) | **Built** — LoginOptions (email-first; Google/Apple env-gated) + booking-confirm sign-in + MANDATORY contact phone + account phone edit |
 | Brand & launch-asset integration (logo · loader · icons · splash) | [branding-integration.md](branding-integration.md) | **Approved** — phased (P1 web · P2 admin · P3 app assets+loader · P4 icon+splash · P5 flavors+pro) |
 | Admin / ops console — backend (KYC · moderation · mgmt · disputes · analytics) | [admin-console.md](admin-console.md) | Slices 1–3 built |
