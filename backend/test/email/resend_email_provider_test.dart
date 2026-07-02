@@ -39,7 +39,7 @@ void main() {
     expect(body['to'], ['ama@x.com']);
     expect(body['text'], contains('123456'));
     expect(body['html'], contains('123456'));
-    expect(body['html'], contains('myweli_wordmark_black.png'));
+    expect(body['html'], contains('myweli_lockup_horizontal_black.png'));
   });
 
   test('html omitted when not provided', () async {

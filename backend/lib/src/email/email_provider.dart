@@ -49,7 +49,7 @@ String renderOtpEmailHtml(String code) =>
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:440px;background-color:#FFFFFF;border:1px solid #E0E0E0;border-radius:12px;">
         <tr><td style="padding:28px 28px 0;" align="center">
-          <img src="https://myweli.com/brand/myweli_wordmark_black.png" alt="MyWeli" height="26" style="height:26px;width:auto;border:0;">
+          <img src="https://myweli.com/brand/myweli_lockup_horizontal_black.png" alt="MyWeli" height="34" style="height:34px;width:auto;border:0;">
         </td></tr>
         <tr><td style="padding:20px 28px 0;" align="center">
           <p style="margin:0;font-size:15px;color:#4A4A4A;">Votre code de vérification :</p>
