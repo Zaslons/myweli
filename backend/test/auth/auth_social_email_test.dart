@@ -152,6 +152,17 @@ void main() {
       expect(third.error, 'otp_resend_limit');
     });
 
+    test('an EXPIRED code does not count against the resend budget '
+        '(abandoned flow must not lock a later attempt)', () async {
+      final r = repo(otpValidity: Duration.zero, maxResends: 1);
+      expect((await r.requestEmailOtp('a@x.com')).ok, isTrue);
+      expect((await r.requestEmailOtp('a@x.com')).ok, isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      final res = await r.requestEmailOtp('a@x.com');
+      expect(res.ok, isTrue);
+      expect(res.devCode, isNotNull);
+    });
+
     test('expired code → otp_expired', () async {
       final r = repo(otpValidity: Duration.zero);
       final code = (await r.requestEmailOtp('a@x.com')).devCode!;

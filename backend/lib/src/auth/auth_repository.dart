@@ -192,7 +192,12 @@ class InMemoryAuthRepository implements AuthRepository {
       _requestOtpIn(_emailOtps, email.trim().toLowerCase());
 
   OtpRequestResult _requestOtpIn(Map<String, _Otp> store, String key) {
-    final existing = store[key];
+    // An expired code (never verified, e.g. the user abandoned the flow)
+    // doesn't count against the resend budget — treat it as absent.
+    final stored = store[key];
+    final existing = stored != null && DateTime.now().isAfter(stored.expiresAt)
+        ? null
+        : stored;
     if (existing != null && existing.resendsLeft <= 0) {
       return (
         ok: false,

@@ -44,8 +44,13 @@ class PostgresAuthRepository implements AuthRepository {
     String keyColumn,
     String key,
   ) async {
+    // An expired code (never verified, e.g. the user abandoned the flow)
+    // doesn't count against the resend budget — treat it as absent.
     final existing = await _pool.execute(
-      Sql.named('SELECT resends_left FROM $table WHERE $keyColumn = @p'),
+      Sql.named(
+        'SELECT resends_left FROM $table '
+        'WHERE $keyColumn = @p AND expires_at > now()',
+      ),
       parameters: {'p': key},
     );
     final hadExisting = existing.isNotEmpty;

@@ -38,6 +38,24 @@ void main() {
     expect(third.error, 'otp_resend_limit');
   });
 
+  test('an EXPIRED code does not count against the resend budget '
+      '(abandoned flow must not lock a later attempt)', () async {
+    final repo = InMemoryAuthRepository(
+      tokens: ts(),
+      isProd: false,
+      otpValidity: Duration.zero, // every issued code is instantly expired
+      maxResends: 1,
+    );
+    expect((await repo.requestOtp(phone)).ok, isTrue);
+    expect((await repo.requestOtp(phone)).ok, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    // Would have been the 3rd resend (over budget) if the expired code still
+    // counted — it doesn't, so this succeeds with a fresh budget.
+    final res = await repo.requestOtp(phone);
+    expect(res.ok, isTrue);
+    expect(res.devCode, isNotNull);
+  });
+
   test('verifyOtp succeeds with the right code and issues tokens', () async {
     final repo = InMemoryAuthRepository(tokens: ts(), isProd: false);
     final code = (await repo.requestOtp(phone)).devCode!;
