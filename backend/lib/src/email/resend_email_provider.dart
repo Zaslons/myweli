@@ -28,6 +28,7 @@ class ResendEmailProvider implements EmailProvider {
     required String to,
     required String subject,
     required String text,
+    String? html,
   }) async {
     try {
       final res = await _client.post(
@@ -41,6 +42,7 @@ class ResendEmailProvider implements EmailProvider {
           'to': [to],
           'subject': subject,
           'text': text,
+          if (html != null) 'html': html,
         }),
       );
       if (res.statusCode >= 200 && res.statusCode < 300) {
