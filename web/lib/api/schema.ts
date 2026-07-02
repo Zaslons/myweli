@@ -50,8 +50,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Request a one-time code for a phone number (B2)
-         * @description Dispatches the code over SMS (Twilio) — best-effort. Dev builds also return it inline (`devCode`); production never does.
+         * Request a one-time code for a phone number (B2 — dormant at launch)
+         * @description Dispatches the code over SMS (Twilio) — best-effort. Dev builds also return it inline (`devCode`); production never does. Dormant at launch: 404 `auth_method_disabled` unless `AUTH_METHODS` includes `phone` (design: docs/design/auth-social-email.md).
          */
         post: {
             parameters: {
@@ -226,6 +226,215 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in with a Google ID token (auth overhaul)
+         * @description Verifies the RS256 ID token against Google's JWKS (signature, iss, aud allowlist, exp, verified email) before touching any account, then finds/creates/links the user (link only on a **verified** email) and issues our own session. Design: docs/design/auth-social-email.md.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description Google ID token (JWT) */
+                        idToken: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Signed in */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthSession"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/apple": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in with Apple (auth overhaul)
+         * @description Verifies the identity token against Apple's JWKS (signature, iss, aud, exp, nonce). `fullName` is Apple's first-authorization display-name hint (not part of the signed token; never used for linking).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description Apple identity token (JWT) */
+                        identityToken: string;
+                        /** @description The raw nonce used for the sign-in request (replay defence). */
+                        nonce?: string;
+                        /** @description First-auth display-name hint. */
+                        fullName?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Signed in */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthSession"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/email/otp/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a one-time code by email (auth overhaul)
+         * @description Sends a 6-digit code to the address (Resend). The response is identical whether or not the address maps to an account (no enumeration). Dev builds also return the code inline (`devCode`); production never does.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Code dispatched (dev builds return it inline) */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example 300 */
+                            expiresInSeconds?: number;
+                            /** @description Present only in dev; never in production. */
+                            devCode?: string;
+                        };
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/email/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify an emailed code and issue tokens (auth overhaul)
+         * @description Proving inbox ownership verifies the email; the user is found or created by (lowercased) address.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        /** @example 123456 */
+                        code: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Verified */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthSession"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/refresh": {
         parameters: {
             query?: never;
@@ -335,9 +544,11 @@ export interface paths {
                 content: {
                     "application/json": {
                         name?: string;
-                        /** @description Empty string clears it. */
+                        /** @description Empty string clears it. Changing it resets emailVerified. */
                         email?: string;
                         avatarUrl?: string;
+                        /** @description Contact phone (E.164). Empty string clears it. Setting a new value resets phoneVerified (verified later via SMS). */
+                        phone?: string;
                     };
                 };
             };
@@ -4126,12 +4337,20 @@ export interface components {
             tokens: components["schemas"]["TokenPair"];
             user: components["schemas"]["User"];
         };
+        /** @description Auth overhaul (docs/design/auth-social-email.md): identity = verified email (Google/Apple/email-OTP); phone is an optional contact attribute. */
         User: {
             id: string;
-            phoneNumber: string;
-            name?: string;
-            email?: string;
-            avatarUrl?: string;
+            phoneNumber?: string | null;
+            phoneVerified?: boolean;
+            name?: string | null;
+            email?: string | null;
+            /** @enum {string|null} */
+            authProvider?: "google" | "apple" | "email" | "phone" | null;
+            avatarUrl?: string | null;
+            /** @enum {string} */
+            status?: "active" | "banned";
+            /** Format: date-time */
+            createdAt?: string;
         };
         /** @description A provider (business) account. Mirrors ProviderUser.toJson(). */
         ProviderUser: {
