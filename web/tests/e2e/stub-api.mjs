@@ -69,6 +69,16 @@ const todayAt9 = `${new Date().toISOString().slice(0, 10)}T09:00:00.000Z`;
 
 // Consumer side (M5/M6) — appt1; cancel is stateful.
 const cancelled = new Set();
+
+// Auth-overhaul consumer identity (email login; phone = contact attribute).
+const stubUser = {
+  id: 'u1',
+  name: 'Awa',
+  email: 'awa@example.com',
+  authProvider: 'email',
+  phoneNumber: '+2250700000000',
+  phoneVerified: false,
+};
 const consumerAppt = (id) => ({
   id,
   userId: 'u1',
@@ -180,13 +190,32 @@ createServer(async (req, res) => {
       user: { id: 'u1', phoneNumber: '+2250700000000' },
     });
   }
+  // --- auth overhaul (P2): email OTP + social (nested AuthSession) ---
+  if (url.pathname === '/auth/email/otp/request') {
+    return json(res, 202, { expiresInSeconds: 300, devCode: '123456' });
+  }
+  if (
+    url.pathname === '/auth/email/otp/verify' ||
+    url.pathname === '/auth/google' ||
+    url.pathname === '/auth/apple'
+  ) {
+    return json(res, 200, {
+      tokens: {
+        accessToken: 'stub-access',
+        refreshToken: 'stub-refresh',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      },
+      user: stubUser,
+    });
+  }
   // --- consumer account (M6) ---
   if (url.pathname === '/me') {
-    return json(res, 200, {
-      id: 'u1',
-      name: 'Awa',
-      phoneNumber: '+2250700000000',
-    });
+    if (req.method === 'PATCH') {
+      const body = await readBody(req);
+      if (body.phone !== undefined) stubUser.phoneNumber = body.phone;
+      return json(res, 200, stubUser);
+    }
+    return json(res, 200, stubUser);
   }
   if (url.pathname === '/auth/refresh') {
     return json(res, 200, {

@@ -1,14 +1,14 @@
 'use client';
 
-import { useReducer, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { isPossiblePhoneNumber } from 'react-phone-number-input';
+import { type Me, getMe } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
+import { updateContactPhone } from '../../lib/auth/client';
 import {
   type CreatedBooking,
   createBooking,
   fetchSlots,
-  requestOtp,
-  verifyOtp,
 } from '../../lib/booking/client';
 import {
   estimatedDeposit,
@@ -20,6 +20,7 @@ import {
 } from '../../lib/booking/state';
 import { formatDateFr, formatDuration, formatFcfa, priceRange } from '../../lib/format';
 import { Button } from '../Button';
+import { LoginOptions } from '../auth/LoginOptions';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
 
@@ -42,13 +43,29 @@ export function BookingFlow({ provider }: { provider: Provider }) {
   const [s, dispatch] = useReducer(reducer, initialState);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  // Auth overhaul P2: confirming requires a signed-in account (Google/Apple/
+  // email) + a REQUIRED contact phone (prefilled from the profile).
+  // undefined = probing the session; null = signed out.
+  const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [devCode, setDevCode] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedBooking | null>(null);
+
+  // Probe the session when the confirm step opens (re-run after inline login).
+  useEffect(() => {
+    if (s.step !== 'confirm' || me !== undefined) return;
+    let active = true;
+    (async () => {
+      const r = await getMe();
+      if (!active) return;
+      setMe(r.status === 200 ? (r.user ?? null) : null);
+      setPhone(r.user?.phoneNumber ?? '');
+    })();
+    return () => {
+      active = false;
+    };
+  }, [s.step, me]);
 
   const services = (provider.services ?? []).filter((x) => x.active !== false);
   const duration = totalDuration(provider, s.serviceIds);
@@ -66,23 +83,16 @@ export function BookingFlow({ provider }: { provider: Provider }) {
     setSlotsLoading(false);
   }
 
-  async function sendCode() {
-    setBusy(true);
-    setError(null);
-    const r = await requestOtp(phone);
-    setBusy(false);
-    if (!r.ok) return setError('Numéro invalide ou envoi impossible.');
-    setOtpSent(true);
-    setDevCode(r.devCode);
-  }
-
   async function confirm() {
     setBusy(true);
     setError(null);
-    const v = await verifyOtp(phone, code);
-    if (!v.ok) {
-      setBusy(false);
-      return setError('Code incorrect ou expiré.');
+    // Contact phone is REQUIRED (decision 2026-07-02); persist it when changed.
+    if (phone !== (me?.phoneNumber ?? '')) {
+      const saved = await updateContactPhone(phone);
+      if (!saved.ok) {
+        setBusy(false);
+        return setError('Numéro invalide. Vérifiez et réessayez.');
+      }
     }
     const b = await createBooking({
       providerId: provider.id,
@@ -299,37 +309,36 @@ export function BookingFlow({ provider }: { provider: Provider }) {
             ) : null}
           </dl>
 
-          <p className="mt-m text-sm text-textSecondary">
-            Confirmez avec votre numéro de téléphone (code par SMS).
-          </p>
-          <div className="mt-s flex flex-col gap-s">
-            <PhoneField onChange={setPhone} />
-            {!otpSent ? (
+          {me === undefined ? (
+            <p className="mt-m text-sm text-textSecondary">Chargement…</p>
+          ) : me === null ? (
+            <div className="mt-m">
+              <p className="text-sm text-textSecondary">
+                Connectez-vous pour confirmer votre réservation.
+              </p>
+              <div className="mt-s">
+                {/* After login (incl. its mandatory phone step) re-probe the
+                    session — the flow continues in place, no redirect. */}
+                <LoginOptions onSuccess={() => setMe(undefined)} />
+              </div>
+            </div>
+          ) : (
+            <div className="mt-m flex flex-col gap-s">
+              <p className="text-sm text-textSecondary">
+                Numéro pour que le salon vous contacte :
+              </p>
+              <PhoneField
+                onChange={setPhone}
+                initialValue={me.phoneNumber ?? undefined}
+              />
               <Button
                 disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
-                onClick={sendCode}
+                onClick={confirm}
               >
-                Envoyer le code
+                Confirmer la réservation
               </Button>
-            ) : (
-              <>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Code à 6 chiffres"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
-                />
-                {devCode ? (
-                  <p className="text-xs text-textTertiary">Code (dev) : {devCode}</p>
-                ) : null}
-                <Button disabled={busy || code.length < 4} onClick={confirm}>
-                  Confirmer la réservation
-                </Button>
-              </>
-            )}
-          </div>
+            </div>
+          )}
           {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
           <div className="mt-l">
             <Button variant="secondary" onClick={() => dispatch({ type: 'go', step: 'slot' })}>

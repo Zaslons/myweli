@@ -41,6 +41,7 @@ Future<Response> onRequest(RequestContext context) async {
       to: email,
       subject: otpEmailSubject,
       text: renderOtpEmailText(result.code!),
+      html: renderOtpEmailHtml(result.code!),
     );
   }
 

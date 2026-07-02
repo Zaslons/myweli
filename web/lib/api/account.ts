@@ -8,8 +8,10 @@ import type { Provider } from './providers';
 export type Me = {
   id: string;
   name?: string | null;
-  phoneNumber: string;
+  phoneNumber?: string | null;
+  phoneVerified?: boolean;
   email?: string | null;
+  authProvider?: 'google' | 'apple' | 'email' | 'phone' | null;
 };
 
 export async function getMe(): Promise<{ status: number; user?: Me }> {

@@ -17,11 +17,14 @@ import fr from 'react-phone-number-input/locale/fr.json';
 export function PhoneField({
   onChange,
   disabled,
+  initialValue,
 }: {
   onChange: (e164: string) => void;
   disabled?: boolean;
+  /** Prefill with an E.164 value (e.g. the profile's contact phone). */
+  initialValue?: string;
 }) {
-  const [value, setValue] = useState<string | undefined>(undefined);
+  const [value, setValue] = useState<string | undefined>(initialValue);
 
   return (
     <PhoneInput
