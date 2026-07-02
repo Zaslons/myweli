@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import {
   type Appointment,
   type Tab,
@@ -18,10 +19,19 @@ import {
   removeFavorite,
 } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
+import { updateContactPhone } from '../../lib/auth/client';
 import { Button } from '../Button';
 import { OpenInAppButton } from '../OpenInAppButton';
+import { PhoneField } from '../PhoneField';
 import { ProviderCard } from '../provider/ProviderCard';
 import { AppointmentCard } from './AppointmentCard';
+
+const PROVIDER_LABELS: Record<string, string> = {
+  google: 'Connecté via Google',
+  apple: 'Connecté via Apple',
+  email: 'Connecté via e-mail',
+  phone: 'Connecté via téléphone',
+};
 
 export function AccountClient() {
   const router = useRouter();
@@ -31,6 +41,11 @@ export function AccountClient() {
   const [tab, setTab] = useState<Tab>('upcoming');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Contact-phone edit (auth overhaul: phone is contact data, not the login).
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState('');
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -68,6 +83,21 @@ export function AccountClient() {
     router.replace('/');
   }
 
+  async function savePhone() {
+    setPhoneBusy(true);
+    setPhoneError(false);
+    const r = await updateContactPhone(phoneDraft);
+    setPhoneBusy(false);
+    if (!r.ok) {
+      setPhoneError(true);
+      return;
+    }
+    setMe((m) =>
+      m ? { ...m, phoneNumber: phoneDraft, phoneVerified: false } : m,
+    );
+    setEditingPhone(false);
+  }
+
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
     return (
@@ -79,16 +109,82 @@ export function AccountClient() {
 
   return (
     <div>
-      <section className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m">
-        <div>
-          <p className="font-medium text-textPrimary">
-            {me?.name ?? 'Mon compte'}
-          </p>
-          <p className="text-sm text-textTertiary">{me?.phoneNumber}</p>
+      <section className="rounded-xl border border-border bg-secondary p-m">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-textPrimary">
+              {me?.name ?? 'Mon compte'}
+            </p>
+            {me?.email ? (
+              <p className="text-sm text-textTertiary">{me.email}</p>
+            ) : null}
+            {me?.authProvider && PROVIDER_LABELS[me.authProvider] ? (
+              <p className="text-xs text-textTertiary">
+                {PROVIDER_LABELS[me.authProvider]}
+              </p>
+            ) : null}
+          </div>
+          <Button variant="secondary" onClick={onLogout}>
+            Se déconnecter
+          </Button>
         </div>
-        <Button variant="secondary" onClick={onLogout}>
-          Se déconnecter
-        </Button>
+        <div className="mt-m border-t border-divider pt-m">
+          {editingPhone ? (
+            <div className="flex flex-col gap-s">
+              <p className="text-sm text-textSecondary">
+                Numéro pour que le salon vous contacte :
+              </p>
+              <PhoneField
+                onChange={setPhoneDraft}
+                initialValue={me?.phoneNumber ?? undefined}
+              />
+              <div className="flex gap-s">
+                <Button
+                  disabled={
+                    phoneBusy ||
+                    !phoneDraft ||
+                    !isPossiblePhoneNumber(phoneDraft)
+                  }
+                  onClick={savePhone}
+                >
+                  Enregistrer
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setEditingPhone(false)}
+                >
+                  Annuler
+                </Button>
+              </div>
+              {phoneError ? (
+                <p className="text-sm text-error">
+                  Numéro invalide. Réessayez.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-textPrimary">
+                  {me?.phoneNumber ?? 'Aucun numéro de contact'}
+                </p>
+                {me?.phoneNumber && !me.phoneVerified ? (
+                  <p className="text-xs text-textTertiary">Non vérifié</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoneDraft(me?.phoneNumber ?? '');
+                  setEditingPhone(true);
+                }}
+                className="text-sm text-textPrimary underline"
+              >
+                Modifier
+              </button>
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="mt-l flex gap-s border-b border-divider">

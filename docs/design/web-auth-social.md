@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-AUTH (web consumer login) — client slice of [auth-social-email.md](auth-social-email.md) (backend P1 shipped, PR #166) |
 | **Phase** | Auth overhaul Phase 2 (web consumer). Pro web = Phase 4 (unchanged here). |
-| **Status** | **Draft** — awaiting sign-off |
+| **Status** | **Built** (2026-07-02) — decisions: account phone edit **in-slice**; **contact phone MANDATORY at registration** (post-sign-in step) and **required at booking confirm**; email-first ship (Google/Apple env-gated) |
 | **Depends on** | Backend `POST /auth/google` · `/auth/apple` · `/auth/email/otp/*` · `PATCH /me` (phone) — all live behind `AUTH_METHODS` |
 | **Cross-refs** | [WEB.md](../WEB.md) (BFF/session rules) · [WEB-DESIGN-STANDARDS.md](WEB-DESIGN-STANDARDS.md) · [web-m5-booking.md](web-m5-booking.md) · [web-m6-account.md](web-m6-account.md) |
 
@@ -55,14 +55,17 @@ CGU line.
 - **Copy:** « Continuer avec Google / Apple / e-mail », « Entrez le code reçu par e-mail », errors « Connexion annulée », « Code incorrect ou expiré », « E-mail invalide », « Compte suspendu ».
 - `returnTo` continuity unchanged (`ConnexionClient` keeps its open-redirect guard).
 
+### Mandatory contact phone at registration (decision 2026-07-02)
+After a **successful sign-in where the account has no phone** (`me.phoneNumber == null` — i.e. a fresh registration or a legacy account without one), `LoginOptions` shows a **blocking final step** before continuing: « Votre numéro de téléphone » (PhoneField, E.164) + « Le salon l'utilise pour vous contacter. » → `PATCH /me` → then `onSuccess`. UX-enforced (the backend can't require it at creation since Google/Apple tokens carry no phone); the booking confirm double-checks it (below), so no booking can complete without a phone.
+
 ### Booking funnel (`BookingFlow` confirm step) — replaces inline phone-OTP
-1. Signed-out (checked via the existing `/api/me`): recap + **the same `LoginOptions` card** inline (« Connectez-vous pour confirmer votre réservation ») — after login the flow continues in place (no redirect).
-2. Signed-in: recap + **optional contact phone** — « Numéro pour que le salon vous contacte (recommandé) » using the existing `PhoneField`; saved via `PATCH /me` (only when changed/valid) → `createBooking` → done screen (unchanged).
+1. Signed-out (checked via the existing session probe): recap + **the same `LoginOptions` card** inline (« Connectez-vous pour confirmer votre réservation ») — after login (incl. its phone step) the flow continues in place (no redirect).
+2. Signed-in: recap + **contact phone (REQUIRED)** — prefilled from `me.phoneNumber`, editable; « Numéro pour que le salon vous contacte »; the confirm button stays disabled until valid; saved via `PATCH /me` when changed → `createBooking` → done screen (unchanged).
 3. Four states; deposit recap unchanged; install push unchanged.
 
 ### Account (`/mon-compte` profile)
 - Show the login identity (email + « Connecté via Google/Apple/e-mail »).
-- **Contact phone** row becomes editable (PhoneField + save via the existing profile PATCH path) with « Non vérifié » subtext when `phoneVerified` is false.
+- **Contact phone** row becomes editable (PhoneField + `PATCH /me`) with « Non vérifié » subtext when `phoneVerified` is false.
 
 ## 5. Security
 - Tokens stay server-side (httpOnly cookies); provider tokens transit the BFF once, never stored.
@@ -80,7 +83,7 @@ CGU line.
 - Ops (user, guided later): Google Cloud project → **web OAuth client ID** (+ the same value into the backend `GOOGLE_CLIENT_IDS`); Apple **Service ID** + domain verification (+ backend `APPLE_CLIENT_IDS`); **Resend** key + domain (backend). Then Render: `AUTH_METHODS=google,apple,email`.
 - Old consumer OTP BFF routes (`/api/auth/request-otp`, `/api/auth/verify`) deleted in Phase 3 when the app stops using phone login (they 404 server-side once `AUTH_METHODS` drops `phone`).
 
-## 8. Open questions (for sign-off)
-1. **Account phone edit in this slice** (recommended — small, completes the contact-phone story) or defer to Phase 3?
-2. Booking contact phone: **optional with « recommandé »** (recommended) vs required?
-3. OK that Google/Apple buttons are env-gated (email-first ship, providers appear when you create the accounts)?
+## 8. Decisions (locked 2026-07-02)
+1. **Account phone edit → in this slice**, and the **contact phone is mandatory at registration** (blocking post-sign-in step in `LoginOptions`).
+2. Booking contact phone → **required** (prefilled from the profile; confirm disabled until valid).
+3. **Email-first ship** — Google/Apple buttons are env-gated and appear when the accounts/IDs exist.

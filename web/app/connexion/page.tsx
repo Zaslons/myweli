@@ -13,7 +13,7 @@ export default function ConnexionPage() {
     <main className="mx-auto max-w-md px-m py-l">
       <h1 className="text-2xl font-semibold text-textPrimary">Se connecter</h1>
       <p className="mt-xs text-sm text-textTertiary">
-        Avec votre numéro de téléphone (code par SMS).
+        Réservez plus vite avec votre compte.
       </p>
       <div className="mt-l">
         <Suspense>

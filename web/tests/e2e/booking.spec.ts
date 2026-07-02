@@ -20,10 +20,12 @@ test('web booking funnel: service → slot → OTP → confirmed (no install)', 
   await page.getByRole('button', { name: /^\d{2}:\d{2}$/ }).first().click();
   await page.getByRole('button', { name: 'Continuer' }).click();
 
-  // Confirm + OTP (stub devCode 123456)
-  await page.locator('input[type=tel]').fill('+2250700000000');
-  await page.getByRole('button', { name: 'Envoyer le code' }).click();
+  // Confirm: sign in with email (stub devCode 123456), then the contact
+  // phone is prefilled from the profile → confirm.
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
   await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
   await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
 
   await expect(page.getByText('Réservation envoyée ✓')).toBeVisible();
