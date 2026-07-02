@@ -32,10 +32,21 @@ class PostgresAuthRepository implements AuthRepository {
   final Random _random = Random.secure();
 
   @override
-  Future<OtpRequestResult> requestOtp(String phoneNumber) async {
+  Future<OtpRequestResult> requestOtp(String phoneNumber) =>
+      _requestOtpIn('otp_codes', 'phone_number', phoneNumber);
+
+  @override
+  Future<OtpRequestResult> requestEmailOtp(String email) =>
+      _requestOtpIn('email_otp_codes', 'email', email.trim().toLowerCase());
+
+  Future<OtpRequestResult> _requestOtpIn(
+    String table,
+    String keyColumn,
+    String key,
+  ) async {
     final existing = await _pool.execute(
-      Sql.named('SELECT resends_left FROM otp_codes WHERE phone_number = @p'),
-      parameters: {'p': phoneNumber},
+      Sql.named('SELECT resends_left FROM $table WHERE $keyColumn = @p'),
+      parameters: {'p': key},
     );
     final hadExisting = existing.isNotEmpty;
     final prevResends = hadExisting
@@ -54,16 +65,16 @@ class PostgresAuthRepository implements AuthRepository {
     final code = (100000 + _random.nextInt(900000)).toString();
     await _pool.execute(
       Sql.named(
-        'INSERT INTO otp_codes '
-        '(phone_number, code_hash, expires_at, attempts_left, resends_left) '
+        'INSERT INTO $table '
+        '($keyColumn, code_hash, expires_at, attempts_left, resends_left) '
         'VALUES (@p, @h, @e, @a, @r) '
-        'ON CONFLICT (phone_number) DO UPDATE SET '
+        'ON CONFLICT ($keyColumn) DO UPDATE SET '
         'code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, '
         'attempts_left = EXCLUDED.attempts_left, '
         'resends_left = EXCLUDED.resends_left',
       ),
       parameters: {
-        'p': phoneNumber,
+        'p': key,
         'h': _tokens.hashToken(code),
         'e': DateTime.now().toUtc().add(_otpValidity),
         'a': _maxAttempts,
@@ -81,59 +92,175 @@ class PostgresAuthRepository implements AuthRepository {
 
   @override
   Future<OtpVerifyResult> verifyOtp(String phoneNumber, String code) async {
-    final rows = await _pool.execute(
-      Sql.named(
-        'SELECT code_hash, expires_at, attempts_left '
-        'FROM otp_codes WHERE phone_number = @p',
-      ),
-      parameters: {'p': phoneNumber},
+    final error = await _checkOtpIn(
+      'otp_codes',
+      'phone_number',
+      phoneNumber,
+      code,
     );
-    if (rows.isEmpty) {
-      return (ok: false, error: 'otp_none', user: null, tokens: null);
-    }
-    final row = rows.first.toColumnMap();
-    if (DateTime.now().toUtc().isAfter(
-      (row['expires_at'] as DateTime).toUtc(),
-    )) {
-      await _deleteOtp(phoneNumber);
-      return (ok: false, error: 'otp_expired', user: null, tokens: null);
-    }
-    final attemptsLeft = row['attempts_left'] as int;
-    if (attemptsLeft <= 0) {
-      return (ok: false, error: 'otp_locked', user: null, tokens: null);
-    }
-    if ((row['code_hash'] as String) != _tokens.hashToken(code)) {
-      final left = attemptsLeft - 1;
-      await _pool.execute(
-        Sql.named(
-          'UPDATE otp_codes SET attempts_left = @a WHERE phone_number = @p',
-        ),
-        parameters: {'a': left, 'p': phoneNumber},
-      );
-      return (
-        ok: false,
-        error: left <= 0 ? 'otp_locked' : 'otp_invalid',
-        user: null,
-        tokens: null,
-      );
+    if (error != null) {
+      return (ok: false, error: error, user: null, tokens: null);
     }
     return _pool.runTx((tx) async {
       await tx.execute(
         Sql.named('DELETE FROM otp_codes WHERE phone_number = @p'),
         parameters: {'p': phoneNumber},
       );
-      final user = await _findOrCreateUser(tx, phoneNumber);
-      if (user.status == 'banned') {
-        return (
-          ok: false,
-          error: 'account_suspended',
-          user: null,
-          tokens: null,
-        );
-      }
-      final tokens = await _issueInFamily(tx, user.id, 'user', _newId('fam'));
-      return (ok: true, error: null, user: user, tokens: tokens);
+      final user = await _findOrCreateByPhone(tx, phoneNumber);
+      return _loginAs(tx, user);
     });
+  }
+
+  @override
+  Future<OtpVerifyResult> verifyEmailOtp(String email, String code) async {
+    final key = email.trim().toLowerCase();
+    final error = await _checkOtpIn('email_otp_codes', 'email', key, code);
+    if (error != null) {
+      return (ok: false, error: error, user: null, tokens: null);
+    }
+    return _pool.runTx((tx) async {
+      await tx.execute(
+        Sql.named('DELETE FROM email_otp_codes WHERE email = @p'),
+        parameters: {'p': key},
+      );
+      // Inbox ownership proven → the email is verified.
+      var user = await _userWhere(tx, 'lower(email) = @e', {'e': key});
+      if (user == null) {
+        final created = await tx.execute(
+          Sql.named(
+            'INSERT INTO users (id, email, email_verified, auth_provider) '
+            "VALUES (@id, @e, true, 'email') RETURNING *",
+          ),
+          parameters: {'id': _newId('user'), 'e': key},
+        );
+        user = _userFrom(created.first.toColumnMap());
+      } else if (!user.emailVerified) {
+        await tx.execute(
+          Sql.named('UPDATE users SET email_verified = true WHERE id = @id'),
+          parameters: {'id': user.id},
+        );
+        user.emailVerified = true;
+      }
+      return _loginAs(tx, user);
+    });
+  }
+
+  @override
+  Future<OtpVerifyResult> loginWithSocial({
+    required String provider,
+    required String sub,
+    String? email,
+    bool emailVerified = false,
+    String? name,
+    String? avatarUrl,
+  }) async {
+    // Only google/apple carry a dedicated sub column; anything else is a bug.
+    final subColumn = switch (provider) {
+      'google' => 'google_sub',
+      'apple' => 'apple_sub',
+      _ => throw ArgumentError.value(provider, 'provider'),
+    };
+    final emailKey = email?.trim().toLowerCase();
+    return _pool.runTx((tx) async {
+      var user = await _userWhere(tx, '$subColumn = @s', {'s': sub});
+      if (user == null && emailKey != null && emailVerified) {
+        // Link rule §4: a verified email joins this provider to the existing
+        // account (never on an unverified email — T33).
+        user = await _userWhere(tx, 'lower(email) = @e', {'e': emailKey});
+        if (user != null) {
+          await tx.execute(
+            Sql.named(
+              'UPDATE users SET $subColumn = @s, email_verified = true, '
+              'name = COALESCE(name, @n:text), '
+              'avatar_url = COALESCE(avatar_url, @a:text) WHERE id = @id',
+            ),
+            parameters: {'s': sub, 'n': name, 'a': avatarUrl, 'id': user.id},
+          );
+          user.emailVerified = true;
+          user.name ??= name;
+          user.avatarUrl ??= avatarUrl;
+        }
+      }
+      if (user == null) {
+        final created = await tx.execute(
+          Sql.named(
+            'INSERT INTO users '
+            '(id, email, email_verified, $subColumn, auth_provider, name, avatar_url) '
+            'VALUES (@id, @e:text, @v, @s, @p, @n:text, @a:text) RETURNING *',
+          ),
+          parameters: {
+            'id': _newId('user'),
+            'e': emailKey,
+            'v': emailVerified && emailKey != null,
+            's': sub,
+            'p': provider,
+            'n': name,
+            'a': avatarUrl,
+          },
+        );
+        user = _userFrom(created.first.toColumnMap());
+      }
+      return _loginAs(tx, user);
+    });
+  }
+
+  /// Check a code against an OTP table; null means valid (caller consumes it).
+  Future<String?> _checkOtpIn(
+    String table,
+    String keyColumn,
+    String key,
+    String code,
+  ) async {
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT code_hash, expires_at, attempts_left '
+        'FROM $table WHERE $keyColumn = @p',
+      ),
+      parameters: {'p': key},
+    );
+    if (rows.isEmpty) return 'otp_none';
+    final row = rows.first.toColumnMap();
+    if (DateTime.now().toUtc().isAfter(
+      (row['expires_at'] as DateTime).toUtc(),
+    )) {
+      await _pool.execute(
+        Sql.named('DELETE FROM $table WHERE $keyColumn = @p'),
+        parameters: {'p': key},
+      );
+      return 'otp_expired';
+    }
+    final attemptsLeft = row['attempts_left'] as int;
+    if (attemptsLeft <= 0) return 'otp_locked';
+    if ((row['code_hash'] as String) != _tokens.hashToken(code)) {
+      final left = attemptsLeft - 1;
+      await _pool.execute(
+        Sql.named('UPDATE $table SET attempts_left = @a WHERE $keyColumn = @p'),
+        parameters: {'a': left, 'p': key},
+      );
+      return left <= 0 ? 'otp_locked' : 'otp_invalid';
+    }
+    return null;
+  }
+
+  Future<OtpVerifyResult> _loginAs(Session tx, AuthUser user) async {
+    if (user.status == 'banned') {
+      return (ok: false, error: 'account_suspended', user: null, tokens: null);
+    }
+    final tokens = await _issueInFamily(tx, user.id, 'user', _newId('fam'));
+    return (ok: true, error: null, user: user, tokens: tokens);
+  }
+
+  Future<AuthUser?> _userWhere(
+    Session session,
+    String condition,
+    Map<String, Object?> parameters,
+  ) async {
+    final rows = await session.execute(
+      Sql.named('SELECT * FROM users WHERE $condition'),
+      parameters: parameters,
+    );
+    if (rows.isEmpty) return null;
+    return _userFrom(rows.first.toColumnMap());
   }
 
   @override
@@ -190,18 +317,33 @@ class PostgresAuthRepository implements AuthRepository {
     String? name,
     String? email,
     String? avatarUrl,
+    String? phone,
   }) async {
     final existing = await userById(id);
     if (existing == null) return null;
+    final newEmail = email == null
+        ? existing.email
+        : (email.isEmpty ? null : email.trim().toLowerCase());
+    final emailChanged = newEmail != existing.email;
+    final newPhone = phone == null
+        ? existing.phoneNumber
+        : (phone.isEmpty ? null : phone.trim());
+    final phoneChanged = newPhone != existing.phoneNumber;
     final rows = await _pool.execute(
       Sql.named(
         'UPDATE users SET name = @n:text, email = @e:text, '
-        'avatar_url = @a:text WHERE id = @id RETURNING *',
+        'email_verified = @ev, avatar_url = @a:text, '
+        'phone_number = @p:text, phone_verified = @pv '
+        'WHERE id = @id RETURNING *',
       ),
       parameters: {
         'n': (name != null && name.isNotEmpty) ? name : existing.name,
-        'e': email == null ? existing.email : (email.isEmpty ? null : email),
+        'e': newEmail,
+        // A changed email/phone is unverified until proven again.
+        'ev': emailChanged ? false : existing.emailVerified,
         'a': avatarUrl ?? existing.avatarUrl,
+        'p': newPhone,
+        'pv': phoneChanged ? false : existing.phoneVerified,
         'id': id,
       },
     );
@@ -212,7 +354,18 @@ class PostgresAuthRepository implements AuthRepository {
   Future<bool> deleteUser(String id) async {
     final user = await userById(id);
     if (user == null) return false;
-    await _deleteOtp(user.phoneNumber);
+    if (user.phoneNumber != null) {
+      await _pool.execute(
+        Sql.named('DELETE FROM otp_codes WHERE phone_number = @p'),
+        parameters: {'p': user.phoneNumber},
+      );
+    }
+    if (user.email != null) {
+      await _pool.execute(
+        Sql.named('DELETE FROM email_otp_codes WHERE email = @e'),
+        parameters: {'e': user.email},
+      );
+    }
     final res = await _pool.execute(
       Sql.named('DELETE FROM users WHERE id = @id'),
       parameters: {'id': id},
@@ -220,23 +373,30 @@ class PostgresAuthRepository implements AuthRepository {
     return res.affectedRows > 0;
   }
 
-  Future<void> _deleteOtp(String phoneNumber) => _pool.execute(
-    Sql.named('DELETE FROM otp_codes WHERE phone_number = @p'),
-    parameters: {'p': phoneNumber},
-  );
-
-  Future<AuthUser> _findOrCreateUser(
+  Future<AuthUser> _findOrCreateByPhone(
     Session session,
     String phoneNumber,
   ) async {
     final found = await session.execute(
-      Sql.named('SELECT * FROM users WHERE phone_number = @p'),
+      Sql.named('SELECT * FROM users WHERE phone_number = @p LIMIT 1'),
       parameters: {'p': phoneNumber},
     );
-    if (found.isNotEmpty) return _userFrom(found.first.toColumnMap());
+    if (found.isNotEmpty) {
+      final user = _userFrom(found.first.toColumnMap());
+      if (!user.phoneVerified) {
+        // OTP proved possession of the number.
+        await session.execute(
+          Sql.named('UPDATE users SET phone_verified = true WHERE id = @id'),
+          parameters: {'id': user.id},
+        );
+        user.phoneVerified = true;
+      }
+      return user;
+    }
     final created = await session.execute(
       Sql.named(
-        'INSERT INTO users (id, phone_number) VALUES (@id, @p) RETURNING *',
+        'INSERT INTO users (id, phone_number, phone_verified, auth_provider) '
+        "VALUES (@id, @p, true, 'phone') RETURNING *",
       ),
       parameters: {'id': _newId('user'), 'p': phoneNumber},
     );
@@ -272,10 +432,13 @@ class PostgresAuthRepository implements AuthRepository {
 
   AuthUser _userFrom(Map<String, dynamic> m) => AuthUser(
     id: m['id'] as String,
-    phoneNumber: m['phone_number'] as String,
+    phoneNumber: m['phone_number'] as String?,
+    phoneVerified: (m['phone_verified'] as bool?) ?? false,
     createdAt: m['created_at'] as DateTime,
     name: m['name'] as String?,
     email: m['email'] as String?,
+    emailVerified: (m['email_verified'] as bool?) ?? false,
+    authProvider: m['auth_provider'] as String?,
     avatarUrl: m['avatar_url'] as String?,
     status: (m['status'] as String?) ?? 'active',
   );
@@ -304,7 +467,9 @@ class PostgresAuthRepository implements AuthRepository {
       params['status'] = status;
     }
     if (q != null && q.isNotEmpty) {
-      conditions.add('(name ILIKE @q OR phone_number ILIKE @q)');
+      conditions.add(
+        '(name ILIKE @q OR phone_number ILIKE @q OR email ILIKE @q)',
+      );
       params['q'] = '%$q%';
     }
     final where = conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';

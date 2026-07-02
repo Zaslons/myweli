@@ -47,15 +47,19 @@ Future<Response> _list(RequestContext context, Principal principal) async {
     items = await repo.listForProvider(providerId, status: status);
   } else {
     // Auto-sync (FR-APPT-008): also surface provider-entered bookings made to
-    // this account's **OTP-verified** phone (resolved server-side — never from
-    // the request). Design: docs/design/appointment-auto-sync.md.
+    // this account's **verified** phone (resolved server-side — never from
+    // the request). Unverified contact phones don't match (auth overhaul:
+    // phone is contact data until proven via SMS). Design:
+    // docs/design/appointment-auto-sync.md + auth-social-email.md.
     final account = await context.read<AuthRepository>().userById(
       principal.userId,
     );
     items = await repo.listForUser(
       principal.userId,
       status: status,
-      matchPhone: account?.phoneNumber,
+      matchPhone: (account?.phoneVerified ?? false)
+          ? account?.phoneNumber
+          : null,
     );
   }
 

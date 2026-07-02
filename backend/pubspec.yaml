@@ -12,6 +12,8 @@ dependencies:
   dart_frog: ^1.1.0
   dart_jsonwebtoken: ^2.14.0
   http: ^1.2.0
+  # RSA key construction from JWKS (n/e) for Google/Apple ID-token verification.
+  pointycastle: ^3.9.1
   postgres: ^3.5.12
 
 dev_dependencies:

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 
+import 'auth/auth_repository.dart';
+
 /// Standard error envelope (docs/BACKEND.md §2): `{ error, message? }`.
 Response jsonError(int statusCode, String error, [String? message]) =>
     Response.json(
@@ -32,4 +34,28 @@ Response resultResponse({
     default:
       return jsonError(HttpStatus.badRequest, error ?? 'error');
   }
+}
+
+/// Shapes a login outcome as the **AuthSession** contract
+/// (`{ tokens: {...}, user }` — every login endpoint returns this exact
+/// nesting; drift here broke the web BFF once). Failures:
+/// `account_suspended` → 403, anything else (otp_*) → 400.
+Response authSessionResponse(OtpVerifyResult result) {
+  if (!result.ok) {
+    final status = result.error == 'account_suspended'
+        ? HttpStatus.forbidden
+        : HttpStatus.badRequest;
+    return jsonError(status, result.error!);
+  }
+  final tokens = result.tokens!;
+  return Response.json(
+    body: {
+      'tokens': {
+        'accessToken': tokens.accessToken,
+        'refreshToken': tokens.refreshToken,
+        'expiresAt': tokens.expiresAt.toIso8601String(),
+      },
+      'user': result.user!.toJson(),
+    },
+  );
 }

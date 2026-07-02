@@ -10,8 +10,9 @@ typedef TokenPair = ({
 });
 
 /// Outcome of an OTP request. [code] is the plaintext for **delivery** (always
-/// set on success, in-memory only — handed to the SMS sender, never logged).
-/// [devCode] is the same value echoed to clients **only** outside production.
+/// set on success, in-memory only — handed to the SMS/email sender, never
+/// logged). [devCode] is the same value echoed to clients **only** outside
+/// production.
 typedef OtpRequestResult = ({
   bool ok,
   String? error,
@@ -20,7 +21,7 @@ typedef OtpRequestResult = ({
   int expiresInSeconds,
 });
 
-/// Outcome of an OTP verification.
+/// Outcome of a login (OTP verification or social sign-in).
 typedef OtpVerifyResult = ({
   bool ok,
   String? error,
@@ -32,31 +33,42 @@ typedef OtpVerifyResult = ({
 typedef RefreshResult = ({bool ok, String? error, TokenPair? tokens});
 
 /// Public-facing user fields. Mirrors the app's `User` DTO and the OpenAPI
-/// `User` schema field-for-field.
+/// `User` schema field-for-field. Since the auth overhaul
+/// (docs/design/auth-social-email.md) the canonical identity is the verified
+/// **email** (Google/Apple/email-OTP); [phoneNumber] is an optional contact
+/// attribute, verified later via SMS ([phoneVerified]).
 class AuthUser {
   AuthUser({
     required this.id,
-    required this.phoneNumber,
     required this.createdAt,
-    this.name,
+    this.phoneNumber,
+    this.phoneVerified = false,
     this.email,
+    this.emailVerified = false,
+    this.authProvider,
+    this.name,
     this.avatarUrl,
     this.status = 'active',
   });
 
   final String id;
-  final String phoneNumber;
   final DateTime createdAt;
-  String? name;
+  String? phoneNumber;
+  bool phoneVerified;
   String? email;
+  bool emailVerified;
+  String? authProvider; // google | apple | email | phone
+  String? name;
   String? avatarUrl;
   String status; // active | banned (admin-controlled)
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'phoneNumber': phoneNumber,
+    'phoneVerified': phoneVerified,
     'name': name,
     'email': email,
+    'authProvider': authProvider,
     'avatarUrl': avatarUrl,
     'status': status,
     'createdAt': createdAt.toIso8601String(),
@@ -90,15 +102,38 @@ class _Refresh {
 /// In-memory now; a Postgres impl (B3b) satisfies the same interface, so the
 /// routes are unchanged when the store swaps.
 abstract interface class AuthRepository {
+  // --- Phone OTP (dormant at launch — AUTH_METHODS gates the routes) --------
   Future<OtpRequestResult> requestOtp(String phoneNumber);
   Future<OtpVerifyResult> verifyOtp(String phoneNumber, String code);
+
+  // --- Email OTP (docs/design/auth-social-email.md §7) ----------------------
+  Future<OtpRequestResult> requestEmailOtp(String email);
+  Future<OtpVerifyResult> verifyEmailOtp(String email, String code);
+
+  /// Login with **verified** identity-provider claims (Google/Apple). Link
+  /// rules (§4): match by provider [sub] → else by **verified** [email]
+  /// (linking the sub) → else create. Never links on an unverified email
+  /// (threat model T33).
+  Future<OtpVerifyResult> loginWithSocial({
+    required String provider,
+    required String sub,
+    String? email,
+    bool emailVerified = false,
+    String? name,
+    String? avatarUrl,
+  });
+
   Future<RefreshResult> refresh(String refreshToken);
   Future<AuthUser?> userById(String id);
+
+  /// Update mutable profile fields. Empty string clears [email]/[phone];
+  /// setting a new [phone] resets `phoneVerified` (contact until verified).
   Future<AuthUser?> updateUser(
     String id, {
     String? name,
     String? email,
     String? avatarUrl,
+    String? phone,
   });
   Future<bool> deleteUser(String id);
 
@@ -107,7 +142,7 @@ abstract interface class AuthRepository {
   /// the updated user, or null if absent.
   Future<AuthUser?> setStatus(String id, String status);
 
-  /// Admin list, filterable by status + free-text (name/phone), paginated.
+  /// Admin list, filterable by status + free-text (name/phone/email), paginated.
   Future<({List<AuthUser> items, int total})> listUsers({
     String? status,
     String? q,
@@ -116,9 +151,9 @@ abstract interface class AuthRepository {
   });
 }
 
-/// In-memory implementation: per-phone OTP state (hashed code + an attempt/
-/// resend budget) and refresh-token families (hashed, rotating, reuse
-/// detection).
+/// In-memory implementation: per-phone/per-email OTP state (hashed code + an
+/// attempt/resend budget), social-sub indexes, and refresh-token families
+/// (hashed, rotating, reuse detection).
 class InMemoryAuthRepository implements AuthRepository {
   InMemoryAuthRepository({
     required TokenService tokens,
@@ -141,13 +176,23 @@ class InMemoryAuthRepository implements AuthRepository {
 
   final Map<String, AuthUser> _usersByPhone = {};
   final Map<String, AuthUser> _usersById = {};
-  final Map<String, _Otp> _otps = {};
+  final Map<String, AuthUser> _usersByEmail = {}; // lowercased email
+  final Map<String, AuthUser> _usersBySocial = {}; // '<provider>:<sub>'
+  final Map<String, _Otp> _otps = {}; // phone OTPs
+  final Map<String, _Otp> _emailOtps = {}; // email OTPs (lowercased)
   final Map<String, _Refresh> _refreshByHash = {};
 
   /// Issue (or resend) an OTP for [phoneNumber]. Enforces the resend budget.
   @override
-  Future<OtpRequestResult> requestOtp(String phoneNumber) async {
-    final existing = _otps[phoneNumber];
+  Future<OtpRequestResult> requestOtp(String phoneNumber) async =>
+      _requestOtpIn(_otps, phoneNumber);
+
+  @override
+  Future<OtpRequestResult> requestEmailOtp(String email) async =>
+      _requestOtpIn(_emailOtps, email.trim().toLowerCase());
+
+  OtpRequestResult _requestOtpIn(Map<String, _Otp> store, String key) {
+    final existing = store[key];
     if (existing != null && existing.resendsLeft <= 0) {
       return (
         ok: false,
@@ -161,7 +206,7 @@ class InMemoryAuthRepository implements AuthRepository {
         ? _maxResends
         : existing.resendsLeft - 1;
     final code = (100000 + _random.nextInt(900000)).toString(); // 6 digits
-    _otps[phoneNumber] = _Otp(
+    store[key] = _Otp(
       codeHash: _tokens.hashToken(code),
       expiresAt: DateTime.now().add(_otpValidity),
       attemptsLeft: _maxAttempts,
@@ -176,27 +221,98 @@ class InMemoryAuthRepository implements AuthRepository {
     );
   }
 
+  /// Check a code against [store]; null means valid (and consumed).
+  String? _checkOtp(Map<String, _Otp> store, String key, String code) {
+    final otp = store[key];
+    if (otp == null) return 'otp_none';
+    if (DateTime.now().isAfter(otp.expiresAt)) {
+      store.remove(key);
+      return 'otp_expired';
+    }
+    if (otp.attemptsLeft <= 0) return 'otp_locked';
+    if (otp.codeHash != _tokens.hashToken(code)) {
+      otp.attemptsLeft -= 1;
+      return otp.attemptsLeft <= 0 ? 'otp_locked' : 'otp_invalid';
+    }
+    store.remove(key);
+    return null;
+  }
+
   /// Verify a code; on success find-or-create the user and issue a token pair.
   @override
   Future<OtpVerifyResult> verifyOtp(String phoneNumber, String code) async {
-    final otp = _otps[phoneNumber];
-    if (otp == null) {
-      return (ok: false, error: 'otp_none', user: null, tokens: null);
-    }
-    if (DateTime.now().isAfter(otp.expiresAt)) {
-      _otps.remove(phoneNumber);
-      return (ok: false, error: 'otp_expired', user: null, tokens: null);
-    }
-    if (otp.attemptsLeft <= 0) {
-      return (ok: false, error: 'otp_locked', user: null, tokens: null);
-    }
-    if (otp.codeHash != _tokens.hashToken(code)) {
-      otp.attemptsLeft -= 1;
-      final error = otp.attemptsLeft <= 0 ? 'otp_locked' : 'otp_invalid';
+    final error = _checkOtp(_otps, phoneNumber, code);
+    if (error != null) {
       return (ok: false, error: error, user: null, tokens: null);
     }
-    _otps.remove(phoneNumber);
-    final user = _findOrCreateUser(phoneNumber);
+    final user = _findOrCreateByPhone(phoneNumber);
+    return _loginAs(user);
+  }
+
+  @override
+  Future<OtpVerifyResult> verifyEmailOtp(String email, String code) async {
+    final key = email.trim().toLowerCase();
+    final error = _checkOtp(_emailOtps, key, code);
+    if (error != null) {
+      return (ok: false, error: error, user: null, tokens: null);
+    }
+    // Inbox ownership proven → the email is verified.
+    final existing = _usersByEmail[key];
+    final user =
+        existing ??
+        _addUser(
+          AuthUser(
+            id: _newId('user'),
+            createdAt: DateTime.now().toUtc(),
+            email: key,
+            emailVerified: true,
+            authProvider: 'email',
+          ),
+        );
+    user.emailVerified = true;
+    return _loginAs(user);
+  }
+
+  @override
+  Future<OtpVerifyResult> loginWithSocial({
+    required String provider,
+    required String sub,
+    String? email,
+    bool emailVerified = false,
+    String? name,
+    String? avatarUrl,
+  }) async {
+    final key = '$provider:$sub';
+    final emailKey = email?.trim().toLowerCase();
+    var user = _usersBySocial[key];
+    if (user == null && emailKey != null && emailVerified) {
+      // Link rule §4: a verified email joins this provider to the existing
+      // account (never on an unverified email — T33).
+      user = _usersByEmail[emailKey];
+      if (user != null) {
+        _usersBySocial[key] = user;
+        user
+          ..emailVerified = true
+          ..name ??= name
+          ..avatarUrl ??= avatarUrl;
+      }
+    }
+    user ??= _addUser(
+      AuthUser(
+        id: _newId('user'),
+        createdAt: DateTime.now().toUtc(),
+        email: emailKey,
+        emailVerified: emailVerified && emailKey != null,
+        authProvider: provider,
+        name: name,
+        avatarUrl: avatarUrl,
+      ),
+      socialKey: key,
+    );
+    return _loginAs(user);
+  }
+
+  OtpVerifyResult _loginAs(AuthUser user) {
     if (user.status == 'banned') {
       return (ok: false, error: 'account_suspended', user: null, tokens: null);
     }
@@ -251,7 +367,8 @@ class InMemoryAuthRepository implements AuthRepository {
         return false;
       }
       if (q != null && q.isNotEmpty) {
-        final hay = '${u.name ?? ''} ${u.phoneNumber}'.toLowerCase();
+        final hay = '${u.name ?? ''} ${u.phoneNumber ?? ''} ${u.email ?? ''}'
+            .toLowerCase();
         if (!hay.contains(q.toLowerCase())) return false;
       }
       return true;
@@ -263,19 +380,39 @@ class InMemoryAuthRepository implements AuthRepository {
     return (items: items, total: all.length);
   }
 
-  /// Update mutable profile fields. `email: ''` clears it; null leaves it.
+  /// Update mutable profile fields. `email: ''`/`phone: ''` clear; null leaves.
   @override
   Future<AuthUser?> updateUser(
     String id, {
     String? name,
     String? email,
     String? avatarUrl,
+    String? phone,
   }) async {
     final user = _usersById[id];
     if (user == null) return null;
     if (name != null && name.isNotEmpty) user.name = name;
-    if (email != null) user.email = email.isEmpty ? null : email;
+    if (email != null) {
+      final newEmail = email.isEmpty ? null : email.trim().toLowerCase();
+      if (newEmail != user.email) {
+        if (user.email != null) _usersByEmail.remove(user.email);
+        user
+          ..email = newEmail
+          ..emailVerified = false;
+        if (newEmail != null) _usersByEmail[newEmail] = user;
+      }
+    }
     if (avatarUrl != null) user.avatarUrl = avatarUrl;
+    if (phone != null) {
+      final newPhone = phone.isEmpty ? null : phone.trim();
+      if (newPhone != user.phoneNumber) {
+        if (user.phoneNumber != null) _usersByPhone.remove(user.phoneNumber);
+        user
+          ..phoneNumber = newPhone
+          ..phoneVerified = false; // contact until verified (via SMS later)
+        if (newPhone != null) _usersByPhone[newPhone] = user;
+      }
+    }
     return user;
   }
 
@@ -283,8 +420,15 @@ class InMemoryAuthRepository implements AuthRepository {
   Future<bool> deleteUser(String id) async {
     final user = _usersById.remove(id);
     if (user == null) return false;
-    _usersByPhone.remove(user.phoneNumber);
-    _otps.remove(user.phoneNumber);
+    if (user.phoneNumber != null) {
+      _usersByPhone.remove(user.phoneNumber);
+      _otps.remove(user.phoneNumber);
+    }
+    if (user.email != null) {
+      _usersByEmail.remove(user.email);
+      _emailOtps.remove(user.email);
+    }
+    _usersBySocial.removeWhere((_, u) => u.id == id);
     _refreshByHash.removeWhere((_, r) => r.userId == id);
     return true;
   }
@@ -307,16 +451,29 @@ class InMemoryAuthRepository implements AuthRepository {
   void _revokeFamily(String familyId) =>
       _refreshByHash.removeWhere((_, r) => r.familyId == familyId);
 
-  AuthUser _findOrCreateUser(String phoneNumber) {
+  AuthUser _findOrCreateByPhone(String phoneNumber) {
     final existing = _usersByPhone[phoneNumber];
-    if (existing != null) return existing;
-    final user = AuthUser(
-      id: _newId('user'),
-      phoneNumber: phoneNumber,
-      createdAt: DateTime.now().toUtc(),
+    if (existing != null) {
+      // OTP proved possession of the number.
+      existing.phoneVerified = true;
+      return existing;
+    }
+    return _addUser(
+      AuthUser(
+        id: _newId('user'),
+        createdAt: DateTime.now().toUtc(),
+        phoneNumber: phoneNumber,
+        phoneVerified: true,
+        authProvider: 'phone',
+      ),
     );
-    _usersByPhone[phoneNumber] = user;
+  }
+
+  AuthUser _addUser(AuthUser user, {String? socialKey}) {
     _usersById[user.id] = user;
+    if (user.phoneNumber != null) _usersByPhone[user.phoneNumber!] = user;
+    if (user.email != null) _usersByEmail[user.email!] = user;
+    if (socialKey != null) _usersBySocial[socialKey] = user;
     return user;
   }
 

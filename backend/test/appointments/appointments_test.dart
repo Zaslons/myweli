@@ -385,11 +385,13 @@ void main() {
           'appointmentDate': _slotAt(11).toIso8601String(),
           'totalPrice': 1000,
         });
-        // user_C's account verified that same phone → it should appear.
+        // user_C's account VERIFIED that same phone → it should appear.
+        // (An unverified contact phone must not match — threat model T34.)
         when(() => auth.userById('user_C')).thenAnswer(
           (_) async => AuthUser(
             id: 'user_C',
             phoneNumber: phone,
+            phoneVerified: true,
             createdAt: DateTime.utc(2026),
           ),
         );

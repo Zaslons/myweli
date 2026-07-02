@@ -12,12 +12,15 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/cors.dart';
 import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/favorites_service.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
@@ -40,6 +43,10 @@ import 'package:myweli_backend/src/upload_signing_service.dart';
 Handler middleware(Handler handler) {
   return handler
       .use(provider<AuthRepository>((_) => authRepository))
+      .use(provider<AuthMethods>((_) => authMethods))
+      .use(provider<GoogleIdTokenVerifier>((_) => googleIdTokenVerifier))
+      .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
+      .use(provider<EmailProvider>((_) => emailProvider))
       .use(provider<ProviderAuthRepository>((_) => providerAuthRepository))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
       .use(provider<BookingService>((_) => bookingService))

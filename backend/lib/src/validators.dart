@@ -9,3 +9,9 @@ bool isValidE164(String value) =>
 /// A numeric OTP code of 4–8 digits.
 bool isValidOtpCode(String value) =>
     RegExp(r'^\d{4,8}$').hasMatch(value.trim());
+
+/// A plausible email address (pragmatic: local@domain.tld, ≤ 254 chars).
+bool isValidEmail(String value) {
+  final v = value.trim();
+  return v.length <= 254 && RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v);
+}

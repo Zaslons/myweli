@@ -50,6 +50,18 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      # Auth overhaul (docs/design/auth-social-email.md). Launch:
+      # AUTH_METHODS=google,apple,email (phone-OTP dormant — SMS too costly).
+      - key: AUTH_METHODS
+        sync: false
+      - key: GOOGLE_CLIENT_IDS   # OAuth client-ID allowlist (web,android,ios)
+        sync: false
+      - key: APPLE_CLIENT_IDS    # iOS bundle id + web Service ID
+        sync: false
+      - key: RESEND_API_KEY      # email OTP (Resend) — secret
+        sync: false
+      - key: EMAIL_FROM          # e.g. MyWeli <no-reply@myweli.com>
+        sync: false
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
