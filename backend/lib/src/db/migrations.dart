@@ -519,6 +519,35 @@ CREATE TABLE IF NOT EXISTS email_otp_codes (
 )''',
     ],
   ),
+  (
+    id: '0023_provider_auth_social',
+    statements: [
+      // Pro auth overhaul (docs/design/pro-auth-social.md): salon identity =
+      // verified email (Google/Apple/email-OTP); phone stays the REQUIRED
+      // salon contact (uniqueness dropped — no longer an identity).
+      'ALTER TABLE provider_users DROP CONSTRAINT IF EXISTS provider_users_phone_number_key',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS google_sub text',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS apple_sub text',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS auth_provider text',
+      'CREATE UNIQUE INDEX IF NOT EXISTS provider_users_email_lower_key '
+          'ON provider_users (lower(email)) WHERE email IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS provider_users_google_sub_key '
+          'ON provider_users (google_sub) WHERE google_sub IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS provider_users_apple_sub_key '
+          'ON provider_users (apple_sub) WHERE apple_sub IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS provider_users_phone_number_idx '
+          'ON provider_users (phone_number)',
+      '''
+CREATE TABLE IF NOT EXISTS provider_email_otp_codes (
+  email        text PRIMARY KEY,
+  code_hash    text NOT NULL,
+  expires_at   timestamptz NOT NULL,
+  attempts_left int NOT NULL,
+  resends_left  int NOT NULL
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

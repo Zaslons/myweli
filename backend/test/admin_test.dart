@@ -96,6 +96,9 @@ void main() {
       audit = InMemoryAuditLogRepository();
       svc = AdminKycService(providers, const FakeStorageService(), audit);
       final reg = await providers.register(
+        email: 'reg5@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-5',
         phoneNumber: '+2250500000090',
         businessName: 'Salon X',
         businessType: 'salon',

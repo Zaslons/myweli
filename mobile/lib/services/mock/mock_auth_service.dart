@@ -361,38 +361,144 @@ class MockAuthService implements AuthServiceInterface {
     return ApiResponse.success(providerUser, message: 'Connexion réussie');
   }
 
+  // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
+
+  /// Mock salon Google identity — LOGIN-ONLY (no auto-create).
+  static const String mockProGoogleEmail = 'mock.google@salon.test';
+
+  final Map<String, String> _providerEmailOtpStore = {}; // email -> otp
+
+  ProviderUser? _providerByEmail(String email) {
+    final key = email.trim().toLowerCase();
+    for (final p in MockData.providerUsers) {
+      if (p.email?.toLowerCase() == key) return p;
+    }
+    return null;
+  }
+
+  Future<ApiResponse<ProviderUser>> _providerLogin(String email) async {
+    final account = _providerByEmail(email);
+    if (account == null) {
+      return ApiResponse.error(
+        'Compte introuvable. Créez votre compte.',
+        code: 'provider_not_found',
+      );
+    }
+    _currentProvider = account;
+    return ApiResponse.success(account, message: 'Connexion réussie');
+  }
+
   @override
-  Future<ApiResponse<ProviderUser>> registerProvider({
+  Future<ApiResponse<ProviderUser>> signInProviderWithGoogle() async {
+    await Future.delayed(AppConstants.mockDelay);
+    return _providerLogin(mockProGoogleEmail);
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> signInProviderWithApple() async {
+    await Future.delayed(AppConstants.mockDelay);
+    return _providerLogin('mock.apple@salon.test');
+  }
+
+  @override
+  Future<ApiResponse<String>> requestProviderEmailOtp(String email) async {
+    await Future.delayed(AppConstants.mockDelay);
+    _providerEmailOtpStore[email.trim().toLowerCase()] = demoOtp;
+    return ApiResponse.success(demoOtp, message: 'Code envoyé par e-mail');
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> verifyProviderEmailOtp(
+      String email, String code) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final key = email.trim().toLowerCase();
+    if (_providerEmailOtpStore[key] != code) {
+      return ApiResponse.error('Code incorrect.', code: 'otp_invalid');
+    }
+    // LOGIN-ONLY; a correct code with no salon keeps the code for register.
+    final res = await _providerLogin(key);
+    if (res.success) _providerEmailOtpStore.remove(key);
+    return res;
+  }
+
+  ProviderUser _createProvider({
+    required String email,
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+  }) {
+    final providerUser = ProviderUser(
+      id: 'provider_${DateTime.now().millisecondsSinceEpoch}',
+      phoneNumber: phoneNumber,
+      businessName: businessName,
+      businessType: businessType,
+      email: email.trim().toLowerCase(),
+      address: address,
+      createdAt: DateTime.now(),
+    );
+    MockData.providerUsers.add(providerUser);
+    _currentProvider = providerUser;
+    return providerUser;
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
     required String phoneNumber,
     required String businessName,
     required BusinessType businessType,
     String? address,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
-
-    // Check if provider already exists
-    if (MockData.providerUsers.any((p) => p.phoneNumber == phoneNumber)) {
-      return ApiResponse.error('Un compte existe déjà avec ce numéro');
+    if (_providerByEmail(mockProGoogleEmail) != null) {
+      return ApiResponse.error(
+        'Un compte existe déjà pour cette identité.',
+        code: 'provider_exists',
+      );
     }
-
-    // Create new provider user
-    final providerUser = ProviderUser(
-      id: 'provider_${DateTime.now().millisecondsSinceEpoch}',
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      address: address,
-      createdAt: DateTime.now(),
+    return ApiResponse.success(
+      _createProvider(
+        email: mockProGoogleEmail,
+        phoneNumber: phoneNumber,
+        businessName: businessName,
+        businessType: businessType,
+        address: address,
+      ),
+      message: 'Inscription réussie',
     );
+  }
 
-    MockData.providerUsers.add(providerUser);
-
-    // Send OTP
-    const otp = '123456';
-    _providerOtpStore[phoneNumber] = otp;
-
-    return ApiResponse.success(providerUser,
-        message: 'Inscription réussie. Code OTP envoyé.');
+  @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
+    required String email,
+    required String code,
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final key = email.trim().toLowerCase();
+    if (_providerEmailOtpStore[key] != code) {
+      return ApiResponse.error('Code incorrect.', code: 'otp_invalid');
+    }
+    if (_providerByEmail(key) != null) {
+      return ApiResponse.error(
+        'Un compte existe déjà pour cette identité.',
+        code: 'provider_exists',
+      );
+    }
+    _providerEmailOtpStore.remove(key);
+    return ApiResponse.success(
+      _createProvider(
+        email: key,
+        phoneNumber: phoneNumber,
+        businessName: businessName,
+        businessType: businessType,
+        address: address,
+      ),
+      message: 'Inscription réussie',
+    );
   }
 
   @override

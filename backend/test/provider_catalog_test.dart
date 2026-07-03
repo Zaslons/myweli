@@ -37,6 +37,9 @@ void main() {
     );
     catalog = ProviderCatalogService(providers, providerAuth);
     final reg = await providerAuth.register(
+      email: 'reg3@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-3',
       phoneNumber: '+2250500000010',
       businessName: 'X',
       businessType: 'salon',
@@ -126,6 +129,9 @@ void main() {
 
     test('an unlinked provider account → forbidden', () async {
       final reg = await providerAuth.register(
+        email: 'reg4@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-4',
         phoneNumber: '+2250500000011',
         businessName: 'Y',
         businessType: 'salon',

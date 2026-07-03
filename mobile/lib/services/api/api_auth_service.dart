@@ -318,28 +318,166 @@ class ApiAuthService implements AuthServiceInterface {
     return ApiResponse.success(provider, message: 'Connexion réussie');
   }
 
+  // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
+
+  /// Shared FLAT ProviderSession handling for every provider login endpoint.
+  Future<ApiResponse<ProviderUser>> _providerLoginFrom(
+    http.Response? res, {
+    int expected = 200,
+  }) async {
+    if (res == null) return _networkError();
+    if (res.statusCode != expected) return _errorFrom(res);
+
+    final body = _decode(res.body);
+    final provider =
+        ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
+    _currentProvider = provider;
+    _providerToken = body['accessToken'] as String;
+    await _persistProviderSession(
+      provider,
+      _providerToken!,
+      body['refreshToken'] as String?,
+    );
+    return ApiResponse.success(provider, message: 'Connexion réussie');
+  }
+
+  /// Native Google sign-in → the ID token (aud = the web client, allowlisted).
+  Future<String?> _googleIdToken() async {
+    final google = GoogleSignIn(
+      scopes: const ['email'],
+      serverClientId: AppConfig.googleServerClientId,
+    );
+    final account = await google.signIn();
+    if (account == null) return null; // user closed the sheet
+    return (await account.authentication).idToken;
+  }
+
   @override
-  Future<ApiResponse<ProviderUser>> registerProvider({
+  Future<ApiResponse<ProviderUser>> signInProviderWithGoogle() async {
+    try {
+      final idToken = await _googleIdToken();
+      if (idToken == null) return ApiResponse.error('', code: 'cancelled');
+      final res = await _post('/auth/provider/google', {'idToken': idToken});
+      return _providerLoginFrom(res);
+    } catch (_) {
+      return ApiResponse.error(
+        'Connexion Google impossible.',
+        code: 'google_failed',
+      );
+    }
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> signInProviderWithApple() async {
+    try {
+      final rawNonce = _randomNonce();
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      );
+      final identityToken = credential.identityToken;
+      if (identityToken == null) {
+        return ApiResponse.error(
+          'Connexion Apple impossible.',
+          code: 'no_id_token',
+        );
+      }
+      final res = await _post('/auth/provider/apple', {
+        'identityToken': identityToken,
+        'nonce': rawNonce,
+      });
+      return _providerLoginFrom(res);
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return ApiResponse.error('', code: 'cancelled');
+      }
+      return ApiResponse.error(
+        'Connexion Apple impossible.',
+        code: 'apple_failed',
+      );
+    } catch (_) {
+      return ApiResponse.error(
+        'Connexion Apple impossible.',
+        code: 'apple_failed',
+      );
+    }
+  }
+
+  @override
+  Future<ApiResponse<String>> requestProviderEmailOtp(String email) async {
+    final res = await _post('/auth/provider/email/otp/request', {
+      'email': email,
+    });
+    if (res == null) return _networkError();
+    if (res.statusCode == 202) {
+      final body = _decode(res.body);
+      return ApiResponse.success(
+        body['devCode'] as String? ?? '',
+        message: 'Code envoyé par e-mail',
+      );
+    }
+    return _errorFrom(res);
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> verifyProviderEmailOtp(
+    String email,
+    String code,
+  ) async {
+    final res = await _post('/auth/provider/email/otp/verify', {
+      'email': email,
+      'code': code,
+    });
+    return _providerLoginFrom(res);
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
     required String phoneNumber,
     required String businessName,
     required BusinessType businessType,
     String? address,
   }) async {
-    // Creates the account and dispatches a code — the provider then verifies on
-    // the OTP screen, which is where they actually log in. No session yet.
+    try {
+      final idToken = await _googleIdToken();
+      if (idToken == null) return ApiResponse.error('', code: 'cancelled');
+      final res = await _post('/auth/provider/register', {
+        'idToken': idToken,
+        'phoneNumber': phoneNumber,
+        'businessName': businessName,
+        'businessType': businessType.name,
+        if (address != null && address.isNotEmpty) 'address': address,
+      });
+      return _providerLoginFrom(res, expected: 201);
+    } catch (_) {
+      return ApiResponse.error(
+        'Connexion Google impossible.',
+        code: 'google_failed',
+      );
+    }
+  }
+
+  @override
+  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
+    required String email,
+    required String code,
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+  }) async {
     final res = await _post('/auth/provider/register', {
+      'email': email,
+      'code': code,
       'phoneNumber': phoneNumber,
       'businessName': businessName,
       'businessType': businessType.name,
-      if (address != null) 'address': address,
+      if (address != null && address.isNotEmpty) 'address': address,
     });
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
-
-    final body = _decode(res.body);
-    final provider =
-        ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
-    return ApiResponse.success(provider, message: 'Inscription réussie');
+    return _providerLoginFrom(res, expected: 201);
   }
 
   @override

@@ -232,6 +232,21 @@ createServer(async (req, res) => {
     return res.end();
   }
   // --- pro dashboard (M7.0) ---
+  // --- pro auth overhaul (P4): email OTP + google (FLAT ProviderSession) ---
+  if (url.pathname === '/auth/provider/email/otp/request') {
+    return json(res, 202, { expiresInSeconds: 300, devCode: '123456' });
+  }
+  if (
+    url.pathname === '/auth/provider/email/otp/verify' ||
+    url.pathname === '/auth/provider/google'
+  ) {
+    return json(res, 200, {
+      provider: { id: 'acc1', businessName: 'Beauté Divine', providerId: 'p1' },
+      accessToken: 'stub-pro-access',
+      refreshToken: 'stub-pro-refresh',
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    });
+  }
   if (url.pathname === '/auth/provider/otp/request') {
     return json(res, 200, { devCode: '123456' });
   }

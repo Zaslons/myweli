@@ -63,12 +63,18 @@ void main() {
       isProd: false,
     );
     final pro1 = await providerAuth.register(
+      email: 'reg16@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-16',
       phoneNumber: '+2250500000050',
       businessName: 'Salon 1',
       businessType: 'salon',
       providerId: 'provider1',
     );
     final pro2 = await providerAuth.register(
+      email: 'reg17@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-17',
       phoneNumber: '+2250500000051',
       businessName: 'Salon 2',
       businessType: 'salon',

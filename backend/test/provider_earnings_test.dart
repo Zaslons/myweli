@@ -52,6 +52,9 @@ void main() {
     );
     service = ProviderEarningsService(providerAuth, appts);
     final reg = await providerAuth.register(
+      email: 'reg10@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-10',
       phoneNumber: '+2250500000040',
       businessName: 'X',
       businessType: 'salon',
@@ -99,6 +102,9 @@ void main() {
 
     test('ownership: unlinked + cross-salon → forbidden', () async {
       final reg = await providerAuth.register(
+        email: 'reg11@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-11',
         phoneNumber: '+2250500000041',
         businessName: 'Y',
         businessType: 'salon',

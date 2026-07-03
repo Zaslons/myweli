@@ -6,11 +6,7 @@ import 'package:postgres/postgres.dart';
 import '../auth/auth_repository.dart'
     show OtpRequestResult, RefreshResult, TokenPair;
 import '../auth/provider_auth_repository.dart'
-    show
-        ProviderAccount,
-        ProviderAuthRepository,
-        ProviderRegisterResult,
-        ProviderVerifyResult;
+    show ProviderAccount, ProviderAuthRepository, ProviderVerifyResult;
 import '../auth/tokens.dart';
 
 /// Postgres-backed [ProviderAuthRepository]. Same security logic as the
@@ -40,12 +36,28 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   final Random _random = Random.secure();
 
   @override
-  Future<OtpRequestResult> requestOtp(String phoneNumber) async {
+  Future<OtpRequestResult> requestOtp(String phoneNumber) =>
+      _requestOtpIn('provider_otp_codes', 'phone_number', phoneNumber);
+
+  @override
+  Future<OtpRequestResult> requestEmailOtp(String email) => _requestOtpIn(
+    'provider_email_otp_codes',
+    'email',
+    email.trim().toLowerCase(),
+  );
+
+  Future<OtpRequestResult> _requestOtpIn(
+    String table,
+    String keyColumn,
+    String key,
+  ) async {
+    // An expired code (abandoned flow) doesn't count against the budget.
     final existing = await _pool.execute(
       Sql.named(
-        'SELECT resends_left FROM provider_otp_codes WHERE phone_number = @p',
+        'SELECT resends_left FROM $table '
+        'WHERE $keyColumn = @p AND expires_at > now()',
       ),
-      parameters: {'p': phoneNumber},
+      parameters: {'p': key},
     );
     final hadExisting = existing.isNotEmpty;
     final prevResends = hadExisting
@@ -64,16 +76,16 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     final code = (100000 + _random.nextInt(900000)).toString();
     await _pool.execute(
       Sql.named(
-        'INSERT INTO provider_otp_codes '
-        '(phone_number, code_hash, expires_at, attempts_left, resends_left) '
+        'INSERT INTO $table '
+        '($keyColumn, code_hash, expires_at, attempts_left, resends_left) '
         'VALUES (@p, @h, @e, @a, @r) '
-        'ON CONFLICT (phone_number) DO UPDATE SET '
+        'ON CONFLICT ($keyColumn) DO UPDATE SET '
         'code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, '
         'attempts_left = EXCLUDED.attempts_left, '
         'resends_left = EXCLUDED.resends_left',
       ),
       parameters: {
-        'p': phoneNumber,
+        'p': key,
         'h': _tokens.hashToken(code),
         'e': DateTime.now().toUtc().add(_otpValidity),
         'a': _maxAttempts,
@@ -90,50 +102,196 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   }
 
   @override
-  Future<ProviderRegisterResult> register({
-    required String phoneNumber,
+  Future<ProviderVerifyResult> loginWithSocial({
+    required String provider,
+    required String sub,
+    String? email,
+    bool emailVerified = false,
+  }) async {
+    final subColumn = switch (provider) {
+      'google' => 'google_sub',
+      'apple' => 'apple_sub',
+      _ => throw ArgumentError.value(provider, 'provider'),
+    };
+    final emailKey = email?.trim().toLowerCase();
+    return _pool.runTx((tx) async {
+      var rows = await tx.execute(
+        Sql.named('SELECT * FROM provider_users WHERE $subColumn = @s'),
+        parameters: {'s': sub},
+      );
+      if (rows.isEmpty && emailKey != null && emailVerified) {
+        // Link only on a verified email (threat T33/T35).
+        rows = await tx.execute(
+          Sql.named('SELECT * FROM provider_users WHERE lower(email) = @e'),
+          parameters: {'e': emailKey},
+        );
+        if (rows.isNotEmpty) {
+          await tx.execute(
+            Sql.named(
+              'UPDATE provider_users SET $subColumn = @s, '
+              'email_verified = true WHERE id = @id',
+            ),
+            parameters: {'s': sub, 'id': rows.first.toColumnMap()['id']},
+          );
+        }
+      }
+      if (rows.isEmpty) {
+        // Never auto-create a salon — registration carries business fields.
+        return (
+          ok: false,
+          error: 'provider_not_found',
+          provider: null,
+          tokens: null,
+        );
+      }
+      final account = _toAccount(rows.first.toColumnMap());
+      final tokens = await _issueInFamily(tx, account.id, _newId('fam'));
+      return (ok: true, error: null, provider: account, tokens: tokens);
+    });
+  }
+
+  @override
+  Future<ProviderVerifyResult> verifyEmailOtp(String email, String code) async {
+    final key = email.trim().toLowerCase();
+    final error = await _checkEmailOtp(key, code);
+    if (error != null) {
+      return (ok: false, error: error, provider: null, tokens: null);
+    }
+    final rows = await _pool.execute(
+      Sql.named('SELECT * FROM provider_users WHERE lower(email) = @e'),
+      parameters: {'e': key},
+    );
+    if (rows.isEmpty) {
+      // Correct code, no salon → NOT consumed; the register screen reuses it.
+      return (
+        ok: false,
+        error: 'provider_not_found',
+        provider: null,
+        tokens: null,
+      );
+    }
+    final account = _toAccount(rows.first.toColumnMap());
+    return _pool.runTx((tx) async {
+      await tx.execute(
+        Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+        parameters: {'e': key},
+      );
+      await tx.execute(
+        Sql.named(
+          'UPDATE provider_users SET email_verified = true WHERE id = @id',
+        ),
+        parameters: {'id': account.id},
+      );
+      final tokens = await _issueInFamily(tx, account.id, _newId('fam'));
+      return (ok: true, error: null, provider: account, tokens: tokens);
+    });
+  }
+
+  @override
+  Future<ProviderVerifyResult> register({
     required String businessName,
     required String businessType,
+    required String phoneNumber,
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
     String? address,
     String? providerId,
   }) async {
+    final emailKey = email.trim().toLowerCase();
+    // Email-identity registrations prove inbox ownership here (Google/Apple
+    // tokens were verified by the route).
+    if (authProvider == 'email') {
+      final error = await _checkEmailOtp(emailKey, emailCode ?? '');
+      if (error != null) {
+        return (ok: false, error: error, provider: null, tokens: null);
+      }
+    }
     final exists = await _pool.execute(
-      Sql.named('SELECT 1 FROM provider_users WHERE phone_number = @p'),
-      parameters: {'p': phoneNumber},
+      Sql.named(
+        'SELECT 1 FROM provider_users WHERE lower(email) = @e '
+        'OR (google_sub IS NOT NULL AND google_sub = @gs:text) '
+        'OR (apple_sub IS NOT NULL AND apple_sub = @asub:text)',
+      ),
+      parameters: {'e': emailKey, 'gs': googleSub, 'asub': appleSub},
     );
     if (exists.isNotEmpty) {
       return (
         ok: false,
         error: 'provider_exists',
         provider: null,
-        devCode: null,
-        expiresInSeconds: 0,
+        tokens: null,
       );
     }
+    return _pool.runTx((tx) async {
+      final rows = await tx.execute(
+        Sql.named(
+          'INSERT INTO provider_users '
+          '(id, phone_number, business_name, business_type, email, '
+          'email_verified, auth_provider, google_sub, apple_sub, address, '
+          'provider_id) '
+          'VALUES (@id, @p, @bn, @bt, @e, true, @ap, @gs:text, @asub:text, '
+          '@addr:text, @pid:text) RETURNING *',
+        ),
+        parameters: {
+          'id': _newId('provider'),
+          'p': phoneNumber,
+          'bn': businessName,
+          'bt': businessType,
+          'e': emailKey,
+          'ap': authProvider,
+          'gs': googleSub,
+          'asub': appleSub,
+          'addr': address,
+          'pid': providerId,
+        },
+      );
+      await tx.execute(
+        Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+        parameters: {'e': emailKey},
+      );
+      final account = _toAccount(rows.first.toColumnMap());
+      final tokens = await _issueInFamily(tx, account.id, _newId('fam'));
+      return (ok: true, error: null, provider: account, tokens: tokens);
+    });
+  }
+
+  /// Check an email code; null = valid (NOT consumed — callers consume).
+  Future<String?> _checkEmailOtp(String key, String code) async {
     final rows = await _pool.execute(
       Sql.named(
-        'INSERT INTO provider_users '
-        '(id, phone_number, business_name, business_type, address, provider_id) '
-        'VALUES (@id, @p, @bn, @bt, @addr:text, @pid:text) RETURNING *',
+        'SELECT code_hash, expires_at, attempts_left '
+        'FROM provider_email_otp_codes WHERE email = @e',
       ),
-      parameters: {
-        'id': _newId('provider'),
-        'p': phoneNumber,
-        'bn': businessName,
-        'bt': businessType,
-        'addr': address,
-        'pid': providerId,
-      },
+      parameters: {'e': key},
     );
-    final account = _toAccount(rows.first.toColumnMap());
-    final otp = await requestOtp(phoneNumber);
-    return (
-      ok: true,
-      error: null,
-      provider: account,
-      devCode: otp.devCode,
-      expiresInSeconds: otp.expiresInSeconds,
-    );
+    if (rows.isEmpty) return 'otp_none';
+    final row = rows.first.toColumnMap();
+    if (DateTime.now().toUtc().isAfter(
+      (row['expires_at'] as DateTime).toUtc(),
+    )) {
+      await _pool.execute(
+        Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+        parameters: {'e': key},
+      );
+      return 'otp_expired';
+    }
+    final attemptsLeft = row['attempts_left'] as int;
+    if (attemptsLeft <= 0) return 'otp_locked';
+    if ((row['code_hash'] as String) != _tokens.hashToken(code)) {
+      final left = attemptsLeft - 1;
+      await _pool.execute(
+        Sql.named(
+          'UPDATE provider_email_otp_codes SET attempts_left = @a '
+          'WHERE email = @e',
+        ),
+        parameters: {'a': left, 'e': key},
+      );
+      return left <= 0 ? 'otp_locked' : 'otp_invalid';
+    }
+    return null;
   }
 
   @override
@@ -352,6 +510,10 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     createdAt: r['created_at'] as DateTime,
     name: r['name'] as String?,
     email: r['email'] as String?,
+    emailVerified: (r['email_verified'] as bool?) ?? false,
+    authProvider: r['auth_provider'] as String?,
+    googleSub: r['google_sub'] as String?,
+    appleSub: r['apple_sub'] as String?,
     address: r['address'] as String?,
     verificationStatus: (r['verification_status'] as String?) ?? 'pending',
     rejectionReason: r['rejection_reason'] as String?,

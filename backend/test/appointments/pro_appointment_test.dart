@@ -37,18 +37,27 @@ void main() {
     pro = ProAppointmentService(providerAuth, appts);
 
     accountForP1 = (await providerAuth.register(
+      email: 'p1@test.pro',
+      authProvider: 'google',
+      googleSub: 'sub-p1',
       phoneNumber: '+2250500000001',
       businessName: 'Salon One',
       businessType: 'salon',
       providerId: 'provider1',
     )).provider!.id;
     accountForP2 = (await providerAuth.register(
+      email: 'p2@test.pro',
+      authProvider: 'google',
+      googleSub: 'sub-p2',
       phoneNumber: '+2250500000002',
       businessName: 'Salon Two',
       businessType: 'salon',
       providerId: 'provider2',
     )).provider!.id;
     accountUnlinked = (await providerAuth.register(
+      email: 'p3@test.pro',
+      authProvider: 'google',
+      googleSub: 'sub-p3',
       phoneNumber: '+2250500000003',
       businessName: 'Unlinked',
       businessType: 'salon',

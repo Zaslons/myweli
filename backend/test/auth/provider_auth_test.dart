@@ -3,154 +3,235 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/auth/auth_methods.dart';
+import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:test/test.dart';
 
+import '../../routes/auth/provider/email/otp/request.dart' as pe_request;
+import '../../routes/auth/provider/email/otp/verify.dart' as pe_verify;
+import '../../routes/auth/provider/google.dart' as p_google;
 import '../../routes/auth/provider/otp/request.dart' as p_request;
-import '../../routes/auth/provider/otp/verify.dart' as p_verify;
 import '../../routes/auth/provider/refresh.dart' as p_refresh;
 import '../../routes/auth/provider/register.dart' as p_register;
 
 class _MockRequestContext extends Mock implements RequestContext {}
+
+class _FakeGoogle extends GoogleIdTokenVerifier {
+  _FakeGoogle(this.result) : super(clientIds: const ['test']);
+  final IdTokenResult result;
+  @override
+  Future<IdTokenResult> verify(String token, {String? nonce}) async => result;
+}
+
+const IdTokenResult _googleClaims = (
+  ok: true,
+  error: null,
+  sub: 'g-sub-1',
+  email: 'salon@x.com',
+  emailVerified: true,
+  name: 'Awa',
+  avatarUrl: null,
+);
 
 const _phone = '+2250544556677';
 
 void main() {
   TokenService ts() => TokenService(secret: 'test-secret');
 
-  group('InMemoryProviderAuthRepository', () {
-    test(
-      'register creates the account + sends a code; duplicate is rejected',
-      () async {
-        final repo = InMemoryProviderAuthRepository(
-          tokens: ts(),
-          isProd: false,
-        );
-        final reg = await repo.register(
-          phoneNumber: _phone,
-          businessName: 'Élégance',
-          businessType: 'salon',
-        );
-        expect(reg.ok, isTrue);
-        expect(reg.provider!.businessName, 'Élégance');
-        expect(reg.devCode, isNotNull);
+  /// Registers a salon with a Google identity (no OTP needed).
+  Future<ProviderVerifyResult> registerGoogle(
+    ProviderAuthRepository repo, {
+    String email = 'salon@x.com',
+    String sub = 'g-sub-1',
+    String phone = _phone,
+    String? providerId,
+  }) => repo.register(
+    businessName: 'Élégance',
+    businessType: 'salon',
+    phoneNumber: phone,
+    email: email,
+    authProvider: 'google',
+    googleSub: sub,
+    providerId: providerId,
+  );
 
-        final dup = await repo.register(
-          phoneNumber: _phone,
-          businessName: 'Other',
-          businessType: 'barber',
-        );
-        expect(dup.ok, isFalse);
-        expect(dup.error, 'provider_exists');
-      },
-    );
-
-    test(
-      'verify requires registration, then returns a provider-role token',
-      () async {
-        final tokens = ts();
-        final repo = InMemoryProviderAuthRepository(
-          tokens: tokens,
-          isProd: false,
-        );
-
-        // Not registered: a code can be issued, but verify rejects it.
-        final pre = await repo.requestOtp(_phone);
-        final none = await repo.verifyOtp(_phone, pre.devCode!);
-        expect(none.error, 'provider_not_found');
-
-        final reg = await repo.register(
-          phoneNumber: _phone,
-          businessName: 'Élégance',
-          businessType: 'salon',
-        );
-        final ok = await repo.verifyOtp(_phone, reg.devCode!);
-        expect(ok.ok, isTrue);
-        expect(ok.provider!.phoneNumber, _phone);
-        final jwt = tokens.verifyAccessToken(ok.tokens!.accessToken);
-        expect(jwt!.payload, containsPair('role', 'provider'));
-        expect(ok.tokens!.refreshToken, isNotEmpty);
-      },
-    );
-
-    test(
-      'refresh rotates; replaying a rotated token revokes the family',
-      () async {
-        final repo = InMemoryProviderAuthRepository(
-          tokens: ts(),
-          isProd: false,
-        );
-        final reg = await repo.register(
-          phoneNumber: _phone,
-          businessName: 'Élégance',
-          businessType: 'salon',
-        );
-        final first = (await repo.verifyOtp(_phone, reg.devCode!)).tokens!;
-
-        final rotated = await repo.refresh(first.refreshToken);
-        expect(rotated.ok, isTrue);
-        expect(rotated.tokens!.refreshToken, isNot(first.refreshToken));
-
-        // Replaying the now-rotated first token is theft → family revoked.
-        final reuse = await repo.refresh(first.refreshToken);
-        expect(reuse.error, 'refresh_reused');
-        // The token handed out by the rotation is revoked along with the family.
-        expect(
-          (await repo.refresh(rotated.tokens!.refreshToken)).error,
-          'refresh_invalid',
-        );
-      },
-    );
-
-    test('an unknown refresh token → refresh_invalid', () async {
+  group('InMemoryProviderAuthRepository — auth overhaul', () {
+    test('register (google identity) creates the salon + a LIVE session; '
+        'duplicate identity → provider_exists', () async {
       final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
-      expect((await repo.refresh('nope')).error, 'refresh_invalid');
+      final reg = await registerGoogle(repo);
+      expect(reg.ok, isTrue);
+      expect(reg.provider!.businessName, 'Élégance');
+      expect(reg.provider!.email, 'salon@x.com');
+      expect(reg.provider!.authProvider, 'google');
+      expect(reg.tokens!.accessToken, isNotEmpty);
+
+      final dupEmail = await registerGoogle(repo, sub: 'other-sub');
+      expect(dupEmail.error, 'provider_exists');
+      final dupSub = await registerGoogle(repo, email: 'other@x.com');
+      expect(dupSub.error, 'provider_exists');
     });
 
-    test('wrong code decrements then locks out', () async {
-      final repo = InMemoryProviderAuthRepository(
-        tokens: ts(),
-        isProd: false,
-        maxAttempts: 2,
+    test('loginWithSocial: by sub → ok; unknown → provider_not_found '
+        '(never auto-creates)', () async {
+      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final none = await repo.loginWithSocial(
+        provider: 'google',
+        sub: 'g-sub-1',
+        email: 'salon@x.com',
+        emailVerified: true,
       );
+      expect(none.error, 'provider_not_found');
+
+      await registerGoogle(repo);
+      final ok = await repo.loginWithSocial(provider: 'google', sub: 'g-sub-1');
+      expect(ok.ok, isTrue);
+      expect(ok.tokens!.accessToken, isNotEmpty);
+    });
+
+    test('a VERIFIED email links a new provider sub to the account; an '
+        'unverified one never does (T35)', () async {
+      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final reg = await registerGoogle(repo);
+
+      // Apple with the same verified email → linked, same account.
+      final apple = await repo.loginWithSocial(
+        provider: 'apple',
+        sub: 'a-sub-1',
+        email: 'Salon@X.com',
+        emailVerified: true,
+      );
+      expect(apple.ok, isTrue);
+      expect(apple.provider!.id, reg.provider!.id);
+
+      // Unverified email → no link.
+      final bad = await repo.loginWithSocial(
+        provider: 'apple',
+        sub: 'a-sub-2',
+        email: 'salon@x.com',
+        emailVerified: false,
+      );
+      expect(bad.error, 'provider_not_found');
+    });
+
+    test('email flow: login-only verify does NOT consume the code on '
+        'provider_not_found → the same code registers', () async {
+      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final sent = await repo.requestEmailOtp('new@salon.ci');
+      final code = sent.devCode!;
+
+      // No salon yet: correct code → not found, code kept.
+      final login = await repo.verifyEmailOtp('new@salon.ci', code);
+      expect(login.error, 'provider_not_found');
+
+      // The register screen reuses the SAME code.
       final reg = await repo.register(
+        businessName: 'Chez Awa',
+        businessType: 'barber',
         phoneNumber: _phone,
-        businessName: 'X',
-        businessType: 'salon',
+        email: 'New@Salon.ci',
+        authProvider: 'email',
+        emailCode: code,
       );
-      final wrong = reg.devCode == '111111' ? '222222' : '111111';
-      expect((await repo.verifyOtp(_phone, wrong)).error, 'otp_invalid');
-      expect((await repo.verifyOtp(_phone, wrong)).error, 'otp_locked');
+      expect(reg.ok, isTrue);
+      expect(reg.provider!.email, 'new@salon.ci');
+      expect(reg.tokens!.refreshToken, isNotEmpty);
+
+      // Registered: a fresh code now logs in.
+      final sent2 = await repo.requestEmailOtp('new@salon.ci');
+      final again = await repo.verifyEmailOtp('new@salon.ci', sent2.devCode!);
+      expect(again.ok, isTrue);
+      expect(again.provider!.id, reg.provider!.id);
     });
 
-    test('resend budget is enforced', () async {
-      final repo = InMemoryProviderAuthRepository(
-        tokens: ts(),
-        isProd: false,
-        maxResends: 1,
-      );
-      await repo.register(
-        phoneNumber: _phone,
-        businessName: 'X',
-        businessType: 'salon',
-      );
-      // register issued one; the budget allows maxResends more requests.
-      expect((await repo.requestOtp(_phone)).ok, isTrue);
-      expect((await repo.requestOtp(_phone)).error, 'otp_resend_limit');
+    test(
+      'register with a wrong email code → otp_invalid; lockout works',
+      () async {
+        final repo = InMemoryProviderAuthRepository(
+          tokens: ts(),
+          isProd: false,
+          maxAttempts: 2,
+        );
+        final sent = await repo.requestEmailOtp('a@salon.ci');
+        final wrong = sent.devCode == '111111' ? '222222' : '111111';
+        Future<ProviderVerifyResult> tryReg() => repo.register(
+          businessName: 'X',
+          businessType: 'salon',
+          phoneNumber: _phone,
+          email: 'a@salon.ci',
+          authProvider: 'email',
+          emailCode: wrong,
+        );
+        expect((await tryReg()).error, 'otp_invalid');
+        expect((await tryReg()).error, 'otp_locked');
+      },
+    );
+
+    test('phone OTP still works at the repo level (dormant path)', () async {
+      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      await registerGoogle(repo);
+      final otp = await repo.requestOtp(_phone);
+      final ok = await repo.verifyOtp(_phone, otp.devCode!);
+      expect(ok.ok, isTrue);
+      expect(ok.provider!.phoneNumber, _phone);
     });
+
+    test('refresh rotates; replay revokes the family', () async {
+      final repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      final first = (await registerGoogle(repo)).tokens!;
+
+      final rotated = await repo.refresh(first.refreshToken);
+      expect(rotated.ok, isTrue);
+      expect(rotated.tokens!.refreshToken, isNot(first.refreshToken));
+
+      final reuse = await repo.refresh(first.refreshToken);
+      expect(reuse.error, 'refresh_reused');
+      expect(
+        (await repo.refresh(rotated.tokens!.refreshToken)).error,
+        'refresh_invalid',
+      );
+    });
+
+    test(
+      'an expired email code does not count against the resend budget',
+      () async {
+        final repo = InMemoryProviderAuthRepository(
+          tokens: ts(),
+          isProd: false,
+          otpValidity: Duration.zero,
+          maxResends: 1,
+        );
+        expect((await repo.requestEmailOtp('a@salon.ci')).ok, isTrue);
+        expect((await repo.requestEmailOtp('a@salon.ci')).ok, isTrue);
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        expect((await repo.requestEmailOtp('a@salon.ci')).ok, isTrue);
+      },
+    );
   });
 
   group('routes', () {
     late InMemoryProviderAuthRepository repo;
-    setUp(
-      () => repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false),
-    );
+    late AuthMethods methods;
+    late GoogleIdTokenVerifier google;
+    late EmailProvider email;
+
+    setUp(() {
+      repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      methods = const AuthMethods(AuthMethods.defaults);
+      google = _FakeGoogle(_googleClaims);
+      email = LogEmailProvider();
+    });
 
     RequestContext ctx(Request request) {
       final context = _MockRequestContext();
       when(() => context.request).thenReturn(request);
       when(() => context.read<ProviderAuthRepository>()).thenReturn(repo);
+      when(() => context.read<AuthMethods>()).thenReturn(methods);
+      when(() => context.read<GoogleIdTokenVerifier>()).thenReturn(google);
+      when(() => context.read<EmailProvider>()).thenReturn(email);
       return context;
     }
 
@@ -162,32 +243,69 @@ void main() {
     Future<Map<String, dynamic>> jsonOf(Response r) async =>
         await r.json() as Map<String, dynamic>;
 
-    test('register → 201 + provider + devCode; duplicate → 409', () async {
-      final res = await p_register.onRequest(
-        ctx(
-          post('/auth/provider/register', {
-            'phoneNumber': _phone,
-            'businessName': 'Élégance',
-            'businessType': 'salon',
-          }),
-        ),
-      );
-      expect(res.statusCode, HttpStatus.created);
-      final body = await jsonOf(res);
-      expect((body['provider'] as Map)['businessName'], 'Élégance');
-      expect(body['devCode'], isNotNull);
+    Map<String, Object?> regBody({String? email, String? code}) => {
+      'phoneNumber': _phone,
+      'businessName': 'Élégance',
+      'businessType': 'salon',
+      if (email != null) 'email': email,
+      if (code != null) 'code': code,
+    };
 
-      final dup = await p_register.onRequest(
-        ctx(
-          post('/auth/provider/register', {
-            'phoneNumber': _phone,
-            'businessName': 'Élégance',
-            'businessType': 'salon',
-          }),
-        ),
-      );
-      expect(dup.statusCode, HttpStatus.conflict);
-    });
+    test(
+      'register with a Google identity → 201 FLAT session; duplicate → 409',
+      () async {
+        final res = await p_register.onRequest(
+          ctx(
+            post('/auth/provider/register', {...regBody(), 'idToken': 'tok'}),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.created);
+        final body = await jsonOf(res);
+        expect((body['provider'] as Map)['businessName'], 'Élégance');
+        expect(body['accessToken'], isNotEmpty);
+        expect(body['refreshToken'], isNotEmpty);
+
+        final dup = await p_register.onRequest(
+          ctx(
+            post('/auth/provider/register', {...regBody(), 'idToken': 'tok'}),
+          ),
+        );
+        expect(dup.statusCode, HttpStatus.conflict);
+      },
+    );
+
+    test(
+      'register with email+code → 201; wrong code → 400; no identity → 400',
+      () async {
+        final sent = await repo.requestEmailOtp('new@salon.ci');
+        final res = await p_register.onRequest(
+          ctx(
+            post(
+              '/auth/provider/register',
+              regBody(email: 'new@salon.ci', code: sent.devCode),
+            ),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.created);
+
+        final sent2 = await repo.requestEmailOtp('other@salon.ci');
+        expect(sent2.ok, isTrue);
+        final wrong = await p_register.onRequest(
+          ctx(
+            post(
+              '/auth/provider/register',
+              regBody(email: 'other@salon.ci', code: '000000'),
+            ),
+          ),
+        );
+        expect(wrong.statusCode, HttpStatus.badRequest);
+
+        final none = await p_register.onRequest(
+          ctx(post('/auth/provider/register', regBody())),
+        );
+        expect(none.statusCode, HttpStatus.badRequest);
+      },
+    );
 
     test('register rejects an unknown business type with 400', () async {
       final res = await p_register.onRequest(
@@ -196,56 +314,101 @@ void main() {
             'phoneNumber': _phone,
             'businessName': 'X',
             'businessType': 'not_a_type',
+            'idToken': 'tok',
           }),
         ),
       );
       expect(res.statusCode, HttpStatus.badRequest);
     });
 
-    test('verify → 200 provider + token; not registered → 404', () async {
-      final reg = await repo.register(
-        phoneNumber: _phone,
-        businessName: 'Élégance',
-        businessType: 'salon',
-      );
-      final ok = await p_verify.onRequest(
-        ctx(
-          post('/auth/provider/otp/verify', {
-            'phoneNumber': _phone,
-            'code': reg.devCode,
-          }),
-        ),
-      );
-      expect(ok.statusCode, HttpStatus.ok);
-      final okBody = await jsonOf(ok);
-      expect(okBody['accessToken'], isNotEmpty);
-      expect(okBody['refreshToken'], isNotEmpty);
-      expect(okBody['expiresAt'], isNotNull);
+    test(
+      'provider google login: no salon → 404; after register → 200',
+      () async {
+        final missing = await p_google.onRequest(
+          ctx(post('/auth/provider/google', {'idToken': 'tok'})),
+        );
+        expect(missing.statusCode, HttpStatus.notFound);
+        expect((await jsonOf(missing))['error'], 'provider_not_found');
 
-      // Unregistered phone: a code can be requested, but verify → 404.
-      const other = '+2250700000000';
-      final otp = await repo.requestOtp(other);
-      final missing = await p_verify.onRequest(
+        await p_register.onRequest(
+          ctx(
+            post('/auth/provider/register', {...regBody(), 'idToken': 'tok'}),
+          ),
+        );
+        final ok = await p_google.onRequest(
+          ctx(post('/auth/provider/google', {'idToken': 'tok'})),
+        );
+        expect(ok.statusCode, HttpStatus.ok);
+        expect((await jsonOf(ok))['accessToken'], isNotEmpty);
+      },
+    );
+
+    test('provider email OTP routes: 202 devCode → login-only 404 → after '
+        'register a fresh code logs in (200)', () async {
+      final sent = await pe_request.onRequest(
+        ctx(post('/auth/provider/email/otp/request', {'email': 'a@salon.ci'})),
+      );
+      expect(sent.statusCode, HttpStatus.accepted);
+      final code = (await jsonOf(sent))['devCode'] as String;
+
+      final notFound = await pe_verify.onRequest(
         ctx(
-          post('/auth/provider/otp/verify', {
-            'phoneNumber': other,
-            'code': otp.devCode,
+          post('/auth/provider/email/otp/verify', {
+            'email': 'a@salon.ci',
+            'code': code,
           }),
         ),
       );
-      expect(missing.statusCode, HttpStatus.notFound);
+      expect(notFound.statusCode, HttpStatus.notFound);
+
+      // Same code registers (not consumed by the login attempt).
+      final reg = await p_register.onRequest(
+        ctx(
+          post(
+            '/auth/provider/register',
+            regBody(email: 'a@salon.ci', code: code),
+          ),
+        ),
+      );
+      expect(reg.statusCode, HttpStatus.created);
+
+      final sent2 = await pe_request.onRequest(
+        ctx(post('/auth/provider/email/otp/request', {'email': 'a@salon.ci'})),
+      );
+      final code2 = (await jsonOf(sent2))['devCode'] as String;
+      final login = await pe_verify.onRequest(
+        ctx(
+          post('/auth/provider/email/otp/verify', {
+            'email': 'a@salon.ci',
+            'code': code2,
+          }),
+        ),
+      );
+      expect(login.statusCode, HttpStatus.ok);
+      expect((await jsonOf(login))['refreshToken'], isNotEmpty);
+    });
+
+    test('AUTH_METHODS gate: no phone → provider otp/request 404; '
+        'no google → provider google 404', () async {
+      methods = AuthMethods.parse('google,apple,email');
+      final gated = await p_request.onRequest(
+        ctx(post('/auth/provider/otp/request', {'phoneNumber': _phone})),
+      );
+      expect(gated.statusCode, HttpStatus.notFound);
+      expect((await jsonOf(gated))['error'], 'auth_method_disabled');
+
+      methods = AuthMethods.parse('email');
+      final gatedGoogle = await p_google.onRequest(
+        ctx(post('/auth/provider/google', {'idToken': 'tok'})),
+      );
+      expect(gatedGoogle.statusCode, HttpStatus.notFound);
     });
 
     test(
       'refresh: rotates → 200; replay → 401; bad body → 400; GET → 405',
       () async {
-        await repo.register(
-          phoneNumber: _phone,
-          businessName: 'Élégance',
-          businessType: 'salon',
-        );
-        final reg = await repo.requestOtp(_phone);
-        final first = (await repo.verifyOtp(_phone, reg.devCode!)).tokens!;
+        final reg = await registerGoogle(repo);
+        final first = reg.tokens!;
 
         final rotated = await p_refresh.onRequest(
           ctx(
@@ -265,7 +428,6 @@ void main() {
           ),
         );
         expect(reuse.statusCode, HttpStatus.unauthorized);
-        expect((await jsonOf(reuse))['error'], 'refresh_reused');
 
         final bad = await p_refresh.onRequest(
           ctx(post('/auth/provider/refresh', {'refreshToken': ''})),

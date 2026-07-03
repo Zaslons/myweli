@@ -266,3 +266,44 @@ export function saveBeforeAfters(
 export async function logoutPro(): Promise<void> {
   await fetch('/api/pro/auth/logout', { method: 'POST' });
 }
+
+// --- Auth overhaul P4 (docs/design/pro-auth-social.md) -----------------------
+
+export async function loginProWithGoogle(
+  idToken: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch('/api/pro/auth/google', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true } : { ok: false, error: body.error };
+}
+
+export async function requestEmailOtpPro(
+  email: string,
+): Promise<{ ok: boolean; devCode?: string; error?: string }> {
+  const res = await fetch('/api/pro/auth/email/request', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, devCode: body.devCode }
+    : { ok: false, error: body.error };
+}
+
+export async function verifyEmailOtpPro(
+  email: string,
+  code: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch('/api/pro/auth/email/verify', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true } : { ok: false, error: body.error };
+}

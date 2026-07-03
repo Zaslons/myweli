@@ -63,12 +63,18 @@ void main() {
     );
     service = DepositService(appts, providerAuth, const FakeStorageService());
     final p1 = await providerAuth.register(
+      email: 'reg8@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-8',
       phoneNumber: '+2250500000080',
       businessName: 'S1',
       businessType: 'salon',
       providerId: 'provider1',
     );
     final p2 = await providerAuth.register(
+      email: 'reg9@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-9',
       phoneNumber: '+2250500000081',
       businessName: 'S2',
       businessType: 'salon',

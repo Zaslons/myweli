@@ -246,6 +246,9 @@ void main() {
       () async {
         final r = repo();
         final reg = await r.register(
+          email: 'reg28@test.pro',
+          authProvider: 'google',
+          googleSub: 'reg-sub-28',
           phoneNumber: provPhone,
           businessName: 'Élégance',
           businessType: 'salon',
@@ -253,11 +256,14 @@ void main() {
         );
         expect(reg.ok, isTrue);
         expect(reg.provider!.providerId, 'provider1');
-        expect(reg.devCode, isNotNull);
+        expect(reg.tokens!.accessToken, isNotEmpty);
 
-        // Duplicate phone is rejected.
+        // Duplicate identity (same email) is rejected.
         expect(
           (await r.register(
+            email: 'reg28@test.pro',
+            authProvider: 'google',
+            googleSub: 'reg-sub-28b',
             phoneNumber: provPhone,
             businessName: 'X',
             businessType: 'salon',
@@ -265,7 +271,9 @@ void main() {
           'provider_exists',
         );
 
-        final ok = await r.verifyOtp(provPhone, reg.devCode!);
+        // The dormant phone-OTP path still logs the salon in.
+        final code = (await r.requestOtp(provPhone)).devCode!;
+        final ok = await r.verifyOtp(provPhone, code);
         expect(ok.ok, isTrue);
         expect(
           tokens.verifyAccessToken(ok.tokens!.accessToken)!.payload,
@@ -280,11 +288,14 @@ void main() {
       () async {
         final r = repo();
         final reg = await r.register(
+          email: 'reg29@test.pro',
+          authProvider: 'google',
+          googleSub: 'reg-sub-29',
           phoneNumber: provPhone,
           businessName: 'Élégance',
           businessType: 'salon',
         );
-        final first = (await r.verifyOtp(provPhone, reg.devCode!)).tokens!;
+        final first = reg.tokens!;
 
         final rotated = await r.refresh(first.refreshToken);
         expect(rotated.ok, isTrue);
@@ -308,11 +319,18 @@ void main() {
       );
 
       final reg = await r.register(
+        email: 'reg30@test.pro',
+
+        authProvider: 'google',
+
+        googleSub: 'reg-sub-30',
         phoneNumber: provPhone,
         businessName: 'X',
         businessType: 'salon',
       );
-      final wrong = reg.devCode == '111111' ? '222222' : '111111';
+      expect(reg.ok, isTrue);
+      final sent = await r.requestOtp(provPhone);
+      final wrong = sent.devCode == '111111' ? '222222' : '111111';
       expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_invalid');
       expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_locked');
     });
@@ -320,6 +338,9 @@ void main() {
     test('submitKyc persists kyc_docs + pending; survives re-read', () async {
       final r = repo();
       final reg = await r.register(
+        email: 'reg31@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-31',
         phoneNumber: provPhone,
         businessName: 'X',
         businessType: 'salon',

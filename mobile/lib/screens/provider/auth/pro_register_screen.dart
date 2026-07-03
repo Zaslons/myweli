@@ -1,9 +1,9 @@
-import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -13,6 +13,11 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
+/// Salon registration — business fields + login identity in ONE submit
+/// (pro auth overhaul P4): Google / Apple (flag-hidden) / email+code. The
+/// contact phone is REQUIRED (clients + MyWeli reach the salon there).
+/// Registration signs in directly → dashboard. Design:
+/// docs/design/pro-auth-social.md.
 class ProRegisterScreen extends StatefulWidget {
   const ProRegisterScreen({super.key});
 
@@ -23,62 +28,88 @@ class ProRegisterScreen extends StatefulWidget {
 class _ProRegisterScreenState extends State<ProRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _businessNameController = TextEditingController();
-  String _phoneNumber = '';
   final _addressController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _codeController = TextEditingController();
+  String _phoneNumber = '';
   BusinessType? _selectedBusinessType;
-  bool _isLoading = false;
+  bool _codeSent = false;
+
+  bool get _emailValid => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+      .hasMatch(_emailController.text.trim());
+
+  bool get _showApple =>
+      FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void dispose() {
     _businessNameController.dispose();
     _addressController.dispose();
+    _emailController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleRegister() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedBusinessType == null) {
+  /// Business fields must be valid before ANY identity path fires — the
+  /// backend registers identity + salon atomically in one call.
+  bool _validateBusinessFields() {
+    if (!_formKey.currentState!.validate()) return false;
+    if (_phoneNumber.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Veuillez sélectionner un type d\'entreprise'),
+          content: Text('Le numéro de téléphone du salon est requis'),
           backgroundColor: AppColors.error,
         ),
       );
-      return;
+      return false;
     }
+    return true;
+  }
 
-    setState(() => _isLoading = true);
+  void _finish() => context.go('/pro/dashboard');
 
-    final phoneNumber = _phoneNumber;
-    final businessName = _businessNameController.text.trim();
-    final address = _addressController.text.trim();
-    final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-
-    final success = await authProvider.register(
-      phoneNumber: phoneNumber,
-      businessName: businessName,
+  Future<void> _handleGoogle() async {
+    if (!_validateBusinessFields()) return;
+    final auth = context.read<ProAuthProvider>();
+    final ok = await auth.registerWithGoogle(
+      phoneNumber: _phoneNumber,
+      businessName: _businessNameController.text.trim(),
       businessType: _selectedBusinessType!,
-      address: address,
+      address: _addressController.text.trim(),
     );
+    if (ok && mounted) _finish();
+  }
 
+  Future<void> _sendCode() async {
+    if (!_validateBusinessFields()) return;
+    final auth = context.read<ProAuthProvider>();
+    final ok = await auth.requestEmailOtp(_emailController.text.trim());
     if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (success) {
-      unawaited(context
-          .push('/pro/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}'));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Erreur lors de l\'inscription'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+    if (ok) {
+      setState(() {
+        _codeController.clear();
+        _codeSent = true;
+      });
     }
+  }
+
+  Future<void> _handleEmailRegister() async {
+    if (!_validateBusinessFields()) return;
+    final auth = context.read<ProAuthProvider>();
+    final ok = await auth.registerWithEmail(
+      email: _emailController.text.trim(),
+      code: _codeController.text.trim(),
+      phoneNumber: _phoneNumber,
+      businessName: _businessNameController.text.trim(),
+      businessType: _selectedBusinessType!,
+      address: _addressController.text.trim(),
+    );
+    if (ok && mounted) _finish();
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<ProAuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -92,12 +123,6 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 32),
-                const Icon(
-                  Icons.business_center,
-                  size: 100,
-                  color: AppColors.primary,
-                ),
                 const SizedBox(height: 24),
                 Text(
                   'Créez votre compte professionnel',
@@ -108,7 +133,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Rejoignez Myweli Pro et gérez votre entreprise',
+                  'Rejoignez MyWeli Pro et gérez votre salon',
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -177,6 +202,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 ),
                 const SizedBox(height: 16),
                 PhoneNumberField(
+                  label: 'Téléphone du salon',
                   onChanged: (e164) => _phoneNumber = e164,
                 ),
                 const SizedBox(height: 16),
@@ -193,12 +219,111 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
-                AppButton(
-                  text: 'S\'inscrire',
-                  onPressed: _isLoading ? null : _handleRegister,
-                  isLoading: _isLoading,
+                const SizedBox(height: 28),
+                Text(
+                  'Votre identité de connexion',
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  'Elle vous servira à vous connecter à votre espace pro.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                AppButton(
+                  text: 'S\'inscrire avec Google',
+                  type: AppButtonType.secondary,
+                  onPressed: auth.isLoading ? null : _handleGoogle,
+                ),
+                if (_showApple) ...[
+                  const SizedBox(height: 12),
+                  AppButton(
+                    text: 'S\'inscrire avec Apple',
+                    type: AppButtonType.secondary,
+                    onPressed: auth.isLoading ? null : () {},
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: AppColors.divider)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingM,
+                      ),
+                      child: Text(
+                        'ou par e-mail',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: AppColors.divider)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                AppTextField(
+                  controller: _emailController,
+                  label: 'Votre e-mail',
+                  hint: 'exemple@email.com',
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) => setState(() {}),
+                ),
+                if (!_codeSent) ...[
+                  const SizedBox(height: 16),
+                  AppButton(
+                    text: 'Recevoir un code',
+                    onPressed:
+                        (auth.isLoading || !_emailValid) ? null : _sendCode,
+                    isLoading: auth.isLoading,
+                  ),
+                ] else ...[
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _codeController,
+                    label: 'Code à 6 chiffres',
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  if (auth.emailDevCode != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Code (dev) : ${auth.emailDevCode}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  AppButton(
+                    text: 'S\'inscrire',
+                    onPressed: (auth.isLoading ||
+                            _codeController.text.trim().length < 4)
+                        ? null
+                        : _handleEmailRegister,
+                    isLoading: auth.isLoading,
+                  ),
+                  const SizedBox(height: 8),
+                  AppButton(
+                    text: 'Renvoyer le code',
+                    type: AppButtonType.text,
+                    onPressed: auth.isLoading ? null : _sendCode,
+                  ),
+                ],
+                if (auth.error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    auth.error!,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.error),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
