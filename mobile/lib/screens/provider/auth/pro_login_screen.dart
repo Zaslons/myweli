@@ -1,85 +1,107 @@
-import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
-import '../../../widgets/common/phone_number_field.dart';
+import '../../../widgets/common/app_text_field.dart';
 
+/// Salon sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
+/// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY: `provider_not_found`
+/// offers « Créer un compte » → the register screen (identity + business
+/// fields in one submit). Design: docs/design/pro-auth-social.md.
 class ProLoginScreen extends StatefulWidget {
-  final String? returnTo;
-
   const ProLoginScreen({super.key, this.returnTo});
+
+  /// Auth-continuity: where to land after sign-in (defaults to the dashboard).
+  final String? returnTo;
 
   @override
   State<ProLoginScreen> createState() => _ProLoginScreenState();
 }
 
+enum _Step { options, code }
+
 class _ProLoginScreenState extends State<ProLoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  String _phoneNumber = '';
-  bool _isLoading = false;
+  final _emailController = TextEditingController();
+  final _codeController = TextEditingController();
+  _Step _step = _Step.options;
 
-  Future<void> _handleContinue() async {
-    if (!_formKey.currentState!.validate()) return;
+  bool get _emailValid => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+      .hasMatch(_emailController.text.trim());
 
-    setState(() => _isLoading = true);
+  bool get _showApple =>
+      FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
 
-    final phoneNumber = _phoneNumber;
-    final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _codeController.dispose();
+    super.dispose();
+  }
 
-    final success = await authProvider.sendOtp(phoneNumber);
+  void _finish() => context.go(widget.returnTo ?? '/pro/dashboard');
 
+  Future<void> _handleGoogle() async {
+    final auth = context.read<ProAuthProvider>();
+    if (await auth.signInWithGoogle() && mounted) _finish();
+  }
+
+  Future<void> _handleApple() async {
+    final auth = context.read<ProAuthProvider>();
+    if (await auth.signInWithApple() && mounted) _finish();
+  }
+
+  Future<void> _sendCode() async {
+    final auth = context.read<ProAuthProvider>();
+    final ok = await auth.requestEmailOtp(_emailController.text.trim());
     if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (success) {
-      final returnToParam = widget.returnTo != null
-          ? '&returnTo=${Uri.encodeComponent(widget.returnTo!)}'
-          : '';
-      unawaited(context.push(
-          '/pro/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam'));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(authProvider.error ?? 'Erreur lors de l\'envoi du code'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+    if (ok) {
+      setState(() {
+        _codeController.clear();
+        _step = _Step.code;
+      });
     }
+  }
+
+  Future<void> _verifyCode() async {
+    final auth = context.read<ProAuthProvider>();
+    final ok = await auth.verifyEmailOtp(
+      _emailController.text.trim(),
+      _codeController.text.trim(),
+    );
+    if (ok && mounted) _finish();
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<ProAuthProvider>();
+    final notFound = auth.errorCode == 'provider_not_found';
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Connexion Pro'),
-      ),
+      appBar: AppBar(title: const Text('Espace Pro')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppTheme.spacingL),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 32),
-                // Icon
-                const Icon(
-                  Icons.business,
-                  size: 120,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(height: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 24),
+              SvgPicture.asset(
+                'assets/brand/myweli_lockup_vertical_black.svg',
+                height: 100,
+                semanticsLabel: 'MyWeli Pro',
+              ),
+              const SizedBox(height: 24),
+              if (_step == _Step.options) ...[
                 Text(
-                  'Bienvenue sur Myweli Pro',
+                  'Espace Pro',
                   style: AppTextStyles.headlineLarge.copyWith(
                     color: AppColors.textPrimary,
                   ),
@@ -87,40 +109,136 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Connectez-vous pour gérer votre entreprise',
+                  'Connectez-vous à votre espace salon.',
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: AppColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                PhoneNumberField(
-                  onChanged: (e164) => _phoneNumber = e164,
-                ),
-                const SizedBox(height: 24),
                 AppButton(
-                  text: 'Continuer',
-                  onPressed: _isLoading ? null : _handleContinue,
-                  isLoading: _isLoading,
+                  text: 'Continuer avec Google',
+                  type: AppButtonType.secondary,
+                  onPressed: auth.isLoading ? null : _handleGoogle,
                 ),
-                const SizedBox(height: 16),
+                if (_showApple) ...[
+                  const SizedBox(height: 12),
+                  AppButton(
+                    text: 'Continuer avec Apple',
+                    onPressed: auth.isLoading ? null : _handleApple,
+                  ),
+                ],
+                const SizedBox(height: 20),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Pas encore de compte ? ',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
+                    const Expanded(child: Divider(color: AppColors.divider)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingM,
+                      ),
+                      child: Text(
+                        'ou',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => context.push('/pro/register'),
-                      child: const Text('S\'inscrire'),
-                    ),
+                    const Expanded(child: Divider(color: AppColors.divider)),
                   ],
                 ),
+                const SizedBox(height: 20),
+                AppTextField(
+                  controller: _emailController,
+                  label: 'Votre e-mail',
+                  hint: 'exemple@email.com',
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
+                AppButton(
+                  text: 'Continuer avec e-mail',
+                  onPressed:
+                      (auth.isLoading || !_emailValid) ? null : _sendCode,
+                  isLoading: auth.isLoading,
+                ),
+              ] else ...[
+                Text(
+                  'Entrez le code reçu par e-mail à '
+                  '${_emailController.text.trim()}.',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                AppTextField(
+                  controller: _codeController,
+                  label: 'Code à 6 chiffres',
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  onChanged: (_) => setState(() {}),
+                ),
+                if (auth.emailDevCode != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Code (dev) : ${auth.emailDevCode}',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                const SizedBox(height: 16),
+                AppButton(
+                  text: 'Se connecter',
+                  onPressed:
+                      (auth.isLoading || _codeController.text.trim().length < 4)
+                          ? null
+                          : _verifyCode,
+                  isLoading: auth.isLoading,
+                ),
+                const SizedBox(height: 12),
+                AppButton(
+                  text: 'Changer d\'e-mail',
+                  type: AppButtonType.text,
+                  onPressed: auth.isLoading
+                      ? null
+                      : () => setState(() => _step = _Step.options),
+                ),
               ],
-            ),
+              if (auth.error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  auth.error!,
+                  style:
+                      AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              if (notFound) ...[
+                const SizedBox(height: 8),
+                AppButton(
+                  text: 'Créer un compte',
+                  onPressed: () => context.go('/pro/register'),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Pas encore de compte ? ',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/pro/register'),
+                    child: const Text('S\'inscrire'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

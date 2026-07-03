@@ -25,16 +25,36 @@ abstract class AuthServiceInterface {
   /// Permanently delete the signed-in user's account. Irreversible.
   Future<ApiResponse<void>> deleteAccount();
 
-  // Provider methods
+  // Provider methods — phone OTP dormant at launch (AUTH_METHODS-gated).
   Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber);
   Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
       String phoneNumber, String otp);
-  Future<ApiResponse<ProviderUser>> registerProvider({
+
+  // Pro auth overhaul (docs/design/pro-auth-social.md) — LOGIN-ONLY (a salon
+  // is never auto-created; `provider_not_found` → offer registration):
+  Future<ApiResponse<ProviderUser>> signInProviderWithGoogle();
+  Future<ApiResponse<ProviderUser>> signInProviderWithApple();
+  Future<ApiResponse<String>> requestProviderEmailOtp(String email);
+  Future<ApiResponse<ProviderUser>> verifyProviderEmailOtp(
+      String email, String code);
+
+  /// Registration = identity + business fields in ONE submit (signs in too).
+  /// The REQUIRED [phoneNumber] is the salon contact.
+  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
     required String phoneNumber,
     required String businessName,
     required BusinessType businessType,
     String? address,
   });
+  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
+    required String email,
+    required String code,
+    required String phoneNumber,
+    required String businessName,
+    required BusinessType businessType,
+    String? address,
+  });
+
   Future<ProviderUser?> getCurrentProvider();
   Future<void> logoutProvider();
 }

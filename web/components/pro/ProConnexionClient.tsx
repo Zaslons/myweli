@@ -1,21 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { requestOtpPro, verifyOtpPro } from '../../lib/api/pro';
-import { OtpLoginForm } from '../auth/OtpLoginForm';
+import { ProLoginOptions } from './ProLoginOptions';
 
 export function ProConnexionClient() {
   const router = useRouter();
-  return (
-    <OtpLoginForm
-      onSuccess={() => router.replace('/pro')}
-      requestCode={requestOtpPro}
-      verifyCode={verifyOtpPro}
-      verifyErrorMessage={(e) =>
-        e === 'provider_not_found'
-          ? 'Compte introuvable. Inscrivez-vous dans l’app MyWeli Pro.'
-          : 'Code incorrect ou expiré.'
-      }
-    />
-  );
+  return <ProLoginOptions onSuccess={() => router.replace('/pro')} />;
 }

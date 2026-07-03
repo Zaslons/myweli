@@ -8,7 +8,6 @@ import '../../screens/provider/appointments/pro_manual_booking_screen.dart';
 import '../../screens/provider/artists/artist_form_screen.dart';
 import '../../screens/provider/artists/artist_list_screen.dart';
 import '../../screens/provider/auth/pro_login_screen.dart';
-import '../../screens/provider/auth/pro_otp_verify_screen.dart';
 import '../../screens/provider/auth/pro_register_screen.dart';
 import '../../screens/provider/auth/pro_splash_screen.dart';
 import '../../screens/provider/availability/availability_screen.dart';
@@ -47,15 +46,9 @@ class ProRouter {
         name: 'pro-register',
         builder: (context, state) => const ProRegisterScreen(),
       ),
-      GoRoute(
-        path: '/pro/verify-otp',
-        name: 'pro-verify-otp',
-        builder: (context, state) {
-          final phone = state.uri.queryParameters['phone'] ?? '';
-          final returnTo = state.uri.queryParameters['returnTo'];
-          return ProOtpVerifyScreen(phoneNumber: phone, returnTo: returnTo);
-        },
-      ),
+      // /pro/verify-otp unrouted — phone-OTP login is dormant at launch
+      // (AUTH_METHODS gates the backend; ProOtpVerifyScreen kept for the
+      // Termii-era phone VERIFICATION reuse). docs/design/pro-auth-social.md.
       GoRoute(
         path: '/pro/dashboard',
         name: 'pro-dashboard',

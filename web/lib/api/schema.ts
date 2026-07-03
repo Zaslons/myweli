@@ -1137,7 +1137,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register a provider account and dispatch a code (B-prov) */
+        /**
+         * Register a salon — identity proof INLINE (auth overhaul P4)
+         * @description One submit registers AND signs in. Provide EXACTLY ONE identity proof: `idToken` (Google) · `identityToken` (+`nonce`) (Apple) · `email`+`code` (email OTP via /auth/provider/email/otp/request). The contact `phoneNumber` is REQUIRED. Returns a live ProviderSession (201). Design: docs/design/pro-auth-social.md.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1148,42 +1151,240 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        /** @example +2250544556677 */
-                        phoneNumber: string;
                         businessName: string;
                         /** @enum {string} */
                         businessType: "salon" | "barber" | "spa" | "nailSalon" | "massage" | "other";
+                        /** @description E.164 — required salon contact. */
+                        phoneNumber: string;
                         address?: string;
-                        /** @description Links the account to the Provider listing it manages (required to act on that salon's appointments). */
                         providerId?: string;
+                        /** @description Google ID token (identity proof). */
+                        idToken?: string;
+                        /** @description Apple identity token. */
+                        identityToken?: string;
+                        nonce?: string;
+                        /** Format: email */
+                        email?: string;
+                        /** @description Email OTP (identity proof with `email`). */
+                        code?: string;
                     };
                 };
             };
             responses: {
-                /** @description Created */
+                /** @description Registered + signed in (flat ProviderSession) */
                 201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
+                        "application/json": components["schemas"]["ProviderSession"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+                /** @description An account already exists for this identity (provider_exists) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/provider/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Salon sign-in with a Google ID token (LOGIN-ONLY, auth overhaul P4)
+         * @description Verified against Google's JWKS. A salon is never auto-created — no account → 404 `provider_not_found` (the client offers registration).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        idToken: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Signed in (flat ProviderSession) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProviderSession"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/provider/apple": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Salon Sign in with Apple (LOGIN-ONLY seam, auth overhaul P4) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        identityToken: string;
+                        nonce?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Signed in (flat ProviderSession) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProviderSession"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/provider/email/otp/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a salon email OTP (login AND registration use it)
+         * @description No enumeration — identical 202 whether or not the address maps to a salon. Dev builds echo `devCode`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Code dispatched */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
                         "application/json": {
-                            provider?: components["schemas"]["ProviderUser"];
                             expiresInSeconds?: number;
-                            /** @description dev only */
                             devCode?: string;
                         };
                     };
                 };
                 400: components["responses"]["BadRequest"];
-                /** @description A provider already exists for this phone */
-                409: {
+                404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/provider/email/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify a salon email OTP (LOGIN-ONLY)
+         * @description A correct code with no salon returns 404 `provider_not_found` WITHOUT consuming the code (the register call reuses it).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        code: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Signed in (flat ProviderSession) */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["ProviderSession"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
+                404: components["responses"]["NotFound"];
             };
         };
         delete?: never;
@@ -4352,11 +4553,21 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
         };
-        /** @description A provider (business) account. Mirrors ProviderUser.toJson(). */
+        /** @description Flat (historical) provider session — every provider login/registration endpoint returns this shape. */
+        ProviderSession: {
+            provider: components["schemas"]["ProviderUser"];
+            accessToken: string;
+            refreshToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @description A provider (business) account. Mirrors ProviderUser.toJson(). Auth overhaul (docs/design/pro-auth-social.md): identity = verified email; phoneNumber is the REQUIRED salon contact. */
         ProviderUser: {
             id: string;
             phoneNumber: string;
             name?: string | null;
+            /** @enum {string|null} */
+            authProvider?: "google" | "apple" | "email" | "phone" | null;
             businessName: string;
             /** @enum {string} */
             businessType: "salon" | "barber" | "spa" | "nailSalon" | "massage" | "other";
