@@ -11,6 +11,7 @@ import '../../core/theme/text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/google_g_logo.dart';
 import '../../widgets/common/phone_number_field.dart';
 
 /// Consumer sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
@@ -172,6 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
         AppButton(
           text: 'Continuer avec Google',
           type: AppButtonType.secondary,
+          leading: const GoogleGLogo(),
           onPressed: auth.isLoading ? null : _handleGoogle,
         ),
         if (_showApple) ...[
