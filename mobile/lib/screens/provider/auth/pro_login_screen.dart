@@ -11,6 +11,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/google_g_logo.dart';
 
 /// Salon sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
 /// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY: `provider_not_found`
@@ -119,6 +120,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                 AppButton(
                   text: 'Continuer avec Google',
                   type: AppButtonType.secondary,
+                  leading: const GoogleGLogo(),
                   onPressed: auth.isLoading ? null : _handleGoogle,
                 ),
                 if (_showApple) ...[

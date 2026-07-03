@@ -12,6 +12,10 @@ class AppButton extends StatelessWidget {
   final bool isFullWidth;
   final IconData? icon;
 
+  /// Arbitrary leading widget (e.g. a multicolor brand logo that can't be an
+  /// [IconData], like the Google « G »). Takes precedence over [icon].
+  final Widget? leading;
+
   const AppButton({
     super.key,
     required this.text,
@@ -20,6 +24,7 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.isFullWidth = true,
     this.icon,
+    this.leading,
   });
 
   @override
@@ -35,7 +40,10 @@ class AppButton extends StatelessWidget {
                 mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (icon != null) ...[
+                  if (leading != null) ...[
+                    leading!,
+                    const SizedBox(width: 8),
+                  ] else if (icon != null) ...[
                     Icon(icon, size: 20),
                     const SizedBox(width: 8),
                   ],
@@ -58,7 +66,10 @@ class AppButton extends StatelessWidget {
                 mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (icon != null) ...[
+                  if (leading != null) ...[
+                    leading!,
+                    const SizedBox(width: 8),
+                  ] else if (icon != null) ...[
                     Icon(icon, size: 20),
                     const SizedBox(width: 8),
                   ],
@@ -83,7 +94,10 @@ class AppButton extends StatelessWidget {
               mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (icon != null) ...[
+                if (leading != null) ...[
+                  leading!,
+                  const SizedBox(width: 8),
+                ] else if (icon != null) ...[
                   Icon(icon, size: 20),
                   const SizedBox(width: 8),
                 ],

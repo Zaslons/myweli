@@ -5,6 +5,7 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
+import 'package:myweli/widgets/common/google_g_logo.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -49,6 +50,8 @@ void main() {
     await settle(tester);
 
     expect(find.text('Continuer avec Google'), findsOneWidget);
+    // Google's branding guidelines: the official « G » sits on the button.
+    expect(find.byType(GoogleGLogo), findsOneWidget);
     expect(find.text('Continuer avec e-mail'), findsOneWidget);
     expect(find.text('Continuer avec Apple'), findsNothing);
   });
