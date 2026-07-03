@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-PRO auth — final slice of [auth-social-email.md](auth-social-email.md) (P1 backend ✅ · P2 web ✅ · P3 app ✅) |
 | **Phase** | Auth overhaul Phase 4 — pro backend + pro app + pro web |
-| **Status** | **Draft** — awaiting sign-off |
+| **Status** | **Approved** (2026-07-03) — decisions: phone REQUIRED at registration · pro phone-OTP gated in this slice · Apple seam included |
 | **Cross-refs** | [app-auth-social.md](app-auth-social.md) · [web-auth-social.md](web-auth-social.md) · `backend/lib/src/auth/provider_auth_repository.dart` · [pro-kyc.md](pro-kyc.md) |
 
 ## 1. Goal & scope

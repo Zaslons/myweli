@@ -2,16 +2,12 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
-import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 
-/// `POST /auth/apple` — Sign in with Apple. The identity token is verified
-/// against Apple's JWKS (signature, iss, aud, exp, nonce) before any account
-/// is touched. Apple sends the user's name only on FIRST authorization as a
-/// separate field — accept it as a display-name hint (it is not part of the
-/// signed token; never used for linking). Design:
-/// docs/design/auth-social-email.md §4–5, §7.
+/// `POST /auth/provider/apple` — salon Sign in with Apple (login-only; the
+/// seam mirrors /auth/provider/google). Design: docs/design/pro-auth-social.md.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
   if (!context.read<AuthMethods>().contains('apple')) {
@@ -30,7 +26,6 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_token');
   }
   final nonce = (body['nonce'] as String?)?.trim();
-  final fullName = (body['fullName'] as String?)?.trim();
 
   final claims = await context.read<AppleIdTokenVerifier>().verify(
     identityToken,
@@ -38,13 +33,11 @@ Future<Response> onRequest(RequestContext context) async {
   );
   if (!claims.ok) return verifierError(claims.error!);
 
-  final result = await context.read<AuthRepository>().loginWithSocial(
+  final result = await context.read<ProviderAuthRepository>().loginWithSocial(
     provider: 'apple',
     sub: claims.sub!,
     email: claims.email,
     emailVerified: claims.emailVerified,
-    name: (fullName != null && fullName.isNotEmpty) ? fullName : claims.name,
-    avatarUrl: claims.avatarUrl,
   );
-  return authSessionResponse(result);
+  return providerSessionResponse(result);
 }

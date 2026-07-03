@@ -132,6 +132,9 @@ void main() {
       );
       service = UploadSigningService(providerAuth, const FakeStorageService());
       final reg = await providerAuth.register(
+        email: 'reg12@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-12',
         phoneNumber: '+2250500000060',
         businessName: 'X',
         businessType: 'salon',
@@ -230,6 +233,9 @@ void main() {
 
     test('kyc works for an unlinked account (gallery does not)', () async {
       final reg = await providerAuth.register(
+        email: 'reg13@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-13',
         phoneNumber: '+2250500000063',
         businessName: 'Unlinked',
         businessType: 'salon',
@@ -251,6 +257,9 @@ void main() {
 
     test('an unlinked account → forbidden', () async {
       final reg = await providerAuth.register(
+        email: 'reg14@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-14',
         phoneNumber: '+2250500000061',
         businessName: 'Y',
         businessType: 'salon',
@@ -279,6 +288,9 @@ void main() {
       );
       service = UploadSigningService(providerAuth, const FakeStorageService());
       final reg = await providerAuth.register(
+        email: 'reg15@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-15',
         phoneNumber: '+2250500000062',
         businessName: 'X',
         businessType: 'salon',

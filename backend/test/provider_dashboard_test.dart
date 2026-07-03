@@ -56,6 +56,9 @@ void main() {
     );
     service = ProviderDashboardService(providerAuth, appts);
     final reg = await providerAuth.register(
+      email: 'reg1@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-1',
       phoneNumber: '+2250500000020',
       businessName: 'X',
       businessType: 'salon',
@@ -92,6 +95,9 @@ void main() {
 
     test('ownership: unlinked account and cross-salon → forbidden', () async {
       final reg = await providerAuth.register(
+        email: 'reg2@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-2',
         phoneNumber: '+2250500000021',
         businessName: 'Y',
         businessType: 'salon',

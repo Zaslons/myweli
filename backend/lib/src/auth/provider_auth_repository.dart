@@ -16,6 +16,10 @@ class ProviderAccount {
     required this.createdAt,
     this.name,
     this.email,
+    this.emailVerified = false,
+    this.authProvider,
+    this.googleSub,
+    this.appleSub,
     this.address,
     this.verificationStatus = 'pending',
     this.rejectionReason,
@@ -24,12 +28,22 @@ class ProviderAccount {
   });
 
   final String id;
+
+  /// Salon CONTACT phone (required at registration — clients/Myweli must be
+  /// able to call). Not an identity since the auth overhaul
+  /// (docs/design/pro-auth-social.md).
   final String phoneNumber;
   final String businessName;
   final String businessType;
   final DateTime createdAt;
   String? name;
+
+  /// Identity email (Google/Apple/email-OTP) — unique per account.
   String? email;
+  bool emailVerified;
+  String? authProvider; // google | apple | email | phone (legacy)
+  String? googleSub;
+  String? appleSub;
   String? address;
   String verificationStatus;
   String? rejectionReason;
@@ -43,6 +57,7 @@ class ProviderAccount {
     'businessName': businessName,
     'businessType': businessType,
     'email': email,
+    'authProvider': authProvider,
     'address': address,
     'verificationStatus': verificationStatus,
     'rejectionReason': rejectionReason,
@@ -51,15 +66,6 @@ class ProviderAccount {
     'providerId': providerId,
   };
 }
-
-/// Register + send-OTP outcome (`devCode` only outside production).
-typedef ProviderRegisterResult = ({
-  bool ok,
-  String? error,
-  ProviderAccount? provider,
-  String? devCode,
-  int expiresInSeconds,
-});
 
 /// Verify outcome: the provider account + a freshly issued token pair (access
 /// JWT role `provider` + a rotating opaque refresh token).
@@ -74,15 +80,47 @@ typedef ProviderVerifyResult = ({
 /// attempt/resend budget, mirroring the consumer flow. In-memory now; a Postgres
 /// impl satisfies the same interface in a follow-up.
 abstract interface class ProviderAuthRepository {
+  // Phone OTP — dormant at launch (AUTH_METHODS gates the routes).
   Future<OtpRequestResult> requestOtp(String phoneNumber);
-  Future<ProviderRegisterResult> register({
-    required String phoneNumber,
+  Future<ProviderVerifyResult> verifyOtp(String phoneNumber, String code);
+
+  // --- Auth overhaul (docs/design/pro-auth-social.md) ------------------------
+
+  /// LOGIN-ONLY with verified identity-provider claims: match by [sub] → else
+  /// by **verified** [email] (linking the sub). A salon is never auto-created
+  /// (`provider_not_found`) — registration carries required business fields.
+  Future<ProviderVerifyResult> loginWithSocial({
+    required String provider,
+    required String sub,
+    String? email,
+    bool emailVerified = false,
+  });
+
+  /// Email OTP, keyed on a provider-scoped store (a consumer with the same
+  /// email must not collide).
+  Future<OtpRequestResult> requestEmailOtp(String email);
+
+  /// LOGIN-ONLY email verify: a correct code with no account returns
+  /// `provider_not_found` **without consuming the code**, so the register
+  /// screen can reuse it (it stays TTL/attempt-bounded).
+  Future<ProviderVerifyResult> verifyEmailOtp(String email, String code);
+
+  /// Registration = identity + business fields in one shot, returning a live
+  /// session. The identity is proven EITHER by the route (Google/Apple token
+  /// verification → [googleSub]/[appleSub]) OR by [emailCode] (checked here,
+  /// atomically with creation) when [authProvider] is `email`.
+  Future<ProviderVerifyResult> register({
     required String businessName,
     required String businessType,
+    required String phoneNumber,
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
     String? address,
     String? providerId,
   });
-  Future<ProviderVerifyResult> verifyOtp(String phoneNumber, String code);
 
   /// Exchange a refresh token for a fresh pair. Rotates the presented token;
   /// replaying an already-rotated token is treated as theft and revokes the
@@ -161,7 +199,10 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   final Map<String, _Refresh> _refreshByHash = {};
   final Map<String, ProviderAccount> _byPhone = {};
   final Map<String, ProviderAccount> _byId = {};
+  final Map<String, ProviderAccount> _byEmail = {}; // lowercased email
+  final Map<String, ProviderAccount> _bySocial = {}; // '<provider>:<sub>'
   final Map<String, _Otp> _otps = {};
+  final Map<String, _Otp> _emailOtps = {}; // lowercased email
 
   @override
   Future<ProviderAccount?> accountById(String id) async => _byId[id];
@@ -232,20 +273,121 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   }
 
   @override
-  Future<ProviderRegisterResult> register({
-    required String phoneNumber,
+  Future<ProviderVerifyResult> loginWithSocial({
+    required String provider,
+    required String sub,
+    String? email,
+    bool emailVerified = false,
+  }) async {
+    final key = '$provider:$sub';
+    final emailKey = email?.trim().toLowerCase();
+    var account = _bySocial[key];
+    if (account == null && emailKey != null && emailVerified) {
+      // Link only on a verified email (threat T33/T35).
+      account = _byEmail[emailKey];
+      if (account != null) {
+        _bySocial[key] = account;
+        if (provider == 'google') account.googleSub = sub;
+        if (provider == 'apple') account.appleSub = sub;
+        account.emailVerified = true;
+      }
+    }
+    if (account == null) {
+      // Never auto-create a salon — registration carries business fields.
+      return (
+        ok: false,
+        error: 'provider_not_found',
+        provider: null,
+        tokens: null,
+      );
+    }
+    return (
+      ok: true,
+      error: null,
+      provider: account,
+      tokens: _issueInFamily(account.id, _newId('fam')),
+    );
+  }
+
+  @override
+  Future<OtpRequestResult> requestEmailOtp(String email) async {
+    final key = email.trim().toLowerCase();
+    final issued = _issueOtpIn(_emailOtps, key);
+    if (issued == null) {
+      return (
+        ok: false,
+        error: 'otp_resend_limit',
+        code: null,
+        devCode: null,
+        expiresInSeconds: 0,
+      );
+    }
+    return (
+      ok: true,
+      error: null,
+      code: issued.code,
+      devCode: issued.devCode,
+      expiresInSeconds: issued.expiresInSeconds,
+    );
+  }
+
+  @override
+  Future<ProviderVerifyResult> verifyEmailOtp(String email, String code) async {
+    final key = email.trim().toLowerCase();
+    final error = _checkOtpIn(_emailOtps, key, code, consume: false);
+    if (error != null) {
+      return (ok: false, error: error, provider: null, tokens: null);
+    }
+    final account = _byEmail[key];
+    if (account == null) {
+      // Correct code, no salon → the register screen reuses this code.
+      return (
+        ok: false,
+        error: 'provider_not_found',
+        provider: null,
+        tokens: null,
+      );
+    }
+    _emailOtps.remove(key);
+    account.emailVerified = true;
+    return (
+      ok: true,
+      error: null,
+      provider: account,
+      tokens: _issueInFamily(account.id, _newId('fam')),
+    );
+  }
+
+  @override
+  Future<ProviderVerifyResult> register({
     required String businessName,
     required String businessType,
+    required String phoneNumber,
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
     String? address,
     String? providerId,
   }) async {
-    if (_byPhone.containsKey(phoneNumber)) {
+    final emailKey = email.trim().toLowerCase();
+    // Email-identity registrations prove inbox ownership here, atomically
+    // with creation (Google/Apple were verified by the route).
+    if (authProvider == 'email') {
+      final error = _checkOtpIn(_emailOtps, emailKey, emailCode ?? '');
+      if (error != null) {
+        return (ok: false, error: error, provider: null, tokens: null);
+      }
+    }
+    if (_byEmail.containsKey(emailKey) ||
+        (googleSub != null && _bySocial.containsKey('google:$googleSub')) ||
+        (appleSub != null && _bySocial.containsKey('apple:$appleSub'))) {
       return (
         ok: false,
         error: 'provider_exists',
         provider: null,
-        devCode: null,
-        expiresInSeconds: 0,
+        tokens: null,
       );
     }
     final account = ProviderAccount(
@@ -253,20 +395,49 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       phoneNumber: phoneNumber,
       businessName: businessName,
       businessType: businessType,
+      email: emailKey,
+      emailVerified: true,
+      authProvider: authProvider,
+      googleSub: googleSub,
+      appleSub: appleSub,
       address: address,
       providerId: providerId,
       createdAt: DateTime.now().toUtc(),
     );
     _byPhone[phoneNumber] = account;
     _byId[account.id] = account;
-    final otp = _issueOtp(phoneNumber)!; // fresh phone → always issues
+    _byEmail[emailKey] = account;
+    if (googleSub != null) _bySocial['google:$googleSub'] = account;
+    if (appleSub != null) _bySocial['apple:$appleSub'] = account;
     return (
       ok: true,
       error: null,
       provider: account,
-      devCode: otp.devCode,
-      expiresInSeconds: otp.expiresInSeconds,
+      tokens: _issueInFamily(account.id, _newId('fam')),
     );
+  }
+
+  /// Check a code in [store]; null = valid. [consume] removes it on success —
+  /// login keeps `consume: false` on the not-found path (see verifyEmailOtp).
+  String? _checkOtpIn(
+    Map<String, _Otp> store,
+    String key,
+    String code, {
+    bool consume = true,
+  }) {
+    final otp = store[key];
+    if (otp == null) return 'otp_none';
+    if (DateTime.now().toUtc().isAfter(otp.expiresAt)) {
+      store.remove(key);
+      return 'otp_expired';
+    }
+    if (otp.attemptsLeft <= 0) return 'otp_locked';
+    if (otp.codeHash != _tokens.hashToken(code)) {
+      otp.attemptsLeft -= 1;
+      return otp.attemptsLeft <= 0 ? 'otp_locked' : 'otp_invalid';
+    }
+    if (consume) store.remove(key);
+    return null;
   }
 
   @override
@@ -355,14 +526,24 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
 
   ({String? code, String? devCode, int expiresInSeconds})? _issueOtp(
     String phoneNumber,
+  ) => _issueOtpIn(_otps, phoneNumber);
+
+  ({String? code, String? devCode, int expiresInSeconds})? _issueOtpIn(
+    Map<String, _Otp> store,
+    String key,
   ) {
-    final existing = _otps[phoneNumber];
+    // An expired code (abandoned flow) doesn't count against the budget.
+    final stored = store[key];
+    final existing =
+        stored != null && DateTime.now().toUtc().isAfter(stored.expiresAt)
+        ? null
+        : stored;
     if (existing != null && existing.resendsLeft <= 0) return null;
     final resendsLeft = existing == null
         ? _maxResends
         : existing.resendsLeft - 1;
     final code = (100000 + _random.nextInt(900000)).toString();
-    _otps[phoneNumber] = _Otp(
+    store[key] = _Otp(
       codeHash: _tokens.hashToken(code),
       expiresAt: DateTime.now().toUtc().add(_otpValidity),
       attemptsLeft: _maxAttempts,

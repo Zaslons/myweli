@@ -66,6 +66,9 @@ void main() {
   /// returns a provider-role access token for it.
   Future<String> providerToken(String phone, {String? providerId}) async {
     final reg = await providerAuth.register(
+      email: '\$phone@test.pro',
+      authProvider: 'google',
+      googleSub: 'sub-\$phone',
       phoneNumber: phone,
       businessName: 'Salon',
       businessType: 'salon',
@@ -107,6 +110,9 @@ void main() {
       () async {
         final catalog = ProviderCatalogService(providers, providerAuth);
         final reg = await providerAuth.register(
+          email: '\$phone@test.pro',
+          authProvider: 'google',
+          googleSub: 'sub-\$phone',
           phoneNumber: '+2250500000099',
           businessName: 'Salon',
           businessType: 'salon',
