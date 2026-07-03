@@ -10,4 +10,10 @@ class FeatureFlags {
   const FeatureFlags._();
 
   static const bool futureProviderFeatures = false;
+
+  /// Sign in with Apple — the seam ships dark until the Apple Developer
+  /// account exists (store phase; App Store rule 4.8 then REQUIRES it on iOS).
+  /// Enable with `--dart-define=APPLE_SIGN_IN=true`.
+  /// Design: docs/design/app-auth-social.md §5.
+  static const bool appleSignIn = bool.fromEnvironment('APPLE_SIGN_IN');
 }

@@ -13,6 +13,7 @@ class PhoneNumberField extends StatelessWidget {
     required this.onChanged,
     this.label = 'Numéro de téléphone',
     this.initialCountryCode = 'CI',
+    this.initialValue,
   });
 
   /// Called with the complete E.164 number on every change.
@@ -20,10 +21,15 @@ class PhoneNumberField extends StatelessWidget {
   final String label;
   final String initialCountryCode;
 
+  /// Prefill with a full number (E.164, e.g. `+2250701020304`) — the picker
+  /// derives the country from it.
+  final String? initialValue;
+
   @override
   Widget build(BuildContext context) {
     return IntlPhoneField(
       initialCountryCode: initialCountryCode,
+      initialValue: initialValue,
       languageCode: 'fr',
       invalidNumberMessage: 'Numéro de téléphone invalide',
       decoration: InputDecoration(labelText: label),

@@ -2,8 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../screens/appointments/appointment_detail_screen.dart';
 import '../../screens/appointments/my_bookings_screen.dart';
-import '../../screens/auth/otp_verify_screen.dart';
-import '../../screens/auth/phone_login_screen.dart';
+import '../../screens/auth/login_screen.dart';
 import '../../screens/booking/artist_selection_screen.dart';
 import '../../screens/booking/booking_confirmation_screen.dart';
 import '../../screens/booking/booking_hub_screen.dart';
@@ -29,21 +28,15 @@ class AppRouter {
         name: 'splash',
         builder: (context, state) => const SplashScreen(),
       ),
+      // Auth overhaul (docs/design/app-auth-social.md): Google + email OTP
+      // (+ flag-hidden Apple). The phone-OTP screens are dormant (unrouted),
+      // kept for the Termii-era phone verification reuse.
       GoRoute(
         path: '/login',
         name: 'login',
         builder: (context, state) {
           final returnTo = state.uri.queryParameters['returnTo'];
-          return PhoneLoginScreen(returnTo: returnTo);
-        },
-      ),
-      GoRoute(
-        path: '/verify-otp',
-        name: 'verify-otp',
-        builder: (context, state) {
-          final phone = state.uri.queryParameters['phone'] ?? '';
-          final returnTo = state.uri.queryParameters['returnTo'];
-          return OtpVerifyScreen(phoneNumber: phone, returnTo: returnTo);
+          return LoginScreen(returnTo: returnTo);
         },
       ),
       GoRoute(

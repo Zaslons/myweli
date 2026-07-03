@@ -32,6 +32,12 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   shared_preferences: ^2.2.2
 
+  # Auth overhaul: native Google Sign-In (+ Apple seam, flag-gated) and the
+  # SHA-256 for Apple's nonce. Design: docs/design/app-auth-social.md.
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.1
+  crypto: ^3.0.3
+
   # UI Components
   cached_network_image: ^3.3.1
   flutter_svg: ^2.0.9

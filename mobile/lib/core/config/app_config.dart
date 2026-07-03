@@ -29,4 +29,14 @@ class AppConfig {
   static const String supportWhatsApp = String.fromEnvironment(
     'SUPPORT_WHATSAPP',
   );
+
+  /// Google Sign-In server client ID (the **web** OAuth client) — makes the
+  /// native flow return an ID token whose `aud` the backend allowlists.
+  /// A public identifier, not a secret; overridable per environment.
+  /// Design: docs/design/app-auth-social.md §5.
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue:
+        '731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com',
+  );
 }

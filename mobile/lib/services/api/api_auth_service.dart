@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
@@ -72,6 +76,12 @@ class ApiAuthService implements AuthServiceInterface {
       '/auth/otp/verify',
       {'phoneNumber': phoneNumber, 'code': otp},
     );
+    return _loginFrom(res);
+  }
+
+  /// Shared AuthSession handling for every login endpoint: parse the NESTED
+  /// `{tokens: {...}, user}` shape, persist, and set the current user.
+  Future<ApiResponse<User>> _loginFrom(http.Response? res) async {
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
 
@@ -85,6 +95,115 @@ class ApiAuthService implements AuthServiceInterface {
       tokens['refreshToken'] as String?,
     );
     return ApiResponse.success(user, message: 'Connexion réussie');
+  }
+
+  // ---- Auth overhaul (docs/design/app-auth-social.md) ----------------------
+
+  @override
+  Future<ApiResponse<User>> signInWithGoogle() async {
+    try {
+      // serverClientId = the WEB OAuth client, so the ID token's `aud` is in
+      // the backend allowlist (GOOGLE_CLIENT_IDS).
+      final google = GoogleSignIn(
+        scopes: const ['email'],
+        serverClientId: AppConfig.googleServerClientId,
+      );
+      final account = await google.signIn();
+      if (account == null) {
+        // User closed the sheet — silent cancel, no error banner.
+        return ApiResponse.error('', code: 'cancelled');
+      }
+      final idToken = (await account.authentication).idToken;
+      if (idToken == null) {
+        return ApiResponse.error(
+          'Connexion Google impossible.',
+          code: 'no_id_token',
+        );
+      }
+      final res = await _post('/auth/google', {'idToken': idToken});
+      return _loginFrom(res);
+    } catch (_) {
+      return ApiResponse.error(
+        'Connexion Google impossible.',
+        code: 'google_failed',
+      );
+    }
+  }
+
+  @override
+  Future<ApiResponse<User>> signInWithApple() async {
+    try {
+      // iOS convention: Apple receives sha256(rawNonce); the backend gets the
+      // raw nonce and checks the token's claim (replay defence — T31).
+      final rawNonce = _randomNonce();
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      );
+      final identityToken = credential.identityToken;
+      if (identityToken == null) {
+        return ApiResponse.error(
+          'Connexion Apple impossible.',
+          code: 'no_id_token',
+        );
+      }
+      final fullName = [credential.givenName, credential.familyName]
+          .whereType<String>()
+          .join(' ')
+          .trim();
+      final res = await _post('/auth/apple', {
+        'identityToken': identityToken,
+        'nonce': rawNonce,
+        if (fullName.isNotEmpty) 'fullName': fullName,
+      });
+      return _loginFrom(res);
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return ApiResponse.error('', code: 'cancelled');
+      }
+      return ApiResponse.error(
+        'Connexion Apple impossible.',
+        code: 'apple_failed',
+      );
+    } catch (_) {
+      return ApiResponse.error(
+        'Connexion Apple impossible.',
+        code: 'apple_failed',
+      );
+    }
+  }
+
+  @override
+  Future<ApiResponse<String>> requestEmailOtp(String email) async {
+    final res = await _post('/auth/email/otp/request', {'email': email});
+    if (res == null) return _networkError();
+    if (res.statusCode == 202) {
+      final body = _decode(res.body);
+      return ApiResponse.success(
+        body['devCode'] as String? ?? '',
+        message: 'Code envoyé par e-mail',
+      );
+    }
+    return _errorFrom(res);
+  }
+
+  @override
+  Future<ApiResponse<User>> verifyEmailOtp(String email, String code) async {
+    final res = await _post(
+      '/auth/email/otp/verify',
+      {'email': email, 'code': code},
+    );
+    return _loginFrom(res);
+  }
+
+  String _randomNonce() {
+    final random = Random.secure();
+    return base64Url
+        .encode(List<int>.generate(24, (_) => random.nextInt(256)))
+        .replaceAll('=', '');
   }
 
   @override
@@ -117,6 +236,7 @@ class ApiAuthService implements AuthServiceInterface {
     String? name,
     String? email,
     String? avatarUrl,
+    String? phone,
   }) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Utilisateur non connecté');
@@ -128,6 +248,7 @@ class ApiAuthService implements AuthServiceInterface {
             if (name != null) 'name': name,
             if (email != null) 'email': email,
             if (avatarUrl != null) 'avatarUrl': avatarUrl,
+            if (phone != null) 'phone': phone,
           }),
         ));
     if (res == null) return _networkError();
@@ -335,6 +456,15 @@ class ApiAuthService implements AuthServiceInterface {
         return 'Aucun compte professionnel pour ce numéro. Inscrivez-vous.';
       case 'provider_exists':
         return 'Un compte existe déjà pour ce numéro. Connectez-vous.';
+      case 'invalid_email':
+        return 'E-mail invalide.';
+      case 'invalid_token':
+      case 'token_rejected':
+        return 'Connexion impossible. Réessayez.';
+      case 'account_suspended':
+        return 'Compte suspendu.';
+      case 'auth_method_disabled':
+        return 'Méthode de connexion indisponible.';
       default:
         return 'Une erreur est survenue.';
     }
