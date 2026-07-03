@@ -40,12 +40,20 @@ class IdTokenVerifier {
     required this.issuers,
     required this.audiences,
     this.requireVerifiedEmail = false,
+    this.rejectUnsolicitedNonce = true,
   });
 
   final JwksCache jwks;
   final List<String> issuers;
   final List<String> audiences;
   final bool requireVerifiedEmail;
+
+  /// Reject a token carrying a `nonce` claim when the caller presented none.
+  /// Strict for Apple (WE issue that nonce — its absence would disable the
+  /// replay defence). Relaxed for Google: the iOS Google Sign-In SDK
+  /// (AppAuth) mints and validates its OWN nonce client-side, so iOS tokens
+  /// legitimately arrive with a nonce we never asked for.
+  final bool rejectUnsolicitedNonce;
 
   Future<IdTokenResult> verify(String token, {String? nonce}) async {
     if (audiences.isEmpty) return _fail('verifier_not_configured');
@@ -102,14 +110,15 @@ class IdTokenVerifier {
 
     // 5. Nonce (replay defence — Apple). The claim holds either the raw nonce
     //    or its SHA-256 (the iOS convention); accept either. A token carrying
-    //    a nonce claim requires the caller to present one.
+    //    a nonce claim requires the caller to present one — unless the
+    //    provider's own SDK is known to mint one ([rejectUnsolicitedNonce]).
     final claimNonce = payload['nonce'] as String?;
     if (nonce != null && nonce.isNotEmpty) {
       final hashed = sha256.convert(utf8.encode(nonce)).toString();
       if (claimNonce != nonce && claimNonce != hashed) {
         return _fail('token_rejected');
       }
-    } else if (claimNonce != null) {
+    } else if (claimNonce != null && rejectUnsolicitedNonce) {
       return _fail('token_rejected');
     }
 
@@ -142,6 +151,9 @@ class GoogleIdTokenVerifier extends IdTokenVerifier {
          issuers: const ['https://accounts.google.com', 'accounts.google.com'],
          audiences: clientIds,
          requireVerifiedEmail: true,
+         // The iOS Google Sign-In SDK adds + self-validates a nonce; web GIS
+         // and Android tokens carry none. We never issue a Google nonce.
+         rejectUnsolicitedNonce: false,
        );
 }
 

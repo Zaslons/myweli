@@ -126,6 +126,40 @@ void main() {
     expect(res.avatarUrl, 'https://p.example/ama.png');
   });
 
+  test(
+    'Google token with an SDK-minted nonce and no caller nonce → ok '
+    '(the iOS Google Sign-In SDK adds + self-validates its own nonce)',
+    () async {
+      final v = google(
+        jwksClient([
+          {'k1': keyA.publicKey},
+        ]),
+      );
+      final res = await v.verify(
+        sign({
+          ...googleClaims(),
+          'nonce': 'ios-sdk-minted',
+        }, key: keyA.privateKey),
+      );
+      expect(res.ok, isTrue);
+      expect(res.sub, 'g-sub-1');
+    },
+  );
+
+  test('Google: a caller-presented nonce must still MATCH the claim', () async {
+    final v = google(
+      jwksClient([
+        {'k1': keyA.publicKey},
+      ]),
+    );
+    final res = await v.verify(
+      sign({...googleClaims(), 'nonce': 'other'}, key: keyA.privateKey),
+      nonce: 'expected',
+    );
+    expect(res.ok, isFalse);
+    expect(res.error, 'token_rejected');
+  });
+
   test('signature from a different key → token_rejected', () async {
     final v = google(
       jwksClient([
