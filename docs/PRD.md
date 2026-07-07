@@ -261,6 +261,11 @@ The minimum to onboard salons in 3 communes and run real, deposit-backed booking
 
 ### 7.4 Feature → phase matrix (high level)
 
+> Living module-level inventory (canonical module names, code mapping, status,
+> YCLIENTS-replica gap map): **[docs/MODULES.md](MODULES.md)** (2026-07-07 — MyWeli
+> is architected as a YCLIENTS replica adapted to CI; modules are the planning
+> vocabulary).
+
 | Domain | V1 | V2 | V3 |
 |---|---|---|---|
 | Auth (phone/OTP) | ✅ | | |
