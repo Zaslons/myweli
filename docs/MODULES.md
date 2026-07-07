@@ -194,14 +194,12 @@ capability matrix**, per-user overrides exposed later.
 
 - **Today:** one login per salon (the owner); `role` claim ∈ user/provider/
   admin + tenant ownership on every route; artists are records, not logins.
-- **To build (⏳ V2 slice 1):** `provider_members` (provider_id, account_id,
-  role_preset owner/manager/staff, artist_id?, status), email invitations,
-  capability enforcement (`journal.all`, `journal.own`, `clients.view`,
-  `catalogue.manage`, `finances.view`, `team.manage`, …) — roles resolved
-  per-request (instant revocation), Specialist↔artist auto-link, owner-protected
-  actions, client-data access audit. Staff seats = paid add-on.
-  **(🔮 V3):** the per-user override matrix UI, accountant-type roles.
-- **Module doc:** `docs/modules/access.md` *(to write — first in line)*.
+- **To build (⏳ V2):** preset roles (Propriétaire / Manager / Collaborateur)
+  on a capability matrix, email invitations, per-request resolution (instant
+  revocation), artist auto-link, owner-protected actions, access audit; staff
+  seats = paid add-on. **(🔮 V3):** override matrix UI, Réception preset,
+  owner transfer, audit viewer.
+- **Module doc:** **[docs/modules/access.md](modules/access.md)** ✅ (2026-07-07).
 
 ## 12. Payroll — `payroll` 🔮
 
