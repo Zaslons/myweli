@@ -36,6 +36,20 @@ The two source-of-truth documents hold the detail; this skill makes sure they're
 
 If a rule below is ambiguous or a situation isn't covered, check these two docs first. If they don't answer it, ask the user — and propose updating the docs so the answer is captured for next time.
 
+## Modules & the full-depth rule (2026-07-07)
+MyWeli is architected as a **YCLIENTS replica adapted to CI** — the canonical
+module map lives in **[docs/MODULES.md](../../../docs/MODULES.md)**. Every
+ROADMAP entry, design spec, and PR names its module; each module gets a deep
+`docs/modules/<slug>.md` doc before its build phase starts.
+
+**The full-depth rule (user decision, binding):** when we develop a part, we
+take our time and develop it FULLY — every flow, every state, every edge case,
+every detail, with best-in-class UI/UX, across all relevant surfaces (app, pro,
+web, admin). Shipping slower is accepted; shipping a hollow or rushed slice is
+not. Phasing (V1→V3) governs what we commit to *between* modules — the rule
+governs depth *within* a committed scope. If time pressure tempts a cut, ask
+the user; never silently thin a module.
+
 ## The development loop: before → during → after
 
 ### Design spec first — write it down before building (every part)

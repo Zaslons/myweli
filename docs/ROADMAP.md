@@ -6,6 +6,7 @@
 |---|---|
 | **Last updated** | 2026-06-20 |
 | **Build strategy** | Finish the **V1 frontend** on mock services → design & build backend → integrate → harden |
+| **Module map** | [MODULES.md](MODULES.md) — canonical modules (YCLIENTS-replica map); every entry/spec/PR names its module; **full-depth rule**: each module ships complete (every flow/state/detail, best UI/UX) |
 | **Non-negotiables** | Security and performance are first-order — continuous gates, not a final phase |
 | **Reference device** | Low-end Android (2–3 GB RAM, Android 9) — the perf/UX bar |
 
