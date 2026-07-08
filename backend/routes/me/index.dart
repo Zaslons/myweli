@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -54,6 +55,9 @@ Future<Response> onRequest(RequestContext context) async {
     case HttpMethod.delete:
       final ok = await repo.deleteUser(principal.userId);
       if (!ok) return jsonError(HttpStatus.notFound, 'not_found');
+      // Module `clients` T48: the deleted identity disappears from every
+      // salon's client base (rows unlink + anonymize; aggregates survive).
+      await context.read<ClientsService>().anonymizeUser(principal.userId);
       return Response(statusCode: HttpStatus.noContent);
 
     default:

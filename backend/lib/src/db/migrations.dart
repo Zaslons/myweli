@@ -548,6 +548,96 @@ CREATE TABLE IF NOT EXISTS provider_email_otp_codes (
 )''',
     ],
   ),
+  (
+    id: '0024_salon_clients',
+    statements: [
+      // Module `clients` C1 (docs/design/clients-c1.md): the salon client
+      // base, DERIVED from bookings. One row per (salon, platform user) or
+      // (salon, guest phone); tags jsonb (codebase idiom); stats stay
+      // computed — only last_visit_at is denormalized (list sort).
+      '''
+CREATE TABLE IF NOT EXISTS salon_clients (
+  id            text PRIMARY KEY,
+  provider_id   text NOT NULL,
+  user_id       text,
+  display_name  text NOT NULL,
+  phone         text,
+  tags          jsonb NOT NULL DEFAULT '[]',
+  last_visit_at timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE UNIQUE INDEX IF NOT EXISTS salon_clients_user_key '
+          'ON salon_clients (provider_id, user_id) WHERE user_id IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS salon_clients_phone_key '
+          'ON salon_clients (provider_id, phone) WHERE phone IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS salon_clients_list_idx '
+          'ON salon_clients (provider_id, last_visit_at DESC NULLS LAST)',
+      '''
+CREATE TABLE IF NOT EXISTS salon_client_notes (
+  id                text PRIMARY KEY,
+  client_id         text NOT NULL REFERENCES salon_clients(id)
+                      ON DELETE CASCADE,
+  author_account_id text NOT NULL,
+  body              text NOT NULL,
+  created_at        timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS salon_client_notes_client_idx '
+          'ON salon_client_notes (client_id, created_at DESC)',
+      // Salon-scoped audit trail (T46/T39; `access` A2 reuses it).
+      '''
+CREATE TABLE IF NOT EXISTS provider_audit_log (
+  id               text PRIMARY KEY,
+  provider_id      text NOT NULL,
+  actor_account_id text NOT NULL,
+  action           text NOT NULL,
+  target_id        text,
+  meta             jsonb NOT NULL DEFAULT '{}',
+  created_at       timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_audit_log_idx '
+          'ON provider_audit_log (provider_id, created_at DESC)',
+      // Stats resolve a client's bookings by user_id / guest phone.
+      'CREATE INDEX IF NOT EXISTS appointments_provider_user_idx '
+          'ON appointments (provider_id, user_id)',
+      'CREATE INDEX IF NOT EXISTS appointments_provider_client_phone_idx '
+          'ON appointments (provider_id, client_phone) '
+          'WHERE client_phone IS NOT NULL',
+      // Backfill 1/2 — platform users who ever booked. A linked client's
+      // phone is stored only when VERIFIED (T33/T49 bar).
+      '''
+INSERT INTO salon_clients
+  (id, provider_id, user_id, display_name, phone, last_visit_at)
+SELECT gen_random_uuid()::text,
+       a.provider_id,
+       a.user_id,
+       COALESCE(u.name, 'Client'),
+       CASE WHEN u.phone_verified THEN u.phone_number END,
+       MAX(a.appointment_date) FILTER (WHERE a.status = 'completed')
+FROM appointments a
+JOIN users u ON u.id = a.user_id
+WHERE a.user_id <> 'manual'
+GROUP BY a.provider_id, a.user_id, u.name, u.phone_number, u.phone_verified
+ON CONFLICT DO NOTHING''',
+      // Backfill 2/2 — walk-in guests (manual bookings keyed by phone). A
+      // guest phone equal to a user's VERIFIED phone at the same salon merges
+      // into that user row (skipped here — the user row already claims it).
+      '''
+INSERT INTO salon_clients
+  (id, provider_id, user_id, display_name, phone, last_visit_at)
+SELECT gen_random_uuid()::text,
+       a.provider_id,
+       NULL,
+       COALESCE(MAX(a.client_name) FILTER (WHERE a.client_name IS NOT NULL),
+                'Client'),
+       a.client_phone,
+       MAX(a.appointment_date) FILTER (WHERE a.status = 'completed')
+FROM appointments a
+WHERE a.user_id = 'manual' AND a.client_phone IS NOT NULL
+GROUP BY a.provider_id, a.client_phone
+ON CONFLICT DO NOTHING''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

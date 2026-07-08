@@ -2588,6 +2588,326 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/providers/{id}/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The salon's client base (module clients C1)
+         * @description Provider-authenticated + ownership-scoped (capability `clients.view` — owner-only until the access module). Paginated, sorted by last visit; `query` matches name substring or phone digits (≥2); `tag` filters. Every read is AUDITED (threat T46). Page 1 carries `availableTags` (presets VIP/Fidèle/À risque + the salon's custom tags).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    query?: string;
+                    tag?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The salon's clients */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonClientList"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Add a client manually (phone REQUIRED — the dedupe/link key) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        /** @description E.164 */
+                        phone: string;
+                        /** @description Optional first note (≤500). */
+                        note?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonClient"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description That phone already has a row: `client_exists` + `clientId`. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error?: string;
+                            clientId?: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/providers/{id}/clients/{clientId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        /** The client card (stats + upcoming + notes; read audited) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    clientId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The card */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonClientCard"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the tag set (≤10 tags, each ≤24 chars) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    clientId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        tags: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonClient"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        trace?: never;
+    };
+    "/providers/{id}/clients/{clientId}/visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        /** The client's visit history AT THIS SALON (paginated, newest first) */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    clientId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Salon-scoped appointments */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AppointmentList"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/providers/{id}/clients/{clientId}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add an internal note (≤500 chars; team-only, never consumer-visible) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    clientId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        body: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonClientNote"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/providers/{id}/clients/{clientId}/notes/{noteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                clientId: string;
+                noteId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a note (author or owner) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    clientId: string;
+                    noteId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/appointments": {
         parameters: {
             query?: never;
@@ -4605,6 +4925,60 @@ export interface components {
             depositScreenshotUrl?: string | null;
             /** Format: date-time */
             createdAt: string;
+            /** @description PROVIDER VIEW ONLY (module clients C1): the salon-client row this booking resolves to — links the pro detail to the client card. */
+            salonClientId?: string | null;
+            /** @description PROVIDER VIEW ONLY: the client's no-show count at this salon (server-computed) — the accept-screen badge (neutral at 1, red from 2). */
+            clientNoShowCount?: number | null;
+        };
+        AppointmentList: {
+            items: components["schemas"]["Appointment"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        /** @description A salon's client (module clients C1) — DERIVED from bookings (platform users + walk-in guests keyed by phone). `linked` = has a MyWeli account. Salon-scoped: never exposes cross-salon data (threat T45). */
+        SalonClient: {
+            id: string;
+            displayName: string;
+            phone?: string | null;
+            tags: string[];
+            /** Format: date-time */
+            lastVisitAt?: string | null;
+            linked: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SalonClientListItem: components["schemas"]["SalonClient"] & {
+            /** @description Completed visits at this salon. */
+            visits: number;
+            noShows: number;
+        };
+        SalonClientList: {
+            items: components["schemas"]["SalonClientListItem"][];
+            page: number;
+            pageSize: number;
+            total: number;
+            /** @description Page 1 only — presets + the salon's custom tags. */
+            availableTags?: string[];
+        };
+        SalonClientStats: {
+            visits: number;
+            spentFcfa: number;
+            noShows: number;
+            cancellations: number;
+        };
+        /** @description Internal team note — NEVER consumer-visible (threat T47). */
+        SalonClientNote: {
+            id: string;
+            authorName: string;
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SalonClientCard: components["schemas"]["SalonClient"] & {
+            stats: components["schemas"]["SalonClientStats"];
+            upcoming?: components["schemas"]["Appointment"];
+            notes: components["schemas"]["SalonClientNote"][];
         };
         /** @description Optional per-hair-length durations (minutes). Mirrors DurationVariants. */
         DurationVariants: {

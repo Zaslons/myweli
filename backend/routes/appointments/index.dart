@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `/appointments`.
@@ -44,7 +45,10 @@ Future<Response> _list(RequestContext context, Principal principal) async {
     if (providerId == null) {
       return jsonError(HttpStatus.forbidden, 'forbidden');
     }
-    items = await repo.listForProvider(providerId, status: status);
+    items = await context.read<ClientsService>().enrichForProvider(
+      providerId,
+      await repo.listForProvider(providerId, status: status),
+    );
   } else {
     // Auto-sync (FR-APPT-008): also surface provider-entered bookings made to
     // this account's **verified** phone (resolved server-side — never from

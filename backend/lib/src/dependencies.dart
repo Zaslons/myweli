@@ -21,12 +21,16 @@ import 'auth/auth_repository.dart';
 import 'auth/id_token_verifier.dart';
 import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
+import 'clients/clients_repository.dart';
+import 'clients/clients_service.dart';
+import 'clients/provider_audit_log.dart';
 import 'db/database.dart';
 import 'db/migrations.dart';
 import 'db/postgres_admin_auth_repository.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
+import 'db/postgres_clients_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
@@ -34,6 +38,7 @@ import 'db/postgres_messaging_outbox_repository.dart';
 import 'db/postgres_messaging_prefs_repository.dart';
 import 'db/postgres_notification_prefs_repository.dart';
 import 'db/postgres_notifications_repository.dart';
+import 'db/postgres_provider_audit_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reminder_log_repository.dart';
@@ -225,10 +230,28 @@ final SlotService slotService = SlotService(
   appointmentRepository,
 );
 
+final ClientsRepository clientsRepository = _pool == null
+    ? InMemoryClientsRepository()
+    : PostgresClientsRepository(_pool!);
+
+final ProviderAuditLogRepository providerAuditLogRepository = _pool == null
+    ? InMemoryProviderAuditLogRepository()
+    : PostgresProviderAuditLogRepository(_pool!);
+
+/// Module `clients` C1 (docs/design/clients-c1.md).
+final ClientsService clientsService = ClientsService(
+  providerAuthRepository,
+  authRepository,
+  clientsRepository,
+  appointmentRepository,
+  providerAuditLogRepository,
+);
+
 final BookingService bookingService = BookingService(
   providersRepository,
   appointmentRepository,
   slotService,
+  clients: clientsService,
 );
 
 final AppointmentLifecycleService appointmentLifecycleService =
@@ -237,6 +260,7 @@ final AppointmentLifecycleService appointmentLifecycleService =
 final ProAppointmentService proAppointmentService = ProAppointmentService(
   providerAuthRepository,
   appointmentRepository,
+  clients: clientsService,
 );
 
 /// Object storage for image uploads. Configured → R2 (S3-compatible); else a

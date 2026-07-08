@@ -9,6 +9,9 @@ import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/clients_repository.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
@@ -301,6 +304,15 @@ void main() {
         () => context.read<ProviderAuthRepository>(),
       ).thenReturn(providerAuth);
       when(() => context.read<AuthRepository>()).thenReturn(auth);
+      when(() => context.read<ClientsService>()).thenReturn(
+        ClientsService(
+          providerAuth,
+          auth,
+          InMemoryClientsRepository(),
+          appts,
+          InMemoryProviderAuditLogRepository(),
+        ),
+      );
       return context;
     }
 

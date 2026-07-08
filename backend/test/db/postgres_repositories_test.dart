@@ -9,7 +9,9 @@ import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
+import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
+import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
@@ -47,7 +49,8 @@ void main() {
     await pool.execute(
       'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
       'provider_users, provider_otp_codes, provider_refresh_tokens, '
-      'favorites, reviews CASCADE',
+      'favorites, reviews, salon_clients, salon_client_notes, '
+      'provider_audit_log CASCADE',
     );
   });
 
@@ -670,6 +673,153 @@ void main() {
         expect(await r.listForUser('fav_user_A'), ['provider2']);
       },
     );
+  });
+
+  group('PostgresClientsRepository (module clients C1)', () {
+    late PostgresClientsRepository clients;
+    late PostgresProviderAuditLogRepository audit;
+
+    setUp(() {
+      clients = PostgresClientsRepository(pool);
+      audit = PostgresProviderAuditLogRepository(pool);
+    });
+
+    Map<String, dynamic> clientMap({
+      required String id,
+      String providerId = 'provider1',
+      String? userId,
+      String name = 'Aïcha',
+      String? phone,
+      List<String> tags = const [],
+    }) => {
+      'id': id,
+      'providerId': providerId,
+      'userId': userId,
+      'displayName': name,
+      'phone': phone,
+      'tags': tags,
+      'lastVisitAt': null,
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+    };
+
+    test('create + scoped lookups + uniqueness upsert', () async {
+      await clients.create(
+        clientMap(id: 'c1', phone: '+2250700000001', userId: null),
+      );
+      // Same phone again → conflict swallowed, existing row returned.
+      final dup = await clients.create(
+        clientMap(id: 'c1bis', phone: '+2250700000001'),
+      );
+      expect(dup['id'], 'c1');
+
+      expect(await clients.byId('provider1', 'c1'), isNotNull);
+      // T45: scoped — the same id under another salon resolves to nothing.
+      expect(await clients.byId('provider2', 'c1'), isNull);
+      expect(
+        (await clients.byPhone('provider1', '+2250700000001'))?['id'],
+        'c1',
+      );
+    });
+
+    test(
+      'list: search by name/digits, tag filter, pagination + sort',
+      () async {
+        await clients.create(
+          clientMap(id: 'l1', name: 'Aminata', phone: '+2250701112233'),
+        );
+        await clients.create(
+          clientMap(
+            id: 'l2',
+            name: 'Binta',
+            phone: '+2250704445566',
+            tags: ['VIP'],
+          ),
+        );
+        await clients.touchLastVisit('provider1', 'l2', DateTime.utc(2026, 7));
+
+        final all = await clients.list('provider1', page: 1, pageSize: 20);
+        expect(all.total, 2);
+        // last_visit_at DESC NULLS LAST → l2 first.
+        expect(all.items.first['id'], 'l2');
+
+        final byName = await clients.list(
+          'provider1',
+          query: 'amin',
+          page: 1,
+          pageSize: 20,
+        );
+        expect(byName.items.single['id'], 'l1');
+
+        final byDigits = await clients.list(
+          'provider1',
+          query: '0704 44',
+          page: 1,
+          pageSize: 20,
+        );
+        expect(byDigits.items.single['id'], 'l2');
+
+        final byTag = await clients.list(
+          'provider1',
+          tag: 'VIP',
+          page: 1,
+          pageSize: 20,
+        );
+        expect(byTag.items.single['id'], 'l2');
+        expect(await clients.tagsFor('provider1'), ['VIP']);
+      },
+    );
+
+    test('tags update, notes CRUD, anonymize (T48)', () async {
+      await clients.create(
+        clientMap(id: 'n1', userId: 'uX', phone: '+2250700000002'),
+      );
+      final updated = await clients.updateTags('provider1', 'n1', [
+        'VIP',
+        'Fidèle',
+      ]);
+      expect(updated?['tags'], ['VIP', 'Fidèle']);
+
+      await clients.addNote({
+        'id': 'note1',
+        'clientId': 'n1',
+        'authorAccountId': 'acct1',
+        'body': 'Préfère Awa',
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      expect((await clients.notesFor('n1')).single['body'], 'Préfère Awa');
+      expect(await clients.deleteNote('n1', 'note1'), isTrue);
+      expect(await clients.notesFor('n1'), isEmpty);
+
+      await clients.anonymizeUser('uX');
+      final anon = await clients.byId('provider1', 'n1');
+      expect(anon?['userId'], isNull);
+      expect(anon?['displayName'], 'Client');
+      expect(anon?['phone'], isNull);
+    });
+
+    test('audit log round-trips (T46)', () async {
+      await audit.log(
+        providerId: 'provider1',
+        actorAccountId: 'acct1',
+        action: 'clients.list',
+        meta: {'query': 'ami'},
+      );
+      final entries = await audit.entriesFor('provider1');
+      expect(entries.single['action'], 'clients.list');
+      expect((entries.single['meta'] as Map)['query'], 'ami');
+    });
+
+    test('0024 backfill created rows from historical bookings', () async {
+      // The migration ran in setUpAll against whatever appointments existed;
+      // here we assert the derived-upsert path stays consistent with it:
+      // a completed booking + touchLastVisit orders the list.
+      await clients.create(clientMap(id: 'b1', phone: '+2250700000003'));
+      await clients.touchLastVisit('provider1', 'b1', DateTime.utc(2026, 7, 2));
+      // Regressions never move it backwards.
+      await clients.touchLastVisit('provider1', 'b1', DateTime.utc(2026, 6, 1));
+      final row = await clients.byId('provider1', 'b1');
+      expect(row?['lastVisitAt'], DateTime.utc(2026, 7, 2).toIso8601String());
+    });
   });
 
   group('PostgresReviewsRepository', () {

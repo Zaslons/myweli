@@ -1385,6 +1385,173 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /providers/{id}/clients:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [clients]
+      summary: The salon's client base (module clients C1)
+      description: >
+        Provider-authenticated + ownership-scoped (capability `clients.view` —
+        owner-only until the access module). Paginated, sorted by last visit;
+        `query` matches name substring or phone digits (≥2); `tag` filters.
+        Every read is AUDITED (threat T46). Page 1 carries `availableTags`
+        (presets VIP/Fidèle/À risque + the salon's custom tags).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: query, schema: { type: string } }
+        - { in: query, name: tag, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, default: 20, maximum: 50 } }
+      responses:
+        '200':
+          description: The salon's clients
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClientList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [clients]
+      summary: Add a client manually (phone REQUIRED — the dedupe/link key)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name: { type: string }
+                phone: { type: string, description: E.164 }
+                note: { type: string, description: Optional first note (≤500). }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClient' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 'That phone already has a row: `client_exists` + `clientId`.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  clientId: { type: string }
+
+  /providers/{id}/clients/{clientId}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+    get:
+      tags: [clients]
+      summary: The client card (stats + upcoming + notes; read audited)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The card
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClientCard' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [clients]
+      summary: Update the tag set (≤10 tags, each ≤24 chars)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClient' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/clients/{clientId}/visits:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+    get:
+      tags: [clients]
+      summary: The client's visit history AT THIS SALON (paginated, newest first)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, default: 20, maximum: 50 } }
+      responses:
+        '200':
+          description: Salon-scoped appointments
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppointmentList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/clients/{clientId}/notes:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+    post:
+      tags: [clients]
+      summary: Add an internal note (≤500 chars; team-only, never consumer-visible)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 500 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClientNote' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/clients/{clientId}/notes/{noteId}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+      - { in: path, name: noteId, required: true, schema: { type: string } }
+    delete:
+      tags: [clients]
+      summary: Delete a note (author or owner)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /appointments:
     get:
       tags: [appointments]
@@ -2572,6 +2739,104 @@ components:
         notes: { type: string, nullable: true }
         depositScreenshotUrl: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        salonClientId:
+          type: string
+          nullable: true
+          description: >
+            PROVIDER VIEW ONLY (module clients C1): the salon-client row this
+            booking resolves to — links the pro detail to the client card.
+        clientNoShowCount:
+          type: integer
+          nullable: true
+          description: >
+            PROVIDER VIEW ONLY: the client's no-show count at this salon
+            (server-computed) — the accept-screen badge (neutral at 1, red
+            from 2).
+
+    AppointmentList:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Appointment' }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+
+    SalonClient:
+      type: object
+      description: >
+        A salon's client (module clients C1) — DERIVED from bookings (platform
+        users + walk-in guests keyed by phone). `linked` = has a MyWeli
+        account. Salon-scoped: never exposes cross-salon data (threat T45).
+      required: [id, displayName, tags, linked, createdAt]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        phone: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        lastVisitAt: { type: string, format: date-time, nullable: true }
+        linked: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    SalonClientListItem:
+      allOf:
+        - { $ref: '#/components/schemas/SalonClient' }
+        - type: object
+          required: [visits, noShows]
+          properties:
+            visits: { type: integer, description: Completed visits at this salon. }
+            noShows: { type: integer }
+
+    SalonClientList:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SalonClientListItem' }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        availableTags:
+          type: array
+          items: { type: string }
+          description: Page 1 only — presets + the salon's custom tags.
+
+    SalonClientStats:
+      type: object
+      required: [visits, spentFcfa, noShows, cancellations]
+      properties:
+        visits: { type: integer }
+        spentFcfa: { type: number }
+        noShows: { type: integer }
+        cancellations: { type: integer }
+
+    SalonClientNote:
+      type: object
+      description: Internal team note — NEVER consumer-visible (threat T47).
+      required: [id, authorName, body, createdAt]
+      properties:
+        id: { type: string }
+        authorName: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    SalonClientCard:
+      allOf:
+        - { $ref: '#/components/schemas/SalonClient' }
+        - type: object
+          required: [stats, notes]
+          properties:
+            stats: { $ref: '#/components/schemas/SalonClientStats' }
+            upcoming:
+              { $ref: '#/components/schemas/Appointment' }
+            notes:
+              type: array
+              items: { $ref: '#/components/schemas/SalonClientNote' }
 
     DurationVariants:
       type: object
