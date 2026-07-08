@@ -4,7 +4,7 @@
 |---|---|
 | **Module** | `journal` — [docs/MODULES.md](../MODULES.md) §1 — **the core**: every module attaches to the visit record (YCLIENTS's own architecture) |
 | **YCLIENTS analog** | Электронный журнал — their flagship: the staff-column day grid a receptionist runs the salon from |
-| **Status** | **Module doc written** (2026-07-07) — awaiting sign-off. Core 🟢 built & live; this doc covers the replica gaps: the journal grid, visit-status depth, booking-card density, waitlist, group/recurring |
+| **Status** | **Signed off** (2026-07-08) — §10 questions resolved. Core 🟢 built & live; this doc covers the replica gaps: the journal grid, visit-status depth, booking-card density, waitlist, group/recurring. Next: J1 design spec |
 | **Depends on** | `catalogue` artists (✅ — `Appointment.artistId` already exists) · `access` capabilities (`journal.*` — doc ✅) · `clients` (for card density, ⏳) |
 | **Feeds** | Everything: `payments` (deposits), `finance` (revenue), `analytics` (fill rate/no-show), `loyalty` (visits), `notifications` (lifecycle), `payroll` (V3) |
 
@@ -223,14 +223,17 @@ Each slice: guardrails skill → design spec (`docs/design/journal-<slice>.md`)
 → **user sign-off** → build (backend → web → app) → tests/CI → PR → ROADMAP +
 this doc's status refreshed. Full-depth rule applies within each slice.
 
-## 10. Open questions (resolve at J1 sign-off)
+## 10. Decisions (user sign-off, 2026-07-08)
 
-1. Grid granularity: 15-min lines proposed (YCLIENTS default) — OK?
-2. Do cancelled bookings show in the grid (ghost blocks, toggleable) or list
-   only? Proposed: toggle, default off.
-3. « Sans artiste » policy: keep unassigned bookings (today's reality) or
-   require an artist at creation once the grid exists? Proposed: keep
-   unassigned column; nudge assignment via drag.
-4. Waitlist hold window: 15 min proposed — OK?
-5. Arrived → auto-notify the linked artist (push)? Proposed: yes when
-   `access`/staff app exists; no-op until then.
+1. **Grid granularity: 15 minutes** — lines and drag-snap (YCLIENTS default;
+   fine enough for 15-min services, readable on a laptop).
+2. **Cancelled bookings: toggle, off by default** — « Voir les annulés » shows
+   muted strikethrough ghost blocks for investigating a day; the list always
+   includes them.
+3. **« Sans artiste »: kept** — no forced assignment at creation (booking
+   friction stays zero); the grid renders the « Sans artiste » column and
+   dragging a block onto an artist column assigns in one gesture.
+4. **Waitlist hold: 15 minutes** — first in line gets push/WhatsApp + 15 min
+   to confirm, then the offer passes to the next waiter.
+5. **« Arrivé » notifies the linked artist: yes, activated when `access`
+   ships staff logins** — a no-op until then (no staff accounts to notify).

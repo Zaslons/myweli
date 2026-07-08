@@ -42,9 +42,11 @@ module map lives in **[docs/MODULES.md](../../../docs/MODULES.md)**. Every
 ROADMAP entry, design spec, and PR names its module; each module gets a deep
 `docs/modules/<slug>.md` doc before its build phase starts.
 
-**The full-depth rule (user decision, binding):** when we develop a part, we
-take our time and develop it FULLY — every flow, every state, every edge case,
-every detail, with best-in-class UI/UX, across all relevant surfaces (app, pro,
+**The full-depth rule (user decision, binding; reiterated 2026-07-08):** one
+thing at a time, step by step; ALWAYS plan first and run the guardrails skills;
+when we develop a part, we take our time and develop it FULLY — **UX from start
+to finish: user stories, UI, every flow, every state, every edge case, every
+detail**, with best-in-class UI/UX, across all relevant surfaces (app, pro,
 web, admin). Shipping slower is accepted; shipping a hollow or rushed slice is
 not. Phasing (V1→V3) governs what we commit to *between* modules — the rule
 governs depth *within* a committed scope. If time pressure tempts a cut, ask
