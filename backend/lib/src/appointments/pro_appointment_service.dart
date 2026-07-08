@@ -1,4 +1,5 @@
 import '../auth/provider_auth_repository.dart';
+import '../clients/clients_service.dart';
 import 'appointment_repository.dart';
 
 typedef ProLifecycleResult = ({
@@ -13,10 +14,18 @@ typedef ProLifecycleResult = ({
 /// `providerId` must match the appointment's `providerId` (→ 403 otherwise).
 /// The server is the authority on status; transitions are state-guarded.
 class ProAppointmentService {
-  ProAppointmentService(this._providerAuth, this._appointments);
+  ProAppointmentService(
+    this._providerAuth,
+    this._appointments, {
+    ClientsService? clients,
+  }) : _clients = clients;
 
   final ProviderAuthRepository _providerAuth;
   final AppointmentRepository _appointments;
+
+  /// Module `clients`: a completed visit bumps the client's `lastVisitAt`
+  /// (docs/design/clients-c1.md). Best-effort.
+  final ClientsService? _clients;
 
   Future<ProLifecycleResult> accept(String appointmentId, String accountId) =>
       _transition(
@@ -73,6 +82,9 @@ class ProAppointmentService {
       return (ok: false, error: 'invalid_state', appointment: null);
     }
     final updated = await _appointments.update(appointmentId, {'status': to});
+    if (to == 'completed' && updated != null) {
+      await _clients?.recordCompletion(updated);
+    }
     return (ok: true, error: null, appointment: updated);
   }
 }

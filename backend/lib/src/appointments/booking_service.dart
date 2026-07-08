@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../clients/clients_service.dart';
 import '../providers_repository.dart';
 import 'appointment_repository.dart';
 import 'slot_service.dart';
@@ -18,11 +19,20 @@ typedef BookingResult = ({
 /// (double-booking prevention). Bookings are created `pending` (the salon
 /// confirms; Myweli never auto-confirms on payment — PRD OQ-1).
 class BookingService {
-  BookingService(this._providers, this._appointments, this._slots);
+  BookingService(
+    this._providers,
+    this._appointments,
+    this._slots, {
+    ClientsService? clients,
+  }) : _clients = clients;
 
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final SlotService _slots;
+
+  /// Module `clients`: every booking upserts the salon's client row
+  /// ("derived, not entered" — docs/modules/clients.md). Best-effort.
+  final ClientsService? _clients;
   final Random _random = Random.secure();
 
   Future<BookingResult> book({
@@ -111,6 +121,7 @@ class BookingService {
       // Lost the race — the DB rejected a concurrent booking for this slot.
       return (ok: false, error: 'slot_unavailable', appointment: null);
     }
+    await _clients?.recordBooking(created);
     return (ok: true, error: null, appointment: created);
   }
 
@@ -188,6 +199,7 @@ class BookingService {
     if (created == null) {
       return (ok: false, error: 'slot_unavailable', appointment: null);
     }
+    await _clients?.recordBooking(created);
     return (ok: true, error: null, appointment: created);
   }
 }

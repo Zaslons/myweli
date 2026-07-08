@@ -2,8 +2,13 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/clients_repository.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:test/test.dart';
 
 import '../routes/me/index.dart' as me_route;
@@ -11,6 +16,17 @@ import '../routes/me/index.dart' as me_route;
 class _MockRequestContext extends Mock implements RequestContext {}
 
 class _MockAuth extends Mock implements AuthRepository {}
+
+/// A real ClientsService over empty in-memory repos — `DELETE /me` calls its
+/// [ClientsService.anonymizeUser] (module `clients` T48).
+ClientsService _clientsService(TokenService tokens, AuthRepository auth) =>
+    ClientsService(
+      InMemoryProviderAuthRepository(tokens: tokens, isProd: false),
+      auth,
+      InMemoryClientsRepository(),
+      InMemoryAppointmentRepository(),
+      InMemoryProviderAuditLogRepository(),
+    );
 
 void main() {
   group('routes /me GET', () {
@@ -34,6 +50,9 @@ void main() {
       when(() => c.request).thenReturn(request);
       when(() => c.read<TokenService>()).thenReturn(tokens);
       when(() => c.read<AuthRepository>()).thenReturn(auth);
+      when(
+        () => c.read<ClientsService>(),
+      ).thenReturn(_clientsService(tokens, auth));
       return c;
     }
 

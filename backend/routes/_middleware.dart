@@ -17,6 +17,7 @@ import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/cors.dart';
 import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
@@ -57,6 +58,7 @@ Handler middleware(Handler handler) {
         ),
       )
       .use(provider<ProAppointmentService>((_) => proAppointmentService))
+      .use(provider<ClientsService>((_) => clientsService))
       .use(provider<ProviderCatalogService>((_) => providerCatalogService))
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))

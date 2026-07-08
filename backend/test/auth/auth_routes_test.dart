@@ -3,9 +3,14 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/clients_repository.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/messaging/messaging_outbox_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_prefs_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_provider.dart';
@@ -46,6 +51,15 @@ void main() {
     ).thenReturn(const AuthMethods(AuthMethods.defaults));
     when(() => context.read<TokenService>()).thenReturn(ts);
     when(() => context.read<MessagingService>()).thenReturn(messaging);
+    when(() => context.read<ClientsService>()).thenReturn(
+      ClientsService(
+        InMemoryProviderAuthRepository(tokens: ts, isProd: false),
+        repo,
+        InMemoryClientsRepository(),
+        InMemoryAppointmentRepository(),
+        InMemoryProviderAuditLogRepository(),
+      ),
+    );
     return context;
   }
 
