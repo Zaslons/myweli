@@ -36,6 +36,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 | Admin / ops console — backend (KYC · moderation · mgmt · disputes · analytics) | [admin-console.md](admin-console.md) | Slices 1–3 built |
 | Admin / ops console — UI (Flutter Web) | [admin-console-ui.md](admin-console-ui.md) | Complete — dashboard · KYC · moderation · mgmt + support views · disputes · audit log (Journal) |
 | Messaging & notifications (WhatsApp + SMS, Twilio) | [messaging-notifications.md](messaging-notifications.md) | Built (PR A foundation + OTP · PR B events + reminder scheduler); real BSP creds = ops |
+| Termii SMS provider (cheap CI SMS) | [messaging-termii.md](messaging-termii.md) | Built — 2nd BSP behind the seam (~21× cheaper to CI than Twilio) + `MESSAGING_PROVIDER` selector; Termii creds = ops |
 | Push notifications (FCM) — backend | [push-notifications-fcm.md](push-notifications-fcm.md) | Building (token registry + FCM v1 adapter + event wiring); app plugin + creds = ops |
 | Push notifications (FCM) — app | [push-notifications-app.md](push-notifications-app.md) | Built (token-registration seam + permission UX on mocks; consumer + pro #2b); real firebase_messaging impl = accounts phase |
 | Web — images + OG / brand | [web-images-og-brand.md](web-images-og-brand.md) | Built (next/image + CDN allowlist + OG image + favicon + logo.svg) |

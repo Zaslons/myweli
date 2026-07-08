@@ -56,6 +56,7 @@ import 'messaging/messaging_provider.dart';
 import 'messaging/messaging_service.dart';
 import 'messaging/reminder_log_repository.dart';
 import 'messaging/reminder_scheduler.dart';
+import 'messaging/termii_messaging_provider.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
@@ -397,37 +398,65 @@ final ReviewsService reviewsService = ReviewsService(
   allowedImageOrigins: _galleryAllowedOrigins,
 );
 
-/// Outbound messaging (WhatsApp + SMS). Configured → Twilio; else a no-network
-/// log provider for dev/CI. Production must configure it (fail-fast, like
-/// `JWT_SECRET`/storage). Design: docs/design/messaging-notifications.md.
+/// Outbound messaging (SMS, + WhatsApp later). The provider is chosen by
+/// `MESSAGING_PROVIDER` (`termii` | `twilio` | `log`); unset → auto-detect from
+/// whichever credentials are present, preferring **Termii** (~14 FCFA/SMS to
+/// Côte d'Ivoire vs Twilio's ~$0.49). Production must configure one (fail-fast,
+/// like `JWT_SECRET`/storage). Switching is a one-env-var flip with no code
+/// change, and the other provider's config can stay for instant rollback.
+/// Design: docs/design/messaging-termii.md + messaging-notifications.md.
 final MessagingProvider messagingProvider = () {
-  final sid = _envOrNull('TWILIO_ACCOUNT_SID');
-  final token = _envOrNull('TWILIO_AUTH_TOKEN');
-  final smsFrom = _envOrNull('TWILIO_SMS_FROM');
-  // WhatsApp is optional (SMS-first launch): until a WhatsApp sender is approved,
-  // WhatsApp sends fall back to SMS. SMS stays mandatory in production.
-  final waFrom = _envOrNull('TWILIO_WHATSAPP_FROM');
-  // Per-message delivery-status callback → the (secret-guarded) status webhook,
-  // which advances the outbox. Only attached when both the public base URL and
-  // the webhook secret are set; otherwise omitted (no tracking).
-  final publicBase = _envOrNull('PUBLIC_BASE_URL');
-  final statusCallback = (publicBase != null && messagingWebhookSecret != null)
-      ? '$publicBase/webhooks/messaging/status?secret=$messagingWebhookSecret'
-      : null;
-  if (sid != null && token != null && smsFrom != null) {
+  TermiiMessagingProvider? buildTermii() {
+    final apiKey = _envOrNull('TERMII_API_KEY');
+    final sender = _envOrNull('TERMII_SENDER_ID');
+    if (apiKey == null || sender == null) return null;
+    return TermiiMessagingProvider(
+      apiKey: apiKey,
+      senderId: sender,
+      baseUrl: _envOrNull('TERMII_BASE_URL') ?? 'https://api.ng.termii.com',
+      route: _envOrNull('TERMII_CHANNEL') ?? 'generic',
+    );
+  }
+
+  TwilioMessagingProvider? buildTwilio() {
+    final sid = _envOrNull('TWILIO_ACCOUNT_SID');
+    final token = _envOrNull('TWILIO_AUTH_TOKEN');
+    final smsFrom = _envOrNull('TWILIO_SMS_FROM');
+    if (sid == null || token == null || smsFrom == null) return null;
+    // Per-message delivery-status callback → the (secret-guarded) status webhook,
+    // which advances the outbox. Only attached when both the public base URL and
+    // the webhook secret are set; otherwise omitted (no tracking).
+    final publicBase = _envOrNull('PUBLIC_BASE_URL');
+    final statusCallback =
+        (publicBase != null && messagingWebhookSecret != null)
+        ? '$publicBase/webhooks/messaging/status?secret=$messagingWebhookSecret'
+        : null;
     return TwilioMessagingProvider(
       accountSid: sid,
       authToken: token,
       smsFrom: smsFrom,
-      whatsAppFrom: waFrom,
+      // WhatsApp is optional (SMS-first launch): until a sender is approved,
+      // WhatsApp sends fall back to SMS. SMS stays mandatory in production.
+      whatsAppFrom: _envOrNull('TWILIO_WHATSAPP_FROM'),
       statusCallback: statusCallback,
     );
   }
+
+  final selector = _envOrNull('MESSAGING_PROVIDER')?.toLowerCase();
+  final MessagingProvider? chosen = switch (selector) {
+    'termii' => buildTermii(),
+    'twilio' => buildTwilio(),
+    'log' => LogMessagingProvider(),
+    // Unset → auto-detect: prefer Termii (CI cost), then Twilio.
+    _ => buildTermii() ?? buildTwilio(),
+  };
+  if (chosen != null) return chosen;
+
   if (_isProd) {
     throw StateError(
-      'Messaging (SMS) must be configured in production: set TWILIO_ACCOUNT_SID, '
-      'TWILIO_AUTH_TOKEN and TWILIO_SMS_FROM (TWILIO_WHATSAPP_FROM is optional '
-      'until WhatsApp is approved).',
+      'Messaging (SMS) must be configured in production: set MESSAGING_PROVIDER '
+      'and the matching credentials — Termii (TERMII_API_KEY + TERMII_SENDER_ID) '
+      'or Twilio (TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_SMS_FROM).',
     );
   }
   return LogMessagingProvider();

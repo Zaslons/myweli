@@ -70,6 +70,18 @@ services:
         sync: false
       - key: TWILIO_WHATSAPP_FROM   # Track B — leave blank for now
         sync: false
+      # SMS provider toggle: termii | twilio | log. Unset → auto-detect (Termii
+      # preferred when its creds are set). Termii ≈ 14 FCFA/SMS to CI vs Twilio ≈ $0.49.
+      - key: MESSAGING_PROVIDER
+        sync: false
+      - key: TERMII_API_KEY
+        sync: false
+      - key: TERMII_SENDER_ID       # generic sender now; branded needs ARTCI registration
+        sync: false
+      - key: TERMII_BASE_URL        # optional — default https://api.ng.termii.com
+        sync: false
+      - key: TERMII_CHANNEL         # optional — generic | dnd (default generic)
+        sync: false
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_BUCKET

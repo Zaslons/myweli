@@ -5,7 +5,7 @@
 | **Requirement** | FR-NOTIF-001 (push/SMS/WhatsApp for lifecycle events) · FR-AUTH-002 (OTP via SMS) · WhatsApp BSP spike (OQ-5) |
 | **Phase** | Phase 4 — productionize integrations (the deferred V1 risk spike) |
 | **Status** | **Built** — PR A (foundation + OTP + webhook) · PR B (booking lifecycle events + 24h/2h reminder scheduler). Real Twilio creds + WhatsApp template approval are the remaining ops step. |
-| **Decision** | Foundation + reminder scheduler · **Twilio** (WhatsApp + SMS, one vendor) · OTP routed through the seam (SMS) |
+| **Decision** | Foundation + reminder scheduler · **Twilio** (WhatsApp + SMS) **+ Termii** (cheap CI SMS — [messaging-termii.md](messaging-termii.md)), runtime-selectable via `MESSAGING_PROVIDER` · OTP routed through the seam (SMS) |
 | **Mirrors** | App seam `MessagingServiceInterface` + `models/messaging.dart` + `core/utils/message_templates.dart` (field-for-field) |
 
 ## 1. Goal & scope
