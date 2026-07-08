@@ -1,0 +1,13 @@
+# Gitleaks configuration (auto-loaded by `gitleaks detect --source=.`).
+# Extends the default ruleset; allowlists KNOWN FALSE POSITIVES only.
+# Never allowlist real credential material — fix the leak instead.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Dependency-lockfile integrity checksums are not secrets"
+paths = [
+  # CocoaPods pod checksums (e.g. AppAuth/GTMAppAuth) trip generic-api-key.
+  '''mobile/ios/Podfile\.lock''',
+]
