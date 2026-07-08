@@ -110,7 +110,9 @@ LIMIT @limit OFFSET @offset
         'uid': client['userId'],
         'name': client['displayName'],
         'phone': client['phone'],
-        'tags': jsonEncode(client['tags'] ?? const <String>[]),
+        // The driver's jsonb codec JSON-encodes the Dart value — bind the
+        // raw list (jsonEncode here would double-encode into a jsonb string).
+        'tags': client['tags'] ?? const <String>[],
         'last_visit': client['lastVisitAt'] == null
             ? null
             : DateTime.parse(client['lastVisitAt'] as String),
@@ -141,7 +143,7 @@ LIMIT @limit OFFSET @offset
         'UPDATE salon_clients SET tags = @tags:jsonb, updated_at = now() '
         'WHERE provider_id = @pid AND id = @id RETURNING *',
       ),
-      parameters: {'tags': jsonEncode(tags), 'pid': providerId, 'id': clientId},
+      parameters: {'tags': tags, 'pid': providerId, 'id': clientId},
     );
     return rows.isEmpty ? null : _toDto(rows.first.toColumnMap());
   }

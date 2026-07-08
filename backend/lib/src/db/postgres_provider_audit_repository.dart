@@ -38,7 +38,8 @@ class PostgresProviderAuditLogRepository implements ProviderAuditLogRepository {
         'actor': actorAccountId,
         'action': action,
         'target': targetId,
-        'meta': jsonEncode(meta),
+        // Raw map — the driver's jsonb codec encodes it (no double encode).
+        'meta': meta,
       },
     );
   }
