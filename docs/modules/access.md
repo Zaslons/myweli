@@ -279,9 +279,10 @@ Each slice still gets its `docs/design/` spec + sign-off before code (rule).
 ## 11. Open questions (to resolve at build sign-off)
 
 1. Included free seats: owner + 2 proposed — confirm number at pricing time.
-2. Does a Collaborateur see client contact details on their OWN bookings?
-   (Proposed: yes — they need to call about lateness — but masked in lists,
-   full on the day's own bookings only.)
+2. ~~Does a Collaborateur see client contact details on their OWN bookings?~~
+   **Resolved (2026-07-08, clients §11.2): yes — name + phone on own bookings
+   of the SAME DAY only; masked elsewhere; the full base stays behind
+   `clients.view` (audited).**
 3. Invitation TTL (proposed 7 days, resendable) — confirm.
 4. Manager + `finances.view` demand — decide only from real salon feedback,
    as a V3 override, not a preset change.
