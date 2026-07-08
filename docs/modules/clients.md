@@ -4,7 +4,7 @@
 |---|---|
 | **Module** | `clients` — [docs/MODULES.md](../MODULES.md) §4 |
 | **YCLIENTS analog** | Клиентская база — profiles, visit history/stats, categories, comments, consent & access tracking |
-| **Status** | **Module doc written** (2026-07-08) — awaiting sign-off. Today 🟡: clients visible per-booking only; build is ⏳ V2, sequenced **C1 before J1** so the journal grid is client-aware from day one |
+| **Status** | **Signed off** (2026-07-08) — §11 questions resolved. Today 🟡: clients visible per-booking only; build is ⏳ V2, sequenced **C1 before J1** so the journal grid is client-aware from day one |
 | **Depends on** | `journal` (visits are the raw material — ✅ core) · `access` doc (capability `clients.view`, audit — ✅) · consumer identity (verified phone = the linking key — ✅) |
 | **Feeds** | `journal` (card density, quick-create, no-show badge) · `marketing` (segments) · `loyalty` (per-client balances) · `analytics` (retention) |
 
@@ -228,16 +228,17 @@ Each slice: guardrails skill → `docs/design/clients-<slice>.md` spec → user
 sign-off → build (backend → web → app) → tests/CI → PR → ROADMAP + this doc
 refreshed. Full-depth rule applies within each slice.
 
-## 11. Open questions (resolve at C1 sign-off)
+## 11. Decisions (user sign-off, 2026-07-08)
 
-1. **Tag presets** — proposed: « VIP », « Fidèle », « À risque » + free custom
-   tags (≤10/client). Confirm the three starter presets?
-2. **Staff & client contact** (finalizes `access` Q2) — proposed: Collaborateur
-   sees name + phone **only on own bookings of the day** (they must be able to
-   call about lateness), never the base; masked elsewhere.
-3. **No-show badge threshold** — proposed: show from 1 absence, red from 2.
-4. **Phone required for manual add?** — proposed: yes (it's the dedupe/link
-   key; a client without a phone can't be reached anyway in CI reality).
-5. **Import at onboarding (C4)** — CSV vs phone-contacts picker vs both;
-   proposed: defer the decision until 3+ salons ask (avoid building an
-   importer nobody uses).
+1. **Tag presets: « VIP » · « Fidèle » · « À risque »** + free custom tags
+   (≤10/client) — presets teach the feature; custom covers the rest.
+2. **Staff & client contact: own bookings, same day only** — name + phone on
+   the Collaborateur's OWN bookings of the day (call-about-lateness works;
+   harvesting the file doesn't); the full base stays behind `clients.view`,
+   audited. **This finalizes `access` §11 Q2.**
+3. **No-show badge: from 1 absence, red from 2** — neutral at one, red when
+   it's a pattern (the deposit-decision moment).
+4. **Phone REQUIRED on manual add** — it's the dedupe and guest→MyWeli linking
+   key; unreachable clients are dead data.
+5. **Importer deferred** — no CSV/contacts import until 3+ salons ask; manual
+   add + automatic accrual from bookings first (C4 revisits).
