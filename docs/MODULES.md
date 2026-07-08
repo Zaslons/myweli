@@ -75,7 +75,7 @@ ever demands it), IP telephony (later luxury; WhatsApp is the CI channel),
 - **Gaps → phase:** waitlist ⏳ · group bookings ⏳ · recurring ⏳ ·
   a **desktop journal grid** (staff-column day view — YCLIENTS's signature
   screen) for the web pro dashboard ⏳.
-- **Module doc:** `docs/modules/journal.md` *(to write)*.
+- **Module doc:** **[docs/modules/journal.md](modules/journal.md)** ✅ (2026-07-07 — grid, arrived status, waitlist, phased J1–J4).
 
 ## 2. Marketplace & online booking — `online-booking` 🟢
 
