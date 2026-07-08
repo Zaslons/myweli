@@ -117,7 +117,38 @@ const proAppt = (id) => ({
   balanceDue: 15000,
   cancellationWindowHours: 24,
   depositScreenshotUrl: null,
+  // Module clients C1: provider-view enrichment (badge + card link).
+  salonClientId: 'sc1',
+  clientNoShowCount: 2,
 });
+
+// Module clients C1b — the salon client base (mutable for add/notes/tags).
+const salonClients = [
+  {
+    id: 'sc1',
+    displayName: 'Koffi',
+    phone: '+2250700000001',
+    tags: ['VIP'],
+    lastVisitAt: todayAt9,
+    linked: true,
+    createdAt: todayAt9,
+    visits: 3,
+    noShows: 2,
+  },
+  {
+    id: 'sc2',
+    displayName: 'Aminata',
+    phone: '+2250700000002',
+    tags: [],
+    lastVisitAt: null,
+    linked: false,
+    createdAt: todayAt9,
+    visits: 0,
+    noShows: 0,
+  },
+];
+const clientNotes = { sc1: [], sc2: [] };
+let clientSeq = 3;
 const isPro = (req) => (req.headers.authorization || '').includes('pro');
 
 // Pro-side mutable salon (catalogue 7.3a) — its own copy so consumer reads of
@@ -247,6 +278,107 @@ createServer(async (req, res) => {
       expiresAt: '2099-01-01T00:00:00.000Z',
     });
   }
+  // --- module clients C1b -----------------------------------------------
+  const clientsList = url.pathname.match(/^\/providers\/([^/]+)\/clients$/);
+  if (clientsList) {
+    if (req.method === 'POST') {
+      const b = await readBody(req);
+      const existing = salonClients.find((c) => c.phone === b.phone);
+      if (existing) {
+        return json(res, 409, { error: 'client_exists', clientId: existing.id });
+      }
+      const created = {
+        id: `sc${clientSeq++}`,
+        displayName: b.name,
+        phone: b.phone,
+        tags: [],
+        lastVisitAt: null,
+        linked: false,
+        createdAt: todayAt9,
+        visits: 0,
+        noShows: 0,
+      };
+      salonClients.push(created);
+      clientNotes[created.id] = b.note
+        ? [{ id: `n${clientSeq++}`, authorName: 'Vous', body: b.note, createdAt: todayAt9 }]
+        : [];
+      return json(res, 201, created);
+    }
+    const q = (url.searchParams.get('query') || '').toLowerCase();
+    const tag = url.searchParams.get('tag') || '';
+    const qDigits = q.replace(/[^0-9]/g, '');
+    const items = salonClients
+      .filter((c) => !tag || c.tags.includes(tag))
+      .filter(
+        (c) =>
+          !q ||
+          c.displayName.toLowerCase().includes(q) ||
+          (qDigits.length >= 2 &&
+            (c.phone || '').replace(/[^0-9]/g, '').includes(qDigits)),
+      );
+    return json(res, 200, {
+      items,
+      page: 1,
+      pageSize: 20,
+      total: items.length,
+      availableTags: ['VIP', 'Fidèle', 'À risque'],
+    });
+  }
+  const clientCard = url.pathname.match(
+    /^\/providers\/([^/]+)\/clients\/([^/]+)$/,
+  );
+  if (clientCard) {
+    const c = salonClients.find((x) => x.id === clientCard[2]);
+    if (!c) return json(res, 404, { error: 'not_found' });
+    if (req.method === 'PATCH') {
+      const b = await readBody(req);
+      c.tags = b.tags || [];
+      return json(res, 200, c);
+    }
+    return json(res, 200, {
+      ...c,
+      stats: {
+        visits: c.visits,
+        spentFcfa: c.visits * 15000,
+        noShows: c.noShows,
+        cancellations: 0,
+      },
+      notes: clientNotes[c.id] || [],
+    });
+  }
+  const clientVisits = url.pathname.match(
+    /^\/providers\/([^/]+)\/clients\/([^/]+)\/visits$/,
+  );
+  if (clientVisits) {
+    const c = salonClients.find((x) => x.id === clientVisits[2]);
+    if (!c) return json(res, 404, { error: 'not_found' });
+    const items = c.id === 'sc1' ? [proAppt('pappt1')] : [];
+    return json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
+  }
+  const clientNotesM = url.pathname.match(
+    /^\/providers\/([^/]+)\/clients\/([^/]+)\/notes$/,
+  );
+  if (clientNotesM && req.method === 'POST') {
+    const b = await readBody(req);
+    const note = {
+      id: `n${clientSeq++}`,
+      authorName: 'Vous',
+      body: b.body,
+      createdAt: todayAt9,
+    };
+    (clientNotes[clientNotesM[2]] ||= []).unshift(note);
+    return json(res, 201, note);
+  }
+  const clientNoteDel = url.pathname.match(
+    /^\/providers\/([^/]+)\/clients\/([^/]+)\/notes\/([^/]+)$/,
+  );
+  if (clientNoteDel && req.method === 'DELETE') {
+    const list = clientNotes[clientNoteDel[2]] || [];
+    clientNotes[clientNoteDel[2]] = list.filter((n) => n.id !== clientNoteDel[3]);
+    res.statusCode = 204;
+    return res.end();
+  }
+
   if (url.pathname === '/auth/provider/otp/request') {
     return json(res, 200, { devCode: '123456' });
   }

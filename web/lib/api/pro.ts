@@ -1,4 +1,9 @@
 import type { Availability } from '../pro/availability';
+import type {
+  SalonClientCard,
+  SalonClientList,
+  SalonClientNote,
+} from '../pro/clients';
 import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
 import type { DepositPolicy } from '../pro/deposit';
 import type { BeforeAfterPair } from '../pro/medias';
@@ -306,4 +311,109 @@ export async function verifyEmailOtpPro(
   });
   const body = await res.json().catch(() => ({}));
   return res.ok ? { ok: true } : { ok: false, error: body.error };
+}
+
+
+// --- clients: the salon client base (module clients C1b) --------------------
+// Reads are audited server-side; the backend enforces ownership (T45/T46).
+
+export async function listClients(
+  providerId: string,
+  opts: { query?: string; tag?: string; page?: number } = {},
+): Promise<{ status: number; list?: SalonClientList }> {
+  const qs = new URLSearchParams({ providerId });
+  if (opts.query) qs.set('query', opts.query);
+  if (opts.tag) qs.set('tag', opts.tag);
+  if (opts.page) qs.set('page', String(opts.page));
+  const res = await fetch(`/api/pro/clients?${qs}`);
+  if (!res.ok) return { status: res.status };
+  return { status: 200, list: (await res.json()) as SalonClientList };
+}
+
+export async function addClient(
+  providerId: string,
+  input: { name: string; phone: string; note?: string },
+): Promise<{
+  ok: boolean;
+  status: number;
+  clientId?: string;
+  error?: string;
+}> {
+  const res = await fetch('/api/pro/clients', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId, ...input }),
+  });
+  const b = (await res.json().catch(() => ({}))) as {
+    id?: string;
+    clientId?: string;
+    error?: string;
+  };
+  if (res.ok) return { ok: true, status: res.status, clientId: b.id };
+  // 409 client_exists carries the existing card's id.
+  return { ok: false, status: res.status, clientId: b.clientId, error: b.error };
+}
+
+export async function getClientCard(
+  providerId: string,
+  clientId: string,
+): Promise<{ status: number; card?: SalonClientCard }> {
+  const res = await fetch(
+    `/api/pro/clients/${clientId}?providerId=${encodeURIComponent(providerId)}`,
+  );
+  if (!res.ok) return { status: res.status };
+  return { status: 200, card: (await res.json()) as SalonClientCard };
+}
+
+export async function getClientVisits(
+  providerId: string,
+  clientId: string,
+  page = 1,
+): Promise<{ status: number; items: ProAppointment[]; total: number }> {
+  const res = await fetch(
+    `/api/pro/clients/${clientId}/visits?providerId=${encodeURIComponent(providerId)}&page=${page}`,
+  );
+  if (!res.ok) return { status: res.status, items: [], total: 0 };
+  const b = (await res.json().catch(() => ({}))) as {
+    items?: ProAppointment[];
+    total?: number;
+  };
+  return { status: 200, items: b.items ?? [], total: b.total ?? 0 };
+}
+
+export async function updateClientTags(
+  providerId: string,
+  clientId: string,
+  tags: string[],
+): Promise<MutationResult> {
+  return mutate(`/api/pro/clients/${clientId}`, 'PATCH', { providerId, tags });
+}
+
+export async function addClientNote(
+  providerId: string,
+  clientId: string,
+  body: string,
+): Promise<{ ok: boolean; status: number; note?: SalonClientNote }> {
+  const res = await fetch(`/api/pro/clients/${clientId}/notes`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId, body }),
+  });
+  if (!res.ok) return { ok: false, status: res.status };
+  return {
+    ok: true,
+    status: res.status,
+    note: (await res.json()) as SalonClientNote,
+  };
+}
+
+export async function deleteClientNote(
+  providerId: string,
+  clientId: string,
+  noteId: string,
+): Promise<MutationResult> {
+  return mutate(
+    `/api/pro/clients/${clientId}/notes/${noteId}?providerId=${encodeURIComponent(providerId)}`,
+    'DELETE',
+  );
 }

@@ -210,3 +210,79 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
   await page.getByRole('button', { name: 'Enregistrer' }).first().click();
   await expect(page.getByText('Photos enregistrées.')).toBeVisible();
 });
+
+test('clients: list → search → card → note → tags (module clients C1b)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Clients' }).click();
+  await expect(page).toHaveURL(/\/pro\/clients/);
+  await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible();
+
+  // Seeded base: Koffi (VIP, 2 no-shows, linked) + Aminata.
+  await expect(page.getByText('Koffi')).toBeVisible();
+  await expect(page.getByText('Aminata')).toBeVisible();
+  await expect(page.getByText('2 absences').first()).toBeVisible();
+
+  // Server-side search narrows the list.
+  await page.getByLabel('Rechercher un client').fill('amin');
+  await expect(page.getByText('Koffi')).toHaveCount(0);
+  await expect(page.getByText('Aminata')).toBeVisible();
+  await page.getByLabel('Rechercher un client').fill('');
+
+  // The card: stats + note round-trip.
+  await page.getByText('Koffi').click();
+  await expect(page).toHaveURL(/\/pro\/clients\/sc1/);
+  await expect(page.getByText('Visites', { exact: true })).toBeVisible();
+  await expect(page.getByText('Dépensé')).toBeVisible();
+  await expect(
+    page.getByText('Visible uniquement par votre équipe.'),
+  ).toBeVisible();
+  await page.getByLabel('Ajouter une note').fill('Allergique à l’ammoniaque');
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+  await expect(page.getByText('Allergique à l’ammoniaque')).toBeVisible();
+});
+
+test('clients: add-client modal — duplicate phone opens the existing card', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.goto('/pro/clients');
+  await page.getByRole('button', { name: '+ Ajouter un client' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ajouter un client' });
+  await dialog.getByLabel('Nom').fill('Koffi Bis');
+  await dialog.getByLabel('Téléphone').fill('+2250700000001'); // Koffi's number
+  await dialog.getByRole('button', { name: 'Ajouter' }).click();
+  // Dedupe: straight to the existing card.
+  await expect(page).toHaveURL(/\/pro\/clients\/sc1/);
+});
+
+test('rendez-vous detail shows the no-show badge + card link (C1b)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Rendez-vous' }).click();
+  await page.getByText('Koffi').first().click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous\/pappt1/);
+  await expect(page.getByText('2 absences')).toBeVisible();
+  await page.getByRole('link', { name: 'Voir la fiche' }).click();
+  await expect(page).toHaveURL(/\/pro\/clients\/sc1/);
+});
