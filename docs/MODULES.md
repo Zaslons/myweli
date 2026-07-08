@@ -115,7 +115,7 @@ YCLIENTS's Клиентская база — the salon's own view of its custome
   (visit history, total spend, notes), categories/tags, **client-data access
   audit** (both YCLIENTS and Booksy track staff reads of the client base —
   ships with `access`).
-- **Module doc:** `docs/modules/clients.md` *(to write)*.
+- **Module doc:** **[docs/modules/clients.md](modules/clients.md)** ✅ (2026-07-08 — derived-not-entered CRM, guest linking, notes/tags, phased C1–C4; C1 sequenced before journal J1).
 
 ## 5. Notifications & messaging — `notifications` 🟢
 
