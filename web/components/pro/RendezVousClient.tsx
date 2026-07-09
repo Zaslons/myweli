@@ -1,20 +1,24 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
 import {
   type ListTab,
   LIST_TABS,
+  addDays,
   appointmentsOnDate,
   dateKey,
   filterList,
 } from '../../lib/pro/agenda';
+import { getJournalDay } from '../../lib/api/pro';
+import type { JournalDay } from '../../lib/pro/journal';
 import type { ProAppointment } from '../../lib/pro/today';
+import { JournalGrid } from './JournalGrid';
 import { MonthCalendar } from './MonthCalendar';
 import { ProAppointmentRow } from './ProAppointmentRow';
 
-type View = 'calendar' | 'list';
+type View = 'journal' | 'calendar' | 'list';
 
 const dayLabel = (key: string) =>
   new Intl.DateTimeFormat('fr-FR', {
@@ -30,7 +34,11 @@ export function RendezVousClient() {
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [view, setView] = useState<View>('calendar');
+  const [view, setView] = useState<View>('journal');
+  const [journalDay, setJournalDay] = useState<JournalDay | null>(null);
+  const [journalDate, setJournalDate] = useState<string>(dateKey(new Date()));
+  const [showCancelled, setShowCancelled] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [focused, setFocused] = useState<Date>(new Date());
   const [selected, setSelected] = useState<string>(dateKey(new Date()));
   const [listTab, setListTab] = useState<ListTab>('today');
@@ -59,6 +67,22 @@ export function RendezVousClient() {
     };
   }, [router]);
 
+  const loadJournal = useCallback(async () => {
+    if (!profile) return;
+    const r = await getJournalDay(profile.provider.id, journalDate);
+    if (r.status === 200 && r.day) setJournalDay(r.day);
+  }, [profile, journalDate]);
+
+  useEffect(() => {
+    if (view === 'journal') loadJournal();
+  }, [view, loadJournal]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
     return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
@@ -74,7 +98,7 @@ export function RendezVousClient() {
       <h1 className="text-2xl font-semibold text-textPrimary">Rendez-vous</h1>
 
       <div className="mt-l flex gap-s border-b border-divider">
-        {(['calendar', 'list'] as View[]).map((v) => (
+        {(['journal', 'calendar', 'list'] as View[]).map((v) => (
           <button
             key={v}
             type="button"
@@ -85,12 +109,79 @@ export function RendezVousClient() {
                 : 'text-textTertiary'
             }`}
           >
-            {v === 'calendar' ? 'Calendrier' : 'Liste'}
+            {v === 'journal' ? 'Journée' : v === 'calendar' ? 'Calendrier' : 'Liste'}
           </button>
         ))}
       </div>
 
-      {view === 'calendar' ? (
+      {view === 'journal' ? (
+        <div className="mt-m">
+          <div className="flex flex-wrap items-center justify-between gap-s">
+            <div className="flex items-center gap-s">
+              <button
+                type="button"
+                aria-label="Jour précédent"
+                className="rounded-lg border border-border px-s py-xs text-textSecondary"
+                onClick={() =>
+                  setJournalDate(dateKey(addDays(new Date(`${journalDate}T00:00:00Z`), -1)))
+                }
+              >
+                ‹
+              </button>
+              <input
+                type="date"
+                value={journalDate}
+                onChange={(e) => setJournalDate(e.target.value)}
+                aria-label="Date"
+                className="rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary"
+              />
+              <button
+                type="button"
+                aria-label="Jour suivant"
+                className="rounded-lg border border-border px-s py-xs text-textSecondary"
+                onClick={() =>
+                  setJournalDate(dateKey(addDays(new Date(`${journalDate}T00:00:00Z`), 1)))
+                }
+              >
+                ›
+              </button>
+              <button
+                type="button"
+                className="text-sm text-textTertiary underline"
+                onClick={() => setJournalDate(dateKey(new Date()))}
+              >
+                Aujourd’hui
+              </button>
+            </div>
+            <label className="flex items-center gap-xs text-sm text-textSecondary">
+              <input
+                type="checkbox"
+                checked={showCancelled}
+                onChange={(e) => setShowCancelled(e.target.checked)}
+              />
+              Voir les annulés
+            </label>
+          </div>
+          {profile && journalDay ? (
+            <div className="mt-m">
+              <JournalGrid
+                providerId={profile.provider.id}
+                day={{
+                  ...journalDay,
+                  appointments: journalDay.appointments.filter(
+                    (a) => showCancelled || a.status !== 'cancelled',
+                  ),
+                }}
+                profile={profile}
+                onChanged={loadJournal}
+                onToast={setToast}
+              />
+            </div>
+          ) : (
+            <p className="mt-l text-textSecondary">Chargement du planning…</p>
+          )}
+        </div>
+      ) : view === 'calendar' ? (
         <div className="mt-m grid gap-l md:grid-cols-2">
           <MonthCalendar
             items={items}
@@ -155,6 +246,11 @@ export function RendezVousClient() {
           </div>
         </div>
       )}
+      {toast ? (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
+          {toast}
+        </div>
+      ) : null}
     </div>
   );
 }

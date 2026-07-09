@@ -72,9 +72,10 @@ ever demands it), IP telephony (later luxury; WhatsApp is the CI channel),
   `/availability`; app `screens/booking/`, `screens/appointments/`,
   `screens/provider/appointments/`, `screens/provider/calendar/`; web
   `/pro/rendez-vous`, consumer booking flow.
-- **Gaps → phase:** waitlist ⏳ · group bookings ⏳ · recurring ⏳ ·
-  a **desktop journal grid** (staff-column day view — YCLIENTS's signature
-  screen) for the web pro dashboard ⏳.
+- **Gaps → phase:** the **desktop journal grid** (YCLIENTS's staff-column day
+  view) 🟢 **built (J1, 2026-07-09)** — « Journée » default at `/pro/rendez-vous`,
+  drag-reschedule + « Client arrivé » + quick-create + the C2 client mini-card;
+  waitlist ⏳ (J3) · group ⏳ · recurring ⏳ (J4) · the pro-app day timeline ⏳ (J1b).
 - **Module doc:** **[docs/modules/journal.md](modules/journal.md)** ✅ (2026-07-07 — grid, arrived status, waitlist, phased J1–J4).
 
 ## 2. Marketplace & online booking — `online-booking` 🟢

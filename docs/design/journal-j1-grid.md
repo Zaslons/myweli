@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | `journal` — slice **J1** (+ **J2** rides along) of [docs/modules/journal.md](../modules/journal.md) (Signed off 2026-07-08; §10 decisions apply) |
-| **Status** | **Draft** — awaiting sign-off, then build |
+| **Status** | **Built** (2026-07-09) — J1a backend (#188) · J1b web |
 | **Scope** | The **desktop journal grid** (YCLIENTS's signature screen) as the new default « Journée » view at `/pro/rendez-vous` — one-payload day endpoint, drag-reschedule, click-to-create with **C2 client search**, side panel with the **client mini-card**, and the « Client arrivé » in-day status — **backend + web** |
 | **Out of scope** | The pro-app day timeline (module slice J1b — its own spec next) · waitlist (J3) · group/recurring (J4) · C3/C4 |
 | **Decisions locked** | 15-min lines & snap · cancelled = toggleable ghosts, off by default · « Sans artiste » column kept, drag-to-assign · arrive notifies the artist only once `access` ships (no-op now) |

@@ -97,7 +97,7 @@ const consumerAppt = (id) => ({
 // Pro side (M7) — pappt1, mutable status via the lifecycle endpoints. Kept
 // separate from the consumer flow (split by token below) so parallel tests
 // don't race on shared state.
-const proStatus = { pappt1: 'pending' };
+const proStatus = { pappt1: 'pending', pj1: 'pending' };
 const PRO_TRANSITION = {
   accept: 'confirmed',
   reject: 'cancelled',
@@ -120,7 +120,12 @@ const proAppt = (id) => ({
   // Module clients C1: provider-view enrichment (badge + card link).
   salonClientId: 'sc1',
   clientNoShowCount: 2,
+  // Journal J1: column, duration, in-day arrival.
+  artistId: proArrived[id] ? 'artist-a' : null,
+  durationMinutes: 60,
+  arrivedAt: proArrived[id] || null,
 });
+const proArrived = {};
 
 // Module clients C1b — the salon client base (mutable for add/notes/tags).
 const salonClients = [
@@ -278,6 +283,33 @@ createServer(async (req, res) => {
       expiresAt: '2099-01-01T00:00:00.000Z',
     });
   }
+  // --- module journal J1 ------------------------------------------------
+  const journalM = url.pathname.match(/^\/providers\/([^/]+)\/journal$/);
+  if (journalM) {
+    const date = url.searchParams.get('date') || todayAt9.slice(0, 10);
+    return json(res, 200, {
+      date,
+      hours: { open: '09:00', close: '18:00', breaks: [{ start: '12:30', end: '13:30' }] },
+      artists: [{ id: 'artist-a', name: 'Awa', imageUrl: null }],
+      appointments: [
+        { ...proAppt('pj1'), appointmentDate: `${date}T09:00:00.000Z` },
+      ],
+    });
+  }
+  const provApptM = url.pathname.match(/^\/providers\/([^/]+)\/appointments$/);
+  if (provApptM && req.method === 'POST') {
+    const b = await readBody(req);
+    if ((b.appointmentDateTime || '').includes('T10:00')) {
+      return json(res, 409, { error: 'slot_unavailable' });
+    }
+    return json(res, 201, {
+      ...proAppt('pnew'),
+      status: 'confirmed',
+      appointmentDate: b.appointmentDateTime,
+      clientName: b.clientName || 'Client',
+    });
+  }
+
   // --- module clients C1b -----------------------------------------------
   const clientsList = url.pathname.match(/^\/providers\/([^/]+)\/clients$/);
   if (clientsList) {
@@ -575,6 +607,18 @@ createServer(async (req, res) => {
     }
     if (sub === 'deposit-screenshot') {
       return json(res, 200, { url: 'https://example.test/justificatif.jpg' });
+    }
+    if (sub === 'arrive') {
+      proArrived[id] = new Date().toISOString();
+      return json(res, 200, proAppt(id));
+    }
+    if (sub === 'reschedule') {
+      // Accept the move; a 10:00 target simulates a taken slot (409).
+      const b = await readBody(req);
+      if ((b.newDateTime || '').includes('T10:00')) {
+        return json(res, 409, { error: 'slot_unavailable' });
+      }
+      return json(res, 200, proAppt(id));
     }
     if (PRO_TRANSITION[sub]) {
       proStatus[id] = PRO_TRANSITION[sub];
