@@ -11,6 +11,8 @@ import '../../screens/provider/auth/pro_login_screen.dart';
 import '../../screens/provider/auth/pro_register_screen.dart';
 import '../../screens/provider/auth/pro_splash_screen.dart';
 import '../../screens/provider/availability/availability_screen.dart';
+import '../../screens/provider/clients/client_detail_screen.dart';
+import '../../screens/provider/clients/client_list_screen.dart';
 import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
@@ -55,6 +57,17 @@ class ProRouter {
         builder: (context, state) => const DashboardScreen(),
       ),
       GoRoute(
+        path: '/pro/clients',
+        name: 'pro-clients',
+        builder: (context, state) => const ClientListScreen(),
+      ),
+      GoRoute(
+        path: '/pro/clients/:id',
+        name: 'pro-client-detail',
+        builder: (context, state) =>
+            ClientDetailScreen(clientId: state.pathParameters['id']!),
+      ),
+      GoRoute(
         path: '/pro/appointments',
         name: 'pro-appointments',
         builder: (context, state) => const AppointmentListScreen(),
@@ -63,7 +76,14 @@ class ProRouter {
         // Registered before ':id' so "new" isn't matched as an appointment id.
         path: '/pro/appointment/new',
         name: 'pro-appointment-new',
-        builder: (context, state) => const ProManualBookingScreen(),
+        builder: (context, state) {
+          // Prefill from the client card (module clients C1c).
+          final extra = state.extra as Map<String, dynamic>?;
+          return ProManualBookingScreen(
+            initialClientName: extra?['clientName'] as String?,
+            initialClientPhone: extra?['clientPhone'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/pro/appointment/:id',

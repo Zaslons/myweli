@@ -31,7 +31,7 @@ declares which module it belongs to.
 | 1 | Journal & bookings | `journal` | Электронный журнал | 🟢 core built |
 | 2 | Marketplace & online booking | `online-booking` | Онлайн-запись + YPLACES | 🟢 built |
 | 3 | Services, team & media | `catalogue` | Услуги / Сотрудники / Ресурсы | 🟢 built (resources ⏳) |
-| 4 | Client base (salon CRM) | `clients` | Клиентская база | 🟡 partial → ⏳ |
+| 4 | Client base (salon CRM) | `clients` | Клиентская база | 🟢 C1 built (C2–C4 ⏳) |
 | 5 | Notifications & messaging | `notifications` | Уведомления | 🟢 core built |
 | 6 | Marketing & campaigns | `marketing` | Рассылки / промо | ⏳ V2 |
 | 7 | Loyalty, memberships & certificates | `loyalty` | Лояльность / абонементы / сертификаты | ⏳ V2 (pulled from V3) |
@@ -108,13 +108,13 @@ Our YPLACES — but consumer-first, which is MyWeli's edge.
 
 YCLIENTS's Клиентская база — the salon's own view of its customers.
 
-- **Today:** clients are visible **per booking only**; consumer-side visit
-  history + auto-sync (verified phone) exists. The pro placeholder screen
-  (`screens/provider/features/client_database_screen.dart`) is flag-hidden.
-- **To build (⏳ V2):** salon client list (from completed visits), client card
-  (visit history, total spend, notes), categories/tags, **client-data access
-  audit** (both YCLIENTS and Booksy track staff reads of the client base —
-  ships with `access`).
+- **Built (C1, 2026-07-08):** the base is DERIVED from bookings (backfill +
+  live upserts; guests keyed by phone, links on VERIFIED phone only — T49);
+  list/search/tags/notes/stats/visit-history on **app + web + backend**;
+  audited reads (`provider_audit_log` — T46); the no-show badge at the accept
+  moment; manual add with phone dedupe. Threats T45–T49.
+- **Remaining:** C2 journal-grid integration (with J1) · C3 guest→user
+  auto-link on Termii verification · C4 import/export + `marketing` segments.
 - **Module doc:** **[docs/modules/clients.md](modules/clients.md)** ✅ (2026-07-08 — derived-not-entered CRM, guest linking, notes/tags, phased C1–C4; C1 sequenced before journal J1).
 
 ## 5. Notifications & messaging — `notifications` 🟢

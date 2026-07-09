@@ -13,6 +13,7 @@ import 'providers/pro_artist_provider.dart';
 import 'providers/pro_auth_provider.dart';
 import 'providers/pro_availability_provider.dart';
 import 'providers/pro_before_after_provider.dart';
+import 'providers/pro_clients_provider.dart';
 import 'providers/pro_dashboard_provider.dart';
 import 'providers/pro_deposit_settings_provider.dart';
 import 'providers/pro_earnings_provider.dart';
@@ -61,6 +62,7 @@ class MyweliProApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
         ChangeNotifierProvider(create: (_) => ProServiceProvider()),
         ChangeNotifierProvider(create: (_) => ProArtistProvider()),
+        ChangeNotifierProvider(create: (_) => ProClientsProvider()),
         ChangeNotifierProvider(create: (_) => ProAvailabilityProvider()),
         ChangeNotifierProvider(create: (_) => ProEarningsProvider()),
         ChangeNotifierProvider(create: (_) => ProReviewsProvider()),

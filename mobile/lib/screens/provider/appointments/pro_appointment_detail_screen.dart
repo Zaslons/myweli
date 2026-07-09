@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -77,6 +78,67 @@ class _ProAppointmentDetailScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Module clients C1c: who's coming — with the no-show
+                        // badge at the accept moment (story #5) + card link.
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                appointment.clientName ?? 'Client',
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.titleMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            if ((appointment.clientNoShowCount ?? 0) >= 1)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ((appointment.clientNoShowCount ??
+                                              0) >=
+                                          2)
+                                      ? AppColors.error.withValues(alpha: 0.1)
+                                      : AppColors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusSmall,
+                                  ),
+                                ),
+                                child: Text(
+                                  appointment.clientNoShowCount == 1
+                                      ? '1 absence'
+                                      : '${appointment.clientNoShowCount} absences',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color:
+                                        ((appointment.clientNoShowCount ?? 0) >=
+                                                2)
+                                            ? AppColors.error
+                                            : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (appointment.salonClientId != null)
+                          GestureDetector(
+                            onTap: () => context.push(
+                              '/pro/clients/${appointment.salonClientId}',
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Voir la fiche client',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
                         Text(
                           'Date et heure',
                           style: AppTextStyles.titleMedium

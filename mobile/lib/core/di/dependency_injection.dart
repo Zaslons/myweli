@@ -5,6 +5,7 @@ import '../../services/api/api_favorites_service.dart';
 import '../../services/api/api_image_upload_service.dart';
 import '../../services/api/api_notification_service.dart';
 import '../../services/api/api_pro_artist_service.dart';
+import '../../services/api/api_pro_clients_service.dart';
 import '../../services/api/api_pro_kyc_service.dart';
 import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_pro_subscription_service.dart';
@@ -18,6 +19,7 @@ import '../../services/interfaces/image_upload_service_interface.dart';
 import '../../services/interfaces/messaging_service_interface.dart';
 import '../../services/interfaces/notification_service_interface.dart';
 import '../../services/interfaces/pro_artist_service_interface.dart';
+import '../../services/interfaces/pro_clients_service_interface.dart';
 import '../../services/interfaces/pro_kyc_service_interface.dart';
 import '../../services/interfaces/pro_service_interface.dart';
 import '../../services/interfaces/provider_service_interface.dart';
@@ -32,6 +34,7 @@ import '../../services/mock/mock_image_upload_service.dart';
 import '../../services/mock/mock_messaging_service.dart';
 import '../../services/mock/mock_notification_service.dart';
 import '../../services/mock/mock_pro_artist_service.dart';
+import '../../services/mock/mock_pro_clients_service.dart';
 import '../../services/mock/mock_pro_kyc_service.dart';
 import '../../services/mock/mock_pro_service.dart';
 import '../../services/mock/mock_provider_service.dart';
@@ -60,6 +63,7 @@ class ServiceLocator {
   late final NotificationServiceInterface notificationService;
   late final ProServiceInterface proService;
   late final ProArtistServiceInterface proArtistService;
+  late final ProClientsServiceInterface proClientsService;
   late final ProKycServiceInterface proKycService;
   late final SubscriptionServiceInterface subscriptionService;
   late final ImageUploadServiceInterface imageUploadService;
@@ -113,6 +117,14 @@ class ServiceLocator {
                 SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockProArtistService();
+    // The salon client base (module clients C1) — derived from bookings;
+    // reads audited server-side.
+    proClientsService = AppConfig.useApiBackend
+        ? ApiProClientsService(
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockProClientsService();
     // KYC on the real backend: docs upload to private storage, submit + status
     // (provider session + silent refresh).
     proKycService = AppConfig.useApiBackend

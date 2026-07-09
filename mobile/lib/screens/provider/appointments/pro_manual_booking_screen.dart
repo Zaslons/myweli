@@ -15,7 +15,16 @@ import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
-  const ProManualBookingScreen({super.key});
+  const ProManualBookingScreen({
+    super.key,
+    this.initialClientName,
+    this.initialClientPhone,
+  });
+
+  /// Prefill from the client card (module clients C1c — « Nouveau
+  /// rendez-vous » on /pro/clients/:id).
+  final String? initialClientName;
+  final String? initialClientPhone;
 
   @override
   State<ProManualBookingScreen> createState() => _ProManualBookingScreenState();
@@ -25,8 +34,10 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   final Set<String> _selected = {};
   DateTime? _date;
   TimeOfDay? _time;
-  final _phone = TextEditingController();
-  final _name = TextEditingController();
+  late final _phone =
+      TextEditingController(text: widget.initialClientPhone ?? '');
+  late final _name =
+      TextEditingController(text: widget.initialClientName ?? '');
   final _note = TextEditingController();
   bool _anonymous = false;
   bool _sendSms = true;

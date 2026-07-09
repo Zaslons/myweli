@@ -35,6 +35,12 @@ class Appointment extends Equatable {
   final String? depositScreenshotUrl;
   final DateTime createdAt;
 
+  /// PROVIDER VIEW ONLY (module clients C1): the salon-client row this booking
+  /// resolves to, and the client's no-show count at this salon (the badge —
+  /// neutral at 1, red from 2). Null on consumer payloads.
+  final String? salonClientId;
+  final int? clientNoShowCount;
+
   const Appointment({
     required this.id,
     required this.userId,
@@ -52,6 +58,8 @@ class Appointment extends Equatable {
     this.notes,
     this.depositScreenshotUrl,
     required this.createdAt,
+    this.salonClientId,
+    this.clientNoShowCount,
   });
 
   @override
@@ -72,6 +80,8 @@ class Appointment extends Equatable {
         notes,
         depositScreenshotUrl,
         createdAt,
+        salonClientId,
+        clientNoShowCount,
       ];
 
   Appointment copyWith({
@@ -91,6 +101,8 @@ class Appointment extends Equatable {
     String? notes,
     String? depositScreenshotUrl,
     DateTime? createdAt,
+    String? salonClientId,
+    int? clientNoShowCount,
   }) {
     return Appointment(
       id: id ?? this.id,
@@ -110,6 +122,8 @@ class Appointment extends Equatable {
       notes: notes ?? this.notes,
       depositScreenshotUrl: depositScreenshotUrl ?? this.depositScreenshotUrl,
       createdAt: createdAt ?? this.createdAt,
+      salonClientId: salonClientId ?? this.salonClientId,
+      clientNoShowCount: clientNoShowCount ?? this.clientNoShowCount,
     );
   }
 
@@ -131,6 +145,8 @@ class Appointment extends Equatable {
       'notes': notes,
       'depositScreenshotUrl': depositScreenshotUrl,
       'createdAt': createdAt.toIso8601String(),
+      if (salonClientId != null) 'salonClientId': salonClientId,
+      if (clientNoShowCount != null) 'clientNoShowCount': clientNoShowCount,
     };
   }
 
@@ -155,6 +171,8 @@ class Appointment extends Equatable {
       notes: json['notes'] as String?,
       depositScreenshotUrl: json['depositScreenshotUrl'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      salonClientId: json['salonClientId'] as String?,
+      clientNoShowCount: (json['clientNoShowCount'] as num?)?.toInt(),
     );
   }
 }

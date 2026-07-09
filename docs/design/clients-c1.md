@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | `clients` — slice **C1** of [docs/modules/clients.md](../modules/clients.md) (Signed off 2026-07-08; §11 decisions apply) |
-| **Status** | **Draft** — awaiting sign-off, then build |
+| **Status** | **Built** (2026-07-08) — C1a backend (#184) · C1b web (#185) · C1c app |
 | **Scope** | Data model + backfill · pro « Clients » list/search/card/tags/notes · manual add · read audit · no-show badge on the pro booking views — **app + web + backend** |
 | **Out of scope** | Journal-grid integration (C2, ships with J1) · guest→user auto-link (C3, needs Termii) · import/export & segments (C4) · staff visibility rules (activate with `access`; C1 is owner-only like every pro surface today) |
 | **Cross-refs** | [MODULES.md](../MODULES.md) §4 · [journal.md](../modules/journal.md) (badge, future grid) · [access.md](../modules/access.md) (capability names, audit reuse) · `docs/api/openapi.yaml` (updated in the same PRs) |
