@@ -39,7 +39,8 @@ test('Rendez-vous mirrors the app: Calendrier + Liste show today’s booking', a
     page.getByRole('heading', { name: 'Rendez-vous' }),
   ).toBeVisible();
 
-  // Calendrier (default): today is selected → today's booking shows.
+  // Journée is the default now → switch to Calendrier for this legacy check.
+  await page.getByRole('button', { name: 'Calendrier' }).click();
   await expect(page.getByText('Tresses').first()).toBeVisible();
 
   // Liste → Aujourd'hui sub-tab also shows it.
@@ -58,7 +59,8 @@ test('pro detail: open a pending booking → Accepter → Confirmé', async ({
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 
   await page.getByRole('link', { name: 'Rendez-vous' }).click();
-  // Open the booking (Calendrier default → today's row links to detail).
+  // The Journée grid opens a panel; the detail PAGE is reached from Liste.
+  await page.getByRole('button', { name: 'Liste' }).click();
   await page.getByText('Koffi').first().click();
   await expect(page).toHaveURL(/\/pro\/rendez-vous\/pappt1/);
   await expect(
@@ -280,9 +282,77 @@ test('rendez-vous detail shows the no-show badge + card link (C1b)', async ({
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 
   await page.getByRole('link', { name: 'Rendez-vous' }).click();
+  await page.getByRole('button', { name: 'Liste' }).click();
   await page.getByText('Koffi').first().click();
   await expect(page).toHaveURL(/\/pro\/rendez-vous\/pappt1/);
   await expect(page.getByText('2 absences')).toBeVisible();
   await page.getByRole('link', { name: 'Voir la fiche' }).click();
   await expect(page).toHaveURL(/\/pro\/clients\/sc1/);
+});
+
+test('journal grid: Journée is the default view; blocks + panel + arrive', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Rendez-vous' }).click();
+  await expect(page).toHaveURL(/\/pro\/rendez-vous/);
+
+  // « Journée » is the default tab → the grid renders the artist column + block.
+  await expect(page.getByText('Awa').first()).toBeVisible();
+  await expect(page.getByText('Koffi').first()).toBeVisible();
+
+  // Click a block → the side panel with the client mini-card + no-show badge.
+  await page.getByRole('button', { name: /Koffi/ }).first().click();
+  await expect(
+    page.getByRole('heading', { name: 'Détails du rendez-vous' }),
+  ).toBeVisible();
+  await expect(page.getByText('2 absences').first()).toBeVisible();
+  await expect(page.getByText('Voir la fiche')).toBeVisible();
+
+  // pappt1 is pending in the stub → Accepter, then Client arrivé appears.
+  await page.getByRole('button', { name: 'Accepter' }).click();
+  // The panel reloads the day; reopen the (now confirmed) block.
+  await page.getByRole('button', { name: /Koffi/ }).first().click();
+  await page.getByRole('button', { name: 'Client arrivé' }).click();
+  // No throw = the arrive round-trip succeeded (grid refetched).
+  await expect(page.getByText('Awa').first()).toBeVisible();
+});
+
+test('journal grid: quick-create from an empty cell books a client', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.goto('/pro/rendez-vous');
+  await expect(page.getByText('Awa').first()).toBeVisible();
+
+  // Click the column create-surface (bottom area, away from the 09:00 block).
+  await page
+    .getByRole('button', { name: /Créer un rendez-vous/ })
+    .first()
+    .click({ position: { x: 40, y: 300 } });
+  await expect(
+    page.getByRole('heading', { name: 'Nouveau rendez-vous' }),
+  ).toBeVisible();
+
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await dialog
+    .getByLabel('Rechercher ou nommer le client')
+    .fill('Nouvelle Cliente');
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  // Back to the grid (dialog closed).
+  await expect(
+    page.getByRole('heading', { name: 'Nouveau rendez-vous' }),
+  ).toHaveCount(0);
 });

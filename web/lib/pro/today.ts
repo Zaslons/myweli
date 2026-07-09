@@ -14,6 +14,11 @@ export type ProAppointment = {
   salonClientId?: string | null;
   /// PROVIDER VIEW: no-show count at this salon (badge: 1 neutral, ≥2 red).
   clientNoShowCount?: number | null;
+  /// Journal grid (J1): assigned artist column, service duration, and the
+  /// in-day « Client arrivé » stamp.
+  artistId?: string | null;
+  durationMinutes?: number;
+  arrivedAt?: string | null;
 };
 
 export function todayKey(now: Date = new Date()): string {

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { callApiPro, respondPro } from '../../../../../../lib/bff-pro';
 
-const ALLOWED = new Set(['accept', 'reject', 'complete', 'no-show']);
+const ALLOWED = new Set(['accept', 'reject', 'complete', 'no-show', 'arrive']);
 
 /// Pro BFF: a lifecycle action on the salon's booking (server enforces ownership
 /// + valid transition). Bodyless POST.

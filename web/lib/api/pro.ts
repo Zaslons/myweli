@@ -8,6 +8,7 @@ import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogu
 import type { DepositPolicy } from '../pro/deposit';
 import type { BeforeAfterPair } from '../pro/medias';
 import type { Subscription } from '../pro/subscription-plans';
+import type { JournalDay } from '../pro/journal';
 import type { ProAppointment } from '../pro/today';
 
 export type DashboardStats = {
@@ -416,4 +417,63 @@ export async function deleteClientNote(
     `/api/pro/clients/${clientId}/notes/${noteId}?providerId=${encodeURIComponent(providerId)}`,
     'DELETE',
   );
+}
+
+
+// --- journal grid (module journal J1) ---------------------------------------
+
+export async function getJournalDay(
+  providerId: string,
+  date: string,
+): Promise<{ status: number; day?: JournalDay }> {
+  const res = await fetch(
+    `/api/pro/journal?providerId=${encodeURIComponent(providerId)}&date=${date}`,
+  );
+  if (!res.ok) return { status: res.status };
+  return { status: 200, day: (await res.json()) as JournalDay };
+}
+
+/// Drag-reschedule (+ optional column change). 409 = slot taken.
+export async function rescheduleAppointment(
+  id: string,
+  newDateTime: string,
+  artistId?: string,
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch(`/api/pro/appointments/${id}/reschedule`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ newDateTime, ...(artistId ? { artistId } : {}) }),
+  });
+  if (res.ok) return { ok: true, status: res.status };
+  const b = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: b.error };
+}
+
+export async function arriveAppointment(
+  id: string,
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  return proAction(id, 'arrive');
+}
+
+/// Quick-create a manual booking (server-priced, arrives confirmed).
+export async function createManualBooking(
+  providerId: string,
+  input: {
+    serviceIds: string[];
+    appointmentDateTime: string;
+    artistId?: string;
+    clientName?: string;
+    clientPhone?: string;
+  },
+): Promise<{ ok: boolean; status: number; appt?: ProAppointment; error?: string }> {
+  const res = await fetch('/api/pro/appointments', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId, ...input }),
+  });
+  if (res.ok) {
+    return { ok: true, status: res.status, appt: (await res.json()) as ProAppointment };
+  }
+  const b = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: b.error };
 }
