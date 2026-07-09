@@ -14,6 +14,7 @@ import 'admin/moderation_service.dart';
 import 'appointments/appointment_lifecycle_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
+import 'appointments/journal_service.dart';
 import 'appointments/pro_appointment_service.dart';
 import 'appointments/slot_service.dart';
 import 'auth/auth_methods.dart';
@@ -255,12 +256,24 @@ final BookingService bookingService = BookingService(
 );
 
 final AppointmentLifecycleService appointmentLifecycleService =
-    AppointmentLifecycleService(appointmentRepository, slotService);
+    AppointmentLifecycleService(
+      appointmentRepository,
+      slotService,
+      providers: providersRepository,
+    );
 
 final ProAppointmentService proAppointmentService = ProAppointmentService(
   providerAuthRepository,
   appointmentRepository,
   clients: clientsService,
+);
+
+/// Journal day view (module journal J1 — docs/design/journal-j1-grid.md).
+final JournalService journalService = JournalService(
+  providerAuthRepository,
+  providersRepository,
+  appointmentRepository,
+  clientsService,
 );
 
 /// Object storage for image uploads. Configured → R2 (S3-compatible); else a

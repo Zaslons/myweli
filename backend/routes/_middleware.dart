@@ -10,6 +10,7 @@ import 'package:myweli_backend/src/admin/moderation_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
+import 'package:myweli_backend/src/appointments/journal_service.dart';
 import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
@@ -59,6 +60,7 @@ Handler middleware(Handler handler) {
       )
       .use(provider<ProAppointmentService>((_) => proAppointmentService))
       .use(provider<ClientsService>((_) => clientsService))
+      .use(provider<JournalService>((_) => journalService))
       .use(provider<ProviderCatalogService>((_) => providerCatalogService))
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))

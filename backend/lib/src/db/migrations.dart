@@ -638,6 +638,15 @@ GROUP BY a.provider_id, a.client_phone
 ON CONFLICT DO NOTHING''',
     ],
   ),
+  (
+    id: '0025_appointment_arrived',
+    statements: [
+      // Journal J1/J2 (docs/design/journal-j1-grid.md): the in-day
+      // « Client arrivé » flag — a timestamp on confirmed bookings.
+      'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS '
+          'arrived_at timestamptz',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

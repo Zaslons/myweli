@@ -1552,6 +1552,58 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /providers/{id}/journal:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [journal]
+      summary: The journal day view in ONE payload (module journal J1)
+      description: >
+        Provider-authenticated + ownership-scoped (threat T41). Hours/breaks
+        for the weekday (null when closed/blocked), the artist columns, and
+        the day's appointments (ALL statuses, ascending) enriched with
+        salonClientId / clientNoShowCount / arrivedAt. Day boundary is UTC
+        (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: date, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: The day
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JournalDay' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /appointments/{id}/arrive:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [journal]
+      summary: « Client arrivé » (journal J2) — stamp arrivedAt
+      description: >
+        Provider-only + ownership. CONFIRMED bookings, on their calendar day
+        (UTC) only; idempotent (repeat → 200 with the same state). Wrong
+        state/day → 409 (`invalid_state` / `not_today`). Threat T43.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The updated appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Not confirmed, or not its calendar day
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /appointments:
     get:
       tags: [appointments]
@@ -1796,6 +1848,12 @@ paths:
               required: [newDateTime]
               properties:
                 newDateTime: { type: string, format: date-time }
+                artistId:
+                  type: string
+                  description: >
+                    PROVIDER ONLY (journal J1 drag-across-columns): reassign
+                    the booking's artist; must belong to the salon → else 400
+                    `invalid_artist`.
       responses:
         '200':
           description: The rescheduled appointment
@@ -2739,6 +2797,13 @@ components:
         notes: { type: string, nullable: true }
         depositScreenshotUrl: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        arrivedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            « Client arrivé » (journal J2) — stamped by the salon on a
+            confirmed booking on its calendar day. Read-only.
         salonClientId:
           type: string
           nullable: true
@@ -2752,6 +2817,38 @@ components:
             PROVIDER VIEW ONLY: the client's no-show count at this salon
             (server-computed) — the accept-screen badge (neutral at 1, red
             from 2).
+
+    JournalDay:
+      type: object
+      description: One payload renders the whole journal grid (journal J1).
+      required: [date, artists, appointments]
+      properties:
+        date: { type: string, format: date }
+        hours:
+          type: object
+          nullable: true
+          description: Null when the salon is closed or the date is blocked.
+          properties:
+            open: { type: string, example: '09:00' }
+            close: { type: string, example: '18:00' }
+            breaks:
+              type: array
+              items:
+                type: object
+                properties:
+                  start: { type: string }
+                  end: { type: string }
+        artists:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              imageUrl: { type: string, nullable: true }
+        appointments:
+          type: array
+          items: { $ref: '#/components/schemas/Appointment' }
 
     AppointmentList:
       type: object

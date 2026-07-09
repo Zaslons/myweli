@@ -47,6 +47,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
       id,
       managedProviderId,
       newDateTime,
+      // Drag across the journal grid's columns (J1); validated in the service.
+      artistId: (body['artistId'] as String?)?.trim(),
     );
   } else {
     result = await lifecycle.reschedule(id, principal.userId, newDateTime);
@@ -65,6 +67,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
       return jsonError(HttpStatus.notFound, 'not_found');
     case 'forbidden':
       return jsonError(HttpStatus.forbidden, 'forbidden');
+    case 'invalid_artist':
+      return jsonError(HttpStatus.badRequest, 'invalid_artist');
     default:
       return jsonError(HttpStatus.conflict, result.error!);
   }
