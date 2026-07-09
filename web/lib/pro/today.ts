@@ -10,6 +10,10 @@ export type ProAppointment = {
   totalPrice?: number;
   depositAmount?: number;
   depositScreenshotUrl?: string | null;
+  /// PROVIDER VIEW (module clients C1): links the booking to the client card.
+  salonClientId?: string | null;
+  /// PROVIDER VIEW: no-show count at this salon (badge: 1 neutral, ≥2 red).
+  clientNoShowCount?: number | null;
 };
 
 export function todayKey(now: Date = new Date()): string {

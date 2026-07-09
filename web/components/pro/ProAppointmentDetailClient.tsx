@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
+import { noShowBadge, noShowLabel } from '../../lib/pro/clients';
 import {
   type ProProfile,
   getMyProvider,
@@ -91,8 +92,27 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
       <section className="mt-m rounded-xl border border-border bg-secondary p-l">
         <div className="flex items-center justify-between gap-m">
-          <p className="font-medium text-textPrimary">
+          <p className="flex items-center gap-s font-medium text-textPrimary">
             {appt.clientName ?? 'Client'}
+            {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
+              <span
+                className={`rounded-full px-s py-xs text-xs font-normal ${
+                  noShowBadge(appt.clientNoShowCount) === 'red'
+                    ? 'bg-error/10 text-error'
+                    : 'bg-surface text-textSecondary'
+                }`}
+              >
+                {noShowLabel(appt.clientNoShowCount ?? 0)}
+              </span>
+            ) : null}
+            {appt.salonClientId ? (
+              <Link
+                href={`/pro/clients/${appt.salonClientId}`}
+                className="text-xs font-normal text-textTertiary underline"
+              >
+                Voir la fiche
+              </Link>
+            ) : null}
           </p>
           <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
             {statusLabelFr(appt.status)}
