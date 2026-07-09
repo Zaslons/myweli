@@ -210,6 +210,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onTap: () => context.push('/pro/appointments'),
                       ),
                       _ActionCard(
+                        title: 'Clients',
+                        icon: Icons.people,
+                        onTap: () => context.push('/pro/clients'),
+                      ),
+                      _ActionCard(
                         title: 'Disponibilité',
                         icon: Icons.access_time,
                         onTap: () => context.push('/pro/availability'),

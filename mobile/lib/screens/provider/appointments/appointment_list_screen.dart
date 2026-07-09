@@ -270,6 +270,30 @@ class _AppointmentCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Module clients C1c: who booked + the no-show badge.
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    appointment.clientName ?? 'Client',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if ((appointment.clientNoShowCount ?? 0) >= 1) ...[
+                  const SizedBox(width: AppTheme.spacingXS),
+                  Text(
+                    appointment.clientNoShowCount == 1
+                        ? '· 1 absence'
+                        : '· ${appointment.clientNoShowCount} absences',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: (appointment.clientNoShowCount ?? 0) >= 2
+                          ? AppColors.error
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
             Text('${appointment.serviceIds.length} service(s)'),
             Text(Formatters.formatCurrency(appointment.totalPrice)),
           ],
