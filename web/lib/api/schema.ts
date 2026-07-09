@@ -2908,6 +2908,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/providers/{id}/journal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The journal day view in ONE payload (module journal J1)
+         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientNoShowCount / arrivedAt. Day boundary is UTC (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
+         */
+        get: {
+            parameters: {
+                query: {
+                    date: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The day */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JournalDay"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{id}/arrive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * « Client arrivé » (journal J2) — stamp arrivedAt
+         * @description Provider-only + ownership. CONFIRMED bookings, on their calendar day (UTC) only; idempotent (repeat → 200 with the same state). Wrong state/day → 409 (`invalid_state` / `not_today`). Threat T43.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The updated appointment */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Appointment"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description Not confirmed, or not its calendar day */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/appointments": {
         parameters: {
             query?: never;
@@ -3280,6 +3384,8 @@ export interface paths {
                     "application/json": {
                         /** Format: date-time */
                         newDateTime: string;
+                        /** @description PROVIDER ONLY (journal J1 drag-across-columns): reassign the booking's artist; must belong to the salon → else 400 `invalid_artist`. */
+                        artistId?: string;
                     };
                 };
             };
@@ -4925,10 +5031,37 @@ export interface components {
             depositScreenshotUrl?: string | null;
             /** Format: date-time */
             createdAt: string;
+            /**
+             * Format: date-time
+             * @description « Client arrivé » (journal J2) — stamped by the salon on a confirmed booking on its calendar day. Read-only.
+             */
+            arrivedAt?: string | null;
             /** @description PROVIDER VIEW ONLY (module clients C1): the salon-client row this booking resolves to — links the pro detail to the client card. */
             salonClientId?: string | null;
             /** @description PROVIDER VIEW ONLY: the client's no-show count at this salon (server-computed) — the accept-screen badge (neutral at 1, red from 2). */
             clientNoShowCount?: number | null;
+        };
+        /** @description One payload renders the whole journal grid (journal J1). */
+        JournalDay: {
+            /** Format: date */
+            date: string;
+            /** @description Null when the salon is closed or the date is blocked. */
+            hours?: {
+                /** @example 09:00 */
+                open?: string;
+                /** @example 18:00 */
+                close?: string;
+                breaks?: {
+                    start?: string;
+                    end?: string;
+                }[];
+            } | null;
+            artists: {
+                id?: string;
+                name?: string;
+                imageUrl?: string | null;
+            }[];
+            appointments: components["schemas"]["Appointment"][];
         };
         AppointmentList: {
             items: components["schemas"]["Appointment"][];

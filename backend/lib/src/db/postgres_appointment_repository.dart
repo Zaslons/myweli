@@ -157,6 +157,16 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       sets.add('deposit_screenshot_url = @dsu:text');
       params['dsu'] = changes['depositScreenshotUrl'];
     }
+    if (changes.containsKey('arrivedAt')) {
+      sets.add('arrived_at = @arrived:timestamptz');
+      params['arrived'] = changes['arrivedAt'] == null
+          ? null
+          : DateTime.parse(changes['arrivedAt'] as String);
+    }
+    if (changes.containsKey('artistId')) {
+      sets.add('artist_id = @artist:text');
+      params['artist'] = changes['artistId'];
+    }
     if (sets.isEmpty) return byId(id);
     try {
       final result = await _pool.execute(
@@ -198,6 +208,7 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       'notes': r['notes'],
       'depositScreenshotUrl': r['deposit_screenshot_url'],
       'createdAt': (r['created_at'] as DateTime).toUtc().toIso8601String(),
+      'arrivedAt': (r['arrived_at'] as DateTime?)?.toUtc().toIso8601String(),
     };
   }
 

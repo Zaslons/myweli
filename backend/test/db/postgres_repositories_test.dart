@@ -675,6 +675,23 @@ void main() {
     );
   });
 
+  group('journal J1 columns (module journal)', () {
+    test('update round-trips arrivedAt + artistId (migration 0025)', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      final when = DateTime.utc(2026, 8, 3, 10);
+      await repo.create(apptMap(id: 'j1', status: 'confirmed', when: when));
+      final arrived = await repo.update('j1', {
+        'arrivedAt': when.toIso8601String(),
+        'artistId': 'artist1',
+      });
+      expect(arrived?['arrivedAt'], when.toIso8601String());
+      expect(arrived?['artistId'], 'artist1');
+      // Clearing works too.
+      final cleared = await repo.update('j1', {'arrivedAt': null});
+      expect(cleared?['arrivedAt'], isNull);
+    });
+  });
+
   group('PostgresClientsRepository (module clients C1)', () {
     late PostgresClientsRepository clients;
     late PostgresProviderAuditLogRepository audit;

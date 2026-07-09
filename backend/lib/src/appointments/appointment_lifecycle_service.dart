@@ -1,3 +1,4 @@
+import '../providers_repository.dart';
 import 'appointment_repository.dart';
 import 'slot_service.dart';
 
@@ -16,10 +17,18 @@ typedef LifecycleResult = ({
 /// Pro-side transitions (accept/complete/no-show) are a separate slice — they
 /// need the provider-account ↔ Provider link + provider authz.
 class AppointmentLifecycleService {
-  AppointmentLifecycleService(this._appointments, this._slots);
+  AppointmentLifecycleService(
+    this._appointments,
+    this._slots, {
+    ProvidersRepository? providers,
+  }) : _providers = providers;
 
   final AppointmentRepository _appointments;
   final SlotService _slots;
+
+  /// Needed only for the pro drag-across-columns artist validation (journal
+  /// J1); null keeps older constructions (and consumer paths) unchanged.
+  final ProvidersRepository? _providers;
 
   static const _terminal = {'cancelled', 'completed', 'noShow'};
 
@@ -52,8 +61,9 @@ class AppointmentLifecycleService {
   Future<LifecycleResult> rescheduleByProvider(
     String id,
     String managedProviderId,
-    DateTime newDateTime,
-  ) async {
+    DateTime newDateTime, {
+    String? artistId,
+  }) async {
     final appointment = await _appointments.byId(id);
     if (appointment == null) {
       return (ok: false, error: 'not_found', appointment: null);
@@ -64,7 +74,18 @@ class AppointmentLifecycleService {
     if (_terminal.contains(appointment['status'])) {
       return (ok: false, error: 'invalid_state', appointment: null);
     }
-    return _moveTo(id, appointment, newDateTime);
+    // Drag across columns (journal J1): the target artist must belong to
+    // THIS salon — the grid is never trusted (threat T42).
+    if (artistId != null && artistId.isNotEmpty) {
+      final provider = await _providers?.byId(managedProviderId);
+      final owns = ((provider?['artists'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .any((a) => a['id'] == artistId);
+      if (!owns) {
+        return (ok: false, error: 'invalid_artist', appointment: null);
+      }
+    }
+    return _moveTo(id, appointment, newDateTime, artistId: artistId);
   }
 
   /// Shared by both reschedule paths: the new time must be a free slot
@@ -73,8 +94,9 @@ class AppointmentLifecycleService {
   Future<LifecycleResult> _moveTo(
     String id,
     Map<String, dynamic> appointment,
-    DateTime newDateTime,
-  ) async {
+    DateTime newDateTime, {
+    String? artistId,
+  }) async {
     final slotResult = await _slots.availableSlots(
       providerId: appointment['providerId'] as String,
       date: newDateTime,
@@ -95,6 +117,7 @@ class AppointmentLifecycleService {
     final updated = await _appointments.update(id, {
       'appointmentDate': start.toIso8601String(),
       'endsAt': start.add(Duration(minutes: dur)).toIso8601String(),
+      if (artistId != null && artistId.isNotEmpty) 'artistId': artistId,
     });
     // Null here means the DB rejected a concurrent overlap (exclusion guard).
     if (updated == null) {

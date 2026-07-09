@@ -51,6 +51,49 @@ class ProAppointmentService {
         to: 'completed',
       );
 
+  /// « Client arrivé » (journal J2 — docs/design/journal-j1-grid.md §2.2):
+  /// stamps `arrivedAt` on a CONFIRMED booking, only on its calendar day
+  /// (UTC — Abidjan time), idempotently. Threat T43 guards. [now] is
+  /// injectable for tests.
+  Future<ProLifecycleResult> arrive(
+    String appointmentId,
+    String accountId, {
+    DateTime? now,
+  }) async {
+    final account = await _providerAuth.accountById(accountId);
+    final managedProviderId = account?.providerId;
+    if (managedProviderId == null) {
+      return (ok: false, error: 'forbidden', appointment: null);
+    }
+    final appointment = await _appointments.byId(appointmentId);
+    if (appointment == null) {
+      return (ok: false, error: 'not_found', appointment: null);
+    }
+    if (appointment['providerId'] != managedProviderId) {
+      return (ok: false, error: 'forbidden', appointment: null);
+    }
+    if (appointment['status'] != 'confirmed') {
+      return (ok: false, error: 'invalid_state', appointment: null);
+    }
+    final at = (now ?? DateTime.now()).toUtc();
+    final start = DateTime.tryParse(
+      appointment['appointmentDate'] as String? ?? '',
+    )?.toUtc();
+    if (start == null ||
+        start.year != at.year ||
+        start.month != at.month ||
+        start.day != at.day) {
+      return (ok: false, error: 'not_today', appointment: null);
+    }
+    if (appointment['arrivedAt'] != null) {
+      return (ok: true, error: null, appointment: appointment); // idempotent
+    }
+    final updated = await _appointments.update(appointmentId, {
+      'arrivedAt': at.toIso8601String(),
+    });
+    return (ok: true, error: null, appointment: updated);
+  }
+
   Future<ProLifecycleResult> noShow(String appointmentId, String accountId) =>
       _transition(
         appointmentId,
