@@ -207,7 +207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _ActionCard(
                         title: 'Rendez-vous',
                         icon: Icons.calendar_today,
-                        onTap: () => context.push('/pro/appointments'),
+                        onTap: () => context.push('/pro/journal'),
                       ),
                       _ActionCard(
                         title: 'Clients',

@@ -15,6 +15,7 @@ import '../../screens/provider/clients/client_detail_screen.dart';
 import '../../screens/provider/clients/client_list_screen.dart';
 import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
+import '../../screens/provider/journal/pro_journal_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
 import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
 import '../../screens/provider/photos/pro_before_after_screen.dart';
@@ -68,6 +69,11 @@ class ProRouter {
             ClientDetailScreen(clientId: state.pathParameters['id']!),
       ),
       GoRoute(
+        path: '/pro/journal',
+        name: 'pro-journal',
+        builder: (context, state) => const ProJournalScreen(),
+      ),
+      GoRoute(
         path: '/pro/appointments',
         name: 'pro-appointments',
         builder: (context, state) => const AppointmentListScreen(),
@@ -79,9 +85,11 @@ class ProRouter {
         builder: (context, state) {
           // Prefill from the client card (module clients C1c).
           final extra = state.extra as Map<String, dynamic>?;
+          final dt = extra?['dateTime'] as String?;
           return ProManualBookingScreen(
             initialClientName: extra?['clientName'] as String?,
             initialClientPhone: extra?['clientPhone'] as String?,
+            initialDateTime: dt == null ? null : DateTime.tryParse(dt),
           );
         },
       ),

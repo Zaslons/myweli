@@ -19,12 +19,14 @@ class ProManualBookingScreen extends StatefulWidget {
     super.key,
     this.initialClientName,
     this.initialClientPhone,
+    this.initialDateTime,
   });
 
-  /// Prefill from the client card (module clients C1c — « Nouveau
-  /// rendez-vous » on /pro/clients/:id).
+  /// Prefill from the client card (module clients C1c) or a journal gap slot
+  /// (module journal J1b — « Libre » row prefills the start time).
   final String? initialClientName;
   final String? initialClientPhone;
+  final DateTime? initialDateTime;
 
   @override
   State<ProManualBookingScreen> createState() => _ProManualBookingScreenState();
@@ -32,8 +34,10 @@ class ProManualBookingScreen extends StatefulWidget {
 
 class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   final Set<String> _selected = {};
-  DateTime? _date;
-  TimeOfDay? _time;
+  late DateTime? _date = widget.initialDateTime?.toLocal();
+  late TimeOfDay? _time = widget.initialDateTime == null
+      ? null
+      : TimeOfDay.fromDateTime(widget.initialDateTime!.toLocal());
   late final _phone =
       TextEditingController(text: widget.initialClientPhone ?? '');
   late final _name =

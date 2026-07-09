@@ -7,6 +7,7 @@ import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
+import '../../models/journal_day.dart';
 import '../../models/payment.dart';
 import '../../models/provider_session.dart';
 import '../../models/service.dart';
@@ -122,6 +123,32 @@ class ApiProService implements ProServiceInterface {
   @override
   Future<ApiResponse<bool>> markNoShow(String appointmentId) =>
       _transition(appointmentId, 'no-show', 'Client absent enregistré');
+
+  @override
+  Future<ApiResponse<bool>> markArrived(String appointmentId) =>
+      _transition(appointmentId, 'arrive', 'Client arrivé');
+
+  @override
+  Future<ApiResponse<JournalDay>> getJournalDay(
+    String providerId,
+    DateTime date,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final day = date.toUtc().toIso8601String().substring(0, 10);
+    final res = await _authed.send(
+      (token) => _client.get(
+        _uri('/providers/$providerId/journal').replace(
+          queryParameters: {'date': day},
+        ),
+        headers: _bearer(token),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(JournalDay.fromJson(_decode(res.body)));
+  }
 
   /// POSTs a pro lifecycle transition; the backend enforces provider-role +
   /// salon ownership + the state machine.
