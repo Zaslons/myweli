@@ -4,7 +4,7 @@
 |---|---|
 | **Goal** | Not just feature presence: entry points · user flow · capabilities · UI states & copy, compared by READING the code on both surfaces (user directive 2026-07-10; supersedes the M8-era [web-parity-audit.md](web-parity-audit.md)) |
 | **Method** | Per built module ([MODULES.md](../MODULES.md)): consumer app ↔ consumer web, pro app ↔ pro web. Severity: **❌ missing capability** · **⚠️ flow/UX divergence** · **ℹ️ deliberate adaptation** (fine per `web-design-latitude`). Findings are BIDIRECTIONAL — app gaps count too |
-| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue · 4 clients · 5 notifications**. Audited too: **8 payments · 9/10 finance+analytics**. Next: 11 access · 15 trust |
+| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue · 4 clients · 5 notifications**. Audited too: **8 payments · 9/10 finance+analytics · 11 access**. Next: 15 trust + final synthesis |
 
 ## Module 1 — `journal` (appointment lifecycle, both roles)
 
@@ -167,3 +167,36 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ### Module 8–10 — proposed fixes
 1. **Enforce the deposit⇄KYC gate** (8.1) — backend rule + threat-model row + locked UI on both editors. Security-grade.
 2. **Web « Revenus »** page (9.1) — the earnings endpoint already serves the app.
+
+## Module 11 — `access` (auth + account management) — flow-by-flow
+
+### Consumer sign-in (Google · Apple-seam · email OTP), step by step
+
+| Step | App | Web | Verdict |
+|---|---|---|---|
+| Entry | `/login` (+ `returnTo` continuity) | `/connexion` (+ `returnTo`) AND inline in the booking confirm (no redirect) | ✅ — web's in-funnel inline login is smoother; app redirects with returnTo (equivalent outcome) |
+| Options | Google · Apple (flag-hidden) · email | idem (env-gated) | ✅ |
+| Code step | « Se connecter » + « Changer d'e-mail » + inline error | idem | ✅ |
+| **Resend** | **none** (the dormant phone-OTP screen HAS the full cooldown+resend pattern) | **none** | ⚠️ **both** — an expired code forces backtracking; port the existing cooldown pattern to the email step on both |
+| Mandatory contact phone | blocking step post-sign-in | idem (+ re-required, prefilled, at booking) | ✅ |
+
+### Account management
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 11.1 | **Account DELETION missing on web** | ❌ web | App: « Supprimer mon compte » with double confirmation (AUTH-004; anonymizes salon CRMs — T48). Web mon-compte has nothing — a web-only user cannot delete their account (legal-grade gap) |
+| 11.2 | **Data EXPORT missing on web** | ❌ web | App: dedicated export screen (AUTH-005). Web: nothing |
+| 11.3 | Name editing missing on web | ❌ web (minor) | `PATCH /me` accepts `name`; the app edits it (« Modifier le profil »); web shows it read-only |
+| 11.4 | Contact phone editing | ✅ | Both, with « Non vérifié » labelling |
+| 11.5 | Pro account deletion/export | ⚠️ both (parked) | Exists on NEITHER surface for salon accounts — acceptable pre-launch, must exist before stores review |
+
+### Pro auth
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 11.6 | Login + registration | ✅ | One-submit identity+business registration on both (name · type select · intl phone · address); not-found → « Créer mon compte » CTA on both; returnTo on both |
+
+### Module 11 — proposed fixes
+1. **Web account deletion + data export** (11.1/11.2) — endpoints live; legal-grade.
+2. Email-code **resend with cooldown** on both (the pattern already exists in the dormant OTP screen).
+3. Web name editing (11.3).
