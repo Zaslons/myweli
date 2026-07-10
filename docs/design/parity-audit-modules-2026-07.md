@@ -4,7 +4,7 @@
 |---|---|
 | **Goal** | Not just feature presence: entry points · user flow · capabilities · UI states & copy, compared by READING the code on both surfaces (user directive 2026-07-10; supersedes the M8-era [web-parity-audit.md](web-parity-audit.md)) |
 | **Method** | Per built module ([MODULES.md](../MODULES.md)): consumer app ↔ consumer web, pro app ↔ pro web. Severity: **❌ missing capability** · **⚠️ flow/UX divergence** · **ℹ️ deliberate adaptation** (fine per `web-design-latitude`). Findings are BIDIRECTIONAL — app gaps count too |
-| **Status** | In progress — audited: **1 journal · 2 online-booking**. Next: 3 catalogue · 4 clients · 5 notifications · 8 payments · 9/10 finance+analytics · 11 access · 15 trust |
+| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue**. Next: 4 clients · 5 notifications · 8 payments · 9/10 finance+analytics · 11 access · 15 trust |
 
 ## Module 1 — `journal` (appointment lifecycle, both roles)
 
@@ -80,3 +80,48 @@
 2. **Web « Trier » + « Disponible aujourd'hui »** on /recherche (2.1/2.2 — sort is already a backend param; available-today needs a query flag or client filter).
 3. **Review photos on web** (2.13: display on the public page, then photo attach on the form) + **« Signaler » on both** (2.14 — the backend is waiting).
 4. Salon-page personal touches (2.7/2.8) + gallery lightbox (2.6) + result-card hearts (2.15).
+
+## Module 3 — `catalogue` (services · team · media · availability, pro side)
+
+### The headline find
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 3.1 | **Per-service artist restriction (`artistIds`) is settable NOWHERE** | ❌ **both** | The backend accepts `artistIds` on service create/update, the booking hub dims incompatible stylists with it, and the K1 capacity engine computes the capable pool from it — but NO surface has UI to set it: the app's service form has no artist picker, the web catalogue form has none, and the artist forms assign no services. **The entire capability rule can only ever fire on seed data.** Same class of forget as the map pin (L1) |
+
+### Services
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 3.2 | **Duration variants (court/moyen/long) missing on web** | ❌ web | App service form: full variant editor (three duration fields behind a toggle). Web catalogue form: name/description/price/priceMax/duration/active only — a web-managed salon can never offer hair-length variants, though the WEB booking hub renders them (K2) |
+| 3.3 | Core fields | ✅ | name · description · price + priceMax · duration · active toggle on both; create/edit/delete on both |
+
+### Team
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 3.4 | **Per-staff working hours missing on web** | ❌ web | App artist form: custom weekly-hours editor (feeds the K1 engine — `_hoursCover`). Web Équipe form = name + specialization only (the 7.3b deferral was never picked back up, and it now matters: the capacity engine reads those hours) |
+| 3.5 | **Artist photo missing on web** | ❌ web (minor) | App: avatar upload on the artist form. Web: no imageUrl field |
+
+### Media
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 3.6 | **Photo reorder missing in the APP** | ❌ app (minor) | Web Médias: move up/down (the first photo is the listing hero — order matters). App photos screen: upload/remove only |
+| 3.7 | Before/After | ✅ | Pair upload + optional caption + delete on both |
+
+### Availability
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 3.8 | **Breaks (« Pauses ») editor missing on web** | ❌ web | App: a recurring-pause editor per day (ex. déjeuner) — breaks feed the slot engine AND the journal grid's hatched zones. Web Disponibilités edits hours/tampon/dates bloquées; the `breaks` field is in its type but has NO UI |
+| 3.9 | Hours/buffer/blocked dates | ✅ | Multi-slot weekly hours, tampon, dates bloquées round-trip on both |
+
+### Profile
+Fresh parity as of L1/L2 (2026-07-10): both surfaces edit every allowlisted field + category + the map pin. ✅
+
+### Module 3 — proposed fixes (by priority)
+1. **`artistIds` UI on BOTH surfaces** (3.1) — an artist multi-select on the service form (app + web); without it the capability rule and the per-artist capacity math are decorative for real salons.
+2. **Web: per-staff hours** (3.4) + **breaks editor** (3.8) — the two remaining inputs the K1 slot engine reads that web salons can't set.
+3. **Web: duration variants** (3.2) + artist photo (3.5).
+4. App: photo reorder (3.6).
