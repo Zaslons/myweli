@@ -272,6 +272,28 @@ createServer(async (req, res) => {
   if (url.pathname === '/auth/provider/email/otp/request') {
     return json(res, 202, { expiresInSeconds: 300, devCode: '123456' });
   }
+  if (url.pathname === '/auth/provider/register') {
+    const b = await readBody(req);
+    if (!b.businessName || !b.phoneNumber || (!b.idToken && !(b.email && b.code))) {
+      return json(res, 400, { error: 'invalid_input' });
+    }
+    if (b.email === 'existe@salon.test') {
+      return json(res, 409, { error: 'provider_exists' });
+    }
+    if (b.code && b.code !== '123456') {
+      return json(res, 401, { error: 'otp_invalid' });
+    }
+    return json(res, 201, {
+      provider: {
+        id: 'acc-new',
+        businessName: b.businessName,
+        providerId: 'p1',
+      },
+      accessToken: 'stub-pro-access',
+      refreshToken: 'stub-pro-refresh',
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    });
+  }
   if (
     url.pathname === '/auth/provider/email/otp/verify' ||
     url.pathname === '/auth/provider/google'
