@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Modules** | `journal` (the slot engine/capacity) + `online-booking` (the web funnel) — [MODULES.md](../MODULES.md) §1/§2 |
-| **Status** | **Signed off** (2026-07-10) — capacity decisions locked in chat (§2); build = K1 backend → K2 web hub → K3 app |
+| **Status** | **Built** (2026-07-10) — K1+K3 shipped (#194), K2 shipped (web hub + deposit proof + rebook prefill); program complete |
 | **Trigger** | The web↔app booking-flow audit (2026-07-10) found (a) the web funnel is a linear wizard while the app is an **order-free adaptive hub**, and (b) a deeper engine gap: **the whole salon is single-capacity** — one booking per salon per time slot regardless of team size, `/availability` is salon-level with no `artistId`, and even the app's API layer silently drops the chosen artist |
 | **Why it matters** | A 3-stylist salon can only hold 1 booking per slot today — losing ~⅔ of its bookable capacity. The artist picker is currently cosmetic against the real backend |
 | **Cross-refs** | [journal-j1-grid.md](journal-j1-grid.md) (drag-assign consumes this) · `booking_hub_screen.dart` (the reference UX) · BACKEND.md T11 (revised here) |
@@ -94,9 +94,11 @@ Replaces the linear wizard in `BookingFlow.tsx` (confirm/done steps kept):
   - artist-first + services → **earliest-slot auto-pick within 14 days** +
     « Prochain créneau : … » hint;
   - **length variants** (court/moyen/long): the selector appears when
-    selected services declare variants; drives duration, slot fetches, and
-    the `lengthVariant` booking param (the app's `booking_duration` helpers
-    ported to `lib/booking/state.ts`).
+    selected services declare variants; drives duration and slot fetches
+    (the app's `booking_duration` helpers ported to `lib/booking/state.ts`).
+    *(Build note: `POST /appointments` accepts no variant — the server
+    derives duration from service defaults, exactly like the app today; a
+    variant-aware create is an open backend follow-up for both surfaces.)*
 - **Slot fetches carry a request id** (stale responses dropped — the app's
   `slotsRequestId` pattern).
 - **Deposit proof in-flow**: when the created booking carries

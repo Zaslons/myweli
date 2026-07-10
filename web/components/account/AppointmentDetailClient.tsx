@@ -5,13 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   type Appointment,
+  canAttachDeposit,
   canCancel,
+  rebookHref,
   statusLabelFr,
 } from '../../lib/account/appointments';
 import { canRebook, canReview } from '../../lib/account/extras';
 import { cancelAppointment, getAppointment } from '../../lib/api/account';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { Button } from '../Button';
+import { DepositProof } from '../booking/DepositProof';
 import { ReviewForm } from './ReviewForm';
 
 export function AppointmentDetailClient({ id }: { id: string }) {
@@ -106,6 +109,24 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </p>
         ) : null}
 
+        {/* Pay-later (K2): attach the deposit proof from the detail too. */}
+        {canAttachDeposit(appt) ? (
+          <div className="mt-m">
+            <DepositProof
+              appointmentId={appt.id}
+              amount={appt.depositAmount ?? 0}
+              operator={appt.depositMobileMoneyOperator}
+              number={appt.depositMobileMoneyNumber}
+              onAttached={load}
+            />
+          </div>
+        ) : appt.status === 'pending' && appt.depositScreenshotUrl ? (
+          <p className="mt-m text-sm text-textSecondary">
+            Justificatif d’acompte envoyé · en attente de confirmation du
+            salon.
+          </p>
+        ) : null}
+
         {cancelError ? (
           <p className="mt-s text-sm text-error">
             L’annulation a échoué. Réessayez.
@@ -142,10 +163,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </div>
         ) : null}
 
-        {canRebook(appt.status) && appt.providerSlug ? (
+        {canRebook(appt.status) && rebookHref(appt) ? (
           <div className="mt-l">
             <Link
-              href={`/${appt.providerSlug}/reserver`}
+              href={rebookHref(appt)!}
               className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
             >
               Réserver à nouveau

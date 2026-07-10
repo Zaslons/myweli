@@ -35,11 +35,26 @@ const provider = {
       price: 15000,
       priceMax: 25000,
       durationMinutes: 120,
+      durationVariants: { court: 90, moyen: 120, long: 180 },
+      providerId: 'p1',
+      active: true,
+    },
+    {
+      // K2: restricted to Awa — exercises the capability dim/drop rules.
+      id: 's2',
+      name: 'Soin visage',
+      description: '',
+      price: 5000,
+      durationMinutes: 30,
+      artistIds: ['a1'],
       providerId: 'p1',
       active: true,
     },
   ],
-  artists: [{ id: 'a1', name: 'Awa', specialization: 'Tresses', providerId: 'p1' }],
+  artists: [
+    { id: 'a1', name: 'Awa', specialization: 'Tresses', providerId: 'p1' },
+    { id: 'a2', name: 'Binta', specialization: 'Coiffure', providerId: 'p1' },
+  ],
   availability: {
     providerId: 'p1',
     weeklySchedule: { '0': [{ startTime: '09:00', endTime: '18:00' }] },
@@ -57,6 +72,18 @@ const provider = {
       createdAt: '2026-06-01T10:00:00.000Z',
     },
   ],
+};
+
+// K2: a deposit-required salon for the pay-later proof-upload journey.
+const depositProvider = {
+  ...JSON.parse(JSON.stringify(provider)),
+  id: 'p2',
+  slug: 'institut-acompte',
+  name: 'Institut Acompte',
+  depositRequired: true,
+  depositPercentage: 0.5,
+  depositMobileMoneyOperator: 'Orange Money',
+  depositMobileMoneyNumber: '+2250701020304',
 };
 
 function json(res, status, body) {
@@ -188,9 +215,9 @@ createServer(async (req, res) => {
   }
   const m = url.pathname.match(/^\/providers\/by-slug\/(.+)$/);
   if (m) {
-    return m[1] === 'beaute-divine'
-      ? json(res, 200, provider)
-      : json(res, 404, { error: 'not_found' });
+    if (m[1] === 'beaute-divine') return json(res, 200, provider);
+    if (m[1] === 'institut-acompte') return json(res, 200, depositProvider);
+    return json(res, 404, { error: 'not_found' });
   }
   if (url.pathname === '/providers') {
     const category = url.searchParams.get('category');
@@ -208,9 +235,20 @@ createServer(async (req, res) => {
   }
   // --- booking funnel (M5) ---
   if (url.pathname === '/availability') {
-    return json(res, 200, {
-      slots: ['2026-12-01T09:00:00.000Z', '2026-12-01T10:30:00.000Z'],
-    });
+    const date =
+      url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    const artistId = url.searchParams.get('artistId');
+    const duration = Number(url.searchParams.get('durationMinutes') || 30);
+    let slots = [
+      `${date}T09:00:00.000Z`,
+      `${date}T10:30:00.000Z`,
+      `${date}T14:00:00.000Z`,
+    ];
+    // Binta's chair is taken all morning (per-artist capacity, K1).
+    if (artistId === 'a2') slots = slots.slice(2);
+    // Long variants (>150 min) no longer fit the mid-morning gap.
+    if (duration > 150) slots = slots.filter((x) => !x.includes('T10:30'));
+    return json(res, 200, { slots });
   }
   if (url.pathname === '/auth/otp/request') {
     return json(res, 200, { devCode: '123456' });
@@ -517,6 +555,15 @@ createServer(async (req, res) => {
   }
   // médias (7.3e-ii) — presigned upload + R2 POST + gallery/before-after PUT.
   if (url.pathname === '/uploads/sign') {
+    const b = await readBody(req);
+    if (b.purpose === 'deposit') {
+      return json(res, 200, {
+        method: 'POST',
+        uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
+        fields: {},
+        key: `deposit/u1/${imgSeq++}.jpg`,
+      });
+    }
     return json(res, 200, {
       method: 'POST',
       uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
@@ -597,12 +644,14 @@ createServer(async (req, res) => {
     const [, id, sub] = apptMatch;
     if (!id) {
       if (req.method === 'POST') {
+        const b = await readBody(req);
+        const deposit = b.providerId === 'p2' ? 7500 : 0;
         return json(res, 201, {
           id: 'appt1',
           status: 'pending',
           totalPrice: 15000,
-          depositAmount: 0,
-          balanceDue: 15000,
+          depositAmount: deposit,
+          balanceDue: 15000 - deposit,
         });
       }
       // Provider list (M7) vs consumer list (M6), split by token.
@@ -626,6 +675,14 @@ createServer(async (req, res) => {
     }
     if (sub === 'review') {
       return json(res, 200, { id, rating: 5 });
+    }
+    if (sub === 'deposit' && req.method === 'POST') {
+      const b = await readBody(req);
+      if (!b.screenshotKey) return json(res, 400, { error: 'invalid_input' });
+      return json(res, 200, {
+        ...consumerAppt(id),
+        depositScreenshotUrl: 'https://cdn.stub/deposit.jpg',
+      });
     }
     if (sub === 'deposit-screenshot') {
       return json(res, 200, { url: 'https://example.test/justificatif.jpg' });
@@ -656,9 +713,9 @@ createServer(async (req, res) => {
       Object.assign(proProvider, body);
       return json(res, 200, proProvider);
     }
-    return provMatch[1] === 'p1'
-      ? json(res, 200, provider)
-      : json(res, 404, { error: 'not_found' });
+    if (provMatch[1] === 'p1') return json(res, 200, provider);
+    if (provMatch[1] === 'p2') return json(res, 200, depositProvider);
+    return json(res, 404, { error: 'not_found' });
   }
   return json(res, 404, { error: 'not_found' });
 }).listen(port, () => {
