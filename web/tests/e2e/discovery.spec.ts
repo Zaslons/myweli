@@ -37,6 +37,8 @@ test('home search: service + commune → existing landing', async ({ page }) => 
 });
 
 test('/recherche lists matching salons', async ({ page }) => {
+  // goto waits for `load` — abort tiles or slow CARTO fetches stall CI.
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.goto('/recherche?q=tresses');
   await expect(
     page.getByRole('heading', { name: /Recherche/ }),
