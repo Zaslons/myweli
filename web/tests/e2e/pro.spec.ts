@@ -460,3 +460,21 @@ test('client card: « Nouveau rendez-vous » opens the dialog pre-picked (C1b de
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
+
+test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async ({
+  page,
+}) => {
+  await proLogin(page);
+  await page.getByRole('link', { name: 'Avis' }).click();
+  await expect(page).toHaveURL(/\/pro\/avis/);
+
+  // Summary card: average of the stubbed 5★ + 4★ reviews.
+  await expect(page.getByText('★ 4.5')).toBeVisible();
+  await expect(page.getByText('2 avis')).toBeVisible();
+
+  // Cards: author, text, visit context, photo review.
+  await expect(page.getByText('Service impeccable.')).toBeVisible();
+  await expect(page.getByText(/avec Awa/)).toBeVisible();
+  await expect(page.getByText('Mariam')).toBeVisible();
+  await expect(page.getByAltText('Photo de l’avis')).toBeVisible();
+});
