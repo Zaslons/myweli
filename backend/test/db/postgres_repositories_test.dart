@@ -61,12 +61,13 @@ void main() {
     String status = 'pending',
     int durationMinutes = 30,
     required DateTime when,
+    String? artistId,
   }) => {
     'id': id,
     'userId': userId,
     'providerId': providerId,
     'serviceIds': ['service1'],
-    'artistId': null,
+    'artistId': artistId,
     'appointmentDate': when.toUtc().toIso8601String(),
     'durationMinutes': durationMinutes,
     'status': status,
@@ -113,36 +114,57 @@ void main() {
       );
     });
 
-    test(
-      'the partial unique index blocks a second booking on the same slot',
-      () async {
-        final repo = PostgresAppointmentRepository(pool);
-        expect(await repo.create(apptMap(id: 'a1', when: when)), isNotNull);
-        // Same provider + exact start, still pending → conflict → null.
-        expect(
-          await repo.create(apptMap(id: 'a2', userId: 'u2', when: when)),
-          isNull,
-        );
-        // After the first is cancelled, the slot frees up.
-        await repo.update('a1', {'status': 'cancelled'});
-        expect(
-          await repo.create(apptMap(id: 'a3', userId: 'u2', when: when)),
-          isNotNull,
-        );
-      },
-    );
+    test('the partial unique index blocks a second booking on the same slot '
+        'FOR THE SAME ARTIST (capacity model, migration 0026)', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      expect(
+        await repo.create(apptMap(id: 'a1', when: when, artistId: 'ar1')),
+        isNotNull,
+      );
+      // Same provider + artist + exact start, still pending → null.
+      expect(
+        await repo.create(
+          apptMap(id: 'a2', userId: 'u2', when: when, artistId: 'ar1'),
+        ),
+        isNull,
+      );
+      // A DIFFERENT artist takes the same slot — the multi-chair win.
+      expect(
+        await repo.create(
+          apptMap(id: 'a2b', userId: 'u2', when: when, artistId: 'ar2'),
+        ),
+        isNotNull,
+      );
+      // After the first is cancelled, ar1's chair frees up.
+      await repo.update('a1', {'status': 'cancelled'});
+      expect(
+        await repo.create(
+          apptMap(id: 'a3', userId: 'u3', when: when, artistId: 'ar1'),
+        ),
+        isNotNull,
+      );
+      // Unassigned bookings are UNGUARDED at the DB level by design — the
+      // slot engine's pool count owns them (spec §2.2).
+      expect(await repo.create(apptMap(id: 'a4', when: when)), isNotNull);
+      expect(
+        await repo.create(apptMap(id: 'a5', userId: 'u5', when: when)),
+        isNotNull,
+      );
+    });
 
     test(
       'btree_gist exclusion blocks duration overlaps (not just exact start)',
       () async {
         final repo = PostgresAppointmentRepository(pool);
         final at9 = DateTime.utc(2030, 6, 25, 9);
-        // 09:00 for 120 min → occupies [09:00, 11:00).
+        // ar1, 09:00 for 120 min → occupies [09:00, 11:00).
         expect(
-          await repo.create(apptMap(id: 'o1', when: at9, durationMinutes: 120)),
+          await repo.create(
+            apptMap(id: 'o1', when: at9, durationMinutes: 120, artistId: 'ar1'),
+          ),
           isNotNull,
         );
-        // 10:00 (different start) overlaps the 09:00–11:00 booking → rejected.
+        // ar1 again at 10:00 overlaps [09:00, 11:00) → rejected.
         expect(
           await repo.create(
             apptMap(
@@ -150,11 +172,25 @@ void main() {
               userId: 'u2',
               when: DateTime.utc(2030, 6, 25, 10),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNull,
         );
-        // 11:00 is back-to-back (half-open range) → allowed.
+        // The SAME overlap on another artist → allowed (per-artist chairs).
+        expect(
+          await repo.create(
+            apptMap(
+              id: 'o2b',
+              userId: 'u2',
+              when: DateTime.utc(2030, 6, 25, 10),
+              durationMinutes: 60,
+              artistId: 'ar2',
+            ),
+          ),
+          isNotNull,
+        );
+        // 11:00 is back-to-back for ar1 (half-open range) → allowed.
         expect(
           await repo.create(
             apptMap(
@@ -162,11 +198,12 @@ void main() {
               userId: 'u3',
               when: DateTime.utc(2030, 6, 25, 11),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNotNull,
         );
-        // Same overlapping time at a DIFFERENT provider → allowed (per-provider).
+        // Same artist id at a DIFFERENT provider → allowed (per-provider).
         expect(
           await repo.create(
             apptMap(
@@ -175,11 +212,12 @@ void main() {
               providerId: 'provider2',
               when: DateTime.utc(2030, 6, 25, 10),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNotNull,
         );
-        // Cancelling o1 frees [09:00, 11:00) → a 10:00 booking now fits.
+        // Cancelling o1 frees ar1's [09:00, 11:00) → a 10:00 booking fits.
         await repo.update('o1', {'status': 'cancelled'});
         expect(
           await repo.create(
@@ -188,6 +226,7 @@ void main() {
               userId: 'u5',
               when: DateTime.utc(2030, 6, 25, 10),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNotNull,
@@ -199,11 +238,13 @@ void main() {
       'reschedule update onto an overlapping slot is rejected (null)',
       () async {
         final repo = PostgresAppointmentRepository(pool);
+        // Both bookings on the SAME artist — per-artist guards (0026).
         await repo.create(
           apptMap(
             id: 'r1',
             when: DateTime.utc(2030, 6, 25, 9),
             durationMinutes: 120,
+            artistId: 'ar1',
           ),
         );
         await repo.create(
@@ -212,6 +253,7 @@ void main() {
             userId: 'u2',
             when: DateTime.utc(2030, 6, 25, 14),
             durationMinutes: 60,
+            artistId: 'ar1',
           ),
         );
         // Move r2 to 10:00–11:00 → overlaps r1's [09:00, 11:00) → null.
