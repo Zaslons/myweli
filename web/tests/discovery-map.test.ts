@@ -40,19 +40,19 @@ describe('withCoords', () => {
 describe('boundsFor', () => {
   it('null when nothing is mappable (map stays on Abidjan)', () => {
     expect(boundsFor([])).toBeNull();
-    expect(ABIDJAN_CENTER).toEqual([5.336, -4.026]); // the app's center
+    expect(ABIDJAN_CENTER).toEqual([-4.026, 5.336]); // the app's center, lng/lat
   });
 
-  it('single result → a point box; multi → the enclosing box', () => {
+  it('single result → a point box; multi → the enclosing box (lng/lat)', () => {
     const a = { ...providerFixture, latitude: 5.3, longitude: -4.0 };
     const b = { ...providerFixture, id: 'p2', latitude: 5.4, longitude: -3.9 };
     expect(boundsFor(withCoords([a]))).toEqual([
-      [5.3, -4.0],
-      [5.3, -4.0],
+      [-4.0, 5.3],
+      [-4.0, 5.3],
     ]);
     expect(boundsFor(withCoords([a, b]))).toEqual([
-      [5.3, -4.0],
-      [5.4, -3.9],
+      [-4.0, 5.3],
+      [-3.9, 5.4],
     ]);
   });
 });

@@ -1,10 +1,15 @@
 'use client';
 
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import {
+  Map,
+  type MapRef,
+  Marker,
+  NavigationControl,
+  Popup,
+} from '@vis.gl/react-maplibre';
 import {
   ABIDJAN_CENTER,
   DEFAULT_ZOOM,
@@ -14,8 +19,15 @@ import {
 } from '../../lib/discovery/map';
 import { formatFcfa } from '../../lib/format';
 
+/// The CARTO Positron gl style — the VECTOR twin of the app MapScreen's
+/// `light_all` raster basemap (same design language, still keyless/free;
+/// OpenMapTiles schema — the stack Planity buys from Woosmap, open-source).
+const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+
+const FIT_OPTS = { padding: 40, maxZoom: 15 };
+
 /// The /recherche map pane (docs/design/web-discovery-map.md §2) — the app's
-/// MapScreen design, 1:1: CARTO light basemap (the app's tile layer), the
+/// MapScreen design on MapLibre GL: Positron vector basemap, the
 /// white-circle + category-icon salon markers, the info-blue user dot,
 /// « Autour de moi », auto-fit to the results. Full-bleed — framing is the
 /// page's job.
@@ -28,60 +40,81 @@ export function ResultsMap({
   items: MappableProvider[];
   hoveredId: string | null;
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
 }) {
+  const mapRef = useRef<MapRef>(null);
   const bounds = useMemo(() => boundsFor(items), [items]);
+  const [loaded, setLoaded] = useState(false);
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
-  const markerRefs = useRef<Record<string, L.Marker | null>>({});
 
-  // Hover/selection activation WITHOUT remounting (a remount would close the
-  // marker's own popup): toggle a class on the marker element; the scale
-  // transition lives on the inner pin (globals.css).
+  // Fit the viewport to the result bounds once the style is up (and again
+  // whenever the result set changes); none mappable → stay on Abidjan.
   useEffect(() => {
-    for (const p of items) {
-      const el = markerRefs.current[p.id]?.getElement();
-      el?.classList.toggle(
-        'is-active',
-        p.id === hoveredId || p.id === selectedId,
-      );
-    }
-  }, [items, hoveredId, selectedId]);
+    if (!loaded || !bounds) return;
+    mapRef.current?.fitBounds(bounds, FIT_OPTS);
+  }, [loaded, bounds]);
+
+  const selected = items.find((p) => p.id === selectedId) ?? null;
 
   return (
     <div className="relative h-full w-full">
-      <MapContainer
-        center={ABIDJAN_CENTER}
-        zoom={DEFAULT_ZOOM}
-        scrollWheelZoom
-        className="h-full w-full"
+      <Map
+        ref={mapRef}
+        initialViewState={{
+          longitude: ABIDJAN_CENTER[0],
+          latitude: ABIDJAN_CENTER[1],
+          zoom: DEFAULT_ZOOM,
+        }}
+        mapStyle={MAP_STYLE}
+        onLoad={() => setLoaded(true)}
+        style={{ width: '100%', height: '100%' }}
       >
-        {/* The app's clean light basemap (no key); {r} = retina, per Leaflet. */}
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          subdomains={['a', 'b', 'c', 'd']}
-        />
-        <KeepSizedAndFitted bounds={bounds} />
-        {items.map((p) => (
-          <Marker
-            key={p.id}
-            ref={(m) => {
-              markerRefs.current[p.id] = m;
-            }}
-            position={[p.latitude, p.longitude]}
-            icon={salonIcon(markerColor(p.category), p.category)}
-            eventHandlers={{ click: () => onSelect(p.id) }}
-          >
-            <Popup>
-              <MiniCard provider={p} />
-            </Popup>
+        <NavigationControl position="top-left" showCompass={false} />
+        {items.map((p) => {
+          const active = p.id === hoveredId || p.id === selectedId;
+          return (
+            <Marker
+              key={p.id}
+              longitude={p.longitude}
+              latitude={p.latitude}
+              anchor="center"
+              style={{ zIndex: active ? 2 : 1 }}
+              onClick={() => onSelect(p.id)}
+            >
+              <SalonPin category={p.category} active={active} name={p.name} />
+            </Marker>
+          );
+        })}
+        {userPos ? (
+          <Marker longitude={userPos[0]} latitude={userPos[1]} anchor="center">
+            <span className="myweli-user-dot" />
           </Marker>
-        ))}
-        {userPos ? <Marker position={userPos} icon={userIcon()} /> : null}
-        <LocateButton onLocated={setUserPos} />
-      </MapContainer>
+        ) : null}
+        {selected ? (
+          <Popup
+            longitude={selected.longitude}
+            latitude={selected.latitude}
+            anchor="bottom"
+            offset={28}
+            maxWidth="280px"
+            // The selecting click itself bubbles to the map AFTER React has
+            // mounted the popup — the default closeOnClick would close it in
+            // the same gesture. Deselect = the ✕ or another marker.
+            closeOnClick={false}
+            onClose={() => onSelect(null)}
+          >
+            <MiniCard provider={selected} />
+          </Popup>
+        ) : null}
+      </Map>
+      <LocateButton
+        onLocate={(pos) => {
+          setUserPos(pos);
+          mapRef.current?.flyTo({ center: pos, zoom: 14 });
+        }}
+      />
       {items.length === 0 ? (
-        <div className="pointer-events-none absolute inset-0 z-[500] flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <p className="rounded-lg bg-secondary px-m py-s text-sm text-textSecondary shadow">
             Aucun salon à afficher sur la carte
           </p>
@@ -104,27 +137,37 @@ const ICON_PATHS: Record<string, string> = {
 };
 
 /// The app's `_SalonMarker`: 44px white circle, 2px category ring, category
-/// icon (20px) in the category color. Color rides `currentColor` so one CSS
-/// rule themes the ring (globals.css).
-function salonIcon(color: string, category: string | undefined): L.DivIcon {
+/// icon (20px) in the category color (§7 tokens via `currentColor`). The
+/// click is handled by the library Marker (a native listener on the marker
+/// element — clicks on portaled children reach it by bubbling).
+function SalonPin({
+  category,
+  active,
+  name,
+}: {
+  category: string | undefined;
+  active: boolean;
+  name: string;
+}) {
   const path = ICON_PATHS[category ?? ''] ?? ICON_PATHS.default;
-  return L.divIcon({
-    className: 'myweli-marker',
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
-    popupAnchor: [0, -24],
-    html: `<span class="myweli-pin" style="color:${color}"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg></span>`,
-  });
-}
-
-/// The app's user marker: 22px info-blue dot, 3px white ring.
-function userIcon(): L.DivIcon {
-  return L.divIcon({
-    className: 'myweli-user',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-    html: '<span class="myweli-user-dot"></span>',
-  });
+  return (
+    <button
+      type="button"
+      aria-label={`Voir ${name} sur la carte`}
+      className={`myweli-marker myweli-pin${active ? ' is-active' : ''}`}
+      style={{ color: markerColor(category) }}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path d={path} />
+      </svg>
+    </button>
+  );
 }
 
 function MiniCard({ provider: p }: { provider: MappableProvider }) {
@@ -154,54 +197,13 @@ function MiniCard({ provider: p }: { provider: MappableProvider }) {
   );
 }
 
-const FIT_OPTS = { padding: [40, 40] as [number, number], maxZoom: 15 };
-
-/// Fit to the result bounds — and keep Leaflet honest about its container
-/// size. The mobile « Carte » toggle mounts the map inside display:none
-/// (size 0); on the zero→visible transition Leaflet must invalidateSize and
-/// re-fit or tiles never load. Plain resizes only invalidate (never fight
-/// the user's pan/zoom).
-function KeepSizedAndFitted({
-  bounds,
-}: {
-  bounds: [[number, number], [number, number]] | null;
-}) {
-  const map = useMap();
-  const boundsRef = useRef(bounds);
-  boundsRef.current = bounds;
-
-  useEffect(() => {
-    if (!bounds) return;
-    map.fitBounds(bounds, FIT_OPTS);
-  }, [map, bounds]);
-
-  useEffect(() => {
-    const el = map.getContainer();
-    let wasZero = el.clientWidth === 0 || el.clientHeight === 0;
-    const ro = new ResizeObserver(() => {
-      const zero = el.clientWidth === 0 || el.clientHeight === 0;
-      if (!zero) {
-        map.invalidateSize();
-        if (wasZero && boundsRef.current) {
-          map.fitBounds(boundsRef.current, FIT_OPTS);
-        }
-      }
-      wasZero = zero;
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [map]);
-  return null;
-}
-
 /// « Autour de moi » — the app's geolocation centering + user dot, with its
-/// denial copy.
+/// denial copy. Overlaid on the map (top-right, clear of the zoom control).
 function LocateButton({
-  onLocated,
+  onLocate,
 }: {
-  onLocated: (pos: [number, number]) => void;
+  onLocate: (pos: [number, number]) => void;
 }) {
-  const map = useMap();
   const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
@@ -216,34 +218,25 @@ function LocateButton({
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const at: [number, number] = [
-          pos.coords.latitude,
-          pos.coords.longitude,
-        ];
-        onLocated(at);
-        map.flyTo(at, 14);
-      },
+      (pos) => onLocate([pos.coords.longitude, pos.coords.latitude]),
       () => setNote('Autorisez la localisation pour vous centrer'),
     );
   }
 
   return (
-    <div className="leaflet-top leaflet-right">
-      <div className="leaflet-control m-s flex flex-col items-end gap-xs">
-        <button
-          type="button"
-          onClick={locate}
-          className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary shadow hover:bg-surfaceVariant"
-        >
-          Autour de moi
-        </button>
-        {note ? (
-          <p className="rounded-lg bg-secondary px-s py-xs text-xs text-textSecondary shadow">
-            {note}
-          </p>
-        ) : null}
-      </div>
+    <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-xs">
+      <button
+        type="button"
+        onClick={locate}
+        className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary shadow hover:bg-surfaceVariant"
+      >
+        Autour de moi
+      </button>
+      {note ? (
+        <p className="rounded-lg bg-secondary px-s py-xs text-xs text-textSecondary shadow">
+          {note}
+        </p>
+      ) : null}
     </div>
   );
 }

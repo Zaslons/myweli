@@ -6,8 +6,9 @@ import { colors } from '../../styles/tokens';
 /// constants + the DESIGN-STANDARDS §7 category-color mapping (the web copy
 /// of `category_colors.dart`; values live in styles/tokens.ts). Unit-tested.
 
-/// The app's Abidjan-ish default center + zoom.
-export const ABIDJAN_CENTER: [number, number] = [5.336, -4.026];
+/// The app's Abidjan-ish default center + zoom. NOTE: MapLibre speaks
+/// GeoJSON order — [longitude, latitude].
+export const ABIDJAN_CENTER: [number, number] = [-4.026, 5.336];
 export const DEFAULT_ZOOM = 12;
 
 /// §7 canonical mapping — unknown categories fall back to primary.
@@ -37,8 +38,9 @@ export function withCoords(items: Provider[]): MappableProvider[] {
   );
 }
 
-/// Bounding box of the mappable results — null when nothing is mappable
-/// (the map falls back to the Abidjan default).
+/// Bounding box of the mappable results as MapLibre's LngLatBoundsLike
+/// ([[west, south], [east, north]]) — null when nothing is mappable (the map
+/// falls back to the Abidjan default).
 export function boundsFor(
   items: MappableProvider[],
 ): [[number, number], [number, number]] | null {
@@ -54,7 +56,7 @@ export function boundsFor(
     if (p.longitude > east) east = p.longitude;
   }
   return [
-    [south, west],
-    [north, east],
+    [west, south],
+    [east, north],
   ];
 }
