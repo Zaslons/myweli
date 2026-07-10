@@ -151,6 +151,12 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<bool>> publishSalon(String providerId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return ApiResponse.success(true, message: 'Votre salon est en ligne');
+  }
+
+  @override
   Future<ApiResponse<bool>> markArrived(String appointmentId) async {
     await Future.delayed(AppConstants.mockDelay);
     final index =
