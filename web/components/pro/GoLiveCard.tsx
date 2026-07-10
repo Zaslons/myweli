@@ -74,10 +74,16 @@ export function GoLiveCard({
           </li>
         ))}
       </ul>
-      <div className="mt-m">
+      <div className="mt-m flex flex-wrap items-center gap-m">
         <Button disabled={!ready || busy} onClick={publish}>
           {busy ? 'Mise en ligne…' : 'Mettre en ligne'}
         </Button>
+        {/* See the salon exactly as a client will, before going live (B4). */}
+        <Link href="/pro/apercu" className="text-sm text-textPrimary underline">
+          Aperçu de ma page
+        </Link>
+      </div>
+      <div>
         {!ready ? (
           <p className="mt-xs text-xs text-textTertiary">
             Terminez les étapes ci-dessus pour mettre votre salon en ligne.

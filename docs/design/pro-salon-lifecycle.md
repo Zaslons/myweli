@@ -54,6 +54,24 @@ admin suspend/restore keeps working as today ('suspended' ⇄ 'active')
 - **Contract**: `/providers/{id}/publish` documented; register/me-provider
   descriptions updated; web types regenerated (no web code change in B1).
 
+## 2b. B4/B5 — « Aperçu de ma page » (user ask, 2026-07-10)
+
+Before publishing, the owner sees their salon **exactly as a client will**
+(the checklist verifies quantities; the preview catches quality — photo
+order, cut-off description, a wrong commune placing the map pin off).
+
+- **B4 web (built)**: `/pro/apercu` — outside the dashboard shell (consumer
+  chrome) — renders the REAL consumer page component (`ProviderView`) fed
+  from `/me/provider`: owner-scoped by construction, **no new endpoint, no
+  T51 change** (drafts stay 404 publicly). `preview` mode = a slim owner
+  banner, no JSON-LD, no favorite button, booking CTAs disabled
+  (« Disponible après la mise en ligne » — drafts refuse bookings anyway).
+  Entry points: « Aperçu de ma page » on the GoLiveCard; once live, the
+  banner flips to « Voir la page publique » and the pro home gains the same
+  link.
+- **B5 app (next)**: same idea — the pro app renders the consumer salon
+  screen with its own provider data.
+
 ## 3. Decision notes
 
 - **Explicit publish button** (recommended, adopted): the PRD's own funnel

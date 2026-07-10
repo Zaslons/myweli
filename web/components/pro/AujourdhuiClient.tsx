@@ -100,6 +100,16 @@ export function AujourdhuiClient() {
         <span className="text-textTertiary">›</span>
       </Link>
 
+      {profile?.provider.status === 'active' && profile.provider.slug ? (
+        <Link
+          href={`/${profile.provider.slug}`}
+          className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+        >
+          <span>Voir ma page publique</span>
+          <span className="text-textTertiary">›</span>
+        </Link>
+      ) : null}
+
       <div className="mt-l grid grid-cols-3 gap-m">
         <Stat label="À confirmer" value={counts.pending} />
         <Stat label="Confirmés" value={counts.confirmed} />
