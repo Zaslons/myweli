@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | `online-booking` (consumer discovery) — the LAST web-parity follow-up |
-| **Status** | **Built** (2026-07-10) — layout signed off in chat; **design revision same day (user)**: the map is FULL-BLEED (no framed box, Planity-like) and carries the app MapScreen's exact design (CARTO light basemap · the `_SalonMarker` white-circle/category-ring/icon markers · the info-blue user dot) |
+| **Status** | **Built** (2026-07-10) — layout signed off in chat; **design revision same day (user)**: full-bleed + the app MapScreen's design; **renderer upgrade same day (user)**: Leaflet retired for **MapLibre GL + the CARTO Positron VECTOR style** (the open-source version of Planity's Woosmap/OpenMapTiles stack; still keyless/free) |
 | **Trigger** | The app's map tab (`MapScreen`) has no web equivalent; `/recherche` renders a bare card grid |
 | **Scope** | Web only, **no backend change** — markers come from the same `GET /providers` search results already fetched server-side |
 | **Out of scope** | Geo-bounds search (`/providers` has no bbox param — markers reflect the fetched results, like the app) · favorites hearts on markers (session-dependent on a public page; deferred to the parity ledger) · « open now » (module gap, phased) |
@@ -50,22 +50,31 @@ Signed-off layout, with the agreed refinements:
 
 ## 3. Tech & layering
 
-- **Leaflet + react-leaflet@4** (React 18 pairing) with the **CARTO
-  `light_all` basemap — the app MapScreen's exact tile layer** (no key;
-  attribution © OpenStreetMap contributors © CARTO, same as the app).
-  **Dynamically imported with `ssr: false`** so the ~40 KB gz loads only on
-  `/recherche` (noindex, force-dynamic — public-page CWV budgets untouched).
-  Markers are **`divIcon`s replicating `_SalonMarker`**: 44 px white circle,
-  2 px category-color ring, the category icon (Material spa / content_cut /
-  face / store paths) in the category color — §7 tokens from
-  `styles/tokens.ts` via `currentColor`; « Autour de moi » drops the app's
-  22 px info-blue user dot. Hover/selection enlarges the pin via a CSS
-  class toggled on the marker element (NO remount — a remount closes the
-  marker's own popup; scale lives on the inner pin because Leaflet
-  positions the root with an inline transform). A `ResizeObserver` calls
-  `invalidateSize` (+ one refit on the zero→visible transition) so the
-  mobile toggle's display:none mount renders tiles correctly. CARTO's free
-  basemap policy is fine at our traffic; swap to a paid tile host if volume
+- **MapLibre GL (`maplibre-gl` + `@vis.gl/react-maplibre`) with the CARTO
+  Positron VECTOR style** (`basemaps.cartocdn.com/gl/positron-gl-style`) —
+  the vector twin of the app MapScreen's `light_all` raster basemap: same
+  design language, still keyless/free, crisper rendering and smooth zoom.
+  This is the open-source equivalent of the Woosmap+OpenMapTiles stack
+  Planity buys (renderer upgrade decided by the user 2026-07-10; Leaflet
+  removed). **Dynamically imported with `ssr: false`** so the chunk (larger
+  than Leaflet's — the WebGL trade-off, accepted) loads only on `/recherche`
+  (noindex, force-dynamic — public-page CWV budgets untouched).
+  Markers are **plain React elements replicating `_SalonMarker`**: a 44 px
+  white-circle button (keyboard-focusable, aria-labelled), 2 px
+  category-color ring, the category icon (Material spa / content_cut /
+  face / store paths) — §7 tokens from `styles/tokens.ts` via
+  `currentColor`; active state is just a class (`.is-active`; scale on the
+  pin — MapLibre owns the wrapper transform). « Autour de moi » drops the
+  app's 22 px info-blue user dot and flies to the user. **Popup gotcha
+  (learned the hard way):** the selecting click bubbles to the map AFTER
+  React mounts the popup, so the default `closeOnClick` closes it within
+  the same gesture — the popup sets `closeOnClick={false}` (deselect = ✕
+  or another marker). MapLibre observes its container size natively, so
+  the mobile toggle's display:none mount needs no manual resize handling.
+  Note: markers/popups render even if the style fetch fails (DOM overlay,
+  not canvas) — the hermetic e2e aborts the CARTO host and still exercises
+  the full interaction. CARTO's free basemap policy is fine at our
+  traffic; swap the style URL to a paid host (e.g. MapTiler) if volume
   grows (noted, not built).
 - Page stays a **server component** (same `searchProviders` fetch, same
   noindex) → passes results to a client `RechercheClient` (chips + list +

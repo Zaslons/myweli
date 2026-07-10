@@ -57,9 +57,9 @@ body {
 
 /* Discovery-map salon markers (docs/design/web-discovery-map.md §2) — the
    app's _SalonMarker: white circle, 2px category-color ring, category icon.
-   Scale lives on the INNER pin (Leaflet positions the root via transform).
-   Colors arrive inline from the §7 tokens (lib/discovery/map.ts). */
-.myweli-marker .myweli-pin {
+   Scale lives on the pin itself (MapLibre positions the marker wrapper via
+   transform). Colors arrive inline from the §7 tokens (lib/discovery/map.ts). */
+.myweli-pin {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -69,13 +69,17 @@ body {
   background: theme('colors.secondary');
   border: 2px solid currentColor;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+  cursor: pointer;
   transition: transform 0.15s ease;
 }
-.myweli-marker.is-active {
-  z-index: 1000 !important; /* above sibling markers (Leaflet inlines z-index) */
-}
-.myweli-marker.is-active .myweli-pin {
+.myweli-pin.is-active {
   transform: scale(1.25);
+}
+/* MapLibre popup content on the app tokens. */
+.maplibregl-popup-content {
+  border-radius: theme('borderRadius.lg');
+  padding: theme('spacing.m');
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.2);
 }
 /* The app's user-location dot: info-blue, 3px white ring. */
 .myweli-user-dot {

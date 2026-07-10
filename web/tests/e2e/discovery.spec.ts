@@ -57,7 +57,7 @@ test('/recherche desktop: list + sticky map, marker → mini-card + card ring', 
 
   // Split view: the list and the map pane are both visible on desktop.
   await expect(page.getByText('Beauté Divine').first()).toBeVisible();
-  await expect(page.locator('.leaflet-container')).toBeVisible();
+  await expect(page.locator('.maplibregl-map')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Autour de moi' })).toBeVisible();
 
   // Category chips re-query with the type filter.
@@ -66,10 +66,10 @@ test('/recherche desktop: list + sticky map, marker → mini-card + card ring', 
   // Click the salon's marker → popup mini-card + the list card highlights.
   await page.locator('.myweli-marker').first().click();
   await expect(
-    page.locator('.leaflet-popup').getByText('Beauté Divine'),
+    page.locator('.maplibregl-popup').getByText('Beauté Divine'),
   ).toBeVisible();
   await expect(
-    page.locator('.leaflet-popup').getByRole('link', { name: 'Voir le salon' }),
+    page.locator('.maplibregl-popup').getByRole('link', { name: 'Voir le salon' }),
   ).toHaveAttribute('href', '/beaute-divine');
   await expect(page.locator('.ring-2')).toBeVisible();
 });
@@ -83,7 +83,7 @@ test('/recherche mobile: « Carte » toggle flips to the map and back', async ({
 
   await expect(page.getByText('Beauté Divine').first()).toBeVisible();
   await page.getByRole('button', { name: 'Carte', exact: true }).click();
-  await expect(page.locator('.leaflet-container')).toBeVisible();
+  await expect(page.locator('.maplibregl-map')).toBeVisible();
   await page.getByRole('button', { name: 'Liste', exact: true }).click();
   await expect(page.getByText('Beauté Divine').first()).toBeVisible();
 });
