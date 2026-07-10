@@ -5,6 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/me/provider/index.dart' as me_provider;
@@ -40,6 +41,9 @@ void main() {
       when(() => c.read<TokenService>()).thenReturn(tokens);
       when(() => c.read<ProviderAuthRepository>()).thenReturn(auth);
       when(() => c.read<ProvidersRepository>()).thenReturn(providers);
+      when(
+        () => c.read<SalonProvisioningService>(),
+      ).thenReturn(SalonProvisioningService(providers, auth));
       return c;
     }
 
@@ -81,14 +85,30 @@ void main() {
       expect(res.statusCode, HttpStatus.forbidden);
     });
 
-    test('provider with no linked salon → 403', () async {
+    test('no linked salon → SELF-HEALS: a draft salon is created + linked '
+        '(pro-salon-lifecycle.md §2)', () async {
+      final account = _account(providerId: null);
+      when(() => auth.accountById('acc1')).thenAnswer((_) async => account);
+      final draft = {'id': 'p_new', 'name': 'Salon Awa', 'status': 'draft'};
       when(
-        () => auth.accountById('acc1'),
-      ).thenAnswer((_) async => _account(providerId: null));
+        () => providers.createSalon(
+          name: 'Salon Awa',
+          category: 'salon',
+          phoneNumber: '+2250700000009',
+          address: null,
+        ),
+      ).thenAnswer((_) async => draft);
+      when(() => auth.linkProvider('acc1', 'p_new')).thenAnswer((_) async {});
+      when(() => providers.byId('p_new')).thenAnswer((_) async => draft);
+
       final res = await me_provider.onRequest(
         ctx(req('GET', token: tok('acc1', 'provider'))),
       );
-      expect(res.statusCode, HttpStatus.forbidden);
+      expect(res.statusCode, HttpStatus.ok);
+      final m = await res.json() as Map;
+      expect((m['account'] as Map)['providerId'], 'p_new');
+      expect((m['provider'] as Map)['status'], 'draft');
+      verify(() => auth.linkProvider('acc1', 'p_new')).called(1);
     });
 
     test('linked salon missing → 404', () async {

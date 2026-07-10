@@ -8,6 +8,8 @@ import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/auth/provider/email/otp/request.dart' as pe_request;
@@ -214,12 +216,14 @@ void main() {
 
   group('routes', () {
     late InMemoryProviderAuthRepository repo;
+    late InMemoryProvidersRepository salons;
     late AuthMethods methods;
     late GoogleIdTokenVerifier google;
     late EmailProvider email;
 
     setUp(() {
       repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      salons = InMemoryProvidersRepository([]);
       methods = const AuthMethods(AuthMethods.defaults);
       google = _FakeGoogle(_googleClaims);
       email = LogEmailProvider();
@@ -232,6 +236,9 @@ void main() {
       when(() => context.read<AuthMethods>()).thenReturn(methods);
       when(() => context.read<GoogleIdTokenVerifier>()).thenReturn(google);
       when(() => context.read<EmailProvider>()).thenReturn(email);
+      when(
+        () => context.read<SalonProvisioningService>(),
+      ).thenReturn(SalonProvisioningService(salons, repo));
       return context;
     }
 
@@ -264,6 +271,17 @@ void main() {
         expect((body['provider'] as Map)['businessName'], 'Élégance');
         expect(body['accessToken'], isNotEmpty);
         expect(body['refreshToken'], isNotEmpty);
+
+        // Salon lifecycle (pro-salon-lifecycle.md): registration PROVISIONS
+        // a linked DRAFT salon — the dashboard works from second one.
+        final providerId = (body['provider'] as Map)['providerId'] as String?;
+        expect(providerId, isNotNull);
+        final salon = await salons.byId(providerId!);
+        expect(salon, isNotNull);
+        expect(salon!['status'], 'draft');
+        expect(salon['name'], 'Élégance');
+        // …and drafts are NOT discoverable (T51).
+        expect(await salons.query(), isEmpty);
 
         final dup = await p_register.onRequest(
           ctx(

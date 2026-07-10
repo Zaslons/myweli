@@ -16,7 +16,8 @@ Future<Response> onRequest(RequestContext context, String slug) async {
   }
 
   final provider = await context.read<ProvidersRepository>().bySlug(slug);
-  if (provider == null) {
+  // Drafts are unpublished — never public, not even by direct slug (T51).
+  if (provider == null || provider['status'] == 'draft') {
     return Response.json(
       statusCode: HttpStatus.notFound,
       body: {'error': 'not_found'},

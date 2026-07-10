@@ -14,6 +14,14 @@ import '../auth/tokens.dart';
 /// before login; provider-role JWT on verify) expressed in SQL, parameterized.
 /// OTP lives in its own table so it can't collide with consumer OTPs.
 class PostgresProviderAuthRepository implements ProviderAuthRepository {
+  @override
+  Future<void> linkProvider(String accountId, String providerId) async {
+    await _pool.execute(
+      Sql.named('UPDATE provider_users SET provider_id = @pid WHERE id = @id'),
+      parameters: {'pid': providerId, 'id': accountId},
+    );
+  }
+
   PostgresProviderAuthRepository(
     this._pool, {
     required TokenService tokens,

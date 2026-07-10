@@ -591,6 +591,9 @@ paths:
         `idToken` (Google) · `identityToken` (+`nonce`) (Apple) · `email`+`code`
         (email OTP via /auth/provider/email/otp/request). The contact
         `phoneNumber` is REQUIRED. Returns a live ProviderSession (201).
+        Also provisions the account's linked DRAFT salon (publicly invisible
+        until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy
+        salon-less accounts self-heal on `GET /me/provider`).
         Design: docs/design/pro-auth-social.md.
       requestBody:
         required: true
@@ -1206,6 +1209,45 @@ paths:
                   page: { type: integer }
                   pageSize: { type: integer }
                   total: { type: integer }
+
+  /providers/{id}/publish:
+    post:
+      tags: [providers]
+      summary: Take the salon live (pro-salon-lifecycle)
+      description: >
+        Owner-only (the token's account must own {id} — T50). Flips the salon
+        from `draft` to `active` when the server-computed go-live gate passes
+        (PRD FR-PRO-ONB-001): profile (description + address + commune), ≥3
+        active services, ≥3 photos, at least one open weekday. Incomplete →
+        409 `incomplete` with the missing checklist keys. Idempotent for an
+        already-active salon. Drafts are invisible on every public surface
+        (discovery, by-slug, sitemap) and refuse bookings (T51).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The (now) active provider
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Provider' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The go-live gate failed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, missing]
+                properties:
+                  error: { type: string, enum: [incomplete] }
+                  missing:
+                    type: array
+                    items:
+                      type: string
+                      enum: [profile, services, photos, availability]
 
   /providers/{id}/deposit-policy:
     parameters:

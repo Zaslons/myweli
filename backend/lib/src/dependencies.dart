@@ -71,6 +71,7 @@ import 'push/push_provider.dart';
 import 'push/push_service.dart';
 import 'reviews_repository.dart';
 import 'reviews_service.dart';
+import 'salon_provisioning_service.dart';
 import 'storage/storage_service.dart';
 import 'upload_signing_service.dart';
 
@@ -335,6 +336,11 @@ final UploadSigningService uploadSigningService = UploadSigningService(
 );
 
 final KycService kycService = KycService(providerAuthRepository);
+
+/// Salon lifecycle (docs/design/pro-salon-lifecycle.md): draft creation at
+/// registration + the /me/provider self-heal + the publish gate.
+final SalonProvisioningService salonProvisioningService =
+    SalonProvisioningService(providersRepository, providerAuthRepository);
 
 final DepositService depositService = DepositService(
   appointmentRepository,
