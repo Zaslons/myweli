@@ -647,6 +647,27 @@ ON CONFLICT DO NOTHING''',
           'arrived_at timestamptz',
     ],
   ),
+  (
+    id: '0026_per_artist_capacity',
+    statements: [
+      // Capacity model (docs/design/booking-capacity-web-hub.md): a salon is
+      // no longer one chair. Collisions are enforced PER ARTIST; unassigned
+      // (« Sans préférence ») bookings are pool-counted app-side (§2.2).
+      'ALTER TABLE appointments DROP CONSTRAINT IF EXISTS '
+          'appointments_no_overlap',
+      'DROP INDEX IF EXISTS appointments_slot_unique',
+      'CREATE UNIQUE INDEX IF NOT EXISTS appointments_artist_slot_unique '
+          'ON appointments (provider_id, artist_id, appointment_date) '
+          "WHERE status IN ('pending', 'confirmed') AND artist_id IS NOT NULL",
+      '''
+ALTER TABLE appointments ADD CONSTRAINT appointments_artist_no_overlap
+  EXCLUDE USING gist (
+    provider_id WITH =,
+    artist_id WITH =,
+    tstzrange(appointment_date, ends_at) WITH &&
+  ) WHERE (status IN ('pending', 'confirmed') AND artist_id IS NOT NULL)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

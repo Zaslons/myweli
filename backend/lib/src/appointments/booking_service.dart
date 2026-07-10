@@ -78,11 +78,17 @@ class BookingService {
 
     // The server decides availability: the requested time must be a free slot
     // (rejects past/closed/break/already-booked, and non-aligned times).
+    // Capacity model (booking-capacity-web-hub.md): the check is per-artist
+    // when one is chosen; « Sans préférence » needs a free capable chair.
     final slotResult = await _slots.availableSlots(
       providerId: providerId,
       date: appointmentDateTime,
       serviceIds: serviceIds,
+      artistId: artistId,
     );
+    if (!slotResult.ok) {
+      return (ok: false, error: slotResult.error, appointment: null);
+    }
     final wanted = appointmentDateTime.toUtc();
     final isFree = (slotResult.slots ?? const []).any(
       (s) => s.isAtSameMomentAs(wanted),
@@ -130,9 +136,10 @@ class BookingService {
   /// created **`confirmed`** with **no online deposit** and a sentinel
   /// `userId` (`'manual'` — no app account). Unlike [book] it does **not**
   /// validate the slot engine — the salon owns its calendar — so any time
-  /// (past/now/future, off-grid) is allowed; the DB partial unique index still
-  /// rejects an exact-start collision with a non-cancelled booking
-  /// (→ `slot_unavailable`). Authz (the caller manages [providerId]) is the
+  /// (past/now/future, off-grid) is allowed; the PER-ARTIST DB guards
+  /// (migration 0026) still reject a same-artist collision
+  /// (→ `slot_unavailable`); unassigned manual bookings are unguarded by
+  /// design (§2.2 of booking-capacity-web-hub.md — the salon's own entry). Authz (the caller manages [providerId]) is the
   /// route's responsibility. (Design: docs/design/pro-manual-booking.md.)
   Future<BookingResult> bookManual({
     required String providerId,

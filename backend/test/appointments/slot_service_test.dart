@@ -257,4 +257,242 @@ void main() {
       );
     });
   });
+
+  group('SlotService — per-artist capacity (booking-capacity-web-hub.md)', () {
+    Map<String, dynamic> salonWithArtists({
+      Map<String, dynamic>? awaHours,
+      List<String> tressesArtists = const ['awa', 'binta'],
+    }) => {
+      'id': 'cap1',
+      'name': 'Salon Capacité',
+      'status': 'active',
+      'services': [
+        {
+          'id': 's-tresses',
+          'name': 'Tresses',
+          'price': 10000,
+          'durationMinutes': 60,
+          'artistIds': tressesArtists,
+          'active': true,
+        },
+        {
+          'id': 's-soin',
+          'name': 'Soin',
+          'price': 5000,
+          'durationMinutes': 30,
+          'artistIds': <String>[], // unrestricted
+          'active': true,
+        },
+      ],
+      'artists': [
+        {'id': 'awa', 'name': 'Awa', 'workingHours': awaHours ?? {}},
+        {'id': 'binta', 'name': 'Binta', 'workingHours': <String, dynamic>{}},
+      ],
+      'availability': {
+        'weeklySchedule': {
+          for (var day = 0; day <= 5; day++)
+            '$day': [
+              for (var m = 9 * 60; m < 18 * 60; m += 30)
+                {
+                  'startTime': DateTime.utc(
+                    2024,
+                    1,
+                    1,
+                    m ~/ 60,
+                    m % 60,
+                  ).toIso8601String(),
+                  'endTime': DateTime.utc(
+                    2024,
+                    1,
+                    1,
+                    m ~/ 60,
+                    m % 60,
+                  ).add(const Duration(minutes: 30)).toIso8601String(),
+                  'isAvailable': true,
+                },
+            ],
+        },
+        'blockedDates': <String>[],
+        'bufferMinutes': 0,
+      },
+      'cancellationWindowHours': 24,
+    };
+
+    late SlotService capSlots;
+
+    Future<void> seedBooking({
+      required String id,
+      String? artistId,
+      required int hour,
+      int minutes = 60,
+      String status = 'confirmed',
+    }) => appts.create({
+      'id': id,
+      'userId': 'u1',
+      'providerId': 'cap1',
+      'serviceIds': ['s-tresses'],
+      'artistId': artistId,
+      'appointmentDate': DateTime.utc(
+        date.year,
+        date.month,
+        date.day,
+        hour,
+      ).toIso8601String(),
+      'durationMinutes': minutes,
+      'status': status,
+      'totalPrice': 10000,
+      'createdAt': DateTime.utc(2026).toIso8601String(),
+    });
+
+    SlotService build([Map<String, dynamic>? salon]) => SlotService(
+      InMemoryProvidersRepository([salon ?? salonWithArtists()]),
+      appts,
+    );
+
+    bool has(SlotResult r, int hour) =>
+        (r.slots ?? const []).any((s) => _minuteOf(s) == hour * 60);
+
+    test('one artist busy → their slot is gone, the other + « Sans '
+        'préférence » stay', () async {
+      capSlots = build();
+      await seedBooking(id: 'b1', artistId: 'awa', hour: 10);
+
+      final awa = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+        artistId: 'awa',
+      );
+      expect(has(awa, 10), isFalse);
+
+      final binta = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+        artistId: 'binta',
+      );
+      expect(has(binta, 10), isTrue);
+
+      final anyone = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+      );
+      expect(has(anyone, 10), isTrue); // one chair left
+    });
+
+    test(
+      'ALL chairs busy → « Sans préférence » is NOT bookable either',
+      () async {
+        capSlots = build();
+        await seedBooking(id: 'b1', artistId: 'awa', hour: 10);
+        await seedBooking(id: 'b2', artistId: 'binta', hour: 10);
+
+        final anyone = await capSlots.availableSlots(
+          providerId: 'cap1',
+          date: date,
+          serviceIds: ['s-tresses'],
+        );
+        expect(has(anyone, 10), isFalse);
+        expect(has(anyone, 14), isTrue); // the rest of the day stays open
+      },
+    );
+
+    test('an UNASSIGNED booking consumes one chair from the pool', () async {
+      capSlots = build();
+      await seedBooking(id: 'b1', artistId: null, hour: 10);
+
+      // One chair left → still bookable for anyone…
+      final anyone = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+      );
+      expect(has(anyone, 10), isTrue);
+
+      // …but a second unassigned exhausts the pool.
+      await seedBooking(id: 'b2', artistId: null, hour: 10);
+      final full = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+      );
+      expect(has(full, 10), isFalse);
+
+      // And a specific artist is blocked too — the unassigned bookings need
+      // both chairs.
+      final awa = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+        artistId: 'awa',
+      );
+      expect(has(awa, 10), isFalse);
+    });
+
+    test('capability: a service restricted to Awa never books Binta', () async {
+      capSlots = build(salonWithArtists(tressesArtists: ['awa']));
+      final binta = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+        artistId: 'binta',
+      );
+      expect(binta.slots, isEmpty);
+
+      // Pool for « Sans préférence » = only Awa → one assigned booking on
+      // Awa kills the slot.
+      await seedBooking(id: 'b1', artistId: 'awa', hour: 10);
+      final anyone = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+      );
+      expect(has(anyone, 10), isFalse);
+    });
+
+    test('artist working hours constrain THEIR slots (others inherit salon '
+        'hours)', () async {
+      // Awa works only 14:00–18:00 on every day the salon opens.
+      final afternoon = {
+        for (var day = 0; day <= 5; day++)
+          '$day': [
+            {
+              'startTime': DateTime.utc(2024, 1, 1, 14).toIso8601String(),
+              'endTime': DateTime.utc(2024, 1, 1, 18).toIso8601String(),
+              'isAvailable': true,
+            },
+          ],
+      };
+      capSlots = build(salonWithArtists(awaHours: afternoon));
+
+      final awa = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+        artistId: 'awa',
+      );
+      expect(has(awa, 10), isFalse); // outside her hours
+      expect(has(awa, 14), isTrue);
+
+      final binta = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        serviceIds: ['s-tresses'],
+        artistId: 'binta',
+      );
+      expect(has(binta, 10), isTrue); // inherits salon hours
+    });
+
+    test('unknown artist → invalid_artist', () async {
+      capSlots = build();
+      final r = await capSlots.availableSlots(
+        providerId: 'cap1',
+        date: date,
+        artistId: 'ghost',
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'invalid_artist');
+    });
+  });
 }

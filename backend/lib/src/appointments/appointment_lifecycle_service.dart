@@ -97,11 +97,20 @@ class AppointmentLifecycleService {
     DateTime newDateTime, {
     String? artistId,
   }) async {
+    // Capacity model: validate against the TARGET artist's calendar (the
+    // drag's new column when given, else the booking's current artist).
+    final effectiveArtist = (artistId != null && artistId.isNotEmpty)
+        ? artistId
+        : appointment['artistId'] as String?;
     final slotResult = await _slots.availableSlots(
       providerId: appointment['providerId'] as String,
       date: newDateTime,
       serviceIds: (appointment['serviceIds'] as List).cast<String>(),
+      artistId: effectiveArtist,
     );
+    if (!slotResult.ok) {
+      return (ok: false, error: slotResult.error, appointment: null);
+    }
     final wanted = newDateTime.toUtc();
     final isFree = (slotResult.slots ?? const []).any(
       (s) => s.isAtSameMomentAs(wanted),
