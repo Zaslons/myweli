@@ -464,6 +464,8 @@ export async function createManualBooking(
     artistId?: string;
     clientName?: string;
     clientPhone?: string;
+    notes?: string;
+    sendSmsInvite?: boolean;
   },
 ): Promise<{ ok: boolean; status: number; appt?: ProAppointment; error?: string }> {
   const res = await fetch('/api/pro/appointments', {

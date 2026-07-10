@@ -15,6 +15,7 @@ import { getJournalDay } from '../../lib/api/pro';
 import type { JournalDay } from '../../lib/pro/journal';
 import type { ProAppointment } from '../../lib/pro/today';
 import { JournalGrid } from './JournalGrid';
+import { ManualBookingDialog } from './ManualBookingDialog';
 import { MonthCalendar } from './MonthCalendar';
 import { ProAppointmentRow } from './ProAppointmentRow';
 
@@ -42,6 +43,7 @@ export function RendezVousClient() {
   const [focused, setFocused] = useState<Date>(new Date());
   const [selected, setSelected] = useState<string>(dateKey(new Date()));
   const [listTab, setListTab] = useState<ListTab>('today');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -95,7 +97,18 @@ export function RendezVousClient() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Rendez-vous</h1>
+      <div className="flex flex-wrap items-center justify-between gap-s">
+        <h1 className="text-2xl font-semibold text-textPrimary">Rendez-vous</h1>
+        {profile ? (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="rounded-lg bg-primary px-m py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+          >
+            + Nouveau rendez-vous
+          </button>
+        ) : null}
+      </div>
 
       <div className="mt-l flex gap-s border-b border-divider">
         {(['journal', 'calendar', 'list'] as View[]).map((v) => (
@@ -246,6 +259,22 @@ export function RendezVousClient() {
           </div>
         </div>
       )}
+      {creating && profile ? (
+        <ManualBookingDialog
+          providerId={profile.provider.id}
+          profile={profile}
+          initialDate={view === 'journal' ? journalDate : undefined}
+          onClose={() => setCreating(false)}
+          onCreated={async () => {
+            setCreating(false);
+            setToast('Rendez-vous créé');
+            loadJournal();
+            const appts = await listProAppointments();
+            if (appts.status === 200) setItems(appts.items);
+          }}
+          onToast={setToast}
+        />
+      ) : null}
       {toast ? (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
           {toast}

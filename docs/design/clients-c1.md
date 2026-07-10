@@ -159,8 +159,9 @@ Mirrors the app flow, desktop-adapted (sidebar nav entry « Clients »):
   same four states + educational empty.
 - Card at `/pro/clients/[id]`: two-column desktop layout (identity+notes left,
   stats+history right); phone shown with `tel:`/`wa.me` links; « Nouveau
-  rendez-vous » CTA **omitted on web** (no web manual booking yet — the gap is
-  called out per the parity rule, revisit with J1).
+  rendez-vous » CTA **added 2026-07-10** — opens the manual-booking dialog
+  pre-picked with the client
+  ([web-manual-booking.md](web-manual-booking.md); deferral closed).
 - Accept flow on `/pro/rendez-vous/[id]`: same badge chip next to the client
   name.
 - Data via the typed generated client through the existing pro BFF/session

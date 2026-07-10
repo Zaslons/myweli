@@ -1,4 +1,13 @@
-import { expect, test } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
+
+async function proLogin(page: Page) {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+}
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
   await page.goto('/pro');
@@ -347,9 +356,14 @@ test('journal grid: quick-create from an empty cell books a client', async ({
   ).toBeVisible();
 
   const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  // Multi-service (web-manual-booking.md): both prestations + a note.
+  await dialog.getByRole('checkbox').first().check();
+  await dialog.getByRole('checkbox').nth(1).check();
+  await expect(dialog.getByText(/20\s?000/)).toBeVisible(); // running total
   await dialog
     .getByLabel('Rechercher ou nommer le client')
     .fill('Nouvelle Cliente');
+  await dialog.getByLabel('Note').fill('Vient avec ses mèches');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   // Back to the grid (dialog closed).
   await expect(
@@ -409,4 +423,40 @@ test('pro connexion links to registration; consumer connexion says sign-up', asy
   await expect(
     page.getByText('Votre compte est créé automatiquement'),
   ).toBeVisible();
+});
+
+test('« + Nouveau rendez-vous » on /pro/rendez-vous books standalone (web-manual-booking.md)', async ({
+  page,
+}) => {
+  await proLogin(page);
+  await page.goto('/pro/rendez-vous');
+  await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await dialog.getByRole('checkbox').first().check();
+  // Standalone entry → the dialog owns date & time (future-only).
+  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-01');
+  await dialog.getByLabel('Heure du rendez-vous').fill('11:00');
+  await dialog
+    .getByLabel('Rechercher ou nommer le client')
+    .fill('Cliente Standalone');
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(page.getByText('Rendez-vous créé')).toBeVisible();
+});
+
+test('client card: « Nouveau rendez-vous » opens the dialog pre-picked (C1b deferral closed)', async ({
+  page,
+}) => {
+  await proLogin(page);
+  await page.goto('/pro/clients/sc1');
+  await expect(page.getByRole('heading', { name: /Koffi/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Nouveau rendez-vous' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
+  await expect(dialog.getByText(/Koffi/)).toBeVisible(); // pre-picked client
+  await dialog.getByRole('checkbox').first().check();
+  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-01');
+  await dialog.getByLabel('Heure du rendez-vous').fill('15:00');
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
