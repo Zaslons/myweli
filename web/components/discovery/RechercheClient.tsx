@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Provider } from '../../lib/api/providers';
 import { categoryList } from '../../lib/landing';
 import { withCoords } from '../../lib/discovery/map';
+import { HomeSearch } from '../home/HomeSearch';
 import { ProviderCard } from '../provider/ProviderCard';
 
 // Leaflet is browser-only → client-side dynamic import; the chunk loads only
@@ -14,23 +15,27 @@ const ResultsMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center rounded-xl border border-border bg-surface">
+      <div className="flex h-full w-full items-center justify-center bg-surfaceVariant">
         <p className="text-sm text-textSecondary">Chargement de la carte…</p>
       </div>
     ),
   },
 );
 
-/// The /recherche split view (docs/design/web-discovery-map.md §2): category
-/// chips over the results list (left) + the sticky map (right) on desktop;
-/// a floating « Carte »/« Liste » toggle on mobile web. Two-way sync: card
+/// The /recherche split view (docs/design/web-discovery-map.md §2), Planity-
+/// style: search + chips + results in the LEFT column, the map FULL-BLEED on
+/// the right — no frame, flush to the viewport edges, pinning to the full
+/// screen height as the list scrolls. Mobile web keeps the list + a floating
+/// « Carte »/« Liste » toggle to an edge-to-edge map. Two-way sync: card
 /// hover highlights the marker; a marker click selects + scrolls its card.
 export function RechercheClient({
+  title,
   results,
   q,
   commune,
   category,
 }: {
+  title: string;
   results: Provider[];
   q: string;
   commune: string;
@@ -61,79 +66,79 @@ export function RechercheClient({
     return `/recherche${s ? `?${s}` : ''}`;
   };
 
-  const list = (
-    <div>
-      <p className="text-sm text-textTertiary">
-        {results.length} salon{results.length > 1 ? 's' : ''}
-      </p>
-      <div className="mt-m space-y-m">
-        {results.length === 0 ? (
-          <div className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-            Aucun salon trouvé. Essayez une autre recherche ou une autre
-            commune.
-          </div>
-        ) : (
-          results.map((p) => (
-            <div
-              key={p.id}
-              ref={(el) => {
-                cardRefs.current[p.id] = el;
-              }}
-              onMouseEnter={() => setHoveredId(p.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              className={
-                selectedId === p.id
-                  ? 'rounded-xl ring-2 ring-primary'
-                  : undefined
-              }
-            >
-              <ProviderCard provider={p} />
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
   return (
-    <div>
-      {/* Category chips — « filter by type » without retyping the search. */}
-      <div className="mt-m flex flex-wrap gap-s" aria-label="Catégories">
-        <a
-          href={chipHref(null)}
-          className={`rounded-full border px-m py-xs text-sm ${
-            !category
-              ? 'border-primary bg-primary text-secondary'
-              : 'border-border bg-surface text-textPrimary'
-          }`}
-        >
-          Tous
-        </a>
-        {categoryList.map((c) => (
+    <div className="lg:grid lg:grid-cols-[minmax(0,55%)_minmax(0,1fr)]">
+      {/* LEFT — search header + chips + the results list (scrolls with the page). */}
+      <div
+        className={`px-m py-l lg:px-l ${mobileView === 'map' ? 'hidden lg:block' : ''}`}
+      >
+        <h1 className="text-2xl font-semibold text-textPrimary">{title}</h1>
+        <div className="mt-m">
+          <HomeSearch defaultService={q} defaultCommune={commune} />
+        </div>
+
+        {/* Category chips — « filter by type » without retyping the search. */}
+        <div className="mt-m flex flex-wrap gap-s" aria-label="Catégories">
           <a
-            key={c.apiKey}
-            href={chipHref(c.apiKey)}
+            href={chipHref(null)}
             className={`rounded-full border px-m py-xs text-sm ${
-              category === c.apiKey
+              !category
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textPrimary'
             }`}
           >
-            {c.label}
+            Tous
           </a>
-        ))}
+          {categoryList.map((c) => (
+            <a
+              key={c.apiKey}
+              href={chipHref(c.apiKey)}
+              className={`rounded-full border px-m py-xs text-sm ${
+                category === c.apiKey
+                  ? 'border-primary bg-primary text-secondary'
+                  : 'border-border bg-surface text-textPrimary'
+              }`}
+            >
+              {c.label}
+            </a>
+          ))}
+        </div>
+
+        <p className="mt-m text-sm text-textTertiary">
+          {results.length} salon{results.length > 1 ? 's' : ''}
+        </p>
+        <div className="mt-m space-y-m">
+          {results.length === 0 ? (
+            <div className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
+              Aucun salon trouvé. Essayez une autre recherche ou une autre
+              commune.
+            </div>
+          ) : (
+            results.map((p) => (
+              <div
+                key={p.id}
+                ref={(el) => {
+                  cardRefs.current[p.id] = el;
+                }}
+                onMouseEnter={() => setHoveredId(p.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                className={
+                  selectedId === p.id
+                    ? 'rounded-xl ring-2 ring-primary'
+                    : undefined
+                }
+              >
+                <ProviderCard provider={p} />
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      {/* Desktop: list left + sticky map right. Mobile: the toggle decides. */}
-      <div className="mt-m lg:grid lg:grid-cols-[minmax(0,58%)_minmax(0,1fr)] lg:items-start lg:gap-l">
-        <div className={mobileView === 'map' ? 'hidden lg:block' : ''}>
-          {list}
-        </div>
-        <div
-          className={`${
-            mobileView === 'map' ? 'block' : 'hidden'
-          } h-[65vh] lg:sticky lg:top-20 lg:block lg:h-[calc(100vh-6.5rem)]`}
-        >
+      {/* RIGHT — the map, part of the screen: no frame, flush to the right
+          edge, full viewport height once the (non-sticky) header scrolls by. */}
+      <div className={mobileView === 'map' ? 'block' : 'hidden lg:block'}>
+        <div className="h-[calc(100dvh-6.5rem)] lg:sticky lg:top-0 lg:h-screen">
           <ResultsMap
             items={mappable}
             hoveredId={hoveredId}
@@ -147,7 +152,7 @@ export function RechercheClient({
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
-        className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-full bg-primary px-l py-s text-sm font-medium text-secondary shadow-lg lg:hidden"
+        className="fixed bottom-6 left-1/2 z-[1100] -translate-x-1/2 rounded-full bg-primary px-l py-s text-sm font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>

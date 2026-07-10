@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { RechercheClient } from '../../components/discovery/RechercheClient';
-import { HomeSearch } from '../../components/home/HomeSearch';
 import { searchProviders } from '../../lib/api/providers';
 
 // Results are query-dependent + thin → render on demand, noindex (the indexed
@@ -34,14 +33,12 @@ export default async function RecherchePage({
       : 'Tous les salons';
 
   return (
-    <main className="mx-auto max-w-7xl px-m py-l">
-      <h1 className="text-2xl font-semibold text-textPrimary">{title}</h1>
-      <div className="mt-m max-w-3xl">
-        <HomeSearch defaultService={q} defaultCommune={commune} />
-      </div>
-      {/* The split view: list + sticky discovery map
-          (docs/design/web-discovery-map.md). */}
+    // Full-width — the map is part of the screen (no container box); the
+    // search header lives inside the split's left column
+    // (docs/design/web-discovery-map.md §2).
+    <main>
       <RechercheClient
+        title={title}
         results={results}
         q={q}
         commune={commune}
