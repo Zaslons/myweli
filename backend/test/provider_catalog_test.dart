@@ -914,6 +914,48 @@ void main() {
       );
     });
 
+    test('profile: the map pin + category (pro-salon-lifecycle L1)', () async {
+      // A valid pair lands.
+      final ok = await catalog.updateProfile(accountId, 'provider1', {
+        'latitude': 5.3601,
+        'longitude': -3.9905,
+        'category': 'barber',
+      });
+      expect(ok.ok, isTrue);
+      final p = (await providers.byId('provider1'))!;
+      expect(p['latitude'], 5.3601);
+      expect(p['longitude'], -3.9905);
+      expect(p['category'], 'barber');
+
+      // Half a pair, out-of-range, junk category → invalid_input.
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'latitude': 5.36,
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'latitude': 123.0,
+          'longitude': -3.99,
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'latitude': '5.36',
+          'longitude': '-3.99',
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'category': 'bank',
+        })).error,
+        'invalid_input',
+      );
+    });
+
     test('route PATCH: 200 owner · 401 anon · 405 bad verb', () async {
       final ok = await provider_route.onRequest(
         ctx(req('PATCH', bearer: token, body: {'name': 'Salon Z'})),

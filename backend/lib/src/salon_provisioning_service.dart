@@ -47,6 +47,10 @@ class SalonProvisioningService {
     if (description.isEmpty || address.isEmpty || commune.isEmpty) {
       missing.add('profile');
     }
+    // The map pin (L1) — no coordinates, no listing on the discovery map.
+    if (provider['latitude'] == null || provider['longitude'] == null) {
+      missing.add('location');
+    }
     final services = ((provider['services'] as List?) ?? const [])
         .cast<Map<String, dynamic>>()
         .where((s) => s['active'] != false)

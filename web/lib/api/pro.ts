@@ -38,6 +38,9 @@ export type ProProfile = {
     name: string;
     slug?: string;
     status?: 'draft' | 'active' | 'suspended';
+    category?: string;
+    latitude?: number | null;
+    longitude?: number | null;
     description?: string;
     address?: string;
     commune?: string | null;
