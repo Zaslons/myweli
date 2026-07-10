@@ -74,6 +74,9 @@ const provider = {
   ],
 };
 
+// Web KYC (web-pro-kyc.md) — mutable status + submitted docs.
+const kycState = { status: 'pending', documents: [], rejectionReason: null };
+
 // K2: a deposit-required salon for the pay-later proof-upload journey.
 const depositProvider = {
   ...JSON.parse(JSON.stringify(provider)),
@@ -492,11 +495,26 @@ createServer(async (req, res) => {
       account: {
         id: 'acc1',
         businessName: 'Beauté Divine',
+        businessType: 'other',
         phoneNumber: '+2250700000000',
+        verificationStatus: kycState.status,
         providerId: 'p1',
       },
       provider: proProvider,
     });
+  }
+  // KYC (web-pro-kyc.md) — stateful: POST stores the docs, stays pending.
+  if (url.pathname === '/me/kyc') {
+    if (req.method === 'POST') {
+      const b = await readBody(req);
+      kycState.documents = (b.documents ?? []).map((d) => ({
+        ...d,
+        submittedAt: todayAt9,
+      }));
+      kycState.status = 'pending';
+      return json(res, 200, kycState);
+    }
+    return json(res, 200, kycState);
   }
   // catalogue services CRUD (7.3a) — mutates the pro salon copy.
   const svcMatch = url.pathname.match(
@@ -562,6 +580,14 @@ createServer(async (req, res) => {
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
         fields: {},
         key: `deposit/u1/${imgSeq++}.jpg`,
+      });
+    }
+    if (b.purpose === 'kyc') {
+      return json(res, 200, {
+        method: 'POST',
+        uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
+        fields: {},
+        key: `kyc/acc1/${imgSeq++}.jpg`,
       });
     }
     return json(res, 200, {

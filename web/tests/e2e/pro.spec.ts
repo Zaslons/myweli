@@ -478,3 +478,43 @@ test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async (
   await expect(page.getByText('Mariam')).toBeVisible();
   await expect(page.getByAltText('Photo de l’avis')).toBeVisible();
 });
+
+test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc.md)', async ({
+  page,
+}) => {
+  await proLogin(page);
+  await page.goto('/pro/profil');
+  await page.getByRole('link', { name: /Vérification/ }).click();
+  await expect(page).toHaveURL(/\/pro\/verification/);
+  await expect(page.getByText('Vérification en attente')).toBeVisible();
+
+  // businessType 'other' → the RCCM is optional; ID + selfie required.
+  await expect(
+    page.getByText('Registre de commerce (RCCM) (optionnel)'),
+  ).toBeVisible();
+  const submit = page.getByRole('button', {
+    name: 'Soumettre pour vérification',
+  });
+  await expect(submit).toBeDisabled();
+
+  // Add the two required documents (hidden inputs → direct storage POST).
+  await page
+    .getByLabel('Pièce d’identité (CNI / passeport)', { exact: true })
+    .setInputFiles({
+      name: 'cni.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from('id-bytes'),
+    });
+  await expect(page.getByText('Fourni · cni.jpg')).toBeVisible();
+  await page.getByLabel('Photo du visage', { exact: true }).setInputFiles({
+    name: 'visage.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from('selfie-bytes'),
+  });
+  await expect(page.getByText('Fourni · visage.jpg')).toBeVisible();
+
+  await submit.click();
+  await expect(
+    page.getByText('Documents soumis pour vérification'),
+  ).toBeVisible();
+});

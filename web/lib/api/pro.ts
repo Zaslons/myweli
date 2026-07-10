@@ -1,4 +1,5 @@
 import type { Review } from './providers';
+import type { KycStatus } from '../pro/kyc';
 import type { Availability } from '../pro/availability';
 import type {
   SalonClientCard,
@@ -27,7 +28,9 @@ export type ProProfile = {
   account: {
     id: string;
     businessName: string;
+    businessType?: string | null;
     phoneNumber: string;
+    verificationStatus?: 'pending' | 'verified' | 'rejected';
     providerId?: string | null;
   };
   provider: {
@@ -89,6 +92,28 @@ export async function listProAppointments(): Promise<{
   if (!res.ok) return { status: res.status, items: [] };
   const body = (await res.json().catch(() => ({}))) as { items?: ProAppointment[] };
   return { status: 200, items: body.items ?? [] };
+}
+
+/// The signed-in provider's KYC (docs/design/web-pro-kyc.md).
+export async function getKycStatus(): Promise<{
+  status: number;
+  kyc?: KycStatus;
+}> {
+  const res = await fetch('/api/pro/kyc');
+  if (!res.ok) return { status: res.status };
+  return { status: 200, kyc: (await res.json()) as KycStatus };
+}
+
+export async function submitKyc(
+  documents: { type: string; fileName?: string; key: string }[],
+): Promise<{ status: number; kyc?: KycStatus }> {
+  const res = await fetch('/api/pro/kyc', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ documents }),
+  });
+  if (!res.ok) return { status: res.status };
+  return { status: 200, kyc: (await res.json()) as KycStatus };
 }
 
 /// The salon's reviews page (« Avis » — docs/design/web-pro-reviews.md).

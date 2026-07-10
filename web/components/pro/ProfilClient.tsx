@@ -18,6 +18,9 @@ const input =
 export function ProfilClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState('');
+  const [verification, setVerification] = useState<
+    'pending' | 'verified' | 'rejected'
+  >('pending');
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -40,6 +43,7 @@ export function ProfilClient() {
         return;
       }
       setProviderId(me.profile.provider.id);
+      setVerification(me.profile.account.verificationStatus ?? 'pending');
       setForm(profileToForm(me.profile.provider));
       setLoading(false);
     })();
@@ -148,6 +152,17 @@ export function ProfilClient() {
       </section>
 
       <section className="mt-l space-y-s">
+        <SectionLink
+          href="/pro/verification"
+          label="Vérification"
+          hint={
+            verification === 'verified'
+              ? 'Compte vérifié'
+              : verification === 'rejected'
+                ? 'Vérification refusée'
+                : 'En attente'
+          }
+        />
         <SectionLink href="/pro/acompte" label="Acompte" />
         <SectionLink href="/pro/abonnement" label="Abonnement" />
         <SectionLink href="/pro/medias" label="Photos & Avant/Après" />
@@ -173,14 +188,24 @@ function Field({
   );
 }
 
-function SectionLink({ href, label }: { href: string; label: string }) {
+function SectionLink({
+  href,
+  label,
+  hint,
+}: {
+  href: string;
+  label: string;
+  hint?: string;
+}) {
   return (
     <Link
       href={href}
       className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-textPrimary hover:bg-surfaceVariant"
     >
       <span>{label}</span>
-      <span className="text-textTertiary">›</span>
+      <span className="text-textTertiary">
+        {hint ? <span className="mr-s text-sm">{hint}</span> : null}›
+      </span>
     </Link>
   );
 }
