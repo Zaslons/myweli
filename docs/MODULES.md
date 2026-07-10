@@ -88,7 +88,10 @@ Our YPLACES — but consumer-first, which is MyWeli's edge.
   photos, reporting), à domicile (flag).
 - **Code:** `backend/routes/providers/` (+ `by-slug`, `/sitemap/providers`,
   reviews, gallery, before-after), app `screens/home|providers|map|favorites|
-  stories`, web public pages + booking funnel.
+  stories`, web public pages + booking funnel (the **order-free hub**, K2 —
+  same adaptive flow as the app on the per-artist capacity engine, incl. the
+  pay-later deposit proof + rebook prefill;
+  [booking-capacity-web-hub.md](design/booking-capacity-web-hub.md)).
 - **Gaps → phase:** « open now » ⏳ · AI ranking ⏳ · booking placement on
   Google Maps / socials (YCLIENTS puts its widget on Yandex Maps/2GIS/VK) ⏳.
 - **Module doc:** `docs/modules/online-booking.md` *(to write)*.

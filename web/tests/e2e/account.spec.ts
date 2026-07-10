@@ -49,9 +49,10 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
   // Completed booking (appt2): rebook + review.
   await page.goto('/mon-compte/appt2');
   await expect(page.getByText('Terminé')).toBeVisible();
+  // K2: the rebook link carries the services prefill for the hub.
   await expect(
     page.getByRole('link', { name: 'Réserver à nouveau' }),
-  ).toHaveAttribute('href', '/beaute-divine/reserver');
+  ).toHaveAttribute('href', '/beaute-divine/reserver?services=s1');
 
   // Leave a review.
   await page.getByRole('button', { name: '5 étoiles' }).click();

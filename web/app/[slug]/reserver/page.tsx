@@ -21,14 +21,25 @@ export async function generateMetadata({
 
 export default async function ReserverPage({
   params,
+  searchParams,
 }: {
   params: { slug: string };
+  searchParams: { services?: string; artist?: string };
 }) {
   const p = await getProviderBySlug(params.slug);
   if (!p) notFound();
 
+  // Rebook prefill (?services=a,b&artist=x) — sanitized against the live
+  // catalogue inside the hub, so stale ids are silently dropped.
+  const prefillServiceIds = (searchParams.services ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+  const prefillArtistId = searchParams.artist?.trim() || null;
+
   return (
-    <main className="mx-auto max-w-2xl px-m py-l">
+    <main className="mx-auto max-w-2xl px-m py-l lg:max-w-5xl">
       <h1 className="text-2xl font-semibold text-textPrimary">
         Réserver chez {p.name}
       </h1>
@@ -37,7 +48,11 @@ export default async function ReserverPage({
         {p.commune ? ` · ${p.commune}` : ''}
       </p>
       <div className="mt-l">
-        <BookingFlow provider={p} />
+        <BookingFlow
+          provider={p}
+          prefillServiceIds={prefillServiceIds}
+          prefillArtistId={prefillArtistId}
+        />
       </div>
     </main>
   );

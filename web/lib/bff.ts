@@ -88,6 +88,8 @@ type ProviderSummary = {
   name?: string;
   slug?: string;
   services?: { id: string; name: string }[];
+  depositMobileMoneyOperator?: string | null;
+  depositMobileMoneyNumber?: string | null;
 };
 
 async function providerSummary(id: string): Promise<ProviderSummary> {
@@ -105,6 +107,10 @@ function enrichOneWith(a: RawAppt, p: ProviderSummary) {
     serviceNames: (a.serviceIds ?? [])
       .map((id) => byId.get(id))
       .filter((n): n is string => Boolean(n)),
+    // K2: the detail's deposit-attach block shows the salon's Mobile Money
+    // coordinates (public policy fields, not PII).
+    depositMobileMoneyOperator: p.depositMobileMoneyOperator ?? null,
+    depositMobileMoneyNumber: p.depositMobileMoneyNumber ?? null,
     salonEntered: a.userId === 'manual',
   };
 }
