@@ -4,7 +4,7 @@
 |---|---|
 | **Goal** | Not just feature presence: entry points · user flow · capabilities · UI states & copy, compared by READING the code on both surfaces (user directive 2026-07-10; supersedes the M8-era [web-parity-audit.md](web-parity-audit.md)) |
 | **Method** | Per built module ([MODULES.md](../MODULES.md)): consumer app ↔ consumer web, pro app ↔ pro web. Severity: **❌ missing capability** · **⚠️ flow/UX divergence** · **ℹ️ deliberate adaptation** (fine per `web-design-latitude`). Findings are BIDIRECTIONAL — app gaps count too |
-| **Status** | In progress — audited: **1 journal**. Next: 2 online-booking · 3 catalogue · 4 clients · 5 notifications · 8 payments · 9/10 finance+analytics · 11 access · 15 trust |
+| **Status** | In progress — audited: **1 journal · 2 online-booking**. Next: 3 catalogue · 4 clients · 5 notifications · 8 payments · 9/10 finance+analytics · 11 access · 15 trust |
 
 ## Module 1 — `journal` (appointment lifecycle, both roles)
 
@@ -37,3 +37,46 @@
 2. **Web pro cross-day reschedule** (1.9) — a « Reprogrammer » action on the web pro detail + journal panel (date+time picker, 409 handling like drag).
 3. « Client arrivé » on both detail pages (1.10) + app gap-slot artist (1.11) + app cancel warning (1.5) + app « Appeler » fix (1.6) — small batch.
 4. Web add-to-calendar (1.2) + deposit-proof view (1.3) + notes row (1.4) — small batch.
+
+## Module 2 — `online-booking` (consumer discovery · salon page · funnel · favorites · reviews)
+
+### Discovery & search
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 2.1 | **« Trier » missing on web search** | ❌ web | App list: sort sheet — Pertinence / Mieux notés / Prix croissant (`ProviderSort`). Web `/recherche` always sorts by rating server-side; the user has no control |
+| 2.2 | **« Disponible aujourd'hui » filter missing on web** | ❌ web | App list: a one-tap availability filter pill. No web equivalent |
+| 2.3 | Home « À proximité » section missing on web | ⚠️ web | App home: nearby salons + « Voir la carte ». Web home is SEO-first (deliberate) and the map now has « Autour de moi » — but a geolocated « près de chez vous » block on the web home would close the flow gap |
+| 2.4 | Announcement stories | ℹ️ | App home's story strip is STATIC promo content (hardcoded assets — a marketing-module V2 seed, not real data). No web port needed until `marketing` builds |
+| 2.5 | Map discovery | ✅ | /recherche split view + full-bleed map + app-identical markers + « Autour de moi » (built 2026-07-10); hearts-on-markers deferred on web (noted in web-discovery-map.md) — the app map HAS favorite hearts |
+
+### Salon page
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 2.6 | **Gallery lightbox missing on web** | ❌ web (minor) | App: tap any photo → full-screen swipeable viewer. Web `Gallery` = a static grid (29 lines, no interaction); review photos have the same viewer in-app |
+| 2.7 | **« Vos rendez-vous ici » personal section missing on web** | ⚠️ web | App salon page shows the signed-in client's bookings AT THIS SALON (+ « Voir tout »). The web page is anonymous-only content; a signed-in web user gets nothing personal |
+| 2.8 | Review submit entry point narrower on web | ⚠️ web | App: « Donner votre avis » directly ON the salon page (when a completed visit is reviewable) + from the appointment detail. Web: only from mon-compte detail — a web user browsing the salon page is never invited |
+| 2.9 | Sections & SEO | ✅/ℹ️ | Hero, services, équipe, avant/après, horaires, avis, carte (now same map identity), contact — all present on both; web adds FAQ/JSON-LD (SEO latitude) |
+
+### Booking funnel (post-K2)
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 2.10 | **Booking notes missing on web** | ❌ web | App confirmation has « Note (optionnel) » sent with the booking (salons see it in the journal). Web confirm step has no notes field and the BFF doesn't forward one |
+| 2.11 | **Mobile-web summary not sticky** | ⚠️ web | The app hub pins Total + « Confirmer » at the bottom permanently; on mobile web the summary/CTA is the last block below the sections — scroll required to confirm. `lg:` is sticky; small screens should get the app's fixed bottom bar |
+| 2.12 | Hub flow parity | ✅ | Order-free hub, three orderings, capability dim/drop, earliest-slot auto-pick, variants, silent re-validation, deposit sheet — verified at K2 (built 2026-07-10) |
+
+### Favorites & reviews
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 2.13 | **Review photos: web can neither SUBMIT nor DISPLAY them (public page)** | ❌ web | App submit sheet attaches photos (picker → upload) and review tiles show them full-screen. Web `ReviewForm` = rating + text only; public `ReviewList` renders no `photoUrls` (the pro « Avis » page does — inconsistent) |
+| 2.14 | **Review reporting UI missing on BOTH surfaces** | ❌ both | `POST /reviews/{id}/report` (consumer-only) + the admin moderation queue are LIVE — but neither the app's review tiles nor the web's have a « Signaler » action. FR-REV-005's consumer half was never surfaced |
+| 2.15 | Favorites | ⚠️ web | App: hearts on the salon page, the map markers, favorites screen + home strip. Web: heart on the salon page + mon-compte section only — no hearts on /recherche result cards or map markers (deferred), no home strip (ℹ️ SEO home) |
+
+### Module 2 — proposed fixes (by priority)
+1. **Web booking notes** (2.10) + **mobile-web sticky summary bar** (2.11) — funnel conversion polish, small.
+2. **Web « Trier » + « Disponible aujourd'hui »** on /recherche (2.1/2.2 — sort is already a backend param; available-today needs a query flag or client filter).
+3. **Review photos on web** (2.13: display on the public page, then photo attach on the form) + **« Signaler » on both** (2.14 — the backend is waiting).
+4. Salon-page personal touches (2.7/2.8) + gallery lightbox (2.6) + result-card hearts (2.15).
