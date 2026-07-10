@@ -3610,6 +3610,8 @@ export interface paths {
                     /** @description Comma-separated; sums their durations if durationMinutes is absent. */
                     serviceIds?: string;
                     durationMinutes?: number;
+                    /** @description Per-artist capacity (booking-capacity-web-hub.md): slots free for THIS artist (capable + within their hours + no assigned overlap, with the unassigned pool still leaving a chair). Absent = « Sans préférence » — free while ANY capable chair remains; when every chair is taken the slot is not bookable at all. Unknown artist → 400 invalid_artist. */
+                    artistId?: string;
                 };
                 header?: never;
                 path?: never;

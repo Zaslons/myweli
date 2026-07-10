@@ -56,6 +56,7 @@ export async function fetchSlots(params: {
   date: string;
   serviceIds: string[];
   durationMinutes: number;
+  artistId?: string | null;
 }): Promise<string[]> {
   const qs = new URLSearchParams({
     providerId: params.providerId,
@@ -63,6 +64,7 @@ export async function fetchSlots(params: {
     serviceIds: params.serviceIds.join(','),
     durationMinutes: String(params.durationMinutes),
   });
+  if (params.artistId) qs.set('artistId', params.artistId);
   const res = await fetch(`/api/availability?${qs.toString()}`);
   if (!res.ok) return [];
   const body = await res.json().catch(() => ({}));

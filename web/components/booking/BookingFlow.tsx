@@ -78,6 +78,7 @@ export function BookingFlow({ provider }: { provider: Provider }) {
       date,
       serviceIds: s.serviceIds,
       durationMinutes: duration,
+      artistId: s.artistId,
     });
     setSlots(r);
     setSlotsLoading(false);

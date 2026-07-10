@@ -33,8 +33,6 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           '@balance_due, @cancellation_window_hours, @client_name:text, '
           '@client_phone:text, @notes:text, @deposit_screenshot_url:text, '
           '@created_at:timestamptz) '
-          "ON CONFLICT (provider_id, appointment_date) "
-          "WHERE (status IN ('pending', 'confirmed')) DO NOTHING "
           'RETURNING *',
         ),
         parameters: {
@@ -58,11 +56,12 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           'created_at': DateTime.parse(a['createdAt'] as String),
         },
       );
-      if (result.isEmpty) return null; // exact-start conflict (unique index)
+      if (result.isEmpty) return null;
       return _toDto(result.first.toColumnMap());
     } on ServerException catch (e) {
-      // Duration-overlap exclusion (btree_gist, 23P01) → the slot is taken.
-      if (e.code == '23P01') return null;
+      // Per-artist guards (migration 0026): exact-start unique (23505) or
+      // duration-overlap exclusion (23P01) → the slot is taken.
+      if (e.code == '23P01' || e.code == '23505') return null;
       rethrow;
     }
   }

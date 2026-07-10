@@ -262,6 +262,8 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         if (serviceIds != null && serviceIds.isNotEmpty)
           'serviceIds': serviceIds.join(','),
         if (durationMinutes != null) 'durationMinutes': '$durationMinutes',
+        // Capacity model (K1): the chosen artist's own calendar governs.
+        if (artistId != null) 'artistId': artistId,
       },
     );
     final res = await _send(() => _client.get(uri)); // public
