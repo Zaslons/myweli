@@ -104,6 +104,17 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
         const SizedBox(height: AppTheme.spacingL),
         for (final step in onboarding.steps) _StepRow(step: step),
         const SizedBox(height: AppTheme.spacingL),
+        // See the salon exactly as a client will, before going live (B5).
+        OutlinedButton(
+          onPressed: () => context.push('/pro/apercu'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.textPrimary,
+            side: const BorderSide(color: AppColors.border),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+          child: const Text('Aperçu de ma page'),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
         AppButton(
           text: 'Mettre mon profil en ligne',
           isLoading: onboarding.isPublishing,
