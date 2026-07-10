@@ -5,6 +5,7 @@ import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
 import '../../models/journal_day.dart';
 import '../../models/payment.dart';
+import '../../models/provider.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
@@ -148,6 +149,22 @@ class MockProService implements ProServiceInterface {
       status: AppointmentStatus.noShow,
     );
     return ApiResponse.success(true);
+  }
+
+  @override
+  Future<ApiResponse<Provider>> updateSalonProfile(
+    String providerId,
+    Map<String, dynamic> changes,
+  ) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final index = MockData.providers.indexWhere((p) => p.id == providerId);
+    if (index == -1) return ApiResponse.error('Salon introuvable');
+    final merged = Provider.fromJson({
+      ...MockData.providers[index].toJson(),
+      ...changes,
+    });
+    MockData.providers[index] = merged;
+    return ApiResponse.success(merged, message: 'Profil enregistré');
   }
 
   @override

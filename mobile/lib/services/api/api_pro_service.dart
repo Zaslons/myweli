@@ -9,6 +9,7 @@ import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
 import '../../models/journal_day.dart';
 import '../../models/payment.dart';
+import '../../models/provider.dart';
 import '../../models/provider_session.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -127,6 +128,29 @@ class ApiProService implements ProServiceInterface {
   @override
   Future<ApiResponse<bool>> markArrived(String appointmentId) =>
       _transition(appointmentId, 'arrive', 'Client arrivé');
+
+  @override
+  Future<ApiResponse<Provider>> updateSalonProfile(
+    String providerId,
+    Map<String, dynamic> changes,
+  ) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (token) => _client.patch(
+        _uri('/providers/$providerId'),
+        headers: {..._bearer(token), 'Content-Type': 'application/json'},
+        body: jsonEncode(changes),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(
+      Provider.fromJson(_decode(res.body)),
+      message: 'Profil enregistré',
+    );
+  }
 
   @override
   Future<ApiResponse<bool>> publishSalon(String providerId) async {

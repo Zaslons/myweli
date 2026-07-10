@@ -50,6 +50,8 @@ class ProOnboardingProvider extends ChangeNotifier {
       var availabilitySet = false;
       var depositConfigured = false;
       var photoCount = 0;
+      var profileComplete = false;
+      var locationSet = false;
 
       // A brand-new pro has no public listing yet — counts stay 0.
       if (providerId != null && providerId.isNotEmpty) {
@@ -71,6 +73,14 @@ class ProOnboardingProvider extends ChangeNotifier {
         final listing =
             await serviceLocator.providerService.getProviderById(providerId);
         photoCount = listing.data?.imageUrls.length ?? 0;
+        // Mirror the server's publish gate (pro-salon-lifecycle):
+        // profile = description + address + commune; location = the map pin.
+        final l = listing.data;
+        profileComplete = l != null &&
+            l.description.trim().isNotEmpty &&
+            l.address.trim().isNotEmpty &&
+            (l.commune ?? '').trim().isNotEmpty;
+        locationSet = l?.latitude != null && l?.longitude != null;
       }
 
       final kyc = await serviceLocator.proKycService.getKycStatus(proUser.id);
@@ -78,7 +88,8 @@ class ProOnboardingProvider extends ChangeNotifier {
       final hasSubmittedKyc = kyc.data?.documents.isNotEmpty ?? false;
 
       _steps = buildOnboardingChecklist(
-        profileComplete: proUser.businessName.isNotEmpty,
+        profileComplete: profileComplete,
+        locationSet: locationSet,
         serviceCount: serviceCount,
         staffCount: staffCount,
         availabilitySet: availabilitySet,
