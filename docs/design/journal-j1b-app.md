@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | `journal` — slice **J1b** (app) of [docs/modules/journal.md](../modules/journal.md) (§4.3; signed off 2026-07-08) |
-| **Status** | **Signed off** (2026-07-09) — §8 resolved: flutter_slidable for swipes (+ long-press a11y fallback) · 7-day count prefetch · timeline is the phone default |
+| **Status** | **Built** (2026-07-09) — « Ma journée » is the pro app's default appointment view; flutter_slidable swipes + long-press fallback |
 | **Scope** | The salon owner's day-at-a-glance ON A PHONE — the mobile-first equivalent of the web « Journée » grid (J1b web, Built). **App only** — the backend (J1a) is already live: it consumes `GET /providers/{id}/journal`, `arrive`, and reschedule-with-`artistId` unchanged |
 | **Out of scope** | Any backend change · a cramped desktop-style grid on the phone (deliberately — see §1) · waitlist (J3) · group/recurring (J4) |
 | **Decisions inherited** | 15-min semantics · « Client arrivé » in-day status · « Sans artiste » kept · badge 1-neutral/≥2-red — all locked at the journal §10 sign-off |

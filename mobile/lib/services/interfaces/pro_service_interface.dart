@@ -2,6 +2,7 @@ import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
+import '../../models/journal_day.dart';
 import '../../models/payment.dart';
 import '../../models/service.dart';
 
@@ -92,6 +93,17 @@ abstract class ProServiceInterface {
       String appointmentId, String? reason);
   Future<ApiResponse<bool>> markAppointmentComplete(String appointmentId);
   Future<ApiResponse<bool>> markNoShow(String appointmentId);
+
+  /// « Client arrivé » — confirmed → arrived (module journal J1b). Same-day,
+  /// confirmed-only, idempotent (guarded server-side).
+  Future<ApiResponse<bool>> markArrived(String appointmentId);
+
+  /// The salon's whole day as one payload (module journal J1) — hours,
+  /// artists, and every booking (all statuses) for [date].
+  Future<ApiResponse<JournalDay>> getJournalDay(
+    String providerId,
+    DateTime date,
+  );
   Future<ApiResponse<bool>> rescheduleAppointment(
     String appointmentId,
     DateTime newDateTime,

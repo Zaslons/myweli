@@ -3,6 +3,7 @@ import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
+import '../../models/journal_day.dart';
 import '../../models/payment.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -147,6 +148,51 @@ class MockProService implements ProServiceInterface {
       status: AppointmentStatus.noShow,
     );
     return ApiResponse.success(true);
+  }
+
+  @override
+  Future<ApiResponse<bool>> markArrived(String appointmentId) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index =
+        MockData.appointments.indexWhere((a) => a.id == appointmentId);
+    if (index == -1) return ApiResponse.error('Rendez-vous introuvable');
+    MockData.appointments[index] = MockData.appointments[index].copyWith(
+      arrivedAt: DateTime.now(),
+    );
+    return ApiResponse.success(true);
+  }
+
+  @override
+  Future<ApiResponse<JournalDay>> getJournalDay(
+    String providerId,
+    DateTime date,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final key = date.toUtc().toIso8601String().substring(0, 10);
+    final all = MockData.appointments
+        .where((a) => a.providerId == providerId)
+        .where((a) =>
+            a.appointmentDate.toUtc().toIso8601String().substring(0, 10) == key)
+        .toList()
+      ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+    final artistIds = {
+      for (final a in all)
+        if (a.artistId != null) a.artistId!,
+    };
+    return ApiResponse.success(
+      JournalDay(
+        date: key,
+        hours: const JournalHours(
+          open: '09:00',
+          close: '18:00',
+          breaks: [JournalBreak(start: '12:30', end: '13:30')],
+        ),
+        artists: [
+          for (final id in artistIds) JournalArtist(id: id, name: 'Artiste'),
+        ],
+        appointments: all,
+      ),
+    );
   }
 
   @override

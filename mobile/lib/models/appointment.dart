@@ -41,6 +41,11 @@ class Appointment extends Equatable {
   final String? salonClientId;
   final int? clientNoShowCount;
 
+  /// Journal J1b: the in-day « Client arrivé » stamp + total service duration
+  /// (for grid geometry). Provider-view/enriched fields.
+  final DateTime? arrivedAt;
+  final int? durationMinutes;
+
   const Appointment({
     required this.id,
     required this.userId,
@@ -60,6 +65,8 @@ class Appointment extends Equatable {
     required this.createdAt,
     this.salonClientId,
     this.clientNoShowCount,
+    this.arrivedAt,
+    this.durationMinutes,
   });
 
   @override
@@ -82,6 +89,8 @@ class Appointment extends Equatable {
         createdAt,
         salonClientId,
         clientNoShowCount,
+        arrivedAt,
+        durationMinutes,
       ];
 
   Appointment copyWith({
@@ -103,6 +112,8 @@ class Appointment extends Equatable {
     DateTime? createdAt,
     String? salonClientId,
     int? clientNoShowCount,
+    DateTime? arrivedAt,
+    int? durationMinutes,
   }) {
     return Appointment(
       id: id ?? this.id,
@@ -124,6 +135,8 @@ class Appointment extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       salonClientId: salonClientId ?? this.salonClientId,
       clientNoShowCount: clientNoShowCount ?? this.clientNoShowCount,
+      arrivedAt: arrivedAt ?? this.arrivedAt,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
     );
   }
 
@@ -147,6 +160,8 @@ class Appointment extends Equatable {
       'createdAt': createdAt.toIso8601String(),
       if (salonClientId != null) 'salonClientId': salonClientId,
       if (clientNoShowCount != null) 'clientNoShowCount': clientNoShowCount,
+      if (arrivedAt != null) 'arrivedAt': arrivedAt!.toIso8601String(),
+      if (durationMinutes != null) 'durationMinutes': durationMinutes,
     };
   }
 
@@ -173,6 +188,10 @@ class Appointment extends Equatable {
       createdAt: DateTime.parse(json['createdAt'] as String),
       salonClientId: json['salonClientId'] as String?,
       clientNoShowCount: (json['clientNoShowCount'] as num?)?.toInt(),
+      arrivedAt: json['arrivedAt'] == null
+          ? null
+          : DateTime.tryParse(json['arrivedAt'] as String),
+      durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
     );
   }
 }
