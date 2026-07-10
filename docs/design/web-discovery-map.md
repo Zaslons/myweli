@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | `online-booking` (consumer discovery) — the LAST web-parity follow-up |
-| **Status** | **Built** (2026-07-10) — layout signed off in chat (list left + sticky map right; user 2026-07-10) |
+| **Status** | **Built** (2026-07-10) — layout signed off in chat; **design revision same day (user)**: the map is FULL-BLEED (no framed box, Planity-like) and carries the app MapScreen's exact design (CARTO light basemap · the `_SalonMarker` white-circle/category-ring/icon markers · the info-blue user dot) |
 | **Trigger** | The app's map tab (`MapScreen`) has no web equivalent; `/recherche` renders a bare card grid |
 | **Scope** | Web only, **no backend change** — markers come from the same `GET /providers` search results already fetched server-side |
 | **Out of scope** | Geo-bounds search (`/providers` has no bbox param — markers reflect the fetched results, like the app) · favorites hearts on markers (session-dependent on a public page; deferred to the parity ledger) · « open now » (module gap, phased) |
@@ -22,18 +22,22 @@ marker.
 
 Signed-off layout, with the agreed refinements:
 
-- **Desktop (`lg:`)**: results list left (~58%) + **sticky map right**
-  (viewport-height, pinned while the list scrolls). Search bar + **category
-  chips** (« Tous » + the canonical category list) above; chips re-query
-  `/recherche` with the `category` param the page already accepts.
+- **Desktop (`lg:`)**: results list left (~55%) + the map right, **full-bleed
+  — part of the screen, not a box** (no border/radius; flush to the right
+  and bottom viewport edges; `sticky top-0 h-screen`, so it owns the full
+  height once the static header scrolls by — the Planity behaviour). The
+  search bar + **category chips** live INSIDE the left column so the map
+  rises to the header. Chips re-query `/recherche` with the `category`
+  param the page already accepts.
 - **Two-way sync**: hovering a list card highlights (enlarges) its marker;
   clicking a marker opens a **popup mini-card** (name · ★ note · commune ·
   « à partir de » · Voir le salon / Réserver) AND scrolls the list to the
   matching card, highlighted with a ring. The app's marker→sheet flow,
   desktop-shaped.
 - **Mobile web**: no split — the list keeps today's behaviour and a floating
-  **« Carte »/« Liste »** toggle flips to a full-height map with the same
-  markers + popups (the app experience on a small screen).
+  **« Carte »/« Liste »** toggle flips to a full-bleed, full-height map with
+  the same markers + popups (the app experience on a small screen). The
+  toggle transition requires `invalidateSize` — see §3.
 - **« Autour de moi »** button on the map → browser geolocation → fly to the
   user (denied → the app's copy « Autorisez la localisation pour vous
   centrer » as a transient note). Map auto-fits the result bounds otherwise;
@@ -46,14 +50,23 @@ Signed-off layout, with the agreed refinements:
 
 ## 3. Tech & layering
 
-- **Leaflet + react-leaflet@4** (React 18 pairing) with OSM tiles — the web
-  twin of the app's flutter_map+OSM; no API key, no Google dependency.
+- **Leaflet + react-leaflet@4** (React 18 pairing) with the **CARTO
+  `light_all` basemap — the app MapScreen's exact tile layer** (no key;
+  attribution © OpenStreetMap contributors © CARTO, same as the app).
   **Dynamically imported with `ssr: false`** so the ~40 KB gz loads only on
   `/recherche` (noindex, force-dynamic — public-page CWV budgets untouched).
-  Markers are **`divIcon`s** (token-colored dots — avoids Leaflet's bundled
-  PNG asset pitfalls and keeps colors on the §7 tokens from
-  `styles/tokens.ts`). OSM public tile policy is fine at our traffic; swap
-  to a paid tile host if volume grows (noted, not built).
+  Markers are **`divIcon`s replicating `_SalonMarker`**: 44 px white circle,
+  2 px category-color ring, the category icon (Material spa / content_cut /
+  face / store paths) in the category color — §7 tokens from
+  `styles/tokens.ts` via `currentColor`; « Autour de moi » drops the app's
+  22 px info-blue user dot. Hover/selection enlarges the pin via a CSS
+  class toggled on the marker element (NO remount — a remount closes the
+  marker's own popup; scale lives on the inner pin because Leaflet
+  positions the root with an inline transform). A `ResizeObserver` calls
+  `invalidateSize` (+ one refit on the zero→visible transition) so the
+  mobile toggle's display:none mount renders tiles correctly. CARTO's free
+  basemap policy is fine at our traffic; swap to a paid tile host if volume
+  grows (noted, not built).
 - Page stays a **server component** (same `searchProviders` fetch, same
   noindex) → passes results to a client `RechercheClient` (chips + list +
   hover state + mobile toggle) which mounts `ResultsMap`.

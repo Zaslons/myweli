@@ -54,3 +54,36 @@ body {
 .myweli-phone .PhoneInputInput:disabled {
   opacity: 0.6;
 }
+
+/* Discovery-map salon markers (docs/design/web-discovery-map.md §2) — the
+   app's _SalonMarker: white circle, 2px category-color ring, category icon.
+   Scale lives on the INNER pin (Leaflet positions the root via transform).
+   Colors arrive inline from the §7 tokens (lib/discovery/map.ts). */
+.myweli-marker .myweli-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: theme('colors.secondary');
+  border: 2px solid currentColor;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+  transition: transform 0.15s ease;
+}
+.myweli-marker.is-active {
+  z-index: 1000 !important; /* above sibling markers (Leaflet inlines z-index) */
+}
+.myweli-marker.is-active .myweli-pin {
+  transform: scale(1.25);
+}
+/* The app's user-location dot: info-blue, 3px white ring. */
+.myweli-user-dot {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: theme('colors.info');
+  border: 3px solid theme('colors.secondary');
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+}

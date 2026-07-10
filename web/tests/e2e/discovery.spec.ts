@@ -37,6 +37,8 @@ test('home search: service + commune → existing landing', async ({ page }) => 
 });
 
 test('/recherche lists matching salons', async ({ page }) => {
+  // goto waits for `load` — abort tiles or slow CARTO fetches stall CI.
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.goto('/recherche?q=tresses');
   await expect(
     page.getByRole('heading', { name: /Recherche/ }),
@@ -50,7 +52,7 @@ test('/recherche lists matching salons', async ({ page }) => {
 test('/recherche desktop: list + sticky map, marker → mini-card + card ring', async ({
   page,
 }) => {
-  await page.route('**/tile.openstreetmap.org/**', (r) => r.abort());
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.goto('/recherche');
 
   // Split view: the list and the map pane are both visible on desktop.
@@ -75,7 +77,7 @@ test('/recherche desktop: list + sticky map, marker → mini-card + card ring', 
 test('/recherche mobile: « Carte » toggle flips to the map and back', async ({
   page,
 }) => {
-  await page.route('**/tile.openstreetmap.org/**', (r) => r.abort());
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/recherche');
 
