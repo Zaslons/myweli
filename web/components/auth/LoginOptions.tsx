@@ -36,6 +36,8 @@ declare global {
               size?: string;
               width?: number;
               locale?: string;
+              /// GIS button text variant (e.g. 'signup_with' → « S'inscrire »).
+              text?: string;
             },
           ) => void;
         };

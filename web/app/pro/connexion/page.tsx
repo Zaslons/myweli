@@ -13,7 +13,7 @@ export default function ProConnexionPage() {
     <main className="mx-auto max-w-md px-m py-l">
       <h1 className="text-2xl font-semibold text-textPrimary">Espace Pro</h1>
       <p className="mt-xs text-sm text-textTertiary">
-        Connectez-vous avec le numéro de votre salon.
+        Connectez-vous à votre espace salon.
       </p>
       <div className="mt-l">
         <ProConnexionClient />

@@ -356,3 +356,57 @@ test('journal grid: quick-create from an empty cell books a client', async ({
     page.getByRole('heading', { name: 'Nouveau rendez-vous' }),
   ).toHaveCount(0);
 });
+
+test('web pro registration: fields + email code → authenticated on /pro', async ({
+  page,
+}) => {
+  await page.goto('/pro/inscription');
+  await expect(
+    page.getByRole('heading', { name: 'Créez votre compte professionnel' }),
+  ).toBeVisible();
+
+  await page.getByLabel('Nom de l’entreprise').fill('Salon Web Test');
+  await page.locator('input[type=tel]').fill('+225 07 00 00 00 10');
+  await page.getByLabel('Votre e-mail').fill('nouveau@salon.test');
+  await page.getByRole('button', { name: 'Recevoir un code' }).click();
+  await page.getByLabel('Code à 6 chiffres').fill('123456');
+  await page.getByRole('button', { name: 'S’inscrire' }).click();
+
+  // 201 → pro cookies → the dashboard.
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+  await expect(page.getByRole('heading', { name: /Aujourd/ })).toBeVisible();
+});
+
+test('web pro registration: duplicate identity shows provider_exists', async ({
+  page,
+}) => {
+  await page.goto('/pro/inscription');
+  await page.getByLabel('Nom de l’entreprise').fill('Salon Doublon');
+  await page.locator('input[type=tel]').fill('+225 07 00 00 00 11');
+  await page.getByLabel('Votre e-mail').fill('existe@salon.test');
+  await page.getByRole('button', { name: 'Recevoir un code' }).click();
+  await page.getByLabel('Code à 6 chiffres').fill('123456');
+  await page.getByRole('button', { name: 'S’inscrire' }).click();
+  await expect(
+    page.getByText('Un compte existe déjà pour cette identité. Connectez-vous.'),
+  ).toBeVisible();
+});
+
+test('pro connexion links to registration; consumer connexion says sign-up', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await expect(
+    page.getByRole('link', { name: 'Créer mon compte' }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'Créer mon compte' }).click();
+  await expect(page).toHaveURL(/\/pro\/inscription/);
+
+  await page.goto('/connexion');
+  await expect(
+    page.getByRole('heading', { name: 'Se connecter ou créer un compte' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Votre compte est créé automatiquement'),
+  ).toBeVisible();
+});

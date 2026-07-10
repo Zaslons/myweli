@@ -477,3 +477,29 @@ export async function createManualBooking(
   const b = (await res.json().catch(() => ({}))) as { error?: string };
   return { ok: false, status: res.status, error: b.error };
 }
+
+
+// --- salon registration (docs/design/web-pro-registration.md) ---------------
+
+export type ProRegisterFields = {
+  businessName: string;
+  businessType: string;
+  phoneNumber: string;
+  address?: string;
+};
+
+/// Identity + business fields in ONE submit (201 → pro cookies set by the
+/// BFF). Pass EITHER `idToken` (Google) or `email`+`code`.
+export async function registerPro(
+  identity: { idToken?: string; email?: string; code?: string },
+  fields: ProRegisterFields,
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch('/api/pro/auth/register', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...identity, ...fields }),
+  });
+  if (res.ok) return { ok: true, status: res.status };
+  const b = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: b.error };
+}

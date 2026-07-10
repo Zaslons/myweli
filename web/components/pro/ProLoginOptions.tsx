@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import {
   loginProWithGoogle,
@@ -22,8 +23,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const googleDiv = useRef<HTMLDivElement>(null);
 
-  const notFoundMessage =
-    'Compte introuvable. Créez votre compte dans l’app MyWeli Pro.';
+  const notFoundMessage = 'Compte introuvable.';
 
   useEffect(() => {
     if (!googleClientId || !googleDiv.current) return;
@@ -132,6 +132,11 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
           Changer d’e-mail
         </button>
         {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error === notFoundMessage ? (
+          <Link href="/pro/inscription" className="text-sm underline">
+            Créer mon compte
+          </Link>
+        ) : null}
       </div>
     );
   }
@@ -162,8 +167,16 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
         Continuer avec e-mail
       </Button>
       {error ? <p className="text-sm text-error">{error}</p> : null}
+      {error === notFoundMessage ? (
+        <Link href="/pro/inscription" className="text-sm underline">
+          Créer mon compte
+        </Link>
+      ) : null}
       <p className="text-xs text-textTertiary">
-        Pas encore de compte ? Créez-le dans l’app MyWeli Pro.
+        Pas encore de compte ?{' '}
+        <Link href="/pro/inscription" className="underline">
+          Créer mon compte
+        </Link>
       </p>
     </div>
   );
