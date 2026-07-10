@@ -5415,6 +5415,11 @@ export interface components {
             id: string;
             /** @description URL slug for the public web page (myweli.ci/<slug>). */
             slug?: string;
+            /**
+             * @description Server-owned lifecycle (pro-salon-lifecycle): `draft` until the owner publishes; public reads only ever return `active`.
+             * @enum {string}
+             */
+            status?: "draft" | "active" | "suspended";
             name: string;
             description: string;
             address: string;

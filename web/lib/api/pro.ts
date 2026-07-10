@@ -36,6 +36,7 @@ export type ProProfile = {
   provider: {
     id: string;
     name: string;
+    status?: 'draft' | 'active' | 'suspended';
     description?: string;
     address?: string;
     commune?: string | null;
@@ -92,6 +93,23 @@ export async function listProAppointments(): Promise<{
   if (!res.ok) return { status: res.status, items: [] };
   const body = (await res.json().catch(() => ({}))) as { items?: ProAppointment[] };
   return { status: 200, items: body.items ?? [] };
+}
+
+/// Take the salon live (docs/design/pro-salon-lifecycle.md). 409 returns the
+/// server's missing checklist keys.
+export async function publishSalon(providerId: string): Promise<{
+  ok: boolean;
+  status: number;
+  missing?: string[];
+}> {
+  const res = await fetch('/api/pro/publish', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId }),
+  });
+  if (res.ok) return { ok: true, status: res.status };
+  const body = (await res.json().catch(() => ({}))) as { missing?: string[] };
+  return { ok: false, status: res.status, missing: body.missing };
 }
 
 /// The signed-in provider's KYC (docs/design/web-pro-kyc.md).

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | `access` / onboarding — the missing piece between registration and a live listing |
-| **Status** | **Built — B1 backend** (2026-07-10); B2 web go-live UI + B3 app goLive wiring follow |
+| **Status** | **Built — B1 backend + B2 web** (2026-07-10); B3 app goLive wiring next |
 | **Trigger** | **Production bug (user, 2026-07-10):** a freshly registered web pro saw « Une erreur est survenue. Réessayez. » on every dashboard page. Root cause: `POST /auth/provider/register` creates the ACCOUNT only — **no code path anywhere created a salon record** (salons existed solely from seed data), so `GET /me/provider` 403'd on `providerId == null` and every page fell into its error state. The app has the same latent hole; the web e2e stub masked it (pre-linked account) |
 | **Decisions (user sign-off, 2026-07-10)** | (1) Registration must yield a working dashboard. (2) **A salon is publicly visible only once it is properly set up — photos, location, everything** — via an explicit go-live step |
 | **Out of scope** | The web/app go-live UI (B2/B3 — next PRs) · auto-DELISTING when a live salon later breaks completeness (admin `suspend` covers abuse; no flapping) · requiring KYC to list (see §3) |
