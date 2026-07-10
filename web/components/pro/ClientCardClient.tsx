@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
 import {
+  type ProProfile,
   addClientNote,
   deleteClientNote,
   getClientCard,
@@ -23,14 +24,19 @@ import {
   waHref,
 } from '../../lib/pro/clients';
 import { Button } from '../Button';
+import { ManualBookingDialog } from './ManualBookingDialog';
 
 /// Module `clients` C1b — the client card at /pro/clients/[id]
 /// (docs/design/clients-c1.md §6): identity + notes on the left, stats +
-/// salon-scoped history on the right. No « Nouveau rendez-vous » CTA on web
-/// yet (no web manual booking — parity gap flagged in the spec).
+/// salon-scoped history on the right. « Nouveau rendez-vous » opens the
+/// manual-booking dialog pre-picked with this client
+/// (docs/design/web-manual-booking.md — the C1b deferral closed).
 export function ClientCardClient({ clientId }: { clientId: string }) {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProProfile | null>(null);
+  const [booking, setBooking] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [visits, setVisits] = useState<ProAppointment[]>([]);
   const [visitsTotal, setVisitsTotal] = useState(0);
@@ -55,6 +61,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     }
     const pid = me.profile.provider.id;
     setProviderId(pid);
+    setProfile(me.profile);
     const r = await getClientCard(pid, clientId);
     if (r.status === 404) {
       setNotFound(true);
@@ -77,6 +84,12 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (notFound) {
@@ -179,6 +192,12 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                   </p>
                 ) : null}
               </div>
+            </div>
+
+            <div className="mt-m">
+              <Button onClick={() => setBooking(true)}>
+                Nouveau rendez-vous
+              </Button>
             </div>
 
             <div className="mt-m flex flex-wrap items-center gap-xs">
@@ -347,6 +366,29 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           </section>
         </div>
       </div>
+
+      {booking && profile && providerId ? (
+        <ManualBookingDialog
+          providerId={providerId}
+          profile={profile}
+          initialClient={{
+            name: card.displayName,
+            phone: card.phone ?? undefined,
+          }}
+          onClose={() => setBooking(false)}
+          onCreated={() => {
+            setBooking(false);
+            setToast('Rendez-vous créé');
+            load();
+          }}
+          onToast={setToast}
+        />
+      ) : null}
+      {toast ? (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
+          {toast}
+        </div>
+      ) : null}
     </div>
   );
 }

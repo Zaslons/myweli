@@ -25,7 +25,7 @@ import {
 } from '../../lib/pro/journal';
 import type { ProAppointment } from '../../lib/pro/today';
 import { JournalPanel } from './JournalPanel';
-import { QuickCreatePopover } from './QuickCreatePopover';
+import { ManualBookingDialog } from './ManualBookingDialog';
 
 let draggingAppt: ProAppointment | null = null;
 
@@ -161,7 +161,7 @@ export function JournalGrid({
       ) : null}
 
       {quick ? (
-        <QuickCreatePopover
+        <ManualBookingDialog
           providerId={providerId}
           profile={profile}
           artistId={quick.artistId}
