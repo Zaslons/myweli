@@ -51,7 +51,8 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
-    if (provider['status'] == 'suspended') {
+    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
+      // Draft salons are not live yet (T51) — same refusal as suspended.
       return (ok: false, error: 'provider_suspended', appointment: null);
     }
 
@@ -157,7 +158,8 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
-    if (provider['status'] == 'suspended') {
+    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
+      // Draft salons are not live yet (T51) — same refusal as suspended.
       return (ok: false, error: 'provider_suspended', appointment: null);
     }
 

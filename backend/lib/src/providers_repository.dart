@@ -101,6 +101,17 @@ abstract interface class ProvidersRepository {
   /// Remove an artist; false if not found under [providerId].
   Future<bool> deleteArtist(String providerId, String artistId);
 
+  /// Create a minimal DRAFT salon for a new pro account (docs/design/
+  /// pro-salon-lifecycle.md §2): seed-shaped document, empty catalogue,
+  /// `status: 'draft'` (hidden from every public surface until published),
+  /// unique slug derived from [name]. Returns the created provider.
+  Future<Map<String, dynamic>> createSalon({
+    required String name,
+    required String category,
+    required String phoneNumber,
+    String? address,
+  });
+
   // --- Admin marketplace management — design: docs/design/admin-console.md §12
   /// Set a provider's `status` (`active`/`suspended`). Suspended → excluded from
   /// discovery + new bookings. Returns the updated provider, or null.
@@ -134,7 +145,10 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   }) async {
     final list =
         _all.where((p) {
-            if (p['status'] == 'suspended') return false; // hide suspended
+            // Hide suspended AND unpublished drafts (T51).
+            if (p['status'] == 'suspended' || p['status'] == 'draft') {
+              return false;
+            }
             if (category != null &&
                 category.isNotEmpty &&
                 p['category'] != category) {
@@ -339,6 +353,31 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     final before = artists.length;
     artists.removeWhere((a) => a['id'] == artistId);
     return artists.length < before;
+  }
+
+  @override
+  Future<Map<String, dynamic>> createSalon({
+    required String name,
+    required String category,
+    required String phoneNumber,
+    String? address,
+  }) async {
+    final id = 'provider_${DateTime.now().microsecondsSinceEpoch}';
+    var slug = slugifySalonName(name);
+    var n = 2;
+    while (await bySlug(slug) != null) {
+      slug = '${slugifySalonName(name)}-${n++}';
+    }
+    final salon = draftSalonDocument(
+      id: id,
+      slug: slug,
+      name: name,
+      category: category,
+      phoneNumber: phoneNumber,
+      address: address,
+    );
+    _all.add(salon);
+    return salon;
   }
 
   @override
@@ -591,3 +630,65 @@ final List<Map<String, dynamic>> seedProviders = [
     'reviews': <Map<String, dynamic>>[],
   },
 ];
+
+/// URL slug from a salon name: lowercased, accents stripped, non-alphanumerics
+/// collapsed to single dashes (`Ébène & Co` → `ebene-co`).
+String slugifySalonName(String name) {
+  const accents = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
+  const plain = 'aaaaaaceeeeiiiinooooouuuuyy';
+  final lower = name.trim().toLowerCase();
+  final sb = StringBuffer();
+  for (final ch in lower.split('')) {
+    final i = accents.indexOf(ch);
+    sb.write(i >= 0 ? plain[i] : ch);
+  }
+  final slug = sb
+      .toString()
+      .replaceAll(RegExp('[^a-z0-9]+'), '-')
+      .replaceAll(RegExp('(^-+|-+\$)'), '');
+  return slug.isEmpty ? 'salon' : slug;
+}
+
+/// The minimal seed-shaped provider document a fresh registration gets
+/// (docs/design/pro-salon-lifecycle.md §2). Everything the read slices touch
+/// is present; the catalogue starts empty; `status: 'draft'` keeps it off
+/// every public surface until `POST /providers/{id}/publish`.
+Map<String, dynamic> draftSalonDocument({
+  required String id,
+  required String slug,
+  required String name,
+  required String category,
+  required String phoneNumber,
+  String? address,
+}) => {
+  'id': id,
+  'slug': slug,
+  'name': name,
+  'description': '',
+  'address': address ?? '',
+  'city': 'Abidjan',
+  'commune': null,
+  'latitude': null,
+  'longitude': null,
+  'imageUrls': <String>[],
+  'logoUrl': null,
+  'rating': 0,
+  'reviewCount': 0,
+  'services': <Map<String, dynamic>>[],
+  'artists': <Map<String, dynamic>>[],
+  'availability': {
+    'providerId': id,
+    'weeklySchedule': <String, dynamic>{},
+    'blockedDates': <String>[],
+    'bufferMinutes': 0,
+  },
+  'phoneNumber': phoneNumber,
+  'whatsapp': phoneNumber,
+  'category': category,
+  'depositRequired': false,
+  'depositPercentage': 0.0,
+  'depositMobileMoneyOperator': null,
+  'depositMobileMoneyNumber': null,
+  'cancellationWindowHours': 24,
+  'status': 'draft',
+};

@@ -80,6 +80,10 @@ typedef ProviderVerifyResult = ({
 /// attempt/resend budget, mirroring the consumer flow. In-memory now; a Postgres
 /// impl satisfies the same interface in a follow-up.
 abstract interface class ProviderAuthRepository {
+  /// Link a salon to an account (salon provisioning —
+  /// docs/design/pro-salon-lifecycle.md §2). Idempotent.
+  Future<void> linkProvider(String accountId, String providerId);
+
   // Phone OTP — dormant at launch (AUTH_METHODS gates the routes).
   Future<OtpRequestResult> requestOtp(String phoneNumber);
   Future<ProviderVerifyResult> verifyOtp(String phoneNumber, String code);
@@ -177,6 +181,11 @@ class _Refresh {
 }
 
 class InMemoryProviderAuthRepository implements ProviderAuthRepository {
+  @override
+  Future<void> linkProvider(String accountId, String providerId) async {
+    _byId[accountId]?.providerId = providerId;
+  }
+
   InMemoryProviderAuthRepository({
     required TokenService tokens,
     required bool isProd,

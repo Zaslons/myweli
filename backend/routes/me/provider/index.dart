@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
+import 'package:myweli_backend/src/salon_provisioning_service.dart';
 
 /// `GET /me/provider` — the signed-in provider's own account + the salon it
 /// manages. Provider-scoped: the salon id is resolved from the account (never a
@@ -22,13 +23,21 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
 
-  final account = await context.read<ProviderAuthRepository>().accountById(
+  var account = await context.read<ProviderAuthRepository>().accountById(
     principal.userId,
   );
-  final providerId = account?.providerId;
-  if (account == null || providerId == null) {
+  if (account == null) {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
+  // Self-heal: accounts registered before salon provisioning existed (or
+  // after a partial failure) get their draft salon on first read
+  // (docs/design/pro-salon-lifecycle.md §2).
+  if (account.providerId == null) {
+    account = await context.read<SalonProvisioningService>().ensureSalon(
+      account,
+    );
+  }
+  final providerId = account.providerId!;
 
   final provider = await context.read<ProvidersRepository>().byId(providerId);
   if (provider == null) {

@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
+import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/validators.dart';
 
 const _businessTypes = {
@@ -63,15 +64,18 @@ Future<Response> onRequest(RequestContext context) async {
     final claims = await context.read<GoogleIdTokenVerifier>().verify(idToken);
     if (!claims.ok) return verifierError(claims.error!);
     return providerSessionResponse(
-      await repo.register(
-        businessName: businessName,
-        businessType: businessType,
-        phoneNumber: phone,
-        email: claims.email!,
-        authProvider: 'google',
-        googleSub: claims.sub,
-        address: address,
-        providerId: providerId,
+      await _provisioned(
+        context,
+        await repo.register(
+          businessName: businessName,
+          businessType: businessType,
+          phoneNumber: phone,
+          email: claims.email!,
+          authProvider: 'google',
+          googleSub: claims.sub,
+          address: address,
+          providerId: providerId,
+        ),
       ),
       successStatus: HttpStatus.created,
     );
@@ -93,15 +97,18 @@ Future<Response> onRequest(RequestContext context) async {
       return jsonError(HttpStatus.unauthorized, 'token_rejected');
     }
     return providerSessionResponse(
-      await repo.register(
-        businessName: businessName,
-        businessType: businessType,
-        phoneNumber: phone,
-        email: claims.email!,
-        authProvider: 'apple',
-        appleSub: claims.sub,
-        address: address,
-        providerId: providerId,
+      await _provisioned(
+        context,
+        await repo.register(
+          businessName: businessName,
+          businessType: businessType,
+          phoneNumber: phone,
+          email: claims.email!,
+          authProvider: 'apple',
+          appleSub: claims.sub,
+          address: address,
+          providerId: providerId,
+        ),
       ),
       successStatus: HttpStatus.created,
     );
@@ -115,15 +122,18 @@ Future<Response> onRequest(RequestContext context) async {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');
     }
     return providerSessionResponse(
-      await repo.register(
-        businessName: businessName,
-        businessType: businessType,
-        phoneNumber: phone,
-        email: email,
-        authProvider: 'email',
-        emailCode: code,
-        address: address,
-        providerId: providerId,
+      await _provisioned(
+        context,
+        await repo.register(
+          businessName: businessName,
+          businessType: businessType,
+          phoneNumber: phone,
+          email: email,
+          authProvider: 'email',
+          emailCode: code,
+          address: address,
+          providerId: providerId,
+        ),
       ),
       successStatus: HttpStatus.created,
     );
@@ -131,4 +141,18 @@ Future<Response> onRequest(RequestContext context) async {
 
   // No usable identity proof.
   return jsonError(HttpStatus.badRequest, 'invalid_input');
+}
+
+/// A new account gets its DRAFT salon right away (docs/design/
+/// pro-salon-lifecycle.md §2) — the dashboard works from second one. A
+/// failure here is tolerable: /me/provider self-heals on first read.
+Future<ProviderVerifyResult> _provisioned(
+  RequestContext context,
+  ProviderVerifyResult result,
+) async {
+  if (!result.ok) return result;
+  final account = await context.read<SalonProvisioningService>().ensureSalon(
+    result.provider!,
+  );
+  return (ok: true, error: null, provider: account, tokens: result.tokens);
 }

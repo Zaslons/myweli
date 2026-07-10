@@ -1139,7 +1139,7 @@ export interface paths {
         put?: never;
         /**
          * Register a salon — identity proof INLINE (auth overhaul P4)
-         * @description One submit registers AND signs in. Provide EXACTLY ONE identity proof: `idToken` (Google) · `identityToken` (+`nonce`) (Apple) · `email`+`code` (email OTP via /auth/provider/email/otp/request). The contact `phoneNumber` is REQUIRED. Returns a live ProviderSession (201). Design: docs/design/pro-auth-social.md.
+         * @description One submit registers AND signs in. Provide EXACTLY ONE identity proof: `idToken` (Google) · `identityToken` (+`nonce`) (Apple) · `email`+`code` (email OTP via /auth/provider/email/otp/request). The contact `phoneNumber` is REQUIRED. Returns a live ProviderSession (201). Also provisions the account's linked DRAFT salon (publicly invisible until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy salon-less accounts self-heal on `GET /me/provider`). Design: docs/design/pro-auth-social.md.
          */
         post: {
             parameters: {
@@ -2289,6 +2289,63 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/providers/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take the salon live (pro-salon-lifecycle)
+         * @description Owner-only (the token's account must own {id} — T50). Flips the salon from `draft` to `active` when the server-computed go-live gate passes (PRD FR-PRO-ONB-001): profile (description + address + commune), ≥3 active services, ≥3 photos, at least one open weekday. Incomplete → 409 `incomplete` with the missing checklist keys. Idempotent for an already-active salon. Drafts are invisible on every public surface (discovery, by-slug, sitemap) and refuse bookings (T51).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The (now) active provider */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Provider"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description The go-live gate failed */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            error: "incomplete";
+                            missing: ("profile" | "services" | "photos" | "availability")[];
+                        };
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;

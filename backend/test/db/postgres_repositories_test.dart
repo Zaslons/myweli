@@ -410,6 +410,48 @@ void main() {
   });
 
   group('PostgresProvidersRepository', () {
+    test('createSalon persists a hidden draft; linkProvider attaches it '
+        '(pro-salon-lifecycle.md)', () async {
+      final repo = PostgresProvidersRepository(pool);
+      final before = (await repo.query()).length;
+      final salon = await repo.createSalon(
+        name: 'Salon Test Lifecycle',
+        category: 'salon',
+        phoneNumber: '+2250700000042',
+        address: 'Rue du Test',
+      );
+      final id = salon['id'] as String;
+      expect(salon['status'], 'draft');
+      // Hidden from discovery (T51)…
+      expect((await repo.query()).length, before);
+      // …readable by id, and by slug at repo level (the route gates it).
+      expect((await repo.byId(id))?['name'], 'Salon Test Lifecycle');
+      expect((await repo.bySlug('salon-test-lifecycle'))?['id'], id);
+
+      // Publish → discoverable.
+      await repo.setStatus(id, 'active');
+      expect((await repo.query()).any((x) => x['id'] == id), isTrue);
+
+      // linkProvider round-trip on the auth side.
+      final auth = PostgresProviderAuthRepository(
+        pool,
+        tokens: TokenService(secret: 'test-secret'),
+        isProd: false,
+      );
+      final reg = await auth.register(
+        businessName: 'Salon Test Lifecycle',
+        businessType: 'salon',
+        phoneNumber: '+2250700000042',
+        email: 'lifecycle@salon.test',
+        authProvider: 'google',
+        googleSub: 'sub-lifecycle',
+      );
+      expect(reg.ok, isTrue);
+      expect(reg.provider!.providerId, isNull);
+      await auth.linkProvider(reg.provider!.id, id);
+      expect((await auth.accountById(reg.provider!.id))?.providerId, id);
+    });
+
     test('query returns seeded providers sorted by rating desc', () async {
       final repo = PostgresProvidersRepository(pool);
       final all = await repo.query();
