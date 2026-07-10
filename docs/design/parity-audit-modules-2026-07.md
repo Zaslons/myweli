@@ -4,7 +4,7 @@
 |---|---|
 | **Goal** | Not just feature presence: entry points · user flow · capabilities · UI states & copy, compared by READING the code on both surfaces (user directive 2026-07-10; supersedes the M8-era [web-parity-audit.md](web-parity-audit.md)) |
 | **Method** | Per built module ([MODULES.md](../MODULES.md)): consumer app ↔ consumer web, pro app ↔ pro web. Severity: **❌ missing capability** · **⚠️ flow/UX divergence** · **ℹ️ deliberate adaptation** (fine per `web-design-latitude`). Findings are BIDIRECTIONAL — app gaps count too |
-| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue · 4 clients · 5 notifications**. Next: 8 payments · 9/10 finance+analytics · 11 access · 15 trust |
+| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue · 4 clients · 5 notifications**. Audited too: **8 payments · 9/10 finance+analytics**. Next: 11 access · 15 trust |
 
 ## Module 1 — `journal` (appointment lifecycle, both roles)
 
@@ -147,3 +147,23 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ### Modules 4–5 — proposed fixes
 1. **Web notification center + préférences** (5.1/5.2) — a bell in the header + `/mon-compte/notifications` (list, mark-read) + a preferences block; endpoints already live.
 2. Web custom-tag input on the client card (4.1) — one small field.
+
+## Module 8 — `payments` (no-custody deposits)
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 8.1 | **« Deposits require verification » is copy-only — NEVER enforced** | ❌ **both + backend** | Both KYC screens promise « Les acomptes sont activés une fois votre compte vérifié » — but nothing enforces it: `PUT /providers/{id}/deposit-policy` doesn't check `verificationStatus`, booking derives the deposit from `depositRequired` alone, and neither editor locks the toggle. **An UNVERIFIED salon can demand screenshot-based deposits — the exact fraud vector KYC exists to block.** Fix server-side (policy PUT 403 `verification_required` when not verified, or derive 0) + lock state with explanatory copy in both editors |
+| 8.2 | Policy editors | ✅ | Toggle · percentage · fenêtre d'annulation · opérateur Mobile Money · numéro — same field set on both (app enum chips vs web select — idiomatic) |
+| 8.3 | Consumer deposit flows | ✅ (cross-ref) | Booking estimate + in-flow proof + later attach on both (K2/B4); residual gaps already filed: web can't VIEW the attached proof (1.3), app cancel dialog lacks the deposit warning (1.5) |
+
+## Modules 9 + 10 — `finance` + `analytics` (pro)
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 9.1 | **Earnings page missing on web** | ❌ web | App « Revenus »: total earnings + the per-transaction history (date · amount). Web: two stat cards (aujourd'hui / ce mois) on the pro home — no page, no history, no per-visit breakdown |
+| 9.2 | Revenue stats granularity | ⚠️ web (minor) | The dashboard endpoint returns today/week/month; web shows today + month only (week dropped) |
+| 10.1 | Dashboard counters | ✅ | À confirmer / Confirmés / Total du jour on both (web Aujourd'hui ↔ app dashboard tiles) |
+
+### Module 8–10 — proposed fixes
+1. **Enforce the deposit⇄KYC gate** (8.1) — backend rule + threat-model row + locked UI on both editors. Security-grade.
+2. **Web « Revenus »** page (9.1) — the earnings endpoint already serves the app.
