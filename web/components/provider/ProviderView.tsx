@@ -145,6 +145,8 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
           />
 
           <MapEmbed
+            name={p.name}
+            category={p.category}
             address={p.address}
             commune={p.commune}
             latitude={p.latitude}

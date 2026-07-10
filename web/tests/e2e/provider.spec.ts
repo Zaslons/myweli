@@ -32,6 +32,8 @@ test('provider page renders sections + valid structured data', async ({
 test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   page,
 }) => {
+  // Hermetic: the lazy Localisation map must not fetch CARTO from CI.
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.goto('/beaute-divine');
 
   // Avant/Après section (seeded pair).
@@ -40,8 +42,9 @@ test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   ).toBeVisible();
   await expect(page.getByText('Avant', { exact: true }).first()).toBeVisible();
 
-  // Interactive map (OpenStreetMap embed).
-  await expect(page.locator('iframe[title^="Carte"]')).toHaveCount(1);
+  // Localisation: the shared MapLibre map mounts lazily on approach.
+  await page.locator('[aria-label^="Carte"]').scrollIntoViewIfNeeded();
+  await expect(page.locator('.maplibregl-map')).toBeVisible();
 
   // Booking panel: "À partir de" + a Réserver link to the funnel.
   await expect(

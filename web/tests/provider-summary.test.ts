@@ -3,7 +3,6 @@ import type { Service } from '../lib/api/providers';
 import {
   directionsUrl,
   minActivePrice,
-  osmEmbedUrl,
 } from '../lib/provider-summary';
 
 const svc = (price: number, active = true): Service =>
@@ -16,12 +15,6 @@ describe('provider-summary', () => {
     expect(minActivePrice([])).toBeNull();
   });
 
-  it('osmEmbedUrl builds a bbox + marker', () => {
-    const u = osmEmbedUrl(5.35, -3.99);
-    expect(u).toContain('openstreetmap.org/export/embed.html');
-    expect(u).toContain('marker=5.35,-3.99');
-    expect(u).toMatch(/bbox=-3\.99800,5\.34200,-3\.98200,5\.35800/);
-  });
 
   it('directionsUrl points to Google Maps', () => {
     expect(directionsUrl(5.35, -3.99)).toBe(
