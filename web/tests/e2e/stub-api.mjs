@@ -189,8 +189,24 @@ const isPro = (req) => (req.headers.authorization || '').includes('pro');
 // Pro-side mutable salon (catalogue 7.3a) — its own copy so consumer reads of
 // `provider` stay stable. /me/provider returns this.
 const proProvider = JSON.parse(JSON.stringify(provider));
-proProvider.imageUrls = ['https://cdn.stub/a.jpg', 'https://cdn.stub/b.jpg'];
+proProvider.imageUrls = [
+  'https://cdn.stub/a.jpg',
+  'https://cdn.stub/b.jpg',
+  'https://cdn.stub/c.jpg',
+];
 proProvider.beforeAfters = [];
+// Salon lifecycle (pro-salon-lifecycle.md): the pro salon starts as a
+// complete DRAFT — the go-live e2e publishes it.
+proProvider.status = 'draft';
+proProvider.services.push({
+  id: 's3',
+  name: 'Manucure',
+  description: '',
+  price: 8000,
+  durationMinutes: 45,
+  providerId: 'p1',
+  active: true,
+});
 let svcSeq = 1;
 let artSeq = 1;
 let imgSeq = 1;
@@ -561,6 +577,11 @@ createServer(async (req, res) => {
       monthRevenue: 45000,
       totalAppointments: 1,
     });
+  }
+  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active.
+  if (url.pathname.match(/^\/providers\/[^/]+\/publish$/)) {
+    proProvider.status = 'active';
+    return json(res, 200, proProvider);
   }
   // disponibilités (7.3c) — PUT replaces the salon availability.
   if (url.pathname.match(/^\/providers\/[^/]+\/availability$/)) {

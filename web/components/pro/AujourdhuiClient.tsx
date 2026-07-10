@@ -16,11 +16,13 @@ import {
   todayCounts,
   todaysAppointments,
 } from '../../lib/pro/today';
+import { GoLiveCard } from './GoLiveCard';
 import { ProAppointmentRow } from './ProAppointmentRow';
 
 export function AujourdhuiClient() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProProfile | null>(null);
+  const [live, setLive] = useState(false);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,26 @@ export function AujourdhuiClient() {
     <div>
       <h1 className="text-2xl font-semibold text-textPrimary">Aujourd’hui</h1>
       <p className="mt-xs text-sm text-textTertiary">{profile?.provider.name}</p>
+
+      {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2). */}
+      {profile?.provider.status === 'draft' ? (
+        <GoLiveCard
+          profile={profile}
+          onPublished={() => {
+            setProfile({
+              ...profile,
+              provider: { ...profile.provider, status: 'active' },
+            });
+            setLive(true);
+          }}
+        />
+      ) : null}
+      {live ? (
+        <p className="mt-m rounded-xl border border-success/40 bg-success/10 p-m text-sm text-success">
+          🎉 Votre salon est en ligne ! Il apparaît maintenant dans les
+          recherches.
+        </p>
+      ) : null}
 
       <Link
         href="/pro/profil"

@@ -204,8 +204,8 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
   await expect(
     page.getByRole('heading', { name: 'Médias' }),
   ).toBeVisible();
-  // Seeded with 2 photos → 2 images.
-  await expect(page.locator('main img')).toHaveCount(2);
+  // Seeded with 3 photos → 3 images.
+  await expect(page.locator('main img')).toHaveCount(3);
 
   // Upload a new one (stubbed sign + R2 POST).
   await page
@@ -216,7 +216,7 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
       mimeType: 'image/jpeg',
       buffer: Buffer.from('fake-jpeg-bytes'),
     });
-  await expect(page.locator('main img')).toHaveCount(3);
+  await expect(page.locator('main img')).toHaveCount(4);
 
   await page.getByRole('button', { name: 'Enregistrer' }).first().click();
   await expect(page.getByText('Photos enregistrées.')).toBeVisible();
@@ -517,4 +517,30 @@ test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc
   await expect(
     page.getByText('Documents soumis pour vérification'),
   ).toBeVisible();
+});
+
+test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', async ({
+  page,
+}) => {
+  await proLogin(page);
+
+  // The draft banner + checklist, everything done (complete stub salon).
+  await expect(
+    page.getByText('Votre salon n’est pas encore en ligne'),
+  ).toBeVisible();
+  // Counts are order-proof: parallel tests add services/photos to the
+  // shared stub salon — the gate (≥3) is what matters.
+  await expect(
+    page.getByText(/Au moins 3 prestations \(\d+\/3\)/),
+  ).toBeVisible();
+  await expect(page.getByText(/Au moins 3 photos \(\d+\/3\)/)).toBeVisible();
+
+  const btn = page.getByRole('button', { name: 'Mettre en ligne' });
+  await expect(btn).toBeEnabled();
+  await btn.click();
+
+  await expect(page.getByText(/Votre salon est en ligne/)).toBeVisible();
+  await expect(
+    page.getByText('Votre salon n’est pas encore en ligne'),
+  ).toHaveCount(0);
 });

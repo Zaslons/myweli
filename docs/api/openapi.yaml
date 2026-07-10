@@ -3322,6 +3322,12 @@ components:
       properties:
         id: { type: string }
         slug: { type: string, description: URL slug for the public web page (myweli.ci/<slug>). }
+        status:
+          type: string
+          enum: [draft, active, suspended]
+          description: >
+            Server-owned lifecycle (pro-salon-lifecycle): `draft` until the
+            owner publishes; public reads only ever return `active`.
         name: { type: string }
         description: { type: string }
         address: { type: string }
