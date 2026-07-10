@@ -7,9 +7,11 @@ import { BookingCta } from '../BookingCta';
 export function BookingPanel({
   provider,
   slug,
+  disabled = false,
 }: {
   provider: Provider;
   slug: string;
+  disabled?: boolean;
 }) {
   const min = minActivePrice(provider.services);
   const wa = provider.whatsapp?.replace(/[^0-9]/g, '');
@@ -24,7 +26,7 @@ export function BookingPanel({
         </>
       ) : null}
       <div className="mt-m">
-        <BookingCta slug={slug} className="w-full" />
+        <BookingCta slug={slug} className="w-full" disabled={disabled} />
       </div>
       <div className="mt-m flex gap-s">
         <a

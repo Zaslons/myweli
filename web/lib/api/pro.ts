@@ -36,6 +36,7 @@ export type ProProfile = {
   provider: {
     id: string;
     name: string;
+    slug?: string;
     status?: 'draft' | 'active' | 'suspended';
     description?: string;
     address?: string;

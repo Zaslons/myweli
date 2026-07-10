@@ -535,6 +535,21 @@ test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', a
   ).toBeVisible();
   await expect(page.getByText(/Au moins 3 photos \(\d+\/3\)/)).toBeVisible();
 
+  // B4: the pre-publish preview — the consumer page, booking disabled.
+  await page.getByRole('link', { name: 'Aperçu de ma page' }).click();
+  await expect(page).toHaveURL(/\/pro\/apercu/);
+  await expect(
+    page.getByText(/Aperçu — votre salon n’est pas encore en ligne/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: /Beauté Divine/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Réserver' }).first(),
+  ).toBeDisabled();
+  await page.getByRole('link', { name: '← Tableau de bord' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
   const btn = page.getByRole('button', { name: 'Mettre en ligne' });
   await expect(btn).toBeEnabled();
   await btn.click();

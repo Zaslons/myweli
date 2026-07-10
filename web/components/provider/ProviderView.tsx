@@ -79,7 +79,18 @@ function buildFaq(p: Provider): { question: string; answer: string }[] {
   return items;
 }
 
-export function ProviderView({ provider: p, slug }: { provider: Provider; slug: string }) {
+/// `preview` = the owner's own pre-publish render (docs/design/
+/// pro-salon-lifecycle.md B4): no JSON-LD, no consumer favorite button,
+/// booking CTAs disabled — everything else EXACTLY as a client will see it.
+export function ProviderView({
+  provider: p,
+  slug,
+  preview = false,
+}: {
+  provider: Provider;
+  slug: string;
+  preview?: boolean;
+}) {
   const url = `${siteUrl}/${slug}`;
   const commune = p.commune ?? 'Abidjan';
   const cat = categoryLabelFr(p.category).toLowerCase();
@@ -89,14 +100,18 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
 
   return (
     <main className="mx-auto max-w-5xl pb-xxl lg:pb-0">
-      <JsonLd data={localBusinessJsonLd(p, url)} />
-      <JsonLd data={faqJsonLd(faq)} />
-      <JsonLd
-        data={breadcrumbJsonLd([
-          { name: 'Accueil', url: siteUrl },
-          { name: p.name, url },
-        ])}
-      />
+      {!preview ? (
+        <>
+          <JsonLd data={localBusinessJsonLd(p, url)} />
+          <JsonLd data={faqJsonLd(faq)} />
+          <JsonLd
+            data={breadcrumbJsonLd([
+              { name: 'Accueil', url: siteUrl },
+              { name: p.name, url },
+            ])}
+          />
+        </>
+      ) : null}
 
       <ProviderHero provider={p} />
 
@@ -107,9 +122,11 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
             Services, tarifs, horaires et avis — réservation 24/7, sans appel.
           </p>
 
-          <div className="px-m pt-s">
-            <FavoriteButton providerId={p.id} slug={slug} />
-          </div>
+          {!preview ? (
+            <div className="px-m pt-s">
+              <FavoriteButton providerId={p.id} slug={slug} />
+            </div>
+          ) : null}
 
           <Gallery images={(p.imageUrls ?? []).slice(1)} />
 
@@ -181,7 +198,7 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
 
         <aside className="hidden px-m pt-m lg:block">
           <div className="sticky top-l">
-            <BookingPanel provider={p} slug={slug} />
+            <BookingPanel provider={p} slug={slug} disabled={preview} />
           </div>
         </aside>
       </div>
@@ -198,7 +215,7 @@ export function ProviderView({ provider: p, slug }: { provider: Provider; slug: 
         ) : (
           <span />
         )}
-        <BookingCta slug={slug} />
+        <BookingCta slug={slug} disabled={preview} />
       </div>
     </main>
   );
