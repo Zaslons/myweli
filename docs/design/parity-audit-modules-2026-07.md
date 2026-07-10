@@ -4,7 +4,7 @@
 |---|---|
 | **Goal** | Not just feature presence: entry points · user flow · capabilities · UI states & copy, compared by READING the code on both surfaces (user directive 2026-07-10; supersedes the M8-era [web-parity-audit.md](web-parity-audit.md)) |
 | **Method** | Per built module ([MODULES.md](../MODULES.md)): consumer app ↔ consumer web, pro app ↔ pro web. Severity: **❌ missing capability** · **⚠️ flow/UX divergence** · **ℹ️ deliberate adaptation** (fine per `web-design-latitude`). Findings are BIDIRECTIONAL — app gaps count too |
-| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue**. Next: 4 clients · 5 notifications · 8 payments · 9/10 finance+analytics · 11 access · 15 trust |
+| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue · 4 clients · 5 notifications**. Next: 8 payments · 9/10 finance+analytics · 11 access · 15 trust |
 
 ## Module 1 — `journal` (appointment lifecycle, both roles)
 
@@ -125,3 +125,25 @@ Fresh parity as of L1/L2 (2026-07-10): both surfaces edit every allowlisted fiel
 2. **Web: per-staff hours** (3.4) + **breaks editor** (3.8) — the two remaining inputs the K1 slot engine reads that web salons can't set.
 3. **Web: duration variants** (3.2) + artist photo (3.5).
 4. App: photo reorder (3.6).
+
+## Module 4 — `clients` (salon CRM)
+
+Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 4.1 | **Web cannot CREATE custom tags** | ❌ web (minor) | App tag sheet: presets + a free-text field to add a custom tag. Web tag editor offers presets + only the custom tags ALREADY on the card (no input to mint one) |
+| 4.2 | Everything else | ✅ | Search (débounced) + tag filter + masked phones + MyWeli/absences badges + educational empty on both lists · card: tel/WhatsApp, tags, team-only notes (add/delete, 500), stats (Visites/Dépensé/Absences alert/Dernière), « Prochain rendez-vous », salon-scoped history, « Nouveau rendez-vous » prefilled · add-client with initial note + 409 dedupe → existing card on both |
+| 4.3 | Pagination style | ℹ️ | App: infinite scroll · web: « Charger plus » — idiomatic per surface |
+
+## Module 5 — `notifications`
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 5.1 | **Web has NO notification center** | ❌ web | App: `notifications_screen` (list + mark-read + unread state) fed by `GET /me/notifications`. Web: nothing — no bell, no page; a web-only user never sees booking-lifecycle notifications in-product (only WhatsApp/SMS if configured) |
+| 5.2 | **Web has NO notification preferences** | ❌ web | App: `notification_preferences_screen` (channel toggles → `/me/notification-preferences`). Web: nothing |
+| 5.3 | Web push | ℹ️/⏳ | FCM device registration is app-side; web push (PWA) is a separate deferral already noted in the module map — not counted as parity debt yet |
+
+### Modules 4–5 — proposed fixes
+1. **Web notification center + préférences** (5.1/5.2) — a bell in the header + `/mon-compte/notifications` (list, mark-read) + a preferences block; endpoints already live.
+2. Web custom-tag input on the client card (4.1) — one small field.
