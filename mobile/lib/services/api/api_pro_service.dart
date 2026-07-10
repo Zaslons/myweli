@@ -129,6 +129,26 @@ class ApiProService implements ProServiceInterface {
       _transition(appointmentId, 'arrive', 'Client arrivé');
 
   @override
+  Future<ApiResponse<bool>> publishSalon(String providerId) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send((token) => _client.post(
+          _uri('/providers/$providerId/publish'),
+          headers: _bearer(token),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode == 409) {
+      return ApiResponse.error(
+        'Complétez les étapes requises avant la mise en ligne.',
+        code: 'incomplete',
+      );
+    }
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(true, message: 'Votre salon est en ligne');
+  }
+
+  @override
   Future<ApiResponse<JournalDay>> getJournalDay(
     String providerId,
     DateTime date,

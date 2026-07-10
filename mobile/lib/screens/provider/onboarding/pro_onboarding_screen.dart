@@ -31,11 +31,21 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
     });
   }
 
-  void _goLive() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🎉 Votre profil est en ligne !'),
-        backgroundColor: AppColors.success,
+  Future<void> _goLive() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final providerId =
+        context.read<ProAuthProvider>().provider?.providerId ?? '';
+    final onboarding = context.read<ProOnboardingProvider>();
+    final ok = await onboarding.publish(providerId);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? '🎉 Votre profil est en ligne !'
+              : (onboarding.error ?? 'La mise en ligne a échoué'),
+        ),
+        backgroundColor: ok ? AppColors.success : AppColors.error,
       ),
     );
   }
@@ -96,6 +106,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
         const SizedBox(height: AppTheme.spacingL),
         AppButton(
           text: 'Mettre mon profil en ligne',
+          isLoading: onboarding.isPublishing,
           onPressed: onboarding.readyToGoLive ? _goLive : null,
         ),
         if (!onboarding.readyToGoLive) ...[

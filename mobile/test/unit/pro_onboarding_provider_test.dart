@@ -7,18 +7,27 @@ import 'package:myweli/models/kyc_document.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/pro_onboarding_provider.dart';
 import 'package:myweli/services/interfaces/pro_kyc_service_interface.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 
 class _MockProKycService extends Mock implements ProKycServiceInterface {}
 
+class _MockProService extends Mock implements ProServiceInterface {}
+
 void main() {
   late _MockProKycService kyc;
+  late _MockProService pro;
 
   setUpAll(() {
     kyc = _MockProKycService();
     serviceLocator.proKycService = kyc;
+    pro = _MockProService();
+    serviceLocator.proService = pro;
   });
 
-  setUp(() => reset(kyc));
+  setUp(() {
+    reset(kyc);
+    reset(pro);
+  });
 
   ProviderUser newPro() => ProviderUser(
         id: 'pu1',
@@ -70,5 +79,31 @@ void main() {
 
     expect(statusOf(p, OnboardingStepKey.verification),
         OnboardingStepStatus.inProgress);
+  });
+
+  group('publish (pro-salon-lifecycle B3)', () {
+    test('success → true, no error, loading toggles', () async {
+      when(() => pro.publishSalon('p1')).thenAnswer(
+        (_) async => ApiResponse.success(true, message: 'ok'),
+      );
+      final p = ProOnboardingProvider();
+      final ok = await p.publish('p1');
+      expect(ok, isTrue);
+      expect(p.error, isNull);
+      expect(p.isPublishing, isFalse);
+      verify(() => pro.publishSalon('p1')).called(1);
+    });
+
+    test('incomplete → false + the server message surfaces', () async {
+      when(() => pro.publishSalon('p1')).thenAnswer(
+        (_) async => ApiResponse.error(
+          'Complétez les étapes requises avant la mise en ligne.',
+          code: 'incomplete',
+        ),
+      );
+      final p = ProOnboardingProvider();
+      expect(await p.publish('p1'), isFalse);
+      expect(p.error, contains('Complétez les étapes'));
+    });
   });
 }

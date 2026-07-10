@@ -21,6 +21,22 @@ class ProOnboardingProvider extends ChangeNotifier {
   bool get readyToGoLive => canGoLive(_steps);
   ({int done, int total}) get progress => onboardingProgress(_steps);
 
+  bool _isPublishing = false;
+  bool get isPublishing => _isPublishing;
+
+  /// Take the salon live (docs/design/pro-salon-lifecycle.md B3). The server
+  /// re-checks the gate; `incomplete` surfaces its message. True on success.
+  Future<bool> publish(String providerId) async {
+    _isPublishing = true;
+    _error = null;
+    notifyListeners();
+    final res = await serviceLocator.proService.publishSalon(providerId);
+    _isPublishing = false;
+    if (!res.success) _error = res.error ?? 'La mise en ligne a échoué';
+    notifyListeners();
+    return res.success;
+  }
+
   Future<void> load(ProviderUser proUser) async {
     _isLoading = true;
     _loadFailed = false;

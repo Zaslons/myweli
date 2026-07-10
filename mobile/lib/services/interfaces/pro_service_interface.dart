@@ -98,6 +98,11 @@ abstract class ProServiceInterface {
   /// confirmed-only, idempotent (guarded server-side).
   Future<ApiResponse<bool>> markArrived(String appointmentId);
 
+  /// Take the salon live (docs/design/pro-salon-lifecycle.md): flips the
+  /// DRAFT listing to active once the server-side go-live gate passes.
+  /// Incomplete → error code `incomplete`.
+  Future<ApiResponse<bool>> publishSalon(String providerId);
+
   /// The salon's whole day as one payload (module journal J1) — hours,
   /// artists, and every booking (all statuses) for [date].
   Future<ApiResponse<JournalDay>> getJournalDay(
