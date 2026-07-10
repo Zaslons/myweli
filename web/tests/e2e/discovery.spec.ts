@@ -43,3 +43,45 @@ test('/recherche lists matching salons', async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText('Beauté Divine').first()).toBeVisible();
 });
+
+// --- the discovery map (web-discovery-map.md) -------------------------------
+// Tile requests are aborted → hermetic; markers/popups are DOM, not tiles.
+
+test('/recherche desktop: list + sticky map, marker → mini-card + card ring', async ({
+  page,
+}) => {
+  await page.route('**/tile.openstreetmap.org/**', (r) => r.abort());
+  await page.goto('/recherche');
+
+  // Split view: the list and the map pane are both visible on desktop.
+  await expect(page.getByText('Beauté Divine').first()).toBeVisible();
+  await expect(page.locator('.leaflet-container')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Autour de moi' })).toBeVisible();
+
+  // Category chips re-query with the type filter.
+  await expect(page.getByRole('link', { name: 'Tous' })).toBeVisible();
+
+  // Click the salon's marker → popup mini-card + the list card highlights.
+  await page.locator('.myweli-marker').first().click();
+  await expect(
+    page.locator('.leaflet-popup').getByText('Beauté Divine'),
+  ).toBeVisible();
+  await expect(
+    page.locator('.leaflet-popup').getByRole('link', { name: 'Voir le salon' }),
+  ).toHaveAttribute('href', '/beaute-divine');
+  await expect(page.locator('.ring-2')).toBeVisible();
+});
+
+test('/recherche mobile: « Carte » toggle flips to the map and back', async ({
+  page,
+}) => {
+  await page.route('**/tile.openstreetmap.org/**', (r) => r.abort());
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/recherche');
+
+  await expect(page.getByText('Beauté Divine').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Carte', exact: true }).click();
+  await expect(page.locator('.leaflet-container')).toBeVisible();
+  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await expect(page.getByText('Beauté Divine').first()).toBeVisible();
+});
