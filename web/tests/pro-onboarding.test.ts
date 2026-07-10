@@ -14,6 +14,8 @@ function provider(
     description: 'Un salon complet.',
     address: 'Rue des Jardins',
     commune: 'Cocody',
+    latitude: 5.35,
+    longitude: -3.99,
     services: [
       { id: 's1', name: 'A', price: 1000, active: true },
       { id: 's2', name: 'B', price: 1000, active: true },
@@ -59,6 +61,9 @@ describe('publishChecklist', () => {
       byKey(provider({ imageUrls: ['a.jpg', 'b.jpg'] }), 'photos').done,
     ).toBe(false);
     expect(
+      byKey(provider({ latitude: null }), 'location').done,
+    ).toBe(false);
+    expect(
       byKey(
         provider({
           availability: {
@@ -80,6 +85,7 @@ describe('publishChecklist', () => {
   it('items deep-link to the page that completes them', () => {
     const items = publishChecklist(provider());
     expect(items.map((i) => i.href)).toEqual([
+      '/pro/profil',
       '/pro/profil',
       '/pro/catalogue',
       '/pro/medias',

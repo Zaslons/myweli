@@ -129,6 +129,11 @@ class ProviderCatalogService {
       'commune',
       'phoneNumber',
       'whatsapp',
+      // The map pin + listing category (docs/design/pro-salon-lifecycle.md
+      // L1 — salons place themselves on the discovery map).
+      'latitude',
+      'longitude',
+      'category',
     ];
     final changes = {
       for (final k in editable)
@@ -164,6 +169,22 @@ class ProviderCatalogService {
       if (wa.trim().isNotEmpty && !isValidE164(wa.trim())) {
         return 'invalid_input';
       }
+    }
+    // The map pin comes as a PAIR of sane coordinates (L1).
+    final hasLat = body.containsKey('latitude');
+    final hasLng = body.containsKey('longitude');
+    if (hasLat != hasLng) return 'invalid_input';
+    if (hasLat) {
+      final lat = body['latitude'];
+      final lng = body['longitude'];
+      if (lat is! num || lng is! num) return 'invalid_input';
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return 'invalid_input';
+      }
+    }
+    if (body.containsKey('category')) {
+      const categories = {'salon', 'barber', 'spa', 'nails', 'massage'};
+      if (!categories.contains(body['category'])) return 'invalid_input';
     }
     return null;
   }

@@ -72,6 +72,28 @@ order, cut-off description, a wrong commune placing the map pin off).
 - **B5 app (next)**: same idea — the pro app renders the consumer salon
   screen with its own provider data.
 
+## 2c. L1/L2 — the salon's own map pin (user find, 2026-07-10)
+
+The user's post-launch check surfaced it: **nothing could ever set a salon's
+coordinates** — the PATCH allowlist had no latitude/longitude, so no real
+salon would appear on the discovery map, and its page's Localisation section
+would stay address-only forever. The audit also found: the pro APP has no
+profile editing at all (web-only, 7.3e-i), the category is frozen at
+registration, and `logoUrl` is displayed (app) but never settable (minor,
+parked).
+
+- **L1 (built — backend + web)**: `latitude`/`longitude` join the PATCH
+  allowlist (validated: a PAIR, −90..90 / −180..180) and **`category`**
+  becomes editable (canonical enum). The **publish gate gains `location`**
+  — no pin, no go-live (the user's « location and everything » rule; the
+  contract's `missing` enum + web checklist updated). Web Profil gets the
+  **pin picker**: the shared MapLibre/Positron map — tap to place, drag to
+  adjust, « Utiliser ma position » — plus a category dropdown.
+- **L2 (next — app)**: salon profile editing in the pro app (none exists
+  today) incl. the same pin picker via flutter_map; the app onboarding
+  checklist gains the location item (until then an app-only publish of a
+  pin-less salon 409s with the proper message — B3 surfaces it).
+
 ## 3. Decision notes
 
 - **Explicit publish button** (recommended, adopted): the PRD's own funnel

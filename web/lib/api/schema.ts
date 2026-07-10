@@ -1604,6 +1604,12 @@ export interface paths {
                         phoneNumber?: string;
                         /** @description E.164. */
                         whatsapp?: string | null;
+                        /** @description Map pin (pro-salon-lifecycle L1); PAIRED with longitude, −90..90. */
+                        latitude?: number;
+                        /** @description Paired with latitude */
+                        longitude?: number;
+                        /** @enum {string} */
+                        category?: "salon" | "barber" | "spa" | "nails" | "massage";
                     };
                 };
             };
@@ -2340,7 +2346,7 @@ export interface paths {
                         "application/json": {
                             /** @enum {string} */
                             error: "incomplete";
-                            missing: ("profile" | "services" | "photos" | "availability")[];
+                            missing: ("profile" | "location" | "services" | "photos" | "availability")[];
                         };
                     };
                 };

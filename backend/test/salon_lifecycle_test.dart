@@ -84,6 +84,8 @@ void main() {
       'description': description,
       'address': address,
       'commune': commune,
+      'latitude': 5.35,
+      'longitude': -3.99,
       'services': [
         for (var i = 0; i < services; i++)
           {'id': 's$i', 'active': true, 'name': 'S$i'},
@@ -120,6 +122,9 @@ void main() {
       expect(SalonProvisioningService.publishGate(salon(open: false)), [
         'availability',
       ]);
+      // The map pin (L1): both coordinates or the salon can't go live.
+      final noPin = salon()..['latitude'] = null;
+      expect(SalonProvisioningService.publishGate(noPin), ['location']);
       // A fresh draft misses everything.
       expect(
         SalonProvisioningService.publishGate(
@@ -131,7 +136,7 @@ void main() {
             phoneNumber: '+2250700000001',
           ),
         ),
-        ['profile', 'services', 'photos', 'availability'],
+        ['profile', 'location', 'services', 'photos', 'availability'],
       );
       // Inactive services do not count.
       final s = salon();
@@ -179,6 +184,8 @@ void main() {
       salon['description'] = 'Salon complet à Cocody.';
       salon['address'] = 'Rue des Jardins';
       salon['commune'] = 'Cocody';
+      salon['latitude'] = 5.35;
+      salon['longitude'] = -3.99;
       salon['services'] = [
         for (var i = 0; i < 3; i++) {'id': 's$i', 'active': true},
       ];
@@ -206,7 +213,10 @@ void main() {
       expect(res.statusCode, HttpStatus.conflict);
       final body = await res.json() as Map;
       expect(body['error'], 'incomplete');
-      expect(body['missing'], containsAll(['profile', 'services', 'photos']));
+      expect(
+        body['missing'],
+        containsAll(['profile', 'location', 'services', 'photos']),
+      );
     });
 
     test(

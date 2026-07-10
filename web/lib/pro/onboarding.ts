@@ -7,7 +7,7 @@
 import type { ProProfile } from '../api/pro';
 
 export type ChecklistItem = {
-  key: 'profile' | 'services' | 'photos' | 'availability';
+  key: 'profile' | 'location' | 'services' | 'photos' | 'availability';
   label: string;
   href: string;
   done: boolean;
@@ -35,6 +35,12 @@ export function publishChecklist(
       label: 'Profil complet (description, adresse, commune)',
       href: '/pro/profil',
       done: profileDone,
+    },
+    {
+      key: 'location',
+      label: 'Position sur la carte',
+      href: '/pro/profil',
+      done: provider.latitude != null && provider.longitude != null,
     },
     {
       key: 'services',

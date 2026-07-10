@@ -483,6 +483,7 @@ test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc
   page,
 }) => {
   await proLogin(page);
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.goto('/pro/profil');
   await page.getByRole('link', { name: /Vérification/ }).click();
   await expect(page).toHaveURL(/\/pro\/verification/);

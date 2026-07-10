@@ -859,6 +859,13 @@ paths:
                 commune: { type: string, nullable: true }
                 phoneNumber: { type: string, description: E.164. }
                 whatsapp: { type: string, nullable: true, description: E.164. }
+                latitude:
+                  type: number
+                  description: Map pin (pro-salon-lifecycle L1); PAIRED with longitude, −90..90.
+                longitude: { type: number, description: Paired with latitude, −180..180. }
+                category:
+                  type: string
+                  enum: [salon, barber, spa, nails, massage]
       responses:
         '200':
           description: The updated provider
@@ -1247,7 +1254,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: [profile, services, photos, availability]
+                      enum: [profile, location, services, photos, availability]
 
   /providers/{id}/deposit-policy:
     parameters:

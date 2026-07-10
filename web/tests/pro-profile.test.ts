@@ -20,6 +20,9 @@ const profile: ProfileForm = {
   city: 'Abidjan',
   phoneNumber: '+2250700000000',
   whatsapp: '',
+  category: 'salon',
+  latitude: null,
+  longitude: null,
 };
 
 describe('pro profile form', () => {
@@ -39,7 +42,22 @@ describe('pro profile form', () => {
       city: null,
       phoneNumber: '+2250700000000',
       whatsapp: null,
+      category: 'salon',
     });
+  });
+
+  it('the map pin rides along only once PLACED (paired — L1)', () => {
+    const placed = buildProfilePayload({
+      ...profile,
+      latitude: 5.36,
+      longitude: -3.99,
+    });
+    expect(placed.latitude).toBe(5.36);
+    expect(placed.longitude).toBe(-3.99);
+    // Unplaced → the keys are absent (the backend requires the pair).
+    const unplaced = buildProfilePayload(profile);
+    expect('latitude' in unplaced).toBe(false);
+    expect('longitude' in unplaced).toBe(false);
   });
 
   it('profileToForm fills from a provider record', () => {

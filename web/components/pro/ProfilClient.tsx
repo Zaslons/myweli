@@ -5,12 +5,28 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
 import {
+  PROFILE_CATEGORIES,
   type ProfileForm,
   buildProfilePayload,
   profileToForm,
   validateProfile,
 } from '../../lib/pro/profile';
+import dynamic from 'next/dynamic';
 import { Button } from '../Button';
+
+// MapLibre is browser-only; the pin picker loads with the page (authed, not
+// an indexed surface — no CWV concern).
+const LocationPicker = dynamic(
+  () => import('./LocationPicker').then((m) => m.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-surfaceVariant md:h-80">
+        <p className="text-sm text-textSecondary">Chargement de la carte…</p>
+      </div>
+    ),
+  },
+);
 
 const input =
   'w-full rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
@@ -137,6 +153,32 @@ export function ProfilClient() {
             className={input}
             value={form.whatsapp}
             onChange={(e) => set('whatsapp', e.target.value)}
+          />
+        </Field>
+        <Field label="Catégorie">
+          <select
+            className={input}
+            value={form.category}
+            onChange={(e) => set('category', e.target.value)}
+          >
+            {PROFILE_CATEGORIES.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Position sur la carte">
+          {/* The pin your clients see on la carte (pro-salon-lifecycle L1);
+              required to go live. */}
+          <LocationPicker
+            latitude={form.latitude}
+            longitude={form.longitude}
+            onChange={(lat, lng) =>
+              setForm((f) =>
+                f ? { ...f, latitude: lat, longitude: lng } : f,
+              )
+            }
           />
         </Field>
 
