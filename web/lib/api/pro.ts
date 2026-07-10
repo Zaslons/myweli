@@ -1,3 +1,4 @@
+import type { Review } from './providers';
 import type { Availability } from '../pro/availability';
 import type {
   SalonClientCard,
@@ -88,6 +89,33 @@ export async function listProAppointments(): Promise<{
   if (!res.ok) return { status: res.status, items: [] };
   const body = (await res.json().catch(() => ({}))) as { items?: ProAppointment[] };
   return { status: 200, items: body.items ?? [] };
+}
+
+/// The salon's reviews page (« Avis » — docs/design/web-pro-reviews.md).
+export async function listProviderReviews(
+  providerId: string,
+  page = 1,
+): Promise<{
+  status: number;
+  items: Review[];
+  total: number;
+  pageSize: number;
+}> {
+  const res = await fetch(
+    `/api/pro/reviews?providerId=${encodeURIComponent(providerId)}&page=${page}`,
+  );
+  if (!res.ok) return { status: res.status, items: [], total: 0, pageSize: 0 };
+  const body = (await res.json().catch(() => ({}))) as {
+    items?: Review[];
+    total?: number;
+    pageSize?: number;
+  };
+  return {
+    status: 200,
+    items: body.items ?? [],
+    total: body.total ?? 0,
+    pageSize: body.pageSize ?? 50,
+  };
 }
 
 /// Detail = find it in the provider list (GET /appointments/{id} is consumer-

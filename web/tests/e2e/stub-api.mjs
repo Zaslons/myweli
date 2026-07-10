@@ -577,6 +577,37 @@ createServer(async (req, res) => {
     res.writeHead(204, { 'access-control-allow-origin': '*' });
     return res.end();
   }
+  // « Avis » (web-pro-reviews.md) — the salon's paginated public reviews.
+  if (url.pathname.match(/^\/providers\/[^/]+\/reviews$/)) {
+    return json(res, 200, {
+      items: [
+        {
+          id: 'r1',
+          providerId: 'p1',
+          userId: 'u1',
+          userName: 'Awa',
+          rating: 5,
+          text: 'Service impeccable.',
+          serviceName: 'Tresses',
+          artistName: 'Awa',
+          createdAt: '2026-06-01T10:00:00.000Z',
+        },
+        {
+          id: 'r2',
+          providerId: 'p1',
+          userId: 'u3',
+          userName: 'Mariam',
+          rating: 4,
+          text: 'Très bon accueil.',
+          photoUrls: ['https://cdn.stub/avis1.jpg'],
+          createdAt: '2026-06-15T10:00:00.000Z',
+        },
+      ],
+      page: 1,
+      pageSize: 50,
+      total: 2,
+    });
+  }
   if (url.pathname.match(/^\/providers\/[^/]+\/gallery$/)) {
     if (req.method === 'PUT') {
       const body = await readBody(req);
