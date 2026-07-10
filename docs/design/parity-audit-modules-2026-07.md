@@ -4,7 +4,7 @@
 |---|---|
 | **Goal** | Not just feature presence: entry points · user flow · capabilities · UI states & copy, compared by READING the code on both surfaces (user directive 2026-07-10; supersedes the M8-era [web-parity-audit.md](web-parity-audit.md)) |
 | **Method** | Per built module ([MODULES.md](../MODULES.md)): consumer app ↔ consumer web, pro app ↔ pro web. Severity: **❌ missing capability** · **⚠️ flow/UX divergence** · **ℹ️ deliberate adaptation** (fine per `web-design-latitude`). Findings are BIDIRECTIONAL — app gaps count too |
-| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue · 4 clients · 5 notifications**. Audited too: **8 payments · 9/10 finance+analytics · 11 access**. Next: 15 trust + final synthesis |
+| **Status** | In progress — audited: **1 journal · 2 online-booking · 3 catalogue · 4 clients · 5 notifications**. **COMPLETE** — all built modules audited (1 · 2 · 3 · 4 · 5 · 8 · 9/10 · 11 · 15; modules 6/7/12/13/14 are unbuilt V2/V3 on every surface — nothing to compare). Synthesis at the end |
 
 ## Module 1 — `journal` (appointment lifecycle, both roles)
 
@@ -200,3 +200,45 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 1. **Web account deletion + data export** (11.1/11.2) — endpoints live; legal-grade.
 2. Email-code **resend with cooldown** on both (the pattern already exists in the dormant OTP screen).
 3. Web name editing (11.3).
+
+## Module 15 — `trust` (KYC · moderation · disputes · badges)
+
+| # | Finding | Severity | Detail |
+|---|---|---|---|
+| 15.1 | **The « Vérifié » badge exists NOWHERE — not even in the data** | ❌ **both + backend** | Verification lives on the ACCOUNT (`provider_users.verification_status`); the public listing carries no `verified` field — backend payload, app `Provider` model and web type all lack it, and no consumer surface renders a badge. **KYC's entire consumer-visible payoff is unwired end-to-end** (and it compounds 8.1: today KYC gates nothing and shows nothing). PRD's Provider model explicitly lists `verified` |
+| 15.2 | No in-product dispute/problem entry | ⚠️ both | Disputes are admin-created/resolved (manual intake — WhatsApp support). Acceptable pre-launch; the app at least has « Aide & Support » in the profile — **web mon-compte has no help/support entry at all** |
+| 15.3 | KYC submit/status | ✅ | Full parity since web-pro-kyc (2026-07-10) |
+| 15.4 | Review moderation | cross-ref | Consumer « Signaler » missing on both = finding 2.14; the admin queue is live |
+
+---
+
+# SYNTHESIS — consolidated priorities across all findings
+
+## P0 — security · legal · trust correctness
+| Finding | Surfaces |
+|---|---|
+| **8.1** Deposit⇄KYC gate is copy-only: unverified salons can demand deposits | backend + both editors |
+| **15.1** « Vérifié » badge unwired end-to-end (field → model → display) | backend + app + web |
+| **11.1/11.2** Account deletion + data export missing on web (legal-grade) | web |
+
+## P1 — core capabilities users will hit
+| Finding | Surfaces |
+|---|---|
+| **3.1** `artistIds` (service↔staff assignment) settable NOWHERE — the capability rule + per-artist capacity are decorative for real salons | app + web |
+| **1.1** Consumer reschedule missing on web · **1.9** pro cross-day reschedule missing on web | web |
+| **3.4** Per-staff hours + **3.8** breaks editor missing on web (the K1 engine's starving inputs) | web |
+| **5.1/5.2** Notification center + préférences missing on web | web |
+| **9.1** « Revenus » page (earnings + history) missing on web | web |
+
+## P2 — flow/UX & conversion
+2.11 mobile-web sticky « Confirmer » bar · 2.10 booking notes on web · 2.1/2.2 « Trier » + « Disponible aujourd'hui » on web search · email-code RESEND with cooldown (both — pattern exists in the dormant OTP screen) · 1.10 « Client arrivé » on both detail pages · 1.5 app cancel dialog deposit warning · 1.6 app fake « Appeler » button · 3.2 web duration variants · 2.13 review photos on web (display, then submit) · 2.14 « Signaler » a review (both)
+
+## P3 — polish
+1.2 web add-to-calendar · 1.3 web view-own-proof · 1.4 web notes display · 1.8 show the spécialiste (both) · 1.11 app gap-slot artist · 2.6 web gallery lightbox · 2.7 « Vos rendez-vous ici » on web salon page · 2.8 review invite on the web salon page · 2.15 hearts on web result cards · 3.5 web artist photo · 3.6 app photo reorder · 4.1 web custom tags · 9.2 web week-revenue card · 11.3 web name edit · 15.2 web support entry
+
+## Proposed execution (themed batches, one PR each)
+1. **P0 trust batch** — deposit⇄KYC enforcement (backend + threat row + both editors' lock states) + the verified badge end-to-end + web deletion/export.
+2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
+3. **P1b reschedule batch** — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
+4. **P1c web-surfaces batch** — notification center/prefs + « Revenus ».
+5. **P2 funnel/UX batch** then **P3 polish batches**, app and web sides grouped.
