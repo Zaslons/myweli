@@ -26,6 +26,7 @@ import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
+import '../../screens/providers/provider_detail_screen.dart';
 
 class ProRouter {
   static final GoRouter router = GoRouter(
@@ -165,6 +166,16 @@ class ProRouter {
         path: '/pro/verification',
         name: 'pro-verification',
         builder: (context, state) => const ProKycScreen(),
+      ),
+      GoRoute(
+        path: '/pro/apercu',
+        name: 'pro-apercu',
+        builder: (context, state) {
+          // Owner preview of the public listing (pro-salon-lifecycle B5).
+          final providerId =
+              context.read<ProAuthProvider>().provider?.providerId ?? '';
+          return ProviderDetailScreen(providerId: providerId, preview: true);
+        },
       ),
       GoRoute(
         path: '/pro/onboarding',

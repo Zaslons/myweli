@@ -24,6 +24,7 @@ import 'providers/pro_onboarding_provider.dart';
 import 'providers/pro_reviews_provider.dart';
 import 'providers/pro_service_provider.dart';
 import 'providers/pro_subscription_provider.dart';
+import 'providers/provider_provider.dart';
 
 void main() {
   // Run inside a guarded zone so framework errors and uncaught async errors
@@ -59,6 +60,9 @@ class MyweliProApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+        // Consumer listing data — read-only, powers « Aperçu de ma page »
+        // (docs/design/pro-salon-lifecycle.md B5).
+        ChangeNotifierProvider(create: (_) => ProviderProvider()),
         ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
         ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
         ChangeNotifierProvider(create: (_) => ProServiceProvider()),

@@ -26,9 +26,16 @@ import '../../widgets/review/submit_review_sheet.dart';
 class ProviderDetailScreen extends StatefulWidget {
   final String providerId;
 
+  /// Owner preview (docs/design/pro-salon-lifecycle.md B5): renders the
+  /// LOGGED-OUT client view of the salon — no consumer session providers are
+  /// read (the pro app registers only ProviderProvider), the booking CTA is
+  /// disabled and an « Aperçu » banner tops the page.
+  final bool preview;
+
   const ProviderDetailScreen({
     super.key,
     required this.providerId,
+    this.preview = false,
   });
 
   @override
@@ -44,6 +51,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<ProviderProvider>(context, listen: false);
       provider.loadProviderById(widget.providerId);
+      if (widget.preview) return; // owner preview: no consumer session
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
@@ -133,53 +141,54 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 expandedHeight: 160,
                 pinned: true,
                 actions: [
-                  Consumer2<FavoritesProvider, AuthProvider>(
-                    builder: (context, favoritesProvider, authProvider, _) {
-                      final isFavorite = authProvider.isAuthenticated
-                          ? favoritesProvider.isFavorite(widget.providerId)
-                          : false;
-                      final userId = authProvider.user?.id ?? '';
+                  if (!widget.preview)
+                    Consumer2<FavoritesProvider, AuthProvider>(
+                      builder: (context, favoritesProvider, authProvider, _) {
+                        final isFavorite = authProvider.isAuthenticated
+                            ? favoritesProvider.isFavorite(widget.providerId)
+                            : false;
+                        final userId = authProvider.user?.id ?? '';
 
-                      return IconButton(
-                        icon: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite
-                              ? AppColors.favorite
-                              : AppColors.secondary,
-                        ),
-                        onPressed: () async {
-                          if (!authProvider.isAuthenticated) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Connectez-vous pour ajouter aux favoris'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                            final currentPath =
-                                GoRouterState.of(context).uri.toString();
-                            context.go(
-                                '/login?returnTo=${Uri.encodeComponent(currentPath)}');
-                            return;
-                          }
-                          await favoritesProvider.toggleFavorite(
-                              userId, widget.providerId);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isFavorite
-                                      ? 'Retiré des favoris'
-                                      : 'Ajouté aux favoris',
+                        return IconButton(
+                          icon: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite
+                                ? AppColors.favorite
+                                : AppColors.secondary,
+                          ),
+                          onPressed: () async {
+                            if (!authProvider.isAuthenticated) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Connectez-vous pour ajouter aux favoris'),
+                                  duration: Duration(seconds: 2),
                                 ),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          }
-                        },
-                      );
-                    },
-                  ),
+                              );
+                              final currentPath =
+                                  GoRouterState.of(context).uri.toString();
+                              context.go(
+                                  '/login?returnTo=${Uri.encodeComponent(currentPath)}');
+                              return;
+                            }
+                            await favoritesProvider.toggleFavorite(
+                                userId, widget.providerId);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isFavorite
+                                        ? 'Retiré des favoris'
+                                        : 'Ajouté aux favoris',
+                                  ),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
+                    ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
@@ -278,15 +287,16 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                       // Section: Vos rendez-vous ici
                       _SectionCard(
                         title: 'Vos rendez-vous ici',
-                        trailing: TextButton(
-                          onPressed: () => context.push('/bookings'),
-                          child: const Text('Voir tout'),
-                        ),
-                        child: Consumer2<AuthProvider, AppointmentProvider>(
-                          builder:
-                              (context, authProvider, appointmentProvider, _) {
-                            if (!authProvider.isAuthenticated) {
-                              return Padding(
+                        trailing: widget.preview
+                            ? null
+                            : TextButton(
+                                onPressed: () => context.push('/bookings'),
+                                child: const Text('Voir tout'),
+                              ),
+                        child: widget.preview
+                            // The logged-out client rendering, verbatim — no
+                            // consumer providers exist in the pro app.
+                            ? Padding(
                                 padding: const EdgeInsets.symmetric(
                                     vertical: AppTheme.spacingS),
                                 child: Text(
@@ -295,80 +305,103 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     color: AppColors.textTertiary,
                                   ),
                                 ),
-                              );
-                            }
-                            final atThisSalon = appointmentProvider.appointments
-                                .where((a) => a.providerId == widget.providerId)
-                                .toList()
-                              ..sort((a, b) => b.appointmentDate
-                                  .compareTo(a.appointmentDate));
-                            if (atThisSalon.isEmpty) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: AppTheme.spacingS),
-                                child: Text(
-                                  'Aucun rendez-vous dans ce salon.',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textTertiary,
-                                  ),
-                                ),
-                              );
-                            }
-                            final top = atThisSalon.take(5).toList();
-                            return SizedBox(
-                              height: 100,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: top.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: AppTheme.spacingS),
-                                itemBuilder: (context, i) {
-                                  final a = top[i];
-                                  final w = MediaQuery.of(context).size.width;
-                                  final cardWidth =
-                                      (w * 0.75).clamp(260.0, 340.0);
-                                  final isPast = a.status ==
-                                          AppointmentStatus.completed ||
-                                      a.status == AppointmentStatus.cancelled ||
-                                      a.appointmentDate
-                                          .isBefore(DateTime.now());
+                              )
+                            : Consumer2<AuthProvider, AppointmentProvider>(
+                                builder: (context, authProvider,
+                                    appointmentProvider, _) {
+                                  if (!authProvider.isAuthenticated) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: AppTheme.spacingS),
+                                      child: Text(
+                                        'Connectez-vous pour voir vos rendez-vous.',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textTertiary,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final atThisSalon = appointmentProvider
+                                      .appointments
+                                      .where((a) =>
+                                          a.providerId == widget.providerId)
+                                      .toList()
+                                    ..sort((a, b) => b.appointmentDate
+                                        .compareTo(a.appointmentDate));
+                                  if (atThisSalon.isEmpty) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: AppTheme.spacingS),
+                                      child: Text(
+                                        'Aucun rendez-vous dans ce salon.',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textTertiary,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final top = atThisSalon.take(5).toList();
                                   return SizedBox(
-                                    width: cardWidth,
-                                    child: CompactAppointmentTile(
-                                      appointment: a,
-                                      providerName: p.name,
-                                      providerImageUrl: p.imageUrls.isNotEmpty
-                                          ? p.imageUrls.first
-                                          : null,
-                                      hint:
-                                          isPast ? 'Réserver à nouveau' : null,
-                                      onTap: () {
-                                        if (isPast) {
-                                          // Past appointment → rebook the same
-                                          // services/stylist.
-                                          final uri = Uri(
-                                            path: '/booking',
-                                            queryParameters: {
-                                              'providerId': widget.providerId,
-                                              if (a.serviceIds.isNotEmpty)
-                                                'serviceIds':
-                                                    a.serviceIds.join(','),
-                                              if (a.artistId != null)
-                                                'artistId': a.artistId!,
+                                    height: 100,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: top.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(
+                                              width: AppTheme.spacingS),
+                                      itemBuilder: (context, i) {
+                                        final a = top[i];
+                                        final w =
+                                            MediaQuery.of(context).size.width;
+                                        final cardWidth =
+                                            (w * 0.75).clamp(260.0, 340.0);
+                                        final isPast = a.status ==
+                                                AppointmentStatus.completed ||
+                                            a.status ==
+                                                AppointmentStatus.cancelled ||
+                                            a.appointmentDate
+                                                .isBefore(DateTime.now());
+                                        return SizedBox(
+                                          width: cardWidth,
+                                          child: CompactAppointmentTile(
+                                            appointment: a,
+                                            providerName: p.name,
+                                            providerImageUrl:
+                                                p.imageUrls.isNotEmpty
+                                                    ? p.imageUrls.first
+                                                    : null,
+                                            hint: isPast
+                                                ? 'Réserver à nouveau'
+                                                : null,
+                                            onTap: () {
+                                              if (isPast) {
+                                                // Past appointment → rebook the same
+                                                // services/stylist.
+                                                final uri = Uri(
+                                                  path: '/booking',
+                                                  queryParameters: {
+                                                    'providerId':
+                                                        widget.providerId,
+                                                    if (a.serviceIds.isNotEmpty)
+                                                      'serviceIds': a.serviceIds
+                                                          .join(','),
+                                                    if (a.artistId != null)
+                                                      'artistId': a.artistId!,
+                                                  },
+                                                );
+                                                context.push(uri.toString());
+                                              } else {
+                                                context.push(
+                                                    '/appointment/${a.id}');
+                                              }
                                             },
-                                          );
-                                          context.push(uri.toString());
-                                        } else {
-                                          context.push('/appointment/${a.id}');
-                                        }
+                                          ),
+                                        );
                                       },
                                     ),
                                   );
                                 },
                               ),
-                            );
-                          },
-                        ),
                       ),
 
                       // Section: Services (expandable)
@@ -698,79 +731,80 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     ),
                                   ),
                             ],
-                            Consumer2<AuthProvider, AppointmentProvider>(
-                              builder: (context, authProvider,
-                                  appointmentProvider, _) {
-                                final isAuthenticated =
-                                    authProvider.isAuthenticated &&
-                                        authProvider.user != null;
-                                final reviewableApptId = isAuthenticated
-                                    ? appointmentProvider
-                                        .latestCompletedAppointmentId(
-                                        widget.providerId,
-                                        authProvider.user!.id,
-                                      )
-                                    : null;
-                                if (reviewableApptId == null) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(
-                                      top: AppTheme.spacingM),
-                                  child: InkWell(
-                                    onTap: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        isScrollControlled: true,
-                                        builder: (ctx) => Padding(
-                                          padding: EdgeInsets.only(
-                                            bottom: MediaQuery.of(ctx)
-                                                .viewInsets
-                                                .bottom,
-                                          ),
-                                          child: SubmitReviewSheet(
-                                            providerId: widget.providerId,
-                                            appointmentId: reviewableApptId,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusLarge),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: AppTheme.spacingM,
-                                        horizontal: AppTheme.spacingS,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surface,
-                                        borderRadius: BorderRadius.circular(
-                                            AppTheme.radiusLarge),
-                                        border:
-                                            Border.all(color: AppColors.border),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.star_border,
-                                            size: 28,
-                                            color: AppColors.textTertiary,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            'Donner mon avis',
-                                            style: AppTextStyles.titleSmall
-                                                .copyWith(
-                                              color: AppColors.textPrimary,
+                            if (!widget.preview)
+                              Consumer2<AuthProvider, AppointmentProvider>(
+                                builder: (context, authProvider,
+                                    appointmentProvider, _) {
+                                  final isAuthenticated =
+                                      authProvider.isAuthenticated &&
+                                          authProvider.user != null;
+                                  final reviewableApptId = isAuthenticated
+                                      ? appointmentProvider
+                                          .latestCompletedAppointmentId(
+                                          widget.providerId,
+                                          authProvider.user!.id,
+                                        )
+                                      : null;
+                                  if (reviewableApptId == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(
+                                        top: AppTheme.spacingM),
+                                    child: InkWell(
+                                      onTap: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          builder: (ctx) => Padding(
+                                            padding: EdgeInsets.only(
+                                              bottom: MediaQuery.of(ctx)
+                                                  .viewInsets
+                                                  .bottom,
+                                            ),
+                                            child: SubmitReviewSheet(
+                                              providerId: widget.providerId,
+                                              appointmentId: reviewableApptId,
                                             ),
                                           ),
-                                        ],
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(
+                                          AppTheme.radiusLarge),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: AppTheme.spacingM,
+                                          horizontal: AppTheme.spacingS,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                              AppTheme.radiusLarge),
+                                          border: Border.all(
+                                              color: AppColors.border),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.star_border,
+                                              size: 28,
+                                              color: AppColors.textTertiary,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              'Donner mon avis',
+                                              style: AppTextStyles.titleSmall
+                                                  .copyWith(
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
+                                  );
+                                },
+                              ),
                           ],
                         ),
                       ),
@@ -810,43 +844,69 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 AppTheme.spacingM,
                 AppTheme.spacingM,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final uri = Uri.parse(
-                            'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri);
-                        }
-                      },
-                      icon: const Icon(Icons.phone_outlined, size: 20),
-                      label: const Text('Appeler'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(color: AppColors.border),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
+              child: widget.preview
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Aperçu — voici ce que verront vos clients.',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spacingS),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: null,
+                            icon: const Icon(Icons.calendar_today, size: 20),
+                            label: const Text(
+                              'Réserver (après la mise en ligne)',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final uri = Uri.parse(
+                                  'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri);
+                              }
+                            },
+                            icon: const Icon(Icons.phone_outlined, size: 20),
+                            label: const Text('Appeler'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.textPrimary,
+                              side: const BorderSide(color: AppColors.border),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () =>
+                                context.push('/booking?providerId=${p.id}'),
+                            icon: const Icon(Icons.calendar_today, size: 20),
+                            label: const Text('Réserver'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.secondary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: () =>
-                          context.push('/booking?providerId=${p.id}'),
-                      icon: const Icon(Icons.calendar_today, size: 20),
-                      label: const Text('Réserver'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.secondary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           );
         },
