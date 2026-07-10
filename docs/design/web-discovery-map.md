@@ -79,6 +79,9 @@ Signed-off layout, with the agreed refinements:
 - Page stays a **server component** (same `searchProviders` fetch, same
   noindex) → passes results to a client `RechercheClient` (chips + list +
   hover state + mobile toggle) which mounts `ResultsMap`.
+- **One map identity site-wide**: the style + salon pin live in
+  `components/map/salon-pin.tsx`, shared with the salon page's Localisation
+  map (`SalonLocationMap`, lazy in-view mount — web-m8-2-provider.md).
 - Pure helpers in `lib/discovery/map.ts` (unit-tested): `markerColor`
   (token mapping + primary fallback), `withCoords`, `boundsFor`,
   `ABIDJAN_CENTER`/`DEFAULT_ZOOM` (the app's constants).

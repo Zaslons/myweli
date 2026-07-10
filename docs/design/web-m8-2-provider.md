@@ -22,7 +22,11 @@ pieces + a desktop layout that uses the width.
 ## 3. New / upgraded
 - **Avant / Après** (`BeforeAfter`) — side-by-side pairs + caption (was missing).
 - **Galerie** (`Gallery`) — the `imageUrls` beyond the hero cover (was hero-only).
-- **Carte** (`MapEmbed`) — interactive **OpenStreetMap embed** (no API key) +
+- **Carte** (`MapEmbed`) — since 2026-07-10 the **shared MapLibre + CARTO
+  Positron map** with the app's salon pin (one map identity site-wide —
+  [web-discovery-map.md](web-discovery-map.md) §3), mounted lazily on
+  approach (IntersectionObserver) so the indexed page's CWV budget never
+  pays for a below-the-fold map (was: an OpenStreetMap iframe embed) +
   Itinéraire link (was a link only).
 - **Booking panel** (`BookingPanel`) + mobile bar — à-partir-de (`minActivePrice`).
 - Équipe + Localisation address kept (restyled into the columns).
@@ -34,7 +38,7 @@ LocalBusiness). Images = plain `<img loading="lazy">` (next/image allowlist at t
 content phase); the OSM iframe is `loading="lazy"`. No CSP to amend.
 
 ## 5. Tests
-- **Unit:** `minActivePrice` (skips inactive), `osmEmbedUrl` (bbox+marker),
+- **Unit:** `minActivePrice` (skips inactive),
   `directionsUrl`.
 - **e2e:** provider page shows Avant/Après + the map iframe + the booking panel
   (à-partir-de + Réserver → `/beaute-divine/reserver`).
