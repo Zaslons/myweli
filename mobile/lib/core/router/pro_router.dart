@@ -21,6 +21,7 @@ import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
 import '../../screens/provider/photos/pro_before_after_screen.dart';
 import '../../screens/provider/photos/pro_photos_screen.dart';
 import '../../screens/provider/profile/pro_profile_screen.dart';
+import '../../screens/provider/profile/pro_salon_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
@@ -147,6 +148,11 @@ class ProRouter {
         path: '/pro/profile',
         name: 'pro-profile',
         builder: (context, state) => const ProProfileScreen(),
+      ),
+      GoRoute(
+        path: '/pro/salon-profile',
+        name: 'pro-salon-profile',
+        builder: (context, state) => const ProSalonProfileScreen(),
       ),
       GoRoute(
         path: '/pro/deposit-settings',

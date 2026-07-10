@@ -89,10 +89,17 @@ parked).
   contract's `missing` enum + web checklist updated). Web Profil gets the
   **pin picker**: the shared MapLibre/Positron map — tap to place, drag to
   adjust, « Utiliser ma position » — plus a category dropdown.
-- **L2 (next — app)**: salon profile editing in the pro app (none exists
-  today) incl. the same pin picker via flutter_map; the app onboarding
-  checklist gains the location item (until then an app-only publish of a
-  pin-less salon 409s with the proper message — B3 surfaces it).
+- **L2 (built — app)**: « Profil du salon » — the pro app's first listing
+  editor (`/pro/salon-profile`, reachable from Profil and the onboarding
+  checklist): every allowlisted field + the category dropdown + the pin map
+  (flutter_map on the app's CARTO basemap — tap to place, « Utiliser ma
+  position » via geolocator). `updateSalonProfile` through the
+  interface/mock/API seam (PATCH `/providers/{id}`). The app onboarding
+  checklist is now the **exact server-gate mirror**: `location` added,
+  `photos` REQUIRED (the stale « upload pipeline pending » optionality
+  removed — the pipeline shipped), `deposit` demoted to recommended
+  (the server never required it) — « Mettre mon profil en ligne » can no
+  longer disagree with the server.
 
 ## 3. Decision notes
 

@@ -169,6 +169,8 @@ class _StepRow extends StatelessWidget {
     switch (key) {
       case OnboardingStepKey.profile:
         return 'Profil de l\'entreprise';
+      case OnboardingStepKey.location:
+        return 'Position sur la carte';
       case OnboardingStepKey.services:
         return 'Services (3 minimum)';
       case OnboardingStepKey.staff:
@@ -187,7 +189,9 @@ class _StepRow extends StatelessWidget {
   String? _route(OnboardingStepKey key) {
     switch (key) {
       case OnboardingStepKey.profile:
-        return '/pro/profile';
+        return '/pro/salon-profile';
+      case OnboardingStepKey.location:
+        return '/pro/salon-profile';
       case OnboardingStepKey.services:
         return '/pro/services';
       case OnboardingStepKey.staff:

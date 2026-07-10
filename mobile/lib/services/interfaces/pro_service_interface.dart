@@ -4,6 +4,7 @@ import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
 import '../../models/journal_day.dart';
 import '../../models/payment.dart';
+import '../../models/provider.dart';
 import '../../models/service.dart';
 
 // Dashboard stats model
@@ -102,6 +103,15 @@ abstract class ProServiceInterface {
   /// DRAFT listing to active once the server-side go-live gate passes.
   /// Incomplete → error code `incomplete`.
   Future<ApiResponse<bool>> publishSalon(String providerId);
+
+  /// Update the salon's editable public profile (pro-salon-lifecycle L2 —
+  /// the app twin of web 7.3e-i): name/description/address/city/commune/
+  /// phone/whatsapp/category + the PAIRED map pin (latitude+longitude).
+  /// Returns the updated listing.
+  Future<ApiResponse<Provider>> updateSalonProfile(
+    String providerId,
+    Map<String, dynamic> changes,
+  );
 
   /// The salon's whole day as one payload (module journal J1) — hours,
   /// artists, and every booking (all statuses) for [date].

@@ -103,6 +103,16 @@ class ProProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Card(
                   child: ListTile(
+                    leading: const Icon(Icons.storefront_outlined),
+                    title: const Text('Profil du salon'),
+                    subtitle: const Text('Infos publiques, catégorie, carte'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/pro/salon-profile'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
                     leading: const Icon(Icons.verified_user_outlined),
                     title: const Text('Vérification'),
                     subtitle: Text(
