@@ -30,8 +30,42 @@ test('services-first: prestations → spécialiste → heure → confirmée', as
   // Sticky summary gates on services + time; stylist stays optional.
   await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
   await loginInline(page);
+  // Parity 2.10 — the app's booking note rides along.
+  await page
+    .getByLabel('Notes (optionnel)')
+    .fill('Cheveux fragiles, produits doux svp');
   await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
   await expect(page.getByText('Réservation envoyée ✓')).toBeVisible();
+});
+
+test.describe('mobile web', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test('the pinned bottom bar gates then confirms (parity 2.11)', async ({
+    page,
+  }) => {
+    await page.goto('/beaute-divine/reserver');
+    // The fixed bar is there from the start, disabled until services + time.
+    const bar = page.locator('.fixed.bottom-0');
+    await expect(bar).toBeVisible();
+    await expect(
+      bar.getByRole('button', { name: 'Confirmer', exact: true }),
+    ).toBeDisabled();
+
+    await page.getByRole('checkbox').first().click();
+    await page.getByRole('radio', { name: /Pas de préférence/ }).click();
+    await page
+      .getByRole('button', { name: /^\d{2}:\d{2}$/ })
+      .first()
+      .click();
+
+    const cta = bar.getByRole('button', { name: 'Confirmer', exact: true });
+    await expect(cta).toBeEnabled();
+    await cta.click();
+    await expect(
+      page.getByRole('heading', { name: 'Confirmation' }),
+    ).toBeVisible();
+  });
 });
 
 test('artist-first: Awa → prestations → le prochain créneau se choisit seul', async ({

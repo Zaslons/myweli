@@ -28,18 +28,28 @@ const ResultsMap = dynamic(
 /// screen height as the list scrolls. Mobile web keeps the list + a floating
 /// « Carte »/« Liste » toggle to an edge-to-edge map. Two-way sync: card
 /// hover highlights the marker; a marker click selects + scrolls its card.
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'relevance', label: 'Pertinence' },
+  { value: 'rating', label: 'Mieux notés' },
+  { value: 'price', label: 'Prix croissant' },
+];
+
 export function RechercheClient({
   title,
   results,
   q,
   commune,
   category,
+  sort,
+  dispo,
 }: {
   title: string;
   results: Provider[];
   q: string;
   commune: string;
   category: string;
+  sort: string;
+  dispo: boolean;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -57,14 +67,26 @@ export function RechercheClient({
     });
   }, [selectedId]);
 
-  const chipHref = (apiKey: string | null) => {
+  // Every control re-navigates with the OTHER filters preserved (SSR refetch).
+  const hrefWith = (patch: {
+    category?: string | null;
+    sort?: string;
+    dispo?: boolean;
+  }) => {
     const qs = new URLSearchParams();
     if (q) qs.set('q', q);
     if (commune) qs.set('commune', commune);
-    if (apiKey) qs.set('category', apiKey);
-    const s = qs.toString();
-    return `/recherche${s ? `?${s}` : ''}`;
+    const cat = patch.category === undefined ? category : patch.category;
+    if (cat) qs.set('category', cat);
+    const srt = patch.sort ?? sort;
+    if (srt && srt !== 'relevance') qs.set('sort', srt);
+    const dsp = patch.dispo === undefined ? dispo : patch.dispo;
+    if (dsp) qs.set('dispo', '1');
+    const str = qs.toString();
+    return `/recherche${str ? `?${str}` : ''}`;
   };
+
+  const chipHref = (apiKey: string | null) => hrefWith({ category: apiKey });
 
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,55%)_minmax(0,1fr)]">
@@ -102,6 +124,37 @@ export function RechercheClient({
               {c.label}
             </a>
           ))}
+        </div>
+
+        {/* Trier + « Disponible aujourd'hui » (parity 2.1/2.2 — FR-DISC-007). */}
+        <div className="mt-m flex flex-wrap items-center gap-s">
+          <label className="flex items-center gap-s text-sm text-textSecondary">
+            Trier
+            <select
+              value={sort}
+              onChange={(e) => {
+                window.location.assign(hrefWith({ sort: e.target.value }));
+              }}
+              className="rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <a
+            href={hrefWith({ dispo: !dispo })}
+            aria-current={dispo ? 'true' : undefined}
+            className={`rounded-full border px-m py-xs text-sm ${
+              dispo
+                ? 'border-primary bg-primary text-secondary'
+                : 'border-border bg-surface text-textPrimary'
+            }`}
+          >
+            Disponible aujourd’hui
+          </a>
         </div>
 
         <p className="mt-m text-sm text-textTertiary">

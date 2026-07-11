@@ -10,19 +10,37 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
+const SORTS = ['relevance', 'rating', 'price'] as const;
+type Sort = (typeof SORTS)[number];
+
 export default async function RecherchePage({
   searchParams,
 }: {
-  searchParams: { q?: string; commune?: string; category?: string };
+  searchParams: {
+    q?: string;
+    commune?: string;
+    category?: string;
+    sort?: string;
+    dispo?: string;
+  };
 }) {
   const q = searchParams.q ?? '';
   const commune = searchParams.commune ?? '';
   const category = searchParams.category ?? '';
+  // Parity 2.1/2.2 — the app's sort (default Pertinence) + availability pill.
+  const sort: Sort = (SORTS as readonly string[]).includes(
+    searchParams.sort ?? '',
+  )
+    ? (searchParams.sort as Sort)
+    : 'relevance';
+  const dispo = searchParams.dispo === '1';
 
   const results = await searchProviders({
     q: q || undefined,
     commune: commune || undefined,
     category: category || undefined,
+    sort,
+    availableToday: dispo || undefined,
     pageSize: 24,
   });
 
@@ -43,6 +61,8 @@ export default async function RecherchePage({
         q={q}
         commune={commune}
         category={category}
+        sort={sort}
+        dispo={dispo}
       />
     </main>
   );

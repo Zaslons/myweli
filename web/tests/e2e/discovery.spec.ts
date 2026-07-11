@@ -46,6 +46,27 @@ test('/recherche lists matching salons', async ({ page }) => {
   await expect(page.getByText('Beauté Divine').first()).toBeVisible();
 });
 
+test('/recherche: Trier + « Disponible aujourd’hui » (parity 2.1/2.2)', async ({
+  page,
+}) => {
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
+  await page.goto('/recherche?q=tresses');
+
+  // Sort control: Pertinence default → « Mieux notés » re-navigates.
+  const sort = page.getByLabel('Trier');
+  await expect(sort).toHaveValue('relevance');
+  await sort.selectOption('rating');
+  await expect(page).toHaveURL(/sort=rating/);
+  await expect(page.getByText('Beauté Divine').first()).toBeVisible();
+
+  // Availability pill toggles ?dispo=1, keeping q + sort.
+  await page.getByRole('link', { name: 'Disponible aujourd’hui' }).click();
+  await expect(page).toHaveURL(/dispo=1/);
+  await expect(page).toHaveURL(/sort=rating/);
+  await expect(page).toHaveURL(/q=tresses/);
+  await expect(page.getByText('Beauté Divine').first()).toBeVisible();
+});
+
 // --- the discovery map (web-discovery-map.md) -------------------------------
 // Tile requests are aborted → hermetic; markers/popups are DOM, not tiles.
 

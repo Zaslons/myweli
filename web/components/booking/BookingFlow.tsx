@@ -97,6 +97,8 @@ export function BookingFlow({
   // contact phone. undefined = probing the session; null = signed out.
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [phone, setPhone] = useState('');
+  // Parity 2.10 — the app's « Notes (optionnel) » on the confirm step.
+  const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedBooking | null>(null);
@@ -234,6 +236,7 @@ export function BookingFlow({
       serviceIds: s.serviceIds,
       appointmentDateTime: s.slot!,
       artistId: s.artistId,
+      notes: notes.trim() || undefined,
     });
     setBusy(false);
     if (!b.ok) {
@@ -335,6 +338,17 @@ export function BookingFlow({
               onChange={setPhone}
               initialValue={me.phoneNumber ?? undefined}
             />
+            <label className="mt-s block text-sm text-textSecondary">
+              Notes (optionnel)
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="Précisions pour le salon (allergies, préférences…)"
+                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+              />
+            </label>
             <Button
               disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
               onClick={confirm}
@@ -358,7 +372,7 @@ export function BookingFlow({
 
   // ---- HUB ---------------------------------------------------------------
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-l">
+    <div className="pb-24 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-l lg:pb-0">
       <div className="space-y-s">
         {/* PRESTATIONS */}
         <SectionCard
@@ -550,8 +564,9 @@ export function BookingFlow({
         </SectionCard>
       </div>
 
-      {/* SUMMARY (sticky on desktop) */}
-      <aside className="mt-m rounded-xl border border-border bg-secondary p-m lg:sticky lg:top-24 lg:mt-0">
+      {/* SUMMARY (sticky aside on desktop; the app's pinned bar on mobile —
+          parity 2.11). */}
+      <aside className="hidden rounded-xl border border-border bg-secondary p-m lg:sticky lg:top-24 lg:block">
         <div className="flex items-center justify-between gap-m">
           <span className="font-semibold text-textPrimary">Total</span>
           <span className="text-lg font-semibold text-primary">
@@ -577,6 +592,29 @@ export function BookingFlow({
           </Button>
         </div>
       </aside>
+
+      {/* Mobile-web pinned bottom bar (parity 2.11 — the app's fixed
+          Total + « Confirmer »). */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-divider bg-secondary px-m py-s lg:hidden">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-m">
+          <div>
+            <p className="font-semibold text-textPrimary">
+              {totalLabel(provider, s.serviceIds)}
+            </p>
+            {duration > 0 ? (
+              <p className="text-xs text-textSecondary">
+                Durée : {formatDuration(duration)}
+              </p>
+            ) : null}
+          </div>
+          <Button
+            disabled={!canConfirm(s)}
+            onClick={() => setS(goPhase(s, 'confirm'))}
+          >
+            Confirmer
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
