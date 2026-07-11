@@ -7,14 +7,15 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const { rating, text } = await req.json().catch(() => ({}));
+  const { rating, text, photoUrls } = await req.json().catch(() => ({}));
   if (typeof rating !== 'number') {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
   return respond(
     await callApi(req, `/appointments/${params.id}/review`, {
       method: 'POST',
-      body: JSON.stringify({ rating, text }),
+      // photoUrls (parity 2.13) — the API re-validates count + entries.
+      body: JSON.stringify({ rating, text, photoUrls }),
     }),
   );
 }

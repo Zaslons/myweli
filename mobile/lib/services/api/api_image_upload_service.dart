@@ -26,20 +26,26 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
     String? baseUrl,
     SessionStore? providerSessionStore,
     ImageCompressor? compressor,
+    // P2b (audit 2.13): consumer review photos reuse this pipeline with a
+    // consumer session + `purpose=review`; the defaults keep the pro gallery.
+    String purpose = 'gallery',
+    String refreshPath = '/auth/provider/refresh',
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _compress = compressor ?? _defaultCompress {
+        _compress = compressor ?? _defaultCompress,
+        _purpose = purpose {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
       store: providerSessionStore ?? InMemorySessionStore(),
-      refreshPath: '/auth/provider/refresh',
+      refreshPath: refreshPath,
     );
   }
 
   final http.Client _client;
   final String _baseUrl;
   final ImageCompressor _compress;
+  final String _purpose;
   late final RefreshingHttpClient _authed;
 
   static Future<Uint8List?> _defaultCompress(String source) =>
@@ -79,7 +85,7 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
           'Authorization': 'Bearer $t',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'contentType': 'image/jpeg', 'purpose': 'gallery'}),
+        body: jsonEncode({'contentType': 'image/jpeg', 'purpose': _purpose}),
       ),
     );
     if (signRes == null) {

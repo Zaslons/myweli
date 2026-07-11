@@ -67,6 +67,7 @@ class ServiceLocator {
   late final ProKycServiceInterface proKycService;
   late final SubscriptionServiceInterface subscriptionService;
   late final ImageUploadServiceInterface imageUploadService;
+  late final ImageUploadServiceInterface reviewImageUploadService;
   late final ReviewServiceInterface reviewService;
   late final MessagingServiceInterface messagingService;
   late final PushNotificationServiceInterface pushNotificationService;
@@ -146,6 +147,15 @@ class ServiceLocator {
         ? ApiImageUploadService(
             providerSessionStore:
                 SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockImageUploadService();
+    // Consumer review photos (P2b): same pipeline, CONSUMER session +
+    // `purpose=review` (public, review/{userId}-scoped server-side).
+    reviewImageUploadService = AppConfig.useApiBackend
+        ? ApiImageUploadService(
+            providerSessionStore: SecureSessionStore(),
+            purpose: 'review',
+            refreshPath: '/auth/refresh',
           )
         : MockImageUploadService();
     // Reviews on the real backend (consumer session for submit; the list is

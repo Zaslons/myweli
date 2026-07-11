@@ -24,9 +24,12 @@ Future<Response> onRequest(RequestContext context) async {
     return jsonError(HttpStatus.badRequest, 'invalid_body');
   }
 
-  // Role gate per purpose: deposit screenshots are a consumer upload; gallery
-  // and KYC are provider uploads.
-  final requiredRole = body['purpose'] == 'deposit' ? 'user' : 'provider';
+  // Role gate per purpose: deposit screenshots and review photos are consumer
+  // uploads; gallery and KYC are provider uploads.
+  final consumerPurposes = {'deposit', 'review'};
+  final requiredRole = consumerPurposes.contains(body['purpose'])
+      ? 'user'
+      : 'provider';
   if (principal.role != requiredRole) {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }

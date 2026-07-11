@@ -157,6 +157,19 @@ void main() {
       expect(data['publicUrl'], contains('gallery/provider1/'));
     });
 
+    test('review purpose: public, scoped to the USER prefix (P2b)', () async {
+      final r = await service.sign(
+        'u42',
+        contentType: 'image/png',
+        purpose: 'review',
+      );
+      expect(r.ok, isTrue);
+      final data = r.data!;
+      expect((data['fields'] as Map)['key'], startsWith('review/u42/'));
+      // Public bucket: tiles render the photos.
+      expect(data['publicUrl'], contains('review/u42/'));
+    });
+
     test('rejects a disallowed content-type / purpose', () async {
       expect(
         (await service.sign(
@@ -397,6 +410,36 @@ void main() {
             '/uploads/sign',
             bearer: token,
             body: {'contentType': 'image/jpeg', 'purpose': 'deposit'},
+          ),
+        ),
+      );
+      expect(provider.statusCode, HttpStatus.forbidden);
+    });
+
+    test('review purpose: consumer → 200 public URL; provider → 403', () async {
+      final userToken = tokens
+          .issueAccessToken(subject: 'u1', role: 'user')
+          .token;
+      final ok = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: userToken,
+            body: {'contentType': 'image/jpeg', 'purpose': 'review'},
+          ),
+        ),
+      );
+      expect(ok.statusCode, HttpStatus.ok);
+      final body = jsonDecode(await ok.body()) as Map<String, dynamic>;
+      expect(body['key'], startsWith('review/u1/'));
+      expect(body['publicUrl'], isNotNull);
+
+      final provider = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: token,
+            body: {'contentType': 'image/jpeg', 'purpose': 'review'},
           ),
         ),
       );

@@ -1411,8 +1411,11 @@ paths:
         pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a
         **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC),
         prefix `deposit/{userId}`, returns the `key` only (payment proof is never
-        public; images only). Role is gated **per purpose**: `deposit` requires
-        `user`; `gallery`/`kyc` require `provider`.
+        public; images only). **`purpose=review`** → **consumer-only**, the
+        public bucket (review tiles render the photos), prefix
+        `review/{userId}`, returns `publicUrl` (images only; review submit
+        caps `photoUrls` at 6). Role is gated **per purpose**:
+        `deposit`/`review` require `user`; `gallery`/`kyc` require `provider`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -1425,7 +1428,7 @@ paths:
                 contentType:
                   type: string
                   enum: [image/jpeg, image/png, image/webp, application/pdf]
-                purpose: { type: string, enum: [gallery, kyc, deposit] }
+                purpose: { type: string, enum: [gallery, kyc, deposit, review] }
       responses:
         '200':
           description: A presigned upload ticket

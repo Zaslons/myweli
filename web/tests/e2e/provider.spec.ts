@@ -29,6 +29,32 @@ test('provider page renders sections + valid structured data', async ({
   expect(types.some((t) => localBusinessTypes.includes(t))).toBe(true);
 });
 
+test('reviews: photo lightbox + anonymous « Signaler » prompts login (P2b)', async ({
+  page,
+}) => {
+  await page.goto('/beaute-divine');
+
+  // The stub review carries one photo → thumbnail, then the lightbox.
+  const thumb = page.getByRole('button', { name: 'Agrandir la photo' });
+  await expect(thumb).toBeVisible();
+  await thumb.click();
+  const lightbox = page.getByRole('dialog', { name: 'Photo de l’avis' });
+  await expect(lightbox).toBeVisible();
+  await lightbox.click({ position: { x: 8, y: 8 } }); // backdrop closes
+  await expect(lightbox).toBeHidden();
+
+  // « Signaler » signed-out → the login prompt with returnTo.
+  await page.getByRole('button', { name: 'Signaler', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Signaler', exact: true })
+    .click();
+  await expect(page.getByText('pour signaler cet avis.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Connectez-vous' })).toHaveAttribute(
+    'href',
+    '/connexion?returnTo=/beaute-divine',
+  );
+});
+
 test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   page,
 }) => {

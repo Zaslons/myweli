@@ -45,7 +45,10 @@ class UploadSigningService {
     final isKyc = purpose == 'kyc';
     final isDeposit = purpose == 'deposit';
     final isGallery = purpose == 'gallery';
-    if (!isGallery && !isKyc && !isDeposit) {
+    // Consumer review photos (P2b, audit 2.13): public like gallery, but
+    // scoped to the USER token — review/{userId}.
+    final isReview = purpose == 'review';
+    if (!isGallery && !isKyc && !isDeposit && !isReview) {
       return (ok: false, error: 'invalid_input', data: null);
     }
     // KYC accepts PDF; gallery + deposit (screenshots) are images only.
@@ -62,6 +65,10 @@ class UploadSigningService {
     if (isDeposit) {
       prefixId = accountId;
       bucket = StorageBucket.deposit;
+    } else if (isReview) {
+      // Public (review tiles render them), under the caller's own prefix.
+      prefixId = accountId;
+      bucket = StorageBucket.public;
     } else if (isKyc) {
       if (await _providerAuth.accountById(accountId) == null) {
         return (ok: false, error: 'forbidden', data: null);

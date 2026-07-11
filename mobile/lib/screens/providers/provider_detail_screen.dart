@@ -99,6 +99,58 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     return lines;
   }
 
+  /// « Signaler » (FR-REV-005, parity 2.14): optional reason → POST report.
+  Future<void> _reportReview(String reviewId) async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (!auth.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connectez-vous pour signaler un avis.'),
+        ),
+      );
+      return;
+    }
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Signaler cet avis ?'),
+        content: TextField(
+          controller: reasonController,
+          maxLength: 500,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Raison (optionnel)',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Signaler'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await Provider.of<ProviderProvider>(context, listen: false)
+        .reportReview(reviewId, reason: reasonController.text);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Merci. Notre équipe va examiner cet avis.'
+              : 'Le signalement a échoué. Réessayez.',
+        ),
+        backgroundColor: ok ? null : AppColors.error,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -747,7 +799,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     (review) => Padding(
                                       padding: const EdgeInsets.only(
                                           bottom: AppTheme.spacingS),
-                                      child: ReviewTile(review: review),
+                                      child: ReviewTile(
+                                        review: review,
+                                        onReport: () =>
+                                            _reportReview(review.id),
+                                      ),
                                     ),
                                   ),
                             ],

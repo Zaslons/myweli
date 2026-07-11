@@ -24,6 +24,7 @@ describe('provider sections', () => {
         reviews={providerFixture.reviews ?? []}
         rating={providerFixture.rating}
         reviewCount={providerFixture.reviewCount}
+        slug="beaute-divine"
       />,
     );
     expect(screen.getByText(/Avis \(12\)/)).toBeInTheDocument();
