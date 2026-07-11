@@ -1,13 +1,25 @@
 # Module: Team access (RBAC) — `access`
 
 > **Build sign-off 2026-07-11 (user):** promoted from V2 to **pre-launch**.
-> Decisions locked: invitation TTL **7 days** (resendable) · seats are
-> **plan-driven** (Découverte 1 · Pro 5 · Business 15, counting active +
-> invited incl. the owner) with **3 months free on any chosen offer** (no
-> payment at launch — billing stays « Nous contacter »; an expired unpaid
-> trial blocks NEW invites beyond the Découverte cap but never auto-revokes
-> staff) · **four presets** — Réception ships now, not deferred. Slices
-> R1–R5 (see §10).
+> Decisions locked:
+> - Invitation TTL **7 days**, resendable · **four presets** (Réception ships
+>   now) · go-live/unpublish stays **owner-only**.
+> - **Pricing pivot (supersedes the PRD freemium):** no free operating tier.
+>   Registration lands in a free, time-unlimited **SETUP state** (build the
+>   fiche/catalogue — salon unpublished, no bookings, no team). Publishing
+>   requires an active offer: **Solo (1 place) · Pro (5) · Business (15)**,
+>   seats counting owner + active + invited; picking an offer starts its
+>   **3 mois offerts** (one trial per salon). Prices = config/display copy
+>   (« à confirmer »; billing stays « Nous contacter », no custody).
+> - **Expiry:** warnings J-14/J-7/J-1 → **7 jours de grâce** → the salon is
+>   **UNPUBLISHED** (no new bookings; the app, journal, existing bookings and
+>   data export all keep working — never a data lockout) → admin marks the
+>   manual payment → republished. Enforcement **config-driven** (lenient
+>   during the cold-start). Team invites require an active offer.
+> - Existing salons at migration: grandfathered with a fresh 3-month trial.
+>
+> Slices R1–R5 (see §10); R2 carries the offer selection + expiry mechanics +
+> the admin « marquer payé / prolonger » action.
 
 | | |
 |---|---|
@@ -304,9 +316,10 @@ Each slice still gets its `docs/design/` spec + sign-off before code (rule).
 
 ## 11. Open questions (to resolve at build sign-off)
 
-1. ~~Included free seats~~ **Resolved (2026-07-11): plan-driven caps
-   (Découverte 1 / Pro 5 / Business 15, active+invited incl. owner) + 3
-   months free on any chosen offer; expiry blocks new invites only.**
+1. ~~Included free seats~~ **Resolved (2026-07-11, superseded same day by
+   the pricing pivot): Solo 1 / Pro 5 / Business 15 (active+invited incl.
+   owner); 3 mois offerts per offer; expiry → grace → unpublish (see the
+   sign-off block).**
 2. ~~Does a Collaborateur see client contact details on their OWN bookings?~~
    **Resolved (2026-07-08, clients §11.2): yes — name + phone on own bookings
    of the SAME DAY only; masked elsewhere; the full base stays behind
