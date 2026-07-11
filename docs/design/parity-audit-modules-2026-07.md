@@ -184,9 +184,9 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 11.1 | **Account DELETION missing on web** | ❌ web | App: « Supprimer mon compte » with double confirmation (AUTH-004; anonymizes salon CRMs — T48). Web mon-compte has nothing — a web-only user cannot delete their account (legal-grade gap) |
-| 11.2 | **Data EXPORT missing on web** | ❌ web | App: dedicated export screen (AUTH-005). Web: nothing |
-| 11.3 | Name editing missing on web | ❌ web (minor) | `PATCH /me` accepts `name`; the app edits it (« Modifier le profil »); web shows it read-only |
+| 11.1 | ~~Account DELETION missing on web~~ **FIXED 2026-07-10** (Confidentialité section, type-SUPPRIMER confirm — the app's flow; BFF DELETE ends the session) | ✅ fixed | App: « Supprimer mon compte » with double confirmation (AUTH-004; anonymizes salon CRMs — T48). Web mon-compte has nothing — a web-only user cannot delete their account (legal-grade gap) |
+| 11.2 | ~~Data EXPORT missing on web~~ **FIXED 2026-07-10** (/mon-compte/donnees — same JSON shape as the app; download + copier) | ✅ fixed | App: dedicated export screen (AUTH-005). Web: nothing |
+| 11.3 | ~~Name editing missing on web~~ **FIXED 2026-07-10** (inline edit on the profile card) | ✅ fixed | `PATCH /me` accepts `name`; the app edits it (« Modifier le profil »); web shows it read-only |
 | 11.4 | Contact phone editing | ✅ | Both, with « Non vérifié » labelling |
 | 11.5 | Pro account deletion/export | ⚠️ both (parked) | Exists on NEITHER surface for salon accounts — acceptable pre-launch, must exist before stores review |
 
@@ -215,7 +215,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 # SYNTHESIS — consolidated priorities across all findings
 
 ## P0 — security · legal · trust correctness
-*(8.1 + 15.1 fixed 2026-07-10 — PR fix/parity-p0-trust; 11.1/11.2 next)*
+*(ALL P0 FIXED 2026-07-10: 8.1 + 15.1 — PR #211 · 11.1/11.2 + 11.3 — PR #212)*
 | Finding | Surfaces |
 |---|---|
 | **8.1** Deposit⇄KYC gate is copy-only: unverified salons can demand deposits | backend + both editors |
