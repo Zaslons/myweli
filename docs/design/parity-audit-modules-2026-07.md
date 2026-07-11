@@ -13,13 +13,13 @@
 | # | Finding | Severity | Detail |
 |---|---|---|---|
 | 1.1 | ~~Consumer reschedule (« Reporter ») missing on web~~ **FIXED 2026-07-10** (mon-compte detail: « Reporter » → date + slot picker prefilled provider/services/artist → POST reschedule; 409 handled) | ✅ fixed | App detail: pending/confirmed + future → « Reporter » opens the slot picker prefilled (provider/services/artist) → `PUT /appointments/{id}/reschedule` → « Rendez-vous reporté ». Web mon-compte detail has cancel/rebook/review/deposit only — a web user cannot move a booking, only cancel + rebook (loses the salon-side history + deposit linkage) |
-| 1.2 | **« Ajouter au calendrier » missing on web** | ❌ web | App: add_2_calendar on future bookings. Web equivalent = a Google-Calendar link and/or `.ics` download — cheap and idiomatic |
-| 1.3 | **Deposit proof VIEW (« Voir ma capture ») missing on web** | ❌ web | App: after attaching, the consumer can view their uploaded screenshot (signed URL via `GET /appointments/{id}/deposit-screenshot`). Web (B4-era attach) only shows the text « Justificatif envoyé » |
-| 1.4 | Booking `notes` not displayed on the web detail | ❌ web (minor) | App shows a Notes row when present |
+| 1.2 | ~~« Ajouter au calendrier » missing on web~~ **FIXED 2026-07-11** (Google-Calendar template link + client-built .ics on upcoming bookings) | ✅ fixed | App: add_2_calendar on future bookings. Web equivalent = a Google-Calendar link and/or `.ics` download — cheap and idiomatic |
+| 1.3 | ~~Deposit proof VIEW missing on web~~ **FIXED 2026-07-11** (« Voir ma capture » — a BFF signed-GET proxy with ?redirect=1 → new-tab link) | ✅ fixed | App: after attaching, the consumer can view their uploaded screenshot (signed URL via `GET /appointments/{id}/deposit-screenshot`). Web (B4-era attach) only shows the text « Justificatif envoyé » |
+| 1.4 | ~~Booking `notes` not displayed on the web detail~~ **FIXED 2026-07-11** (Notes row when present) | ✅ fixed | App shows a Notes row when present |
 | 1.5 | ~~Cancel confirmation copy richer on web~~ **VERIFIED PRESENT 2026-07-11** (the app's dialog already shows the cancellationOutcome deposit block — forfait vs remboursé — richer than web; no change needed) | ✅ verified | Web warns « L'acompte peut ne pas être remboursé selon la politique du salon » when a deposit exists; the app's dialog is a bare « Êtes-vous sûr… » — the app should adopt the deposit warning |
 | 1.6 | ~~App « Appeler » button is a fake~~ **FIXED 2026-07-11** (app: real tel: + a WhatsApp button via getProviderById; web detail: Appeler/WhatsApp links from the enriched public fields) | ✅ fixed | Consumer appointment detail's « Appeler » shows « Fonctionnalité à venir » snackbar instead of launching `tel:` (the provider-detail screen does it properly). Web detail has no contact action at all — add `tel:`/WhatsApp to BOTH |
 | 1.7 | Tabs & list parity | ✅ | À venir / Passés / Annulés on both; rebook on completed on both (web adds the ?services prefill; the app rebooks via the hub with initial ids — equal) |
-| 1.8 | Neither surface shows the chosen **spécialiste** on the consumer detail | ⚠️ both (nicety) | The artistId is stored and used for reschedule prefill, but never displayed to the client |
+| 1.8 | ~~Spécialiste not shown on the consumer detail~~ **WEB FIXED 2026-07-11** (enrichment maps artistId→artistName; « Spécialiste » row); app half in the app P3 PR | 🌓 web done | The artistId is stored and used for reschedule prefill, but never displayed to the client |
 
 ### Pro: journal / rendez-vous lifecycle
 
@@ -54,9 +54,9 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 2.6 | **Gallery lightbox missing on web** | ❌ web (minor) | App: tap any photo → full-screen swipeable viewer. Web `Gallery` = a static grid (29 lines, no interaction); review photos have the same viewer in-app |
-| 2.7 | **« Vos rendez-vous ici » personal section missing on web** | ⚠️ web | App salon page shows the signed-in client's bookings AT THIS SALON (+ « Voir tout »). The web page is anonymous-only content; a signed-in web user gets nothing personal |
-| 2.8 | Review submit entry point narrower on web | ⚠️ web | App: « Donner votre avis » directly ON the salon page (when a completed visit is reviewable) + from the appointment detail. Web: only from mon-compte detail — a web user browsing the salon page is never invited |
+| 2.6 | ~~Gallery lightbox missing on web~~ **FIXED 2026-07-11** (shared Lightbox — gallery + review photos) | ✅ fixed | App: tap any photo → full-screen swipeable viewer. Web `Gallery` = a static grid (29 lines, no interaction); review photos have the same viewer in-app |
+| 2.7 | ~~« Vos rendez-vous ici » missing on web~~ **FIXED 2026-07-11** (SalonVisitsCard client island — upcoming at this salon + « Voir tout ») | ✅ fixed | App salon page shows the signed-in client's bookings AT THIS SALON (+ « Voir tout »). The web page is anonymous-only content; a signed-in web user gets nothing personal |
+| 2.8 | ~~Review submit entry narrower on web~~ **FIXED 2026-07-11** (« Donner votre avis » on the salon page → the reviewable visit's detail) | ✅ fixed | App: « Donner votre avis » directly ON the salon page (when a completed visit is reviewable) + from the appointment detail. Web: only from mon-compte detail — a web user browsing the salon page is never invited |
 | 2.9 | Sections & SEO | ✅/ℹ️ | Hero, services, équipe, avant/après, horaires, avis, carte (now same map identity), contact — all present on both; web adds FAQ/JSON-LD (SEO latitude) |
 
 ### Booking funnel (post-K2)
@@ -73,7 +73,7 @@
 |---|---|---|---|
 | 2.13 | ~~Review photos: web can neither SUBMIT nor DISPLAY them~~ **FIXED 2026-07-11** (deeper than audited: NO surface could submit against the real backend — added `purpose=review` to /uploads/sign (consumer, public, review/{userId}); fixed the app's provider-session/gallery-purpose upload; web ReviewForm ≤3 photos + public ReviewList thumbnails/lightbox) | ✅ fixed | App submit sheet attaches photos (picker → upload) and review tiles show them full-screen. Web `ReviewForm` = rating + text only; public `ReviewList` renders no `photoUrls` (the pro « Avis » page does — inconsistent) |
 | 2.14 | ~~Review reporting UI missing on BOTH surfaces~~ **FIXED 2026-07-11** (« Signaler » on the app's tiles (opt-in callback; salon detail wires the dialog) AND the web public list (inline reason; 401 → login prompt)) | ✅ fixed | `POST /reviews/{id}/report` (consumer-only) + the admin moderation queue are LIVE — but neither the app's review tiles nor the web's have a « Signaler » action. FR-REV-005's consumer half was never surfaced |
-| 2.15 | Favorites | ⚠️ web | App: hearts on the salon page, the map markers, favorites screen + home strip. Web: heart on the salon page + mon-compte section only — no hearts on /recherche result cards or map markers (deferred), no home strip (ℹ️ SEO home) |
+| 2.15 | ~~Favorites~~ **FIXED 2026-07-11** (hearts on the /recherche cards — one probe, toggle, anonymous → login; map-marker hearts stay deferred as audited) | ✅ fixed | App: hearts on the salon page, the map markers, favorites screen + home strip. Web: heart on the salon page + mon-compte section only — no hearts on /recherche result cards or map markers (deferred), no home strip (ℹ️ SEO home) |
 
 ### Module 2 — proposed fixes (by priority)
 1. **Web booking notes** (2.10) + **mobile-web sticky summary bar** (2.11) — funnel conversion polish, small.
@@ -101,7 +101,7 @@
 | # | Finding | Severity | Detail |
 |---|---|---|---|
 | 3.4 | ~~Per-staff hours missing on web~~ **FIXED 2026-07-10** (« Horaires personnalisés » toggle + weekly editor on the Équipe form; {} = inherits the salon) | ✅ fixed | App artist form: custom weekly-hours editor (feeds the K1 engine — `_hoursCover`). Web Équipe form = name + specialization only (the 7.3b deferral was never picked back up, and it now matters: the capacity engine reads those hours) |
-| 3.5 | **Artist photo missing on web** | ❌ web (minor) | App: avatar upload on the artist form. Web: no imageUrl field |
+| 3.5 | ~~Artist photo missing on web~~ **FIXED 2026-07-11** (avatar upload via the gallery pipeline on the Équipe form; imageUrl rode the PATCH allowlist all along) | ✅ fixed | App: avatar upload on the artist form. Web: no imageUrl field |
 
 ### Media
 
@@ -132,7 +132,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 4.1 | **Web cannot CREATE custom tags** | ❌ web (minor) | App tag sheet: presets + a free-text field to add a custom tag. Web tag editor offers presets + only the custom tags ALREADY on the card (no input to mint one) |
+| 4.1 | ~~Web cannot CREATE custom tags~~ **FIXED 2026-07-11** (« Nouveau tag… » free-text mint in the tag editor) | ✅ fixed | App tag sheet: presets + a free-text field to add a custom tag. Web tag editor offers presets + only the custom tags ALREADY on the card (no input to mint one) |
 | 4.2 | Everything else | ✅ | Search (débounced) + tag filter + masked phones + MyWeli/absences badges + educational empty on both lists · card: tel/WhatsApp, tags, team-only notes (add/delete, 500), stats (Visites/Dépensé/Absences alert/Dernière), « Prochain rendez-vous », salon-scoped history, « Nouveau rendez-vous » prefilled · add-client with initial note + 409 dedupe → existing card on both |
 | 4.3 | Pagination style | ℹ️ | App: infinite scroll · web: « Charger plus » — idiomatic per surface |
 
@@ -206,7 +206,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | # | Finding | Severity | Detail |
 |---|---|---|---|
 | 15.1 | ~~« Vérifié » badge unwired~~ **FIXED 2026-07-10** (admin approve/reject denormalizes `verified` onto the listing; contract + app model; badge on app card/detail + web card/hero) | ✅ fixed | Verification lives on the ACCOUNT (`provider_users.verification_status`); the public listing carries no `verified` field — backend payload, app `Provider` model and web type all lack it, and no consumer surface renders a badge. **KYC's entire consumer-visible payoff is unwired end-to-end** (and it compounds 8.1: today KYC gates nothing and shows nothing). PRD's Provider model explicitly lists `verified` |
-| 15.2 | No in-product dispute/problem entry | ⚠️ both | Disputes are admin-created/resolved (manual intake — WhatsApp support). Acceptable pre-launch; the app at least has « Aide & Support » in the profile — **web mon-compte has no help/support entry at all** |
+| 15.2 | ~~No in-product support entry~~ **WEB FIXED 2026-07-11** (« Aide & Support » on /mon-compte → the wa.me env pattern); the APP's own button was ALSO dead (« Fonctionnalité à venir ») — wired in the app P3 PR | 🌓 web done | Disputes are admin-created/resolved (manual intake — WhatsApp support). Acceptable pre-launch; the app at least has « Aide & Support » in the profile — **web mon-compte has no help/support entry at all** |
 | 15.3 | KYC submit/status | ✅ | Full parity since web-pro-kyc (2026-07-10) |
 | 15.4 | Review moderation | cross-ref | Consumer « Signaler » missing on both = finding 2.14; the admin queue is live |
 
@@ -235,7 +235,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ~~ALL P2 FIXED~~: 2.11/2.10/2.1/2.2/3.2 ✅ (P2a) · 2.13/2.14 ✅ (P2b) · resend + 1.10 + 1.5 (verified present) + 1.6 ✅ (P2c 2026-07-11)
 
 ## P3 — polish
-1.2 web add-to-calendar · 1.3 web view-own-proof · 1.4 web notes display · 1.8 show the spécialiste (both) · 1.11 app gap-slot artist · 2.6 web gallery lightbox · 2.7 « Vos rendez-vous ici » on web salon page · 2.8 review invite on the web salon page · 2.15 hearts on web result cards · 3.5 web artist photo · 3.6 app photo reorder · 4.1 web custom tags · ~~9.2 web week-revenue card~~ ✅ (P1c) · 11.3 web name edit · 15.2 web support entry
+~~1.2 · 1.3 · 1.4 · 2.6 · 2.7 · 2.8 · 2.15 · 3.5 · 4.1~~ ✅ (P3-web 2026-07-11) · ~~9.2~~ ✅ (P1c) · ~~11.3~~ ✅ (P0b) · 1.8 + 15.2 🌓 web done (app halves) · REMAINING (app P3): 1.8-app · 1.11 app gap-slot artist · 3.6 app photo reorder · 15.2-app
 
 ## Proposed execution (themed batches, one PR each)
 1. **P0 trust batch** — deposit⇄KYC enforcement (backend + threat row + both editors' lock states) + the verified badge end-to-end + web deletion/export.

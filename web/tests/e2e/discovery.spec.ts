@@ -67,6 +67,17 @@ test('/recherche: Trier + « Disponible aujourd’hui » (parity 2.1/2.2)', asyn
   await expect(page.getByText('Beauté Divine').first()).toBeVisible();
 });
 
+test('/recherche: anonymous heart → /connexion with returnTo (parity 2.15)', async ({
+  page,
+}) => {
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
+  await page.goto('/recherche?q=tresses');
+  await page
+    .getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' })
+    .click();
+  await expect(page).toHaveURL(/\/connexion\?returnTo=/);
+});
+
 // --- the discovery map (web-discovery-map.md) -------------------------------
 // Tile requests are aborted → hermetic; markers/popups are DOM, not tiles.
 

@@ -94,7 +94,7 @@ it('audit 3.2: serviceToForm prefills the variant editor', () => {
 });
 
 describe('pro catalogue — artists', () => {
-  const a: ArtistForm = { name: 'Awa', specialization: 'Tresses', workingHours: {} };
+  const a: ArtistForm = { name: 'Awa', specialization: 'Tresses', imageUrl: null, workingHours: {} };
 
   it('requires a name', () => {
     expect(validateArtist({ ...a, name: ' ' })).toMatch(/nom/i);
@@ -102,9 +102,17 @@ describe('pro catalogue — artists', () => {
   });
 
   it('nulls an empty specialization', () => {
-    expect(buildArtistPayload({ name: 'Koffi', specialization: '', workingHours: {} })).toEqual({
+    expect(
+      buildArtistPayload({
+        name: 'Koffi',
+        specialization: '',
+        imageUrl: null,
+        workingHours: {},
+      }),
+    ).toEqual({
       name: 'Koffi',
       specialization: null,
+      imageUrl: null,
       workingHours: {},
     });
   });
@@ -119,12 +127,22 @@ it('audit 3.1: artistIds ride the service payload', () => {
 
 it('audit 3.4: workingHours ride the artist payload ({} = inherit)', () => {
   const wh = { '0': [{ startTime: '10:00', endTime: '17:00' }] };
+  const f = { name: 'Awa', specialization: '', imageUrl: null };
+  expect(buildArtistPayload({ ...f, workingHours: wh }).workingHours).toEqual(
+    wh,
+  );
+  expect(buildArtistPayload({ ...f, workingHours: {} }).workingHours).toEqual(
+    {},
+  );
+});
+
+it('audit 3.5: the avatar rides the artist payload', () => {
   expect(
-    buildArtistPayload({ name: 'Awa', specialization: '', workingHours: wh })
-      .workingHours,
-  ).toEqual(wh);
-  expect(
-    buildArtistPayload({ name: 'Awa', specialization: '', workingHours: {} })
-      .workingHours,
-  ).toEqual({});
+    buildArtistPayload({
+      name: 'Awa',
+      specialization: '',
+      imageUrl: 'https://cdn.stub/gallery/p1/avatar.jpg',
+      workingHours: {},
+    }).imageUrl,
+  ).toBe('https://cdn.stub/gallery/p1/avatar.jpg');
 });

@@ -5,6 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { Provider } from '../../lib/api/providers';
 import { categoryList } from '../../lib/landing';
 import { withCoords } from '../../lib/discovery/map';
+import {
+  addFavorite,
+  getFavorites,
+  removeFavorite,
+} from '../../lib/api/account';
 import { HomeSearch } from '../home/HomeSearch';
 import { ProviderCard } from '../provider/ProviderCard';
 
@@ -52,11 +57,43 @@ export function RechercheClient({
   dispo: boolean;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Parity 2.15: hearts on the result cards — ONE session probe (anonymous
+  // 401 → null keeps the hearts as login CTAs).
+  const [favIds, setFavIds] = useState<Set<string> | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const mappable = withCoords(results);
+
+  useEffect(() => {
+    let active = true;
+    getFavorites().then((r) => {
+      if (active && r.status === 200) {
+        setFavIds(new Set(r.favorites.map((f) => f.id)));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function toggleFavorite(id: string) {
+    if (favIds === null) {
+      const back = `${window.location.pathname}${window.location.search}`;
+      window.location.assign(`/connexion?returnTo=${encodeURIComponent(back)}`);
+      return;
+    }
+    const isFav = favIds.has(id);
+    const r = isFav ? await removeFavorite(id) : await addFavorite(id);
+    if (!r.ok) return;
+    setFavIds((cur) => {
+      const next = new Set(cur);
+      if (isFav) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   // A marker click brings the matching card into view (desktop sync).
   useEffect(() => {
@@ -181,7 +218,11 @@ export function RechercheClient({
                     : undefined
                 }
               >
-                <ProviderCard provider={p} />
+                <ProviderCard
+                  provider={p}
+                  favorite={favIds?.has(p.id) ?? false}
+                  onToggleFavorite={() => toggleFavorite(p.id)}
+                />
               </div>
             ))
           )}

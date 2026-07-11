@@ -10,6 +10,7 @@ import {
 } from '../../lib/seo/jsonld';
 import { minActivePrice } from '../../lib/provider-summary';
 import { BookingCta } from '../BookingCta';
+import { SalonVisitsCard } from '../account/SalonVisitsCard';
 import { JsonLd } from '../JsonLd';
 import { BeforeAfter } from './BeforeAfter';
 import { BookingPanel } from './BookingPanel';
@@ -154,6 +155,9 @@ export function ProviderView({
           ) : null}
 
           <Hours availability={p.availability} />
+
+          {/* Parity 2.7/2.8 — the signed-in client's bookings at this salon. */}
+          <SalonVisitsCard providerId={p.id} />
 
           <ReviewList
             reviews={p.reviews ?? []}

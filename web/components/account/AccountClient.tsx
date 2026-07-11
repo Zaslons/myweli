@@ -22,6 +22,7 @@ import {
 } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
+import { supportWhatsAppUrl } from '../../lib/support';
 import { Button } from '../Button';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
@@ -319,6 +320,17 @@ export function AccountClient() {
         <span>Notifications</span>
         <span className="text-textTertiary">›</span>
       </Link>
+
+      {/* Aide & Support (parity 15.2) — manual intake via WhatsApp. */}
+      <a
+        href={supportWhatsAppUrl()}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+      >
+        <span>Aide & Support</span>
+        <span className="text-textTertiary">›</span>
+      </a>
 
       {/* Confidentialité (parity 11.1/11.2 — AUTH-004/005 on web) */}
       <section className="mt-l rounded-xl border border-border bg-secondary p-m">

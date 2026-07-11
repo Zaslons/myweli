@@ -36,6 +36,15 @@ test('login → see booking → open detail → cancel', async ({ page }) => {
     'https://wa.me/2250700000000',
   );
 
+  // P3 — the detail now mirrors the app: calendar, notes, spécialiste.
+  await expect(
+    page.getByRole('link', { name: 'Ajouter au calendrier (Google)' }),
+  ).toHaveAttribute('href', /calendar\.google\.com/);
+  await expect(page.getByRole('button', { name: 'Fichier .ics' })).toBeVisible();
+  await expect(page.getByText('Cheveux fragiles')).toBeVisible();
+  await expect(page.getByText('Spécialiste')).toBeVisible();
+  await expect(page.locator('dd').getByText('Awa', { exact: true })).toBeVisible();
+
   // « Reporter » (parity 1.1): pick tomorrow's 14:00 then confirm.
   await page.getByRole('button', { name: 'Reporter', exact: true }).click();
   await page.getByRole('button', { name: '14:00' }).click();
@@ -70,7 +79,7 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
   // K2: the rebook link carries the services prefill for the hub.
   await expect(
     page.getByRole('link', { name: 'Réserver à nouveau' }),
-  ).toHaveAttribute('href', '/beaute-divine/reserver?services=s1');
+  ).toHaveAttribute('href', '/beaute-divine/reserver?services=s1&artist=a1');
 
   // Leave a review — with a photo (parity 2.13).
   await page.getByRole('button', { name: '5 étoiles' }).click();
@@ -164,4 +173,54 @@ test('notifications: center + Tout lire + préférence (parity 5.1/5.2)', async 
   await expect(marketing).toHaveAttribute('aria-checked', 'true');
   await marketing.click();
   await expect(marketing).toHaveAttribute('aria-checked', 'false');
+});
+
+test('P3 extras: proof view, salon visits card, search hearts, support', async ({
+  page,
+}) => {
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  // 15.2 — the support entry.
+  await expect(
+    page.getByRole('link', { name: 'Aide & Support' }),
+  ).toHaveAttribute('href', /wa\.me/);
+
+  // 1.3 — « Voir ma capture » on the pending booking with an attached proof.
+  await page.goto('/mon-compte/appt3');
+  await expect(
+    page.getByRole('link', { name: 'Voir ma capture' }),
+  ).toHaveAttribute(
+    'href',
+    '/api/appointments/appt3/deposit-screenshot?redirect=1',
+  );
+
+  // 2.7/2.8 — the personal section on the salon page.
+  await page.goto('/beaute-divine');
+  await expect(page.getByText('Vos rendez-vous ici')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voir tout' })).toHaveAttribute(
+    'href',
+    '/mon-compte',
+  );
+  await expect(
+    page.getByRole('link', { name: 'Donner votre avis' }),
+  ).toHaveAttribute('href', '/mon-compte/appt2');
+
+  // 2.15 — hearts on the /recherche cards (signed-in toggle).
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
+  await page.goto('/recherche?q=tresses');
+  const heart = page.getByRole('button', {
+    name: /Ajouter Beauté Divine aux favoris|Retirer Beauté Divine des favoris/,
+  });
+  await expect(heart).toBeVisible();
+  const before = await heart.getAttribute('aria-pressed');
+  await heart.click();
+  await expect(heart).toHaveAttribute(
+    'aria-pressed',
+    before === 'true' ? 'false' : 'true',
+  );
 });

@@ -47,6 +47,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [noteDraft, setNoteDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
+  const [customTag, setCustomTag] = useState('');
 
   const load = useCallback(async () => {
     const me = await getMyProvider();
@@ -237,6 +238,31 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 {editingTags ? 'Terminé' : 'Modifier les tags'}
               </button>
             </div>
+            {/* Audit 4.1: mint a custom tag (the app's free-text field). */}
+            {editingTags ? (
+              <form
+                className="mt-s flex gap-s"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const t = customTag.trim();
+                  if (!t || card.tags.includes(t)) return;
+                  saveTags([...card.tags, t]);
+                  setCustomTag('');
+                }}
+              >
+                <input
+                  value={customTag}
+                  onChange={(e) => setCustomTag(e.target.value)}
+                  maxLength={30}
+                  placeholder="Nouveau tag…"
+                  aria-label="Nouveau tag"
+                  className="rounded-lg border border-border bg-surface px-s py-xs text-xs text-textPrimary"
+                />
+                <Button variant="secondary" disabled={busy || !customTag.trim()}>
+                  Ajouter le tag
+                </Button>
+              </form>
+            ) : null}
           </div>
 
           <section className="mt-l rounded-xl border border-border bg-secondary p-l">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type ProProfile,
   createArtist,
@@ -33,6 +33,7 @@ import {
   validateArtist,
   validateService,
 } from '../../lib/pro/catalogue';
+import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
 
 type Tab = 'services' | 'equipe';
@@ -471,6 +472,8 @@ function ArtistFormCard({
     scheduleToDays(initial.workingHours),
   );
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -518,6 +521,57 @@ function ArtistFormCard({
             }
           />
         </label>
+
+        {/* Audit 3.5: the avatar (the app's photo upload, gallery pipeline). */}
+        <div className="flex items-center gap-m">
+          {form.imageUrl ? (
+            <span className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.imageUrl}
+                alt="Photo de l’employé"
+                className="h-14 w-14 rounded-full object-cover"
+              />
+              <button
+                type="button"
+                aria-label="Retirer la photo"
+                onClick={() => setForm((f) => ({ ...f, imageUrl: null }))}
+                className="absolute -right-1 -top-1 rounded-full bg-primary px-1 text-xs text-secondary"
+              >
+                ✕
+              </button>
+            </span>
+          ) : null}
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            aria-label="Photo de l’employé"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              setUploading(true);
+              setErr(null);
+              const url = await uploadGalleryImage(file);
+              setUploading(false);
+              if (!url) return setErr('Échec de l’envoi de la photo.');
+              setForm((f) => ({ ...f, imageUrl: url }));
+            }}
+          />
+          <Button
+            variant="secondary"
+            disabled={uploading}
+            onClick={() => photoRef.current?.click()}
+          >
+            {uploading
+              ? 'Envoi…'
+              : form.imageUrl
+                ? 'Changer la photo'
+                : 'Ajouter une photo'}
+          </Button>
+        </div>
 
         {/* Audit 3.4: per-staff hours — the capacity engine reads them
             (empty = inherits the salon's hours). */}
