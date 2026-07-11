@@ -1,5 +1,6 @@
 import '../appointments/appointment_repository.dart';
 import '../providers_repository.dart';
+import '../subscription/salon_subscription_service.dart';
 import 'admin_kyc_service.dart' show AdminResult;
 import 'audit_log_repository.dart';
 
@@ -7,11 +8,17 @@ import 'audit_log_repository.dart';
 /// view providers, suspend/restore (hide from discovery + block new bookings),
 /// and toggle featured placement — every mutation audited.
 class AdminProviderService {
-  AdminProviderService(this._providers, this._appointments, this._audit);
+  AdminProviderService(
+    this._providers,
+    this._appointments,
+    this._audit,
+    this._subscriptions,
+  );
 
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final AuditLogRepository _audit;
+  final SalonSubscriptionService _subscriptions;
 
   Future<AdminResult> list({
     String? status,
@@ -96,5 +103,30 @@ class AdminProviderService {
       metadata: {'featured': featured},
     ));
     return (ok: true, error: null, data: updated);
+  }
+
+  /// Manual billing (« Nous contacter », T54): record [months] months of
+  /// payment for the salon; republishes a billing-unpublished salon when the
+  /// publish gate passes. Audited.
+  Future<AdminResult> markSubscriptionPaid(
+    String adminId,
+    String id,
+    Object? months, {
+    Object? reason,
+  }) async {
+    if (months is! int || months < 1 || months > 24) {
+      return (ok: false, error: 'invalid_input', data: null);
+    }
+    final r = await _subscriptions.markPaid(id, months: months);
+    if (!r.ok) return (ok: false, error: r.error, data: null);
+    await _audit.append((
+      actorAdminId: adminId,
+      action: 'subscription.paid',
+      targetType: 'provider',
+      targetId: id,
+      reason: reason is String ? reason : null,
+      metadata: {'months': months},
+    ));
+    return (ok: true, error: null, data: r.data);
   }
 }

@@ -50,6 +50,9 @@ class AdminProviderDetailProvider extends ChangeNotifier {
   Future<bool> feature(String id, bool featured) =>
       _act(_service.featureProvider(id, featured));
 
+  Future<bool> markPaid(String id, int months) =>
+      _act(_service.markSubscriptionPaid(id, months));
+
   Future<bool> _act(Future<ApiResponse<Map<String, dynamic>>> call) async {
     _acting = true;
     _actionError = null;

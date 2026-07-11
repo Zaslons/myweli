@@ -47,6 +47,7 @@ import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
+import 'db/postgres_salon_subscription_repository.dart';
 import 'deposit_service.dart';
 import 'email/email_provider.dart';
 import 'email/resend_email_provider.dart';
@@ -77,6 +78,9 @@ import 'reviews_repository.dart';
 import 'reviews_service.dart';
 import 'salon_provisioning_service.dart';
 import 'storage/storage_service.dart';
+import 'subscription/salon_subscription_repository.dart';
+import 'subscription/salon_subscription_service.dart';
+import 'subscription/subscription_scheduler.dart';
 import 'upload_signing_service.dart';
 
 /// Composition root: process-wide singletons built from env
@@ -365,11 +369,40 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   membershipRepository,
 );
 
+/// The pricing pivot (R2a): salon offers + the daily warning/enforcement
+/// walk. Enforcement is config-driven (SUBSCRIPTION_ENFORCEMENT, default
+/// off — cold-start leniency).
+final SalonSubscriptionRepository salonSubscriptionRepository = _pool == null
+    ? InMemorySalonSubscriptionRepository()
+    : PostgresSalonSubscriptionRepository(_pool!);
+
+final SalonSubscriptionService salonSubscriptionService =
+    SalonSubscriptionService(
+      salonSubscriptionRepository,
+      membershipService,
+      membershipRepository,
+      providersRepository,
+      providerAuthRepository,
+    );
+
+final bool subscriptionEnforcement =
+    (_envOrNull('SUBSCRIPTION_ENFORCEMENT') ?? 'off').toLowerCase() == 'on';
+
+final SubscriptionScheduler subscriptionScheduler = SubscriptionScheduler(
+  salonSubscriptionRepository,
+  membershipRepository,
+  providersRepository,
+  emailProvider,
+  pushService,
+  enforce: subscriptionEnforcement,
+);
+
 final SalonProvisioningService salonProvisioningService =
     SalonProvisioningService(
       providersRepository,
       providerAuthRepository,
       membershipRepository,
+      subscriptions: salonSubscriptionService,
     );
 
 final DepositService depositService = DepositService(
@@ -403,6 +436,7 @@ final AdminProviderService adminProviderService = AdminProviderService(
   providersRepository,
   appointmentRepository,
   auditLogRepository,
+  salonSubscriptionService,
 );
 
 final AdminUserService adminUserService = AdminUserService(

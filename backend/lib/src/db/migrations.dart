@@ -705,6 +705,41 @@ FROM provider_users WHERE provider_id IS NOT NULL
 ON CONFLICT (provider_id, email) DO NOTHING''',
     ],
   ),
+  (
+    id: '0028_salon_subscriptions',
+    statements: [
+      // The pricing pivot (docs/design/team-access-r2a-offers.md): offers
+      // hang on the SALON. A separate table by design — the public provider
+      // payload serializes the whole `data` blob, so billing state must
+      // never live there.
+      '''
+CREATE TABLE IF NOT EXISTS provider_subscriptions (
+  provider_id     text PRIMARY KEY REFERENCES providers(id),
+  tier            text NOT NULL,
+  trial_ends_at   timestamptz NOT NULL,
+  paid_until      timestamptz,
+  unpublished_at  timestamptz,
+  chosen_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+)''',
+      // Warning idempotency (the appointment_reminders pattern): one notice
+      // per (salon, kind) per billing cycle — rows cleared on markPaid.
+      '''
+CREATE TABLE IF NOT EXISTS subscription_notices (
+  provider_id  text NOT NULL REFERENCES providers(id),
+  kind         text NOT NULL,
+  sent_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (provider_id, kind)
+)''',
+      // Grandfather (sign-off 2026-07-11): every ACTIVE salon starts a fresh
+      // 3-month Pro trial (existing salons are pre-launch test data).
+      '''
+INSERT INTO provider_subscriptions (provider_id, tier, trial_ends_at)
+SELECT id, 'pro', now() + interval '90 days'
+FROM providers WHERE status = 'active'
+ON CONFLICT (provider_id) DO NOTHING''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
