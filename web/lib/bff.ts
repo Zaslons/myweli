@@ -88,6 +88,8 @@ type ProviderSummary = {
   name?: string;
   slug?: string;
   services?: { id: string; name: string }[];
+  phoneNumber?: string | null;
+  whatsapp?: string | null;
   depositMobileMoneyOperator?: string | null;
   depositMobileMoneyNumber?: string | null;
 };
@@ -104,6 +106,9 @@ function enrichOneWith(a: RawAppt, p: ProviderSummary) {
     ...a,
     providerName: p.name,
     providerSlug: p.slug,
+    // Parity 1.6: contact actions on the consumer detail (public fields).
+    providerPhone: p.phoneNumber ?? null,
+    providerWhatsapp: p.whatsapp ?? null,
     serviceNames: (a.serviceIds ?? [])
       .map((id) => byId.get(id))
       .filter((n): n is string => Boolean(n)),

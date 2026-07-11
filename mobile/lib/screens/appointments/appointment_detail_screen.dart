@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
@@ -39,6 +40,38 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       final provider = Provider.of<AppointmentProvider>(context, listen: false);
       provider.loadAppointmentById(widget.appointmentId);
     });
+  }
+
+  /// « Appeler »/« WhatsApp » (parity 1.6): resolve the salon's public
+  /// coordinates, then launch the dialer / wa.me (provider-detail idiom).
+  Future<void> _contactSalon(
+    Appointment appointment, {
+    required bool whatsapp,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await serviceLocator.providerService.getProviderById(
+      appointment.providerId,
+    );
+    final p = res.data;
+    final raw = whatsapp ? p?.whatsapp : p?.phoneNumber;
+    if (!res.success || p == null || raw == null || raw.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
+          ),
+        ),
+      );
+      return;
+    }
+    final uri = whatsapp
+        ? Uri.parse('https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}')
+        : Uri.parse('tel:${raw.replaceAll(RegExp(r'\s'), '')}');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir l’application.')),
+      );
+    }
   }
 
   Future<void> _handleCancel(Appointment appointment) async {
@@ -493,12 +526,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 AppButton(
                   text: 'Appeler',
                   icon: Icons.phone,
-                  onPressed: () {
-                    // Would open phone dialer in real app
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fonctionnalité à venir')),
-                    );
-                  },
+                  onPressed: () => _contactSalon(appointment, whatsapp: false),
+                ),
+                const SizedBox(height: 8),
+                AppButton(
+                  text: 'WhatsApp',
+                  icon: Icons.chat_outlined,
+                  type: AppButtonType.secondary,
+                  onPressed: () => _contactSalon(appointment, whatsapp: true),
                 ),
               ],
             ),

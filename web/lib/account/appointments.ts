@@ -13,6 +13,8 @@ export type Appointment = {
   providerId: string;
   providerName?: string;
   providerSlug?: string;
+  providerPhone?: string | null;
+  providerWhatsapp?: string | null;
   // K2: rebook prefill + the detail's deposit-attach block.
   serviceIds?: string[];
   artistId?: string | null;

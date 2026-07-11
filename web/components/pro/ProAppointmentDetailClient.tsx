@@ -8,6 +8,7 @@ import { noShowBadge, noShowLabel } from '../../lib/pro/clients';
 import {
   type ProProfile,
   getMyProvider,
+  arriveAppointment,
   getProAppointment,
   proAction,
   proDepositScreenshotUrl,
@@ -219,6 +220,39 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                 </Button>
               ),
             )}
+          </div>
+        ) : null}
+
+        {/* Parity 1.10 (J1b §4.2 debt): arrival from the detail page too. */}
+        {appt.arrivedAt ? (
+          <p className="mt-m text-sm text-textSecondary">
+            Arrivé à{' '}
+            {new Intl.DateTimeFormat('fr-FR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'UTC',
+            }).format(new Date(appt.arrivedAt))}
+          </p>
+        ) : appt.status === 'confirmed' &&
+          appt.appointmentDate.slice(0, 10) ===
+            new Date().toISOString().slice(0, 10) ? (
+          <div className="mt-m">
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                const r = await arriveAppointment(id);
+                setBusy(false);
+                if (!r.ok) {
+                  setError('Impossible d’enregistrer l’arrivée.');
+                  return;
+                }
+                await load();
+              }}
+            >
+              Client arrivé
+            </Button>
           </div>
         ) : null}
 

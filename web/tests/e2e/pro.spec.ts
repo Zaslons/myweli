@@ -63,6 +63,8 @@ test('pro detail: open a pending booking → Accepter → Confirmé', async ({
   await page.goto('/pro/connexion');
   await page.locator('input[type=email]').fill('salon@example.com');
   await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  // Resend with cooldown (module 11), pro side.
+  await expect(page.getByText(/Renvoyer le code \(\d+s\)/)).toBeVisible();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/pro(\/)?$/);
@@ -93,6 +95,10 @@ test('pro detail: open a pending booking → Accepter → Confirmé', async ({
   await page.getByLabel('Nouvelle heure').fill('11:00');
   await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
   await expect(page.getByText('Nouvelle date et heure')).toBeHidden();
+
+  // Parity 1.10: arrival from the detail page (same-day confirmed).
+  await page.getByRole('button', { name: 'Client arrivé' }).click();
+  await expect(page.getByText(/Arrivé à \d{2}:\d{2}/)).toBeVisible();
 });
 
 test('catalogue: list services + add one', async ({ page }) => {

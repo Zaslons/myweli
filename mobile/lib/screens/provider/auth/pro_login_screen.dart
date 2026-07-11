@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -42,6 +45,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _emailController.dispose();
     _codeController.dispose();
     super.dispose();
@@ -59,6 +63,26 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     if (await auth.signInWithApple() && mounted) _finish();
   }
 
+  // Resend cooldown (module 11 — the dormant OTP screen's pattern).
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+
+  void _startCooldown() {
+    _resendCooldown = AppConstants.otpResendCooldownSeconds;
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldown > 0) {
+        setState(() => _resendCooldown--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
   Future<void> _sendCode() async {
     final auth = context.read<ProAuthProvider>();
     final ok = await auth.requestEmailOtp(_emailController.text.trim());
@@ -68,6 +92,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
         _codeController.clear();
         _step = _Step.code;
       });
+      _startCooldown();
     }
   }
 
@@ -200,6 +225,16 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   isLoading: auth.isLoading,
                 ),
                 const SizedBox(height: 12),
+                AppButton(
+                  text: _resendCooldown > 0
+                      ? 'Renvoyer le code (${_resendCooldown}s)'
+                      : 'Renvoyer le code',
+                  type: AppButtonType.text,
+                  onPressed: (auth.isLoading || _resendCooldown > 0)
+                      ? null
+                      : _sendCode,
+                ),
+                const SizedBox(height: 4),
                 AppButton(
                   text: 'Changer d\'e-mail',
                   type: AppButtonType.text,

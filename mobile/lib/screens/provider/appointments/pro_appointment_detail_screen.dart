@@ -13,6 +13,7 @@ import '../../../models/api_response.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_journal_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 
@@ -42,6 +43,12 @@ class _ProAppointmentDetailScreenState
         appointmentProvider.loadAppointments(authProvider.provider!.id);
       }
     });
+  }
+
+  /// Same-day gate for « Client arrivé » (the server re-checks anyway).
+  static bool _isToday(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
   }
 
   @override
@@ -238,6 +245,36 @@ class _ProAppointmentDetailScreenState
                   ),
                 ] else if (appointment.status ==
                     AppointmentStatus.confirmed) ...[
+                  if (appointment.arrivedAt == null &&
+                      _isToday(appointment.appointmentDate)) ...[
+                    AppButton(
+                      text: 'Client arrivé',
+                      icon: Icons.how_to_reg_outlined,
+                      type: AppButtonType.secondary,
+                      onPressed: () async {
+                        final ok = await context
+                            .read<ProJournalProvider>()
+                            .arrive(appointment.id);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              ok
+                                  ? 'Arrivée enregistrée'
+                                  : 'Impossible d’enregistrer l’arrivée.',
+                            ),
+                          ),
+                        );
+                        if (ok && authProvider.provider != null) {
+                          await appointmentProvider.loadAppointments(
+                            authProvider.provider!.providerId ??
+                                authProvider.provider!.id,
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   AppButton(
                     text: 'Marquer comme terminé',
                     onPressed: () async {

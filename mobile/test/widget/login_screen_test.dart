@@ -71,6 +71,11 @@ void main() {
     expect(find.textContaining('Entrez le code reçu'), findsOneWidget);
     expect(find.textContaining('Code (dev)'), findsOneWidget);
 
+    // Resend (module 11): counting down and disabled, then active after 60 s.
+    expect(find.textContaining('Renvoyer le code ('), findsOneWidget);
+    await tester.pump(const Duration(seconds: 61));
+    expect(find.text('Renvoyer le code'), findsOneWidget);
+
     await tester.enterText(
       find.byType(TextField).first,
       MockAuthService.demoOtp,

@@ -86,6 +86,14 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
 
   const [step, setStep] = useState<'options' | 'code' | 'phone'>('options');
+  // Resend cooldown (module 11): 60 s, restarted on each send.
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState<string | undefined>();
@@ -184,6 +192,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     if (!r.ok) return setError('E-mail invalide ou envoi impossible.');
     setDevCode(r.devCode);
     setStep('code');
+    setCooldown(60);
   }
 
   async function verifyCode() {
@@ -255,6 +264,14 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         <Button disabled={busy || code.trim().length < 4} onClick={verifyCode}>
           Se connecter
         </Button>
+        <button
+          type="button"
+          disabled={busy || cooldown > 0}
+          onClick={sendCode}
+          className="text-sm text-textTertiary underline disabled:no-underline disabled:opacity-60"
+        >
+          {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : 'Renvoyer le code'}
+        </button>
         <button
           type="button"
           onClick={() => {
