@@ -432,11 +432,14 @@ void main() {
       appointmentDateTime: DateTime.utc(2030, 6, 25, 9),
       clientName: 'Awa',
       clientPhone: '+2250700000000',
+      artistId: 'artist1',
     );
     expect(res.success, isTrue);
     expect(res.data!.status, AppointmentStatus.confirmed);
     expect(body!['clientName'], 'Awa');
     expect(body!['serviceIds'], ['service1']);
+    // Audit 1.11: the journal gap prefill carries the filtered artist.
+    expect(body!['artistId'], 'artist1');
   });
 
   test('rescheduleAppointment POSTs /appointments/{id}/reschedule → true',

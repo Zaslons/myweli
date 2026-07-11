@@ -42,6 +42,29 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     });
   }
 
+  // Parity 1.8: the chosen spécialiste, resolved once from the salon's
+  // public team (the payload carries only artistId).
+  String? _artistName;
+  String? _artistLookupFor;
+
+  void _maybeResolveArtist(Appointment appointment) {
+    final artistId = appointment.artistId;
+    if (artistId == null || artistId.isEmpty) return;
+    if (_artistLookupFor == artistId) return;
+    _artistLookupFor = artistId;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final res = await serviceLocator.providerService.getProviderById(
+        appointment.providerId,
+      );
+      if (!mounted) return;
+      final name = res.data?.artists
+          .where((a) => a.id == artistId)
+          .map((a) => a.name)
+          .firstOrNull;
+      if (name != null) setState(() => _artistName = name);
+    });
+  }
+
   /// « Appeler »/« WhatsApp » (parity 1.6): resolve the salon's public
   /// coordinates, then launch the dialer / wa.me (provider-detail idiom).
   Future<void> _contactSalon(
@@ -404,6 +427,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           }
 
           final appointment = provider.selectedAppointment;
+          if (appointment != null) _maybeResolveArtist(appointment);
           if (appointment == null) {
             return Center(
               child: Column(
@@ -457,6 +481,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                         value:
                             Formatters.formatTime(appointment.appointmentDate),
                       ),
+                      if (_artistName != null) ...[
+                        const SizedBox(height: 16),
+                        _InfoRow(
+                          icon: Icons.person_outline,
+                          label: 'Spécialiste',
+                          value: _artistName!,
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       _InfoRow(
                         icon: Icons.attach_money,

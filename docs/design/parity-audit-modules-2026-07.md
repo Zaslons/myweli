@@ -19,7 +19,7 @@
 | 1.5 | ~~Cancel confirmation copy richer on web~~ **VERIFIED PRESENT 2026-07-11** (the app's dialog already shows the cancellationOutcome deposit block — forfait vs remboursé — richer than web; no change needed) | ✅ verified | Web warns « L'acompte peut ne pas être remboursé selon la politique du salon » when a deposit exists; the app's dialog is a bare « Êtes-vous sûr… » — the app should adopt the deposit warning |
 | 1.6 | ~~App « Appeler » button is a fake~~ **FIXED 2026-07-11** (app: real tel: + a WhatsApp button via getProviderById; web detail: Appeler/WhatsApp links from the enriched public fields) | ✅ fixed | Consumer appointment detail's « Appeler » shows « Fonctionnalité à venir » snackbar instead of launching `tel:` (the provider-detail screen does it properly). Web detail has no contact action at all — add `tel:`/WhatsApp to BOTH |
 | 1.7 | Tabs & list parity | ✅ | À venir / Passés / Annulés on both; rebook on completed on both (web adds the ?services prefill; the app rebooks via the hub with initial ids — equal) |
-| 1.8 | ~~Spécialiste not shown on the consumer detail~~ **WEB FIXED 2026-07-11** (enrichment maps artistId→artistName; « Spécialiste » row); app half in the app P3 PR | 🌓 web done | The artistId is stored and used for reschedule prefill, but never displayed to the client |
+| 1.8 | ~~Spécialiste not shown on the consumer detail~~ **FIXED 2026-07-11 (both)** (web: enrichment artistId→artistName; app: resolved from the salon team → « Spécialiste » info row) | ✅ fixed | The artistId is stored and used for reschedule prefill, but never displayed to the client |
 
 ### Pro: journal / rendez-vous lifecycle
 
@@ -27,7 +27,7 @@
 |---|---|---|---|
 | 1.9 | ~~Cross-day reschedule missing on web pro~~ **FIXED 2026-07-10** (« Reprogrammer » date+heure on the pro detail page AND the journal panel; 409 → créneau indisponible) | ✅ fixed | App: Ma journée swipe-left / long-press → « Reprogrammer » → date picker (365 d) + time picker → any day. Web: reschedule exists ONLY as drag inside the single-day journal grid — a salon cannot move a booking to another day on web (no action on the detail page, the panel, or the list) |
 | 1.10 | ~~« Client arrivé » absent from both DETAIL pages~~ **FIXED 2026-07-11** (both detail pages: same-day confirmed → the arrive seam; hidden once arrivedAt; web shows « Arrivé à HH:MM ») | ✅ fixed | Web: only in the journal side panel. App: only as a Ma journée swipe (the J1b spec §4.2 said the detail screen would gain it — never done). A salon opening the detail can't mark arrival on either surface |
-| 1.11 | App gap-slot prefill drops the artist | ❌ app (minor) | J1b spec: « Libre » rows prefill start time **+ the filtered artist** — the code passes only `dateTime` (`pro_journal_screen.dart` `_gap`). The web grid's quick-create DOES carry the column's artist |
+| 1.11 | ~~App gap-slot prefill drops the artist~~ **FIXED 2026-07-11** (« Libre » carries the ACTIVE artist filter → ProManualBookingScreen(initialArtistId) → the create payload; interface/mock/API threaded — the backend accepted artistId all along) | ✅ fixed | J1b spec: « Libre » rows prefill start time **+ the filtered artist** — the code passes only `dateTime` (`pro_journal_screen.dart` `_gap`). The web grid's quick-create DOES carry the column's artist |
 | 1.12 | Journal views | ℹ️ | Web = artist-column day GRID (drag, now-line, ghosts) · app = day TIMELINE (swipes, week strip) — deliberate per-surface designs (journal-j1-grid / j1b specs), equivalent capabilities except 1.9 |
 | 1.13 | Manual booking | ✅ | Multi-service + note + SMS seam + walk-in on both (web since #196); app entry points: FAB ×2 + gap rows + client card; web: grid cell + header CTA + client card — equal coverage |
 | 1.14 | Pro detail extras | ✅ | Both show the deposit justificatif (web: image + « Voir le justificatif »; app: equivalent), the no-show badge, « Voir la fiche (client) » |
@@ -107,7 +107,7 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 3.6 | **Photo reorder missing in the APP** | ❌ app (minor) | Web Médias: move up/down (the first photo is the listing hero — order matters). App photos screen: upload/remove only |
+| 3.6 | ~~Photo reorder missing in the APP~~ **FIXED 2026-07-11** (←/→ per tile → ProGalleryProvider.movePhoto → the same gallery PUT; cover stays first) | ✅ fixed | Web Médias: move up/down (the first photo is the listing hero — order matters). App photos screen: upload/remove only |
 | 3.7 | Before/After | ✅ | Pair upload + optional caption + delete on both |
 
 ### Availability
@@ -206,7 +206,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | # | Finding | Severity | Detail |
 |---|---|---|---|
 | 15.1 | ~~« Vérifié » badge unwired~~ **FIXED 2026-07-10** (admin approve/reject denormalizes `verified` onto the listing; contract + app model; badge on app card/detail + web card/hero) | ✅ fixed | Verification lives on the ACCOUNT (`provider_users.verification_status`); the public listing carries no `verified` field — backend payload, app `Provider` model and web type all lack it, and no consumer surface renders a badge. **KYC's entire consumer-visible payoff is unwired end-to-end** (and it compounds 8.1: today KYC gates nothing and shows nothing). PRD's Provider model explicitly lists `verified` |
-| 15.2 | ~~No in-product support entry~~ **WEB FIXED 2026-07-11** (« Aide & Support » on /mon-compte → the wa.me env pattern); the APP's own button was ALSO dead (« Fonctionnalité à venir ») — wired in the app P3 PR | 🌓 web done | Disputes are admin-created/resolved (manual intake — WhatsApp support). Acceptable pre-launch; the app at least has « Aide & Support » in the profile — **web mon-compte has no help/support entry at all** |
+| 15.2 | ~~No in-product support entry~~ **FIXED 2026-07-11 (both)** (web: « Aide & Support » on /mon-compte → wa.me; app: the dead profile button now opens WhatsApp support with the subscription screen's degrade) | ✅ fixed | Disputes are admin-created/resolved (manual intake — WhatsApp support). Acceptable pre-launch; the app at least has « Aide & Support » in the profile — **web mon-compte has no help/support entry at all** |
 | 15.3 | KYC submit/status | ✅ | Full parity since web-pro-kyc (2026-07-10) |
 | 15.4 | Review moderation | cross-ref | Consumer « Signaler » missing on both = finding 2.14; the admin queue is live |
 
@@ -235,11 +235,11 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ~~ALL P2 FIXED~~: 2.11/2.10/2.1/2.2/3.2 ✅ (P2a) · 2.13/2.14 ✅ (P2b) · resend + 1.10 + 1.5 (verified present) + 1.6 ✅ (P2c 2026-07-11)
 
 ## P3 — polish
-~~1.2 · 1.3 · 1.4 · 2.6 · 2.7 · 2.8 · 2.15 · 3.5 · 4.1~~ ✅ (P3-web 2026-07-11) · ~~9.2~~ ✅ (P1c) · ~~11.3~~ ✅ (P0b) · 1.8 + 15.2 🌓 web done (app halves) · REMAINING (app P3): 1.8-app · 1.11 app gap-slot artist · 3.6 app photo reorder · 15.2-app
+~~ALL P3 FIXED~~: 1.2 · 1.3 · 1.4 · 2.6 · 2.7 · 2.8 · 2.15 · 3.5 · 4.1 ✅ (P3-web) · 9.2 ✅ (P1c) · 11.3 ✅ (P0b) · 1.8 · 1.11 · 3.6 · 15.2 ✅ (P3-app 2026-07-11)
 
 ## Proposed execution (themed batches, one PR each)
 1. **P0 trust batch** — deposit⇄KYC enforcement (backend + threat row + both editors' lock states) + the verified badge end-to-end + web deletion/export.
 2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
 3. ~~**P1b reschedule batch**~~ ✅ done 2026-07-11 — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
 4. ~~**P1c web-surfaces batch**~~ ✅ done 2026-07-11 — notification center/prefs + « Revenus » (+ 9.2 week card).
-5. **P2 batches**: ~~P2a search+funnel~~ · ~~P2b reviews/trust~~ · ~~P2c appointments+auth (1.10/1.5/1.6/resend)~~ — **ALL P2 DONE 2026-07-11**; P3 polish batches remain (app and web sides grouped).
+5. ~~**P2 batches**~~ ALL DONE 2026-07-11 · ~~**P3 batches** (web + app)~~ ALL DONE 2026-07-11. **EVERY ACTIONABLE FINDING IN THIS AUDIT IS NOW FIXED, VERIFIED, OR EXPLICITLY PARKED (11.5 pre-launch, ℹ️ rows accepted).**

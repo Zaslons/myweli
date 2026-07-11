@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -103,10 +105,31 @@ class ProfileScreen extends StatelessWidget {
                 _SettingsItem(
                   icon: Icons.help_outline,
                   title: 'Aide & Support',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fonctionnalité à venir')),
+                  // Parity 15.2: manual intake via WhatsApp support.
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final number = AppConfig.supportWhatsApp;
+                    if (number.isEmpty) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Contact bientôt disponible.'),
+                        ),
+                      );
+                      return;
+                    }
+                    final uri = Uri.parse(
+                      'https://wa.me/$number?text=${Uri.encodeComponent('Bonjour MyWeli, j’ai besoin d’aide concernant mon compte.')}',
                     );
+                    if (!await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    )) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Impossible d’ouvrir WhatsApp.'),
+                        ),
+                      );
+                    }
                   },
                 ),
                 const _SettingsItem(

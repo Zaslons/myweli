@@ -20,13 +20,16 @@ class ProManualBookingScreen extends StatefulWidget {
     this.initialClientName,
     this.initialClientPhone,
     this.initialDateTime,
+    this.initialArtistId,
   });
 
   /// Prefill from the client card (module clients C1c) or a journal gap slot
-  /// (module journal J1b — « Libre » row prefills the start time).
+  /// (module journal J1b — « Libre » row prefills the start time AND the
+  /// filtered artist — audit 1.11).
   final String? initialClientName;
   final String? initialClientPhone;
   final DateTime? initialDateTime;
+  final String? initialArtistId;
 
   @override
   State<ProManualBookingScreen> createState() => _ProManualBookingScreenState();
@@ -118,6 +121,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       clientName: _name.text.trim().isEmpty ? null : _name.text.trim(),
       clientPhone: _anonymous ? null : _phone.text.trim(),
       notes: _note.text.trim().isEmpty ? null : _note.text.trim(),
+      artistId: widget.initialArtistId,
       sendSmsInvite: _sendSms && !_anonymous && _phone.text.trim().isNotEmpty,
     );
     if (!mounted) return;

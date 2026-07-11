@@ -160,12 +160,20 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
   }
 
   Widget _gap(DateTime start) {
+    // J1b §4.2 (audit 1.11): the « Libre » row carries the ACTIVE artist
+    // filter into the prefill ('' = « Sans artiste » and null = « Tous »
+    // pass nothing).
+    final artistFilter = context.read<ProJournalProvider>().artistFilter;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
       child: InkWell(
         onTap: () => context.push(
           '/pro/appointment/new',
-          extra: {'dateTime': start.toIso8601String()},
+          extra: {
+            'dateTime': start.toIso8601String(),
+            if (artistFilter != null && artistFilter.isNotEmpty)
+              'artistId': artistFilter,
+          },
         ),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
         child: Container(
