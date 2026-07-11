@@ -307,7 +307,13 @@ createServer(async (req, res) => {
     if (req.method === 'PATCH') {
       const body = await readBody(req);
       if (body.phone !== undefined) stubUser.phoneNumber = body.phone;
+      if (body.name !== undefined) stubUser.name = body.name;
       return json(res, 200, stubUser);
+    }
+    if (req.method === 'DELETE') {
+      // Parity 11.1 — definitive delete.
+      res.writeHead(204);
+      return res.end();
     }
     return json(res, 200, stubUser);
   }

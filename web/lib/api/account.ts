@@ -89,6 +89,24 @@ export async function removeFavorite(
   return { ok: res.ok, status: res.status };
 }
 
+/// Update the display name (parity 11.3 — PATCH /me accepts it).
+export async function updateName(
+  name: string,
+): Promise<{ ok: boolean; status: number }> {
+  const res = await fetch('/api/me', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  return { ok: res.ok, status: res.status };
+}
+
+/// Delete the account (parity 11.1 — definitive; the BFF ends the session).
+export async function deleteAccount(): Promise<{ ok: boolean; status: number }> {
+  const res = await fetch('/api/me', { method: 'DELETE' });
+  return { ok: res.ok, status: res.status };
+}
+
 export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST' });
 }

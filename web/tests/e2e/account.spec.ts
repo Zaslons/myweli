@@ -67,3 +67,39 @@ test('M8.3: provider favorite toggle → /connexion when signed out', async ({
   await page.getByRole('button', { name: 'Ajouter aux favoris' }).click();
   await expect(page).toHaveURL(/\/connexion/);
 });
+
+test('Confidentialité : export des données + suppression type-SUPPRIMER (11.1/11.2)', async ({
+  page,
+}) => {
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  // Name edit (11.3).
+  await page.getByRole('button', { name: 'Modifier le nom' }).click();
+  await page.getByLabel('Nom').fill('Awa K.');
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(page.getByText('Awa K.')).toBeVisible();
+
+  // Export page (11.2): counts + download/copy actions.
+  await page.getByRole('link', { name: 'Exporter mes données' }).click();
+  await expect(page).toHaveURL(/\/mon-compte\/donnees/);
+  await expect(
+    page.getByRole('heading', { name: 'Mes données' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Télécharger (JSON)' }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: '← Mon compte' }).click();
+
+  // Deletion (11.1): gated on typing SUPPRIMER, then home + signed out.
+  await page.getByRole('button', { name: 'Supprimer mon compte' }).click();
+  const confirm = page.getByRole('button', { name: 'Supprimer définitivement' });
+  await expect(confirm).toBeDisabled();
+  await page.getByLabel('Confirmation de suppression').fill('SUPPRIMER');
+  await confirm.click();
+  await expect(page).toHaveURL(/\/$/);
+});
