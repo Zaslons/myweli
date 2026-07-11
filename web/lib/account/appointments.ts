@@ -67,6 +67,15 @@ export function filterByTab(items: Appointment[], tab: Tab): Appointment[] {
   return items.filter((a) => categorize(a.status) === tab);
 }
 
+/// « Reporter » (parity 1.1 — the app's rule): pending/confirmed AND in the
+/// future.
+export function canReschedule(a: Appointment): boolean {
+  return (
+    (a.status === 'pending' || a.status === 'confirmed') &&
+    Date.parse(a.appointmentDate) > Date.now()
+  );
+}
+
 export function canCancel(a: Appointment): boolean {
   return a.status === 'pending' || a.status === 'confirmed';
 }

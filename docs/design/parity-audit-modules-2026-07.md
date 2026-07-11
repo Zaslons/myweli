@@ -12,7 +12,7 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 1.1 | **Consumer reschedule (« Reporter ») missing on web** | ❌ web | App detail: pending/confirmed + future → « Reporter » opens the slot picker prefilled (provider/services/artist) → `PUT /appointments/{id}/reschedule` → « Rendez-vous reporté ». Web mon-compte detail has cancel/rebook/review/deposit only — a web user cannot move a booking, only cancel + rebook (loses the salon-side history + deposit linkage) |
+| 1.1 | ~~Consumer reschedule (« Reporter ») missing on web~~ **FIXED 2026-07-10** (mon-compte detail: « Reporter » → date + slot picker prefilled provider/services/artist → POST reschedule; 409 handled) | ✅ fixed | App detail: pending/confirmed + future → « Reporter » opens the slot picker prefilled (provider/services/artist) → `PUT /appointments/{id}/reschedule` → « Rendez-vous reporté ». Web mon-compte detail has cancel/rebook/review/deposit only — a web user cannot move a booking, only cancel + rebook (loses the salon-side history + deposit linkage) |
 | 1.2 | **« Ajouter au calendrier » missing on web** | ❌ web | App: add_2_calendar on future bookings. Web equivalent = a Google-Calendar link and/or `.ics` download — cheap and idiomatic |
 | 1.3 | **Deposit proof VIEW (« Voir ma capture ») missing on web** | ❌ web | App: after attaching, the consumer can view their uploaded screenshot (signed URL via `GET /appointments/{id}/deposit-screenshot`). Web (B4-era attach) only shows the text « Justificatif envoyé » |
 | 1.4 | Booking `notes` not displayed on the web detail | ❌ web (minor) | App shows a Notes row when present |
@@ -25,7 +25,7 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 1.9 | **Cross-day reschedule missing on web pro** | ❌ web | App: Ma journée swipe-left / long-press → « Reprogrammer » → date picker (365 d) + time picker → any day. Web: reschedule exists ONLY as drag inside the single-day journal grid — a salon cannot move a booking to another day on web (no action on the detail page, the panel, or the list) |
+| 1.9 | ~~Cross-day reschedule missing on web pro~~ **FIXED 2026-07-10** (« Reprogrammer » date+heure on the pro detail page AND the journal panel; 409 → créneau indisponible) | ✅ fixed | App: Ma journée swipe-left / long-press → « Reprogrammer » → date picker (365 d) + time picker → any day. Web: reschedule exists ONLY as drag inside the single-day journal grid — a salon cannot move a booking to another day on web (no action on the detail page, the panel, or the list) |
 | 1.10 | **« Client arrivé » absent from both DETAIL pages** | ⚠️ both | Web: only in the journal side panel. App: only as a Ma journée swipe (the J1b spec §4.2 said the detail screen would gain it — never done). A salon opening the detail can't mark arrival on either surface |
 | 1.11 | App gap-slot prefill drops the artist | ❌ app (minor) | J1b spec: « Libre » rows prefill start time **+ the filtered artist** — the code passes only `dateTime` (`pro_journal_screen.dart` `_gap`). The web grid's quick-create DOES carry the column's artist |
 | 1.12 | Journal views | ℹ️ | Web = artist-column day GRID (drag, now-line, ghosts) · app = day TIMELINE (swipes, week strip) — deliberate per-surface designs (journal-j1-grid / j1b specs), equivalent capabilities except 1.9 |
@@ -33,8 +33,8 @@
 | 1.14 | Pro detail extras | ✅ | Both show the deposit justificatif (web: image + « Voir le justificatif »; app: equivalent), the no-show badge, « Voir la fiche (client) » |
 
 ### Module 1 — proposed fixes (by priority)
-1. **Web consumer « Reporter »** (1.1) — reuse the booking hub's time section as a reschedule picker; PUT reschedule via BFF.
-2. **Web pro cross-day reschedule** (1.9) — a « Reprogrammer » action on the web pro detail + journal panel (date+time picker, 409 handling like drag).
+1. ~~**Web consumer « Reporter »** (1.1)~~ ✅ fixed (PR fix/parity-p1b-reschedule).
+2. ~~**Web pro cross-day reschedule** (1.9)~~ ✅ fixed (PR fix/parity-p1b-reschedule).
 3. « Client arrivé » on both detail pages (1.10) + app gap-slot artist (1.11) + app cancel warning (1.5) + app « Appeler » fix (1.6) — small batch.
 4. Web add-to-calendar (1.2) + deposit-proof view (1.3) + notes row (1.4) — small batch.
 
@@ -226,7 +226,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | Finding | Surfaces |
 |---|---|
 | ~~**3.1** `artistIds` settable nowhere~~ ✅ fixed (PR fix/parity-p1a-capability) | app + web |
-| **1.1** Consumer reschedule missing on web · **1.9** pro cross-day reschedule missing on web | web |
+| ~~**1.1** Consumer reschedule · **1.9** pro cross-day reschedule missing on web~~ ✅ fixed (PR fix/parity-p1b-reschedule) | web |
 | ~~**3.4** per-staff hours + **3.8** breaks on web~~ ✅ fixed (PR fix/parity-p1a-capability) | web |
 | **5.1/5.2** Notification center + préférences missing on web | web |
 | **9.1** « Revenus » page (earnings + history) missing on web | web |
@@ -240,6 +240,6 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ## Proposed execution (themed batches, one PR each)
 1. **P0 trust batch** — deposit⇄KYC enforcement (backend + threat row + both editors' lock states) + the verified badge end-to-end + web deletion/export.
 2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
-3. **P1b reschedule batch** — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
+3. ~~**P1b reschedule batch**~~ ✅ done 2026-07-11 — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
 4. **P1c web-surfaces batch** — notification center/prefs + « Revenus ».
 5. **P2 funnel/UX batch** then **P3 polish batches**, app and web sides grouped.

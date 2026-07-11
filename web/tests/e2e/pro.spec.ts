@@ -79,6 +79,20 @@ test('pro detail: open a pending booking → Accepter → Confirmé', async ({
 
   await page.getByRole('button', { name: 'Accepter' }).click();
   await expect(page.getByText('Confirmé')).toBeVisible();
+
+  // « Reprogrammer » (parity 1.9): cross-day date + time. 10:00 is the
+  // stub's taken slot → 409 copy; 11:00 succeeds and closes the editor.
+  await page.getByRole('button', { name: 'Reprogrammer' }).click();
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  await page.getByLabel('Nouvelle date').fill(tomorrow);
+  await page.getByLabel('Nouvelle heure').fill('10:00');
+  await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
+  await expect(
+    page.getByText('Créneau indisponible. Choisissez un autre horaire.'),
+  ).toBeVisible();
+  await page.getByLabel('Nouvelle heure').fill('11:00');
+  await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
+  await expect(page.getByText('Nouvelle date et heure')).toBeHidden();
 });
 
 test('catalogue: list services + add one', async ({ page }) => {

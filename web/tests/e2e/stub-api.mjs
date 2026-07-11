@@ -97,6 +97,10 @@ function json(res, status, body) {
 
 // Dated "today" (UTC) so the pro views show it whenever the suite runs.
 const todayAt9 = `${new Date().toISOString().slice(0, 10)}T09:00:00.000Z`;
+// Consumer bookings sit TOMORROW so future-only actions (« Reporter ») show.
+const tomorrowAt9 = `${new Date(Date.now() + 86400000)
+  .toISOString()
+  .slice(0, 10)}T09:00:00.000Z`;
 
 // Consumer side (M5/M6) — appt1; cancel is stateful.
 const cancelled = new Set();
@@ -116,7 +120,7 @@ const consumerAppt = (id) => ({
   providerId: 'p1',
   serviceIds: ['s1'],
   clientName: 'Awa',
-  appointmentDate: todayAt9,
+  appointmentDate: tomorrowAt9,
   status:
     id === 'appt2' ? 'completed' : cancelled.has(id) ? 'cancelled' : 'confirmed',
   totalPrice: 15000,
