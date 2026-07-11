@@ -140,12 +140,12 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 5.1 | **Web has NO notification center** | ❌ web | App: `notifications_screen` (list + mark-read + unread state) fed by `GET /me/notifications`. Web: nothing — no bell, no page; a web-only user never sees booking-lifecycle notifications in-product (only WhatsApp/SMS if configured) |
-| 5.2 | **Web has NO notification preferences** | ❌ web | App: `notification_preferences_screen` (channel toggles → `/me/notification-preferences`). Web: nothing |
+| 5.1 | ~~Web has NO notification center~~ **FIXED 2026-07-11** (/mon-compte/notifications: list + mark-read + « Tout lire »; header bell with unread dot; account entry) | ✅ fixed | App: `notifications_screen` (list + mark-read + unread state) fed by `GET /me/notifications`. Web: nothing — no bell, no page; a web-only user never sees booking-lifecycle notifications in-product (only WhatsApp/SMS if configured) |
+| 5.2 | ~~Web has NO notification preferences~~ **FIXED 2026-07-11** (« Préférences » block on the same page — the app's three toggles, optimistic + revert) | ✅ fixed | App: `notification_preferences_screen` (channel toggles → `/me/notification-preferences`). Web: nothing |
 | 5.3 | Web push | ℹ️/⏳ | FCM device registration is app-side; web push (PWA) is a separate deferral already noted in the module map — not counted as parity debt yet |
 
 ### Modules 4–5 — proposed fixes
-1. **Web notification center + préférences** (5.1/5.2) — a bell in the header + `/mon-compte/notifications` (list, mark-read) + a preferences block; endpoints already live.
+1. ~~**Web notification center + préférences** (5.1/5.2)~~ ✅ fixed (PR fix/parity-p1c-web-surfaces).
 2. Web custom-tag input on the client card (4.1) — one small field.
 
 ## Module 8 — `payments` (no-custody deposits)
@@ -160,13 +160,13 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 9.1 | **Earnings page missing on web** | ❌ web | App « Revenus »: total earnings + the per-transaction history (date · amount). Web: two stat cards (aujourd'hui / ce mois) on the pro home — no page, no history, no per-visit breakdown |
-| 9.2 | Revenue stats granularity | ⚠️ web (minor) | The dashboard endpoint returns today/week/month; web shows today + month only (week dropped) |
+| 9.1 | ~~Earnings page missing on web~~ **FIXED 2026-07-11** (/pro/revenus: Aujourd'hui/Semaine/Mois/Tout tabs + total + ledger; sidebar entry) | ✅ fixed | App « Revenus »: total earnings + the per-transaction history (date · amount). Web: two stat cards (aujourd'hui / ce mois) on the pro home — no page, no history, no per-visit breakdown |
+| 9.2 | ~~Revenue stats granularity~~ **FIXED 2026-07-11** (« Revenus cette semaine » card on the pro home — `weekRevenue` was already in the DTO) | ✅ fixed | The dashboard endpoint returns today/week/month; web shows today + month only (week dropped) |
 | 10.1 | Dashboard counters | ✅ | À confirmer / Confirmés / Total du jour on both (web Aujourd'hui ↔ app dashboard tiles) |
 
 ### Module 8–10 — proposed fixes
 1. **Enforce the deposit⇄KYC gate** (8.1) — backend rule + threat-model row + locked UI on both editors. Security-grade.
-2. **Web « Revenus »** page (9.1) — the earnings endpoint already serves the app.
+2. ~~**Web « Revenus »** page (9.1)~~ ✅ fixed (PR fix/parity-p1c-web-surfaces).
 
 ## Module 11 — `access` (auth + account management) — flow-by-flow
 
@@ -228,18 +228,18 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | ~~**3.1** `artistIds` settable nowhere~~ ✅ fixed (PR fix/parity-p1a-capability) | app + web |
 | ~~**1.1** Consumer reschedule · **1.9** pro cross-day reschedule missing on web~~ ✅ fixed (PR fix/parity-p1b-reschedule) | web |
 | ~~**3.4** per-staff hours + **3.8** breaks on web~~ ✅ fixed (PR fix/parity-p1a-capability) | web |
-| **5.1/5.2** Notification center + préférences missing on web | web |
-| **9.1** « Revenus » page (earnings + history) missing on web | web |
+| ~~**5.1/5.2** Notification center + préférences missing on web~~ ✅ fixed (PR fix/parity-p1c-web-surfaces) | web |
+| ~~**9.1** « Revenus » page (earnings + history) missing on web~~ ✅ fixed (PR fix/parity-p1c-web-surfaces) | web |
 
 ## P2 — flow/UX & conversion
 2.11 mobile-web sticky « Confirmer » bar · 2.10 booking notes on web · 2.1/2.2 « Trier » + « Disponible aujourd'hui » on web search · email-code RESEND with cooldown (both — pattern exists in the dormant OTP screen) · 1.10 « Client arrivé » on both detail pages · 1.5 app cancel dialog deposit warning · 1.6 app fake « Appeler » button · 3.2 web duration variants · 2.13 review photos on web (display, then submit) · 2.14 « Signaler » a review (both)
 
 ## P3 — polish
-1.2 web add-to-calendar · 1.3 web view-own-proof · 1.4 web notes display · 1.8 show the spécialiste (both) · 1.11 app gap-slot artist · 2.6 web gallery lightbox · 2.7 « Vos rendez-vous ici » on web salon page · 2.8 review invite on the web salon page · 2.15 hearts on web result cards · 3.5 web artist photo · 3.6 app photo reorder · 4.1 web custom tags · 9.2 web week-revenue card · 11.3 web name edit · 15.2 web support entry
+1.2 web add-to-calendar · 1.3 web view-own-proof · 1.4 web notes display · 1.8 show the spécialiste (both) · 1.11 app gap-slot artist · 2.6 web gallery lightbox · 2.7 « Vos rendez-vous ici » on web salon page · 2.8 review invite on the web salon page · 2.15 hearts on web result cards · 3.5 web artist photo · 3.6 app photo reorder · 4.1 web custom tags · ~~9.2 web week-revenue card~~ ✅ (P1c) · 11.3 web name edit · 15.2 web support entry
 
 ## Proposed execution (themed batches, one PR each)
 1. **P0 trust batch** — deposit⇄KYC enforcement (backend + threat row + both editors' lock states) + the verified badge end-to-end + web deletion/export.
 2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
 3. ~~**P1b reschedule batch**~~ ✅ done 2026-07-11 — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
-4. **P1c web-surfaces batch** — notification center/prefs + « Revenus ».
+4. ~~**P1c web-surfaces batch**~~ ✅ done 2026-07-11 — notification center/prefs + « Revenus » (+ 9.2 week card).
 5. **P2 funnel/UX batch** then **P3 polish batches**, app and web sides grouped.

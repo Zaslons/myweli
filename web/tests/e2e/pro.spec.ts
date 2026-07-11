@@ -585,3 +585,23 @@ test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', a
     page.getByText('Votre salon n’est pas encore en ligne'),
   ).toHaveCount(0);
 });
+
+test('revenus: total + ledger + period tabs (parity 9.1)', async ({ page }) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Revenus' }).click();
+  await expect(page).toHaveURL(/\/pro\/revenus/);
+
+  // « Tout » (default): both stub transactions → 35 000 FCFA.
+  await expect(page.getByText(/35\s000\sFCFA/)).toBeVisible();
+
+  // « Aujourd'hui » narrows to today's 15 000 transaction.
+  await page.getByRole('button', { name: 'Aujourd’hui' }).click();
+  await expect(page.getByText(/15\s000\sFCFA/).first()).toBeVisible();
+  await expect(page.getByText(/35\s000\sFCFA/)).toBeHidden();
+});

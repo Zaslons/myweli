@@ -311,6 +311,15 @@ export function AccountClient() {
         )}
       </section>
 
+      {/* Notifications (parity 5.1/5.2) */}
+      <Link
+        href="/mon-compte/notifications"
+        className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+      >
+        <span>Notifications</span>
+        <span className="text-textTertiary">›</span>
+      </Link>
+
       {/* Confidentialité (parity 11.1/11.2 — AUTH-004/005 on web) */}
       <section className="mt-l rounded-xl border border-border bg-secondary p-m">
         <h2 className="text-lg font-semibold text-textPrimary">

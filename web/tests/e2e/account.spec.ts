@@ -109,3 +109,30 @@ test('Confidentialité : export des données + suppression type-SUPPRIMER (11.1/
   await confirm.click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test('notifications: center + Tout lire + préférence (parity 5.1/5.2)', async ({
+  page,
+}) => {
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  // Entry point from the account page.
+  await page.getByRole('link', { name: 'Notifications' }).click();
+  await expect(page).toHaveURL(/\/mon-compte\/notifications/);
+
+  // The unread item shows; « Tout lire » clears the unread state.
+  await expect(page.getByText('Rendez-vous confirmé')).toBeVisible();
+  await expect(page.getByText('Bienvenue sur MyWeli')).toBeVisible();
+  await page.getByRole('button', { name: 'Tout lire' }).click();
+  await expect(page.getByRole('button', { name: 'Tout lire' })).toBeHidden();
+
+  // Préférences: toggle marketing off (optimistic, stub-persisted).
+  const marketing = page.getByRole('switch', { name: 'Offres & promotions' });
+  await expect(marketing).toHaveAttribute('aria-checked', 'true');
+  await marketing.click();
+  await expect(marketing).toHaveAttribute('aria-checked', 'false');
+});
