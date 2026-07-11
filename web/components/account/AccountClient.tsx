@@ -15,7 +15,9 @@ import {
   getFavorites,
   getMe,
   listAppointments,
+  deleteAccount,
   logout,
+  updateName,
   removeFavorite,
 } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
@@ -43,6 +45,13 @@ export function AccountClient() {
   const [error, setError] = useState(false);
   // Contact-phone edit (auth overhaul: phone is contact data, not the login).
   const [editingPhone, setEditingPhone] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameBusy, setNameBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
@@ -105,6 +114,29 @@ export function AccountClient() {
     );
   }
 
+  async function saveName() {
+    setNameBusy(true);
+    const r = await updateName(nameDraft.trim());
+    setNameBusy(false);
+    if (!r.ok) return;
+    setMe((m) => (m ? { ...m, name: nameDraft.trim() } : m));
+    setEditingName(false);
+  }
+
+  /// Parity 11.1 — the app's flow: type SUPPRIMER, definitive delete; the
+  /// session ends and the CRM identity is anonymized server-side (T48).
+  async function onDelete() {
+    setDeleteBusy(true);
+    setDeleteError(false);
+    const r = await deleteAccount();
+    setDeleteBusy(false);
+    if (!r.ok) {
+      setDeleteError(true);
+      return;
+    }
+    router.replace('/');
+  }
+
   const shown = filterByTab(items, tab);
 
   return (
@@ -112,9 +144,44 @@ export function AccountClient() {
       <section className="rounded-xl border border-border bg-secondary p-m">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium text-textPrimary">
-              {me?.name ?? 'Mon compte'}
-            </p>
+            {editingName ? (
+              <div className="flex flex-wrap items-center gap-s">
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  aria-label="Nom"
+                  className="rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary"
+                />
+                <Button
+                  disabled={nameBusy || !nameDraft.trim()}
+                  onClick={saveName}
+                >
+                  OK
+                </Button>
+                <button
+                  type="button"
+                  className="text-sm text-textTertiary underline"
+                  onClick={() => setEditingName(false)}
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <p className="flex items-center gap-s font-medium text-textPrimary">
+                {me?.name ?? 'Mon compte'}
+                <button
+                  type="button"
+                  aria-label="Modifier le nom"
+                  className="text-sm font-normal text-textTertiary underline"
+                  onClick={() => {
+                    setNameDraft(me?.name ?? '');
+                    setEditingName(true);
+                  }}
+                >
+                  Modifier
+                </button>
+              </p>
+            )}
             {me?.email ? (
               <p className="text-sm text-textTertiary">{me.email}</p>
             ) : null}
@@ -242,6 +309,78 @@ export function AccountClient() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Confidentialité (parity 11.1/11.2 — AUTH-004/005 on web) */}
+      <section className="mt-l rounded-xl border border-border bg-secondary p-m">
+        <h2 className="text-lg font-semibold text-textPrimary">
+          Confidentialité
+        </h2>
+        <div className="mt-s flex items-center justify-between gap-m">
+          <p className="text-sm text-textSecondary">
+            Recevoir une copie de vos données (profil, rendez-vous, favoris).
+          </p>
+          <Link
+            href="/mon-compte/donnees"
+            className="shrink-0 text-sm text-textPrimary underline"
+          >
+            Exporter mes données
+          </Link>
+        </div>
+        <div className="mt-m border-t border-divider pt-m">
+          {!confirmDelete ? (
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmDelete(true);
+                setDeleteText('');
+              }}
+              className="text-sm text-error underline"
+            >
+              Supprimer mon compte
+            </button>
+          ) : (
+            <div className="rounded-lg bg-surface p-m">
+              <p className="text-sm text-textPrimary">
+                Cette action est définitive. Vos rendez-vous, favoris et avis
+                seront supprimés. Pensez à exporter vos données avant.
+              </p>
+              <p className="mt-s text-xs text-textTertiary">
+                Tapez SUPPRIMER pour confirmer
+              </p>
+              <div className="mt-xs flex flex-wrap items-center gap-s">
+                <input
+                  value={deleteText}
+                  onChange={(e) => setDeleteText(e.target.value)}
+                  placeholder="SUPPRIMER"
+                  aria-label="Confirmation de suppression"
+                  className="rounded-lg border border-border bg-secondary px-s py-xs text-sm text-textPrimary"
+                />
+                <Button
+                  disabled={
+                    deleteBusy ||
+                    deleteText.trim().toUpperCase() !== 'SUPPRIMER'
+                  }
+                  onClick={onDelete}
+                >
+                  Supprimer définitivement
+                </Button>
+                <button
+                  type="button"
+                  className="text-sm text-textTertiary underline"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Annuler
+                </button>
+              </div>
+              {deleteError ? (
+                <p className="mt-s text-sm text-error">
+                  La suppression a échoué. Réessayez.
+                </p>
+              ) : null}
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="mt-l">
