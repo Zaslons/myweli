@@ -42,6 +42,15 @@ abstract interface class StorageService {
     required StorageBucket bucket,
     Duration ttl,
   });
+
+  /// Short-lived signed **DELETE** URL for a private object — the erasure
+  /// half of the lifecycle (T53: KYC docs go with the account). The caller
+  /// executes the HTTP DELETE; this class only signs.
+  String presignDelete({
+    required String key,
+    required StorageBucket bucket,
+    Duration ttl,
+  });
 }
 
 /// No-network stand-in for dev/CI/tests (selected when R2 isn't configured).
@@ -77,6 +86,13 @@ class FakeStorageService implements StorageService {
     required StorageBucket bucket,
     Duration ttl = const Duration(minutes: 5),
   }) => '$origin/${bucket.name}/$key?sig=fake';
+
+  @override
+  String presignDelete({
+    required String key,
+    required StorageBucket bucket,
+    Duration ttl = const Duration(minutes: 5),
+  }) => '$origin/${bucket.name}/$key?sig=fake-delete';
 
   @override
   String publicUrl(String key) => '$origin/$key';
@@ -181,6 +197,21 @@ class R2StorageService implements StorageService {
     required String key,
     required StorageBucket bucket,
     Duration ttl = const Duration(minutes: 5),
+  }) => _presignUrl(method: 'GET', key: key, bucket: bucket, ttl: ttl);
+
+  @override
+  String presignDelete({
+    required String key,
+    required StorageBucket bucket,
+    Duration ttl = const Duration(minutes: 5),
+  }) => _presignUrl(method: 'DELETE', key: key, bucket: bucket, ttl: ttl);
+
+  /// SigV4 query-signed URL for [method] on a private object.
+  String _presignUrl({
+    required String method,
+    required String key,
+    required StorageBucket bucket,
+    required Duration ttl,
   }) {
     final now = _clock().toUtc();
     final amzDate = _amzDate(now);
@@ -203,7 +234,7 @@ class R2StorageService implements StorageService {
         .join('&');
 
     final canonicalRequest = [
-      'GET',
+      method,
       canonicalUri,
       canonicalQuery,
       'host:$host\n',

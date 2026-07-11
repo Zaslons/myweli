@@ -1,12 +1,16 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/me/provider/index.dart' as me_provider;
@@ -47,6 +51,15 @@ void main() {
       when(() => c.read<ProviderAuthRepository>()).thenReturn(auth);
       when(() => c.read<ProvidersRepository>()).thenReturn(providers);
       when(() => c.read<AppointmentRepository>()).thenReturn(appointments);
+      when(() => c.read<ProviderAccountService>()).thenReturn(
+        ProviderAccountService(
+          auth,
+          providers,
+          appointments,
+          const FakeStorageService(),
+          client: MockClient((req) async => http.Response('', 204)),
+        ),
+      );
       when(
         () => c.read<SalonProvisioningService>(),
       ).thenReturn(SalonProvisioningService(providers, auth));

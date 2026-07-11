@@ -609,7 +609,7 @@ export interface paths {
         post?: never;
         /**
          * Delete the provider ACCOUNT (audit 11.5 — AUTH-004 for pros)
-         * @description Self-scoped and irreversible. Future pending/confirmed bookings block the deletion (409 `future_bookings` — settle the agenda first). The SALON listing is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; the account row (with its KYC documents), OTP state and every refresh token are erased — all sessions die. Threat T53.
+         * @description Self-scoped and irreversible. Future pending/confirmed bookings block the deletion (409 `future_bookings` — settle the agenda first). The SALON listing is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; the account row, its KYC documents (rows AND the private storage objects), OTP state and every refresh token are erased — all sessions die. Threat T53.
          */
         delete: {
             parameters: {

@@ -25,11 +25,14 @@ token, never the client):
    appointments/reviews/CRM keep resolving for consumers and the admin
    (referential integrity; the salon record is business history, the ACCOUNT
    is the identity being erased).
-3. **Erase the identity** — new `ProviderAuthRepository.deleteAccount`:
-   the `provider_users` row (KYC docs live on it), the email-OTP rows and
-   EVERY refresh token of the account go; all sessions die. Private KYC
-   storage objects are uuid-named and unreachable once the rows are gone
-   (object deletion = deferred storage-lifecycle hardening, noted in T-row).
+3. **Erase the identity** — `ProviderAccountService.deleteAccount`
+   orchestrates: the private **KYC storage objects are deleted** (a
+   presigned-DELETE per key, own-prefix `kyc/{accountId}/` only; a storage
+   hiccup never blocks the flow — the rows go next, leaving any survivor
+   uuid-named and unreachable), then `ProviderAuthRepository.deleteAccount`
+   removes the `provider_users` row, the OTP rows and EVERY refresh token;
+   all sessions die. `StorageService.presignDelete` (SigV4 query signing,
+   shared with `presignGet`) is the new erasure half of the lifecycle.
 
 Errors: anon → 401 · non-provider/unlinked → 403 · future bookings → 409.
 

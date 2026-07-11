@@ -60,6 +60,7 @@ import 'messaging/reminder_scheduler.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
+import 'provider_account_service.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
@@ -339,6 +340,13 @@ final KycService kycService = KycService(providerAuthRepository);
 
 /// Salon lifecycle (docs/design/pro-salon-lifecycle.md): draft creation at
 /// registration + the /me/provider self-heal + the publish gate.
+final ProviderAccountService providerAccountService = ProviderAccountService(
+  providerAuthRepository,
+  providersRepository,
+  appointmentRepository,
+  storageService,
+);
+
 final SalonProvisioningService salonProvisioningService =
     SalonProvisioningService(providersRepository, providerAuthRepository);
 

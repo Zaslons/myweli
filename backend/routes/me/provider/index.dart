@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
-import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
@@ -65,34 +65,13 @@ Future<Response> onRequest(RequestContext context) async {
 }
 
 Future<Response> _delete(RequestContext context, String accountId) async {
-  final auth = context.read<ProviderAuthRepository>();
-  final account = await auth.accountById(accountId);
-  if (account == null) {
-    return jsonError(HttpStatus.forbidden, 'forbidden');
+  final r = await context.read<ProviderAccountService>().deleteAccount(
+    accountId,
+  );
+  if (!r.ok) {
+    return r.error == 'future_bookings'
+        ? jsonError(HttpStatus.conflict, 'future_bookings')
+        : jsonError(HttpStatus.forbidden, 'forbidden');
   }
-
-  final providerId = account.providerId;
-  if (providerId != null) {
-    // The salon settles its agenda first — no surprise mass-cancellations.
-    final open = await context.read<AppointmentRepository>().listForProvider(
-      providerId,
-    );
-    final now = DateTime.now().toUtc();
-    final hasFuture = open.any((a) {
-      final status = a['status'] as String?;
-      if (status != 'pending' && status != 'confirmed') return false;
-      final date = DateTime.tryParse(a['appointmentDate'] as String? ?? '');
-      return date != null && date.isAfter(now);
-    });
-    if (hasFuture) {
-      return jsonError(HttpStatus.conflict, 'future_bookings');
-    }
-    // Unpublish, don't destroy: T51 hides drafts everywhere while bookings,
-    // reviews and the CRM keep resolving (business history ≠ identity).
-    await context.read<ProvidersRepository>().setStatus(providerId, 'draft');
-  }
-
-  final ok = await auth.deleteAccount(accountId);
-  if (!ok) return jsonError(HttpStatus.forbidden, 'forbidden');
   return Response(statusCode: HttpStatus.noContent);
 }
