@@ -158,6 +158,12 @@ abstract interface class ProviderAuthRepository {
     required String status,
     String? rejectionReason,
   });
+
+  /// Erase the account identity (audit 11.5 — AUTH-004 for pros): the account
+  /// row (KYC docs live on it), its OTP state and EVERY refresh token go; all
+  /// sessions die. The salon LISTING is handled by the caller (unpublished,
+  /// not destroyed). Returns false when the id is unknown.
+  Future<bool> deleteAccount(String accountId);
 }
 
 class _Otp {
@@ -532,6 +538,24 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
 
   void _revokeFamily(String familyId) =>
       _refreshByHash.removeWhere((_, r) => r.familyId == familyId);
+
+  @override
+  Future<bool> deleteAccount(String accountId) async {
+    final account = _byId.remove(accountId);
+    if (account == null) return false;
+    if (account.phoneNumber.isNotEmpty) {
+      _byPhone.remove(account.phoneNumber);
+      _otps.remove(account.phoneNumber);
+    }
+    final email = account.email?.toLowerCase();
+    if (email != null) {
+      _byEmail.remove(email);
+      _emailOtps.remove(email);
+    }
+    _bySocial.removeWhere((_, a) => a.id == accountId);
+    _refreshByHash.removeWhere((_, r) => r.accountId == accountId);
+    return true;
+  }
 
   ({String? code, String? devCode, int expiresInSeconds})? _issueOtp(
     String phoneNumber,

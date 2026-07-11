@@ -108,6 +108,38 @@ void main() {
       },
     );
 
+    test('R2StorageService.presignDelete signs a DELETE query URL', () {
+      final r2 = R2StorageService(
+        endpoint: 'https://acc.r2.cloudflarestorage.com',
+        bucket: 'uploads',
+        accessKeyId: 'AKID',
+        secretAccessKey: 'SECRET',
+        publicBaseUrl: 'https://cdn.myweli.com/',
+        kycBucket: 'kyc-private',
+        clock: () => DateTime.utc(2026, 7, 11, 10),
+      );
+      final url = r2.presignDelete(
+        key: 'kyc/acc1/doc.pdf',
+        bucket: StorageBucket.kyc,
+      );
+      expect(url, startsWith('https://acc.r2.cloudflarestorage.com/'));
+      expect(url, contains('/kyc-private/kyc/acc1/doc.pdf?'));
+      expect(url, contains('X-Amz-Algorithm=AWS4-HMAC-SHA256'));
+      expect(url, matches(RegExp(r'X-Amz-Signature=[0-9a-f]{64}')));
+      // A different METHOD must sign differently (the method is in the
+      // canonical request).
+      final get = r2.presignGet(
+        key: 'kyc/acc1/doc.pdf',
+        bucket: StorageBucket.kyc,
+      );
+      expect(
+        RegExp(r'X-Amz-Signature=([0-9a-f]{64})').firstMatch(url)!.group(1),
+        isNot(
+          RegExp(r'X-Amz-Signature=([0-9a-f]{64})').firstMatch(get)!.group(1),
+        ),
+      );
+    });
+
     test('FakeStorageService.presignGet returns a usable private URL', () {
       expect(
         const FakeStorageService().presignGet(

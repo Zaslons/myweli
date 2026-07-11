@@ -174,6 +174,12 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<void>> deleteProviderAccount() async {
+    await Future.delayed(AppConstants.mockDelay);
+    return ApiResponse.success(null, message: 'Compte supprimé');
+  }
+
+  @override
   Future<ApiResponse<bool>> markArrived(String appointmentId) async {
     await Future.delayed(AppConstants.mockDelay);
     final index =

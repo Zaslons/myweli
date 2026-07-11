@@ -130,6 +130,19 @@ class ApiProService implements ProServiceInterface {
       _transition(appointmentId, 'arrive', 'Client arrivé');
 
   @override
+  Future<ApiResponse<void>> deleteProviderAccount() async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.delete(_uri('/me/provider'), headers: _bearer(t)),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 204) return _errorFrom(res);
+    return ApiResponse.success(null, message: 'Compte supprimé');
+  }
+
+  @override
   Future<ApiResponse<Provider>> updateSalonProfile(
     String providerId,
     Map<String, dynamic> changes,

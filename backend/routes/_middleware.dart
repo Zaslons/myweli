@@ -30,6 +30,7 @@ import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
@@ -51,6 +52,7 @@ Handler middleware(Handler handler) {
       .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
       .use(provider<EmailProvider>((_) => emailProvider))
       .use(provider<ProviderAuthRepository>((_) => providerAuthRepository))
+      .use(provider<ProviderAccountService>((_) => providerAccountService))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
       .use(provider<BookingService>((_) => bookingService))
       .use(provider<SlotService>((_) => slotService))

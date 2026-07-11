@@ -631,3 +631,36 @@ test('revenus: total + ledger + period tabs (parity 9.1)', async ({ page }) => {
   await expect(page.getByText(/15\s000\sFCFA/).first()).toBeVisible();
   await expect(page.getByText(/35\s000\sFCFA/)).toBeHidden();
 });
+
+// LAST test in the file: it ends the pro session (stateless stub login —
+// other files are unaffected).
+test('compte: export buttons + type-SUPPRIMER deletion (audit 11.5)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.getByRole('link', { name: 'Profil', exact: true }).click();
+  await expect(page).toHaveURL(/\/pro\/profil/);
+
+  // The export half (AUTH-005).
+  await expect(
+    page.getByRole('button', { name: 'Exporter (JSON)' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copier' })).toBeVisible();
+
+  // The deletion half (AUTH-004): gated on the typed confirmation.
+  await page.getByRole('button', { name: 'Supprimer mon compte' }).click();
+  const confirm = page.getByRole('button', {
+    name: 'Supprimer définitivement',
+  });
+  await expect(confirm).toBeDisabled();
+  await page.getByLabel('Confirmation de suppression').fill('SUPPRIMER');
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  await expect(page).toHaveURL(/\/pro\/connexion/);
+});

@@ -607,7 +607,39 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete the provider ACCOUNT (audit 11.5 — AUTH-004 for pros)
+         * @description Self-scoped and irreversible. Future pending/confirmed bookings block the deletion (409 `future_bookings` — settle the agenda first). The SALON listing is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; the account row, its KYC documents (rows AND the private storage objects), OTP state and every refresh token are erased — all sessions die. Threat T53.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Account deleted; salon unpublished. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description Future pending/confirmed bookings exist (`future_bookings`). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

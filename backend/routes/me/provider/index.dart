@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
@@ -12,8 +13,18 @@ import 'package:myweli_backend/src/salon_provisioning_service.dart';
 /// client-supplied id), so a provider only ever reads its own (BACKEND.md §3.3,
 /// threat T29). Anon → 401; non-provider or unlinked account → 403; missing
 /// salon → 404.
+///
+/// `DELETE /me/provider` — erase the ACCOUNT identity (audit 11.5, AUTH-004
+/// for pros; threat T53): future pending/confirmed bookings → 409
+/// `future_bookings`; the salon is UNPUBLISHED (`status → draft`, hidden by
+/// T51 while history keeps resolving); the account row + OTP state + every
+/// refresh token are deleted. Design:
+/// docs/design/pro-account-deletion-export.md.
 Future<Response> onRequest(RequestContext context) async {
-  if (context.request.method != HttpMethod.get) return methodNotAllowed();
+  if (context.request.method != HttpMethod.get &&
+      context.request.method != HttpMethod.delete) {
+    return methodNotAllowed();
+  }
 
   final principal = principalOf(context);
   if (principal == null) {
@@ -21,6 +32,10 @@ Future<Response> onRequest(RequestContext context) async {
   }
   if (principal.role != 'provider') {
     return jsonError(HttpStatus.forbidden, 'forbidden');
+  }
+
+  if (context.request.method == HttpMethod.delete) {
+    return _delete(context, principal.userId);
   }
 
   var account = await context.read<ProviderAuthRepository>().accountById(
@@ -47,4 +62,16 @@ Future<Response> onRequest(RequestContext context) async {
   return Response.json(
     body: {'account': account.toJson(), 'provider': provider},
   );
+}
+
+Future<Response> _delete(RequestContext context, String accountId) async {
+  final r = await context.read<ProviderAccountService>().deleteAccount(
+    accountId,
+  );
+  if (!r.ok) {
+    return r.error == 'future_bookings'
+        ? jsonError(HttpStatus.conflict, 'future_bookings')
+        : jsonError(HttpStatus.forbidden, 'forbidden');
+  }
+  return Response(statusCode: HttpStatus.noContent);
 }

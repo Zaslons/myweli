@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
+import type { ProProfile } from '../../lib/api/pro';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
 import {
   PROFILE_CATEGORIES,
@@ -13,6 +14,7 @@ import {
 } from '../../lib/pro/profile';
 import dynamic from 'next/dynamic';
 import { Button } from '../Button';
+import { CompteDangerSection } from './CompteDangerSection';
 
 // MapLibre is browser-only; the pin picker loads with the page (authed, not
 // an indexed surface — no CWV concern).
@@ -34,6 +36,8 @@ const input =
 export function ProfilClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState('');
+  // Kept whole for the export assembly (audit 11.5).
+  const [profile, setProfile] = useState<ProProfile | null>(null);
   const [verification, setVerification] = useState<
     'pending' | 'verified' | 'rejected'
   >('pending');
@@ -59,6 +63,7 @@ export function ProfilClient() {
         return;
       }
       setProviderId(me.profile.provider.id);
+      setProfile(me.profile);
       setVerification(me.profile.account.verificationStatus ?? 'pending');
       setForm(profileToForm(me.profile.provider));
       setLoading(false);
@@ -209,6 +214,9 @@ export function ProfilClient() {
         <SectionLink href="/pro/abonnement" label="Abonnement" />
         <SectionLink href="/pro/medias" label="Photos & Avant/Après" />
       </section>
+
+      {/* Audit 11.5 — export + deletion (AUTH-004/005 for pros). */}
+      {profile ? <CompteDangerSection profile={profile} /> : null}
     </div>
   );
 }

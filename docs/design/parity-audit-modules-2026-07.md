@@ -188,7 +188,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | 11.2 | ~~Data EXPORT missing on web~~ **FIXED 2026-07-10** (/mon-compte/donnees — same JSON shape as the app; download + copier) | ✅ fixed | App: dedicated export screen (AUTH-005). Web: nothing |
 | 11.3 | ~~Name editing missing on web~~ **FIXED 2026-07-10** (inline edit on the profile card) | ✅ fixed | `PATCH /me` accepts `name`; the app edits it (« Modifier le profil »); web shows it read-only |
 | 11.4 | Contact phone editing | ✅ | Both, with « Non vérifié » labelling |
-| 11.5 | Pro account deletion/export | ⚠️ both (parked) | Exists on NEITHER surface for salon accounts — acceptable pre-launch, must exist before stores review |
+| 11.5 | ~~Pro account deletion/export~~ **FIXED 2026-07-11 (both)** (DELETE /me/provider — future-bookings gate 409, salon unpublished via T51, identity+sessions erased (T53); export assembled client-side on both surfaces like the consumer's) | ✅ fixed |
 
 ### Pro auth
 
@@ -214,11 +214,10 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 # SYNTHESIS — consolidated priorities across all findings
 
-> **🏁 PROGRAM COMPLETE (2026-07-11).** Every actionable finding in this audit
-> is **fixed or verified** across PRs #211–#220. The only deliberately open
-> item is **11.5** (pro account deletion/export — parked pre-launch by this
-> audit; required before store review). ℹ️ rows remain accepted per-surface
-> designs. Full sweep confirmed row by row.
+> **🏁 PROGRAM COMPLETE (2026-07-11).** Every actionable finding in this
+> audit — **including the once-parked 11.5** — is **fixed or verified**
+> across PRs #211–#221. ℹ️ rows remain accepted per-surface designs. Full
+> sweep confirmed row by row. Nothing is left.
 
 ## P0 — security · legal · trust correctness
 *(ALL P0 FIXED 2026-07-10: 8.1 + 15.1 — PR #211 · 11.1/11.2 + 11.3 — PR #212)*
