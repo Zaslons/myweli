@@ -4,13 +4,18 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/auth/provider/email/otp/request.dart' as pe_request;
@@ -239,6 +244,26 @@ void main() {
       when(() => context.read<EmailProvider>()).thenReturn(email);
       when(() => context.read<SalonProvisioningService>()).thenReturn(
         SalonProvisioningService(salons, repo, InMemoryMembershipRepository()),
+      );
+      // The R2b login bridge reads TeamService on provider_not_found; an
+      // empty membership store keeps the legacy 404 behaviour under test.
+      final bridgeMembers = InMemoryMembershipRepository();
+      final bridgeResolver = MembershipService(bridgeMembers, repo);
+      when(() => context.read<TeamService>()).thenReturn(
+        TeamService(
+          bridgeMembers,
+          bridgeResolver,
+          salons,
+          SalonSubscriptionService(
+            InMemorySalonSubscriptionRepository(),
+            bridgeResolver,
+            bridgeMembers,
+            salons,
+            repo,
+          ),
+          email,
+          InMemoryProviderAuditLogRepository(),
+        ),
       );
       return context;
     }

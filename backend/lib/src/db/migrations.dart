@@ -740,6 +740,20 @@ FROM providers WHERE status = 'active'
 ON CONFLICT (provider_id) DO NOTHING''',
     ],
   ),
+  (
+    id: '0029_member_invitations',
+    statements: [
+      // Module `access` R2b (docs/design/team-access-r2b-invitations.md):
+      // the invitation half of provider_members — a 7-day validity window
+      // and a resend budget (the email-OTP budget model).
+      'ALTER TABLE provider_members ADD COLUMN IF NOT EXISTS '
+          'expires_at timestamptz',
+      'ALTER TABLE provider_members ADD COLUMN IF NOT EXISTS '
+          'resends_left int NOT NULL DEFAULT 3',
+      'CREATE INDEX IF NOT EXISTS provider_members_email '
+          'ON provider_members (email, status)',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

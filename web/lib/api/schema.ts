@@ -645,6 +645,361 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/provider/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The salon's team — members + pending invitations (access R2b)
+         * @description Owner-only (`members.manage`, threat T36); the salon resolves from the CALLER's membership, never a client id. Owner first; invited rows carry `expiresAt`/`resendsLeft` and an `expired` flag.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The member list */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["TeamMember"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /**
+         * Invite a team member by email (access R2b)
+         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (already active or pending), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        /** @enum {string} */
+                        role: "manager" | "reception" | "staff";
+                        /** @description Required when role=staff. */
+                        artistId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Invitation created (the pending member row) */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamMember"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/provider/members/{memberId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a member's role (access R2b)
+         * @description Owner-only. The OWNER row is immutable → 403 `owner_protected` (threat T36). role=staff requires a salon-owned `artistId`.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    memberId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        role: "manager" | "reception" | "staff";
+                        artistId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated member */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamMember"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        trace?: never;
+    };
+    "/me/provider/members/{memberId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke a member's access (access R2b)
+         * @description Owner-only, idempotent. Effective on the member's very next request — capability resolution is per-request, never cached (threat T38). The owner row → 403 `owner_protected`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    memberId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Revoked member row */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamMember"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/provider/members/{memberId}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-send a pending invitation (access R2b)
+         * @description Owner-only; resets the 7-day window. Budget of 3 resends per invitation → 429 `invite_rate_limited` when exhausted (threat T37).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    memberId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Refreshed invitation row */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamMember"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/provider/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in pro identity's pending invitations (access R2b)
+         * @description Keyed on the ACCOUNT's verified email — never a client-supplied one (threat T37). Any provider session may call it (bare member accounts included).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Pending invitation cards */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            invitations: components["schemas"]["TeamInvitation"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/provider/invitations/{invitationId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an invitation under the current session (access R2b)
+         * @description The session is the identity proof; the invitation must target the account's own verified email (403). Expired → 409 `invitation_expired`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invitationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Activated member row */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamMember"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/provider/invitations/{invitationId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline an invitation under the current session (access R2b) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invitationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Declined (the invitation row is deleted) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            declined: boolean;
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/kyc": {
         parameters: {
             query?: never;
@@ -1241,7 +1596,7 @@ export interface paths {
         put?: never;
         /**
          * Salon sign-in with a Google ID token (LOGIN-ONLY, auth overhaul P4)
-         * @description Verified against Google's JWKS. A salon is never auto-created — no account → 404 `provider_not_found` (the client offers registration).
+         * @description Verified against Google's JWKS. A salon is never auto-created — no account → 404 `provider_not_found` (the client offers registration), UNLESS the verified email holds pending team invitations (module `access` R2b) → 202 with the invitation cards.
          */
         post: {
             parameters: {
@@ -1265,6 +1620,17 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["ProviderSession"];
+                    };
+                };
+                /** @description No account, but the email has pending team invitations — the client shows the « Invitations » step instead of registration. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            invitations: components["schemas"]["TeamInvitation"][];
+                        };
                     };
                 };
                 400: components["responses"]["BadRequest"];
@@ -1387,7 +1753,7 @@ export interface paths {
         put?: never;
         /**
          * Verify a salon email OTP (LOGIN-ONLY)
-         * @description A correct code with no salon returns 404 `provider_not_found` WITHOUT consuming the code (the register call reuses it).
+         * @description A correct code with no salon returns 404 `provider_not_found` WITHOUT consuming the code (the register call reuses it) — UNLESS the email holds pending team invitations (module `access` R2b) → 202 with the invitation cards (code also left unconsumed for the accept call).
          */
         post: {
             parameters: {
@@ -1415,7 +1781,149 @@ export interface paths {
                         "application/json": components["schemas"]["ProviderSession"];
                     };
                 };
+                /** @description No account, but the email has pending team invitations — the client shows the « Invitations » step instead of registration. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            invitations: components["schemas"]["TeamInvitation"][];
+                        };
+                    };
+                };
                 400: components["responses"]["BadRequest"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/provider/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a team invitation, creating the member account if needed (access R2b)
+         * @description Unauthenticated but identity-PROVEN — `{invitationId, idToken}` (Google, verified email) or `{invitationId, email, code}` (the email OTP from the login attempt, still unconsumed). An existing account is signed in and joined (200); otherwise a bare member account (no salon) is created and joined (201). The invitation must target the proven email (403) and be unexpired (409 `invitation_expired`).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        invitationId: string;
+                        /** @description Google ID token path. */
+                        idToken?: string;
+                        /**
+                         * Format: email
+                         * @description Email-OTP path.
+                         */
+                        email?: string;
+                        /** @description Email-OTP path. */
+                        code?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Accepted under the existing account (flat ProviderSession) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProviderSession"];
+                    };
+                };
+                /** @description Member account created + invitation accepted (flat ProviderSession) */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProviderSession"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description Invitation expired (`invitation_expired`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/provider/invitations/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline a team invitation without creating anything (access R2b)
+         * @description Same identity proof as the accept (`idToken` or `email`+`code`; the OTP is validated WITHOUT being consumed). The invitation must target the proven email (403).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        invitationId: string;
+                        idToken?: string;
+                        /** Format: email */
+                        email?: string;
+                        code?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Declined (the invitation row is deleted) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            declined: boolean;
+                        };
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
             };
         };
@@ -5219,6 +5727,42 @@ export interface components {
             status?: "active" | "banned";
             /** Format: date-time */
             createdAt?: string;
+        };
+        /** @description A salon team row (module `access` R2b) — the owner, an active member, or a pending invitation. */
+        TeamMember: {
+            id: string;
+            providerId: string;
+            accountId?: string | null;
+            email: string;
+            /** @enum {string} */
+            role: "owner" | "manager" | "reception" | "staff";
+            artistId?: string | null;
+            artistName?: string | null;
+            /** @enum {string} */
+            status: "active" | "invited" | "revoked";
+            /** Format: date-time */
+            invitedAt: string;
+            /** Format: date-time */
+            acceptedAt?: string | null;
+            /** Format: date-time */
+            revokedAt?: string | null;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            resendsLeft?: number;
+            /** @description True when an invited row is past its expiry. */
+            expired?: boolean;
+        };
+        /** @description A pending-invitation card as shown to the INVITEE (module `access` R2b) — no salon internals beyond the name. */
+        TeamInvitation: {
+            id: string;
+            providerId: string;
+            salonName: string;
+            /** @enum {string} */
+            role: "manager" | "reception" | "staff";
+            /** @description French label (Manager / Réception / Collaborateur). */
+            roleLabel: string;
+            /** Format: date-time */
+            expiresAt: string;
         };
         /** @description Flat (historical) provider session — every provider login/registration endpoint returns this shape. */
         ProviderSession: {

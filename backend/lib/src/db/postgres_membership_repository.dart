@@ -83,6 +83,136 @@ class PostgresMembershipRepository implements MembershipRepository {
   }
 
   @override
+  Future<Member> invite({
+    required String providerId,
+    required String email,
+    required String role,
+    required DateTime expiresAt,
+    String? artistId,
+    String? invitedBy,
+  }) async {
+    final r = await _pool.execute(
+      Sql.named(
+        'INSERT INTO provider_members '
+        '(id, provider_id, email, role, artist_id, status, invited_by, '
+        'invited_at, expires_at) '
+        "VALUES ('mem_' || gen_random_uuid(), @p, lower(@e), @r, @a, "
+        "'invited', @b, now(), @x) RETURNING *",
+      ),
+      parameters: {
+        'p': providerId,
+        'e': email,
+        'r': role,
+        'a': artistId,
+        'b': invitedBy,
+        'x': expiresAt,
+      },
+    );
+    return _fromRow(r.first.toColumnMap());
+  }
+
+  @override
+  Future<Member?> byId(String memberId) async {
+    final r = await _pool.execute(
+      Sql.named('SELECT * FROM provider_members WHERE id = @id'),
+      parameters: {'id': memberId},
+    );
+    if (r.isEmpty) return null;
+    return _fromRow(r.first.toColumnMap());
+  }
+
+  @override
+  Future<List<Member>> pendingByEmail(String email) async {
+    final r = await _pool.execute(
+      Sql.named(
+        'SELECT * FROM provider_members WHERE email = lower(@e) '
+        "AND status = 'invited' "
+        'AND (expires_at IS NULL OR expires_at > now()) '
+        'ORDER BY invited_at',
+      ),
+      parameters: {'e': email},
+    );
+    return [for (final row in r) _fromRow(row.toColumnMap())];
+  }
+
+  @override
+  Future<Member?> updateMember(
+    String memberId, {
+    String? role,
+    String? artistId,
+  }) async {
+    final sets = <String>[];
+    final params = <String, dynamic>{'id': memberId};
+    if (role != null) {
+      sets.add('role = @r');
+      params['r'] = role;
+    }
+    if (artistId != null) {
+      sets.add('artist_id = @a');
+      params['a'] = artistId;
+    }
+    if (sets.isEmpty) return byId(memberId);
+    final r = await _pool.execute(
+      Sql.named(
+        'UPDATE provider_members SET ${sets.join(', ')} '
+        'WHERE id = @id RETURNING *',
+      ),
+      parameters: params,
+    );
+    if (r.isEmpty) return null;
+    return _fromRow(r.first.toColumnMap());
+  }
+
+  @override
+  Future<Member?> revoke(String memberId) async {
+    final r = await _pool.execute(
+      Sql.named(
+        "UPDATE provider_members SET status = 'revoked', revoked_at = "
+        "COALESCE(revoked_at, now()) WHERE id = @id RETURNING *",
+      ),
+      parameters: {'id': memberId},
+    );
+    if (r.isEmpty) return null;
+    return _fromRow(r.first.toColumnMap());
+  }
+
+  @override
+  Future<Member?> resendInvite(String memberId, DateTime newExpiresAt) async {
+    final r = await _pool.execute(
+      Sql.named(
+        'UPDATE provider_members SET expires_at = @x, '
+        'resends_left = resends_left - 1 '
+        "WHERE id = @id AND status = 'invited' AND resends_left > 0 "
+        'RETURNING *',
+      ),
+      parameters: {'id': memberId, 'x': newExpiresAt},
+    );
+    if (r.isEmpty) return null;
+    return _fromRow(r.first.toColumnMap());
+  }
+
+  @override
+  Future<Member?> activate(String memberId, String accountId) async {
+    final r = await _pool.execute(
+      Sql.named(
+        "UPDATE provider_members SET status = 'active', account_id = @a, "
+        'accepted_at = now() WHERE id = @id RETURNING *',
+      ),
+      parameters: {'id': memberId, 'a': accountId},
+    );
+    if (r.isEmpty) return null;
+    return _fromRow(r.first.toColumnMap());
+  }
+
+  @override
+  Future<void> decline(String memberId) async {
+    await _pool.execute(
+      Sql.named('DELETE FROM provider_members WHERE id = @id'),
+      parameters: {'id': memberId},
+    );
+  }
+
+  @override
   Future<void> revokeAllForAccount(String accountId) async {
     await _pool.execute(
       Sql.named(
@@ -105,5 +235,7 @@ class PostgresMembershipRepository implements MembershipRepository {
     invitedAt: r['invited_at'] as DateTime,
     acceptedAt: r['accepted_at'] as DateTime?,
     revokedAt: r['revoked_at'] as DateTime?,
+    expiresAt: r['expires_at'] as DateTime?,
+    resendsLeft: (r['resends_left'] as int?) ?? 3,
   );
 }

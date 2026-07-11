@@ -266,6 +266,66 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     });
   }
 
+  @override
+  Future<ProviderVerifyResult> createMemberAccount({
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
+  }) async {
+    final emailKey = email.trim().toLowerCase();
+    if (authProvider == 'email') {
+      final error = await _checkEmailOtp(emailKey, emailCode ?? '');
+      if (error != null) {
+        return (ok: false, error: error, provider: null, tokens: null);
+      }
+    }
+    final exists = await _pool.execute(
+      Sql.named(
+        'SELECT 1 FROM provider_users WHERE lower(email) = @e '
+        'OR (google_sub IS NOT NULL AND google_sub = @gs:text) '
+        'OR (apple_sub IS NOT NULL AND apple_sub = @asub:text)',
+      ),
+      parameters: {'e': emailKey, 'gs': googleSub, 'asub': appleSub},
+    );
+    if (exists.isNotEmpty) {
+      return (
+        ok: false,
+        error: 'provider_exists',
+        provider: null,
+        tokens: null,
+      );
+    }
+    // Bare member account (module `access` R2b): no business fields, no
+    // salon — the membership is the relationship.
+    return _pool.runTx((tx) async {
+      final rows = await tx.execute(
+        Sql.named(
+          'INSERT INTO provider_users '
+          '(id, phone_number, business_name, business_type, email, '
+          'email_verified, auth_provider, google_sub, apple_sub) '
+          "VALUES (@id, '', '', 'other', @e, true, @ap, @gs:text, "
+          '@asub:text) RETURNING *',
+        ),
+        parameters: {
+          'id': _newId('provider'),
+          'e': emailKey,
+          'ap': authProvider,
+          'gs': googleSub,
+          'asub': appleSub,
+        },
+      );
+      await tx.execute(
+        Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+        parameters: {'e': emailKey},
+      );
+      final account = _toAccount(rows.first.toColumnMap());
+      final tokens = await _issueInFamily(tx, account.id, _newId('fam'));
+      return (ok: true, error: null, provider: account, tokens: tokens);
+    });
+  }
+
   /// Check an email code; null = valid (NOT consumed — callers consume).
   Future<String?> _checkEmailOtp(String key, String code) async {
     final rows = await _pool.execute(
