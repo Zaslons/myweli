@@ -81,6 +81,7 @@ export function respond(result: ApiResult): NextResponse {
 type RawAppt = Record<string, unknown> & {
   providerId?: string;
   serviceIds?: string[];
+  artistId?: string | null;
   userId?: string;
 };
 
@@ -88,6 +89,7 @@ type ProviderSummary = {
   name?: string;
   slug?: string;
   services?: { id: string; name: string }[];
+  artists?: { id: string; name: string }[];
   phoneNumber?: string | null;
   whatsapp?: string | null;
   depositMobileMoneyOperator?: string | null;
@@ -109,6 +111,10 @@ function enrichOneWith(a: RawAppt, p: ProviderSummary) {
     // Parity 1.6: contact actions on the consumer detail (public fields).
     providerPhone: p.phoneNumber ?? null,
     providerWhatsapp: p.whatsapp ?? null,
+    // Parity 1.8: show the chosen spécialiste on the consumer detail.
+    artistName: a.artistId
+      ? ((p.artists ?? []).find((x) => x.id === a.artistId)?.name ?? null)
+      : null,
     serviceNames: (a.serviceIds ?? [])
       .map((id) => byId.get(id))
       .filter((n): n is string => Boolean(n)),

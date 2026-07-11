@@ -131,6 +131,8 @@ export type Artist = {
   id: string;
   name: string;
   specialization?: string | null;
+  /// Audit 3.5: the avatar (the app's photo upload).
+  imageUrl?: string | null;
   /// Audit 3.4: per-staff weekly hours — {} = inherits the salon's.
   workingHours?: Record<string, { startTime: string; endTime: string }[]>;
 };
@@ -138,18 +140,21 @@ export type Artist = {
 export type ArtistInput = {
   name: string;
   specialization: string | null;
+  imageUrl: string | null;
   workingHours: Record<string, { startTime: string; endTime: string }[]>;
 };
 
 export type ArtistForm = {
   name: string;
   specialization: string;
+  imageUrl: string | null;
   workingHours: Record<string, { startTime: string; endTime: string }[]>;
 };
 
 export const emptyArtistForm: ArtistForm = {
   name: '',
   specialization: '',
+  imageUrl: null,
   workingHours: {},
 };
 
@@ -157,6 +162,7 @@ export function artistToForm(a: Artist): ArtistForm {
   return {
     name: a.name ?? '',
     specialization: a.specialization ?? '',
+    imageUrl: a.imageUrl ?? null,
     workingHours: a.workingHours ?? {},
   };
 }
@@ -170,6 +176,7 @@ export function buildArtistPayload(f: ArtistForm): ArtistInput {
   return {
     name: f.name.trim(),
     specialization: f.specialization.trim() ? f.specialization.trim() : null,
+    imageUrl: f.imageUrl,
     workingHours: f.workingHours,
   };
 }

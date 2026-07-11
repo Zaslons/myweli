@@ -11,6 +11,7 @@ import {
   rebookHref,
   statusLabelFr,
 } from '../../lib/account/appointments';
+import { buildIcs, googleCalendarUrl } from '../../lib/account/calendar';
 import { canRebook, canReview } from '../../lib/account/extras';
 import {
   cancelAppointment,
@@ -145,6 +146,37 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </Link>
         ) : null}
 
+        {/* Parity 1.2 — add the booking to a calendar (upcoming only). */}
+        {canReschedule(appt) ? (
+          <div className="mt-s flex flex-wrap gap-s">
+            <a
+              href={googleCalendarUrl(appt)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+            >
+              Ajouter au calendrier (Google)
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                const blob = new Blob([buildIcs(appt)], {
+                  type: 'text/calendar',
+                });
+                const url = URL.createObjectURL(blob);
+                const el = document.createElement('a');
+                el.href = url;
+                el.download = 'rendez-vous-myweli.ics';
+                el.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+            >
+              Fichier .ics
+            </button>
+          </div>
+        ) : null}
+
         {/* Parity 1.6 — contact the salon from the booking. */}
         {appt.providerPhone || appt.providerWhatsapp ? (
           <div className="mt-s flex flex-wrap gap-s">
@@ -174,6 +206,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           {appt.serviceNames && appt.serviceNames.length > 0 ? (
             <Row label="Prestations" value={appt.serviceNames.join(', ')} />
           ) : null}
+          {appt.artistName ? (
+            <Row label="Spécialiste" value={appt.artistName} />
+          ) : null}
+          {appt.notes ? <Row label="Notes" value={appt.notes} /> : null}
           {typeof appt.totalPrice === 'number' ? (
             <Row label="Total" value={formatFcfa(appt.totalPrice)} />
           ) : null}
@@ -205,7 +241,15 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : appt.status === 'pending' && appt.depositScreenshotUrl ? (
           <p className="mt-m text-sm text-textSecondary">
             Justificatif d’acompte envoyé · en attente de confirmation du
-            salon.
+            salon.{' '}
+            <a
+              href={`/api/appointments/${appt.id}/deposit-screenshot?redirect=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-textPrimary underline"
+            >
+              Voir ma capture
+            </a>
           </p>
         ) : null}
 

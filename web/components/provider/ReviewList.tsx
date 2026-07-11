@@ -5,6 +5,7 @@ import type { Review } from '../../lib/api/providers';
 import { reportReview } from '../../lib/account/review-photos';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { Lightbox } from '../Lightbox';
 
 /// Public review list (parity 2.13/2.14): photo thumbnails + a fullscreen
 /// lightbox, and the consumer « Signaler » action (FR-REV-005 — anonymous
@@ -74,27 +75,11 @@ export function ReviewList({
       </ul>
 
       {lightbox ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-m"
-          role="dialog"
-          aria-label="Photo de l’avis"
-          onClick={() => setLightbox(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightbox}
-            alt="Photo de l’avis"
-            className="max-h-full max-w-full rounded-lg object-contain"
-          />
-          <button
-            type="button"
-            aria-label="Fermer"
-            onClick={() => setLightbox(null)}
-            className="absolute right-4 top-4 z-10 rounded-full bg-black/60 px-3 py-1 text-lg text-white"
-          >
-            ✕
-          </button>
-        </div>
+        <Lightbox
+          url={lightbox}
+          label="Photo de l’avis"
+          onClose={() => setLightbox(null)}
+        />
       ) : null}
     </section>
   );

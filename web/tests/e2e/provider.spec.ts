@@ -29,13 +29,27 @@ test('provider page renders sections + valid structured data', async ({
   expect(types.some((t) => localBusinessTypes.includes(t))).toBe(true);
 });
 
+test('gallery: tap a photo → fullscreen lightbox (parity 2.6)', async ({
+  page,
+}) => {
+  await page.goto('/beaute-divine');
+  await page.getByRole('button', { name: 'Agrandir la photo 1' }).click();
+  const box = page.getByRole('dialog', { name: 'Photo du salon' });
+  await expect(box).toBeVisible();
+  await box.click({ position: { x: 8, y: 8 } });
+  await expect(box).toBeHidden();
+});
+
 test('reviews: photo lightbox + anonymous « Signaler » prompts login (P2b)', async ({
   page,
 }) => {
   await page.goto('/beaute-divine');
 
   // The stub review carries one photo → thumbnail, then the lightbox.
-  const thumb = page.getByRole('button', { name: 'Agrandir la photo' });
+  const thumb = page.getByRole('button', {
+    name: 'Agrandir la photo',
+    exact: true,
+  });
   await expect(thumb).toBeVisible();
   await thumb.click();
   const lightbox = page.getByRole('dialog', { name: 'Photo de l’avis' });

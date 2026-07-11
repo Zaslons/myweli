@@ -1,11 +1,20 @@
 import type { Provider } from '../../lib/api/providers';
 import { formatFcfa } from '../../lib/format';
 
-/// Compact provider card for lists (landing pages, related, etc.).
-export function ProviderCard({ provider }: { provider: Provider }) {
+/// Compact provider card for lists (landing pages, related, etc.). Client
+/// lists may pass the favorite pair to render a heart (parity 2.15).
+export function ProviderCard({
+  provider,
+  favorite,
+  onToggleFavorite,
+}: {
+  provider: Provider;
+  favorite?: boolean;
+  onToggleFavorite?: () => void;
+}) {
   const active = (provider.services ?? []).filter((s) => s.active !== false);
   const min = active.length ? Math.min(...active.map((s) => s.price)) : null;
-  return (
+  const card = (
     <a
       href={`/${provider.slug}`}
       className="block rounded-xl border border-border bg-secondary p-m hover:bg-surfaceVariant"
@@ -38,5 +47,26 @@ export function ProviderCard({ provider }: { provider: Provider }) {
         </p>
       ) : null}
     </a>
+  );
+  if (!onToggleFavorite) return card;
+  return (
+    <div className="relative">
+      {card}
+      <button
+        type="button"
+        aria-pressed={favorite}
+        aria-label={
+          favorite
+            ? `Retirer ${provider.name} des favoris`
+            : `Ajouter ${provider.name} aux favoris`
+        }
+        onClick={onToggleFavorite}
+        className={`absolute bottom-2 right-2 rounded-full px-2 py-0.5 text-lg leading-none ${
+          favorite ? 'text-error' : 'text-textTertiary'
+        } hover:bg-surfaceVariant`}
+      >
+        {favorite ? '♥' : '♡'}
+      </button>
+    </div>
   );
 }

@@ -145,6 +145,15 @@ test('catalogue Équipe: list members + add one', async ({ page }) => {
   await page.getByRole('button', { name: 'Ajouter un membre' }).click();
   await page.getByLabel('Nom').fill('Koffi');
   await page.getByLabel('Spécialisation (optionnel)').fill('Barbier');
+  // Audit 3.5: the avatar upload (gallery pipeline).
+  await page.locator('input[aria-label="Photo de l’employé"]').setInputFiles({
+    name: 'avatar.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from('fake-avatar-bytes'),
+  });
+  await expect(
+    page.getByRole('button', { name: 'Changer la photo' }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Enregistrer' }).click();
 
   await expect(page.getByText('Koffi')).toBeVisible();
@@ -294,6 +303,12 @@ test('clients: list → search → card → note → tags (module clients C1b)',
   await page.getByLabel('Ajouter une note').fill('Allergique à l’ammoniaque');
   await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
   await expect(page.getByText('Allergique à l’ammoniaque')).toBeVisible();
+
+  // Audit 4.1: mint a custom tag (the app's free-text field).
+  await page.getByRole('button', { name: 'Modifier les tags' }).click();
+  await page.getByLabel('Nouveau tag').fill('Mèches');
+  await page.getByRole('button', { name: 'Ajouter le tag' }).click();
+  await expect(page.getByText('Mèches')).toBeVisible();
 });
 
 test('clients: add-client modal — duplicate phone opens the existing card', async ({

@@ -155,12 +155,24 @@ const consumerAppt = (id) => ({
   providerId: 'p1',
   serviceIds: ['s1'],
   clientName: 'Awa',
+  // P3: the chosen spécialiste (1.8) + the booking note (1.4).
+  artistId: 'a1',
+  notes: 'Cheveux fragiles',
   appointmentDate: tomorrowAt9,
   status:
-    id === 'appt2' ? 'completed' : cancelled.has(id) ? 'cancelled' : 'confirmed',
+    id === 'appt2'
+      ? 'completed'
+      : id === 'appt3'
+        ? 'pending'
+        : cancelled.has(id)
+          ? 'cancelled'
+          : 'confirmed',
   totalPrice: 15000,
-  depositAmount: 0,
-  balanceDue: 15000,
+  // appt3: pending WITH an attached proof (1.3 « Voir ma capture »).
+  depositAmount: id === 'appt3' ? 5000 : 0,
+  depositScreenshotUrl:
+    id === 'appt3' ? 'https://cdn.stub/deposit/u1/proof.jpg' : null,
+  balanceDue: id === 'appt3' ? 10000 : 15000,
   cancellationWindowHours: 24,
 });
 
@@ -838,7 +850,11 @@ createServer(async (req, res) => {
       // Provider list (M7) vs consumer list (M6), split by token.
       const items = isPro(req)
         ? [proAppt('pappt1')]
-        : [consumerAppt('appt1'), consumerAppt('appt2')];
+        : [
+            consumerAppt('appt1'),
+            consumerAppt('appt2'),
+            consumerAppt('appt3'),
+          ];
       return json(res, 200, {
         items,
         page: 1,
