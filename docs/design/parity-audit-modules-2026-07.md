@@ -35,8 +35,8 @@
 ### Module 1 — proposed fixes (by priority)
 1. ~~**Web consumer « Reporter »** (1.1)~~ ✅ fixed (PR fix/parity-p1b-reschedule).
 2. ~~**Web pro cross-day reschedule** (1.9)~~ ✅ fixed (PR fix/parity-p1b-reschedule).
-3. « Client arrivé » on both detail pages (1.10) + app gap-slot artist (1.11) + app cancel warning (1.5) + app « Appeler » fix (1.6) — small batch.
-4. Web add-to-calendar (1.2) + deposit-proof view (1.3) + notes row (1.4) — small batch.
+3. ~~« Client arrivé » on both detail pages (1.10) + app gap-slot artist (1.11) + app cancel warning (1.5) + app « Appeler » fix (1.6)~~ ✅ (P2c + P3-app).
+4. ~~Web add-to-calendar (1.2) + deposit-proof view (1.3) + notes row (1.4)~~ ✅ (P3-web).
 
 ## Module 2 — `online-booking` (consumer discovery · salon page · funnel · favorites · reviews)
 
@@ -76,10 +76,10 @@
 | 2.15 | ~~Favorites~~ **FIXED 2026-07-11** (hearts on the /recherche cards — one probe, toggle, anonymous → login; map-marker hearts stay deferred as audited) | ✅ fixed | App: hearts on the salon page, the map markers, favorites screen + home strip. Web: heart on the salon page + mon-compte section only — no hearts on /recherche result cards or map markers (deferred), no home strip (ℹ️ SEO home) |
 
 ### Module 2 — proposed fixes (by priority)
-1. **Web booking notes** (2.10) + **mobile-web sticky summary bar** (2.11) — funnel conversion polish, small.
-2. **Web « Trier » + « Disponible aujourd'hui »** on /recherche (2.1/2.2 — sort is already a backend param; available-today needs a query flag or client filter).
-3. **Review photos on web** (2.13: display on the public page, then photo attach on the form) + **« Signaler » on both** (2.14 — the backend is waiting).
-4. Salon-page personal touches (2.7/2.8) + gallery lightbox (2.6) + result-card hearts (2.15).
+1. ~~**Web booking notes** (2.10) + **mobile-web sticky summary bar** (2.11)~~ ✅ (P2a).
+2. ~~**Web « Trier » + « Disponible aujourd'hui »** on /recherche (2.1/2.2)~~ ✅ (P2a — both were backend params already).
+3. ~~**Review photos on web** (2.13) + **« Signaler » on both** (2.14)~~ ✅ (P2b — incl. the backend `review` upload purpose nobody had).
+4. ~~Salon-page personal touches (2.7/2.8) + gallery lightbox (2.6) + result-card hearts (2.15)~~ ✅ (P3-web).
 
 ## Module 3 — `catalogue` (services · team · media · availability, pro side)
 
@@ -121,10 +121,10 @@
 Fresh parity as of L1/L2 (2026-07-10): both surfaces edit every allowlisted field + category + the map pin. ✅
 
 ### Module 3 — proposed fixes (by priority)
-1. **`artistIds` UI on BOTH surfaces** (3.1) — an artist multi-select on the service form (app + web); without it the capability rule and the per-artist capacity math are decorative for real salons.
-2. **Web: per-staff hours** (3.4) + **breaks editor** (3.8) — the two remaining inputs the K1 slot engine reads that web salons can't set.
-3. **Web: duration variants** (3.2) + artist photo (3.5).
-4. App: photo reorder (3.6).
+1. ~~**`artistIds` UI on BOTH surfaces** (3.1)~~ ✅ (P1a).
+2. ~~**Web: per-staff hours** (3.4) + **breaks editor** (3.8)~~ ✅ (P1a).
+3. ~~**Web: duration variants** (3.2) + artist photo (3.5)~~ ✅ (P2a + P3-web).
+4. ~~App: photo reorder (3.6)~~ ✅ (P3-app).
 
 ## Module 4 — `clients` (salon CRM)
 
@@ -146,7 +146,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 ### Modules 4–5 — proposed fixes
 1. ~~**Web notification center + préférences** (5.1/5.2)~~ ✅ fixed (PR fix/parity-p1c-web-surfaces).
-2. Web custom-tag input on the client card (4.1) — one small field.
+2. ~~Web custom-tag input on the client card (4.1)~~ ✅ (P3-web).
 
 ## Module 8 — `payments` (no-custody deposits)
 
@@ -165,7 +165,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | 10.1 | Dashboard counters | ✅ | À confirmer / Confirmés / Total du jour on both (web Aujourd'hui ↔ app dashboard tiles) |
 
 ### Module 8–10 — proposed fixes
-1. **Enforce the deposit⇄KYC gate** (8.1) — backend rule + threat-model row + locked UI on both editors. Security-grade.
+1. ~~**Enforce the deposit⇄KYC gate** (8.1)~~ ✅ (P0a — T52).
 2. ~~**Web « Revenus »** page (9.1)~~ ✅ fixed (PR fix/parity-p1c-web-surfaces).
 
 ## Module 11 — `access` (auth + account management) — flow-by-flow
@@ -197,9 +197,9 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | 11.6 | Login + registration | ✅ | One-submit identity+business registration on both (name · type select · intl phone · address); not-found → « Créer mon compte » CTA on both; returnTo on both |
 
 ### Module 11 — proposed fixes
-1. **Web account deletion + data export** (11.1/11.2) — endpoints live; legal-grade.
-2. Email-code **resend with cooldown** on both (the pattern already exists in the dormant OTP screen).
-3. Web name editing (11.3).
+1. ~~**Web account deletion + data export** (11.1/11.2)~~ ✅ (P0b).
+2. ~~Email-code **resend with cooldown** on both~~ ✅ (P2c — all four email steps).
+3. ~~Web name editing (11.3)~~ ✅ (P0b).
 
 ## Module 15 — `trust` (KYC · moderation · disputes · badges)
 
@@ -213,6 +213,12 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ---
 
 # SYNTHESIS — consolidated priorities across all findings
+
+> **🏁 PROGRAM COMPLETE (2026-07-11).** Every actionable finding in this audit
+> is **fixed or verified** across PRs #211–#220. The only deliberately open
+> item is **11.5** (pro account deletion/export — parked pre-launch by this
+> audit; required before store review). ℹ️ rows remain accepted per-surface
+> designs. Full sweep confirmed row by row.
 
 ## P0 — security · legal · trust correctness
 *(ALL P0 FIXED 2026-07-10: 8.1 + 15.1 — PR #211 · 11.1/11.2 + 11.3 — PR #212)*
