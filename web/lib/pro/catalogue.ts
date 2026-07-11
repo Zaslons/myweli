@@ -8,6 +8,8 @@ export type Service = {
   priceMax?: number | null;
   durationMinutes?: number;
   active?: boolean;
+  /// Audit 3.1: who can perform it — empty = toute l'équipe.
+  artistIds?: string[];
 };
 
 export type ServiceInput = {
@@ -17,6 +19,7 @@ export type ServiceInput = {
   priceMax: number | null;
   durationMinutes: number;
   active: boolean;
+  artistIds: string[];
 };
 
 export type ServiceForm = {
@@ -26,6 +29,7 @@ export type ServiceForm = {
   priceMax: string;
   durationMinutes: string;
   active: boolean;
+  artistIds: string[];
 };
 
 export const emptyServiceForm: ServiceForm = {
@@ -35,6 +39,7 @@ export const emptyServiceForm: ServiceForm = {
   priceMax: '',
   durationMinutes: '',
   active: true,
+  artistIds: [],
 };
 
 export function serviceToForm(s: Service): ServiceForm {
@@ -45,6 +50,7 @@ export function serviceToForm(s: Service): ServiceForm {
     priceMax: s.priceMax != null ? String(s.priceMax) : '',
     durationMinutes: s.durationMinutes != null ? String(s.durationMinutes) : '',
     active: s.active ?? true,
+    artistIds: s.artistIds ?? [],
   };
 }
 
@@ -75,6 +81,7 @@ export function buildServicePayload(f: ServiceForm): ServiceInput {
     priceMax: f.priceMax.trim() ? Number(f.priceMax) : null,
     durationMinutes: Number(f.durationMinutes),
     active: f.active,
+    artistIds: f.artistIds,
   };
 }
 
@@ -84,22 +91,34 @@ export type Artist = {
   id: string;
   name: string;
   specialization?: string | null;
+  /// Audit 3.4: per-staff weekly hours — {} = inherits the salon's.
+  workingHours?: Record<string, { startTime: string; endTime: string }[]>;
 };
 
 export type ArtistInput = {
   name: string;
   specialization: string | null;
+  workingHours: Record<string, { startTime: string; endTime: string }[]>;
 };
 
 export type ArtistForm = {
   name: string;
   specialization: string;
+  workingHours: Record<string, { startTime: string; endTime: string }[]>;
 };
 
-export const emptyArtistForm: ArtistForm = { name: '', specialization: '' };
+export const emptyArtistForm: ArtistForm = {
+  name: '',
+  specialization: '',
+  workingHours: {},
+};
 
 export function artistToForm(a: Artist): ArtistForm {
-  return { name: a.name ?? '', specialization: a.specialization ?? '' };
+  return {
+    name: a.name ?? '',
+    specialization: a.specialization ?? '',
+    workingHours: a.workingHours ?? {},
+  };
 }
 
 export function validateArtist(f: ArtistForm): string | null {
@@ -111,5 +130,6 @@ export function buildArtistPayload(f: ArtistForm): ArtistInput {
   return {
     name: f.name.trim(),
     specialization: f.specialization.trim() ? f.specialization.trim() : null,
+    workingHours: f.workingHours,
   };
 }

@@ -87,7 +87,7 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 3.1 | **Per-service artist restriction (`artistIds`) is settable NOWHERE** | ❌ **both** | The backend accepts `artistIds` on service create/update, the booking hub dims incompatible stylists with it, and the K1 capacity engine computes the capable pool from it — but NO surface has UI to set it: the app's service form has no artist picker, the web catalogue form has none, and the artist forms assign no services. **The entire capability rule can only ever fire on seed data.** Same class of forget as the map pin (L1) |
+| 3.1 | ~~`artistIds` settable NOWHERE~~ **FIXED 2026-07-10** (« Qui peut réaliser ce service ? » checkbox list on BOTH service forms; empty = toute l'équipe) | ✅ fixed | The backend accepts `artistIds` on service create/update, the booking hub dims incompatible stylists with it, and the K1 capacity engine computes the capable pool from it — but NO surface has UI to set it: the app's service form has no artist picker, the web catalogue form has none, and the artist forms assign no services. **The entire capability rule can only ever fire on seed data.** Same class of forget as the map pin (L1) |
 
 ### Services
 
@@ -100,7 +100,7 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 3.4 | **Per-staff working hours missing on web** | ❌ web | App artist form: custom weekly-hours editor (feeds the K1 engine — `_hoursCover`). Web Équipe form = name + specialization only (the 7.3b deferral was never picked back up, and it now matters: the capacity engine reads those hours) |
+| 3.4 | ~~Per-staff hours missing on web~~ **FIXED 2026-07-10** (« Horaires personnalisés » toggle + weekly editor on the Équipe form; {} = inherits the salon) | ✅ fixed | App artist form: custom weekly-hours editor (feeds the K1 engine — `_hoursCover`). Web Équipe form = name + specialization only (the 7.3b deferral was never picked back up, and it now matters: the capacity engine reads those hours) |
 | 3.5 | **Artist photo missing on web** | ❌ web (minor) | App: avatar upload on the artist form. Web: no imageUrl field |
 
 ### Media
@@ -114,7 +114,7 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 3.8 | **Breaks (« Pauses ») editor missing on web** | ❌ web | App: a recurring-pause editor per day (ex. déjeuner) — breaks feed the slot engine AND the journal grid's hatched zones. Web Disponibilités edits hours/tampon/dates bloquées; the `breaks` field is in its type but has NO UI |
+| 3.8 | ~~Breaks editor missing on web~~ **FIXED 2026-07-10** (« Pauses » section on Disponibilités — one recurring pause per day, same PUT) | ✅ fixed | App: a recurring-pause editor per day (ex. déjeuner) — breaks feed the slot engine AND the journal grid's hatched zones. Web Disponibilités edits hours/tampon/dates bloquées; the `breaks` field is in its type but has NO UI |
 | 3.9 | Hours/buffer/blocked dates | ✅ | Multi-slot weekly hours, tampon, dates bloquées round-trip on both |
 
 ### Profile
@@ -225,9 +225,9 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ## P1 — core capabilities users will hit
 | Finding | Surfaces |
 |---|---|
-| **3.1** `artistIds` (service↔staff assignment) settable NOWHERE — the capability rule + per-artist capacity are decorative for real salons | app + web |
+| ~~**3.1** `artistIds` settable nowhere~~ ✅ fixed (PR fix/parity-p1a-capability) | app + web |
 | **1.1** Consumer reschedule missing on web · **1.9** pro cross-day reschedule missing on web | web |
-| **3.4** Per-staff hours + **3.8** breaks editor missing on web (the K1 engine's starving inputs) | web |
+| ~~**3.4** per-staff hours + **3.8** breaks on web~~ ✅ fixed (PR fix/parity-p1a-capability) | web |
 | **5.1/5.2** Notification center + préférences missing on web | web |
 | **9.1** « Revenus » page (earnings + history) missing on web | web |
 

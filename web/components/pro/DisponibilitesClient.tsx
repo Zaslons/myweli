@@ -3,10 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
+import { DayHoursEditor } from './DayHoursEditor';
 import {
   type Availability,
   type DayForm,
   BUFFER_PRESETS,
+  daysToSchedule,
+  scheduleToDays,
   toApi,
   toEditable,
   validateHours,
@@ -19,6 +22,9 @@ export function DisponibilitesClient() {
   const [providerId, setProviderId] = useState('');
   const [base, setBase] = useState<Availability | null>(null);
   const [days, setDays] = useState<DayForm[]>([]);
+  // Audit 3.8: « Pauses » — one recurring break per day (ex. déjeuner);
+  // hatches the journal grid and blocks slots.
+  const [breakDays, setBreakDays] = useState<DayForm[]>([]);
   const [buffer, setBuffer] = useState(0);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [newDate, setNewDate] = useState('');
@@ -52,6 +58,7 @@ export function DisponibilitesClient() {
       setProviderId(me.profile.provider.id);
       setBase(a);
       setDays(toEditable(a));
+      setBreakDays(scheduleToDays(a?.breaks, { start: '12:30', end: '13:30' }));
       setBuffer(a.bufferMinutes ?? 0);
       setBlocked(a.blockedDates ?? []);
       setLoading(false);
@@ -60,6 +67,11 @@ export function DisponibilitesClient() {
       active = false;
     };
   }, [router]);
+
+  function patchBreak(i: number, patch: Partial<DayForm>) {
+    setBreakDays((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+    setSaved(false);
+  }
 
   function patchDay(i: number, patch: Partial<DayForm>) {
     setDays((ds) => ds.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
@@ -74,12 +86,13 @@ export function DisponibilitesClient() {
     }
     setBusy(true);
     setError(null);
+    const breaks = daysToSchedule(breakDays, (base as Availability)?.breaks);
     const obj = toApi(days, {
       ...(base as Availability),
       bufferMinutes: buffer,
       blockedDates: blocked,
     });
-    const r = await saveAvailability(providerId, obj);
+    const r = await saveAvailability(providerId, { ...obj, breaks });
     setBusy(false);
     if (!r.ok) {
       setError('L’enregistrement a échoué. Réessayez.');
@@ -104,40 +117,23 @@ export function DisponibilitesClient() {
       <section className="mt-l rounded-xl border border-border bg-secondary p-l">
         <h2 className="text-lg font-semibold text-textPrimary">Horaires</h2>
         <div className="mt-m space-y-s">
-          {days.map((d, i) => (
-            <div key={d.key} className="flex flex-wrap items-center gap-m">
-              <span className="w-28 text-textPrimary">{d.label}</span>
-              <label className="flex items-center gap-s text-sm text-textSecondary">
-                <input
-                  type="checkbox"
-                  checked={d.open}
-                  onChange={(e) => patchDay(i, { open: e.target.checked })}
-                />
-                Ouvert
-              </label>
-              {d.open ? (
-                <span className="flex items-center gap-s">
-                  <input
-                    type="time"
-                    aria-label={`${d.label} début`}
-                    className={inputCls}
-                    value={d.start}
-                    onChange={(e) => patchDay(i, { start: e.target.value })}
-                  />
-                  <span className="text-textTertiary">à</span>
-                  <input
-                    type="time"
-                    aria-label={`${d.label} fin`}
-                    className={inputCls}
-                    value={d.end}
-                    onChange={(e) => patchDay(i, { end: e.target.value })}
-                  />
-                </span>
-              ) : (
-                <span className="text-sm text-textTertiary">Fermé</span>
-              )}
-            </div>
-          ))}
+          <DayHoursEditor days={days} onPatch={patchDay} />
+        </div>
+      </section>
+
+      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+        <h2 className="text-lg font-semibold text-textPrimary">Pauses</h2>
+        <p className="mt-xs text-sm text-textSecondary">
+          Une pause récurrente par jour (ex. déjeuner). Elle bloque les
+          créneaux et apparaît hachurée dans la journée.
+        </p>
+        <div className="mt-m">
+          <DayHoursEditor
+            days={breakDays}
+            onLabel="Pause"
+            offLabel="Aucune"
+            onPatch={patchBreak}
+          />
         </div>
       </section>
 

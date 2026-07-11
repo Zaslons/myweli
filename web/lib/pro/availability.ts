@@ -74,3 +74,41 @@ export function toApi(days: DayForm[], base: Availability): Availability {
   }
   return { ...base, weeklySchedule: ws };
 }
+
+/// Generic WeeklySchedule → DayForm rows (breaks, per-artist hours — audit
+/// 3.4/3.8). Same one-range-per-day editing model as the salon hours.
+export function scheduleToDays(
+  ws: WeeklySchedule | undefined,
+  defaults: { start: string; end: string } = { start: '09:00', end: '18:00' },
+): DayForm[] {
+  return DAY_KEYS.map((key, i) => {
+    const slots = ws?.[key] ?? [];
+    const first = slots[0];
+    return {
+      key,
+      label: DAY_LABELS[i],
+      open: slots.length > 0,
+      start: first?.startTime ?? defaults.start,
+      end: first?.endTime ?? defaults.end,
+    };
+  });
+}
+
+/// DayForm rows → WeeklySchedule, preserving extra per-day slots from [base]
+/// (round-trip, don't wipe). Closed days are OMITTED (an entirely empty map
+/// means « none » — e.g. artist hours inheriting the salon's).
+export function daysToSchedule(
+  days: DayForm[],
+  base?: WeeklySchedule,
+): WeeklySchedule {
+  const ws: WeeklySchedule = {};
+  for (const d of days) {
+    if (!d.open) continue;
+    const extra = (base?.[d.key] ?? []).slice(1);
+    ws[d.key] = [
+      { startTime: d.start, endTime: d.end, isAvailable: true },
+      ...extra,
+    ];
+  }
+  return ws;
+}
