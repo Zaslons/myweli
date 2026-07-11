@@ -14,6 +14,12 @@ import {
 } from '../../lib/api/pro';
 import { formatDuration, priceRange } from '../../lib/format';
 import {
+  type DayForm,
+  daysToSchedule,
+  scheduleToDays,
+} from '../../lib/pro/availability';
+import { DayHoursEditor } from './DayHoursEditor';
+import {
   type Artist,
   type ArtistForm,
   type Service,
@@ -117,6 +123,7 @@ export function CatalogueClient() {
             <ServiceFormCard
               providerId={providerId}
               initial={emptyServiceForm}
+              artists={artists}
               onCancel={() => setOpen(null)}
               onSaved={afterSave}
             />
@@ -144,6 +151,7 @@ export function CatalogueClient() {
                   providerId={providerId}
                   serviceId={s.id}
                   initial={serviceToForm(s)}
+                  artists={artists}
                   onCancel={() => setOpen(null)}
                   onSaved={afterSave}
                 />
@@ -246,12 +254,14 @@ function ServiceFormCard({
   providerId,
   serviceId,
   initial,
+  artists,
   onCancel,
   onSaved,
 }: {
   providerId: string;
   serviceId?: string;
   initial: ServiceForm;
+  artists: Artist[];
   onCancel: () => void;
   onSaved: () => void;
 }) {
@@ -343,6 +353,45 @@ function ServiceFormCard({
           />
           Service actif (réservable)
         </label>
+        {/* Audit 3.1: capability assignment — feeds the booking hub's
+            dimming + the per-artist capacity engine. */}
+        {artists.length > 0 ? (
+          <div>
+            <p className="text-sm text-textPrimary">
+              Qui peut réaliser ce service ?
+            </p>
+            <p className="text-xs text-textTertiary">
+              Aucune sélection = toute l’équipe.
+            </p>
+            <div className="mt-xs space-y-xs">
+              {artists.map((a) => (
+                <label
+                  key={a.id}
+                  className="flex items-center gap-s text-sm text-textPrimary"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.artistIds.includes(a.id)}
+                    onChange={(e) =>
+                      set(
+                        'artistIds',
+                        e.target.checked
+                          ? [...form.artistIds, a.id]
+                          : form.artistIds.filter((x) => x !== a.id),
+                      )
+                    }
+                  />
+                  {a.name}
+                  {a.specialization ? (
+                    <span className="text-textTertiary">
+                      · {a.specialization}
+                    </span>
+                  ) : null}
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {err ? <p className="mt-s text-sm text-error">{err}</p> : null}
@@ -375,6 +424,12 @@ function ArtistFormCard({
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<ArtistForm>(initial);
+  const [customHours, setCustomHours] = useState(
+    Object.keys(initial.workingHours).length > 0,
+  );
+  const [hoursDays, setHoursDays] = useState(() =>
+    scheduleToDays(initial.workingHours),
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -423,6 +478,41 @@ function ArtistFormCard({
             }
           />
         </label>
+
+        {/* Audit 3.4: per-staff hours — the capacity engine reads them
+            (empty = inherits the salon's hours). */}
+        <label className="flex items-center gap-s text-sm text-textPrimary">
+          <input
+            type="checkbox"
+            checked={customHours}
+            onChange={(e) => {
+              setCustomHours(e.target.checked);
+              if (!e.target.checked) {
+                setForm((f) => ({ ...f, workingHours: {} }));
+              }
+            }}
+          />
+          Horaires personnalisés (sinon : les horaires du salon)
+        </label>
+        {customHours ? (
+          <div className="mt-xs">
+            <DayHoursEditor
+              days={hoursDays}
+              onLabel="Travaille"
+              offLabel="Repos"
+              onPatch={(idx: number, patch: Partial<DayForm>) => {
+                const next = hoursDays.map((x, j) =>
+                  j === idx ? { ...x, ...patch } : x,
+                );
+                setHoursDays(next);
+                setForm((f) => ({
+                  ...f,
+                  workingHours: daysToSchedule(next, f.workingHours),
+                }));
+              }}
+            />
+          </div>
+        ) : null}
       </div>
 
       {err ? <p className="mt-s text-sm text-error">{err}</p> : null}

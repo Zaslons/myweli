@@ -15,6 +15,7 @@ const base: ServiceForm = {
   priceMax: '25000',
   durationMinutes: '120',
   active: true,
+  artistIds: [],
 };
 
 describe('pro catalogue — validateService', () => {
@@ -49,12 +50,13 @@ describe('pro catalogue — buildServicePayload', () => {
       priceMax: null,
       durationMinutes: 120,
       active: true,
+      artistIds: [],
     });
   });
 });
 
 describe('pro catalogue — artists', () => {
-  const a: ArtistForm = { name: 'Awa', specialization: 'Tresses' };
+  const a: ArtistForm = { name: 'Awa', specialization: 'Tresses', workingHours: {} };
 
   it('requires a name', () => {
     expect(validateArtist({ ...a, name: ' ' })).toMatch(/nom/i);
@@ -62,9 +64,29 @@ describe('pro catalogue — artists', () => {
   });
 
   it('nulls an empty specialization', () => {
-    expect(buildArtistPayload({ name: 'Koffi', specialization: '' })).toEqual({
+    expect(buildArtistPayload({ name: 'Koffi', specialization: '', workingHours: {} })).toEqual({
       name: 'Koffi',
       specialization: null,
+      workingHours: {},
     });
   });
+});
+
+it('audit 3.1: artistIds ride the service payload', () => {
+  expect(
+    buildServicePayload({ ...base, artistIds: ['a1', 'a2'] }).artistIds,
+  ).toEqual(['a1', 'a2']);
+  expect(buildServicePayload(base).artistIds).toEqual([]);
+});
+
+it('audit 3.4: workingHours ride the artist payload ({} = inherit)', () => {
+  const wh = { '0': [{ startTime: '10:00', endTime: '17:00' }] };
+  expect(
+    buildArtistPayload({ name: 'Awa', specialization: '', workingHours: wh })
+      .workingHours,
+  ).toEqual(wh);
+  expect(
+    buildArtistPayload({ name: 'Awa', specialization: '', workingHours: {} })
+      .workingHours,
+  ).toEqual({});
 });

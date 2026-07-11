@@ -94,6 +94,9 @@ test('catalogue: list services + add one', async ({ page }) => {
   await expect(page.getByText('Tresses').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Ajouter un service' }).click();
+  // Audit 3.1: the capability block (empty selection = toute l'équipe).
+  await expect(page.getByText('Qui peut réaliser ce service ?')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: /Awa/ })).toBeVisible();
   await page.getByLabel('Nom du service').fill('Coupe homme');
   await page.getByLabel('Prix — à partir de (FCFA)').fill('5000');
   await page.getByLabel('Durée (minutes)').fill('30');
@@ -138,6 +141,14 @@ test('disponibilités: edit hours + save', async ({ page }) => {
 
   // Monday is seeded open 09:00–18:00; change the end time then save.
   await page.getByLabel('Lundi fin').fill('17:00');
+
+  // Audit 3.8: add a Monday lunch pause, saved in the same PUT.
+  await expect(page.getByRole('heading', { name: 'Pauses' })).toBeVisible();
+  await page
+    .getByRole('checkbox', { name: 'Pause' })
+    .first()
+    .check();
+
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByText('Disponibilités enregistrées.')).toBeVisible();
 });

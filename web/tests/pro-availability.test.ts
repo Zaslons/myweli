@@ -54,3 +54,31 @@ describe('pro availability helpers', () => {
     expect(out.weeklySchedule['5']).toEqual([]);
   });
 });
+
+// Audit 3.4/3.8 — the generic schedule<->DayForm helpers.
+import { daysToSchedule, scheduleToDays } from '../lib/pro/availability';
+
+describe('scheduleToDays / daysToSchedule', () => {
+  it('round-trips a schedule and preserves extra slots', () => {
+    const ws = {
+      '0': [
+        { startTime: '09:00', endTime: '12:00' },
+        { startTime: '14:00', endTime: '18:00' },
+      ],
+    };
+    const days = scheduleToDays(ws);
+    expect(days[0].open).toBe(true);
+    expect(days[0].start).toBe('09:00');
+    expect(days[1].open).toBe(false);
+
+    const back = daysToSchedule(days, ws);
+    expect(back['0']).toHaveLength(2); // the extra afternoon slot survives
+    expect(back['1']).toBeUndefined(); // closed days omitted ({} = inherit)
+  });
+
+  it('defaults drive the editor placeholders (breaks: 12:30–13:30)', () => {
+    const days = scheduleToDays(undefined, { start: '12:30', end: '13:30' });
+    expect(days.every((d) => !d.open)).toBe(true);
+    expect(days[0].start).toBe('12:30');
+  });
+});

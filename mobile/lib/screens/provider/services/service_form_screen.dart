@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../models/service.dart';
+import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
 import '../../../widgets/common/app_button.dart';
@@ -32,8 +33,22 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   final _courtController = TextEditingController();
   final _moyenController = TextEditingController();
   final _longController = TextEditingController();
+  // Audit 3.1: which artists can perform this service — empty = toute
+  // l'équipe (the engine's unrestricted rule).
+  final Set<String> _artistIds = {};
   bool _hasVariants = false;
   bool _prefillDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final id = context.read<ProAuthProvider>().provider?.providerId;
+      if (id != null && id.isNotEmpty) {
+        context.read<ProArtistProvider>().loadArtists(id);
+      }
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -61,6 +76,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           _moyenController.text = variants.moyen?.toString() ?? '';
           _longController.text = variants.long?.toString() ?? '';
         }
+        _artistIds.addAll(service.artistIds);
       }
       _prefillDone = true;
     }
@@ -120,6 +136,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       'priceMax': priceMaxText.isEmpty ? null : double.parse(priceMaxText),
       'durationMinutes': int.parse(_durationController.text.trim()),
       'durationVariants': durationVariants,
+      'artistIds': _artistIds.toList(),
       'providerId':
           authProvider.provider?.providerId ?? authProvider.provider?.id ?? '',
     };
@@ -350,6 +367,53 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       ],
                     ),
                   const SizedBox(height: AppTheme.spacingL),
+                  // Audit 3.1: capability assignment — feeds the booking
+                  // hub's dimming + the per-artist capacity engine.
+                  Consumer<ProArtistProvider>(
+                    builder: (context, artistProvider, _) {
+                      final artists = artistProvider.artists;
+                      if (artists.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'QUI PEUT RÉALISER CE SERVICE ?',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.textTertiary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Aucune sélection = toute l\'équipe.',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          for (final artist in artists)
+                            CheckboxListTile(
+                              value: _artistIds.contains(artist.id),
+                              onChanged: (v) => setState(() {
+                                if (v == true) {
+                                  _artistIds.add(artist.id);
+                                } else {
+                                  _artistIds.remove(artist.id);
+                                }
+                              }),
+                              title: Text(artist.name),
+                              subtitle: artist.specialization == null
+                                  ? null
+                                  : Text(artist.specialization!),
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              dense: true,
+                            ),
+                          const SizedBox(height: AppTheme.spacingL),
+                        ],
+                      );
+                    },
+                  ),
                   AppButton(
                     text: 'Enregistrer',
                     onPressed: serviceProvider.isLoading ? null : _handleSave,
