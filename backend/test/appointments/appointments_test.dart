@@ -132,6 +132,12 @@ void main() {
         expect(before.appointment!['depositAmount'], 0);
         final total = before.appointment!['totalPrice'] as num;
 
+        // T52: enabling deposits requires a verified account.
+        await providerAuth.setVerification(
+          reg.provider!.id,
+          status: 'verified',
+        );
+
         // The salon turns on a 40% deposit (with a Mobile Money destination).
         final upd = await catalog
             .updateDepositPolicy(reg.provider!.id, 'provider1', {

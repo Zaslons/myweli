@@ -1,4 +1,5 @@
 import '../auth/provider_auth_repository.dart';
+import '../providers_repository.dart';
 import '../storage/storage_service.dart';
 import 'audit_log_repository.dart';
 
@@ -10,11 +11,15 @@ typedef AdminResult = ({bool ok, String? error, Object? data});
 /// private ID documents, and approves/rejects verification — every decision
 /// written to the audit log.
 class AdminKycService {
-  AdminKycService(this._providers, this._storage, this._audit);
+  AdminKycService(this._providers, this._storage, this._audit, this._listings);
 
   final ProviderAuthRepository _providers;
   final StorageService _storage;
   final AuditLogRepository _audit;
+
+  /// The public salon listing — approve/reject denormalizes `verified` onto
+  /// it so consumer surfaces can render the « Vérifié » badge (audit 15.1).
+  final ProvidersRepository _listings;
 
   static const _docTtl = Duration(minutes: 5);
 
@@ -70,6 +75,10 @@ class AdminKycService {
       status: 'verified',
     );
     if (updated == null) return (ok: false, error: 'not_found', data: null);
+    final providerId = updated.providerId;
+    if (providerId != null) {
+      await _listings.updateProfile(providerId, {'verified': true});
+    }
     await _audit.append((
       actorAdminId: adminId,
       action: 'kyc.approve',
@@ -95,6 +104,10 @@ class AdminKycService {
       rejectionReason: reason.trim(),
     );
     if (updated == null) return (ok: false, error: 'not_found', data: null);
+    final providerId = updated.providerId;
+    if (providerId != null) {
+      await _listings.updateProfile(providerId, {'verified': false});
+    }
     await _audit.append((
       actorAdminId: adminId,
       action: 'kyc.reject',

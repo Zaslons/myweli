@@ -11,7 +11,18 @@ export function ProviderCard({ provider }: { provider: Provider }) {
       className="block rounded-xl border border-border bg-secondary p-m hover:bg-surfaceVariant"
     >
       <div className="flex items-baseline justify-between gap-m">
-        <h3 className="font-medium text-textPrimary">{provider.name}</h3>
+        <h3 className="flex items-center gap-xs font-medium text-textPrimary">
+          <span className="truncate">{provider.name}</span>
+          {provider.verified ? (
+            <span
+              title="Salon vérifié"
+              aria-label="Salon vérifié"
+              className="shrink-0 text-info"
+            >
+              ✔︎
+            </span>
+          ) : null}
+        </h3>
         {provider.reviewCount > 0 ? (
           <span className="whitespace-nowrap text-sm text-textTertiary">
             ★ {provider.rating.toFixed(1)}

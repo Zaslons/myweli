@@ -445,6 +445,15 @@ class ProviderCatalogService {
     if (error != null) return (ok: false, error: error, data: null);
 
     final required = body['depositRequired'] as bool;
+    // Deposits are a trust feature: only a KYC-VERIFIED salon may demand
+    // them (parity audit 8.1 / threat T52 — the promise both KYC screens
+    // make, now enforced).
+    if (required) {
+      final account = await _providerAuth.accountById(accountId);
+      if (account?.verificationStatus != 'verified') {
+        return (ok: false, error: 'verification_required', data: null);
+      }
+    }
     final fields = {
       'depositRequired': required,
       'depositPercentage': (body['depositPercentage'] as num).toDouble(),

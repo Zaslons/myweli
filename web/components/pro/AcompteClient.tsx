@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -28,6 +29,7 @@ export function AcompteClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -48,6 +50,7 @@ export function AcompteClient() {
       const dp = await getDepositPolicy(pid);
       if (!active) return;
       setProviderId(pid);
+      setVerified(me.profile.account.verificationStatus === 'verified');
       setForm(depositToForm(dp.status === 200 ? dp.policy : undefined));
       setLoading(false);
     })();
@@ -80,7 +83,11 @@ export function AcompteClient() {
     );
     setBusy(false);
     if (!r.ok) {
-      setError('L’enregistrement a échoué. Réessayez.');
+      setError(
+        r.error === 'verification_required'
+          ? 'Vérifiez votre compte pour activer les acomptes.'
+          : 'L’enregistrement a échoué. Réessayez.',
+      );
       return;
     }
     setSaved(true);
@@ -90,10 +97,27 @@ export function AcompteClient() {
     <div className="max-w-2xl">
       <h1 className="text-2xl font-semibold text-textPrimary">Acompte</h1>
 
+      {/* T52: deposits are verified-only — the server enforces it; this
+          mirrors the rule with guidance. */}
+      {!verified ? (
+        <div className="mt-l rounded-xl border border-border bg-surface p-m text-sm text-textSecondary">
+          Les acomptes sont disponibles après la vérification de votre
+          compte.{' '}
+          <Link href="/pro/verification" className="underline">
+            Vérifier mon compte
+          </Link>
+        </div>
+      ) : null}
+
       <section className="mt-l space-y-m rounded-xl border border-border bg-secondary p-l">
-        <label className="flex items-center gap-s text-textPrimary">
+        <label
+          className={`flex items-center gap-s text-textPrimary ${
+            verified ? '' : 'opacity-50'
+          }`}
+        >
           <input
             type="checkbox"
+            disabled={!verified}
             checked={form.required}
             onChange={(e) => set('required', e.target.checked)}
           />

@@ -152,7 +152,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 8.1 | **« Deposits require verification » is copy-only — NEVER enforced** | ❌ **both + backend** | Both KYC screens promise « Les acomptes sont activés une fois votre compte vérifié » — but nothing enforces it: `PUT /providers/{id}/deposit-policy` doesn't check `verificationStatus`, booking derives the deposit from `depositRequired` alone, and neither editor locks the toggle. **An UNVERIFIED salon can demand screenshot-based deposits — the exact fraud vector KYC exists to block.** Fix server-side (policy PUT 403 `verification_required` when not verified, or derive 0) + lock state with explanatory copy in both editors |
+| 8.1 | ~~« Deposits require verification » is copy-only~~ **FIXED 2026-07-10** (T52: PUT 403 `verification_required` + locked editors with guidance on both surfaces) | ✅ fixed | Both KYC screens promise « Les acomptes sont activés une fois votre compte vérifié » — but nothing enforces it: `PUT /providers/{id}/deposit-policy` doesn't check `verificationStatus`, booking derives the deposit from `depositRequired` alone, and neither editor locks the toggle. **An UNVERIFIED salon can demand screenshot-based deposits — the exact fraud vector KYC exists to block.** Fix server-side (policy PUT 403 `verification_required` when not verified, or derive 0) + lock state with explanatory copy in both editors |
 | 8.2 | Policy editors | ✅ | Toggle · percentage · fenêtre d'annulation · opérateur Mobile Money · numéro — same field set on both (app enum chips vs web select — idiomatic) |
 | 8.3 | Consumer deposit flows | ✅ (cross-ref) | Booking estimate + in-flow proof + later attach on both (K2/B4); residual gaps already filed: web can't VIEW the attached proof (1.3), app cancel dialog lacks the deposit warning (1.5) |
 
@@ -205,7 +205,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 15.1 | **The « Vérifié » badge exists NOWHERE — not even in the data** | ❌ **both + backend** | Verification lives on the ACCOUNT (`provider_users.verification_status`); the public listing carries no `verified` field — backend payload, app `Provider` model and web type all lack it, and no consumer surface renders a badge. **KYC's entire consumer-visible payoff is unwired end-to-end** (and it compounds 8.1: today KYC gates nothing and shows nothing). PRD's Provider model explicitly lists `verified` |
+| 15.1 | ~~« Vérifié » badge unwired~~ **FIXED 2026-07-10** (admin approve/reject denormalizes `verified` onto the listing; contract + app model; badge on app card/detail + web card/hero) | ✅ fixed | Verification lives on the ACCOUNT (`provider_users.verification_status`); the public listing carries no `verified` field — backend payload, app `Provider` model and web type all lack it, and no consumer surface renders a badge. **KYC's entire consumer-visible payoff is unwired end-to-end** (and it compounds 8.1: today KYC gates nothing and shows nothing). PRD's Provider model explicitly lists `verified` |
 | 15.2 | No in-product dispute/problem entry | ⚠️ both | Disputes are admin-created/resolved (manual intake — WhatsApp support). Acceptable pre-launch; the app at least has « Aide & Support » in the profile — **web mon-compte has no help/support entry at all** |
 | 15.3 | KYC submit/status | ✅ | Full parity since web-pro-kyc (2026-07-10) |
 | 15.4 | Review moderation | cross-ref | Consumer « Signaler » missing on both = finding 2.14; the admin queue is live |
@@ -215,6 +215,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 # SYNTHESIS — consolidated priorities across all findings
 
 ## P0 — security · legal · trust correctness
+*(8.1 + 15.1 fixed 2026-07-10 — PR fix/parity-p0-trust; 11.1/11.2 next)*
 | Finding | Surfaces |
 |---|---|
 | **8.1** Deposit⇄KYC gate is copy-only: unverified salons can demand deposits | backend + both editors |

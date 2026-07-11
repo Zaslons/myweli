@@ -2397,7 +2397,7 @@ export interface paths {
         };
         /**
          * Replace a salon's deposit policy wholesale (B-deposit)
-         * @description Server-authoritative (booking derives each deposit from this). Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164. **When `depositRequired` is true, the Mobile Money operator + number are required.**
+         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164. **When `depositRequired` is true, the Mobile Money operator + number are required.**
          */
         put: {
             parameters: {
@@ -5426,6 +5426,8 @@ export interface components {
              * @enum {string}
              */
             status?: "draft" | "active" | "suspended";
+            /** @description Server-owned « Vérifié » badge — denormalized from the account's KYC status on admin approve/reject (T52; consumer trust signal). */
+            verified?: boolean;
             name: string;
             description: string;
             address: string;

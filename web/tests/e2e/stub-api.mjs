@@ -24,6 +24,7 @@ const provider = {
   phoneNumber: '+2250700000000',
   whatsapp: '+2250700000000',
   category: 'salon',
+  verified: true,
   depositRequired: false,
   depositPercentage: 0,
   cancellationWindowHours: 24,
@@ -513,7 +514,9 @@ createServer(async (req, res) => {
         businessName: 'Beauté Divine',
         businessType: 'other',
         phoneNumber: '+2250700000000',
-        verificationStatus: kycState.status,
+        // The salon session is VERIFIED (T52 flows: acompte editor enabled);
+        // the /me/kyc page reads kycState separately (its own e2e).
+        verificationStatus: 'verified',
         providerId: 'p1',
       },
       provider: proProvider,
