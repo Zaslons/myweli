@@ -14,6 +14,7 @@ import {
 } from '../../lib/api/pro';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { type LifecycleAction, actionsFor } from '../../lib/pro/lifecycle';
+import { rescheduleAppointment } from '../../lib/api/pro';
 import type { ProAppointment } from '../../lib/pro/today';
 import { Button } from '../Button';
 
@@ -52,6 +53,34 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // « Reprogrammer » (parity 1.9) — cross-day, the app's date+time flow;
+  // the server re-validates (409 → créneau indisponible).
+  const [reprog, setReprog] = useState(false);
+  const [reprogDate, setReprogDate] = useState('');
+  const [reprogTime, setReprogTime] = useState('');
+  const [reprogError, setReprogError] = useState<string | null>(null);
+
+  async function reschedule() {
+    if (!reprogDate || !reprogTime) return;
+    setBusy(true);
+    setReprogError(null);
+    const r = await rescheduleAppointment(
+      id,
+      `${reprogDate}T${reprogTime}:00.000Z`,
+    );
+    setBusy(false);
+    if (!r.ok) {
+      setReprogError(
+        r.status === 409
+          ? 'Créneau indisponible. Choisissez un autre horaire.'
+          : 'Le report a échoué. Réessayez.',
+      );
+      return;
+    }
+    setReprog(false);
+    await load();
+  }
 
   async function run(action: LifecycleAction) {
     setBusy(true);
@@ -189,6 +218,62 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                   {a.label}
                 </Button>
               ),
+            )}
+          </div>
+        ) : null}
+
+        {appt.status === 'pending' || appt.status === 'confirmed' ? (
+          <div className="mt-m border-t border-divider pt-m">
+            {!reprog ? (
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={() => {
+                  setReprog(true);
+                  setReprogError(null);
+                  setReprogDate(appt.appointmentDate.slice(0, 10));
+                  setReprogTime(appt.appointmentDate.slice(11, 16));
+                }}
+              >
+                Reprogrammer
+              </Button>
+            ) : (
+              <div className="rounded-lg bg-surface p-m">
+                <p className="text-sm text-textPrimary">
+                  Nouvelle date et heure
+                </p>
+                <div className="mt-s flex flex-wrap gap-s">
+                  <input
+                    type="date"
+                    aria-label="Nouvelle date"
+                    value={reprogDate}
+                    onChange={(e) => setReprogDate(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+                  />
+                  <input
+                    type="time"
+                    aria-label="Nouvelle heure"
+                    step={900}
+                    value={reprogTime}
+                    onChange={(e) => setReprogTime(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+                  />
+                </div>
+                {reprogError ? (
+                  <p className="mt-s text-sm text-error">{reprogError}</p>
+                ) : null}
+                <div className="mt-m flex gap-s">
+                  <Button variant="secondary" onClick={() => setReprog(false)}>
+                    Annuler
+                  </Button>
+                  <Button
+                    disabled={busy || !reprogDate || !reprogTime}
+                    onClick={reschedule}
+                  >
+                    Confirmer
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         ) : null}

@@ -47,6 +47,21 @@ export async function cancelAppointment(
   return { ok: false, status: res.status, error: body.error };
 }
 
+/// Move a booking (« Reporter » — parity 1.1). 409 = slot taken.
+export async function rescheduleAppointment(
+  id: string,
+  newDateTime: string,
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch(`/api/appointments/${id}/reschedule`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ newDateTime }),
+  });
+  if (res.ok) return { ok: true, status: res.status };
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: body.error };
+}
+
 // --- M8.3: review + favorites -----------------------------------------------
 
 export async function submitReview(

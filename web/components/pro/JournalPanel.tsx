@@ -7,6 +7,7 @@ import {
   arriveAppointment,
   getClientCard,
   proAction,
+  rescheduleAppointment,
 } from '../../lib/api/pro';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import type { SalonClientCard } from '../../lib/pro/clients';
@@ -34,6 +35,10 @@ export function JournalPanel({
 }) {
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [busy, setBusy] = useState(false);
+  // « Reprogrammer » (parity 1.9) — cross-day from the panel too.
+  const [reprog, setReprog] = useState(false);
+  const [reprogDate, setReprogDate] = useState('');
+  const [reprogTime, setReprogTime] = useState('');
   const key = statusKey(appt);
 
   // C2: the client mini-card (this GET is audited server-side, by design).
@@ -177,6 +182,60 @@ export function JournalPanel({
               Non présenté
             </Button>
           </div>
+        ) : null}
+
+        {appt.status === 'pending' || appt.status === 'confirmed' ? (
+          !reprog ? (
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => {
+                setReprog(true);
+                setReprogDate(appt.appointmentDate.slice(0, 10));
+                setReprogTime(appt.appointmentDate.slice(11, 16));
+              }}
+            >
+              Reprogrammer
+            </Button>
+          ) : (
+            <div className="w-full rounded-lg bg-surface p-s">
+              <div className="flex flex-wrap gap-xs">
+                <input
+                  type="date"
+                  aria-label="Nouvelle date"
+                  value={reprogDate}
+                  onChange={(e) => setReprogDate(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary px-s py-xs text-sm text-textPrimary"
+                />
+                <input
+                  type="time"
+                  aria-label="Nouvelle heure"
+                  step={900}
+                  value={reprogTime}
+                  onChange={(e) => setReprogTime(e.target.value)}
+                  className="rounded-lg border border-border bg-secondary px-s py-xs text-sm text-textPrimary"
+                />
+              </div>
+              <div className="mt-s flex gap-s">
+                <Button variant="secondary" onClick={() => setReprog(false)}>
+                  Annuler
+                </Button>
+                <Button
+                  disabled={busy || !reprogDate || !reprogTime}
+                  onClick={() =>
+                    act(() =>
+                      rescheduleAppointment(
+                        appt.id,
+                        `${reprogDate}T${reprogTime}:00.000Z`,
+                      ),
+                    )
+                  }
+                >
+                  OK
+                </Button>
+              </div>
+            </div>
+          )
         ) : null}
       </div>
     </div>

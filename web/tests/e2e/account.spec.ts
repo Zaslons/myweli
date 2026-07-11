@@ -24,6 +24,12 @@ test('login → see booking → open detail → cancel', async ({ page }) => {
   await page.getByText('Beauté Divine').first().click();
   await expect(page).toHaveURL(/\/mon-compte\/appt1/);
 
+  // « Reporter » (parity 1.1): pick tomorrow's 14:00 then confirm.
+  await page.getByRole('button', { name: 'Reporter', exact: true }).click();
+  await page.getByRole('button', { name: '14:00' }).click();
+  await page.getByRole('button', { name: 'Confirmer le report' }).click();
+  await expect(page.getByText('Rendez-vous reporté ✓')).toBeVisible();
+
   await page.getByRole('button', { name: 'Annuler le rendez-vous' }).click();
   await page.getByRole('button', { name: /Confirmer l.annulation/ }).click();
 

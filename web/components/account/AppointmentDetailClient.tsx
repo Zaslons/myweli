@@ -7,11 +7,17 @@ import {
   type Appointment,
   canAttachDeposit,
   canCancel,
+  canReschedule,
   rebookHref,
   statusLabelFr,
 } from '../../lib/account/appointments';
 import { canRebook, canReview } from '../../lib/account/extras';
-import { cancelAppointment, getAppointment } from '../../lib/api/account';
+import {
+  cancelAppointment,
+  getAppointment,
+  rescheduleAppointment,
+} from '../../lib/api/account';
+import { fetchSlots } from '../../lib/booking/client';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { Button } from '../Button';
 import { DepositProof } from '../booking/DepositProof';
@@ -25,6 +31,14 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const [cancelError, setCancelError] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  // « Reporter » (parity 1.1) — the app's slot-picker flow, inline.
+  const [rescheduling, setRescheduling] = useState(false);
+  const [reschedDate, setReschedDate] = useState('');
+  const [slots, setSlots] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [pickedSlot, setPickedSlot] = useState<string | null>(null);
+  const [reschedError, setReschedError] = useState<string | null>(null);
+  const [rescheduled, setRescheduled] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,6 +59,50 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function loadSlots(a: Appointment, date: string) {
+    setSlotsLoading(true);
+    setPickedSlot(null);
+    const r = await fetchSlots({
+      providerId: a.providerId,
+      date,
+      serviceIds: a.serviceIds ?? [],
+      durationMinutes: a.durationMinutes ?? 30,
+      artistId: a.artistId ?? null,
+    });
+    setSlots(r);
+    setSlotsLoading(false);
+  }
+
+  function openReschedule(a: Appointment) {
+    setRescheduling(true);
+    setReschedError(null);
+    setRescheduled(false);
+    const day = a.appointmentDate.slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    const initial = day > today ? day : today;
+    setReschedDate(initial);
+    loadSlots(a, initial);
+  }
+
+  async function confirmReschedule() {
+    if (!pickedSlot || !appt) return;
+    setBusy(true);
+    setReschedError(null);
+    const r = await rescheduleAppointment(appt.id, pickedSlot);
+    setBusy(false);
+    if (!r.ok) {
+      setReschedError(
+        r.status === 409
+          ? 'Ce créneau vient d’être pris. Choisissez-en un autre.'
+          : 'Le report a échoué. Réessayez.',
+      );
+      return;
+    }
+    setRescheduling(false);
+    setRescheduled(true);
+    await load();
+  }
 
   async function cancel() {
     setBusy(true);
@@ -131,6 +189,85 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <p className="mt-s text-sm text-error">
             L’annulation a échoué. Réessayez.
           </p>
+        ) : null}
+
+        {rescheduled ? (
+          <p className="mt-m text-sm text-textSecondary">
+            Rendez-vous reporté ✓
+          </p>
+        ) : null}
+
+        {/* « Reporter » (parity 1.1) — the app's slot-picker flow. */}
+        {canReschedule(appt) ? (
+          <div className="mt-l">
+            {!rescheduling ? (
+              <Button onClick={() => openReschedule(appt)}>Reporter</Button>
+            ) : (
+              <div className="rounded-lg bg-surface p-m">
+                <p className="text-sm text-textPrimary">
+                  Choisissez un nouveau créneau
+                </p>
+                <input
+                  type="date"
+                  aria-label="Nouvelle date"
+                  min={new Date().toISOString().slice(0, 10)}
+                  value={reschedDate}
+                  onChange={(e) => {
+                    setReschedDate(e.target.value);
+                    if (e.target.value) loadSlots(appt, e.target.value);
+                  }}
+                  className="mt-s rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+                />
+                {slotsLoading ? (
+                  <p className="mt-s text-sm text-textSecondary">
+                    Chargement des créneaux…
+                  </p>
+                ) : slots.length === 0 ? (
+                  <p className="mt-s text-sm text-textSecondary">
+                    Aucun créneau disponible ce jour.
+                  </p>
+                ) : (
+                  <div className="mt-s flex flex-wrap gap-s">
+                    {slots.map((iso) => (
+                      <button
+                        key={iso}
+                        type="button"
+                        onClick={() => setPickedSlot(iso)}
+                        className={`rounded-full border px-m py-xs text-sm ${
+                          pickedSlot === iso
+                            ? 'border-primary bg-primary text-secondary'
+                            : 'border-border bg-secondary text-textPrimary'
+                        }`}
+                      >
+                        {new Intl.DateTimeFormat('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'UTC',
+                        }).format(new Date(iso))}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {reschedError ? (
+                  <p className="mt-s text-sm text-error">{reschedError}</p>
+                ) : null}
+                <div className="mt-m flex gap-s">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setRescheduling(false)}
+                  >
+                    Retour
+                  </Button>
+                  <Button
+                    disabled={busy || !pickedSlot}
+                    onClick={confirmReschedule}
+                  >
+                    Confirmer le report
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         ) : null}
 
         {canCancel(appt) ? (

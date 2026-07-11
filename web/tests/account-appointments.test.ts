@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type Appointment,
   canCancel,
+  canReschedule,
   categorize,
   filterByTab,
   statusLabelFr,
@@ -42,4 +43,16 @@ describe('account appointment helpers', () => {
     expect(statusLabelFr('confirmed')).toBe('Confirmé');
     expect(statusLabelFr('noShow')).toBe('Absent'); // app label
   });
+});
+
+it('canReschedule: pending/confirmed AND future only (parity 1.1)', () => {
+  const future = new Date(Date.now() + 86400000).toISOString();
+  const past = new Date(Date.now() - 86400000).toISOString();
+  const base = { id: 'a1', providerId: 'p1', appointmentDate: future };
+  expect(canReschedule({ ...base, status: 'confirmed' })).toBe(true);
+  expect(canReschedule({ ...base, status: 'pending' })).toBe(true);
+  expect(canReschedule({ ...base, status: 'completed' })).toBe(false);
+  expect(
+    canReschedule({ ...base, status: 'confirmed', appointmentDate: past }),
+  ).toBe(false);
 });
