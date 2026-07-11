@@ -15,3 +15,12 @@ describe('ProviderCard', () => {
     expect(norm(container.textContent)).toContain('à partir de 15 000 FCFA');
   });
 });
+
+it('shows the « Vérifié » badge only for verified salons (T52/15.1)', () => {
+  const { rerender } = render(
+    <ProviderCard provider={{ ...providerFixture, verified: true }} />,
+  );
+  expect(screen.getByLabelText('Salon vérifié')).toBeInTheDocument();
+  rerender(<ProviderCard provider={{ ...providerFixture, verified: false }} />);
+  expect(screen.queryByLabelText('Salon vérifié')).toBeNull();
+});

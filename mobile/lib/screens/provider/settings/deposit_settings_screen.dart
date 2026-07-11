@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -7,6 +8,8 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/deposit.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/payment.dart';
+import '../../../models/provider_user.dart';
+import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
@@ -96,9 +99,46 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     );
     final balance = _sampleTotal - deposit;
 
+    // T52: deposits are a trust feature — only VERIFIED salons may enable
+    // them (the server enforces it; this mirrors the rule with guidance).
+    final verified =
+        context.watch<ProAuthProvider>().provider?.verificationStatus ==
+            VerificationStatus.verified;
+
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
+        if (!verified) ...[
+          Container(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Les acomptes sont disponibles après la vérification '
+                  'de votre compte.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.warning,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => context.push('/pro/verification'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  child: const Text('Vérifier mon compte'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingM),
+        ],
         Container(
           decoration: BoxDecoration(
             color: AppColors.secondary,
@@ -107,7 +147,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
           ),
           child: SwitchListTile(
             value: provider.depositRequired,
-            onChanged: provider.setDepositRequired,
+            onChanged: verified ? provider.setDepositRequired : null,
             title: const Text('Exiger un acompte'),
             subtitle: Text(
               'Limite les rendez-vous manqués',

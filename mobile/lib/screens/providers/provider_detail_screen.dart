@@ -212,14 +212,34 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    p.name,
-                                    style:
-                                        AppTextStyles.headlineMedium.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          p.name,
+                                          style: AppTextStyles.headlineMedium
+                                              .copyWith(
+                                            color: AppColors.textPrimary,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (p.verified) ...[
+                                        const SizedBox(width: 6),
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 4),
+                                          child: Icon(
+                                            Icons.verified,
+                                            size: 20,
+                                            color: AppColors.info,
+                                            semanticLabel: 'Salon vérifié',
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   const SizedBox(height: 6),
                                   Row(

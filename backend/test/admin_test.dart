@@ -9,6 +9,7 @@ import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/auth/login_throttle.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
@@ -89,12 +90,19 @@ void main() {
     late InMemoryProviderAuthRepository providers;
     late InMemoryAuditLogRepository audit;
     late AdminKycService svc;
+    late InMemoryProvidersRepository listings;
     late String accountId;
 
     setUp(() async {
       providers = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
       audit = InMemoryAuditLogRepository();
-      svc = AdminKycService(providers, const FakeStorageService(), audit);
+      listings = InMemoryProvidersRepository([]);
+      svc = AdminKycService(
+        providers,
+        const FakeStorageService(),
+        audit,
+        listings,
+      );
       final reg = await providers.register(
         email: 'reg5@test.pro',
         authProvider: 'google',
@@ -104,6 +112,12 @@ void main() {
         businessType: 'salon',
         providerId: 'p1',
       );
+      final salon = await listings.createSalon(
+        name: 'Salon Badge',
+        category: 'salon',
+        phoneNumber: '+2250700000042',
+      );
+      await providers.linkProvider(reg.provider!.id, salon['id'] as String);
       accountId = reg.provider!.id;
       await providers.submitKyc(accountId, [
         {'type': 'id_card', 'key': 'kyc/$accountId/x.jpg'},
@@ -127,10 +141,18 @@ void main() {
     test('approve verifies + writes exactly one audit row', () async {
       final r = await svc.approve('admin_1', accountId);
       expect((r.data! as Map)['verificationStatus'], 'verified');
+
       final log = await audit.list();
       expect(log.total, 1);
       expect(log.items.first['action'], 'kyc.approve');
       expect(log.items.first['actorAdminId'], 'admin_1');
+
+      // Audit 15.1: approval denormalizes the « Vérifié » badge onto the
+      // public listing (and reject flips it back off).
+      final acct = (r.data! as Map)['providerId'] as String;
+      expect((await listings.byId(acct))!['verified'], isTrue);
+      await svc.reject('admin_1', accountId, 'photos illisibles');
+      expect((await listings.byId(acct))!['verified'], isFalse);
     });
 
     test('reject requires a reason and records it', () async {

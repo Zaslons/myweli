@@ -30,6 +30,8 @@ Response resultResponse({
       return jsonError(HttpStatus.notFound, 'not_found');
     case 'forbidden':
       return jsonError(HttpStatus.forbidden, 'forbidden');
+    case 'verification_required':
+      return jsonError(HttpStatus.forbidden, 'verification_required');
     case 'invalid_state':
       return jsonError(HttpStatus.conflict, 'invalid_state');
     default:

@@ -36,6 +36,9 @@ test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
   await page.goto('/beaute-divine');
 
+  // T52/15.1: the « Vérifié » badge on the hero (stub salon is verified).
+  await expect(page.getByText('✔ Vérifié')).toBeVisible();
+
   // Avant/Après section (seeded pair).
   await expect(
     page.getByRole('heading', { name: 'Avant / Après' }),

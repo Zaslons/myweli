@@ -340,6 +340,25 @@ void main() {
         'mobileMoneyNumber': number,
       };
 
+      // T52 (parity audit 8.1): an UNVERIFIED salon cannot enable deposits.
+      final gated = await catalog.updateDepositPolicy(
+        accountId,
+        'provider1',
+        validBody(),
+      );
+      expect(gated.error, 'verification_required');
+      // …but can still store a policy with deposits OFF.
+      expect(
+        (await catalog.updateDepositPolicy(accountId, 'provider1', {
+          'depositRequired': false,
+          'depositPercentage': 0,
+          'cancellationWindowHours': 24,
+        })).ok,
+        isTrue,
+      );
+
+      await providerAuth.setVerification(accountId, status: 'verified');
+
       // Replace, then read back (DTO uses the mobileMoney* names).
       final saved = await catalog.updateDepositPolicy(
         accountId,
@@ -725,6 +744,9 @@ void main() {
 
     test('deposit policy: GET → 200; PUT replaces → 200; bad → 400; '
         'cross-salon → 403; bad verb → 405', () async {
+      // T52: the PUT below enables deposits — needs a verified account.
+      await providerAuth.setVerification(accountId, status: 'verified');
+
       final got = await deposit_route.onRequest(
         ctx(req('GET', '/providers/provider1/deposit-policy', bearer: token)),
         'provider1',

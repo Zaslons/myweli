@@ -146,13 +146,28 @@ class ProviderCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            provider.name,
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  provider.name,
+                                  style: AppTextStyles.titleMedium.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (provider.verified) ...[
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.verified,
+                                  size: 16,
+                                  color: AppColors.info,
+                                  semanticLabel: 'Salon vérifié',
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Row(

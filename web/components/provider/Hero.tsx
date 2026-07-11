@@ -24,8 +24,13 @@ export function ProviderHero({ provider }: { provider: Provider }) {
       ) : null}
       <div className="px-m py-l">
         <p className="text-sm text-textTertiary">{sub}</p>
-        <h1 className="mt-xs text-3xl font-semibold text-textPrimary">
+        <h1 className="mt-xs flex items-center gap-s text-3xl font-semibold text-textPrimary">
           {provider.name}
+          {provider.verified ? (
+            <span className="rounded-full bg-info/10 px-s py-xs text-xs font-medium text-info">
+              ✔ Vérifié
+            </span>
+          ) : null}
         </h1>
         {provider.reviewCount > 0 ? (
           <p className="mt-xs text-sm text-textSecondary">

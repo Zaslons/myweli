@@ -27,6 +27,9 @@ class Provider extends Equatable {
   final String phoneNumber;
   final String? whatsapp;
   final String category; // 'salon', 'barber', 'spa', etc.
+
+  /// Server-owned « Vérifié » badge (KYC approved — T52).
+  final bool verified;
   final bool depositRequired;
   final double depositPercentage;
 
@@ -60,6 +63,7 @@ class Provider extends Equatable {
     required this.phoneNumber,
     this.whatsapp,
     required this.category,
+    this.verified = false,
     this.depositRequired = false,
     this.depositPercentage = 0.30,
     this.depositMobileMoneyOperator,
@@ -89,6 +93,7 @@ class Provider extends Equatable {
         phoneNumber,
         whatsapp,
         category,
+        verified,
         depositRequired,
         depositPercentage,
         depositMobileMoneyOperator,
@@ -117,6 +122,7 @@ class Provider extends Equatable {
     String? phoneNumber,
     String? whatsapp,
     String? category,
+    bool? verified,
     bool? depositRequired,
     double? depositPercentage,
     MobileMoneyOperator? depositMobileMoneyOperator,
@@ -144,6 +150,7 @@ class Provider extends Equatable {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       whatsapp: whatsapp ?? this.whatsapp,
       category: category ?? this.category,
+      verified: verified ?? this.verified,
       depositRequired: depositRequired ?? this.depositRequired,
       depositPercentage: depositPercentage ?? this.depositPercentage,
       depositMobileMoneyOperator:
@@ -177,6 +184,7 @@ class Provider extends Equatable {
       'phoneNumber': phoneNumber,
       'whatsapp': whatsapp,
       'category': category,
+      'verified': verified,
       'depositRequired': depositRequired,
       'depositPercentage': depositPercentage,
       'depositMobileMoneyOperator': depositMobileMoneyOperator?.name,
@@ -216,6 +224,7 @@ class Provider extends Equatable {
       phoneNumber: json['phoneNumber'] as String,
       whatsapp: json['whatsapp'] as String?,
       category: json['category'] as String,
+      verified: json['verified'] as bool? ?? false,
       depositRequired: json['depositRequired'] as bool? ?? false,
       depositPercentage:
           (json['depositPercentage'] as num?)?.toDouble() ?? 0.30,

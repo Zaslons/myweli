@@ -4,14 +4,20 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
+import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
+import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:provider/provider.dart';
 
 class _MockProService extends Mock implements ProServiceInterface {}
 
 void main() {
+  setUpAll(() {
+    serviceLocator.authService = MockAuthService();
+  });
+
   late _MockProService service;
 
   setUpAll(() {
@@ -21,8 +27,12 @@ void main() {
 
   setUp(() => reset(service));
 
-  Widget host() => ChangeNotifierProvider(
-        create: (_) => ProDepositSettingsProvider(),
+  Widget host() => MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+          // T52 lock reads the session's verification status.
+          ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+        ],
         child: const MaterialApp(
           home: DepositSettingsScreen(providerId: 'p1'),
         ),
@@ -40,8 +50,17 @@ void main() {
 
     expect(find.text('Exiger un acompte'), findsOneWidget);
     expect(find.text('30 %'), findsOneWidget);
-    // The save button can sit below the fold now that the deposit handle
-    // section is shown, so don't skip offstage widgets.
+    // T52: an unverified session sees the lock banner.
+    expect(
+      find.textContaining('après la vérification'),
+      findsOneWidget,
+    );
+    // The banner lengthens the lazy ListView — bring the tail into view.
+    await tester.scrollUntilVisible(
+      find.text('Enregistrer', skipOffstage: false),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Enregistrer', skipOffstage: false), findsOneWidget);
     expect(
         find.text("Recevoir l'acompte", skipOffstage: false), findsOneWidget);

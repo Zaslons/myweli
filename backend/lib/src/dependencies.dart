@@ -360,6 +360,7 @@ final AdminKycService adminKycService = AdminKycService(
   providerAuthRepository,
   storageService,
   auditLogRepository,
+  providersRepository,
 );
 
 final ModerationService moderationService = ModerationService(
