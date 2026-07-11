@@ -217,7 +217,7 @@ This section is the "why" behind many requirements. Treat it as binding context.
 > **Pricing direction (2026-06-28, provisional — OQ-2):** planned **base monthly ≈ 20 000–40 000 FCFA** (without add-ons), launched with a deliberate **anchor price of 70 000 FCFA/mo** shown as the "regular" Pro price so the eventual paid price reads as a discount. Advertised **free period = 3 months** (supersedes the 30-day note below). Figures live in `mobile/lib/core/config/subscription_plans.dart`; the trial length is `kProTrialDays = 90` (backend). The table below is the original indicative scaffold.
 
 > **Pricing pivot (2026-07-11, user decision — supersedes the freemium model
-> below-右):** there is **no free operating tier**. Registration lands in a
+> below):** there is **no free operating tier**. Registration lands in a
 > free, time-unlimited **SETUP state** (build the profile/catalogue — salon
 > unpublished, no bookings, no team). Publishing and receiving bookings
 > require an **active offer**; every offer starts with **3 mois offerts**
