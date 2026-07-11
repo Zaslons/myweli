@@ -134,6 +134,7 @@ abstract class ProServiceInterface {
     String? clientName,
     String? clientPhone,
     String? notes,
+    String? artistId,
     bool sendSmsInvite = false,
   });
 

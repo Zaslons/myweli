@@ -226,6 +226,7 @@ class MockProService implements ProServiceInterface {
     String? clientName,
     String? clientPhone,
     String? notes,
+    String? artistId,
     bool sendSmsInvite = false,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -259,6 +260,7 @@ class MockProService implements ProServiceInterface {
       clientPhone:
           (clientPhone != null && clientPhone.isNotEmpty) ? clientPhone : null,
       notes: notes,
+      artistId: artistId,
       createdAt: DateTime.now(),
     );
     MockData.appointments.add(appointment);

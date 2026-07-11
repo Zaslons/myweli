@@ -277,6 +277,7 @@ class ApiProService implements ProServiceInterface {
     String? clientName,
     String? clientPhone,
     String? notes,
+    String? artistId,
     bool sendSmsInvite = false,
   }) async {
     if (await _authed.accessToken() == null) {
@@ -292,6 +293,7 @@ class ApiProService implements ProServiceInterface {
           if (clientName != null) 'clientName': clientName,
           if (clientPhone != null) 'clientPhone': clientPhone,
           if (notes != null) 'notes': notes,
+          if (artistId != null) 'artistId': artistId,
           // Honoured by the notifications backend (deferred); ignored for now.
           'sendSmsInvite': sendSmsInvite,
         }),

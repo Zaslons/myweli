@@ -81,6 +81,32 @@ class ProGalleryProvider extends ChangeNotifier {
     }
   }
 
+  /// Reorder (audit 3.6 — the first photo is the listing cover): swap the
+  /// photo with its neighbour and persist through the same gallery PUT.
+  Future<bool> movePhoto(String providerId, int index, int delta) async {
+    final target = index + delta;
+    if (index < 0 ||
+        index >= _photos.length ||
+        target < 0 ||
+        target >= _photos.length) {
+      return false;
+    }
+    final next = [..._photos];
+    final tmp = next[index];
+    next[index] = next[target];
+    next[target] = tmp;
+    final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (saved.success && saved.data != null) {
+      _photos = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Échec du déplacement';
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> removePhoto(String providerId, int index) async {
     if (index < 0 || index >= _photos.length) return false;
     final next = [..._photos]..removeAt(index);

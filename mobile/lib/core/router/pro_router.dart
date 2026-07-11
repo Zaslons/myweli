@@ -92,6 +92,7 @@ class ProRouter {
             initialClientName: extra?['clientName'] as String?,
             initialClientPhone: extra?['clientPhone'] as String?,
             initialDateTime: dt == null ? null : DateTime.tryParse(dt),
+            initialArtistId: extra?['artistId'] as String?,
           );
         },
       ),

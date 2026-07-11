@@ -213,6 +213,7 @@ class ProAppointmentProvider extends ChangeNotifier {
     String? clientName,
     String? clientPhone,
     String? notes,
+    String? artistId,
     bool sendSmsInvite = false,
   }) async {
     _isLoading = true;
@@ -227,6 +228,7 @@ class ProAppointmentProvider extends ChangeNotifier {
         clientName: clientName,
         clientPhone: clientPhone,
         notes: notes,
+        artistId: artistId,
         sendSmsInvite: sendSmsInvite,
       );
       if (response.success && response.data != null) {

@@ -128,6 +128,13 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
                       url: gallery.photos[i],
                       isCover: i == 0,
                       onRemove: () => _removePhoto(providerId, gallery, i),
+                      // Audit 3.6: reorder — the first photo is the cover.
+                      onMoveLeft: i > 0
+                          ? () => gallery.movePhoto(providerId, i, -1)
+                          : null,
+                      onMoveRight: i < gallery.photos.length - 1
+                          ? () => gallery.movePhoto(providerId, i, 1)
+                          : null,
                     ),
                   if (gallery.isUploading)
                     _UploadingTile(progress: gallery.uploadProgress),
@@ -150,11 +157,15 @@ class _PhotoTile extends StatelessWidget {
   final String url;
   final bool isCover;
   final VoidCallback onRemove;
+  final VoidCallback? onMoveLeft;
+  final VoidCallback? onMoveRight;
 
   const _PhotoTile({
     required this.url,
     required this.isCover,
     required this.onRemove,
+    this.onMoveLeft,
+    this.onMoveRight,
   });
 
   @override
@@ -179,6 +190,29 @@ class _PhotoTile extends StatelessWidget {
               ),
               child: const Icon(Icons.close, size: 14, color: Colors.white),
             ),
+          ),
+        ),
+        Positioned(
+          bottom: 4,
+          right: 4,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onMoveLeft != null)
+                _ArrowButton(
+                  icon: Icons.chevron_left,
+                  semanticLabel: 'Déplacer vers la gauche',
+                  onTap: onMoveLeft!,
+                ),
+              if (onMoveLeft != null && onMoveRight != null)
+                const SizedBox(width: 4),
+              if (onMoveRight != null)
+                _ArrowButton(
+                  icon: Icons.chevron_right,
+                  semanticLabel: 'Déplacer vers la droite',
+                  onTap: onMoveRight!,
+                ),
+            ],
           ),
         ),
         if (isCover)
@@ -276,6 +310,38 @@ class DottedBorderBox extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: child,
+    );
+  }
+}
+
+class _ArrowButton extends StatelessWidget {
+  final IconData icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  const _ArrowButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(
+          color: Colors.black54,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: Colors.white,
+          semanticLabel: semanticLabel,
+        ),
+      ),
     );
   }
 }
