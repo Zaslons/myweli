@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -61,7 +63,11 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
-    service = DepositService(appts, providerAuth, const FakeStorageService());
+    service = DepositService(
+      appts,
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
+      const FakeStorageService(),
+    );
     final p1 = await providerAuth.register(
       email: 'reg8@test.pro',
       authProvider: 'google',

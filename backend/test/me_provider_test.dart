@@ -4,6 +4,8 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -37,11 +39,13 @@ void main() {
     late _MockProviderAuth auth;
     late _MockProviders providers;
     late _MockAppointments appointments;
+    late InMemoryMembershipRepository memberships;
 
     setUp(() {
       auth = _MockProviderAuth();
       providers = _MockProviders();
       appointments = _MockAppointments();
+      memberships = InMemoryMembershipRepository();
     });
 
     RequestContext ctx(Request request) {
@@ -57,12 +61,16 @@ void main() {
           providers,
           appointments,
           const FakeStorageService(),
+          memberships,
           client: MockClient((req) async => http.Response('', 204)),
         ),
       );
       when(
         () => c.read<SalonProvisioningService>(),
-      ).thenReturn(SalonProvisioningService(providers, auth));
+      ).thenReturn(SalonProvisioningService(providers, auth, memberships));
+      when(
+        () => c.read<MembershipService>(),
+      ).thenReturn(MembershipService(memberships, auth));
       return c;
     }
 
@@ -102,6 +110,36 @@ void main() {
         ctx(req('GET', token: tok('u1', 'user'))),
       );
       expect(res.statusCode, HttpStatus.forbidden);
+    });
+
+    test('GUARD (access §2.3-1): an account with a MEMBERSHIP never gets a '
+        'salon provisioned — its salon resolves via the membership', () async {
+      final account = _account(providerId: null);
+      when(() => auth.accountById('acc1')).thenAnswer((_) async => account);
+      // The account is someone's team member (R2 shape: unlinked + a row).
+      await memberships.ensureOwner(
+        providerId: 'p_theirs',
+        accountId: 'acc1',
+        email: 'staff@test.pro',
+      );
+      when(
+        () => providers.byId('p_theirs'),
+      ).thenAnswer((_) async => {'id': 'p_theirs', 'name': 'Chez Awa'});
+
+      final res = await me_provider.onRequest(
+        ctx(req('GET', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      // No provisioning happened.
+      verifyNever(
+        () => providers.createSalon(
+          name: any(named: 'name'),
+          category: any(named: 'category'),
+          phoneNumber: any(named: 'phoneNumber'),
+          address: any(named: 'address'),
+        ),
+      );
+      verifyNever(() => auth.linkProvider(any(), any()));
     });
 
     test('no linked salon → SELF-HEALS: a draft salon is created + linked '

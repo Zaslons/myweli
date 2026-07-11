@@ -1,5 +1,6 @@
+import 'access/capabilities.dart';
+import 'access/membership_service.dart';
 import 'appointments/appointment_repository.dart';
-import 'auth/provider_auth_repository.dart';
 
 /// Outcome of a dashboard read; [data] is the `DashboardStats` map on success.
 typedef DashboardResult = ({
@@ -14,20 +15,28 @@ typedef DashboardResult = ({
 /// in UTC (Abidjan is UTC+0) from the salon's appointments — revenue counts
 /// `confirmed` + `completed`; `todayAppointments` excludes `cancelled`.
 class ProviderDashboardService {
-  ProviderDashboardService(this._providerAuth, this._appointments);
+  ProviderDashboardService(this._members, this._appointments);
 
-  final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final AppointmentRepository _appointments;
 
   static const _revenueStatuses = {'confirmed', 'completed'};
 
   Future<DashboardResult> statsFor(String accountId, String providerId) async {
-    final account = await _providerAuth.accountById(accountId);
-    if (account?.providerId != providerId) {
+    if (!await _members.can(accountId, providerId, Cap.journalViewAll)) {
       return (ok: false, error: 'forbidden', data: null);
     }
     final appointments = await _appointments.listForProvider(providerId);
-    return (ok: true, error: null, data: _compute(appointments));
+    final stats = _compute(appointments);
+    // Field-level gating (module `access` §4): money figures only for
+    // finances.view — absence is a valid state, not an error.
+    if (!await _members.can(accountId, providerId, Cap.financesView)) {
+      stats
+        ..remove('todayRevenue')
+        ..remove('weekRevenue')
+        ..remove('monthRevenue');
+    }
+    return (ok: true, error: null, data: stats);
   }
 
   Map<String, dynamic> _compute(List<Map<String, dynamic>> appointments) {

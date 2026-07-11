@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/access/capabilities.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
-import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
 import 'package:myweli_backend/src/responses.dart';
@@ -36,11 +37,16 @@ Future<Response> onRequest(RequestContext context, String id) async {
   final lifecycle = context.read<AppointmentLifecycleService>();
   final LifecycleResult result;
   if (principal.role == 'provider') {
-    final account = await context.read<ProviderAuthRepository>().accountById(
-      principal.userId,
-    );
-    final managedProviderId = account?.providerId;
-    if (managedProviderId == null) {
+    // Module `access` R1: the acting salon comes from the membership layer;
+    // the lifecycle service re-checks it against the appointment.
+    final members = context.read<MembershipService>();
+    final managedProviderId = await members.activeSalonFor(principal.userId);
+    if (managedProviderId == null ||
+        !await members.can(
+          principal.userId,
+          managedProviderId,
+          Cap.journalManageAll,
+        )) {
       return jsonError(HttpStatus.forbidden, 'forbidden');
     }
     result = await lifecycle.rescheduleByProvider(

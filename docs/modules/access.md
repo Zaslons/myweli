@@ -1,5 +1,36 @@
 # Module: Team access (RBAC) — `access`
 
+> **Build sign-off 2026-07-11 (user):** promoted from V2 to **pre-launch**.
+> Decisions locked:
+> - Invitation TTL **7 days**, resendable · **four presets** (Réception ships
+>   now) · go-live/unpublish stays **owner-only**.
+> - **Pricing pivot (supersedes the PRD freemium):** no free operating tier.
+>   Registration lands in a free, time-unlimited **SETUP state** (build the
+>   fiche/catalogue — salon unpublished, no bookings, no team). Publishing
+>   requires an active offer: **Pro (5 places) · Business (15) · Réseau
+>   (multi-salons, per-salon custom pricing « Nous contacter »)** — final
+>   ladder 2026-07-11 (Solo dropped; Pro is the entry point — revisit its
+>   price with the solo segment in mind). Seats count owner + active +
+>   invited; picking an offer starts its **3 mois offerts** (one trial per
+>   salon). **Offers/trials hang on the SALON, not the account** (multi-salon
+>   ready from R2). Prices = config/display copy (« à confirmer »; billing
+>   stays « Nous contacter », no custody).
+> - **Expiry:** warnings J-14/J-7/J-1 → **7 jours de grâce** → the salon is
+>   **UNPUBLISHED** (no new bookings; the app, journal, existing bookings and
+>   data export all keep working — never a data lockout) → admin marks the
+>   manual payment → republished. Enforcement **config-driven** (lenient
+>   during the cold-start). Team invites require an active offer.
+> - Existing salons at migration: grandfathered with a fresh 3-month trial.
+>
+> Slices R1–R6 (see §10); R2 carries the offer selection + expiry mechanics +
+> the admin « marquer payé / prolonger » action. **R6 (pre-launch, after R5)
+> = multi-salons**: the « Mes salons » switcher (app + web), « Ajouter un
+> salon » (Réseau-gated; each new salon = own setup state / offer / trial /
+> publish gate), verified-badge inheritance from the account's KYC, deletion
+> unpublishes ALL owned salons. Data is already per-salon (`provider_id`
+> everywhere); memberships are per (account, salon) — no data-splitting work.
+> Cross-salon consolidated reporting + shared client files stay V3.
+
 | | |
 |---|---|
 | **Module** | `access` — [docs/MODULES.md](../MODULES.md) §11 |
@@ -56,6 +87,7 @@ server-side `role → Set<Capability>` map in **one file**.
 | `deposit.manage` | Deposit policy settings (percentage, MoMo number) |
 | `members.manage` | Invite / revoke / change roles (this module's own surface) |
 | `subscription.manage` | Plan & billing |
+| `salon.publish` | Take the salon live / unpublish (sign-off 2026-07-11: owner-only) |
 
 New modules add capabilities (e.g. V3 `inventory.manage`, `payroll.view`);
 members inherit sane defaults from their preset — this is why overrides are
@@ -63,19 +95,20 @@ stored as **sparse deltas**, never a materialized full list.
 
 ### 2.2 The presets
 
-| Capability | **Propriétaire** | **Manager** | **Collaborateur** |
-|---|---|---|---|
-| `journal.view.all` / `manage.all` | ✅ | ✅ | — |
-| `journal.view.own` / `manage.own` | ✅ | ✅ | ✅ |
-| `clients.view` | ✅ | ✅ | — |
-| `catalogue.manage` | ✅ | ✅ | — |
-| `availability.manage` | ✅ | ✅ | — |
-| `profile.manage` | ✅ | ✅ | — |
-| `medias` (in `catalogue.manage`) | ✅ | ✅ | — |
-| `finances.view` | ✅ | — | — |
-| `deposit.manage` | ✅ | — | — |
-| `members.manage` | ✅ | — | — |
-| `subscription.manage` | ✅ | — | — |
+| Capability | **Propriétaire** | **Manager** | **Réception** | **Collaborateur** |
+|---|---|---|---|---|
+| `journal.view.all` / `manage.all` | ✅ | ✅ | ✅ | — |
+| `journal.view.own` / `manage.own` | ✅ | ✅ | ✅ | ✅ |
+| `clients.view` | ✅ | ✅ | ✅ | — |
+| `catalogue.manage` | ✅ | ✅ | — | — |
+| `availability.manage` | ✅ | ✅ | — | — |
+| `profile.manage` | ✅ | ✅ | — | — |
+| `medias` (in `catalogue.manage`) | ✅ | ✅ | — | — |
+| `finances.view` | ✅ | — | — | — |
+| `deposit.manage` | ✅ | — | — | — |
+| `members.manage` | ✅ | — | — | — |
+| `subscription.manage` | ✅ | — | — | — |
+| `salon.publish` | ✅ | — | — | — |
 
 - **Propriétaire**: exactly one per salon (the registering account). Cannot be
   revoked, demoted, or edited by anyone else (owner-protected actions).
@@ -85,10 +118,27 @@ stored as **sparse deltas**, never a materialized full list.
   minus finances; a V3 override can grant `finances.view` per person.)
 - **Collaborateur**: REQUIRES an `artist_id` link at invite time. Their app is
   « ma journée » — own calendar, mark own bookings done. Nothing else.
-- **Réception** (deferred preset): `journal.*.all` + `clients.view`, no
-  catalogue/settings. Add only when a salon asks — three presets to start.
+- **Réception** (sign-off 2026-07-11: ships NOW): the front desk — the whole
+  journal + the fichier clients, no catalogue/settings/money. `role='reception'`.
 - **Effective capabilities** = preset ∪ grants − denies (overrides V3-editable,
   V2 rows always empty).
+
+### 2.3 Post-design drift (verified 2026-07-11 — the build handles these)
+
+1. **Salon self-provisioning** (lifecycle program, 2026-07-10):
+   `GET /me/provider` auto-creates a draft salon for accounts without one.
+   Guard: provision ONLY when the account holds **no membership anywhere**;
+   members resolve their salon via the membership row.
+2. **Account deletion T53** (PR #221): deleting an account must also revoke
+   its memberships; an OWNER's deletion takes the staff memberships down with
+   the salon; a member's own deletion touches nothing salon-side.
+3. The ownership checks to swap live in ~7 services (catalog, dashboard,
+   earnings, journal, clients, appointments, provisioning) — the
+   `membershipOf()` refactor is contained.
+4. The table below says `provider_accounts`; the real table is
+   **`provider_users`**.
+5. The login bridge (`202 {invitations}`) has THREE identity routes to touch:
+   google, email-OTP verify, phone-OTP verify (dormant).
 
 ## 3. Data model
 
@@ -268,21 +318,25 @@ set ops. No new N+1: member list joins artists in one query. Budgets unchanged.
 
 | Slice | Contents | Phase |
 |---|---|---|
-| A1 | Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change) | V2 opener (low-risk, can ship early) |
+| A1/R1 | ~~Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change)~~ ✅ done 2026-07-11 (PR feat/team-access-r1-foundation; + the provisioning guard, deletion revocation and `salon.publish`) | pre-launch |
 | A2 | Invites + accept flow + Équipe screens (app + web) + presets enforcement + audit + tests | V2 core |
 | A3 | Collaborateur « Ma journée » app reshape + web own-calendar | V2 |
 | A4 | Seats gate (config-off until pricing) | V2, flag-hidden |
-| A5 | Override matrix UI + Réception preset + owner transfer + audit viewer | V3 |
+| A5/R6 | **Multi-salons** (pre-launch, sign-off 2026-07-11): switcher + « Ajouter un salon » + Réseau gating + badge inheritance | pre-launch |
+| A6 | Override matrix UI + owner transfer + audit viewer | V3 |
 
 Each slice still gets its `docs/design/` spec + sign-off before code (rule).
 
 ## 11. Open questions (to resolve at build sign-off)
 
-1. Included free seats: owner + 2 proposed — confirm number at pricing time.
+1. ~~Included free seats~~ **Resolved (2026-07-11, superseded same day by
+   the pricing pivot): Solo 1 / Pro 5 / Business 15 (active+invited incl.
+   owner); 3 mois offerts per offer; expiry → grace → unpublish (see the
+   sign-off block).**
 2. ~~Does a Collaborateur see client contact details on their OWN bookings?~~
    **Resolved (2026-07-08, clients §11.2): yes — name + phone on own bookings
    of the SAME DAY only; masked elsewhere; the full base stays behind
    `clients.view` (audited).**
-3. Invitation TTL (proposed 7 days, resendable) — confirm.
+3. ~~Invitation TTL~~ **Resolved (2026-07-11): 7 days, resendable.**
 4. Manager + `finances.view` demand — decide only from real salon feedback,
    as a V3 override, not a preset change.

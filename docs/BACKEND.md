@@ -159,6 +159,13 @@ Every PR is tested; treat an unchecked box as "not done":
 
 Seeded for the surfaces shipped/known. Extend per slice.
 
+> **Tenant authz (module `access` R1, 2026-07-11):** every "may this provider
+> account act on salon X?" decision now resolves through
+> `MembershipService.can(accountId, providerId, capability)` — per-request
+> (never cached in the JWT → revocation is immediate, T38-ready), deny by
+> default, presets in `lib/src/access/capabilities.dart`. Only backfilled
+> owners exist until R2 ships invitations; rows T36–T40 land with R2.
+
 | # | Surface | Threat (STRIDE) | Mitigation | Status |
 |---|---------|-----------------|------------|--------|
 | T1 | OTP request | **S/D** — SMS-bomb / enumeration | Per-phone resend budget + lockout (429); generic responses; provider-side cost caps (later) | Implemented (B2) |

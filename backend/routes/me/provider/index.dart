@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
@@ -46,13 +47,25 @@ Future<Response> onRequest(RequestContext context) async {
   }
   // Self-heal: accounts registered before salon provisioning existed (or
   // after a partial failure) get their draft salon on first read
-  // (docs/design/pro-salon-lifecycle.md §2).
-  if (account.providerId == null) {
-    account = await context.read<SalonProvisioningService>().ensureSalon(
-      account,
-    );
+  // (docs/design/pro-salon-lifecycle.md §2). GUARD (module `access` §2.3-1):
+  // an account that holds ANY membership is a team member, not an ownerless
+  // owner — it must never get a salon auto-created; its salon comes from the
+  // membership instead.
+  final members = context.read<MembershipService>();
+  String? providerId = account.providerId;
+  if (providerId == null) {
+    if (await members.hasAnyMembership(account.id)) {
+      providerId = await members.activeSalonFor(account.id);
+    } else {
+      account = await context.read<SalonProvisioningService>().ensureSalon(
+        account,
+      );
+      providerId = account.providerId;
+    }
   }
-  final providerId = account.providerId!;
+  if (providerId == null) {
+    return jsonError(HttpStatus.forbidden, 'forbidden');
+  }
 
   final provider = await context.read<ProvidersRepository>().byId(providerId);
   if (provider == null) {

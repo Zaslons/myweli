@@ -1,9 +1,10 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/access/capabilities.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
-import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -21,11 +22,13 @@ Future<Response> onRequest(RequestContext context, String id) async {
   }
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
 
-  // Authorize: the account must manage this salon.
-  final account = await context.read<ProviderAuthRepository>().accountById(
+  // Authorize (module `access` R1): manual booking = whole-journal manage.
+  final allowed = await context.read<MembershipService>().can(
     principal.userId,
+    id,
+    Cap.journalManageAll,
   );
-  if (account?.providerId != id) {
+  if (!allowed) {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
 

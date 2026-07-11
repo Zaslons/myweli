@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 
+import 'access/membership_repository.dart';
 import 'appointments/appointment_repository.dart';
 import 'auth/provider_auth_repository.dart';
 import 'providers_repository.dart';
@@ -14,7 +15,8 @@ class ProviderAccountService {
     this._auth,
     this._providers,
     this._appointments,
-    this._storage, {
+    this._storage,
+    this._memberships, {
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -22,6 +24,7 @@ class ProviderAccountService {
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final StorageService _storage;
+  final MembershipRepository _memberships;
   final http.Client _client;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
@@ -62,6 +65,10 @@ class ProviderAccountService {
         // Tolerated: uuid-named + private + rows deleted ⇒ unreachable.
       }
     }
+
+    // Module `access` (drift §2.3-2): the identity's memberships die with it
+    // — a member row must never outlive its account.
+    await _memberships.revokeAllForAccount(accountId);
 
     final ok = await _auth.deleteAccount(accountId);
     return ok ? (ok: true, error: null) : (ok: false, error: 'forbidden');

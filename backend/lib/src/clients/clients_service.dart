@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import '../access/capabilities.dart';
+import '../access/membership_service.dart';
 import '../appointments/appointment_repository.dart';
 import '../auth/auth_repository.dart';
 import '../auth/provider_auth_repository.dart';
@@ -10,8 +12,8 @@ typedef ClientsResult = ({bool ok, String? error, Map<String, dynamic>? data});
 
 /// The salon client base (module `clients` C1 — docs/design/clients-c1.md).
 ///
-/// Ownership: every entry point resolves the caller's provider account and
-/// requires `account.providerId == providerId` (threat T45; deny by default).
+/// Ownership: every entry point requires the `clients.view` capability
+/// inside [providerId] via the membership layer (threat T45; deny by default).
 /// The capability gate is named `clients.view` from day one — until the
 /// `access` module ships memberships, "has the capability" == "owns the
 /// salon", exactly like every other pro surface.
@@ -25,6 +27,7 @@ typedef ClientsResult = ({bool ok, String? error, Map<String, dynamic>? data});
 class ClientsService {
   ClientsService(
     this._providerAuth,
+    this._members,
     this._users,
     this._clients,
     this._appointments,
@@ -32,6 +35,7 @@ class ClientsService {
   );
 
   final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final AuthRepository _users;
   final ClientsRepository _clients;
   final AppointmentRepository _appointments;
@@ -47,15 +51,11 @@ class ClientsService {
       '${prefix}_${DateTime.now().microsecondsSinceEpoch}_'
       '${_random.nextInt(1 << 32)}';
 
-  /// Resolves + authorizes the caller for [providerId] (capability
-  /// `clients.view`). Null → forbidden.
-  Future<ProviderAccount?> _authorized(
-    String accountId,
-    String providerId,
-  ) async {
-    final account = await _providerAuth.accountById(accountId);
-    if (account?.providerId != providerId) return null;
-    return account;
+  /// Tenant authz (module `access` R1): the caller must hold `clients.view`
+  /// inside [providerId]. Null → forbidden.
+  Future<Object?> _authorized(String accountId, String providerId) async {
+    final allowed = await _members.can(accountId, providerId, Cap.clientsView);
+    return allowed ? accountId : null;
   }
 
   // ---- List ----------------------------------------------------------------

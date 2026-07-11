@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -34,7 +36,10 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
-    pro = ProAppointmentService(providerAuth, appts);
+    pro = ProAppointmentService(
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
+      appts,
+    );
 
     accountForP1 = (await providerAuth.register(
       email: 'p1@test.pro',

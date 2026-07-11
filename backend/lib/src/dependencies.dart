@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 
+import 'access/membership_repository.dart';
+import 'access/membership_service.dart';
 import 'admin/admin_auth_repository.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/admin_provider_service.dart';
@@ -35,6 +37,7 @@ import 'db/postgres_clients_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
+import 'db/postgres_membership_repository.dart';
 import 'db/postgres_messaging_outbox_repository.dart';
 import 'db/postgres_messaging_prefs_repository.dart';
 import 'db/postgres_notification_prefs_repository.dart';
@@ -244,6 +247,7 @@ final ProviderAuditLogRepository providerAuditLogRepository = _pool == null
 /// Module `clients` C1 (docs/design/clients-c1.md).
 final ClientsService clientsService = ClientsService(
   providerAuthRepository,
+  membershipService,
   authRepository,
   clientsRepository,
   appointmentRepository,
@@ -265,14 +269,14 @@ final AppointmentLifecycleService appointmentLifecycleService =
     );
 
 final ProAppointmentService proAppointmentService = ProAppointmentService(
-  providerAuthRepository,
+  membershipService,
   appointmentRepository,
   clients: clientsService,
 );
 
 /// Journal day view (module journal J1 — docs/design/journal-j1-grid.md).
 final JournalService journalService = JournalService(
-  providerAuthRepository,
+  membershipService,
   providersRepository,
   appointmentRepository,
   clientsService,
@@ -328,11 +332,13 @@ final List<String> _galleryAllowedOrigins = () {
 final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   providersRepository,
   providerAuthRepository,
+  membershipService,
   allowedImageOrigins: _galleryAllowedOrigins,
 );
 
 final UploadSigningService uploadSigningService = UploadSigningService(
   providerAuthRepository,
+  membershipService,
   storageService,
 );
 
@@ -340,19 +346,35 @@ final KycService kycService = KycService(providerAuthRepository);
 
 /// Salon lifecycle (docs/design/pro-salon-lifecycle.md): draft creation at
 /// registration + the /me/provider self-heal + the publish gate.
+/// Module `access` (R1): membership rows + the per-request capability
+/// resolver every tenant-authz decision now goes through.
+final MembershipRepository membershipRepository = _pool == null
+    ? InMemoryMembershipRepository()
+    : PostgresMembershipRepository(_pool!);
+
+final MembershipService membershipService = MembershipService(
+  membershipRepository,
+  providerAuthRepository,
+);
+
 final ProviderAccountService providerAccountService = ProviderAccountService(
   providerAuthRepository,
   providersRepository,
   appointmentRepository,
   storageService,
+  membershipRepository,
 );
 
 final SalonProvisioningService salonProvisioningService =
-    SalonProvisioningService(providersRepository, providerAuthRepository);
+    SalonProvisioningService(
+      providersRepository,
+      providerAuthRepository,
+      membershipRepository,
+    );
 
 final DepositService depositService = DepositService(
   appointmentRepository,
-  providerAuthRepository,
+  membershipService,
   storageService,
 );
 
@@ -410,10 +432,10 @@ final AnalyticsService analyticsService = AnalyticsService(
 );
 
 final ProviderDashboardService providerDashboardService =
-    ProviderDashboardService(providerAuthRepository, appointmentRepository);
+    ProviderDashboardService(membershipService, appointmentRepository);
 
 final ProviderEarningsService providerEarningsService = ProviderEarningsService(
-  providerAuthRepository,
+  membershipService,
   appointmentRepository,
 );
 

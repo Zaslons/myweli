@@ -1,3 +1,5 @@
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/admin/dispute_service.dart';
 import 'package:myweli_backend/src/admin/disputes_repository.dart';
@@ -33,9 +35,13 @@ void main() {
     disputes = InMemoryDisputesRepository();
     appts = InMemoryAppointmentRepository();
     audit = InMemoryAuditLogRepository();
+    final providerAuth = InMemoryProviderAuthRepository(
+      tokens: tokens,
+      isProd: false,
+    );
     final deposit = DepositService(
       appts,
-      InMemoryProviderAuthRepository(tokens: tokens, isProd: false),
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
       const FakeStorageService(),
     );
     svc = DisputeService(disputes, appts, deposit, audit);

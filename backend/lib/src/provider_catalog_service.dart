@@ -1,3 +1,5 @@
+import 'access/capabilities.dart';
+import 'access/membership_service.dart';
 import 'auth/provider_auth_repository.dart';
 import 'providers_repository.dart';
 import 'validators.dart';
@@ -15,12 +17,14 @@ typedef CatalogResult = ({bool ok, String? error, Object? data});
 class ProviderCatalogService {
   ProviderCatalogService(
     this._providers,
-    this._providerAuth, {
+    this._providerAuth,
+    this._members, {
     List<String> allowedImageOrigins = const [],
   }) : _allowedImageOrigins = allowedImageOrigins;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
 
   /// Gallery URL origins accepted on write. Empty → accept any (dev). When set
   /// (prod), each gallery URL must start with one of these (anti-SSRF/hotlink).
@@ -30,7 +34,9 @@ class ProviderCatalogService {
     String accountId,
     String providerId,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final provider = await _providers.byId(providerId);
     if (provider == null) return _notFound;
     return (
@@ -45,7 +51,9 @@ class ProviderCatalogService {
     String providerId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final error = _validateService(body, partial: false);
     if (error != null) return (ok: false, error: error, data: null);
 
@@ -72,7 +80,9 @@ class ProviderCatalogService {
     String serviceId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final error = _validateService(body, partial: true);
     if (error != null) return (ok: false, error: error, data: null);
 
@@ -104,7 +114,9 @@ class ProviderCatalogService {
     String providerId,
     String serviceId,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final removed = await _providers.deleteService(providerId, serviceId);
     return removed ? (ok: true, error: null, data: null) : _notFound;
   }
@@ -117,7 +129,9 @@ class ProviderCatalogService {
     String providerId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.profileManage)) {
+      return _forbidden;
+    }
     final error = _validateProfile(body);
     if (error != null) return (ok: false, error: error, data: null);
 
@@ -193,7 +207,9 @@ class ProviderCatalogService {
     String accountId,
     String providerId,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.availabilityManage)) {
+      return _forbidden;
+    }
     final provider = await _providers.byId(providerId);
     if (provider == null) return _notFound;
     return (ok: true, error: null, data: provider['availability']);
@@ -204,7 +220,9 @@ class ProviderCatalogService {
     String providerId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.availabilityManage)) {
+      return _forbidden;
+    }
     final error = _validateAvailability(body);
     if (error != null) return (ok: false, error: error, data: null);
 
@@ -225,7 +243,9 @@ class ProviderCatalogService {
 
   /// The salon's gallery (`imageUrls`). Design: docs/design/pro-gallery.md.
   Future<CatalogResult> gallery(String accountId, String providerId) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final provider = await _providers.byId(providerId);
     if (provider == null) return _notFound;
     return (
@@ -242,7 +262,9 @@ class ProviderCatalogService {
     String providerId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final raw = body['imageUrls'];
     if (raw is! List) return (ok: false, error: 'invalid_input', data: null);
     if (raw.length > _maxGalleryPhotos) {
@@ -278,7 +300,9 @@ class ProviderCatalogService {
     String accountId,
     String providerId,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final provider = await _providers.byId(providerId);
     if (provider == null) return _notFound;
     return (
@@ -298,7 +322,9 @@ class ProviderCatalogService {
     String providerId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final raw = body['beforeAfters'];
     if (raw is! List || raw.length > _maxBeforeAfterPairs) {
       return (ok: false, error: 'invalid_input', data: null);
@@ -346,7 +372,9 @@ class ProviderCatalogService {
   // ---- staff (artists) — design: docs/design/pro-artists.md -----------------
 
   Future<CatalogResult> listArtists(String accountId, String providerId) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final provider = await _providers.byId(providerId);
     if (provider == null) return _notFound;
     return (
@@ -361,7 +389,9 @@ class ProviderCatalogService {
     String providerId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final name = body['name'];
     if (name is! String || name.trim().isEmpty) {
       return (ok: false, error: 'invalid_input', data: null);
@@ -387,7 +417,9 @@ class ProviderCatalogService {
     String artistId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     if (body.containsKey('name')) {
       final name = body['name'];
       if (name is! String || name.trim().isEmpty) {
@@ -415,7 +447,9 @@ class ProviderCatalogService {
     String providerId,
     String artistId,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.catalogueManage)) {
+      return _forbidden;
+    }
     final removed = await _providers.deleteArtist(providerId, artistId);
     return removed ? (ok: true, error: null, data: null) : _notFound;
   }
@@ -427,7 +461,9 @@ class ProviderCatalogService {
     String accountId,
     String providerId,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.depositManage)) {
+      return _forbidden;
+    }
     final p = await _providers.byId(providerId);
     if (p == null) return _notFound;
     return (ok: true, error: null, data: _policyDto(p));
@@ -440,7 +476,9 @@ class ProviderCatalogService {
     String providerId,
     Map<String, dynamic> body,
   ) async {
-    if (!await _owns(accountId, providerId)) return _forbidden;
+    if (!await _can(accountId, providerId, Cap.depositManage)) {
+      return _forbidden;
+    }
     final error = _validateDepositPolicy(body);
     if (error != null) return (ok: false, error: error, data: null);
 
@@ -511,11 +549,10 @@ class ProviderCatalogService {
     return null;
   }
 
-  /// Ownership: the account behind the token must be linked to [providerId].
-  Future<bool> _owns(String accountId, String providerId) async {
-    final account = await _providerAuth.accountById(accountId);
-    return account?.providerId == providerId;
-  }
+  /// Tenant authz (module `access` R1): the caller must hold [capability]
+  /// inside [providerId] — resolved per request via the membership layer.
+  Future<bool> _can(String accountId, String providerId, String capability) =>
+      _members.can(accountId, providerId, capability);
 
   /// Returns an error code (`invalid_input`) or null. On create everything
   /// required is checked; on a partial update only the provided fields are.

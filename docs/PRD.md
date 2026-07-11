@@ -216,12 +216,21 @@ This section is the "why" behind many requirements. Treat it as binding context.
 
 > **Pricing direction (2026-06-28, provisional — OQ-2):** planned **base monthly ≈ 20 000–40 000 FCFA** (without add-ons), launched with a deliberate **anchor price of 70 000 FCFA/mo** shown as the "regular" Pro price so the eventual paid price reads as a discount. Advertised **free period = 3 months** (supersedes the 30-day note below). Figures live in `mobile/lib/core/config/subscription_plans.dart`; the trial length is `kProTrialDays = 90` (backend). The table below is the original indicative scaffold.
 
-| Tier | Price (indicative) | Who | Key entitlements |
+> **Pricing pivot (2026-07-11, user decision — supersedes the freemium model
+> below):** there is **no free operating tier**. Registration lands in a
+> free, time-unlimited **SETUP state** (build the profile/catalogue — salon
+> unpublished, no bookings, no team). Publishing and receiving bookings
+> require an **active offer**; every offer starts with **3 mois offerts**
+> (one trial per salon). Expiry → warnings (J-14/J-7/J-1) → 7 jours de
+> grâce → the salon is **unpublished** (app/journal/data stay fully
+> accessible — never a data lockout) → manual payment (« Nous contacter »,
+> admin-confirmed) → republished. Enforcement is config-driven.
+
+| Tier | Price (indicative — à confirmer) | Who | Key entitlements |
 |---|---|---|---|
-| **Découverte** (Free) | 0 | New/solo providers, freelancers | Public profile + booking page, accept bookings, calendar, 1 staff, **deposits enabled**, basic WhatsApp/SMS confirmations, capped at N bookings/month, Myweli branding on booking page |
-| **Pro** | ~7 500 / mo (or annual discount) | Single-location salons | Unlimited bookings, up to 5 staff, automated WhatsApp reminders, no-show protection rules, client database, reviews management, remove Myweli branding, priority support |
-| **Business** | ~20 000 / mo | Multi-chair / busy salons | Up to 15 staff, advanced calendar (resources, buffers), analytics & reports, marketing tools (promos, broadcast), commission tracking, featured-eligible |
-| **Entreprise** | Custom | Chains / multi-location (V3) | Multi-location, roles & permissions, consolidated reporting, API access |
+| **Pro** | ~7 500 / mo (or annual discount) | Solo providers & single-location salons (the entry point — price it with the solo segment in mind) | Publish + accept bookings, calendar/journal, **5 places** (team access/RBAC), deposits, WhatsApp/SMS confirmations, client file, automated reminders, no-show protection, reviews management |
+| **Business** | ~20 000 / mo | Multi-chair / busy salons | Everything in Pro + **15 places**, advanced calendar (resources, buffers), analytics & reports, marketing tools (promos, broadcast), commission tracking, featured-eligible, priority support |
+| **Réseau** | Per salon, custom (« Nous contacter ») | Owners with several salons | Business-level features per salon; one account owns/switches between salons; **each salon has its own offer, trial and publish gate**; consolidated reporting V3 |
 
 Add-ons (V2+): extra staff seats, featured placement (paid promotion), SMS bundles, advanced marketing.
 
@@ -437,7 +446,7 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 - **FR-PRO-KYC-001 [V1]** **KYC & verification flow** (✅ built — pro uploader + admin approve/reject queue; signed-GET doc viewing): upload business registration / ID, owner photo, business address proof; status pending → verified/rejected; **"Verified" badge** surfaced on consumer profile.
   - **AC:** A provider cannot receive bookings with deposits until verified; admin can approve/reject with reason; provider sees status and required actions.
 - **FR-PRO-ONB-001 [V1]** Guided onboarding (✅ built — progress checklist): create profile → add ≥3 services → add staff → set availability → upload ≥3 photos → set deposit & cancellation policy → go live. Progress checklist.
-- **FR-PRO-AUTH-002 [V2]** Roles: owner / manager / stylist with permissions (the empty `settings/` + multi-staff needs).
+- **FR-PRO-AUTH-002 [V1.5 — pre-launch, in build 2026-07-11]** Team access (RBAC): Propriétaire / Manager / Réception / Collaborateur presets over a capability matrix, email invitations, per-request resolution. Full design: docs/modules/access.md (slices R1–R5).
 
 ### 10.2 Profile & media
 - **FR-PRO-PROF-001 [V1]** Edit business profile: name, description, category, commune, address (pin + landmark), hours, contact, WhatsApp number, home-service capability + zone + transport fee. *(profile screen exists; add fields)*

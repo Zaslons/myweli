@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
@@ -51,15 +53,20 @@ void main() {
     ).thenReturn(const AuthMethods(AuthMethods.defaults));
     when(() => context.read<TokenService>()).thenReturn(ts);
     when(() => context.read<MessagingService>()).thenReturn(messaging);
-    when(() => context.read<ClientsService>()).thenReturn(
-      ClientsService(
-        InMemoryProviderAuthRepository(tokens: ts, isProd: false),
+    when(() => context.read<ClientsService>()).thenReturn(() {
+      final providerAuth = InMemoryProviderAuthRepository(
+        tokens: ts,
+        isProd: false,
+      );
+      return ClientsService(
+        providerAuth,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
         repo,
         InMemoryClientsRepository(),
         InMemoryAppointmentRepository(),
         InMemoryProviderAuditLogRepository(),
-      ),
-    );
+      );
+    }());
     return context;
   }
 
