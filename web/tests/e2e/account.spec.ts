@@ -60,10 +60,27 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
     page.getByRole('link', { name: 'Réserver à nouveau' }),
   ).toHaveAttribute('href', '/beaute-divine/reserver?services=s1');
 
-  // Leave a review.
+  // Leave a review — with a photo (parity 2.13).
   await page.getByRole('button', { name: '5 étoiles' }).click();
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({
+      name: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from('fake-jpeg-bytes'),
+    });
+  await expect(page.getByAltText('Photo 1')).toBeVisible();
   await page.getByRole('button', { name: 'Envoyer l’avis' }).click();
   await expect(page.getByText(/Merci pour votre avis/)).toBeVisible();
+
+  // Signed-in « Signaler » on the public page (parity 2.14).
+  await page.goto('/beaute-divine');
+  await page.getByRole('button', { name: 'Signaler', exact: true }).click();
+  await page.getByLabel('Raison du signalement').fill('Contenu déplacé');
+  await page.getByRole('button', { name: 'Signaler', exact: true }).click();
+  await expect(
+    page.getByText('Merci. Notre équipe va examiner cet avis.'),
+  ).toBeVisible();
 });
 
 test('M8.3: provider favorite toggle → /connexion when signed out', async ({

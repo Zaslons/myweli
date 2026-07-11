@@ -38,6 +38,7 @@ void main() {
       serviceLocator.providerService = MockProviderService();
       serviceLocator.reviewService = MockReviewService();
       serviceLocator.imageUploadService = MockImageUploadService();
+      serviceLocator.reviewImageUploadService = MockImageUploadService();
     });
 
     test('submitReview adds the review to the selected provider', () async {

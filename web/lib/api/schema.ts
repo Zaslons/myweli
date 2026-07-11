@@ -2611,7 +2611,7 @@ export interface paths {
         put?: never;
         /**
          * Presign a direct-to-storage upload (B-upload, B-kyc)
-         * @description Provider-only. Returns a short-lived presigned **multipart POST** to object storage (Cloudflare R2). The object key is built server-side from the token, and the signed policy pins the key, content-type, and a size range — so bytes go client → storage directly (never through the API) and a caller can only write under its own prefix. **`purpose=gallery`** → public bucket, prefix `gallery/{providerId}`, returns `publicUrl` (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a separate **private** bucket, prefix `kyc/{accountId}`, returns the `key` only (ID docs are never public) and additionally accepts `application/ pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC), prefix `deposit/{userId}`, returns the `key` only (payment proof is never public; images only). Role is gated **per purpose**: `deposit` requires `user`; `gallery`/`kyc` require `provider`.
+         * @description Provider-only. Returns a short-lived presigned **multipart POST** to object storage (Cloudflare R2). The object key is built server-side from the token, and the signed policy pins the key, content-type, and a size range — so bytes go client → storage directly (never through the API) and a caller can only write under its own prefix. **`purpose=gallery`** → public bucket, prefix `gallery/{providerId}`, returns `publicUrl` (saved via `PUT /providers/{id}/gallery`). **`purpose=kyc`** → a separate **private** bucket, prefix `kyc/{accountId}`, returns the `key` only (ID docs are never public) and additionally accepts `application/ pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC), prefix `deposit/{userId}`, returns the `key` only (payment proof is never public; images only). **`purpose=review`** → **consumer-only**, the public bucket (review tiles render the photos), prefix `review/{userId}`, returns `publicUrl` (images only; review submit caps `photoUrls` at 6). Role is gated **per purpose**: `deposit`/`review` require `user`; `gallery`/`kyc` require `provider`.
          */
         post: {
             parameters: {
@@ -2626,7 +2626,7 @@ export interface paths {
                         /** @enum {string} */
                         contentType: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
                         /** @enum {string} */
-                        purpose: "gallery" | "kyc" | "deposit";
+                        purpose: "gallery" | "kyc" | "deposit" | "review";
                     };
                 };
             };

@@ -159,6 +159,7 @@ export function ProviderView({
             reviews={p.reviews ?? []}
             rating={p.rating}
             reviewCount={p.reviewCount}
+            slug={p.slug ?? ''}
           />
 
           <MapEmbed

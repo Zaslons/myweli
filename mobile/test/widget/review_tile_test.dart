@@ -39,4 +39,18 @@ void main() {
 
     expect(find.text('Réservation vérifiée'), findsNothing);
   });
+
+  testWidgets('« Signaler » shows only with the callback and taps through',
+      (tester) async {
+    // Read-only (pro Avis screen): no action.
+    await tester.pumpWidget(wrap(ReviewTile(review: review())));
+    expect(find.text('Signaler'), findsNothing);
+
+    var reported = false;
+    await tester.pumpWidget(
+      wrap(ReviewTile(review: review(), onReport: () => reported = true)),
+    );
+    await tester.tap(find.text('Signaler'));
+    expect(reported, isTrue);
+  });
 }

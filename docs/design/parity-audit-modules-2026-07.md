@@ -71,8 +71,8 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 2.13 | **Review photos: web can neither SUBMIT nor DISPLAY them (public page)** | ❌ web | App submit sheet attaches photos (picker → upload) and review tiles show them full-screen. Web `ReviewForm` = rating + text only; public `ReviewList` renders no `photoUrls` (the pro « Avis » page does — inconsistent) |
-| 2.14 | **Review reporting UI missing on BOTH surfaces** | ❌ both | `POST /reviews/{id}/report` (consumer-only) + the admin moderation queue are LIVE — but neither the app's review tiles nor the web's have a « Signaler » action. FR-REV-005's consumer half was never surfaced |
+| 2.13 | ~~Review photos: web can neither SUBMIT nor DISPLAY them~~ **FIXED 2026-07-11** (deeper than audited: NO surface could submit against the real backend — added `purpose=review` to /uploads/sign (consumer, public, review/{userId}); fixed the app's provider-session/gallery-purpose upload; web ReviewForm ≤3 photos + public ReviewList thumbnails/lightbox) | ✅ fixed | App submit sheet attaches photos (picker → upload) and review tiles show them full-screen. Web `ReviewForm` = rating + text only; public `ReviewList` renders no `photoUrls` (the pro « Avis » page does — inconsistent) |
+| 2.14 | ~~Review reporting UI missing on BOTH surfaces~~ **FIXED 2026-07-11** (« Signaler » on the app's tiles (opt-in callback; salon detail wires the dialog) AND the web public list (inline reason; 401 → login prompt)) | ✅ fixed | `POST /reviews/{id}/report` (consumer-only) + the admin moderation queue are LIVE — but neither the app's review tiles nor the web's have a « Signaler » action. FR-REV-005's consumer half was never surfaced |
 | 2.15 | Favorites | ⚠️ web | App: hearts on the salon page, the map markers, favorites screen + home strip. Web: heart on the salon page + mon-compte section only — no hearts on /recherche result cards or map markers (deferred), no home strip (ℹ️ SEO home) |
 
 ### Module 2 — proposed fixes (by priority)
@@ -232,7 +232,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | ~~**9.1** « Revenus » page (earnings + history) missing on web~~ ✅ fixed (PR fix/parity-p1c-web-surfaces) | web |
 
 ## P2 — flow/UX & conversion
-~~2.11 mobile-web sticky « Confirmer » bar · 2.10 booking notes on web · 2.1/2.2 « Trier » + « Disponible aujourd'hui » on web search~~ ✅ (P2a) · email-code RESEND with cooldown (both — pattern exists in the dormant OTP screen) · 1.10 « Client arrivé » on both detail pages · 1.5 app cancel dialog deposit warning · 1.6 app fake « Appeler » button · ~~3.2 web duration variants~~ ✅ (P2a) · 2.13 review photos on web (display, then submit) · 2.14 « Signaler » a review (both)
+~~2.11 mobile-web sticky « Confirmer » bar · 2.10 booking notes on web · 2.1/2.2 « Trier » + « Disponible aujourd'hui » on web search~~ ✅ (P2a) · email-code RESEND with cooldown (both — pattern exists in the dormant OTP screen) · 1.10 « Client arrivé » on both detail pages · 1.5 app cancel dialog deposit warning · 1.6 app fake « Appeler » button · ~~3.2 web duration variants~~ ✅ (P2a) · ~~2.13 review photos · 2.14 « Signaler » (both)~~ ✅ (P2b)
 
 ## P3 — polish
 1.2 web add-to-calendar · 1.3 web view-own-proof · 1.4 web notes display · 1.8 show the spécialiste (both) · 1.11 app gap-slot artist · 2.6 web gallery lightbox · 2.7 « Vos rendez-vous ici » on web salon page · 2.8 review invite on the web salon page · 2.15 hearts on web result cards · 3.5 web artist photo · 3.6 app photo reorder · 4.1 web custom tags · ~~9.2 web week-revenue card~~ ✅ (P1c) · 11.3 web name edit · 15.2 web support entry
@@ -242,4 +242,4 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
 3. ~~**P1b reschedule batch**~~ ✅ done 2026-07-11 — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
 4. ~~**P1c web-surfaces batch**~~ ✅ done 2026-07-11 — notification center/prefs + « Revenus » (+ 9.2 week card).
-5. **P2 batches**: ~~P2a search+funnel (2.1/2.2/2.10/2.11/3.2)~~ ✅ done 2026-07-11 · P2b reviews/trust (2.13/2.14) · P2c appointments+auth (1.10/1.5/1.6/resend) — then **P3 polish batches**, app and web sides grouped.
+5. **P2 batches**: ~~P2a search+funnel (2.1/2.2/2.10/2.11/3.2)~~ ✅ done 2026-07-11 · ~~P2b reviews/trust (2.13/2.14)~~ ✅ done 2026-07-11 · P2c appointments+auth (1.10/1.5/1.6/resend) — then **P3 polish batches**, app and web sides grouped.

@@ -12,7 +12,11 @@ import '../common/timed_cached_image.dart';
 class ReviewTile extends StatelessWidget {
   final Review review;
 
-  const ReviewTile({super.key, required this.review});
+  /// « Signaler » (FR-REV-005, parity 2.14) — consumer surfaces pass this;
+  /// null keeps the tile read-only (the pro « Avis » screen).
+  final VoidCallback? onReport;
+
+  const ReviewTile({super.key, required this.review, this.onReport});
 
   void _openPhoto(BuildContext context, String url) {
     showDialog<void>(
@@ -152,6 +156,24 @@ class ReviewTile extends StatelessWidget {
                   ),
                 ),
               ],
+              if (onReport != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: onReport,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Signaler',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

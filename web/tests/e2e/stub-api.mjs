@@ -68,6 +68,7 @@ const provider = {
       providerId: 'p1',
       userId: 'u1',
       userName: 'Awa',
+      photoUrls: ['https://cdn.stub/review/u1/seed.jpg'],
       rating: 5,
       text: 'Service impeccable.',
       createdAt: '2026-06-01T10:00:00.000Z',
@@ -362,6 +363,14 @@ createServer(async (req, res) => {
     });
   }
   // favorites (M8.3)
+  // « Signaler » (parity 2.14) — idempotent per reporter server-side.
+  const reportMatch = url.pathname.match(/^\/reviews\/([^/]+)\/report$/);
+  if (reportMatch) {
+    if (!req.headers.authorization) {
+      return json(res, 401, { error: 'unauthorized' });
+    }
+    return json(res, 200, {});
+  }
   if (url.pathname === '/me/notifications') {
     return json(res, 200, {
       items: NOTIFS.map((n) => ({ ...n, read: notifRead.has(n.id) })),
@@ -685,6 +694,16 @@ createServer(async (req, res) => {
         uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
         fields: {},
         key: `deposit/u1/${imgSeq++}.jpg`,
+      });
+    }
+    if (b.purpose === 'review') {
+      const n = imgSeq++;
+      return json(res, 200, {
+        method: 'POST',
+        uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
+        fields: {},
+        key: `review/u1/${n}.jpg`,
+        publicUrl: `https://cdn.stub/review/u1/${n}.jpg`,
       });
     }
     if (b.purpose === 'kyc') {

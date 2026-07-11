@@ -70,7 +70,7 @@ export async function rescheduleAppointment(
 
 export async function submitReview(
   appointmentId: string,
-  input: { rating: number; text?: string },
+  input: { rating: number; text?: string; photoUrls?: string[] },
 ): Promise<{ ok: boolean; status: number; error?: string }> {
   const res = await fetch(`/api/appointments/${appointmentId}/review`, {
     method: 'POST',

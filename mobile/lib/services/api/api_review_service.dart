@@ -82,6 +82,30 @@ class ApiReviewService implements ReviewServiceInterface {
   }
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
+  @override
+  Future<ApiResponse<void>> reportReview(
+    String reviewId, {
+    String? reason,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Connectez-vous pour signaler un avis');
+    }
+    final res = await _authed.send((t) => _client.post(
+          _uri('/reviews/$reviewId/report'),
+          headers: {
+            'Authorization': 'Bearer $t',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            if (reason != null && reason.trim().isNotEmpty)
+              'reason': reason.trim(),
+          }),
+        ));
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(null, message: 'Avis signalé');
+  }
+
   ApiResponse<T> _networkError<T>() =>
       ApiResponse.error('Pas de connexion. Réessayez.');
 
