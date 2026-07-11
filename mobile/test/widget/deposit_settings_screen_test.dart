@@ -5,10 +5,10 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
-import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
+import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:provider/provider.dart';
 
 class _MockProService extends Mock implements ProServiceInterface {}
