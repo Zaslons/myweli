@@ -4,6 +4,7 @@ import 'package:postgres/postgres.dart';
 
 import 'access/membership_repository.dart';
 import 'access/membership_service.dart';
+import 'access/team_service.dart';
 import 'admin/admin_auth_repository.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/admin_provider_service.dart';
@@ -395,6 +396,17 @@ final SubscriptionScheduler subscriptionScheduler = SubscriptionScheduler(
   emailProvider,
   pushService,
   enforce: subscriptionEnforcement,
+);
+
+/// Module `access` R2b: invitations + Equipe mutations (owner-gated,
+/// audited, offer/seat-gated).
+final TeamService teamService = TeamService(
+  membershipRepository,
+  membershipService,
+  providersRepository,
+  salonSubscriptionService,
+  emailProvider,
+  providerAuditLogRepository,
 );
 
 final SalonProvisioningService salonProvisioningService =

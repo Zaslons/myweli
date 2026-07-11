@@ -16,6 +16,8 @@ class Member {
     this.invitedBy,
     this.acceptedAt,
     this.revokedAt,
+    this.expiresAt,
+    this.resendsLeft = 3,
   });
 
   final String id;
@@ -41,6 +43,18 @@ class Member {
   final DateTime? acceptedAt;
   final DateTime? revokedAt;
 
+  /// Invitation validity (7 days from invite/resend); null on non-invited
+  /// rows (owners, backfill).
+  final DateTime? expiresAt;
+
+  /// Invitation resend budget (the email-OTP model).
+  final int resendsLeft;
+
+  bool get isExpiredInvitation =>
+      status == 'invited' &&
+      expiresAt != null &&
+      DateTime.now().toUtc().isAfter(expiresAt!);
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'providerId': providerId,
@@ -52,6 +66,8 @@ class Member {
     'invitedAt': invitedAt.toIso8601String(),
     'acceptedAt': acceptedAt?.toIso8601String(),
     'revokedAt': revokedAt?.toIso8601String(),
+    'expiresAt': expiresAt?.toIso8601String(),
+    'resendsLeft': resendsLeft,
   };
 
   Member copyWith({
@@ -61,6 +77,8 @@ class Member {
     String? status,
     DateTime? acceptedAt,
     DateTime? revokedAt,
+    DateTime? expiresAt,
+    int? resendsLeft,
   }) => Member(
     id: id,
     providerId: providerId,
@@ -73,6 +91,8 @@ class Member {
     invitedAt: invitedAt,
     acceptedAt: acceptedAt ?? this.acceptedAt,
     revokedAt: revokedAt ?? this.revokedAt,
+    expiresAt: expiresAt ?? this.expiresAt,
+    resendsLeft: resendsLeft ?? this.resendsLeft,
   );
 }
 
@@ -101,6 +121,44 @@ abstract interface class MembershipRepository {
 
   /// Mark every membership of the account revoked (account deletion, T53).
   Future<void> revokeAllForAccount(String accountId);
+
+  // ---- Invitations (R2b — docs/design/team-access-r2b-invitations.md) ----
+
+  /// Create a pending invitation row (`status='invited'`, 7-day validity).
+  Future<Member> invite({
+    required String providerId,
+    required String email,
+    required String role,
+    required DateTime expiresAt,
+    String? artistId,
+    String? invitedBy,
+  });
+
+  Future<Member?> byId(String memberId);
+
+  /// Pending, UNEXPIRED invitations for a (lowercased) email — the login
+  /// bridge's query.
+  Future<List<Member>> pendingByEmail(String email);
+
+  /// Role/artist change (the owner row is guarded in the service layer).
+  Future<Member?> updateMember(
+    String memberId, {
+    String? role,
+    String? artistId,
+  });
+
+  /// Idempotent revoke (invited or active → revoked).
+  Future<Member?> revoke(String memberId);
+
+  /// Reset the validity window and consume one resend; null when the budget
+  /// is exhausted.
+  Future<Member?> resendInvite(String memberId, DateTime newExpiresAt);
+
+  /// Invitation accepted: link the account, flip to active.
+  Future<Member?> activate(String memberId, String accountId);
+
+  /// Invitation declined: the row disappears (the owner can re-invite).
+  Future<void> decline(String memberId);
 }
 
 class InMemoryMembershipRepository implements MembershipRepository {
@@ -184,6 +242,102 @@ class InMemoryMembershipRepository implements MembershipRepository {
         _rows[i] = _rows[i].copyWith(status: 'revoked', revokedAt: now);
       }
     }
+  }
+
+  @override
+  Future<Member> invite({
+    required String providerId,
+    required String email,
+    required String role,
+    required DateTime expiresAt,
+    String? artistId,
+    String? invitedBy,
+  }) async {
+    final member = Member(
+      id: 'mem_${++_seq}',
+      providerId: providerId,
+      email: email.toLowerCase(),
+      role: role,
+      artistId: artistId,
+      status: 'invited',
+      invitedBy: invitedBy,
+      invitedAt: DateTime.now().toUtc(),
+      expiresAt: expiresAt,
+    );
+    _rows.add(member);
+    return member;
+  }
+
+  @override
+  Future<Member?> byId(String memberId) async {
+    for (final m in _rows) {
+      if (m.id == memberId) return m;
+    }
+    return null;
+  }
+
+  @override
+  Future<List<Member>> pendingByEmail(String email) async {
+    final key = email.toLowerCase();
+    final now = DateTime.now().toUtc();
+    return [
+      for (final m in _rows)
+        if (m.email == key &&
+            m.status == 'invited' &&
+            (m.expiresAt == null || now.isBefore(m.expiresAt!)))
+          m,
+    ];
+  }
+
+  Future<Member?> _mutate(String memberId, Member Function(Member) fn) async {
+    for (var i = 0; i < _rows.length; i++) {
+      if (_rows[i].id == memberId) {
+        _rows[i] = fn(_rows[i]);
+        return _rows[i];
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<Member?> updateMember(
+    String memberId, {
+    String? role,
+    String? artistId,
+  }) => _mutate(memberId, (m) => m.copyWith(role: role, artistId: artistId));
+
+  @override
+  Future<Member?> revoke(String memberId) => _mutate(
+    memberId,
+    (m) => m.status == 'revoked'
+        ? m
+        : m.copyWith(status: 'revoked', revokedAt: DateTime.now().toUtc()),
+  );
+
+  @override
+  Future<Member?> resendInvite(String memberId, DateTime newExpiresAt) async {
+    final member = await byId(memberId);
+    if (member == null || member.resendsLeft <= 0) return null;
+    return _mutate(
+      memberId,
+      (m) =>
+          m.copyWith(expiresAt: newExpiresAt, resendsLeft: m.resendsLeft - 1),
+    );
+  }
+
+  @override
+  Future<Member?> activate(String memberId, String accountId) => _mutate(
+    memberId,
+    (m) => m.copyWith(
+      accountId: accountId,
+      status: 'active',
+      acceptedAt: DateTime.now().toUtc(),
+    ),
+  );
+
+  @override
+  Future<void> decline(String memberId) async {
+    _rows.removeWhere((m) => m.id == memberId);
   }
 }
 

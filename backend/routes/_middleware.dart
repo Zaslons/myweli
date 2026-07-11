@@ -1,5 +1,6 @@
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
 import 'package:myweli_backend/src/admin/admin_provider_service.dart';
@@ -58,6 +59,7 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderAccountService>((_) => providerAccountService))
       .use(provider<MembershipService>((_) => membershipService))
       .use(provider<SalonSubscriptionService>((_) => salonSubscriptionService))
+      .use(provider<TeamService>((_) => teamService))
       .use(provider<SubscriptionScheduler>((_) => subscriptionScheduler))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
       .use(provider<BookingService>((_) => bookingService))

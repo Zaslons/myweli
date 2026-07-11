@@ -164,6 +164,18 @@ abstract interface class ProviderAuthRepository {
   /// sessions die. The salon LISTING is handled by the caller (unpublished,
   /// not destroyed). Returns false when the id is unknown.
   Future<bool> deleteAccount(String accountId);
+
+  /// A BARE member account for an invitation-accept (module `access` R2b):
+  /// no business fields, no salon — the membership is the relationship.
+  /// Verifies identity exactly like [register] (email OTP consumed here;
+  /// Google/Apple verified by the route). Dedup like register.
+  Future<ProviderVerifyResult> createMemberAccount({
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
+  });
 }
 
 class _Otp {
@@ -420,6 +432,57 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       createdAt: DateTime.now().toUtc(),
     );
     _byPhone[phoneNumber] = account;
+    _byId[account.id] = account;
+    _byEmail[emailKey] = account;
+    if (googleSub != null) _bySocial['google:$googleSub'] = account;
+    if (appleSub != null) _bySocial['apple:$appleSub'] = account;
+    return (
+      ok: true,
+      error: null,
+      provider: account,
+      tokens: _issueInFamily(account.id, _newId('fam')),
+    );
+  }
+
+  @override
+  Future<ProviderVerifyResult> createMemberAccount({
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
+  }) async {
+    final emailKey = email.trim().toLowerCase();
+    if (authProvider == 'email') {
+      final error = _checkOtpIn(_emailOtps, emailKey, emailCode ?? '');
+      if (error != null) {
+        return (ok: false, error: error, provider: null, tokens: null);
+      }
+    }
+    if (_byEmail.containsKey(emailKey) ||
+        (googleSub != null && _bySocial.containsKey('google:$googleSub')) ||
+        (appleSub != null && _bySocial.containsKey('apple:$appleSub'))) {
+      return (
+        ok: false,
+        error: 'provider_exists',
+        provider: null,
+        tokens: null,
+      );
+    }
+    // Bare: no business fields, no phone, NO salon (the R1 provisioning
+    // guard keeps ensureSalon away from membership-holding accounts).
+    final account = ProviderAccount(
+      id: _newId('provider'),
+      phoneNumber: '',
+      businessName: '',
+      businessType: 'other',
+      email: emailKey,
+      emailVerified: true,
+      authProvider: authProvider,
+      googleSub: googleSub,
+      appleSub: appleSub,
+      createdAt: DateTime.now().toUtc(),
+    );
     _byId[account.id] = account;
     _byEmail[emailKey] = account;
     if (googleSub != null) _bySocial['google:$googleSub'] = account;

@@ -78,6 +78,35 @@ Response verifierError(String error) => switch (error) {
 /// Shapes a provider login outcome as the (FLAT — historical) ProviderSession
 /// contract every provider login endpoint returns. Failures:
 /// `provider_not_found` → 404, anything else (otp_*) → 400.
+/// Team/invitation results (module `access` R2b): the error-code → status
+/// mapping for TeamService outcomes.
+Response teamResponse(
+  ({bool ok, String? error, Object? data}) result, {
+  int successStatus = HttpStatus.ok,
+}) {
+  if (result.ok) {
+    return Response.json(statusCode: successStatus, body: result.data ?? {});
+  }
+  return switch (result.error) {
+    'forbidden' => jsonError(HttpStatus.forbidden, 'forbidden'),
+    'owner_protected' => jsonError(HttpStatus.forbidden, 'owner_protected'),
+    'not_found' => jsonError(HttpStatus.notFound, 'not_found'),
+    'member_exists' => jsonError(HttpStatus.conflict, 'member_exists'),
+    'offer_required' => jsonError(HttpStatus.conflict, 'offer_required'),
+    'seat_limit' => jsonError(HttpStatus.conflict, 'seat_limit'),
+    'invitation_expired' => jsonError(
+      HttpStatus.conflict,
+      'invitation_expired',
+    ),
+    'invalid_state' => jsonError(HttpStatus.conflict, 'invalid_state'),
+    'invite_rate_limited' => jsonError(
+      HttpStatus.tooManyRequests,
+      'invite_rate_limited',
+    ),
+    _ => jsonError(HttpStatus.badRequest, result.error ?? 'invalid_input'),
+  };
+}
+
 Response providerSessionResponse(
   ProviderVerifyResult result, {
   int successStatus = HttpStatus.ok,
