@@ -1,5 +1,6 @@
+import 'access/capabilities.dart';
+import 'access/membership_service.dart';
 import 'appointments/appointment_repository.dart';
-import 'auth/provider_auth_repository.dart';
 
 /// Outcome of an earnings read; [data] is the `EarningsData` map on success.
 typedef EarningsResult = ({bool ok, String? error, Map<String, dynamic>? data});
@@ -11,9 +12,9 @@ typedef EarningsResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// `confirmed`+`completed` revenue), optionally bounded by an inclusive UTC
 /// date range on `appointmentDate`.
 class ProviderEarningsService {
-  ProviderEarningsService(this._providerAuth, this._appointments);
+  ProviderEarningsService(this._members, this._appointments);
 
-  final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final AppointmentRepository _appointments;
 
   Future<EarningsResult> earningsFor(
@@ -22,8 +23,7 @@ class ProviderEarningsService {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    final account = await _providerAuth.accountById(accountId);
-    if (account?.providerId != providerId) {
+    if (!await _members.can(accountId, providerId, Cap.financesView)) {
       return (ok: false, error: 'forbidden', data: null);
     }
 

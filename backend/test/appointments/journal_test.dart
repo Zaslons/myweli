@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/journal_service.dart';
@@ -82,15 +84,24 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
+    final members = MembershipService(
+      InMemoryMembershipRepository(),
+      providerAuth,
+    );
     clients = ClientsService(
       providerAuth,
+      members,
       InMemoryAuthRepository(tokens: tokens, isProd: false),
       InMemoryClientsRepository(),
       appts,
       InMemoryProviderAuditLogRepository(),
     );
-    journal = JournalService(providerAuth, providers, appts, clients);
-    proService = ProAppointmentService(providerAuth, appts, clients: clients);
+    journal = JournalService(members, providers, appts, clients);
+    proService = ProAppointmentService(
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
+      appts,
+      clients: clients,
+    );
     lifecycle = AppointmentLifecycleService(
       appts,
       SlotService(providers, appts),

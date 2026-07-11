@@ -87,6 +87,7 @@ server-side `role → Set<Capability>` map in **one file**.
 | `deposit.manage` | Deposit policy settings (percentage, MoMo number) |
 | `members.manage` | Invite / revoke / change roles (this module's own surface) |
 | `subscription.manage` | Plan & billing |
+| `salon.publish` | Take the salon live / unpublish (sign-off 2026-07-11: owner-only) |
 
 New modules add capabilities (e.g. V3 `inventory.manage`, `payroll.view`);
 members inherit sane defaults from their preset — this is why overrides are
@@ -107,6 +108,7 @@ stored as **sparse deltas**, never a materialized full list.
 | `deposit.manage` | ✅ | — | — | — |
 | `members.manage` | ✅ | — | — | — |
 | `subscription.manage` | ✅ | — | — | — |
+| `salon.publish` | ✅ | — | — | — |
 
 - **Propriétaire**: exactly one per salon (the registering account). Cannot be
   revoked, demoted, or edited by anyone else (owner-protected actions).
@@ -316,7 +318,7 @@ set ops. No new N+1: member list joins artists in one query. Budgets unchanged.
 
 | Slice | Contents | Phase |
 |---|---|---|
-| A1 | Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change) | V2 opener (low-risk, can ship early) |
+| A1/R1 | ~~Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change)~~ ✅ done 2026-07-11 (PR feat/team-access-r1-foundation; + the provisioning guard, deletion revocation and `salon.publish`) | pre-launch |
 | A2 | Invites + accept flow + Équipe screens (app + web) + presets enforcement + audit + tests | V2 core |
 | A3 | Collaborateur « Ma journée » app reshape + web own-calendar | V2 |
 | A4 | Seats gate (config-off until pricing) | V2, flag-hidden |

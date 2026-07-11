@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -80,7 +82,14 @@ void main() {
       isProd: false,
     );
     users = InMemoryAuthRepository(tokens: tokens, isProd: false);
-    service = ClientsService(providerAuth, users, clientsRepo, appts, audit);
+    service = ClientsService(
+      providerAuth,
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
+      users,
+      clientsRepo,
+      appts,
+      audit,
+    );
 
     final reg1 = await providerAuth.register(
       email: 'owner1@test.pro',

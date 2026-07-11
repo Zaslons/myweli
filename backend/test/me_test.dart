@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -19,14 +21,20 @@ class _MockAuth extends Mock implements AuthRepository {}
 
 /// A real ClientsService over empty in-memory repos — `DELETE /me` calls its
 /// [ClientsService.anonymizeUser] (module `clients` T48).
-ClientsService _clientsService(TokenService tokens, AuthRepository auth) =>
-    ClientsService(
-      InMemoryProviderAuthRepository(tokens: tokens, isProd: false),
-      auth,
-      InMemoryClientsRepository(),
-      InMemoryAppointmentRepository(),
-      InMemoryProviderAuditLogRepository(),
-    );
+ClientsService _clientsService(TokenService tokens, AuthRepository auth) {
+  final providerAuth = InMemoryProviderAuthRepository(
+    tokens: tokens,
+    isProd: false,
+  );
+  return ClientsService(
+    providerAuth,
+    MembershipService(InMemoryMembershipRepository(), providerAuth),
+    auth,
+    InMemoryClientsRepository(),
+    InMemoryAppointmentRepository(),
+    InMemoryProviderAuditLogRepository(),
+  );
+}
 
 void main() {
   group('routes /me GET', () {

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
@@ -111,7 +113,11 @@ void main() {
     test(
       'a saved deposit policy drives the next booking (server authority)',
       () async {
-        final catalog = ProviderCatalogService(providers, providerAuth);
+        final catalog = ProviderCatalogService(
+          providers,
+          providerAuth,
+          MembershipService(InMemoryMembershipRepository(), providerAuth),
+        );
         final reg = await providerAuth.register(
           email: '\$phone@test.pro',
           authProvider: 'google',
@@ -309,10 +315,14 @@ void main() {
       when(
         () => context.read<ProviderAuthRepository>(),
       ).thenReturn(providerAuth);
+      when(() => context.read<MembershipService>()).thenReturn(
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+      );
       when(() => context.read<AuthRepository>()).thenReturn(auth);
       when(() => context.read<ClientsService>()).thenReturn(
         ClientsService(
           providerAuth,
+          MembershipService(InMemoryMembershipRepository(), providerAuth),
           auth,
           InMemoryClientsRepository(),
           appts,

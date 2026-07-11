@@ -1,11 +1,12 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/access/capabilities.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
-import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 
@@ -36,13 +37,12 @@ Future<Response> _list(RequestContext context, Principal principal) async {
 
   final List<Map<String, dynamic>> items;
   if (principal.role == 'provider') {
-    // Resolve the provider account → the salon it manages. Deny by default: an
-    // authenticated provider not linked to a Provider can't list any salon.
-    final account = await context.read<ProviderAuthRepository>().accountById(
-      principal.userId,
-    );
-    final providerId = account?.providerId;
-    if (providerId == null) {
+    // Resolve the caller's acting salon via the membership layer (module
+    // `access` R1) and require the whole-journal read. Deny by default.
+    final members = context.read<MembershipService>();
+    final providerId = await members.activeSalonFor(principal.userId);
+    if (providerId == null ||
+        !await members.can(principal.userId, providerId, Cap.journalViewAll)) {
       return jsonError(HttpStatus.forbidden, 'forbidden');
     }
     items = await context.read<ClientsService>().enrichForProvider(

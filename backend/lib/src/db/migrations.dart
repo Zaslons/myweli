@@ -668,6 +668,43 @@ ALTER TABLE appointments ADD CONSTRAINT appointments_artist_no_overlap
   ) WHERE (status IN ('pending', 'confirmed') AND artist_id IS NOT NULL)''',
     ],
   ),
+  (
+    id: '0027_provider_members',
+    statements: [
+      // Module `access` (docs/modules/access.md §3): who can act inside
+      // which salon, as which role. One row per (salon, email); account_id
+      // stays NULL while the invitation is pending (R2).
+      '''
+CREATE TABLE IF NOT EXISTS provider_members (
+  id           text PRIMARY KEY,
+  provider_id  text NOT NULL REFERENCES providers(id),
+  account_id   text REFERENCES provider_users(id),
+  email        text NOT NULL,
+  role         text NOT NULL,
+  artist_id    text,
+  status       text NOT NULL,
+  grants       jsonb NOT NULL DEFAULT '[]',
+  denies       jsonb NOT NULL DEFAULT '[]',
+  invited_by   text,
+  invited_at   timestamptz NOT NULL DEFAULT now(),
+  accepted_at  timestamptz,
+  revoked_at   timestamptz,
+  UNIQUE (provider_id, email)
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_members_account '
+          'ON provider_members (account_id, status)',
+      'CREATE INDEX IF NOT EXISTS provider_members_provider '
+          'ON provider_members (provider_id)',
+      // Backfill: every linked account becomes its salon's owner row.
+      '''
+INSERT INTO provider_members
+  (id, provider_id, account_id, email, role, status, invited_at, accepted_at)
+SELECT 'mem_' || id, provider_id, id,
+       lower(coalesce(email, phone_number)), 'owner', 'active', now(), now()
+FROM provider_users WHERE provider_id IS NOT NULL
+ON CONFLICT (provider_id, email) DO NOTHING''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.

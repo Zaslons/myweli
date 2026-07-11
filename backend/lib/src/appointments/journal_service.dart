@@ -1,4 +1,5 @@
-import '../auth/provider_auth_repository.dart';
+import '../access/capabilities.dart';
+import '../access/membership_service.dart';
 import '../clients/clients_service.dart';
 import '../providers_repository.dart';
 import 'appointment_repository.dart';
@@ -16,13 +17,13 @@ typedef JournalResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// Africa/Abidjan = UTC+0 today; revisit when MyWeli leaves that zone.
 class JournalService {
   JournalService(
-    this._providerAuth,
+    this._members,
     this._providers,
     this._appointments,
     this._clients,
   );
 
-  final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final ClientsService _clients;
@@ -32,8 +33,7 @@ class JournalService {
     String providerId,
     DateTime date,
   ) async {
-    final account = await _providerAuth.accountById(accountId);
-    if (account?.providerId != providerId) {
+    if (!await _members.can(accountId, providerId, Cap.journalViewAll)) {
       return (ok: false, error: 'forbidden', data: null);
     }
     final provider = await _providers.byId(providerId);

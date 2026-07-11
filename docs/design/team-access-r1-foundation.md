@@ -17,7 +17,9 @@ Out of scope (R2+): invitations, the login bridge, seat caps, any UI.
 
 1. **Capabilities + presets** (`lib/src/access/capabilities.dart`) — the §2.1
    capability constants and the §2.2 four-preset map (Propriétaire / Manager /
-   Réception / Collaborateur) in ONE file; `capabilitiesFor(role)`.
+   Réception / Collaborateur) in ONE file; `capabilitiesFor(role)`. Includes
+   the new **`salon.publish`** (owner-only — the capability form of the
+   "go-live is owner-only" sign-off; the publish route checks it).
 2. **Membership model + repos** (`lib/src/access/membership_repository.dart`
    + `db/postgres_membership_repository.dart`) — the §3 row (with
    `provider_users` naming), InMemory + Postgres, resolution by

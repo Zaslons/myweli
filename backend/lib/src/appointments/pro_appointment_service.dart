@@ -1,4 +1,5 @@
-import '../auth/provider_auth_repository.dart';
+import '../access/capabilities.dart';
+import '../access/membership_service.dart';
 import '../clients/clients_service.dart';
 import 'appointment_repository.dart';
 
@@ -15,12 +16,12 @@ typedef ProLifecycleResult = ({
 /// The server is the authority on status; transitions are state-guarded.
 class ProAppointmentService {
   ProAppointmentService(
-    this._providerAuth,
+    this._members,
     this._appointments, {
     ClientsService? clients,
   }) : _clients = clients;
 
-  final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final AppointmentRepository _appointments;
 
   /// Module `clients`: a completed visit bumps the client's `lastVisitAt`
@@ -60,16 +61,18 @@ class ProAppointmentService {
     String accountId, {
     DateTime? now,
   }) async {
-    final account = await _providerAuth.accountById(accountId);
-    final managedProviderId = account?.providerId;
-    if (managedProviderId == null) {
-      return (ok: false, error: 'forbidden', appointment: null);
-    }
     final appointment = await _appointments.byId(appointmentId);
     if (appointment == null) {
       return (ok: false, error: 'not_found', appointment: null);
     }
-    if (appointment['providerId'] != managedProviderId) {
+    // Module `access` R1: the capability is checked against the APPOINTMENT's
+    // salon (already multi-salon-safe).
+    final allowed = await _members.can(
+      accountId,
+      appointment['providerId'] as String? ?? '',
+      Cap.journalManageAll,
+    );
+    if (!allowed) {
       return (ok: false, error: 'forbidden', appointment: null);
     }
     if (appointment['status'] != 'confirmed') {
@@ -108,17 +111,17 @@ class ProAppointmentService {
     required Set<String> from,
     required String to,
   }) async {
-    final account = await _providerAuth.accountById(accountId);
-    final managedProviderId = account?.providerId;
-    if (managedProviderId == null) {
-      // Authenticated provider, but not linked to a Provider it can manage.
-      return (ok: false, error: 'forbidden', appointment: null);
-    }
     final appointment = await _appointments.byId(appointmentId);
     if (appointment == null) {
       return (ok: false, error: 'not_found', appointment: null);
     }
-    if (appointment['providerId'] != managedProviderId) {
+    final allowed = await _members.can(
+      accountId,
+      appointment['providerId'] as String? ?? '',
+      Cap.journalManageAll,
+    );
+    if (!allowed) {
+      // Authenticated provider, but no capability inside this salon.
       return (ok: false, error: 'forbidden', appointment: null);
     }
     if (!from.contains(appointment['status'])) {

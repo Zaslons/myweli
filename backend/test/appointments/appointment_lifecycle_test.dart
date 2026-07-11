@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
@@ -210,6 +212,9 @@ void main() {
       when(
         () => context.read<ProviderAuthRepository>(),
       ).thenReturn(providerAuth);
+      when(() => context.read<MembershipService>()).thenReturn(
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+      );
       final notifier = _MockNotifier();
       when(() => notifier.notify(any(), any())).thenAnswer((_) async {});
       when(() => context.read<BookingNotifier>()).thenReturn(notifier);

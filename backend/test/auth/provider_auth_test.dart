@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -236,9 +237,9 @@ void main() {
       when(() => context.read<AuthMethods>()).thenReturn(methods);
       when(() => context.read<GoogleIdTokenVerifier>()).thenReturn(google);
       when(() => context.read<EmailProvider>()).thenReturn(email);
-      when(
-        () => context.read<SalonProvisioningService>(),
-      ).thenReturn(SalonProvisioningService(salons, repo));
+      when(() => context.read<SalonProvisioningService>()).thenReturn(
+        SalonProvisioningService(salons, repo, InMemoryMembershipRepository()),
+      );
       return context;
     }
 

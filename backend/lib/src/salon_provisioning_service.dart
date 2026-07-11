@@ -1,3 +1,4 @@
+import 'access/membership_repository.dart';
 import 'auth/provider_auth_repository.dart';
 import 'providers_repository.dart';
 
@@ -6,10 +7,11 @@ import 'providers_repository.dart';
 /// pre-fix accounts), publicly invisible until the owner publishes a
 /// completed profile.
 class SalonProvisioningService {
-  SalonProvisioningService(this._providers, this._accounts);
+  SalonProvisioningService(this._providers, this._accounts, this._members);
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _accounts;
+  final MembershipRepository _members;
 
   /// `businessType` → public listing category (the seed taxonomy).
   static String categoryFor(String businessType) => switch (businessType) {
@@ -24,7 +26,12 @@ class SalonProvisioningService {
   /// creating a draft from the account's business fields when missing.
   /// Idempotent; used by register AND the /me/provider self-heal.
   Future<ProviderAccount> ensureSalon(ProviderAccount account) async {
-    if (account.providerId != null) return account;
+    if (account.providerId != null) {
+      // Module `access` R1: keep the membership table authoritative — the
+      // linked owner gets its row even on the already-linked path.
+      await _ensureOwnerRow(account, account.providerId!);
+      return account;
+    }
     final salon = await _providers.createSalon(
       name: account.businessName,
       category: categoryFor(account.businessType),
@@ -34,8 +41,16 @@ class SalonProvisioningService {
     final id = salon['id'] as String;
     await _accounts.linkProvider(account.id, id);
     account.providerId = id;
+    await _ensureOwnerRow(account, id);
     return account;
   }
+
+  Future<void> _ensureOwnerRow(ProviderAccount account, String salonId) =>
+      _members.ensureOwner(
+        providerId: salonId,
+        accountId: account.id,
+        email: account.email ?? account.phoneNumber,
+      );
 
   /// The go-live gate (PRD FR-PRO-ONB-001 thresholds, server-authoritative).
   /// Empty list = publishable; otherwise the missing checklist keys.

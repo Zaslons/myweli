@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'access/capabilities.dart';
+import 'access/membership_service.dart';
 import 'auth/provider_auth_repository.dart';
 import 'storage/storage_service.dart';
 
@@ -17,9 +19,10 @@ typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// - `kyc` → **private** bucket, prefix `kyc/{accountId}`, returns the `key`
 ///   only (no public URL — ID documents are never public); accepts PDF too.
 class UploadSigningService {
-  UploadSigningService(this._providerAuth, this._storage);
+  UploadSigningService(this._providerAuth, this._members, this._storage);
 
   final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final StorageService _storage;
 
   /// content-type → file extension, per purpose.
@@ -76,10 +79,11 @@ class UploadSigningService {
       prefixId = accountId;
       bucket = StorageBucket.kyc;
     } else {
-      final providerId = (await _providerAuth.accountById(
-        accountId,
-      ))?.providerId;
-      if (providerId == null) {
+      // Module `access` R1: gallery uploads need catalogue.manage inside the
+      // caller's acting salon (R6 adds an explicit salon selection).
+      final providerId = await _members.activeSalonFor(accountId);
+      if (providerId == null ||
+          !await _members.can(accountId, providerId, Cap.catalogueManage)) {
         return (ok: false, error: 'forbidden', data: null);
       }
       prefixId = providerId;

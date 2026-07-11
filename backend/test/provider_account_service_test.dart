@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -52,11 +53,13 @@ void main() {
 
   test('deletes each own-prefix KYC object then the account', () async {
     final deleted = <String>[];
+    final memberships = InMemoryMembershipRepository();
     final service = ProviderAccountService(
       auth,
       providers,
       appointments,
       const FakeStorageService(),
+      memberships,
       client: MockClient((req) async {
         expect(req.method, 'DELETE');
         deleted.add(req.url.path);
@@ -74,6 +77,14 @@ void main() {
       {'key': 'kyc/other-account/c.jpg', 'type': 'selfie'},
     ]);
 
+    // Module `access` (drift §2.3-2): a membership must never outlive its
+    // account.
+    await memberships.ensureOwner(
+      providerId: 'p1',
+      accountId: id,
+      email: 'del@test.pro',
+    );
+
     final r = await service.deleteAccount(id);
     expect(r.ok, isTrue);
     expect(deleted, hasLength(2));
@@ -81,6 +92,8 @@ void main() {
     expect(deleted[1], contains('kyc/$id/b.pdf'));
     expect(await auth.accountById(id), isNull);
     verify(() => providers.setStatus('p1', 'draft')).called(1);
+    final rows = await memberships.listForAccount(id);
+    expect(rows.single.status, 'revoked');
   });
 
   test('a storage failure never blocks the account erasure', () async {
@@ -89,6 +102,7 @@ void main() {
       providers,
       appointments,
       const FakeStorageService(),
+      InMemoryMembershipRepository(),
       client: MockClient((req) async => throw Exception('storage down')),
     );
     final id = await registerWithKyc(keys: []);
@@ -107,6 +121,7 @@ void main() {
       providers,
       appointments,
       const FakeStorageService(),
+      InMemoryMembershipRepository(),
       client: MockClient((req) async => fail('no storage call expected')),
     );
     final id = await registerWithKyc(keys: []);
