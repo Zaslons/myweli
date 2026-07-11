@@ -244,8 +244,8 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 ~~ALL P3 FIXED~~: 1.2 · 1.3 · 1.4 · 2.6 · 2.7 · 2.8 · 2.15 · 3.5 · 4.1 ✅ (P3-web) · 9.2 ✅ (P1c) · 11.3 ✅ (P0b) · 1.8 · 1.11 · 3.6 · 15.2 ✅ (P3-app 2026-07-11)
 
 ## Proposed execution (themed batches, one PR each)
-1. **P0 trust batch** — deposit⇄KYC enforcement (backend + threat row + both editors' lock states) + the verified badge end-to-end + web deletion/export.
-2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
+1. ~~**P0 trust batch** — deposit⇄KYC enforcement + the verified badge end-to-end + web deletion/export~~ ✅ done 2026-07-10 (PRs #211/#212).
+2. ~~**P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio)~~ ✅ done 2026-07-10 (PR #213).
 3. ~~**P1b reschedule batch**~~ ✅ done 2026-07-11 — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
 4. ~~**P1c web-surfaces batch**~~ ✅ done 2026-07-11 — notification center/prefs + « Revenus » (+ 9.2 week card).
 5. ~~**P2 batches**~~ ALL DONE 2026-07-11 · ~~**P3 batches** (web + app)~~ ALL DONE 2026-07-11. **EVERY ACTIONABLE FINDING IN THIS AUDIT IS NOW FIXED, VERIFIED, OR EXPLICITLY PARKED (11.5 pre-launch, ℹ️ rows accepted).**
