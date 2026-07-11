@@ -111,6 +111,11 @@ test('catalogue: list services + add one', async ({ page }) => {
   // Audit 3.1: the capability block (empty selection = toute l'équipe).
   await expect(page.getByText('Qui peut réaliser ce service ?')).toBeVisible();
   await expect(page.getByRole('checkbox', { name: /Awa/ })).toBeVisible();
+  // Audit 3.2: the per-hair-length duration editor.
+  await page
+    .getByRole('checkbox', { name: 'Durée selon la longueur de cheveux' })
+    .click();
+  await page.getByLabel('Court (min)').fill('60');
   await page.getByLabel('Nom du service').fill('Coupe homme');
   await page.getByLabel('Prix — à partir de (FCFA)').fill('5000');
   await page.getByLabel('Durée (minutes)').fill('30');

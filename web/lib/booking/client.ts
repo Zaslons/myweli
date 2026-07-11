@@ -39,6 +39,7 @@ export async function createBooking(payload: {
   serviceIds: string[];
   appointmentDateTime: string;
   artistId: string | null;
+  notes?: string;
 }): Promise<{ ok: boolean; appointment?: CreatedBooking; error?: string }> {
   const res = await fetch('/api/bookings', {
     method: 'POST',

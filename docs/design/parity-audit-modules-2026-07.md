@@ -44,8 +44,8 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 2.1 | **« Trier » missing on web search** | ❌ web | App list: sort sheet — Pertinence / Mieux notés / Prix croissant (`ProviderSort`). Web `/recherche` always sorts by rating server-side; the user has no control |
-| 2.2 | **« Disponible aujourd'hui » filter missing on web** | ❌ web | App list: a one-tap availability filter pill. No web equivalent |
+| 2.1 | ~~« Trier » missing on web search~~ **FIXED 2026-07-11** (Pertinence/Mieux notés/Prix croissant select on /recherche, ?sort=, default relevance like the app) | ✅ fixed | App list: sort sheet — Pertinence / Mieux notés / Prix croissant (`ProviderSort`). Web `/recherche` always sorts by rating server-side; the user has no control |
+| 2.2 | ~~« Disponible aujourd'hui » filter missing on web~~ **FIXED 2026-07-11** (toggle pill → ?dispo=1 riding the existing availableToday param) | ✅ fixed | App list: a one-tap availability filter pill. No web equivalent |
 | 2.3 | Home « À proximité » section missing on web | ⚠️ web | App home: nearby salons + « Voir la carte ». Web home is SEO-first (deliberate) and the map now has « Autour de moi » — but a geolocated « près de chez vous » block on the web home would close the flow gap |
 | 2.4 | Announcement stories | ℹ️ | App home's story strip is STATIC promo content (hardcoded assets — a marketing-module V2 seed, not real data). No web port needed until `marketing` builds |
 | 2.5 | Map discovery | ✅ | /recherche split view + full-bleed map + app-identical markers + « Autour de moi » (built 2026-07-10); hearts-on-markers deferred on web (noted in web-discovery-map.md) — the app map HAS favorite hearts |
@@ -63,8 +63,8 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 2.10 | **Booking notes missing on web** | ❌ web | App confirmation has « Note (optionnel) » sent with the booking (salons see it in the journal). Web confirm step has no notes field and the BFF doesn't forward one |
-| 2.11 | **Mobile-web summary not sticky** | ⚠️ web | The app hub pins Total + « Confirmer » at the bottom permanently; on mobile web the summary/CTA is the last block below the sections — scroll required to confirm. `lg:` is sticky; small screens should get the app's fixed bottom bar |
+| 2.10 | ~~Booking notes missing on web~~ **FIXED 2026-07-11** (« Notes (optionnel) » textarea on the confirm step; BFF forwards notes) | ✅ fixed | App confirmation has « Note (optionnel) » sent with the booking (salons see it in the journal). Web confirm step has no notes field and the BFF doesn't forward one |
+| 2.11 | ~~Mobile-web summary not sticky~~ **FIXED 2026-07-11** (the app's pinned Total + « Confirmer » bottom bar under lg; desktop aside unchanged) | ✅ fixed | The app hub pins Total + « Confirmer » at the bottom permanently; on mobile web the summary/CTA is the last block below the sections — scroll required to confirm. `lg:` is sticky; small screens should get the app's fixed bottom bar |
 | 2.12 | Hub flow parity | ✅ | Order-free hub, three orderings, capability dim/drop, earliest-slot auto-pick, variants, silent re-validation, deposit sheet — verified at K2 (built 2026-07-10) |
 
 ### Favorites & reviews
@@ -93,7 +93,7 @@
 
 | # | Finding | Severity | Detail |
 |---|---|---|---|
-| 3.2 | **Duration variants (court/moyen/long) missing on web** | ❌ web | App service form: full variant editor (three duration fields behind a toggle). Web catalogue form: name/description/price/priceMax/duration/active only — a web-managed salon can never offer hair-length variants, though the WEB booking hub renders them (K2) |
+| 3.2 | ~~Duration variants (court/moyen/long) missing on web~~ **FIXED 2026-07-11** (« Durée selon la longueur de cheveux » toggle + Court/Moyen/Long minute fields; app payload semantics) | ✅ fixed | App service form: full variant editor (three duration fields behind a toggle). Web catalogue form: name/description/price/priceMax/duration/active only — a web-managed salon can never offer hair-length variants, though the WEB booking hub renders them (K2) |
 | 3.3 | Core fields | ✅ | name · description · price + priceMax · duration · active toggle on both; create/edit/delete on both |
 
 ### Team
@@ -232,7 +232,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | ~~**9.1** « Revenus » page (earnings + history) missing on web~~ ✅ fixed (PR fix/parity-p1c-web-surfaces) | web |
 
 ## P2 — flow/UX & conversion
-2.11 mobile-web sticky « Confirmer » bar · 2.10 booking notes on web · 2.1/2.2 « Trier » + « Disponible aujourd'hui » on web search · email-code RESEND with cooldown (both — pattern exists in the dormant OTP screen) · 1.10 « Client arrivé » on both detail pages · 1.5 app cancel dialog deposit warning · 1.6 app fake « Appeler » button · 3.2 web duration variants · 2.13 review photos on web (display, then submit) · 2.14 « Signaler » a review (both)
+~~2.11 mobile-web sticky « Confirmer » bar · 2.10 booking notes on web · 2.1/2.2 « Trier » + « Disponible aujourd'hui » on web search~~ ✅ (P2a) · email-code RESEND with cooldown (both — pattern exists in the dormant OTP screen) · 1.10 « Client arrivé » on both detail pages · 1.5 app cancel dialog deposit warning · 1.6 app fake « Appeler » button · ~~3.2 web duration variants~~ ✅ (P2a) · 2.13 review photos on web (display, then submit) · 2.14 « Signaler » a review (both)
 
 ## P3 — polish
 1.2 web add-to-calendar · 1.3 web view-own-proof · 1.4 web notes display · 1.8 show the spécialiste (both) · 1.11 app gap-slot artist · 2.6 web gallery lightbox · 2.7 « Vos rendez-vous ici » on web salon page · 2.8 review invite on the web salon page · 2.15 hearts on web result cards · 3.5 web artist photo · 3.6 app photo reorder · 4.1 web custom tags · ~~9.2 web week-revenue card~~ ✅ (P1c) · 11.3 web name edit · 15.2 web support entry
@@ -242,4 +242,4 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
 3. ~~**P1b reschedule batch**~~ ✅ done 2026-07-11 — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
 4. ~~**P1c web-surfaces batch**~~ ✅ done 2026-07-11 — notification center/prefs + « Revenus » (+ 9.2 week card).
-5. **P2 funnel/UX batch** then **P3 polish batches**, app and web sides grouped.
+5. **P2 batches**: ~~P2a search+funnel (2.1/2.2/2.10/2.11/3.2)~~ ✅ done 2026-07-11 · P2b reviews/trust (2.13/2.14) · P2c appointments+auth (1.10/1.5/1.6/resend) — then **P3 polish batches**, app and web sides grouped.

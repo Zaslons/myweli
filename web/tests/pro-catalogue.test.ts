@@ -4,6 +4,7 @@ import {
   type ServiceForm,
   buildArtistPayload,
   buildServicePayload,
+  serviceToForm,
   validateArtist,
   validateService,
 } from '../lib/pro/catalogue';
@@ -16,6 +17,10 @@ const base: ServiceForm = {
   durationMinutes: '120',
   active: true,
   artistIds: [],
+  hasVariants: false,
+  variantCourt: '',
+  variantMoyen: '',
+  variantLong: '',
 };
 
 describe('pro catalogue — validateService', () => {
@@ -51,8 +56,41 @@ describe('pro catalogue — buildServicePayload', () => {
       durationMinutes: 120,
       active: true,
       artistIds: [],
+      durationVariants: {},
     });
   });
+
+  // Audit 3.2 — the app's semantics: toggle off clears; on keeps filled keys.
+  it('variants: toggle off → {}, even with leftover text', () => {
+    expect(
+      buildServicePayload({ ...base, variantCourt: '60' }).durationVariants,
+    ).toEqual({});
+  });
+
+  it('variants: only the filled, positive-integer keys ride', () => {
+    expect(
+      buildServicePayload({
+        ...base,
+        hasVariants: true,
+        variantCourt: '60',
+        variantMoyen: '',
+        variantLong: 'abc',
+      }).durationVariants,
+    ).toEqual({ court: 60 });
+  });
+});
+
+it('audit 3.2: serviceToForm prefills the variant editor', () => {
+  const f = serviceToForm({
+    id: 's1',
+    name: 'Tresses',
+    durationVariants: { court: 60, long: 180 },
+  });
+  expect(f.hasVariants).toBe(true);
+  expect(f.variantCourt).toBe('60');
+  expect(f.variantMoyen).toBe('');
+  expect(f.variantLong).toBe('180');
+  expect(serviceToForm({ id: 's2', name: 'Soin' }).hasVariants).toBe(false);
 });
 
 describe('pro catalogue — artists', () => {

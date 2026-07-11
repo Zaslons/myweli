@@ -60,6 +60,10 @@ export async function searchProviders(opts: {
   category?: string;
   commune?: string;
   pageSize?: number;
+  /// FR-DISC-007 (parity 2.1/2.2): /recherche passes the user's choice;
+  /// home/landing callers keep the default rating order.
+  sort?: 'relevance' | 'rating' | 'price';
+  availableToday?: boolean;
 }): Promise<Provider[]> {
   try {
     const { data, error } = await api.GET('/providers', {
@@ -68,7 +72,8 @@ export async function searchProviders(opts: {
           ...(opts.q ? { q: opts.q } : {}),
           ...(opts.category ? { category: opts.category } : {}),
           ...(opts.commune ? { commune: opts.commune } : {}),
-          sort: 'rating',
+          ...(opts.availableToday ? { availableToday: true } : {}),
+          sort: opts.sort ?? 'rating',
           pageSize: opts.pageSize ?? 12,
         },
       },

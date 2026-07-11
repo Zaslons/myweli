@@ -345,6 +345,46 @@ function ServiceFormCard({
             onChange={(e) => set('durationMinutes', e.target.value)}
           />
         </label>
+        {/* Audit 3.2: the app's per-hair-length duration editor. */}
+        <label className="flex items-center gap-s text-sm text-textPrimary">
+          <input
+            type="checkbox"
+            checked={form.hasVariants}
+            onChange={(e) => set('hasVariants', e.target.checked)}
+          />
+          Durée selon la longueur de cheveux
+        </label>
+        {form.hasVariants ? (
+          <div className="flex gap-s">
+            <label className="block flex-1 text-sm text-textTertiary">
+              Court (min)
+              <input
+                className={inputCls}
+                inputMode="numeric"
+                value={form.variantCourt}
+                onChange={(e) => set('variantCourt', e.target.value)}
+              />
+            </label>
+            <label className="block flex-1 text-sm text-textTertiary">
+              Moyen (min)
+              <input
+                className={inputCls}
+                inputMode="numeric"
+                value={form.variantMoyen}
+                onChange={(e) => set('variantMoyen', e.target.value)}
+              />
+            </label>
+            <label className="block flex-1 text-sm text-textTertiary">
+              Long (min)
+              <input
+                className={inputCls}
+                inputMode="numeric"
+                value={form.variantLong}
+                onChange={(e) => set('variantLong', e.target.value)}
+              />
+            </label>
+          </div>
+        ) : null}
         <label className="flex items-center gap-s text-sm text-textPrimary">
           <input
             type="checkbox"

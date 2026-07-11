@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
       serviceIds: payload.serviceIds,
       appointmentDateTime: payload.appointmentDateTime,
       artistId: payload.artistId ?? undefined,
+      // Parity 2.10 — « Notes (optionnel) »; the journal shows it salon-side.
+      notes: payload.notes || undefined,
     }),
   });
   // Keep the M5 client contract: { ok, appointment }.
