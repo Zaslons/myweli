@@ -598,6 +598,12 @@ createServer(async (req, res) => {
     });
   }
   if (url.pathname === '/me/provider') {
+    // Audit 11.5 — account deletion (the gate is backend-tested; the stub
+    // accepts).
+    if (req.method === 'DELETE') {
+      res.writeHead(204);
+      return res.end();
+    }
     return json(res, 200, {
       account: {
         id: 'acc1',

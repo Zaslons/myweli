@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -161,6 +162,15 @@ class ProProfileScreen extends StatelessWidget {
                     onTap: () => context.push('/pro/before-after'),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.download_outlined),
+                    title: const Text('Mes données'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/pro/data-export'),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 AppButton(
                   text: 'Déconnexion',
@@ -172,12 +182,69 @@ class ProProfileScreen extends StatelessWidget {
                     }
                   },
                 ),
+                const SizedBox(height: 12),
+                // Audit 11.5 (AUTH-004 pros): definitive account deletion.
+                AppButton(
+                  text: 'Supprimer mon compte',
+                  type: AppButtonType.text,
+                  onPressed: () => _deleteAccount(context, authProvider),
+                ),
               ],
             ),
           );
         },
       ),
     );
+  }
+
+  /// Double-confirm deletion (audit 11.5): warn, call the self-scoped
+  /// DELETE, map `future_bookings`, then sign out.
+  Future<void> _deleteAccount(
+    BuildContext context,
+    ProAuthProvider authProvider,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer votre compte ?'),
+        content: const Text(
+          'Cette action est définitive. Votre salon sera retiré de MyWeli. '
+          'Pensez à exporter vos données avant.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final res = await serviceLocator.proService.deleteProviderAccount();
+    if (!res.success) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            res.code == 'future_bookings'
+                ? 'Terminez ou annulez vos rendez-vous à venir avant de '
+                    'supprimer votre compte.'
+                : res.error ?? 'La suppression a échoué. Réessayez.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    await authProvider.logout();
+    router.go('/pro/login');
   }
 
   String _getBusinessTypeLabel(BusinessType type) {

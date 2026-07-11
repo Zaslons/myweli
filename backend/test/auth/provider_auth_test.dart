@@ -468,4 +468,34 @@ void main() {
       expect(res.statusCode, HttpStatus.methodNotAllowed);
     });
   });
+
+  group('deleteAccount (audit 11.5 — T53)', () {
+    test(
+      'erases every lookup + kills all sessions; unknown id → false',
+      () async {
+        final repo = InMemoryProviderAuthRepository(
+          tokens: ts(),
+          isProd: false,
+        );
+        final reg = await registerGoogle(repo, providerId: 'p1');
+        final accountId = reg.provider!.id;
+        final refreshToken = reg.tokens!.refreshToken;
+
+        expect(await repo.deleteAccount(accountId), isTrue);
+
+        // Identity gone from every index.
+        expect(await repo.accountById(accountId), isNull);
+        final relogin = await repo.loginWithSocial(
+          provider: 'google',
+          sub: 'g-sub-1',
+        );
+        expect(relogin.error, 'provider_not_found');
+        // Sessions dead: the refresh token no longer works.
+        final refreshed = await repo.refresh(refreshToken);
+        expect(refreshed.ok, isFalse);
+
+        expect(await repo.deleteAccount('nope'), isFalse);
+      },
+    );
+  });
 }

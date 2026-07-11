@@ -20,6 +20,7 @@ import '../../screens/provider/onboarding/pro_kyc_screen.dart';
 import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
 import '../../screens/provider/photos/pro_before_after_screen.dart';
 import '../../screens/provider/photos/pro_photos_screen.dart';
+import '../../screens/provider/profile/pro_data_export_screen.dart';
 import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/profile/pro_salon_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
@@ -193,6 +194,11 @@ class ProRouter {
         path: '/pro/earnings',
         name: 'pro-earnings',
         builder: (context, state) => const EarningsScreen(),
+      ),
+      GoRoute(
+        path: '/pro/data-export',
+        name: 'pro-data-export',
+        builder: (context, state) => const ProDataExportScreen(),
       ),
       GoRoute(
         path: '/pro/photos',

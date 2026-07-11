@@ -99,6 +99,12 @@ abstract class ProServiceInterface {
   /// confirmed-only, idempotent (guarded server-side).
   Future<ApiResponse<bool>> markArrived(String appointmentId);
 
+  /// Delete the signed-in provider ACCOUNT (audit 11.5 — AUTH-004 for pros).
+  /// Self-scoped server-side; future pending/confirmed bookings → the
+  /// `future_bookings` error code (settle the agenda first). The salon is
+  /// unpublished, every session dies.
+  Future<ApiResponse<void>> deleteProviderAccount();
+
   /// Take the salon live (docs/design/pro-salon-lifecycle.md): flips the
   /// DRAFT listing to active once the server-side go-live gate passes.
   /// Incomplete → error code `incomplete`.

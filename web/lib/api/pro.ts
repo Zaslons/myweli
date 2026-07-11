@@ -300,6 +300,21 @@ export async function getDashboard(
   return { status: 200, stats: (await res.json()) as DashboardStats };
 }
 
+// --- compte (audit 11.5) --------------------------------------------------------
+
+/// Delete the provider account (AUTH-004 for pros). 409 `future_bookings`
+/// when the agenda isn't settled; success ends the pro session.
+export async function deleteProAccount(): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+}> {
+  const res = await fetch('/api/pro/account', { method: 'DELETE' });
+  if (res.ok) return { ok: true, status: res.status };
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: body.error };
+}
+
 // --- revenus (parity 9.1) -----------------------------------------------------
 
 export async function getEarnings(

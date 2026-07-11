@@ -2,6 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/data_export.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/user.dart';
+import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/models/salon_client.dart';
+import 'package:myweli/models/provider.dart' as models;
+import 'package:myweli/models/availability.dart';
 
 void main() {
   final user = User(
@@ -58,5 +62,57 @@ void main() {
     expect(export['appointments'], isEmpty);
     expect(export['favorites'], isEmpty);
     expect((export['profile'] as Map<String, dynamic>)['id'], 'u1');
+  });
+
+  test('buildProviderDataExport assembles the salon document (11.5)', () {
+    final export = buildProviderDataExport(
+      account: ProviderUser(
+        id: 'pu1',
+        phoneNumber: '+2250700000000',
+        businessName: 'Salon X',
+        businessType: BusinessType.salon,
+        createdAt: DateTime(2026),
+        providerId: 'p1',
+      ),
+      salon: const models.Provider(
+        id: 'p1',
+        name: 'Salon X',
+        description: 'desc',
+        address: 'Cocody',
+        imageUrls: [],
+        rating: 4.5,
+        reviewCount: 3,
+        services: [],
+        availability: Availability(
+          providerId: 'p1',
+          weeklySchedule: {},
+          blockedDates: [],
+        ),
+        phoneNumber: '+22500',
+        category: 'salon',
+      ),
+      services: const [],
+      artists: const [],
+      appointments: const [],
+      clients: const [
+        SalonClient(
+          id: 'sc1',
+          displayName: 'Koffi',
+          phone: '+2250700000001',
+          tags: ['VIP'],
+          linked: false,
+          visits: 4,
+          noShows: 0,
+        ),
+      ],
+      generatedAt: DateTime.utc(2026, 7, 11),
+    );
+
+    expect((export['account'] as Map)['businessName'], 'Salon X');
+    expect((export['salon'] as Map)['commune'], isNull);
+    final clients = export['clients'] as List;
+    expect((clients.first as Map)['name'], 'Koffi');
+    expect((clients.first as Map)['visits'], 4);
+    expect(export['generatedAt'], '2026-07-11T00:00:00.000Z');
   });
 }
