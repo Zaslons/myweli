@@ -1,5 +1,14 @@
 # Module: Team access (RBAC) — `access`
 
+> **Build sign-off 2026-07-11 (user):** promoted from V2 to **pre-launch**.
+> Decisions locked: invitation TTL **7 days** (resendable) · seats are
+> **plan-driven** (Découverte 1 · Pro 5 · Business 15, counting active +
+> invited incl. the owner) with **3 months free on any chosen offer** (no
+> payment at launch — billing stays « Nous contacter »; an expired unpaid
+> trial blocks NEW invites beyond the Découverte cap but never auto-revokes
+> staff) · **four presets** — Réception ships now, not deferred. Slices
+> R1–R5 (see §10).
+
 | | |
 |---|---|
 | **Module** | `access` — [docs/MODULES.md](../MODULES.md) §11 |
@@ -63,19 +72,19 @@ stored as **sparse deltas**, never a materialized full list.
 
 ### 2.2 The presets
 
-| Capability | **Propriétaire** | **Manager** | **Collaborateur** |
-|---|---|---|---|
-| `journal.view.all` / `manage.all` | ✅ | ✅ | — |
-| `journal.view.own` / `manage.own` | ✅ | ✅ | ✅ |
-| `clients.view` | ✅ | ✅ | — |
-| `catalogue.manage` | ✅ | ✅ | — |
-| `availability.manage` | ✅ | ✅ | — |
-| `profile.manage` | ✅ | ✅ | — |
-| `medias` (in `catalogue.manage`) | ✅ | ✅ | — |
-| `finances.view` | ✅ | — | — |
-| `deposit.manage` | ✅ | — | — |
-| `members.manage` | ✅ | — | — |
-| `subscription.manage` | ✅ | — | — |
+| Capability | **Propriétaire** | **Manager** | **Réception** | **Collaborateur** |
+|---|---|---|---|---|
+| `journal.view.all` / `manage.all` | ✅ | ✅ | ✅ | — |
+| `journal.view.own` / `manage.own` | ✅ | ✅ | ✅ | ✅ |
+| `clients.view` | ✅ | ✅ | ✅ | — |
+| `catalogue.manage` | ✅ | ✅ | — | — |
+| `availability.manage` | ✅ | ✅ | — | — |
+| `profile.manage` | ✅ | ✅ | — | — |
+| `medias` (in `catalogue.manage`) | ✅ | ✅ | — | — |
+| `finances.view` | ✅ | — | — | — |
+| `deposit.manage` | ✅ | — | — | — |
+| `members.manage` | ✅ | — | — | — |
+| `subscription.manage` | ✅ | — | — | — |
 
 - **Propriétaire**: exactly one per salon (the registering account). Cannot be
   revoked, demoted, or edited by anyone else (owner-protected actions).
@@ -85,10 +94,27 @@ stored as **sparse deltas**, never a materialized full list.
   minus finances; a V3 override can grant `finances.view` per person.)
 - **Collaborateur**: REQUIRES an `artist_id` link at invite time. Their app is
   « ma journée » — own calendar, mark own bookings done. Nothing else.
-- **Réception** (deferred preset): `journal.*.all` + `clients.view`, no
-  catalogue/settings. Add only when a salon asks — three presets to start.
+- **Réception** (sign-off 2026-07-11: ships NOW): the front desk — the whole
+  journal + the fichier clients, no catalogue/settings/money. `role='reception'`.
 - **Effective capabilities** = preset ∪ grants − denies (overrides V3-editable,
   V2 rows always empty).
+
+### 2.3 Post-design drift (verified 2026-07-11 — the build handles these)
+
+1. **Salon self-provisioning** (lifecycle program, 2026-07-10):
+   `GET /me/provider` auto-creates a draft salon for accounts without one.
+   Guard: provision ONLY when the account holds **no membership anywhere**;
+   members resolve their salon via the membership row.
+2. **Account deletion T53** (PR #221): deleting an account must also revoke
+   its memberships; an OWNER's deletion takes the staff memberships down with
+   the salon; a member's own deletion touches nothing salon-side.
+3. The ownership checks to swap live in ~7 services (catalog, dashboard,
+   earnings, journal, clients, appointments, provisioning) — the
+   `membershipOf()` refactor is contained.
+4. The table below says `provider_accounts`; the real table is
+   **`provider_users`**.
+5. The login bridge (`202 {invitations}`) has THREE identity routes to touch:
+   google, email-OTP verify, phone-OTP verify (dormant).
 
 ## 3. Data model
 
@@ -278,11 +304,13 @@ Each slice still gets its `docs/design/` spec + sign-off before code (rule).
 
 ## 11. Open questions (to resolve at build sign-off)
 
-1. Included free seats: owner + 2 proposed — confirm number at pricing time.
+1. ~~Included free seats~~ **Resolved (2026-07-11): plan-driven caps
+   (Découverte 1 / Pro 5 / Business 15, active+invited incl. owner) + 3
+   months free on any chosen offer; expiry blocks new invites only.**
 2. ~~Does a Collaborateur see client contact details on their OWN bookings?~~
    **Resolved (2026-07-08, clients §11.2): yes — name + phone on own bookings
    of the SAME DAY only; masked elsewhere; the full base stays behind
    `clients.view` (audited).**
-3. Invitation TTL (proposed 7 days, resendable) — confirm.
+3. ~~Invitation TTL~~ **Resolved (2026-07-11): 7 days, resendable.**
 4. Manager + `finances.view` demand — decide only from real salon feedback,
    as a V3 override, not a preset change.
