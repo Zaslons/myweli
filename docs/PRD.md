@@ -228,10 +228,9 @@ This section is the "why" behind many requirements. Treat it as binding context.
 
 | Tier | Price (indicative — à confirmer) | Who | Key entitlements |
 |---|---|---|---|
-| **Solo** | ~3 500 / mo | Solo providers, freelancers | Publish + accept bookings, calendar/journal, **1 place (owner)**, deposits, WhatsApp/SMS confirmations, client file |
-| **Pro** | ~7 500 / mo (or annual discount) | Single-location salons | Everything in Solo + **5 places** (team access/RBAC), automated reminders, no-show protection, reviews management, priority support |
-| **Business** | ~20 000 / mo | Multi-chair / busy salons | Everything in Pro + **15 places**, advanced calendar (resources, buffers), analytics & reports, marketing tools (promos, broadcast), commission tracking, featured-eligible |
-| **Entreprise** | Custom | Chains / multi-location (V3) | Multi-location, consolidated reporting, API access |
+| **Pro** | ~7 500 / mo (or annual discount) | Solo providers & single-location salons (the entry point — price it with the solo segment in mind) | Publish + accept bookings, calendar/journal, **5 places** (team access/RBAC), deposits, WhatsApp/SMS confirmations, client file, automated reminders, no-show protection, reviews management |
+| **Business** | ~20 000 / mo | Multi-chair / busy salons | Everything in Pro + **15 places**, advanced calendar (resources, buffers), analytics & reports, marketing tools (promos, broadcast), commission tracking, featured-eligible, priority support |
+| **Réseau** | Per salon, custom (« Nous contacter ») | Owners with several salons | Business-level features per salon; one account owns/switches between salons; **each salon has its own offer, trial and publish gate**; consolidated reporting V3 |
 
 Add-ons (V2+): extra staff seats, featured placement (paid promotion), SMS bundles, advanced marketing.
 

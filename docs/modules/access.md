@@ -7,10 +7,14 @@
 > - **Pricing pivot (supersedes the PRD freemium):** no free operating tier.
 >   Registration lands in a free, time-unlimited **SETUP state** (build the
 >   fiche/catalogue — salon unpublished, no bookings, no team). Publishing
->   requires an active offer: **Solo (1 place) · Pro (5) · Business (15)**,
->   seats counting owner + active + invited; picking an offer starts its
->   **3 mois offerts** (one trial per salon). Prices = config/display copy
->   (« à confirmer »; billing stays « Nous contacter », no custody).
+>   requires an active offer: **Pro (5 places) · Business (15) · Réseau
+>   (multi-salons, per-salon custom pricing « Nous contacter »)** — final
+>   ladder 2026-07-11 (Solo dropped; Pro is the entry point — revisit its
+>   price with the solo segment in mind). Seats count owner + active +
+>   invited; picking an offer starts its **3 mois offerts** (one trial per
+>   salon). **Offers/trials hang on the SALON, not the account** (multi-salon
+>   ready from R2). Prices = config/display copy (« à confirmer »; billing
+>   stays « Nous contacter », no custody).
 > - **Expiry:** warnings J-14/J-7/J-1 → **7 jours de grâce** → the salon is
 >   **UNPUBLISHED** (no new bookings; the app, journal, existing bookings and
 >   data export all keep working — never a data lockout) → admin marks the
@@ -18,8 +22,14 @@
 >   during the cold-start). Team invites require an active offer.
 > - Existing salons at migration: grandfathered with a fresh 3-month trial.
 >
-> Slices R1–R5 (see §10); R2 carries the offer selection + expiry mechanics +
-> the admin « marquer payé / prolonger » action.
+> Slices R1–R6 (see §10); R2 carries the offer selection + expiry mechanics +
+> the admin « marquer payé / prolonger » action. **R6 (pre-launch, after R5)
+> = multi-salons**: the « Mes salons » switcher (app + web), « Ajouter un
+> salon » (Réseau-gated; each new salon = own setup state / offer / trial /
+> publish gate), verified-badge inheritance from the account's KYC, deletion
+> unpublishes ALL owned salons. Data is already per-salon (`provider_id`
+> everywhere); memberships are per (account, salon) — no data-splitting work.
+> Cross-salon consolidated reporting + shared client files stay V3.
 
 | | |
 |---|---|
@@ -310,7 +320,8 @@ set ops. No new N+1: member list joins artists in one query. Budgets unchanged.
 | A2 | Invites + accept flow + Équipe screens (app + web) + presets enforcement + audit + tests | V2 core |
 | A3 | Collaborateur « Ma journée » app reshape + web own-calendar | V2 |
 | A4 | Seats gate (config-off until pricing) | V2, flag-hidden |
-| A5 | Override matrix UI + Réception preset + owner transfer + audit viewer | V3 |
+| A5/R6 | **Multi-salons** (pre-launch, sign-off 2026-07-11): switcher + « Ajouter un salon » + Réseau gating + badge inheritance | pre-launch |
+| A6 | Override matrix UI + owner transfer + audit viewer | V3 |
 
 Each slice still gets its `docs/design/` spec + sign-off before code (rule).
 
