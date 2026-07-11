@@ -12,6 +12,7 @@ import type { BeforeAfterPair } from '../pro/medias';
 import type { Subscription } from '../pro/subscription-plans';
 import type { JournalDay } from '../pro/journal';
 import type { ProAppointment } from '../pro/today';
+import type { EarningsData } from '../pro/earnings';
 
 export type DashboardStats = {
   todayAppointments?: number;
@@ -297,6 +298,22 @@ export async function getDashboard(
   );
   if (!res.ok) return { status: res.status };
   return { status: 200, stats: (await res.json()) as DashboardStats };
+}
+
+// --- revenus (parity 9.1) -----------------------------------------------------
+
+export async function getEarnings(
+  providerId: string,
+  range: { startDate: string; endDate: string } | null,
+): Promise<{ status: number; earnings?: EarningsData }> {
+  const qs = new URLSearchParams({ providerId });
+  if (range) {
+    qs.set('startDate', range.startDate);
+    qs.set('endDate', range.endDate);
+  }
+  const res = await fetch(`/api/pro/earnings?${qs.toString()}`);
+  if (!res.ok) return { status: res.status };
+  return { status: 200, earnings: (await res.json()) as EarningsData };
 }
 
 // --- profil + acompte (7.3e-i) ----------------------------------------------

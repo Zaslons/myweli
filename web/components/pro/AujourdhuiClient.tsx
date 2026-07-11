@@ -116,10 +116,14 @@ export function AujourdhuiClient() {
         <Stat label="Total du jour" value={counts.total} />
       </div>
 
-      <div className="mt-m grid grid-cols-2 gap-m">
+      <div className="mt-m grid grid-cols-3 gap-m">
         <Stat
           label="Revenus aujourd’hui"
           value={stats ? formatFcfa(stats.todayRevenue ?? 0) : '—'}
+        />
+        <Stat
+          label="Revenus cette semaine"
+          value={stats ? formatFcfa(stats.weekRevenue ?? 0) : '—'}
         />
         <Stat
           label="Revenus ce mois"

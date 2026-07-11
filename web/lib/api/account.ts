@@ -1,4 +1,8 @@
 import type { Appointment } from '../account/appointments';
+import type {
+  AppNotification,
+  NotificationPrefs,
+} from '../account/notifications';
 import type { Provider } from './providers';
 
 /// Browser → BFF (`/api/*`) wrappers for the consumer account. Session lives in
@@ -120,6 +124,55 @@ export async function updateName(
 export async function deleteAccount(): Promise<{ ok: boolean; status: number }> {
   const res = await fetch('/api/me', { method: 'DELETE' });
   return { ok: res.ok, status: res.status };
+}
+
+// --- notifications (parity 5.1/5.2) -----------------------------------------
+
+export async function getNotifications(): Promise<{
+  status: number;
+  items: AppNotification[];
+}> {
+  const res = await fetch('/api/me/notifications');
+  if (!res.ok) return { status: res.status, items: [] };
+  const body = (await res.json()) as { items?: AppNotification[] };
+  return { status: 200, items: body.items ?? [] };
+}
+
+export async function markNotificationRead(
+  id: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/me/notifications/${id}/read`, {
+    method: 'POST',
+  });
+  return { ok: res.ok };
+}
+
+export async function markAllNotificationsRead(): Promise<{ ok: boolean }> {
+  const res = await fetch('/api/me/notifications/read-all', {
+    method: 'POST',
+  });
+  return { ok: res.ok };
+}
+
+export async function getNotificationPrefs(): Promise<{
+  status: number;
+  prefs?: NotificationPrefs;
+}> {
+  const res = await fetch('/api/me/notification-preferences');
+  if (!res.ok) return { status: res.status };
+  return { status: 200, prefs: (await res.json()) as NotificationPrefs };
+}
+
+export async function updateNotificationPrefs(
+  patch: Partial<NotificationPrefs>,
+): Promise<{ ok: boolean; prefs?: NotificationPrefs }> {
+  const res = await fetch('/api/me/notification-preferences', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) return { ok: false };
+  return { ok: true, prefs: (await res.json()) as NotificationPrefs };
 }
 
 export async function logout(): Promise<void> {

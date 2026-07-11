@@ -114,6 +114,40 @@ const stubUser = {
   phoneNumber: '+2250700000000',
   phoneVerified: false,
 };
+// Notifications (parity 5.1/5.2): n1 starts unread; prefs default all-true.
+const notifRead = new Set(['n2']);
+const notifPrefs = { reminders: true, marketing: true, push: true };
+const NOTIFS = [
+  {
+    id: 'n1',
+    type: 'bookingConfirmed',
+    title: 'Rendez-vous confirmé',
+    body: 'Beauté Divine a confirmé votre rendez-vous.',
+    createdAt: todayAt9,
+    route: '/bookings',
+  },
+  {
+    id: 'n2',
+    type: 'general',
+    title: 'Bienvenue sur MyWeli',
+    body: 'Réservez vos soins en quelques clics.',
+    createdAt: '2026-06-01T10:00:00.000Z',
+    route: null,
+  },
+];
+
+// Earnings ledger (parity 9.1): one transaction today, one older.
+const EARN_TX = [
+  { id: 't1', appointmentId: 'e1', amount: 15000, date: todayAt9, status: 'completed' },
+  {
+    id: 't2',
+    appointmentId: 'e2',
+    amount: 20000,
+    date: '2026-06-05T14:00:00.000Z',
+    status: 'completed',
+  },
+];
+
 const consumerAppt = (id) => ({
   id,
   userId: 'u1',
@@ -328,6 +362,31 @@ createServer(async (req, res) => {
     });
   }
   // favorites (M8.3)
+  if (url.pathname === '/me/notifications') {
+    return json(res, 200, {
+      items: NOTIFS.map((n) => ({ ...n, read: notifRead.has(n.id) })),
+    });
+  }
+  if (url.pathname === '/me/notifications/read-all') {
+    for (const n of NOTIFS) notifRead.add(n.id);
+    return json(res, 200, {});
+  }
+  const notifReadMatch = url.pathname.match(
+    /^\/me\/notifications\/([^/]+)\/read$/,
+  );
+  if (notifReadMatch) {
+    notifRead.add(notifReadMatch[1]);
+    return json(res, 200, {});
+  }
+  if (url.pathname === '/me/notification-preferences') {
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      for (const k of ['reminders', 'marketing', 'push']) {
+        if (typeof body[k] === 'boolean') notifPrefs[k] = body[k];
+      }
+    }
+    return json(res, 200, notifPrefs);
+  }
   if (url.pathname === '/me/favorites') {
     return json(res, 200, { providerIds: ['p1'] });
   }
@@ -595,6 +654,18 @@ createServer(async (req, res) => {
   if (url.pathname.match(/^\/providers\/[^/]+\/publish$/)) {
     proProvider.status = 'active';
     return json(res, 200, proProvider);
+  }
+  // revenus (parity 9.1) — realized ledger, optional inclusive range.
+  if (url.pathname.match(/^\/providers\/[^/]+\/earnings$/)) {
+    const start = url.searchParams.get('startDate');
+    const end = url.searchParams.get('endDate');
+    const tx = EARN_TX.filter(
+      (t) => (!start || t.date >= start) && (!end || t.date < end),
+    );
+    return json(res, 200, {
+      totalEarnings: tx.reduce((sum, t) => sum + t.amount, 0),
+      transactions: tx,
+    });
   }
   // disponibilités (7.3c) — PUT replaces the salon availability.
   if (url.pathname.match(/^\/providers\/[^/]+\/availability$/)) {
