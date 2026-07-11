@@ -16,8 +16,8 @@
 | 1.2 | **« Ajouter au calendrier » missing on web** | ❌ web | App: add_2_calendar on future bookings. Web equivalent = a Google-Calendar link and/or `.ics` download — cheap and idiomatic |
 | 1.3 | **Deposit proof VIEW (« Voir ma capture ») missing on web** | ❌ web | App: after attaching, the consumer can view their uploaded screenshot (signed URL via `GET /appointments/{id}/deposit-screenshot`). Web (B4-era attach) only shows the text « Justificatif envoyé » |
 | 1.4 | Booking `notes` not displayed on the web detail | ❌ web (minor) | App shows a Notes row when present |
-| 1.5 | Cancel confirmation copy richer on web | ⚠️ app | Web warns « L'acompte peut ne pas être remboursé selon la politique du salon » when a deposit exists; the app's dialog is a bare « Êtes-vous sûr… » — the app should adopt the deposit warning |
-| 1.6 | **App « Appeler » button is a fake** | ❌ app (bug) | Consumer appointment detail's « Appeler » shows « Fonctionnalité à venir » snackbar instead of launching `tel:` (the provider-detail screen does it properly). Web detail has no contact action at all — add `tel:`/WhatsApp to BOTH |
+| 1.5 | ~~Cancel confirmation copy richer on web~~ **VERIFIED PRESENT 2026-07-11** (the app's dialog already shows the cancellationOutcome deposit block — forfait vs remboursé — richer than web; no change needed) | ✅ verified | Web warns « L'acompte peut ne pas être remboursé selon la politique du salon » when a deposit exists; the app's dialog is a bare « Êtes-vous sûr… » — the app should adopt the deposit warning |
+| 1.6 | ~~App « Appeler » button is a fake~~ **FIXED 2026-07-11** (app: real tel: + a WhatsApp button via getProviderById; web detail: Appeler/WhatsApp links from the enriched public fields) | ✅ fixed | Consumer appointment detail's « Appeler » shows « Fonctionnalité à venir » snackbar instead of launching `tel:` (the provider-detail screen does it properly). Web detail has no contact action at all — add `tel:`/WhatsApp to BOTH |
 | 1.7 | Tabs & list parity | ✅ | À venir / Passés / Annulés on both; rebook on completed on both (web adds the ?services prefill; the app rebooks via the hub with initial ids — equal) |
 | 1.8 | Neither surface shows the chosen **spécialiste** on the consumer detail | ⚠️ both (nicety) | The artistId is stored and used for reschedule prefill, but never displayed to the client |
 
@@ -26,7 +26,7 @@
 | # | Finding | Severity | Detail |
 |---|---|---|---|
 | 1.9 | ~~Cross-day reschedule missing on web pro~~ **FIXED 2026-07-10** (« Reprogrammer » date+heure on the pro detail page AND the journal panel; 409 → créneau indisponible) | ✅ fixed | App: Ma journée swipe-left / long-press → « Reprogrammer » → date picker (365 d) + time picker → any day. Web: reschedule exists ONLY as drag inside the single-day journal grid — a salon cannot move a booking to another day on web (no action on the detail page, the panel, or the list) |
-| 1.10 | **« Client arrivé » absent from both DETAIL pages** | ⚠️ both | Web: only in the journal side panel. App: only as a Ma journée swipe (the J1b spec §4.2 said the detail screen would gain it — never done). A salon opening the detail can't mark arrival on either surface |
+| 1.10 | ~~« Client arrivé » absent from both DETAIL pages~~ **FIXED 2026-07-11** (both detail pages: same-day confirmed → the arrive seam; hidden once arrivedAt; web shows « Arrivé à HH:MM ») | ✅ fixed | Web: only in the journal side panel. App: only as a Ma journée swipe (the J1b spec §4.2 said the detail screen would gain it — never done). A salon opening the detail can't mark arrival on either surface |
 | 1.11 | App gap-slot prefill drops the artist | ❌ app (minor) | J1b spec: « Libre » rows prefill start time **+ the filtered artist** — the code passes only `dateTime` (`pro_journal_screen.dart` `_gap`). The web grid's quick-create DOES carry the column's artist |
 | 1.12 | Journal views | ℹ️ | Web = artist-column day GRID (drag, now-line, ghosts) · app = day TIMELINE (swipes, week strip) — deliberate per-surface designs (journal-j1-grid / j1b specs), equivalent capabilities except 1.9 |
 | 1.13 | Manual booking | ✅ | Multi-service + note + SMS seam + walk-in on both (web since #196); app entry points: FAB ×2 + gap rows + client card; web: grid cell + header CTA + client card — equal coverage |
@@ -177,7 +177,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | Entry | `/login` (+ `returnTo` continuity) | `/connexion` (+ `returnTo`) AND inline in the booking confirm (no redirect) | ✅ — web's in-funnel inline login is smoother; app redirects with returnTo (equivalent outcome) |
 | Options | Google · Apple (flag-hidden) · email | idem (env-gated) | ✅ |
 | Code step | « Se connecter » + « Changer d'e-mail » + inline error | idem | ✅ |
-| **Resend** | **none** (the dormant phone-OTP screen HAS the full cooldown+resend pattern) | **none** | ⚠️ **both** — an expired code forces backtracking; port the existing cooldown pattern to the email step on both |
+| **Resend** | ~~none~~ **FIXED 2026-07-11** (60 s cooldown + « Renvoyer le code » on the email step) | ~~none~~ **FIXED 2026-07-11** (idem, consumer + pro) | ✅ fixed — the dormant OTP screen's pattern ported to all four email steps |
 | Mandatory contact phone | blocking step post-sign-in | idem (+ re-required, prefilled, at booking) | ✅ |
 
 ### Account management
@@ -232,7 +232,7 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 | ~~**9.1** « Revenus » page (earnings + history) missing on web~~ ✅ fixed (PR fix/parity-p1c-web-surfaces) | web |
 
 ## P2 — flow/UX & conversion
-~~2.11 mobile-web sticky « Confirmer » bar · 2.10 booking notes on web · 2.1/2.2 « Trier » + « Disponible aujourd'hui » on web search~~ ✅ (P2a) · email-code RESEND with cooldown (both — pattern exists in the dormant OTP screen) · 1.10 « Client arrivé » on both detail pages · 1.5 app cancel dialog deposit warning · 1.6 app fake « Appeler » button · ~~3.2 web duration variants~~ ✅ (P2a) · ~~2.13 review photos · 2.14 « Signaler » (both)~~ ✅ (P2b)
+~~ALL P2 FIXED~~: 2.11/2.10/2.1/2.2/3.2 ✅ (P2a) · 2.13/2.14 ✅ (P2b) · resend + 1.10 + 1.5 (verified present) + 1.6 ✅ (P2c 2026-07-11)
 
 ## P3 — polish
 1.2 web add-to-calendar · 1.3 web view-own-proof · 1.4 web notes display · 1.8 show the spécialiste (both) · 1.11 app gap-slot artist · 2.6 web gallery lightbox · 2.7 « Vos rendez-vous ici » on web salon page · 2.8 review invite on the web salon page · 2.15 hearts on web result cards · 3.5 web artist photo · 3.6 app photo reorder · 4.1 web custom tags · ~~9.2 web week-revenue card~~ ✅ (P1c) · 11.3 web name edit · 15.2 web support entry
@@ -242,4 +242,4 @@ Fresh on both surfaces (C1b/C1c, 2026-07-08) and it shows — near-parity.
 2. **P1a capability batch** — `artistIds` UI both + web staff-hours + web breaks (the capacity-engine trio).
 3. ~~**P1b reschedule batch**~~ ✅ done 2026-07-11 — web consumer « Reporter » + web pro « Reprogrammer » (cross-day).
 4. ~~**P1c web-surfaces batch**~~ ✅ done 2026-07-11 — notification center/prefs + « Revenus » (+ 9.2 week card).
-5. **P2 batches**: ~~P2a search+funnel (2.1/2.2/2.10/2.11/3.2)~~ ✅ done 2026-07-11 · ~~P2b reviews/trust (2.13/2.14)~~ ✅ done 2026-07-11 · P2c appointments+auth (1.10/1.5/1.6/resend) — then **P3 polish batches**, app and web sides grouped.
+5. **P2 batches**: ~~P2a search+funnel~~ · ~~P2b reviews/trust~~ · ~~P2c appointments+auth (1.10/1.5/1.6/resend)~~ — **ALL P2 DONE 2026-07-11**; P3 polish batches remain (app and web sides grouped).

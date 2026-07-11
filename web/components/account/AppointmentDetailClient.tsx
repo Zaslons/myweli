@@ -145,6 +145,30 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </Link>
         ) : null}
 
+        {/* Parity 1.6 — contact the salon from the booking. */}
+        {appt.providerPhone || appt.providerWhatsapp ? (
+          <div className="mt-s flex flex-wrap gap-s">
+            {appt.providerPhone ? (
+              <a
+                href={`tel:${appt.providerPhone.replace(/\s/g, '')}`}
+                className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+              >
+                Appeler
+              </a>
+            ) : null}
+            {appt.providerWhatsapp ? (
+              <a
+                href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+              >
+                WhatsApp
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+
         <dl className="mt-m space-y-xs text-sm">
           <Row label="Date" value={formatDateTimeFr(appt.appointmentDate)} />
           {appt.serviceNames && appt.serviceNames.length > 0 ? (

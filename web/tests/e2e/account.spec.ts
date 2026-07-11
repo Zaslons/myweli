@@ -12,6 +12,8 @@ test('login → see booking → open detail → cancel', async ({ page }) => {
   await page.goto('/connexion');
   await page.locator('input[type=email]').fill('awa@example.com');
   await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  // Resend with cooldown (module 11) — counting down, disabled.
+  await expect(page.getByText(/Renvoyer le code \(\d+s\)/)).toBeVisible();
   await page.locator('input[type=text]').fill('123456');
   await page.getByRole('button', { name: 'Se connecter' }).click();
 
@@ -23,6 +25,16 @@ test('login → see booking → open detail → cancel', async ({ page }) => {
   // The enriched booking card → detail.
   await page.getByText('Beauté Divine').first().click();
   await expect(page).toHaveURL(/\/mon-compte\/appt1/);
+
+  // Parity 1.6: contact the salon from the booking.
+  await expect(page.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
+    'href',
+    'tel:+2250700000000',
+  );
+  await expect(page.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
+    'href',
+    'https://wa.me/2250700000000',
+  );
 
   // « Reporter » (parity 1.1): pick tomorrow's 14:00 then confirm.
   await page.getByRole('button', { name: 'Reporter', exact: true }).click();
