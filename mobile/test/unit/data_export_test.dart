@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/data_export.dart';
 import 'package:myweli/models/appointment.dart';
-import 'package:myweli/models/user.dart';
+import 'package:myweli/models/availability.dart';
+import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_client.dart';
-import 'package:myweli/models/provider.dart' as models;
-import 'package:myweli/models/availability.dart';
+import 'package:myweli/models/user.dart';
 
 void main() {
   final user = User(

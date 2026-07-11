@@ -644,7 +644,7 @@ test('compte: export buttons + type-SUPPRIMER deletion (audit 11.5)', async ({
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 
-  await page.getByRole('link', { name: 'Profil' }).click();
+  await page.getByRole('link', { name: 'Profil', exact: true }).click();
   await expect(page).toHaveURL(/\/pro\/profil/);
 
   // The export half (AUTH-005).
