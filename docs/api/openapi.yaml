@@ -523,7 +523,7 @@ paths:
   /me/subscription:
     get:
       tags: [provider]
-      summary: The signed-in provider's plan & trial status (FR-PRO-SUB-001) — derived
+      summary: LEGACY plan status (compat shape; the real model is per-salon)
       description: >
         Provider-role, self-scoped. Derived from the account's signup date (no
         billing state in V1): Pro during the 90-day trial, else Free.
@@ -1275,7 +1275,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: [profile, location, services, photos, availability]
+                      enum: [profile, location, services, photos, availability, offer]
 
   /providers/{id}/deposit-policy:
     parameters:
@@ -1366,6 +1366,59 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+  /providers/{id}/subscription:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: The salon's offer state (pricing pivot — R2a)
+      description: >
+        Owner-only (`subscription.manage`, threat T54). 404 while the salon
+        is in the free setup state (no offer chosen). Status lifecycle:
+        `trial` → (`paid`)* → `grace` (7 days) → `expired`; expiry leads to
+        UNPUBLISH (draft, T51) — never a data lockout.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The derived offer state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonSubscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [providers]
+      summary: Choose or switch the salon's offer (3 mois offerts)
+      description: >
+        Owner-only. The FIRST choice starts the salon's ONE 3-month trial;
+        switches keep the clock; once `expired`, re-choosing → 409
+        `trial_used` (payment is manual — « Nous contacter », admin-recorded).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier: { type: string, enum: [pro, business, reseau] }
+      responses:
+        '200':
+          description: The new offer state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonSubscription' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Trial already used (`trial_used`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /providers/{id}/appointments:
     parameters:
@@ -2419,6 +2472,38 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/providers/{id}/subscription/paid:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [admin]
+      summary: Record a manual subscription payment (audited — T54)
+      description: >
+        Extends `paidUntil` by `months` (1–24) from max(now, current);
+        republishes a billing-unpublished salon when the publish gate passes;
+        reopens the warning cycle.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [months]
+              properties:
+                months: { type: integer, minimum: 1, maximum: 24 }
+                reason: { type: string }
+      responses:
+        '200':
+          description: The updated offer state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonSubscription' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /admin/providers/{id}/suspend:
     post:
       tags: [admin]
@@ -3279,6 +3364,26 @@ components:
         reminders: { type: boolean, description: 24h/2h appointment reminders. }
         marketing: { type: boolean, description: Marketing/promotional messages (ARTCI opt-out). }
         push: { type: boolean, description: Device push notifications. }
+
+    SalonSubscription:
+      type: object
+      description: >
+        The salon's offer state (pricing pivot — R2a). Billing state lives in
+        its own table and NEVER enters public provider payloads (T54).
+      required: [tier, status, trialEndsAt, graceEndsAt, seats]
+      properties:
+        tier: { type: string, enum: [pro, business, reseau] }
+        status: { type: string, enum: [trial, paid, grace, expired] }
+        trialEndsAt: { type: string, format: date-time }
+        paidUntil: { type: string, format: date-time, nullable: true }
+        graceEndsAt: { type: string, format: date-time }
+        unpublishedForBilling: { type: boolean }
+        seats:
+          type: object
+          required: [cap, used]
+          properties:
+            cap: { type: integer, description: Places for the tier (owner + team, invited included). }
+            used: { type: integer }
 
     Subscription:
       type: object

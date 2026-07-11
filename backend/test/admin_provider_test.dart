@@ -1,22 +1,44 @@
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/admin/admin_provider_service.dart';
 import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:test/test.dart';
 
 void main() {
   late InMemoryProvidersRepository providers;
   late InMemoryAppointmentRepository appts;
   late InMemoryAuditLogRepository audit;
+  late InMemoryProviderAuthRepository providerAuthStub;
   late AdminProviderService svc;
 
   setUp(() {
     providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     audit = InMemoryAuditLogRepository();
-    svc = AdminProviderService(providers, appts, audit);
+    providerAuthStub = InMemoryProviderAuthRepository(
+      tokens: TokenService(secret: 'test-secret'),
+      isProd: false,
+    );
+    svc = AdminProviderService(
+      providers,
+      appts,
+      audit,
+      SalonSubscriptionService(
+        InMemorySalonSubscriptionRepository(),
+        MembershipService(InMemoryMembershipRepository(), providerAuthStub),
+        InMemoryMembershipRepository(),
+        providers,
+        providerAuthStub,
+      ),
+    );
   });
 
   test(

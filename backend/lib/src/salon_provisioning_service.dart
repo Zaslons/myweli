@@ -1,17 +1,27 @@
 import 'access/membership_repository.dart';
 import 'auth/provider_auth_repository.dart';
 import 'providers_repository.dart';
+import 'subscription/salon_subscription_service.dart';
 
 /// Salon lifecycle (docs/design/pro-salon-lifecycle.md): every pro account
 /// gets a DRAFT salon (created at registration, or healed on first read for
 /// pre-fix accounts), publicly invisible until the owner publishes a
 /// completed profile.
 class SalonProvisioningService {
-  SalonProvisioningService(this._providers, this._accounts, this._members);
+  SalonProvisioningService(
+    this._providers,
+    this._accounts,
+    this._members, {
+    SalonSubscriptionService? subscriptions,
+  }) : _subscriptions = subscriptions;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _accounts;
   final MembershipRepository _members;
+
+  /// The offer gate (pricing pivot): publishing requires a live offer.
+  /// Nullable only for legacy unit tests; production wiring always passes it.
+  final SalonSubscriptionService? _subscriptions;
 
   /// `businessType` → public listing category (the seed taxonomy).
   static String categoryFor(String businessType) => switch (businessType) {
@@ -93,6 +103,12 @@ class SalonProvisioningService {
       return (ok: false, error: 'not_found', data: null);
     }
     final missing = publishGate(provider);
+    // The pricing pivot: going live requires a live offer (trial/paid/grace)
+    // — the `offer` key sends the clients to « Choisissez une offre ».
+    final subs = _subscriptions;
+    if (subs != null && !await subs.hasLiveOffer(providerId)) {
+      missing.add('offer');
+    }
     if (missing.isNotEmpty) {
       return (ok: false, error: 'incomplete', data: {'missing': missing});
     }

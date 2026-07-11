@@ -40,6 +40,8 @@ import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:myweli_backend/src/reviews_service.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
+import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 import 'package:myweli_backend/src/upload_signing_service.dart';
 
 /// Provides the process-wide singletons into every request's context, so
@@ -55,6 +57,8 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderAuthRepository>((_) => providerAuthRepository))
       .use(provider<ProviderAccountService>((_) => providerAccountService))
       .use(provider<MembershipService>((_) => membershipService))
+      .use(provider<SalonSubscriptionService>((_) => salonSubscriptionService))
+      .use(provider<SubscriptionScheduler>((_) => subscriptionScheduler))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
       .use(provider<BookingService>((_) => bookingService))
       .use(provider<SlotService>((_) => slotService))

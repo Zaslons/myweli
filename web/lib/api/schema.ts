@@ -975,7 +975,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The signed-in provider's plan & trial status (FR-PRO-SUB-001) — derived
+         * LEGACY plan status (compat shape; the real model is per-salon)
          * @description Provider-role, self-scoped. Derived from the account's signup date (no billing state in V1): Pro during the 90-day trial, else Free.
          */
         get: {
@@ -2378,7 +2378,7 @@ export interface paths {
                         "application/json": {
                             /** @enum {string} */
                             error: "incomplete";
-                            missing: ("profile" | "location" | "services" | "photos" | "availability")[];
+                            missing: ("profile" | "location" | "services" | "photos" | "availability" | "offer")[];
                         };
                     };
                 };
@@ -2555,6 +2555,96 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/providers/{id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The salon's offer state (pricing pivot — R2a)
+         * @description Owner-only (`subscription.manage`, threat T54). 404 while the salon is in the free setup state (no offer chosen). Status lifecycle: `trial` → (`paid`)* → `grace` (7 days) → `expired`; expiry leads to UNPUBLISH (draft, T51) — never a data lockout.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The derived offer state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonSubscription"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        /**
+         * Choose or switch the salon's offer (3 mois offerts)
+         * @description Owner-only. The FIRST choice starts the salon's ONE 3-month trial; switches keep the clock; once `expired`, re-choosing → 409 `trial_used` (payment is manual — « Nous contacter », admin-recorded).
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        tier: "pro" | "business" | "reseau";
+                    };
+                };
+            };
+            responses: {
+                /** @description The new offer state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonSubscription"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description Trial already used (`trial_used`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -4446,6 +4536,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/providers/{id}/subscription/paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a manual subscription payment (audited — T54)
+         * @description Extends `paidUntil` by `months` (1–24) from max(now, current); republishes a billing-unpublished salon when the publish gate passes; reopens the warning cycle.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        months: number;
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description The updated offer state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalonSubscription"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/providers/{id}/suspend": {
         parameters: {
             query?: never;
@@ -5399,6 +5543,25 @@ export interface components {
             marketing: boolean;
             /** @description Device push notifications. */
             push: boolean;
+        };
+        /** @description The salon's offer state (pricing pivot — R2a). Billing state lives in its own table and NEVER enters public provider payloads (T54). */
+        SalonSubscription: {
+            /** @enum {string} */
+            tier: "pro" | "business" | "reseau";
+            /** @enum {string} */
+            status: "trial" | "paid" | "grace" | "expired";
+            /** Format: date-time */
+            trialEndsAt: string;
+            /** Format: date-time */
+            paidUntil?: string | null;
+            /** Format: date-time */
+            graceEndsAt: string;
+            unpublishedForBilling?: boolean;
+            seats: {
+                /** @description Places for the tier (owner + team */
+                cap: number;
+                used: number;
+            };
         };
         /** @description Provider plan & trial status (FR-PRO-SUB-001), derived from signup. V1 has no billing state; paid tiers/auto-renew land post-incorporation. */
         Subscription: {
