@@ -1,4 +1,5 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/di/dependency_injection.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
@@ -170,6 +171,16 @@ class MockProService implements ProServiceInterface {
   @override
   Future<ApiResponse<bool>> publishSalon(String providerId) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
+    // Pricing pivot (R2a/R3): publishing requires a live offer — mirror the
+    // server's `offer` missing-key so the demo exercises the real flow.
+    final sub = await serviceLocator.subscriptionService
+        .getSalonSubscription(providerId);
+    if (!sub.success || !(sub.data?.isLive ?? false)) {
+      return ApiResponse.error(
+        'Choisissez votre offre avant la mise en ligne.',
+        code: 'offer_required',
+      );
+    }
     return ApiResponse.success(true, message: 'Votre salon est en ligne');
   }
 

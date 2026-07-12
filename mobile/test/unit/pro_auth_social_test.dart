@@ -1,21 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/models/provider_login_result.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 
 /// Pro auth overhaul P4 (docs/design/pro-auth-social.md): LOGIN-ONLY social +
-/// email OTP, and registration = identity + business fields in ONE submit.
+/// email OTP, registration = identity + business fields in ONE submit — and
+/// the R3 invitation bridge (a verified email with pending invitations gets
+/// the `.invited` outcome instead of provider_not_found).
 void main() {
+  setUp(MockData.resetTeam);
+
   group('MockAuthService — pro social + email', () {
     // NOTE: mock salons live in static MockData.providerUsers, so within this
     // file the login-only assertions run BEFORE any register creates accounts.
     test(
-        'social login is LOGIN-ONLY: no salon → provider_not_found, no session',
-        () async {
+        'Google login with no account but a PENDING invitation → the '
+        'invited outcome (the 202 bridge), session untouched', () async {
       final service = MockAuthService();
       final res = await service.signInProviderWithGoogle();
-      expect(res.success, isFalse);
+      expect(res.signedIn, isFalse);
+      expect(res.hasInvitations, isTrue);
+      expect(res.invitations.single.salonName, 'Beauté Divine');
+      expect(res.proof, isA<GoogleInvitationProof>());
+      expect(await service.getCurrentProvider(), isNull);
+    });
+
+    test(
+        'Apple login is LOGIN-ONLY with NO bridge: no salon → '
+        'provider_not_found, no session', () async {
+      final service = MockAuthService();
+      final res = await service.signInProviderWithApple();
+      expect(res.signedIn, isFalse);
+      expect(res.hasInvitations, isFalse);
       expect(res.code, 'provider_not_found');
       expect(await service.getCurrentProvider(), isNull);
     });
@@ -30,12 +49,12 @@ void main() {
 
       final wrong =
           await service.verifyProviderEmailOtp('new@salon.test', '000000');
-      expect(wrong.success, isFalse);
+      expect(wrong.signedIn, isFalse);
       expect(wrong.code, 'otp_invalid');
 
       final notFound = await service.verifyProviderEmailOtp(
           'new@salon.test', MockAuthService.demoOtp);
-      expect(notFound.success, isFalse);
+      expect(notFound.signedIn, isFalse);
       expect(notFound.code, 'provider_not_found');
 
       // The unconsumed code registers the salon — and signs it in.
@@ -55,7 +74,7 @@ void main() {
       // The code was consumed by register.
       final replay = await service.verifyProviderEmailOtp(
           'new@salon.test', MockAuthService.demoOtp);
-      expect(replay.success, isFalse);
+      expect(replay.signedIn, isFalse);
       expect(replay.code, 'otp_invalid');
     });
 
@@ -103,11 +122,12 @@ void main() {
       expect(dup.success, isFalse);
       expect(dup.code, 'provider_exists');
 
-      // Login now resolves to the SAME salon.
+      // Login now resolves to the SAME salon (an existing account WINS over
+      // the pending invitation — no bridge once signed in).
       await service.logoutProvider();
       final login = await service.signInProviderWithGoogle();
-      expect(login.success, isTrue);
-      expect(login.data!.id, reg.data!.id);
+      expect(login.signedIn, isTrue);
+      expect(login.provider!.id, reg.data!.id);
     });
   });
 

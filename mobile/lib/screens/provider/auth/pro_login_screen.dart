@@ -15,11 +15,15 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/google_g_logo.dart';
+import '../../../widgets/team/invitation_card.dart';
 
 /// Salon sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
 /// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY: `provider_not_found`
 /// offers « Créer un compte » → the register screen (identity + business
-/// fields in one submit). Design: docs/design/pro-auth-social.md.
+/// fields in one submit) — UNLESS the verified email holds pending team
+/// invitations (module `access` R3): the « Invitations » step lets the
+/// invitee join WITHOUT creating a salon. Designs:
+/// docs/design/pro-auth-social.md · docs/design/team-access-r3-app.md §2.2.
 class ProLoginScreen extends StatefulWidget {
   const ProLoginScreen({super.key, this.returnTo});
 
@@ -30,7 +34,7 @@ class ProLoginScreen extends StatefulWidget {
   State<ProLoginScreen> createState() => _ProLoginScreenState();
 }
 
-enum _Step { options, code }
+enum _Step { options, code, invitations }
 
 class _ProLoginScreenState extends State<ProLoginScreen> {
   final _emailController = TextEditingController();
@@ -55,12 +59,44 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
 
   Future<void> _handleGoogle() async {
     final auth = context.read<ProAuthProvider>();
-    if (await auth.signInWithGoogle() && mounted) _finish();
+    final ok = await auth.signInWithGoogle();
+    if (!mounted) return;
+    if (ok) {
+      _finish();
+    } else if (auth.hasPendingInvitations) {
+      setState(() => _step = _Step.invitations);
+    }
   }
 
   Future<void> _handleApple() async {
     final auth = context.read<ProAuthProvider>();
     if (await auth.signInWithApple() && mounted) _finish();
+  }
+
+  /// « Rejoindre » — accepts under the login-proven identity; the account
+  /// (bare member if new) and session come back ready.
+  Future<void> _acceptInvitation(String invitationId, String salonName) async {
+    final auth = context.read<ProAuthProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await auth.acceptPendingInvitation(invitationId);
+    if (!mounted) return;
+    if (ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Bienvenue dans l\'équipe de $salonName !')),
+      );
+      _finish();
+    }
+  }
+
+  Future<void> _declineInvitation(String invitationId) async {
+    final auth = context.read<ProAuthProvider>();
+    await auth.declinePendingInvitation(invitationId);
+    if (!mounted) return;
+    if (!auth.hasPendingInvitations) {
+      // Every invitation handled — fall back to the classic options step
+      // (« Créer un compte » renders from provider_not_found).
+      setState(() => _step = _Step.options);
+    }
   }
 
   // Resend cooldown (module 11 — the dormant OTP screen's pattern).
@@ -102,7 +138,12 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
       _emailController.text.trim(),
       _codeController.text.trim(),
     );
-    if (ok && mounted) _finish();
+    if (!mounted) return;
+    if (ok) {
+      _finish();
+    } else if (auth.hasPendingInvitations) {
+      setState(() => _step = _Step.invitations);
+    }
   }
 
   @override
@@ -187,6 +228,43 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   onPressed:
                       (auth.isLoading || !_emailValid) ? null : _sendCode,
                   isLoading: auth.isLoading,
+                ),
+              ] else if (_step == _Step.invitations) ...[
+                Text(
+                  'Vous êtes invité(e)',
+                  style: AppTextStyles.headlineSmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Rejoignez l\'équipe — aucun salon à créer.',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                for (final invitation in auth.pendingInvitations) ...[
+                  InvitationCard(
+                    invitation: invitation,
+                    busy: auth.isLoading,
+                    onAccept: () => _acceptInvitation(
+                      invitation.id,
+                      invitation.salonName,
+                    ),
+                    onDecline: () => _declineInvitation(invitation.id),
+                  ),
+                  const SizedBox(height: AppTheme.spacingM),
+                ],
+                AppButton(
+                  text: 'Retour',
+                  type: AppButtonType.text,
+                  onPressed: auth.isLoading
+                      ? null
+                      : () {
+                          auth.clearPendingInvitations();
+                          setState(() => _step = _Step.options);
+                        },
                 ),
               ] else ...[
                 Text(

@@ -45,6 +45,7 @@ class AppColors {
   // UI accents — purpose-named so screens use a token, not a literal.
   static const Color starRating = Color(0xFFFFB800); // amber rating stars
   static const Color favorite = Color(0xFFE53935); // favorite heart
+  static const Color gold = Color(0xFFB8860B); // Propriétaire role chip
 
   // Service-category accents (map markers + category chips). A deliberate,
   // bounded **exception** to the monochrome identity: muted/earthy hues that aid

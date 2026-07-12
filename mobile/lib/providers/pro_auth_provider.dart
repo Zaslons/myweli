@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
+import '../models/provider_login_result.dart';
 import '../models/provider_user.dart';
+import '../models/team_invitation.dart';
 import '../services/interfaces/auth_service_interface.dart';
 
 class ProAuthProvider extends ChangeNotifier {
@@ -127,11 +129,137 @@ class ProAuthProvider extends ChangeNotifier {
     }
   }
 
+  // ---- Team access R3: the login invitation bridge --------------------------
+
+  /// Pending invitations surfaced by the last login attempt (the 202
+  /// bridge) + the identity proof to accept/decline them. Memory only —
+  /// never persisted (short-lived credential).
+  List<TeamInvitation> _pendingInvitations = const [];
+  InvitationProof? _invitationProof;
+
+  List<TeamInvitation> get pendingInvitations => _pendingInvitations;
+  bool get hasPendingInvitations => _pendingInvitations.isNotEmpty;
+
+  /// Login handling for the three bridged sign-ins: signed in → true;
+  /// invitations → false with [pendingInvitations] set (the screen shows
+  /// the « Invitations » step); failure → false with error/errorCode.
+  Future<bool> _bridgedLogin(
+    Future<ProviderLoginResult> Function() run,
+  ) async {
+    _isLoading = true;
+    _error = null;
+    _errorCode = null;
+    _pendingInvitations = const [];
+    _invitationProof = null;
+    notifyListeners();
+    try {
+      final result = await run();
+      if (result.signedIn) {
+        _provider = result.provider;
+        _syncPush();
+        return true;
+      }
+      if (result.hasInvitations) {
+        _pendingInvitations = result.invitations;
+        _invitationProof = result.proof;
+        return false;
+      }
+      _errorCode = result.code;
+      _error = _errorCode == 'cancelled'
+          ? null
+          : (result.error?.isNotEmpty ?? false
+              ? result.error
+              : 'Connexion impossible.');
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// « Rejoindre » from the login step — accepts under the retained proof;
+  /// success = authenticated (the session was persisted service-side).
+  Future<bool> acceptPendingInvitation(String invitationId) async {
+    final proof = _invitationProof;
+    if (proof == null) return false;
+    _isLoading = true;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+    try {
+      final response =
+          await _authService.acceptProviderInvitation(invitationId, proof);
+      if (response.success && response.data != null) {
+        _provider = response.data;
+        _pendingInvitations = const [];
+        _invitationProof = null;
+        _syncPush();
+        return true;
+      }
+      _error = response.error ?? 'Invitation impossible à accepter.';
+      _errorCode = response.code;
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// « Refuser » from the login step — removes the card in place; an empty
+  /// list falls back to today's « Créer un compte » messaging.
+  Future<bool> declinePendingInvitation(String invitationId) async {
+    final proof = _invitationProof;
+    if (proof == null) return false;
+    _isLoading = true;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+    try {
+      final response =
+          await _authService.declineProviderInvitation(invitationId, proof);
+      if (!response.success) {
+        _error = response.error ?? 'Refus impossible.';
+        _errorCode = response.code;
+        return false;
+      }
+      _pendingInvitations = _pendingInvitations
+          .where((i) => i.id != invitationId)
+          .toList(growable: false);
+      if (_pendingInvitations.isEmpty) {
+        _invitationProof = null;
+        _errorCode = 'provider_not_found';
+        _error = 'Compte introuvable. Créez votre compte.';
+      }
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Back/« Changer d'e-mail » from the invitations step.
+  void clearPendingInvitations() {
+    _pendingInvitations = const [];
+    _invitationProof = null;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+  }
+
   Future<bool> signInWithGoogle() =>
-      _login(_authService.signInProviderWithGoogle);
+      _bridgedLogin(_authService.signInProviderWithGoogle);
 
   Future<bool> signInWithApple() =>
-      _login(_authService.signInProviderWithApple);
+      _bridgedLogin(_authService.signInProviderWithApple);
 
   Future<bool> requestEmailOtp(String email) async {
     _isLoading = true;
@@ -158,7 +286,7 @@ class ProAuthProvider extends ChangeNotifier {
   }
 
   Future<bool> verifyEmailOtp(String email, String code) =>
-      _login(() => _authService.verifyProviderEmailOtp(email, code));
+      _bridgedLogin(() => _authService.verifyProviderEmailOtp(email, code));
 
   Future<bool> registerWithGoogle({
     required String phoneNumber,

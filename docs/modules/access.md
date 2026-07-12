@@ -319,7 +319,7 @@ set ops. No new N+1: member list joins artists in one query. Budgets unchanged.
 | Slice | Contents | Phase |
 |---|---|---|
 | A1/R1 | ~~Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change)~~ ✅ done 2026-07-11 (PR feat/team-access-r1-foundation; + the provisioning guard, deletion revocation and `salon.publish`) | pre-launch |
-| A2/R2 | Invites + accept flow + presets enforcement + audit + tests — **R2a (offers/seats server side) ✅ done 2026-07-11 · R2b (invitations API + login bridge + Équipe endpoints) ✅ done 2026-07-12** (docs/design/team-access-r2b-invitations.md; threat rows T36–T40); screens = R3/R5 | pre-launch |
+| A2/R2 | Invites + accept flow + presets enforcement + audit + tests — **R2a (offers/seats server side) ✅ 2026-07-11 · R2b (invitations API + login bridge) ✅ 2026-07-12 · R3 (pro APP: Équipe screen, login « Invitations » step, offer picker, publish-gate mirror) ✅ 2026-07-12** (docs/design/team-access-r3-app.md); web screens = R5 | pre-launch |
 | A3 | Collaborateur « Ma journée » app reshape + web own-calendar | V2 |
 | A4 | Seats gate (config-off until pricing) | V2, flag-hidden |
 | A5/R6 | **Multi-salons** (pre-launch, sign-off 2026-07-11): switcher + « Ajouter un salon » + Réseau gating + badge inheritance | pre-launch |

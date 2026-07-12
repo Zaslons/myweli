@@ -8,10 +8,26 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
 
-class ProProfileScreen extends StatelessWidget {
+class ProProfileScreen extends StatefulWidget {
   const ProProfileScreen({super.key});
+
+  @override
+  State<ProProfileScreen> createState() => _ProProfileScreenState();
+}
+
+class _ProProfileScreenState extends State<ProProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // The « Invitations » row only appears when the identity has pending
+    // team invitations (module access R3).
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<ProTeamProvider>().loadMyInvitations(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,14 +143,65 @@ class ProProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.workspace_premium_outlined),
-                    title: const Text('Mon abonnement'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/subscription'),
+                if (provider.providerId != null) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.group_outlined),
+                      title: const Text('Équipe'),
+                      subtitle: const Text('Invitez et gérez vos accès'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/team'),
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                ],
+                Consumer<ProTeamProvider>(
+                  builder: (context, team, _) => team.invitationCount == 0
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.mail_outline),
+                              title: const Text('Invitations'),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(
+                                        AppTheme.radiusSmall,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '${team.invitationCount}',
+                                      style: AppTextStyles.labelSmall.copyWith(
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              ),
+                              onTap: () => context.push('/pro/invitations'),
+                            ),
+                          ),
+                        ),
                 ),
+                if (provider.providerId != null)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.workspace_premium_outlined),
+                      title: const Text('Mon abonnement'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/subscription'),
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 Card(
                   child: ListTile(
