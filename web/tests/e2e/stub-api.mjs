@@ -328,6 +328,35 @@ let svcSeq = 1;
 let artSeq = 1;
 let imgSeq = 1;
 
+// --- team access R6c: the multi-salon world --------------------------------
+// The owner also owns a SECOND salon (draft, its own free SETUP state) so the
+// « Mes salons » switcher is e2e-testable; created salons land in the same
+// registry. Members belong to p1 only.
+const secondSalon = JSON.parse(JSON.stringify(provider));
+secondSalon.id = 'p3';
+secondSalon.slug = 'institut-belle-vue';
+secondSalon.name = 'Institut Belle Vue';
+secondSalon.status = 'draft';
+secondSalon.artists = [];
+secondSalon.imageUrls = [];
+let addedSalonSeq = 3;
+// salonId → the pro-side salon document (p1 keeps the historical proProvider).
+const ownedSalons = new Map([
+  ['p1', proProvider],
+  ['p3', secondSalon],
+]);
+function salonEntryOf(id, role) {
+  const salon = ownedSalons.get(id);
+  return {
+    salonId: id,
+    salonName: salon.name,
+    role,
+    salonStatus: salon.status ?? 'active',
+    verified: salon.verified === true,
+    imageUrl: salon.imageUrls?.[0] ?? null,
+  };
+}
+
 // --- team access R5a: the salon roster, offer & pending invitations --------
 // The owner row is pinned & inert; the offer defaults to a LIVE trial so the
 // 55 pre-team e2e (publish, abonnement) are untouched. `team-reset` (a
@@ -364,8 +393,10 @@ function liveOffer() {
   };
 }
 let teamMembers = freshTeam();
-let salonOffer = liveOffer();
-let trialUsed = true; // the default live offer already consumed the free trial
+// R6c: offers are PER SALON (p1 keeps the historical live trial; p3 and
+// created salons start in the free SETUP state with their own trial).
+const salonOffers = new Map([['p1', liveOffer()]]);
+const trialUsedIds = new Set(['p1']);
 // The login-bridge fixture: an invited email that is NOT yet a member — a 202
 // {invitations} login lands on the « Invitations » step.
 const INVITED_EMAIL = 'invitee@equipe.test';
@@ -387,7 +418,8 @@ function seatsUsed() {
   return teamMembers.filter((m) => m.status !== 'revoked').length;
 }
 function syncSeats() {
-  if (salonOffer) salonOffer.seats.used = seatsUsed();
+  const p1Offer = salonOffers.get('p1');
+  if (p1Offer) p1Offer.seats.used = seatsUsed();
 }
 const ROLE_LABELS = {
   owner: 'Propriétaire',
@@ -821,6 +853,16 @@ createServer(async (req, res) => {
     if (role === 'revoked') {
       return json(res, 403, { error: 'not_a_member' });
     }
+    // R6c: an explicit selection — an OWNER may act in any owned salon;
+    // anything else is the uniform per-salon 403 (T55).
+    const selected = url.searchParams.get('salonId');
+    let servedSalon = proProvider;
+    if (selected && selected !== 'p1') {
+      if (role !== 'owner' || !ownedSalons.has(selected)) {
+        return json(res, 403, { error: 'forbidden' });
+      }
+      servedSalon = ownedSalons.get(selected);
+    }
     return json(res, 200, {
       account: {
         id: role === 'owner' ? 'acc1' : `acc-${role}`,
@@ -833,7 +875,7 @@ createServer(async (req, res) => {
         verificationStatus: 'verified',
         providerId: 'p1',
       },
-      provider: proProvider,
+      provider: servedSalon,
       // Access R4a: the caller's role-shaped membership.
       membership: {
         role,
@@ -844,6 +886,47 @@ createServer(async (req, res) => {
       },
     });
   }
+  // --- team access R6c: « Mes salons » -----------------------------------
+  if (url.pathname === '/me/salons') {
+    const role = roleOf(req);
+    if (role === 'revoked') return json(res, 403, { error: 'not_a_member' });
+    if (req.method === 'POST') {
+      if (role !== 'owner') return json(res, 403, { error: 'forbidden' });
+      const b = await readBody(req);
+      if (!b.businessName || typeof b.businessName !== 'string') {
+        return json(res, 400, { error: 'invalid_input' });
+      }
+      const p1Offer = salonOffers.get('p1');
+      const reseauLive =
+        [...salonOffers.values()].some(
+          (o) => o.tier === 'reseau' && o.status !== 'expired',
+        ) && Boolean(p1Offer);
+      if (!reseauLive) {
+        return json(res, 403, { error: 'reseau_required' });
+      }
+      const id = `p${++addedSalonSeq}`;
+      const created = JSON.parse(JSON.stringify(provider));
+      created.id = id;
+      created.slug = `salon-${id}`;
+      created.name = b.businessName.trim();
+      created.status = 'draft';
+      created.artists = [];
+      created.imageUrls = [];
+      ownedSalons.set(id, created);
+      return json(res, 201, { salon: salonEntryOf(id, 'owner') });
+    }
+    // GET: owners see the whole owned fleet; members see their one salon.
+    const items =
+      role === 'owner'
+        ? [...ownedSalons.keys()].map((id) => salonEntryOf(id, 'owner'))
+        : [salonEntryOf('p1', role)];
+    const canAddSalon =
+      role === 'owner' &&
+      [...salonOffers.values()].some(
+        (o) => o.tier === 'reseau' && o.status !== 'expired',
+      );
+    return json(res, 200, { items, canAddSalon });
+  }
   // --- team access R5a: the salon roster (owner-only) -------------------
   if (url.pathname === '/me/provider/members') {
     if (req.method === 'POST') {
@@ -852,10 +935,11 @@ createServer(async (req, res) => {
       const role = b.role;
       // Backend gate order: offer_required → seat_limit → member_exists →
       // artist_required/not_found.
-      if (!salonOffer || salonOffer.status === 'expired') {
+      const p1Offer = salonOffers.get('p1');
+      if (!p1Offer || p1Offer.status === 'expired') {
         return json(res, 409, { error: 'offer_required' });
       }
-      if (seatsUsed() >= salonOffer.seats.cap) {
+      if (seatsUsed() >= p1Offer.seats.cap) {
         return json(res, 409, { error: 'seat_limit' });
       }
       if (
@@ -893,6 +977,22 @@ createServer(async (req, res) => {
       teamMembers.push(member);
       syncSeats();
       return json(res, 201, member);
+    }
+    // R6c: a selected non-p1 salon has its own (owner-only) roster.
+    const memberSalon = url.searchParams.get('salonId');
+    if (memberSalon && memberSalon !== 'p1') {
+      if (!ownedSalons.has(memberSalon)) {
+        return json(res, 403, { error: 'forbidden' });
+      }
+      return json(res, 200, {
+        items: [
+          {
+            ...freshTeam()[0],
+            id: `member-owner-${memberSalon}`,
+            providerId: memberSalon,
+          },
+        ],
+      });
     }
     return json(res, 200, { items: teamMembers });
   }
@@ -960,17 +1060,23 @@ createServer(async (req, res) => {
     return json(res, 200, action === 'accept' ? member : { declined: true });
   }
   // The salon offer (pricing pivot). 404 = SETUP (no offer chosen yet).
-  const subM = url.pathname.match(/^\/providers\/[^/]+\/subscription$/);
+  const subM = url.pathname.match(/^\/providers\/([^/]+)\/subscription$/);
   if (subM) {
+    // R6c: offers are PER SALON — p1 keeps the historical seeded trial;
+    // p3/created salons start in SETUP with their own single trial.
+    const subSalonId = subM[1];
     if (req.method === 'PUT') {
       const b = await readBody(req);
       if (!['pro', 'business', 'reseau'].includes(b.tier)) {
         return json(res, 400, { error: 'invalid_input' });
       }
-      if (!salonOffer) {
-        if (trialUsed) return json(res, 409, { error: 'trial_used' });
-        trialUsed = true;
-        salonOffer = {
+      const current = salonOffers.get(subSalonId);
+      if (!current) {
+        if (trialUsedIds.has(subSalonId)) {
+          return json(res, 409, { error: 'trial_used' });
+        }
+        trialUsedIds.add(subSalonId);
+        salonOffers.set(subSalonId, {
           tier: b.tier,
           status: 'trial',
           trialEndsAt: '2026-10-12T00:00:00.000Z',
@@ -978,18 +1084,19 @@ createServer(async (req, res) => {
           graceEndsAt: '2026-10-19T00:00:00.000Z',
           unpublishedForBilling: false,
           seats: { cap: SEAT_CAP[b.tier], used: seatsUsed() },
-        };
+        });
       } else {
         // A switch keeps the trial clock; only the tier/cap change.
-        salonOffer.tier = b.tier;
-        salonOffer.seats.cap = SEAT_CAP[b.tier];
+        current.tier = b.tier;
+        current.seats.cap = SEAT_CAP[b.tier];
         syncSeats();
       }
-      return json(res, 200, salonOffer);
+      return json(res, 200, salonOffers.get(subSalonId));
     }
-    if (!salonOffer) return json(res, 404, { error: 'no_offer' });
+    const offer = salonOffers.get(subSalonId);
+    if (!offer) return json(res, 404, { error: 'no_offer' });
     syncSeats();
-    return json(res, 200, salonOffer);
+    return json(res, 200, offer);
   }
   // KYC (web-pro-kyc.md) — stateful: POST stores the docs, stays pending.
   if (url.pathname === '/me/kyc') {
@@ -1056,15 +1163,17 @@ createServer(async (req, res) => {
   }
   // go-live (pro-salon-lifecycle.md B2) — flips the draft to active. Team
   // access R5a: publishing requires a LIVE offer (else 409 missing:['offer']).
-  if (url.pathname.match(/^\/providers\/[^/]+\/publish$/)) {
+  const pubM = url.pathname.match(/^\/providers\/([^/]+)\/publish$/);
+  if (pubM) {
+    const pubOffer = salonOffers.get(pubM[1]);
     const offerLive =
-      salonOffer &&
-      (salonOffer.status === 'trial' || salonOffer.status === 'paid');
+      pubOffer && (pubOffer.status === 'trial' || pubOffer.status === 'paid');
     if (!offerLive) {
       return json(res, 409, { error: 'not_ready', missing: ['offer'] });
     }
-    proProvider.status = 'active';
-    return json(res, 200, proProvider);
+    const target = ownedSalons.get(pubM[1]) ?? proProvider;
+    target.status = 'active';
+    return json(res, 200, target);
   }
   // revenus (parity 9.1) — realized ledger, optional inclusive range.
   if (url.pathname.match(/^\/providers\/[^/]+\/earnings$/)) {
@@ -1240,7 +1349,11 @@ createServer(async (req, res) => {
       // Provider list (M7) vs consumer list (M6), split by token. Team
       // access R5b: staff (own-scope) sees only THEIR artist's rows —
       // pstaff1 stays OUT of the owner list so the pre-R5b count
-      // assertions hold.
+      // assertions hold. R6c: a selected non-p1 salon starts empty.
+      const listSalon = url.searchParams.get('salonId');
+      if (isPro(req) && listSalon && listSalon !== 'p1') {
+        return json(res, 200, { items: [], page: 1, pageSize: 0, total: 0 });
+      }
       const items = isPro(req)
         ? roleOf(req) === 'staff'
           ? [proAppt('pstaff1')]

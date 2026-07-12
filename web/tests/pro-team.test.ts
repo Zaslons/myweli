@@ -44,6 +44,9 @@ describe('teamErrorMessage', () => {
       not_a_member: /accès à ce salon a été retiré/,
       not_found: /Introuvable/,
       forbidden: /propriétaire du salon/,
+      // R6 multi-salons.
+      reseau_required: /offre Réseau est requise/,
+      salon_limit: /Limite de salons atteinte/,
     };
     for (const [code, re] of Object.entries(codes)) {
       expect(teamErrorMessage(code)).toMatch(re);
@@ -74,6 +77,13 @@ describe('teamErrorCta', () => {
       href: '/pro/abonnement',
     });
     expect(teamErrorCta('seat_limit')?.href).toBe('/pro/abonnement');
+  });
+
+  it('reseau_required routes to the offer picker', () => {
+    expect(teamErrorCta('reseau_required')).toEqual({
+      label: 'Passer à l’offre Réseau',
+      href: '/pro/abonnement',
+    });
   });
 
   it('other codes carry none', () => {

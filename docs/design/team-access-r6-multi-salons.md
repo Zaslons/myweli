@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | R6a + R6b Built (2026-07-13) — R6c (web) next |
+| **Status** | **BUILT — R6 COMPLETE (a+b+c, 2026-07-13)** — the team-access program closes |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-07-12 |
 | **PRD ref / phase** | Module `access` §10 slice A5/R6 (sign-off 2026-07-11) · pre-launch |
@@ -137,11 +137,22 @@ Errors: 401 · 403 `forbidden` (non-provider) · 403 **`reseau_required`** ·
   demo owner owns provider1 AND provider2 (email login
   `jean@salon-excellence.test`), per-salon offers/trials/seats/rosters,
   mock `getMySalons`/`addSalon` with the real gates.
-- **Web**: httpOnly `myweli_pro_salon` cookie set by a select BFF route;
-  `callApiPro` appends `?salonId=` on family-B proxies so all 16 page clients
-  become salon-aware with zero per-page edits; the sidebar salon block (all
-  roles) is the switcher; `/pro/salons/nouveau` reuses the register business
-  fields sans identity.
+- **Web (BUILT — R6c, 2026-07-13)**: the httpOnly `myweli_pro_salon` cookie
+  is set ONLY by the select BFF route after a server-side validation probe
+  (`/me/provider?salonId=` — a forged/revoked id never poisons the cookie);
+  `callApiPro` appends `?salonId=` on the session-resolved prefixes
+  (`/me/provider*`, `/appointments*`, `/uploads/sign`) so all 16 page
+  clients became salon-aware with zero per-page edits. The context gained
+  `salons`/`canAddSalon`/`switchSalon` + a **switch-epoch key** that
+  remounts the page subtree on a successful switch (every screen refetches
+  for the new salon); a per-salon 403 `forbidden` on the probe clears the
+  selection once and falls back — never a sign-out. The sidebar salon block
+  (ALL roles) is the switcher (role labels + « Brouillon » badge + active
+  check + « Ajouter un salon » when the gate is open); `/pro/salons/nouveau`
+  reuses the register business fields sans identity → create → auto-switch
+  → the draft dashboard (GoLiveCard = the setup arc); the Réseau offer card
+  carries the CTA and its copy went live. Logout clears the salon cookie
+  with the session.
 
 ## 7. Testing
 

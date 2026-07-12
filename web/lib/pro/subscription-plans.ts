@@ -63,10 +63,10 @@ export const OFFER_CARDS: OfferCard[] = [
     seatsLabel: '15 places par salon',
     entitlements: [
       'Tout de l’offre Business',
-      'Multi-salons (bientôt disponible)',
+      'Multi-salons — ajoutez des salons à votre compte',
       'Tarif personnalisé',
     ],
-    notes: ['Multi-salons — bientôt disponible', 'Tarif personnalisé'],
+    notes: ['Chaque salon a sa propre offre et son propre essai'],
   },
 ];
 
