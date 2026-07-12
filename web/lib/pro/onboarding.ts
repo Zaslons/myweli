@@ -7,7 +7,7 @@
 import type { ProProfile } from '../api/pro';
 
 export type ChecklistItem = {
-  key: 'profile' | 'location' | 'services' | 'photos' | 'availability';
+  key: 'profile' | 'location' | 'services' | 'photos' | 'availability' | 'offer';
   label: string;
   href: string;
   done: boolean;
@@ -15,6 +15,7 @@ export type ChecklistItem = {
 
 export function publishChecklist(
   provider: ProProfile['provider'],
+  opts?: { offerLive?: boolean },
 ): ChecklistItem[] {
   const profileDone = Boolean(
     provider.description?.trim() &&
@@ -59,6 +60,14 @@ export function publishChecklist(
       label: 'Horaires d’ouverture',
       href: '/pro/disponibilites',
       done: open,
+    },
+    // Pricing pivot (team access R5a): publishing requires a live offer —
+    // the server gate's `offer` missing-key, mirrored.
+    {
+      key: 'offer',
+      label: 'Choisissez votre offre',
+      href: '/pro/abonnement',
+      done: Boolean(opts?.offerLive),
     },
   ];
 }

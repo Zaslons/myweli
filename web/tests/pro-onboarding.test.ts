@@ -33,10 +33,23 @@ function provider(
 }
 
 describe('publishChecklist', () => {
-  it('a complete salon can publish', () => {
-    const items = publishChecklist(provider());
+  it('a complete salon WITH a live offer can publish', () => {
+    const items = publishChecklist(provider(), { offerLive: true });
     expect(items.every((i) => i.done)).toBe(true);
     expect(canPublish(items)).toBe(true);
+  });
+
+  it('team access R5a: no live offer keeps the offer step open', () => {
+    const offer = publishChecklist(provider()).find((i) => i.key === 'offer')!;
+    expect(offer.done).toBe(false);
+    expect(offer.href).toBe('/pro/abonnement');
+    // A complete salon still cannot publish without the offer.
+    expect(canPublish(publishChecklist(provider()))).toBe(false);
+    expect(
+      publishChecklist(provider(), { offerLive: true }).find(
+        (i) => i.key === 'offer',
+      )!.done,
+    ).toBe(true);
   });
 
   it('each missing piece flips its item (and blocks publish)', () => {
@@ -90,6 +103,7 @@ describe('publishChecklist', () => {
       '/pro/catalogue',
       '/pro/medias',
       '/pro/disponibilites',
+      '/pro/abonnement',
     ]);
   });
 });
