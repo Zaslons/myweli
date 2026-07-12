@@ -38,6 +38,8 @@ void main() {
   late AppointmentLifecycleService lifecycle;
   late String accountId; // manages provider1
   late String otherAccountId; // manages provider2
+  late InMemoryMembershipRepository memberships;
+  late MembershipService members;
 
   // A Monday (open 09:00–18:00 in the seeded schedule), fixed + future-proof.
   final monday = DateTime.utc(2026, 7, 13);
@@ -51,12 +53,13 @@ void main() {
     String? userId,
     String? clientPhone,
     String providerId = 'provider1',
+    String? artistId,
   }) => appts.create({
     'id': id,
     'userId': userId ?? 'manual',
     'providerId': providerId,
     'serviceIds': ['service1'],
-    'artistId': null,
+    'artistId': artistId,
     'appointmentDate': (when ?? monday.add(const Duration(hours: 10)))
         .toIso8601String(),
     'durationMinutes': 60,
@@ -84,10 +87,8 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
-    final members = MembershipService(
-      InMemoryMembershipRepository(),
-      providerAuth,
-    );
+    memberships = InMemoryMembershipRepository();
+    members = MembershipService(memberships, providerAuth);
     clients = ClientsService(
       providerAuth,
       members,
@@ -97,11 +98,7 @@ void main() {
       InMemoryProviderAuditLogRepository(),
     );
     journal = JournalService(members, providers, appts, clients);
-    proService = ProAppointmentService(
-      MembershipService(InMemoryMembershipRepository(), providerAuth),
-      appts,
-      clients: clients,
-    );
+    proService = ProAppointmentService(members, appts, clients: clients);
     lifecycle = AppointmentLifecycleService(
       appts,
       SlotService(providers, appts),
@@ -223,6 +220,184 @@ void main() {
           monday,
         )).error,
         'not_found',
+      );
+    });
+  });
+
+  group('own scope (T40 — access R4a)', () {
+    /// A bare STAFF account, active member of provider1 linked to [artistId].
+    Future<String> staffAccount({String? artistId = 'artist1'}) async {
+      final sent = await providerAuth.requestEmailOtp('staff@test.pro');
+      final created = await providerAuth.createMemberAccount(
+        email: 'staff@test.pro',
+        authProvider: 'email',
+        emailCode: sent.devCode,
+      );
+      final row = await memberships.invite(
+        providerId: 'provider1',
+        email: 'staff@test.pro',
+        role: 'staff',
+        artistId: artistId,
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(row.id, created.provider!.id);
+      return created.provider!.id;
+    }
+
+    Future<void> seedTwoColumns() async {
+      await providers.addArtist('provider1', {
+        'id': 'artist1',
+        'name': 'Awa',
+        'imageUrl': null,
+      });
+      await providers.addArtist('provider1', {
+        'id': 'artist2',
+        'name': 'Fatou',
+        'imageUrl': null,
+      });
+      await seed(id: 'own', artistId: 'artist1', clientPhone: '+2250700000001');
+      await seed(
+        id: 'foreign',
+        artistId: 'artist2',
+        when: monday.add(const Duration(hours: 11)),
+        clientPhone: '+2250700000002',
+      );
+      await seed(id: 'unassigned', when: monday.add(const Duration(hours: 12)));
+    }
+
+    test('the staff day view: own bookings only, own column only, phone '
+        'PRESENT on the requested day when it is today', () async {
+      await seedTwoColumns();
+      final staffId = await staffAccount();
+      final ownJournal = JournalService(
+        members,
+        providers,
+        appts,
+        clients,
+        clock: () => monday.add(const Duration(hours: 8)), // "today" = monday
+      );
+
+      final res = await ownJournal.dayFor(staffId, 'provider1', monday);
+      expect(res.ok, isTrue);
+      final data = res.data!;
+      final ids = [
+        for (final a in data['appointments'] as List) (a as Map)['id'],
+      ];
+      expect(ids, ['own']);
+      expect(
+        (data['appointments'] as List)
+            .cast<Map<String, dynamic>>()
+            .single['clientPhone'],
+        '+2250700000001',
+      );
+      final artists = (data['artists'] as List).cast<Map<String, dynamic>>();
+      expect(artists.single['id'], 'artist1');
+    });
+
+    test('off-day own view: clientPhone is MASKED (same-day contact rule, '
+        '§11.2/T39)', () async {
+      await seedTwoColumns();
+      final staffId = await staffAccount();
+      final ownJournal = JournalService(
+        members,
+        providers,
+        appts,
+        clients,
+        // "today" is the day AFTER the requested monday.
+        clock: () => monday.add(const Duration(days: 1, hours: 8)),
+      );
+
+      final res = await ownJournal.dayFor(staffId, 'provider1', monday);
+      expect(res.ok, isTrue);
+      final row = (res.data!['appointments'] as List)
+          .cast<Map<String, dynamic>>()
+          .single;
+      expect(row['id'], 'own');
+      expect(row.containsKey('clientPhone'), isFalse);
+      // Non-contact enrichment survives the masking.
+      expect(row['clientNoShowCount'], isNotNull);
+    });
+
+    test(
+      'a staff row with a NULL artistId gets NOTHING (deny by default)',
+      () async {
+        await seedTwoColumns();
+        final staffId = await staffAccount(artistId: null);
+        final res = await journal.dayFor(staffId, 'provider1', monday);
+        expect(res.ok, isFalse);
+        expect(res.error, 'forbidden');
+      },
+    );
+
+    test('RÉCEPTION keeps the whole journal (view.all)', () async {
+      await seedTwoColumns();
+      final sent = await providerAuth.requestEmailOtp('front@test.pro');
+      final created = await providerAuth.createMemberAccount(
+        email: 'front@test.pro',
+        authProvider: 'email',
+        emailCode: sent.devCode,
+      );
+      final row = await memberships.invite(
+        providerId: 'provider1',
+        email: 'front@test.pro',
+        role: 'reception',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(row.id, created.provider!.id);
+
+      final res = await journal.dayFor(
+        created.provider!.id,
+        'provider1',
+        monday,
+      );
+      expect(res.ok, isTrue);
+      expect((res.data!['appointments'] as List).length, 3);
+      expect((res.data!['artists'] as List).length, 2);
+    });
+
+    test('transitions: staff completes/no-shows OWN bookings; everything '
+        'else is 403 (cross-artist, accept, arrive — T40 negatives)', () async {
+      await seedTwoColumns();
+      await seed(
+        id: 'own-pending',
+        status: 'pending',
+        artistId: 'artist1',
+        when: monday.add(const Duration(hours: 14)),
+      );
+      final staffId = await staffAccount();
+
+      // « Terminé » on the OWN confirmed booking.
+      final done = await proService.complete('own', staffId);
+      expect(done.ok, isTrue);
+      expect(done.appointment!['status'], 'completed');
+
+      // « Non présenté » on own.
+      final ns = await proService.noShow('own-pending', staffId);
+      expect(ns.ok, isTrue);
+
+      // Cross-artist → 403 (the T40 REQUIRED negative).
+      expect(
+        (await proService.complete('foreign', staffId)).error,
+        'forbidden',
+      );
+      expect((await proService.noShow('foreign', staffId)).error, 'forbidden');
+      // Unassigned bookings are nobody's "own".
+      expect(
+        (await proService.complete('unassigned', staffId)).error,
+        'forbidden',
+      );
+      // Whole-journal actions stay closed, even on OWN bookings.
+      expect(
+        (await proService.accept('own-pending', staffId)).error,
+        'forbidden',
+      );
+      expect(
+        (await proService.arrive(
+          'own',
+          staffId,
+          now: monday.add(const Duration(hours: 9)),
+        )).error,
+        'forbidden',
       );
     });
   });

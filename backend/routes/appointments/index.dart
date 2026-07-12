@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
-import 'package:myweli_backend/src/access/capabilities.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
@@ -35,20 +34,39 @@ Future<Response> _list(RequestContext context, Principal principal) async {
   final status = context.request.uri.queryParameters['status'];
   final repo = context.read<AppointmentRepository>();
 
-  final List<Map<String, dynamic>> items;
+  List<Map<String, dynamic>> items;
   if (principal.role == 'provider') {
     // Resolve the caller's acting salon via the membership layer (module
-    // `access` R1) and require the whole-journal read. Deny by default.
+    // `access` R1) and the journal read scope (R4a). Deny by default;
+    // own-scope members (Collaborateur, T40) get their artist's bookings
+    // only, with off-day contact masking (§11.2).
     final members = context.read<MembershipService>();
     final providerId = await members.activeSalonFor(principal.userId);
-    if (providerId == null ||
-        !await members.can(principal.userId, providerId, Cap.journalViewAll)) {
+    if (providerId == null) {
       return jsonError(HttpStatus.forbidden, 'forbidden');
+    }
+    final scope = await members.journalScope(
+      principal.userId,
+      providerId,
+      manage: false,
+    );
+    if (!scope.all && scope.ownArtistId == null) {
+      return jsonError(HttpStatus.forbidden, 'forbidden');
+    }
+    var rows = await repo.listForProvider(providerId, status: status);
+    if (!scope.all) {
+      rows = [
+        for (final a in rows)
+          if (a['artistId'] == scope.ownArtistId) a,
+      ];
     }
     items = await context.read<ClientsService>().enrichForProvider(
       providerId,
-      await repo.listForProvider(providerId, status: status),
+      rows,
     );
+    if (!scope.all) {
+      items = ClientsService.maskContactsOffDay(items);
+    }
   } else {
     // Auto-sync (FR-APPT-008): also surface provider-entered bookings made to
     // this account's **verified** phone (resolved server-side — never from

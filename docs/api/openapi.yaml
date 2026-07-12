@@ -326,24 +326,36 @@ paths:
   /me/provider:
     get:
       tags: [auth]
-      summary: The signed-in provider's own account + managed salon (web M7)
+      summary: The signed-in provider's account + acting salon + membership (web M7 · access R4a)
       description: >-
-        Provider-only; the salon is resolved server-side from the account (never
-        a client id). Non-provider or unlinked account → 403.
+        Provider-only; the salon is resolved server-side from the account
+        (owner) or the active membership (team member) — never a client id.
+        The response carries the caller's MEMBERSHIP (role + server-computed
+        capabilities + the staff artist link) so clients shape by role.
+        Non-provider or unlinked account → 403 `forbidden`; a REVOKED member
+        (memberships exist, none active) → 403 `not_a_member` — the
+        revoked-mid-session signal.
       security: [{ bearerAuth: [] }]
       responses:
         '200':
-          description: The provider account + its salon
+          description: The provider account + its salon + the caller's membership
           content:
             application/json:
               schema:
                 type: object
-                required: [account, provider]
+                required: [account, provider, membership]
                 properties:
                   account: { $ref: '#/components/schemas/ProviderUser' }
                   provider: { $ref: '#/components/schemas/Provider' }
+                  membership: { $ref: '#/components/schemas/Membership' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: >-
+            Not a provider / unlinked (`forbidden`), or a revoked member
+            (`not_a_member`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '404': { $ref: '#/components/responses/NotFound' }
 
     delete:
@@ -2003,8 +2015,11 @@ paths:
         Provider-authenticated + ownership-scoped (threat T41). Hours/breaks
         for the weekday (null when closed/blocked), the artist columns, and
         the day's appointments (ALL statuses, ascending) enriched with
-        salonClientId / clientNoShowCount / arrivedAt. Day boundary is UTC
-        (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
+        salonClientId / clientNoShowCount / arrivedAt. OWN-SCOPE callers
+        (Collaborateur, `journal.view.own` — T40, access R4a) receive their
+        own artist's column and bookings only, and `clientPhone` is masked
+        on any day other than today (the same-day contact rule). Day
+        boundary is UTC (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: query, name: date, required: true, schema: { type: string, format: date } }
@@ -2054,8 +2069,11 @@ paths:
         provider-entered (manual) bookings made to the account's OTP-verified
         phone** (auto-sync, FR-APPT-008 — the match phone is resolved
         server-side, never from the request); a **provider** token returns the
-        bookings of the salon it manages (the account's linked `providerId`). A
-        provider account not yet linked to a Provider gets 403.
+        bookings of the salon it acts in (owner link or active membership).
+        OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access
+        R4a) get their own artist's bookings only, with `clientPhone` masked
+        off-day. A provider account with no salon and no active membership
+        gets 403.
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query
@@ -3204,6 +3222,22 @@ components:
         avatarUrl: { type: string, nullable: true }
         status: { type: string, enum: [active, banned] }
         createdAt: { type: string, format: date-time }
+
+    Membership:
+      type: object
+      description: >
+        The signed-in caller's membership in the acting salon (module
+        `access` R4a): the preset role, its SERVER-computed capabilities
+        (clients never derive rights), and the Collaborateur's artist link.
+      required: [role, capabilities]
+      properties:
+        role: { type: string, enum: [owner, manager, reception, staff] }
+        capabilities:
+          type: array
+          items: { type: string }
+          description: Sorted capability names, e.g. journal.view.own.
+        artistId: { type: string, nullable: true }
+        artistName: { type: string, nullable: true }
 
     TeamMember:
       type: object

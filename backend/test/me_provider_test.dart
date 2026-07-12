@@ -142,6 +142,122 @@ void main() {
       verifyNever(() => auth.linkProvider(any(), any()));
     });
 
+    // ---- Membership block (module access R4a) -----------------------------
+
+    test(
+      'owner → membership {role: owner, full sorted capabilities}',
+      () async {
+        when(
+          () => auth.accountById('acc1'),
+        ).thenAnswer((_) async => _account(providerId: 'p1'));
+        when(
+          () => providers.byId('p1'),
+        ).thenAnswer((_) async => {'id': 'p1', 'name': 'Salon Awa'});
+
+        final res = await me_provider.onRequest(
+          ctx(req('GET', token: tok('acc1', 'provider'))),
+        );
+        expect(res.statusCode, HttpStatus.ok);
+        final m = (await res.json() as Map)['membership'] as Map;
+        expect(m['role'], 'owner');
+        final caps = (m['capabilities'] as List).cast<String>();
+        expect(caps, contains('finances.view'));
+        expect(caps, contains('members.manage'));
+        expect(caps, contains('salon.publish'));
+        expect(caps, List.of(caps)..sort()); // deterministic order
+        expect(m.containsKey('artistId'), isFalse);
+      },
+    );
+
+    test(
+      'active MANAGER member → manager capabilities, no money caps',
+      () async {
+        when(
+          () => auth.accountById('acc1'),
+        ).thenAnswer((_) async => _account(providerId: null));
+        final invited = await memberships.invite(
+          providerId: 'p1',
+          email: 'mgr@test.pro',
+          role: 'manager',
+          expiresAt: DateTime.now().add(const Duration(days: 7)),
+        );
+        await memberships.activate(invited.id, 'acc1');
+        when(
+          () => providers.byId('p1'),
+        ).thenAnswer((_) async => {'id': 'p1', 'name': 'Salon Awa'});
+
+        final res = await me_provider.onRequest(
+          ctx(req('GET', token: tok('acc1', 'provider'))),
+        );
+        expect(res.statusCode, HttpStatus.ok);
+        final m = (await res.json() as Map)['membership'] as Map;
+        expect(m['role'], 'manager');
+        final caps = (m['capabilities'] as List).cast<String>();
+        expect(caps, contains('catalogue.manage'));
+        expect(caps, isNot(contains('finances.view')));
+        expect(caps, isNot(contains('members.manage')));
+      },
+    );
+
+    test('active STAFF member → own caps only + artistId + artistName '
+        'joined from the salon', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: null));
+      final invited = await memberships.invite(
+        providerId: 'p1',
+        email: 'staff@test.pro',
+        role: 'staff',
+        artistId: 'a1',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(invited.id, 'acc1');
+      when(() => providers.byId('p1')).thenAnswer(
+        (_) async => {
+          'id': 'p1',
+          'name': 'Salon Awa',
+          'artists': [
+            {'id': 'a1', 'name': 'Awa'},
+            {'id': 'a2', 'name': 'Fatou'},
+          ],
+        },
+      );
+
+      final res = await me_provider.onRequest(
+        ctx(req('GET', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      final m = (await res.json() as Map)['membership'] as Map;
+      expect(m['role'], 'staff');
+      expect((m['capabilities'] as List).cast<String>(), [
+        'journal.manage.own',
+        'journal.view.own',
+      ]);
+      expect(m['artistId'], 'a1');
+      expect(m['artistName'], 'Awa');
+    });
+
+    test('REVOKED bare member → 403 not_a_member (the revoked-mid-session '
+        'signal, §5.3) — an unlinked non-member stays forbidden', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: null));
+      final invited = await memberships.invite(
+        providerId: 'p1',
+        email: 'ex@test.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(invited.id, 'acc1');
+      await memberships.revoke(invited.id);
+
+      final res = await me_provider.onRequest(
+        ctx(req('GET', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await res.json() as Map)['error'], 'not_a_member');
+    });
+
     test('no linked salon → SELF-HEALS: a draft salon is created + linked '
         '(pro-salon-lifecycle.md §2)', () async {
       final account = _account(providerId: null);

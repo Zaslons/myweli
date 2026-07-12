@@ -1,4 +1,3 @@
-import '../access/capabilities.dart';
 import '../access/membership_service.dart';
 import '../clients/clients_service.dart';
 import 'appointment_repository.dart';
@@ -11,9 +10,11 @@ typedef ProLifecycleResult = ({
 
 /// Pro-side appointment transitions (docs/BACKEND.md §3.3). The salon accepts /
 /// rejects / completes / marks-no-show bookings for **its own** Provider only:
-/// the access token's `sub` resolves to a provider account, and that account's
-/// `providerId` must match the appointment's `providerId` (→ 403 otherwise).
-/// The server is the authority on status; transitions are state-guarded.
+/// the access token's `sub` resolves to a provider account whose journal scope
+/// must cover the appointment (→ 403 otherwise). OWN-SCOPE members
+/// (Collaborateur — T40, R4a) may complete/no-show THEIR OWN artist's
+/// bookings only; accept/reject/arrive stay whole-journal actions. The server
+/// is the authority on status; transitions are state-guarded.
 class ProAppointmentService {
   ProAppointmentService(
     this._members,
@@ -50,6 +51,7 @@ class ProAppointmentService {
         accountId,
         from: const {'confirmed'},
         to: 'completed',
+        allowOwn: true, // Collaborateur: « Terminé » on own bookings (T40)
       );
 
   /// « Client arrivé » (journal J2 — docs/design/journal-j1-grid.md §2.2):
@@ -65,14 +67,15 @@ class ProAppointmentService {
     if (appointment == null) {
       return (ok: false, error: 'not_found', appointment: null);
     }
-    // Module `access` R1: the capability is checked against the APPOINTMENT's
-    // salon (already multi-salon-safe).
-    final allowed = await _members.can(
+    // Module `access` R1/R4a: checked against the APPOINTMENT's salon
+    // (multi-salon-safe). « Client arrivé » is a front-desk act — whole
+    // journal only, never own-scope (staff actions = Terminé/Non présenté).
+    final scope = await _members.journalScope(
       accountId,
       appointment['providerId'] as String? ?? '',
-      Cap.journalManageAll,
+      manage: true,
     );
-    if (!allowed) {
+    if (!scope.all) {
       return (ok: false, error: 'forbidden', appointment: null);
     }
     if (appointment['status'] != 'confirmed') {
@@ -103,6 +106,7 @@ class ProAppointmentService {
         accountId,
         from: const {'pending', 'confirmed'},
         to: 'noShow',
+        allowOwn: true, // Collaborateur: « Non présenté » on own bookings
       );
 
   Future<ProLifecycleResult> _transition(
@@ -110,17 +114,24 @@ class ProAppointmentService {
     String accountId, {
     required Set<String> from,
     required String to,
+    bool allowOwn = false,
   }) async {
     final appointment = await _appointments.byId(appointmentId);
     if (appointment == null) {
       return (ok: false, error: 'not_found', appointment: null);
     }
-    final allowed = await _members.can(
+    final scope = await _members.journalScope(
       accountId,
       appointment['providerId'] as String? ?? '',
-      Cap.journalManageAll,
+      manage: true,
     );
-    if (!allowed) {
+    // T40: own-scope passes only where the ACTION allows it AND the booking
+    // belongs to the member's own artist (server-resolved, never client-sent).
+    final ownOk =
+        allowOwn &&
+        scope.ownArtistId != null &&
+        appointment['artistId'] == scope.ownArtistId;
+    if (!scope.all && !ownOk) {
       // Authenticated provider, but no capability inside this salon.
       return (ok: false, error: 'forbidden', appointment: null);
     }

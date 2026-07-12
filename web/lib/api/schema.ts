@@ -576,8 +576,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The signed-in provider's own account + managed salon (web M7)
-         * @description Provider-only; the salon is resolved server-side from the account (never a client id). Non-provider or unlinked account → 403.
+         * The signed-in provider's account + acting salon + membership (web M7 · access R4a)
+         * @description Provider-only; the salon is resolved server-side from the account (owner) or the active membership (team member) — never a client id. The response carries the caller's MEMBERSHIP (role + server-computed capabilities + the staff artist link) so clients shape by role. Non-provider or unlinked account → 403 `forbidden`; a REVOKED member (memberships exist, none active) → 403 `not_a_member` — the revoked-mid-session signal.
          */
         get: {
             parameters: {
@@ -588,7 +588,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description The provider account + its salon */
+                /** @description The provider account + its salon + the caller's membership */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -597,11 +597,20 @@ export interface paths {
                         "application/json": {
                             account: components["schemas"]["ProviderUser"];
                             provider: components["schemas"]["Provider"];
+                            membership: components["schemas"]["Membership"];
                         };
                     };
                 };
                 401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
+                /** @description Not a provider / unlinked (`forbidden`), or a revoked member (`not_a_member`). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 404: components["responses"]["NotFound"];
             };
         };
@@ -3612,7 +3621,7 @@ export interface paths {
         };
         /**
          * The journal day view in ONE payload (module journal J1)
-         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientNoShowCount / arrivedAt. Day boundary is UTC (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
+         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientNoShowCount / arrivedAt. OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a) receive their own artist's column and bookings only, and `clientPhone` is masked on any day other than today (the same-day contact rule). Day boundary is UTC (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
          */
         get: {
             parameters: {
@@ -3714,7 +3723,7 @@ export interface paths {
         };
         /**
          * List the caller's appointments (B-appt)
-         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it manages (the account's linked `providerId`). A provider account not yet linked to a Provider gets 403.
+         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it acts in (owner link or active membership). OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access R4a) get their own artist's bookings only, with `clientPhone` masked off-day. A provider account with no salon and no active membership gets 403.
          */
         get: {
             parameters: {
@@ -5727,6 +5736,15 @@ export interface components {
             status?: "active" | "banned";
             /** Format: date-time */
             createdAt?: string;
+        };
+        /** @description The signed-in caller's membership in the acting salon (module `access` R4a): the preset role, its SERVER-computed capabilities (clients never derive rights), and the Collaborateur's artist link. */
+        Membership: {
+            /** @enum {string} */
+            role: "owner" | "manager" | "reception" | "staff";
+            /** @description Sorted capability names, e.g. journal.view.own. */
+            capabilities: string[];
+            artistId?: string | null;
+            artistName?: string | null;
         };
         /** @description A salon team row (module `access` R2b) — the owner, an active member, or a pending invitation. */
         TeamMember: {

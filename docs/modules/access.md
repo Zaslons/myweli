@@ -182,6 +182,10 @@ CREATE TABLE provider_members (
   default; `status != active` → 403 `not_a_member`.
 - **Capability check** = one line per route: `requires(caps, 'catalogue.manage')`
   → 403 `capability_required` (machine code; FR message app-side).
+  *Build note (R4a): deferred — capability misses return the uniform
+  `forbidden`; the only distinct code is `not_a_member` on `GET /me/provider`
+  (the revoked-mid-session signal). Revisit if a client ever needs to tell
+  the two apart per-route.*
 - **Own-scope enforcement**: `journal.*.own` filters by the member's
   `artist_id` **server-side** (client never passes it).
 - **Field-level gating**: dashboard/earnings responses **omit** revenue fields
@@ -320,7 +324,7 @@ set ops. No new N+1: member list joins artists in one query. Budgets unchanged.
 |---|---|---|
 | A1/R1 | ~~Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change)~~ ✅ done 2026-07-11 (PR feat/team-access-r1-foundation; + the provisioning guard, deletion revocation and `salon.publish`) | pre-launch |
 | A2/R2 | Invites + accept flow + presets enforcement + audit + tests — **R2a (offers/seats server side) ✅ 2026-07-11 · R2b (invitations API + login bridge) ✅ 2026-07-12 · R3 (pro APP: Équipe screen, login « Invitations » step, offer picker, publish-gate mirror) ✅ 2026-07-12** (docs/design/team-access-r3-app.md); web screens = R5 | pre-launch |
-| A3 | Collaborateur « Ma journée » app reshape + web own-calendar | V2 |
+| A3/R4 | Role-shaped experience — **R4a (backend: membership-aware /me/provider + `not_a_member` + T40 own-scope enforcement w/ off-day contact masking) ✅ 2026-07-12** (docs/design/team-access-r4-role-shaped-app.md); R4b (app: role-gated dashboard/profil, staff « Ma journée » 3-tab shell, revoked sign-out) next; web own-calendar = R5 | pre-launch |
 | A4 | Seats gate (config-off until pricing) | V2, flag-hidden |
 | A5/R6 | **Multi-salons** (pre-launch, sign-off 2026-07-11): switcher + « Ajouter un salon » + Réseau gating + badge inheritance | pre-launch |
 | A6 | Override matrix UI + owner transfer + audit viewer | V3 |

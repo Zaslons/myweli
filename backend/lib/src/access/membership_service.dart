@@ -39,6 +39,28 @@ class MembershipService {
     );
   }
 
+  /// T40 (module `access` R4a): how far into [providerId]'s journal
+  /// [accountId] reaches. `(all: true)` → the whole salon;
+  /// `(all: false, ownArtistId: X)` → that artist's column only; both empty
+  /// → forbidden. A staff member with a NULL artistId gets NOTHING — deny
+  /// by default (a mislinked Collaborateur must never see a partial day).
+  Future<({bool all, String? ownArtistId})> journalScope(
+    String accountId,
+    String providerId, {
+    required bool manage,
+  }) async {
+    final member = await memberOf(accountId, providerId);
+    if (member == null) return (all: false, ownArtistId: null);
+    final caps = capabilitiesFor(member.role);
+    if (caps.contains(manage ? Cap.journalManageAll : Cap.journalViewAll)) {
+      return (all: true, ownArtistId: null);
+    }
+    if (caps.contains(manage ? Cap.journalManageOwn : Cap.journalViewOwn)) {
+      return (all: false, ownArtistId: member.artistId);
+    }
+    return (all: false, ownArtistId: null);
+  }
+
   /// The salon [accountId] acts in — its own linked salon (owner) or its
   /// first active membership (member, R2+). Null for outsiders. R6 replaces
   /// the single-salon assumption with an explicit selection.
