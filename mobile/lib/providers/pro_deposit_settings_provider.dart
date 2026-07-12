@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/payment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Holds the editable deposit policy for the signed-in provider and persists it
 /// through [ProServiceInterface].
-class ProDepositSettingsProvider extends ChangeNotifier {
+class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
 
   bool _isLoading = false;
@@ -109,5 +110,20 @@ class ProDepositSettingsProvider extends ChangeNotifier {
       _isSaving = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _isLoading = false;
+    _isSaving = false;
+    _loadFailed = false;
+    _error = null;
+    _depositRequired = false;
+    _depositPercentage = 0.30;
+    _cancellationWindowHours = 24;
+    _mobileMoneyOperator = null;
+    _mobileMoneyNumber = '';
+    notifyListeners();
   }
 }

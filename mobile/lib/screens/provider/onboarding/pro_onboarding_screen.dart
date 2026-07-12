@@ -34,8 +34,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
   Future<void> _goLive() async {
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
-    final providerId =
-        context.read<ProAuthProvider>().provider?.providerId ?? '';
+    final providerId = context.read<ProAuthProvider>().activeSalonId ?? '';
     final onboarding = context.read<ProOnboardingProvider>();
     final ok = await onboarding.publish(providerId);
     if (!mounted) return;

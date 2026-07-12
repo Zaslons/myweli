@@ -47,14 +47,14 @@ class _TeamScreenState extends State<TeamScreen> {
 
   void _maybeLoadSubscription() {
     if (_subsRequested) return;
-    final providerId = context.read<ProAuthProvider>().provider?.providerId;
+    final providerId = context.read<ProAuthProvider>().activeSalonId;
     if (providerId == null) return;
     _subsRequested = true;
     context.read<ProSubscriptionProvider>().load(providerId);
   }
 
   Future<void> _openInviteSheet() async {
-    final providerId = context.read<ProAuthProvider>().provider?.providerId;
+    final providerId = context.read<ProAuthProvider>().activeSalonId;
     if (providerId == null) return;
     final invited = await showModalBottomSheet<String>(
       context: context,

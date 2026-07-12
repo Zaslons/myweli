@@ -637,6 +637,19 @@ class MockAuthService implements AuthServiceInterface {
   Future<ProMembership?> getCachedProviderMembership() async =>
       _cachedMembership;
 
+  /// R6: the mock's in-memory salon selection (persistence-parity with the
+  /// API session store for the life of the process).
+  String? _selectedSalonId;
+
+  @override
+  Future<void> setSelectedProviderSalon(String? salonId) async {
+    if (_currentProvider == null) return;
+    _selectedSalonId = salonId;
+  }
+
+  @override
+  Future<String?> getSelectedProviderSalon() async => _selectedSalonId;
+
   @override
   Future<ProviderUser?> getCurrentProvider() async {
     await Future.delayed(const Duration(milliseconds: 50));
@@ -646,6 +659,7 @@ class MockAuthService implements AuthServiceInterface {
   @override
   Future<void> logoutProvider() async {
     _cachedMembership = null;
+    _selectedSalonId = null;
     await Future.delayed(const Duration(milliseconds: 100));
     _currentProvider = null;
   }

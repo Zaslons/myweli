@@ -607,17 +607,43 @@ class ApiAuthService implements AuthServiceInterface {
     try {
       final session =
           ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      // copyWith keeps the R6 salon selection alongside the membership.
+      await _providerSessionStore.save(
+        jsonEncode(session.copyWith(membership: membership).toJson()),
+      );
+    } catch (_) {/* a broken blob is repaired on the next login */}
+  }
+
+  @override
+  Future<void> setSelectedProviderSalon(String? salonId) async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return;
+    try {
+      final session =
+          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
       await _providerSessionStore.save(
         jsonEncode(
-          ProviderSession(
-            token: session.token,
-            refreshToken: session.refreshToken,
-            provider: session.provider,
-            membership: membership,
-          ).toJson(),
+          session
+              .copyWith(
+                selectedSalonId: salonId,
+                clearSelectedSalon: salonId == null,
+              )
+              .toJson(),
         ),
       );
     } catch (_) {/* a broken blob is repaired on the next login */}
+  }
+
+  @override
+  Future<String?> getSelectedProviderSalon() async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      return ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
+          .selectedSalonId;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

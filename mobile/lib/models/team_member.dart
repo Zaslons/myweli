@@ -14,6 +14,13 @@ String teamRoleLabel(TeamRole role) => switch (role) {
       TeamRole.staff => 'Collaborateur',
     };
 
+/// Wire string → role; unknown falls back to the MINIMAL staff shape
+/// (deny-by-default mirror — R6 shares this across the salon DTOs).
+TeamRole teamRoleFrom(String? raw) => TeamRole.values.firstWhere(
+      (r) => r.name == raw,
+      orElse: () => TeamRole.staff,
+    );
+
 /// A salon team row — the owner, an active member, or a pending invitation.
 /// Mirrors the backend `TeamMember` DTO (team access R2b).
 /// Design: docs/design/team-access-r3-app.md.

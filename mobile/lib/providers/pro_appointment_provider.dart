@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
-class ProAppointmentProvider extends ChangeNotifier {
+class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
 
   List<Appointment> _appointments = [];
@@ -248,5 +249,14 @@ class ProAppointmentProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _appointments = [];
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
   }
 }

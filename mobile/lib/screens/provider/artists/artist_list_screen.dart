@@ -22,7 +22,7 @@ class ArtistListScreen extends StatefulWidget {
 class _ArtistListScreenState extends State<ArtistListScreen> {
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.provider?.providerId ?? authProvider.provider?.id ?? '';
+    return authProvider.activeSalonId ?? '';
   }
 
   @override

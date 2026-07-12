@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
 import '../models/appointment.dart';
@@ -12,7 +13,7 @@ import '../services/interfaces/pro_service_interface.dart';
 /// State for « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). One journal fetch per day; the artist
 /// filter, cancelled toggle and week-count dots are in-memory.
-class ProJournalProvider extends ChangeNotifier {
+class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _service = serviceLocator.proService;
 
   String _providerId = '';
@@ -177,5 +178,20 @@ class ProJournalProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (_) {/* best-effort — dots are non-critical */}
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _providerId = '';
+    _day = null;
+    _selectedDate = _todayUtc();
+    _artistFilter = null;
+    _locked = false;
+    _showCancelled = false;
+    _isLoading = false;
+    _error = null;
+    _weekCounts.clear();
+    notifyListeners();
   }
 }

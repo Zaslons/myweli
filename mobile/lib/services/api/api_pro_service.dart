@@ -12,6 +12,8 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_session.dart';
+import '../../models/provider_user.dart';
+import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import '../interfaces/session_store.dart';
@@ -58,19 +60,39 @@ class ApiProService implements ProServiceInterface {
   final SessionStore _providerSessionStore;
   late final RefreshingHttpClient _authed;
 
-  /// The salon id this account manages, read from the persisted provider
-  /// session — used for the `serviceId`-only edit/delete/active paths. Null if
-  /// not signed in or the account isn't linked to a Provider.
+  /// The salon id this account ACTS IN, read from the persisted provider
+  /// session — the R6 selection first, else the account's linked salon.
+  /// Used for the `serviceId`-only edit/delete/active paths. Null if not
+  /// signed in or the account isn't linked to a Provider.
   Future<String?> _providerId() async {
+    final session = await _session();
+    return session?.selectedSalonId ?? session?.provider.providerId;
+  }
+
+  /// R6 multi-salons: the persisted salon SELECTION (null = default). The
+  /// session-resolved endpoints append it as `?salonId=`; the server
+  /// revalidates the membership per request (T55).
+  Future<String?> _selectedSalonId() async =>
+      (await _session())?.selectedSalonId;
+
+  Future<ProviderSession?> _session() async {
     final raw = await _providerSessionStore.read();
     if (raw == null) return null;
     try {
-      return ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
-          .provider
-          .providerId;
+      return ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Appends the R6 salon selection to a session-resolved path.
+  Future<Uri> _salonScopedUri(String path) async {
+    final selected = await _selectedSalonId();
+    final uri = _uri(path);
+    if (selected == null || selected.isEmpty) return uri;
+    return uri.replace(
+      queryParameters: {...uri.queryParameters, 'salonId': selected},
+    );
   }
 
   // ---- Appointments (real backend) -----------------------------------------
@@ -85,8 +107,13 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
+    final selected = await _selectedSalonId();
     final uri = _uri('/appointments').replace(
-      queryParameters: {if (status != null) 'status': status.name},
+      queryParameters: {
+        if (status != null) 'status': status.name,
+        // R6: the token still scopes; the selection picks WHICH salon.
+        if (selected != null && selected.isNotEmpty) 'salonId': selected,
+      },
     );
     final res = await _authed.send(
       (token) => _client.get(uri, headers: _bearer(token)),
@@ -258,12 +285,18 @@ class ApiProService implements ProServiceInterface {
   // ---- Not yet backed by an endpoint → delegate to the mock ----------------
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider() async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
+    // An explicit [salonId] (the switch probe) wins over the persisted
+    // selection; absent both → the server default.
+    final selected = salonId ?? await _selectedSalonId();
+    final uri = selected == null || selected.isEmpty
+        ? _uri('/me/provider')
+        : _uri('/me/provider').replace(queryParameters: {'salonId': selected});
     final res = await _authed.send(
-      (t) => _client.get(_uri('/me/provider'), headers: _bearer(t)),
+      (t) => _client.get(uri, headers: _bearer(t)),
     );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
@@ -280,6 +313,52 @@ class ApiProService implements ProServiceInterface {
         salon: Provider.fromJson(salonMap),
         membership: membership,
       ),
+    );
+  }
+
+  @override
+  Future<ApiResponse<MySalonsResult>> getMySalons() async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(_uri('/me/salons'), headers: _bearer(t)),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(MySalonsResult.fromJson(_decode(res.body)));
+  }
+
+  @override
+  Future<ApiResponse<SalonMembershipInfo>> addSalon({
+    required String businessName,
+    required BusinessType businessType,
+    String? phoneNumber,
+    String? address,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri('/me/salons'),
+        headers: _bearer(t),
+        body: jsonEncode({
+          'businessName': businessName,
+          'businessType': businessType.name,
+          if (phoneNumber != null && phoneNumber.isNotEmpty)
+            'phoneNumber': phoneNumber,
+          if (address != null && address.isNotEmpty) 'address': address,
+        }),
+      ),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 201) return _errorFrom(res);
+    return ApiResponse.success(
+      SalonMembershipInfo.fromJson(
+        _decode(res.body)['salon'] as Map<String, dynamic>,
+      ),
+      message: 'Salon créé',
     );
   }
 
@@ -309,10 +388,13 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    // Role-aware on the backend: the provider token reschedules by salon
-    // ownership. Deposit/balance carry over server-side.
+    // Role-aware on the backend: the provider token reschedules inside its
+    // acting salon (R6: the selection scopes it; the lifecycle service
+    // cross-checks the appointment). Deposit/balance carry over server-side.
+    final rescheduleUri =
+        await _salonScopedUri('/appointments/$appointmentId/reschedule');
     final res = await _authed.send((t) => _client.post(
-          _uri('/appointments/$appointmentId/reschedule'),
+          rescheduleUri,
           headers: _bearer(t),
           body: jsonEncode({
             'newDateTime': newDateTime.toUtc().toIso8601String(),

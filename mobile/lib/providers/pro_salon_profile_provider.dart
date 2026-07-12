@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/provider.dart';
 
 /// The salon's editable public profile in the pro app
 /// (docs/design/pro-salon-lifecycle.md L2 — the app twin of web 7.3e-i):
 /// loads the listing, saves the allowlisted fields + the map pin.
-class ProSalonProfileProvider extends ChangeNotifier {
+class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
   Provider? _provider;
   bool _isLoading = false;
   bool _isSaving = false;
@@ -51,5 +52,15 @@ class ProSalonProfileProvider extends ChangeNotifier {
     }
     notifyListeners();
     return res.success;
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _provider = null;
+    _isLoading = false;
+    _isSaving = false;
+    _error = null;
+    notifyListeners();
   }
 }

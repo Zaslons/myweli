@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
 import '../models/team_invitation.dart';
@@ -9,7 +10,7 @@ import '../services/interfaces/pro_team_service_interface.dart';
 /// Drives the Équipe screen (owner roster + invite/role/revoke/resend) and
 /// the signed-in identity's pending invitations (module `access` R3).
 /// Mutations update the row in place from the returned member.
-class ProTeamProvider extends ChangeNotifier {
+class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   ProTeamServiceInterface get _service => serviceLocator.proTeamService;
 
   // ---- Owner roster ---------------------------------------------------------
@@ -222,5 +223,21 @@ class ProTeamProvider extends ChangeNotifier {
       return a.invitedAt.compareTo(b.invitedAt);
     });
     return list;
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _members = const [];
+    _isLoading = false;
+    _error = null;
+    _isInviting = false;
+    _inviteError = null;
+    _inviteErrorCode = null;
+    _actionError = null;
+    _actionErrorCode = null;
+    _myInvitations = const [];
+    _invitationsLoading = false;
+    notifyListeners();
   }
 }

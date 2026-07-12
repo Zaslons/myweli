@@ -6,6 +6,8 @@ import '../../models/journal_day.dart';
 import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
+import '../../models/provider_user.dart';
+import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 
 // Dashboard stats model. The revenue fields are NULLABLE: the server
@@ -95,8 +97,25 @@ class EarningsTransaction {
 abstract class ProServiceInterface {
   /// The acting identity (team access R4b): the salon + the caller's
   /// membership from GET /me/provider. A revoked member surfaces the
-  /// machine code `not_a_member`.
-  Future<ApiResponse<MyProviderInfo>> getMyProvider();
+  /// machine code `not_a_member`. R6: [salonId] selects among the caller's
+  /// ACTIVE memberships — an invalid selection surfaces `forbidden` (a
+  /// per-salon denial, NEVER the sign-out signal).
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId});
+
+  /// « Mes salons » (module `access` R6 — GET /me/salons): every salon the
+  /// account belongs to (owned first) + the server-computed add gate.
+  Future<ApiResponse<MySalonsResult>> getMySalons();
+
+  /// « Ajouter un salon » (R6 — POST /me/salons, Réseau-gated): creates an
+  /// additional DRAFT salon in its own free SETUP state. Machine codes:
+  /// `reseau_required` (no live Réseau offer on an owned salon) ·
+  /// `salon_limit` (cap reached).
+  Future<ApiResponse<SalonMembershipInfo>> addSalon({
+    required String businessName,
+    required BusinessType businessType,
+    String? phoneNumber,
+    String? address,
+  });
 
   // Dashboard
   Future<ApiResponse<DashboardStats>> getDashboardStats(String providerId);

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/salon_subscription.dart';
 import '../services/interfaces/subscription_service_interface.dart';
@@ -7,7 +8,7 @@ import '../services/interfaces/subscription_service_interface.dart';
 /// Drives « Mon abonnement » (pricing pivot, team access R3): the salon's
 /// offer state — SETUP (no offer yet, `no_offer`) or trial/paid/grace/
 /// expired — and the offer choice/switch.
-class ProSubscriptionProvider extends ChangeNotifier {
+class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
   final SubscriptionServiceInterface _service =
       serviceLocator.subscriptionService;
 
@@ -84,5 +85,19 @@ class ProSubscriptionProvider extends ChangeNotifier {
       _isChoosing = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _salon = null;
+    _isSetup = false;
+    _isLoading = false;
+    _loadFailed = false;
+    _error = null;
+    _isChoosing = false;
+    _chooseError = null;
+    _chooseErrorCode = null;
+    notifyListeners();
   }
 }

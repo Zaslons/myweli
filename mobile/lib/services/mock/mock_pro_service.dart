@@ -1,5 +1,6 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/di/dependency_injection.dart';
+import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
@@ -9,10 +10,12 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
+import 'mock_subscription_service.dart';
 
 class MockProService implements ProServiceInterface {
   /// The current mock session's ACTIVE roster row, or null for owners /
@@ -37,20 +40,65 @@ class MockProService implements ProServiceInterface {
     return null;
   }
 
+  /// R6: the account's ACTIVE row inside [salonId] — the owner scalar, an
+  /// owner row, or a member row. Null = no active membership there (the
+  /// uniform per-salon denial).
+  Future<TeamMember?> _rowInSalon(ProviderUser account, String salonId) async {
+    for (final m in MockData.teamMembers) {
+      if (m.providerId != salonId) continue;
+      if (m.status != TeamMemberStatus.active) continue;
+      if (m.accountId == account.id ||
+          (account.email != null && m.email == account.email!.toLowerCase())) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  /// The persisted salon selection (best-effort — isolated unit tests may
+  /// run without the locator wired).
+  Future<String?> _selection() async {
+    try {
+      return await serviceLocator.authService.getSelectedProviderSalon();
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider() async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
     await Future.delayed(AppConstants.mockDelay);
     final account = await serviceLocator.authService.getCurrentProvider();
     if (account == null) {
       return ApiResponse.error('Non connecté', code: 'unauthorized');
     }
 
-    String salonId;
+    String resolvedSalonId;
     TeamRole role;
     String? artistId;
     String? artistName;
-    if (account.providerId != null) {
-      salonId = account.providerId!;
+    final selected = salonId ?? await _selection();
+    if (selected != null && selected.isNotEmpty) {
+      // R6 explicit selection: an ACTIVE membership there or a UNIFORM
+      // per-salon denial (never the sign-out signal — mirrors the backend).
+      if (account.providerId == selected) {
+        resolvedSalonId = selected;
+        role = TeamRole.owner;
+      } else {
+        final row = await _rowInSalon(account, selected);
+        if (row == null) {
+          return ApiResponse.error(
+            'Action réservée aux membres du salon.',
+            code: 'forbidden',
+          );
+        }
+        resolvedSalonId = selected;
+        role = row.role;
+        artistId = row.artistId;
+        artistName = row.artistName;
+      }
+    } else if (account.providerId != null) {
+      resolvedSalonId = account.providerId!;
       role = TeamRole.owner;
     } else {
       final row = await _currentMemberRow();
@@ -61,14 +109,15 @@ class MockProService implements ProServiceInterface {
           code: 'not_a_member',
         );
       }
-      salonId = row.providerId;
+      resolvedSalonId = row.providerId;
       role = row.role;
       artistId = row.artistId;
       artistName = row.artistName;
     }
+    final salonId0 = resolvedSalonId;
 
     final salon = MockData.providers.firstWhere(
-      (p) => p.id == salonId,
+      (p) => p.id == salonId0,
       orElse: () => MockData.providers.first,
     );
     return ApiResponse.success(
@@ -83,6 +132,129 @@ class MockProService implements ProServiceInterface {
           salonName: salon.name,
         ),
       ),
+    );
+  }
+
+  /// Salons the account OWNS in the mock world: the scalar link ∪ active
+  /// owner rows (the R6 mirror of the backend's owned set).
+  Set<String> _ownedSalonIds(ProviderUser account) => {
+        if (account.providerId != null) account.providerId!,
+        for (final m in MockData.teamMembers)
+          if (m.role == TeamRole.owner &&
+              m.status == TeamMemberStatus.active &&
+              (m.accountId == account.id ||
+                  (account.email != null &&
+                      m.email == account.email!.toLowerCase())))
+            m.providerId,
+      };
+
+  bool _canAddSalon(ProviderUser account) {
+    try {
+      final subs = serviceLocator.subscriptionService;
+      if (subs is MockSubscriptionService) {
+        return subs.hasLiveReseauAmong(_ownedSalonIds(account));
+      }
+    } catch (_) {/* locator not wired (isolated tests) */}
+    return false;
+  }
+
+  @override
+  Future<ApiResponse<MySalonsResult>> getMySalons() async {
+    await Future.delayed(AppConstants.mockDelay);
+    final account = await serviceLocator.authService.getCurrentProvider();
+    if (account == null) {
+      return ApiResponse.error('Non connecté', code: 'unauthorized');
+    }
+    final owned = _ownedSalonIds(account);
+    // Owned + member ACTIVE rows, joined against the salon list.
+    final ids = <String>{...owned};
+    final roleById = <String, TeamRole>{
+      for (final id in owned) id: TeamRole.owner
+    };
+    for (final m in MockData.teamMembers) {
+      if (m.status != TeamMemberStatus.active) continue;
+      if (m.accountId == account.id ||
+          (account.email != null && m.email == account.email!.toLowerCase())) {
+        ids.add(m.providerId);
+        roleById.putIfAbsent(m.providerId, () => m.role);
+      }
+    }
+    final items = <SalonMembershipInfo>[];
+    for (final id in ids) {
+      final salon = MockData.providers.where((p) => p.id == id).firstOrNull;
+      if (salon == null) continue;
+      items.add(SalonMembershipInfo(
+        salonId: id,
+        salonName: salon.name,
+        role: roleById[id] ?? TeamRole.staff,
+        salonStatus: MockData.draftSalonIds.contains(id) ? 'draft' : 'active',
+        verified: salon.verified,
+        imageUrl: salon.imageUrls.isNotEmpty ? salon.imageUrls.first : null,
+      ));
+    }
+    items.sort((a, b) {
+      final aOwner = a.isOwner ? 0 : 1;
+      final bOwner = b.isOwner ? 0 : 1;
+      if (aOwner != bOwner) return aOwner - bOwner;
+      return a.salonName.toLowerCase().compareTo(b.salonName.toLowerCase());
+    });
+    return ApiResponse.success(
+      MySalonsResult(items: items, canAddSalon: _canAddSalon(account)),
+    );
+  }
+
+  @override
+  Future<ApiResponse<SalonMembershipInfo>> addSalon({
+    required String businessName,
+    required BusinessType businessType,
+    String? phoneNumber,
+    String? address,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final account = await serviceLocator.authService.getCurrentProvider();
+    if (account == null) {
+      return ApiResponse.error('Non connecté', code: 'unauthorized');
+    }
+    final name = businessName.trim();
+    if (name.isEmpty) {
+      return ApiResponse.error('Nom requis', code: 'invalid_input');
+    }
+    if (!_canAddSalon(account)) {
+      return ApiResponse.error(
+        teamErrorMessage('reseau_required'),
+        code: 'reseau_required',
+      );
+    }
+    // The new DRAFT salon in its own free SETUP state (no offer row).
+    final id = 'provider_add_${DateTime.now().millisecondsSinceEpoch}';
+    MockData.providers.add(
+      MockData.providers.first.copyWith(
+        id: id,
+        name: name,
+        artists: const [],
+        verified: account.verificationStatus == VerificationStatus.verified,
+      ),
+    );
+    MockData.draftSalonIds.add(id);
+    MockData.teamMembers.add(TeamMember(
+      id: 'mem_add_$id',
+      providerId: id,
+      email: account.email ?? account.phoneNumber,
+      role: TeamRole.owner,
+      status: TeamMemberStatus.active,
+      invitedAt: DateTime.now(),
+      accountId: account.id,
+      acceptedAt: DateTime.now(),
+    ));
+    return ApiResponse.success(
+      SalonMembershipInfo(
+        salonId: id,
+        salonName: name,
+        role: TeamRole.owner,
+        salonStatus: 'draft',
+        verified: account.verificationStatus == VerificationStatus.verified,
+      ),
+      message: 'Salon créé',
     );
   }
 

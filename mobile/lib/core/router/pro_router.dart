@@ -24,6 +24,7 @@ import '../../screens/provider/profile/pro_data_export_screen.dart';
 import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/profile/pro_salon_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
+import '../../screens/provider/salons/add_salon_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
@@ -184,6 +185,11 @@ class ProRouter {
         path: '/pro/team',
         name: 'pro-team',
         builder: (context, state) => const TeamScreen(),
+      ),
+      GoRoute(
+        path: '/pro/salons/nouveau',
+        name: 'pro-add-salon',
+        builder: (context, state) => const AddSalonScreen(),
       ),
       GoRoute(
         path: '/pro/invitations',

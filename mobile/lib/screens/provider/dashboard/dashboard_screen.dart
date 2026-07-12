@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
@@ -12,6 +14,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../models/pro_membership.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
+import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -27,6 +30,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return authProvider.activeSalonId ?? '';
   }
 
+  /// R6: the salon the stats were loaded for — a « Mes salons » switch
+  /// happens WITHOUT remounting this screen, so a change triggers a reload.
+  String? _loadedForSalon;
+
+  /// Open the switcher; handle the add flow and the post-switch reshape
+  /// (a staff membership in the new salon lands on the staff shell).
+  Future<void> _openSalonPicker() async {
+    final result = await showSalonPicker(context);
+    if (!mounted || result == null) return;
+    if (result == 'add') {
+      unawaited(context.push('/pro/salons/nouveau'));
+      return;
+    }
+    final auth = context.read<ProAuthProvider>();
+    if (auth.isStaff) {
+      context.go('/pro/staff');
+    }
+    // Same shell: the Consumer below sees the new activeSalonId and reloads.
+  }
+
   @override
   void initState() {
     super.initState();
@@ -35,7 +58,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (authProvider.isAuthenticated && authProvider.provider != null) {
         final dashboardProvider =
             Provider.of<ProDashboardProvider>(context, listen: false);
-        dashboardProvider.loadDashboardStats(_resolvedProviderId(context));
+        _loadedForSalon = _resolvedProviderId(context);
+        dashboardProvider.loadDashboardStats(_loadedForSalon!);
         _maybeAskPush();
       }
     });
@@ -73,6 +97,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: Consumer2<ProAuthProvider, ProDashboardProvider>(
         builder: (context, authProvider, dashboardProvider, _) {
+          // R6: a salon switch re-scopes the dashboard in place.
+          final salonId = authProvider.activeSalonId;
+          if (salonId != null &&
+              _loadedForSalon != null &&
+              salonId != _loadedForSalon) {
+            _loadedForSalon = salonId;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                context
+                    .read<ProDashboardProvider>()
+                    .loadDashboardStats(salonId);
+              }
+            });
+          }
           if (!authProvider.isAuthenticated) {
             return Center(
               child: Column(
@@ -124,10 +162,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Bienvenue, ${authProvider.salonName}',
-                    style: AppTextStyles.headlineMedium
-                        .copyWith(color: AppColors.textPrimary),
+                  // R6: the header IS the salon switcher (chevron when the
+                  // account has several salons; « Mes salons » lives on the
+                  // Profil screen too).
+                  InkWell(
+                    onTap: authProvider.hasMultipleSalons ||
+                            authProvider.canAddSalon
+                        ? _openSalonPicker
+                        : null,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Bienvenue, ${authProvider.salonName}',
+                            style: AppTextStyles.headlineMedium
+                                .copyWith(color: AppColors.textPrimary),
+                          ),
+                        ),
+                        if (authProvider.hasMultipleSalons ||
+                            authProvider.canAddSalon) ...[
+                          const SizedBox(width: AppTheme.spacingXS),
+                          const Icon(
+                            Icons.expand_more,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   // Go-live is owner-only (salon.publish, sign-off) — the

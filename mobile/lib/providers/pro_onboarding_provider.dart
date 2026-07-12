@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/onboarding.dart';
 import '../models/availability.dart';
@@ -8,7 +9,7 @@ import '../models/provider_user.dart';
 /// Loads the inputs each onboarding step depends on (services, staff,
 /// availability, deposit policy, listing photos, KYC) and exposes the computed
 /// checklist + progress.
-class ProOnboardingProvider extends ChangeNotifier {
+class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   bool _isLoading = false;
   bool _loadFailed = false;
   String? _error;
@@ -129,4 +130,16 @@ class ProOnboardingProvider extends ChangeNotifier {
   bool _hasAvailableSlot(Availability availability) =>
       availability.weeklySchedule.values
           .any((slots) => slots.any((s) => s.isAvailable));
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _isLoading = false;
+    _loadFailed = false;
+    _error = null;
+    _steps = const [];
+    _isPublishing = false;
+    _publishErrorCode = null;
+    notifyListeners();
+  }
 }

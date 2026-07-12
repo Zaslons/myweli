@@ -46,7 +46,7 @@ class SubscriptionPlans {
 
   static const List<String> reseauEntitlements = [
     'Tout de l’offre Business',
-    'Multi-salons (bientôt disponible)',
+    'Multi-salons — ajoutez des salons à votre compte',
     'Tarif personnalisé',
   ];
 

@@ -43,7 +43,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final id = context.read<ProAuthProvider>().provider?.providerId;
+      final id = context.read<ProAuthProvider>().activeSalonId;
       if (id != null && id.isNotEmpty) {
         context.read<ProArtistProvider>().loadArtists(id);
       }
@@ -137,14 +137,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       'durationMinutes': int.parse(_durationController.text.trim()),
       'durationVariants': durationVariants,
       'artistIds': _artistIds.toList(),
-      'providerId':
-          authProvider.provider?.providerId ?? authProvider.provider?.id ?? '',
+      'providerId': authProvider.activeSalonId ?? '',
     };
 
     final success = widget.serviceId != null
         ? await serviceProvider.updateService(widget.serviceId!, serviceData)
         : await serviceProvider.createService(
-            authProvider.provider?.providerId ?? authProvider.provider!.id,
+            authProvider.activeSalonId ?? authProvider.provider!.id,
             serviceData,
           );
 

@@ -117,7 +117,11 @@ void main() {
     await scrollTo(tester, find.text('Réseau'));
     expect(find.text('Sur devis'), findsOneWidget);
     expect(find.text('15 places par salon'), findsOneWidget);
-    expect(find.text('Multi-salons (bientôt disponible)'), findsOneWidget);
+    // R6: multi-salons is LIVE — the entitlement no longer says bientôt.
+    expect(
+      find.text('Multi-salons — ajoutez des salons à votre compte'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
