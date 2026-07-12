@@ -7,6 +7,7 @@ import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
+import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,6 +22,7 @@ void main() {
     await initializeDateFormatting('fr_FR', null);
     SharedPreferences.setMockInitialValues({});
     serviceLocator.authService = MockAuthService();
+    serviceLocator.proService = MockProService(); // membership refresh (R4b)
   });
 
   setUp(() async {
@@ -44,6 +46,10 @@ void main() {
         GoRoute(
           path: '/pro/register',
           builder: (_, __) => const Scaffold(body: Text('REGISTER')),
+        ),
+        GoRoute(
+          path: '/pro/staff',
+          builder: (_, __) => const Scaffold(body: Text('STAFF_SHELL')),
         ),
       ],
     );
@@ -102,8 +108,8 @@ void main() {
   });
 
   testWidgets(
-      '« Rejoindre » authenticates and lands on the dashboard with '
-      'the welcome snackbar', (tester) async {
+      '« Rejoindre » authenticates and lands on the STAFF SHELL — the '
+      'seeded invitation is a Collaborateur (R4b routing)', (tester) async {
     await reachInvitationsStep(tester);
 
     await tester.tap(find.text('Rejoindre'));
@@ -114,7 +120,7 @@ void main() {
       findsOneWidget,
     );
     await settle(tester);
-    expect(find.text('DASHBOARD'), findsOneWidget);
+    expect(find.text('STAFF_SHELL'), findsOneWidget);
   });
 
   testWidgets(

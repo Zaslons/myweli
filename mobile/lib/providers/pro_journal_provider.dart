@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_access_guard.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
 import '../models/appointment.dart';
@@ -25,6 +26,27 @@ class ProJournalProvider extends ChangeNotifier {
   /// Artist filter: null = « Tous »; '' = « Sans artiste ».
   String? _artistFilter;
   String? get artistFilter => _artistFilter;
+
+  /// Collaborateur own-mode (access R4b): the filter is LOCKED to the
+  /// member's linked artist — [setArtistFilter] no-ops while locked
+  /// (belt-and-braces; the server already own-filters, T40).
+  bool _locked = false;
+  bool get isLocked => _locked;
+
+  void lockToArtist(String artistId) {
+    _locked = true;
+    if (_artistFilter != artistId) {
+      _artistFilter = artistId;
+      notifyListeners();
+    }
+  }
+
+  void unlock() {
+    if (!_locked) return;
+    _locked = false;
+    _artistFilter = null;
+    notifyListeners();
+  }
 
   bool _showCancelled = false;
   bool get showCancelled => _showCancelled;
@@ -75,6 +97,7 @@ class ProJournalProvider extends ChangeNotifier {
         _day = r.data;
       } else {
         _error = r.error ?? 'Erreur lors du chargement.';
+        ProAccessGuard.report(r.code);
         _day = null;
       }
     } catch (e) {
@@ -92,6 +115,7 @@ class ProJournalProvider extends ChangeNotifier {
   void setDate(DateTime date) => load(_providerId, date: date);
 
   void setArtistFilter(String? artistId) {
+    if (_locked) return; // own-mode: the lock wins
     _artistFilter = artistId;
     notifyListeners();
   }
@@ -121,6 +145,7 @@ class ProJournalProvider extends ChangeNotifier {
         await refresh();
       } else {
         _error = res.error ?? 'Action impossible.';
+        ProAccessGuard.report(res.code);
         notifyListeners();
       }
       return ok;

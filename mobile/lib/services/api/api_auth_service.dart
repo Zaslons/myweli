@@ -8,6 +8,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
+import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
@@ -597,6 +598,39 @@ class ApiAuthService implements AuthServiceInterface {
     _currentProvider = null;
     _providerToken = null;
     await _providerSessionStore.clear();
+  }
+
+  @override
+  Future<void> cacheProviderMembership(ProMembership? membership) async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return; // signed out — nothing to cache into
+    try {
+      final session =
+          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      await _providerSessionStore.save(
+        jsonEncode(
+          ProviderSession(
+            token: session.token,
+            refreshToken: session.refreshToken,
+            provider: session.provider,
+            membership: membership,
+          ).toJson(),
+        ),
+      );
+    } catch (_) {/* a broken blob is repaired on the next login */}
+  }
+
+  @override
+  Future<ProMembership?> getCachedProviderMembership() async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      return ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).membership;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ---- helpers --------------------------------------------------------------

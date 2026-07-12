@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
+import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
 import '../../models/session.dart';
@@ -538,14 +539,27 @@ class MockAuthService implements AuthServiceInterface {
     required BusinessType businessType,
     String? address,
   }) {
+    // Mirror salon provisioning (pro-salon-lifecycle/R1): registration links
+    // a DRAFT salon so the account is a real OWNER (providerId set) — the
+    // R4b role plumbing depends on it.
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final salonId = 'provider_reg_$ts';
+    MockData.providers.add(
+      MockData.providers.first.copyWith(
+        id: salonId,
+        name: businessName,
+        artists: const [],
+      ),
+    );
     final providerUser = ProviderUser(
-      id: 'provider_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'provider_$ts',
       phoneNumber: phoneNumber,
       businessName: businessName,
       businessType: businessType,
       email: email.trim().toLowerCase(),
       address: address,
       createdAt: DateTime.now(),
+      providerId: salonId,
     );
     MockData.providerUsers.add(providerUser);
     _currentProvider = providerUser;
@@ -611,6 +625,18 @@ class MockAuthService implements AuthServiceInterface {
     );
   }
 
+  ProMembership? _cachedMembership;
+
+  @override
+  Future<void> cacheProviderMembership(ProMembership? membership) async {
+    if (_currentProvider == null) return;
+    _cachedMembership = membership;
+  }
+
+  @override
+  Future<ProMembership?> getCachedProviderMembership() async =>
+      _cachedMembership;
+
   @override
   Future<ProviderUser?> getCurrentProvider() async {
     await Future.delayed(const Duration(milliseconds: 50));
@@ -619,6 +645,7 @@ class MockAuthService implements AuthServiceInterface {
 
   @override
   Future<void> logoutProvider() async {
+    _cachedMembership = null;
     await Future.delayed(const Duration(milliseconds: 100));
     _currentProvider = null;
   }

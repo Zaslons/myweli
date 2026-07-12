@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_access_guard.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -37,6 +38,7 @@ class ProAppointmentProvider extends ChangeNotifier {
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des rendez-vous';
+        ProAccessGuard.report(response.code);
         _appointments = [];
       }
     } catch (e) {

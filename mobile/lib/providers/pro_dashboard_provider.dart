@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/access/pro_access_guard.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
@@ -31,6 +32,7 @@ class ProDashboardProvider extends ChangeNotifier {
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des statistiques';
+        ProAccessGuard.report(response.code);
         _stats = null;
       }
     } catch (e) {

@@ -34,32 +34,57 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     AppointmentStatus.noShow: 'Non présenté',
   };
 
-  String get _providerId {
-    final auth = context.read<ProAuthProvider>();
-    return auth.provider?.providerId ?? auth.provider?.id ?? '';
-  }
+  String get _providerId => context.read<ProAuthProvider>().activeSalonId ?? '';
+
+  /// Collaborateur own-mode (access R4b §5.3): « Ma journée » shows the
+  /// member's own planning only — the lock + hidden actions below; the
+  /// server own-filters regardless (T40).
+  bool get _ownMode => context.read<ProAuthProvider>().isStaff;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncLock();
       context.read<ProJournalProvider>().load(_providerId);
     });
+  }
+
+  /// Keeps the own-mode lock in step with the membership (which can land
+  /// asynchronously after a cold start) — re-run from build post-frame.
+  void _syncLock() {
+    if (!mounted) return;
+    final auth = context.read<ProAuthProvider>();
+    final journal = context.read<ProJournalProvider>();
+    final ownArtist = auth.isStaff ? auth.membership?.artistId : null;
+    if (ownArtist != null) {
+      journal.lockToArtist(ownArtist);
+    } else {
+      journal.unlock();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final journal = context.watch<ProJournalProvider>();
+    final auth = context.watch<ProAuthProvider>();
+    final ownMode = auth.isStaff;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncLock());
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Ma journée'),
+        // Own-mode grounds the boundary: « {Salon} — votre planning ».
+        title: Text(
+          ownMode ? '${auth.salonName} — votre planning' : 'Ma journée',
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
-          IconButton(
-            tooltip: 'Agenda',
-            icon: const Icon(Icons.calendar_month),
-            onPressed: () => context.push('/pro/appointments'),
-          ),
+          if (!ownMode)
+            IconButton(
+              tooltip: 'Agenda',
+              icon: const Icon(Icons.calendar_month),
+              onPressed: () => context.push('/pro/appointments'),
+            ),
           PopupMenuButton<String>(
             onSelected: (_) =>
                 context.read<ProJournalProvider>().toggleCancelled(),
@@ -73,11 +98,13 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/pro/appointment/new'),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau'),
-      ),
+      floatingActionButton: ownMode
+          ? null // manual booking is a whole-journal act (T40)
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/pro/appointment/new'),
+              icon: const Icon(Icons.add),
+              label: const Text('Nouveau'),
+            ),
       body: Column(
         children: [
           _Header(journal: journal, onPick: _pickDate),
@@ -123,8 +150,10 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
                 EmptyState(
                   icon: Icons.event_available,
                   title: 'Aucun rendez-vous ce jour',
-                  actionText: '+ Nouveau rendez-vous',
-                  onAction: () => context.push('/pro/appointment/new'),
+                  actionText: _ownMode ? null : '+ Nouveau rendez-vous',
+                  onAction: _ownMode
+                      ? null
+                      : () => context.push('/pro/appointment/new'),
                 ),
               ],
             )
@@ -167,14 +196,17 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
       child: InkWell(
-        onTap: () => context.push(
-          '/pro/appointment/new',
-          extra: {
-            'dateTime': start.toIso8601String(),
-            if (artistFilter != null && artistFilter.isNotEmpty)
-              'artistId': artistFilter,
-          },
-        ),
+        // Own-mode: gaps are informational only (booking = manage.all).
+        onTap: _ownMode
+            ? null
+            : () => context.push(
+                  '/pro/appointment/new',
+                  extra: {
+                    'dateTime': start.toIso8601String(),
+                    if (artistFilter != null && artistFilter.isNotEmpty)
+                      'artistId': artistFilter,
+                  },
+                ),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -237,6 +269,23 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     Appointment a,
     bool arrived,
   ) {
+    if (_ownMode) {
+      // Collaborateur: « Terminé » on own confirmed bookings only (§5.3).
+      if (a.status != AppointmentStatus.confirmed) return null;
+      return ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.3,
+        children: [
+          SlidableAction(
+            onPressed: (_) => _run(journal.complete(a.id)),
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
+            icon: Icons.done_all,
+            label: 'Terminé',
+          ),
+        ],
+      );
+    }
     if (a.status == AppointmentStatus.pending) {
       return ActionPane(
         motion: const DrawerMotion(),
@@ -272,6 +321,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
   }
 
   ActionPane? _endPane(ProJournalProvider journal, Appointment a) {
+    if (_ownMode) return null; // reschedule = manage.all
     if (a.status == AppointmentStatus.cancelled ||
         a.status == AppointmentStatus.completed ||
         a.status == AppointmentStatus.noShow) {
@@ -299,19 +349,20 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     Appointment a,
     bool arrived,
   ) async {
+    final ownMode = _ownMode;
     await showModalBottomSheet<void>(
       context: context,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (a.status == AppointmentStatus.pending) ...[
+            if (!ownMode && a.status == AppointmentStatus.pending) ...[
               _sheetAction(Icons.check, 'Accepter', () => journal.accept(a.id)),
               _sheetAction(Icons.close, 'Refuser', () => journal.noShow(a.id),
                   destructive: false),
             ],
             if (a.status == AppointmentStatus.confirmed) ...[
-              if (!arrived)
+              if (!ownMode && !arrived)
                 _sheetAction(
                     Icons.login, 'Client arrivé', () => journal.arrive(a.id)),
               _sheetAction(
@@ -319,7 +370,8 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
               _sheetAction(
                   Icons.person_off, 'Non présenté', () => journal.noShow(a.id)),
             ],
-            if (a.status != AppointmentStatus.cancelled &&
+            if (!ownMode &&
+                a.status != AppointmentStatus.cancelled &&
                 a.status != AppointmentStatus.completed &&
                 a.status != AppointmentStatus.noShow)
               ListTile(
@@ -442,7 +494,8 @@ class _Header extends StatelessWidget {
             ],
           ),
           _WeekStrip(journal: journal),
-          if (journal.day != null) _ArtistChips(journal: journal),
+          if (journal.day != null && !journal.isLocked)
+            _ArtistChips(journal: journal),
         ],
       ),
     );

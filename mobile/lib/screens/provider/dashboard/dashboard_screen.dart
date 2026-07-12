@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/pro_membership.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
@@ -23,7 +24,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.provider?.providerId ?? authProvider.provider?.id ?? '';
+    return authProvider.activeSalonId ?? '';
   }
 
   @override
@@ -124,22 +125,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Bienvenue, ${authProvider.provider?.businessName ?? ""}',
+                    'Bienvenue, ${authProvider.salonName}',
                     style: AppTextStyles.headlineMedium
                         .copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 16),
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.checklist_rounded),
-                      title: const Text('Configurer mon profil'),
-                      subtitle: const Text(
-                          'Complétez les étapes pour aller en ligne'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push('/pro/onboarding'),
+                  // Go-live is owner-only (salon.publish, sign-off) — the
+                  // card hides for members; the server 403s regardless.
+                  if (authProvider.can(ProCap.salonPublish)) ...[
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.checklist_rounded),
+                        title: const Text('Configurer mon profil'),
+                        subtitle: const Text(
+                            'Complétez les étapes pour aller en ligne'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/pro/onboarding'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 8),
+                  ],
+                  const SizedBox(height: 16),
                   // Stats Cards
                   Row(
                     children: [
@@ -164,79 +170,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          title: 'Aujourd\'hui',
-                          value: Formatters.formatCurrency(stats.todayRevenue),
-                          subtitle: 'Revenus',
-                          icon: Icons.attach_money,
-                          color: AppColors.success,
+                  // Money figures are field-gated server-side without
+                  // finances.view (R1/R4) — absence is a valid state.
+                  if (stats.hasRevenue) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatCard(
+                            title: 'Aujourd\'hui',
+                            value:
+                                Formatters.formatCurrency(stats.todayRevenue!),
+                            subtitle: 'Revenus',
+                            icon: Icons.attach_money,
+                            color: AppColors.success,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatCard(
-                          title: 'Ce mois',
-                          value: Formatters.formatCurrency(stats.monthRevenue),
-                          subtitle: 'Revenus',
-                          icon: Icons.trending_up,
-                          color: AppColors.info,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _StatCard(
+                            title: 'Ce mois',
+                            value:
+                                Formatters.formatCurrency(stats.monthRevenue!),
+                            subtitle: 'Revenus',
+                            icon: Icons.trending_up,
+                            color: AppColors.info,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 24),
-                  // Daily Operations Section
-                  Text(
-                    'Opérations quotidiennes',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.1,
-                    children: [
+                  // Role-gated sections (access R4b): UI hiding is
+                  // convenience — the routes 403 server-side regardless.
+                  ..._section(context, 'Opérations quotidiennes', [
+                    if (authProvider.can(ProCap.journalViewAll))
                       _ActionCard(
                         title: 'Rendez-vous',
                         icon: Icons.calendar_today,
                         onTap: () => context.push('/pro/journal'),
                       ),
+                    if (authProvider.can(ProCap.clientsView))
                       _ActionCard(
                         title: 'Clients',
                         icon: Icons.people,
                         onTap: () => context.push('/pro/clients'),
                       ),
+                    if (authProvider.can(ProCap.availabilityManage))
                       _ActionCard(
                         title: 'Disponibilité',
                         icon: Icons.access_time,
                         onTap: () => context.push('/pro/availability'),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Business Setup Section
-                  Text(
-                    'Configuration',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.1,
-                    children: [
+                  ]),
+                  ..._section(context, 'Configuration', [
+                    if (authProvider.can(ProCap.catalogueManage)) ...[
                       _ActionCard(
                         title: 'Services',
                         icon: Icons.build,
@@ -248,35 +236,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onTap: () => context.push('/pro/artists'),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Insights Section
-                  Text(
-                    'Analyses',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.1,
-                    children: [
+                  ]),
+                  ..._section(context, 'Analyses', [
+                    if (authProvider.can(ProCap.financesView))
                       _ActionCard(
                         title: 'Revenus',
                         icon: Icons.attach_money,
                         onTap: () => context.push('/pro/earnings'),
                       ),
+                    if (authProvider.can(ProCap.profileManage))
                       _ActionCard(
                         title: 'Avis',
                         icon: Icons.star,
                         onTap: () => context.push('/pro/reviews'),
                       ),
-                    ],
-                  ),
+                  ]),
                 ],
               ),
             ),
@@ -285,6 +259,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
+}
+
+/// A titled action grid, omitted entirely when the role leaves it empty.
+List<Widget> _section(BuildContext context, String title, List<Widget> cards) {
+  if (cards.isEmpty) return const [];
+  return [
+    Text(
+      title,
+      style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+    ),
+    const SizedBox(height: 12),
+    GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.1,
+      children: cards,
+    ),
+    const SizedBox(height: 24),
+  ];
 }
 
 class _StatCard extends StatelessWidget {

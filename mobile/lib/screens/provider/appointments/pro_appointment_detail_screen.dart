@@ -40,7 +40,7 @@ class _ProAppointmentDetailScreenState
       if (authProvider.isAuthenticated && authProvider.provider != null) {
         final appointmentProvider =
             Provider.of<ProAppointmentProvider>(context, listen: false);
-        appointmentProvider.loadAppointments(authProvider.provider!.id);
+        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
       }
     });
   }
@@ -60,6 +60,10 @@ class _ProAppointmentDetailScreenState
       ),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
+          // Collaborateur (access R4b §5.3): own bookings only reach this
+          // screen (server own-filters); the allowed acts are Terminé /
+          // Absent — everything else hides (and 403s server-side anyway).
+          final ownMode = authProvider.isStaff;
           final appointment = appointmentProvider.appointments.firstWhere(
             (a) => a.id == widget.appointmentId,
             orElse: () => Appointment(
@@ -129,7 +133,7 @@ class _ProAppointmentDetailScreenState
                               ),
                           ],
                         ),
-                        if (appointment.salonClientId != null)
+                        if (appointment.salonClientId != null && !ownMode)
                           GestureDetector(
                             onTap: () => context.push(
                               '/pro/clients/${appointment.salonClientId}',
@@ -214,7 +218,8 @@ class _ProAppointmentDetailScreenState
                   ),
                 ),
                 const SizedBox(height: 24),
-                if (appointment.status == AppointmentStatus.pending) ...[
+                if (!ownMode &&
+                    appointment.status == AppointmentStatus.pending) ...[
                   AppButton(
                     text: 'Accepter',
                     onPressed: () async {
@@ -245,7 +250,8 @@ class _ProAppointmentDetailScreenState
                   ),
                 ] else if (appointment.status ==
                     AppointmentStatus.confirmed) ...[
-                  if (appointment.arrivedAt == null &&
+                  if (!ownMode &&
+                      appointment.arrivedAt == null &&
                       _isToday(appointment.appointmentDate)) ...[
                     AppButton(
                       text: 'Client arrivé',
@@ -267,8 +273,7 @@ class _ProAppointmentDetailScreenState
                         );
                         if (ok && authProvider.provider != null) {
                           await appointmentProvider.loadAppointments(
-                            authProvider.provider!.providerId ??
-                                authProvider.provider!.id,
+                            authProvider.activeSalonId ?? '',
                           );
                         }
                       },

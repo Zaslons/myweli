@@ -6,12 +6,86 @@ import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
 import '../../models/journal_day.dart';
 import '../../models/payment.dart';
+import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
+import '../../models/provider_user.dart';
 import '../../models/service.dart';
+import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
 
 class MockProService implements ProServiceInterface {
+  /// The current mock session's ACTIVE roster row, or null for owners /
+  /// signed-out (access R4b — role-aware mock world). Resolved through the
+  /// auth service like the real backend resolves through the token.
+  Future<TeamMember?> _currentMemberRow() async {
+    final ProviderUser? account;
+    try {
+      account = await serviceLocator.authService.getCurrentProvider();
+    } catch (_) {
+      // Locator not wired (isolated unit tests) → owner-shaped world.
+      return null;
+    }
+    if (account == null || account.providerId != null) return null;
+    for (final m in MockData.teamMembers) {
+      if (m.status != TeamMemberStatus.active) continue;
+      if (m.accountId == account.id ||
+          (account.email != null && m.email == account.email!.toLowerCase())) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<ApiResponse<MyProviderInfo>> getMyProvider() async {
+    await Future.delayed(AppConstants.mockDelay);
+    final account = await serviceLocator.authService.getCurrentProvider();
+    if (account == null) {
+      return ApiResponse.error('Non connecté', code: 'unauthorized');
+    }
+
+    String salonId;
+    TeamRole role;
+    String? artistId;
+    String? artistName;
+    if (account.providerId != null) {
+      salonId = account.providerId!;
+      role = TeamRole.owner;
+    } else {
+      final row = await _currentMemberRow();
+      if (row == null) {
+        // Memberships gone → the revoked signal (mirrors the backend R4a).
+        return ApiResponse.error(
+          'Votre accès à ce salon a été retiré.',
+          code: 'not_a_member',
+        );
+      }
+      salonId = row.providerId;
+      role = row.role;
+      artistId = row.artistId;
+      artistName = row.artistName;
+    }
+
+    final salon = MockData.providers.firstWhere(
+      (p) => p.id == salonId,
+      orElse: () => MockData.providers.first,
+    );
+    return ApiResponse.success(
+      MyProviderInfo(
+        salon: salon,
+        membership: ProMembership(
+          role: role,
+          capabilities: presetCapabilitiesFor(role),
+          artistId: artistId,
+          artistName: artistName,
+          salonId: salon.id,
+          salonName: salon.name,
+        ),
+      ),
+    );
+  }
+
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
       String providerId) async {
@@ -57,12 +131,17 @@ class MockProService implements ProServiceInterface {
           a.status == AppointmentStatus.confirmed;
     }).fold<double>(0, (sum, a) => sum + a.totalPrice);
 
+    // Field-gate the money figures like the server (R1): absent without
+    // finances.view — absence is a valid state, not an error.
+    final row = await _currentMemberRow();
+    final canSeeMoney = row == null ||
+        presetCapabilitiesFor(row.role).contains(ProCap.financesView);
     final stats = DashboardStats(
       todayAppointments: todayAppointments,
       pendingRequests: pendingRequests,
-      todayRevenue: todayRevenue,
-      weekRevenue: weekRevenue,
-      monthRevenue: monthRevenue,
+      todayRevenue: canSeeMoney ? todayRevenue : null,
+      weekRevenue: canSeeMoney ? weekRevenue : null,
+      monthRevenue: canSeeMoney ? monthRevenue : null,
       totalAppointments: appointments.length,
     );
 
@@ -80,6 +159,13 @@ class MockProService implements ProServiceInterface {
 
     var appointments =
         MockData.appointments.where((a) => a.providerId == providerId).toList();
+
+    // T40 mirror: a Collaborateur sees their own artist's bookings only.
+    final row = await _currentMemberRow();
+    if (row != null && row.role == TeamRole.staff) {
+      appointments =
+          appointments.where((a) => a.artistId == row.artistId).toList();
+    }
 
     if (status != null) {
       appointments = appointments.where((a) => a.status == status).toList();
@@ -209,8 +295,12 @@ class MockProService implements ProServiceInterface {
   ) async {
     await Future.delayed(AppConstants.mockDelay);
     final key = date.toUtc().toIso8601String().substring(0, 10);
+    final row = await _currentMemberRow();
+    final ownArtist =
+        (row != null && row.role == TeamRole.staff) ? row.artistId : null;
     final all = MockData.appointments
         .where((a) => a.providerId == providerId)
+        .where((a) => ownArtist == null || a.artistId == ownArtist)
         .where((a) =>
             a.appointmentDate.toUtc().toIso8601String().substring(0, 10) == key)
         .toList()

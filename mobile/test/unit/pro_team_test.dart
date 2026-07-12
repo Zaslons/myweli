@@ -13,13 +13,16 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 void main() {
   setUp(MockData.resetTeam);
 
-  MockSubscriptionService liveOffer() => MockSubscriptionService(
+  // Business cap (15) by default: the R4b seeds already occupy 5 seats
+  // (owner + manager + réception + staff + 1 pending invite).
+  MockSubscriptionService liveOffer({SalonTier tier = SalonTier.business}) =>
+      MockSubscriptionService(
         initial: SalonSubscription(
-          tier: SalonTier.pro,
+          tier: tier,
           status: SalonOfferStatus.trial,
           trialEndsAt: DateTime.now().add(const Duration(days: 60)),
           graceEndsAt: DateTime.now().add(const Duration(days: 67)),
-          seats: const SalonSeats(cap: 5, used: 0),
+          seats: const SalonSeats(cap: 15, used: 0),
         ),
       );
 
@@ -107,11 +110,11 @@ void main() {
         'offer_required',
       );
 
-      // Pro cap = 5; the seed already uses 3 seats (owner + manager +
-      // unexpired staff invite) — two more invites fill the offer.
-      final full = MockProTeamService(subscriptions: liveOffer());
-      await full.inviteMember(email: 'm4@b.com', role: TeamRole.reception);
-      await full.inviteMember(email: 'm5@b.com', role: TeamRole.reception);
+      // Pro cap = 5 and the R4b seeds already occupy exactly 5 seats —
+      // the very next invite hits the gate.
+      final full = MockProTeamService(
+        subscriptions: liveOffer(tier: SalonTier.pro),
+      );
       expect(
         (await full.inviteMember(email: 'm6@b.com', role: TeamRole.reception))
             .code,

@@ -22,7 +22,9 @@ class AppointmentListScreen extends StatefulWidget {
 }
 
 class _AppointmentListScreenState extends State<AppointmentListScreen>
-    with SingleTickerProviderStateMixin {
+    // Two TabControllers (Calendrier/Liste + the list's status tabs).
+    with
+        TickerProviderStateMixin {
   late TabController _mainTabController; // Calendar vs List
   late TabController _listTabController; // Today/Upcoming/Pending/All
 
@@ -38,7 +40,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
         final appointmentProvider =
             Provider.of<ProAppointmentProvider>(context, listen: false);
         // Load all appointments for calendar view
-        appointmentProvider.loadAppointments(authProvider.provider!.id);
+        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
       }
     });
   }
@@ -55,7 +57,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
 
       if (_mainTabController.index == 0) {
         // Calendar view - load all appointments
-        appointmentProvider.loadAppointments(authProvider.provider!.id);
+        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
       } else {
         // List view - load based on selected list tab
         _loadAppointmentsForListTab(_listTabController.index);
@@ -84,14 +86,14 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
         final todayStart = DateTime(today.year, today.month, today.day);
         final todayEnd = todayStart.add(const Duration(days: 1));
         appointmentProvider.loadAppointments(
-          authProvider.provider!.id,
+          authProvider.activeSalonId ?? '',
           startDate: todayStart,
           endDate: todayEnd,
         );
         return;
       case 1: // Upcoming
         appointmentProvider.loadAppointments(
-          authProvider.provider!.id,
+          authProvider.activeSalonId ?? '',
           startDate: DateTime.now(),
         );
         return;
@@ -103,7 +105,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     }
 
     appointmentProvider.loadAppointments(
-      authProvider.provider!.id,
+      authProvider.activeSalonId ?? '',
       status: status,
     );
   }
@@ -148,7 +150,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                 onRefresh: () async {
                   if (authProvider.provider != null) {
                     await appointmentProvider
-                        .loadAppointments(authProvider.provider!.id);
+                        .loadAppointments(authProvider.activeSalonId ?? '');
                   }
                 },
                 child: appointments.isEmpty

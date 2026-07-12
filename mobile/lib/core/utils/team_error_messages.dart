@@ -20,6 +20,7 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
         'Votre essai gratuit a déjà été utilisé. Contactez-nous pour '
             'activer votre offre.',
       'not_found' => 'Introuvable. Actualisez et réessayez.',
+      'not_a_member' => 'Votre accès à ce salon a été retiré.',
       'forbidden' => 'Action réservée au propriétaire du salon.',
       _ => fallback ?? 'Une erreur est survenue. Réessayez.',
     };

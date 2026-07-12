@@ -1,4 +1,5 @@
 import '../../models/api_response.dart';
+import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
 import '../../models/user.dart';
@@ -69,4 +70,10 @@ abstract class AuthServiceInterface {
 
   Future<ProviderUser?> getCurrentProvider();
   Future<void> logoutProvider();
+
+  /// Team access R4b: cache the last-fetched membership INSIDE the persisted
+  /// provider session (instant cold-start shaping; refreshed from
+  /// GET /me/provider each start). No-op when signed out.
+  Future<void> cacheProviderMembership(ProMembership? membership);
+  Future<ProMembership?> getCachedProviderMembership();
 }

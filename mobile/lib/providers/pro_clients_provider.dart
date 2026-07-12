@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_access_guard.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
 import '../models/salon_client.dart';
@@ -56,6 +57,7 @@ class ProClientsProvider extends ChangeNotifier {
         }
       } else {
         _error = r.error ?? 'Une erreur est survenue.';
+        ProAccessGuard.report(r.code);
       }
     } catch (e) {
       _error = e.toString();
