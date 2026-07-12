@@ -285,7 +285,9 @@ void main() {
       ];
       expect(ids, ['own']);
       expect(
-        (data['appointments'] as List).cast<Map<String, dynamic>>().single['clientPhone'],
+        (data['appointments'] as List)
+            .cast<Map<String, dynamic>>()
+            .single['clientPhone'],
         '+2250700000001',
       );
       final artists = (data['artists'] as List).cast<Map<String, dynamic>>();
@@ -307,7 +309,9 @@ void main() {
 
       final res = await ownJournal.dayFor(staffId, 'provider1', monday);
       expect(res.ok, isTrue);
-      final row = (res.data!['appointments'] as List).cast<Map<String, dynamic>>().single;
+      final row = (res.data!['appointments'] as List)
+          .cast<Map<String, dynamic>>()
+          .single;
       expect(row['id'], 'own');
       expect(row.containsKey('clientPhone'), isFalse);
       // Non-contact enrichment survives the masking.
