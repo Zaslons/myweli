@@ -43,8 +43,9 @@ describe('offer cards', () => {
     // Only Pro carries the ROI line.
     expect(pro.roiLine).toBeTruthy();
     expect(business.roiLine).toBeUndefined();
-    // Réseau flags multi-salons as coming.
-    expect(reseau.notes?.join(' ')).toMatch(/bientôt/i);
+    // R6: multi-salons is LIVE on Réseau.
+    expect(reseau.entitlements.join(' ')).toMatch(/ajoutez des salons/i);
+    expect(reseau.notes?.join(' ')).toMatch(/propre offre/i);
   });
 
   it('the setup headline promises the 3 free months', () => {

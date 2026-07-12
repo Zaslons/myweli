@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { chooseOffer, getMyProvider, getSalonSubscription } from '../../lib/api/pro';
@@ -151,6 +152,26 @@ export function AbonnementClient() {
               }}
             />
           </div>
+        </section>
+      ) : null}
+
+      {/* R6 multi-salons: a LIVE Réseau offer opens « Ajouter un salon »
+          (each new salon = its own setup, offer, trial & publish gate). */}
+      {offer?.tier === 'reseau' &&
+      (offer.status === 'trial' ||
+        offer.status === 'paid' ||
+        offer.status === 'grace') ? (
+        <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+          <p className="font-semibold text-textPrimary">Ajouter un salon</p>
+          <p className="mt-xs text-sm text-textSecondary">
+            Chaque salon a sa propre offre et son propre essai.
+          </p>
+          <Link
+            href="/pro/salons/nouveau"
+            className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+          >
+            Ajouter un salon
+          </Link>
         </section>
       ) : null}
 

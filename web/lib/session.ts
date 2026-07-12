@@ -10,6 +10,11 @@ export const RT_COOKIE = 'myweli_web_rt';
 export const PRO_AT_COOKIE = 'myweli_pro_at';
 export const PRO_RT_COOKIE = 'myweli_pro_rt';
 
+/// R6 multi-salons: the SELECTED acting salon. httpOnly like the tokens —
+/// JS never reads it; the BFF threads it as `?salonId=` and the backend
+/// revalidates the membership per request (T55).
+export const PRO_SALON_COOKIE = 'myweli_pro_salon';
+
 const secure = process.env.NODE_ENV === 'production';
 const base = {
   httpOnly: true,
@@ -50,4 +55,17 @@ export function setProSessionCookies(
 export function clearProSessionCookies(res: NextResponse): void {
   res.cookies.delete(PRO_AT_COOKIE);
   res.cookies.delete(PRO_RT_COOKIE);
+  // The salon selection dies with the session (logout + the revoked probe).
+  res.cookies.delete(PRO_SALON_COOKIE);
+}
+
+export function setProSalonCookie(res: NextResponse, salonId: string): void {
+  res.cookies.set(PRO_SALON_COOKIE, salonId, {
+    ...base,
+    maxAge: 60 * 60 * 24 * 30,
+  });
+}
+
+export function clearProSalonCookie(res: NextResponse): void {
+  res.cookies.delete(PRO_SALON_COOKIE);
 }

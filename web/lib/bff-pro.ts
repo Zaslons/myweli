@@ -3,6 +3,7 @@ import { apiBase } from './server-api';
 import {
   PRO_AT_COOKIE,
   PRO_RT_COOKIE,
+  PRO_SALON_COOKIE,
   setProSessionCookies,
 } from './session';
 
@@ -45,11 +46,29 @@ async function refresh(
     : null;
 }
 
+/// The backend paths whose acting salon is SESSION-resolved (family B) —
+/// the R6 salon selection threads onto exactly these; `/providers/{id}/*`
+/// already carries its salon explicitly.
+const SALON_SCOPED_PREFIXES = ['/me/provider', '/appointments', '/uploads/sign'];
+
+/// R6: append the selected salon (the httpOnly cookie) as `?salonId=` on
+/// the session-resolved paths. The server revalidates the membership on
+/// every request (T55) — this only picks WHICH salon the session acts in.
+function withSalonSelection(req: NextRequest, path: string): string {
+  const selected = req.cookies.get(PRO_SALON_COOKIE)?.value;
+  if (!selected) return path;
+  if (!SALON_SCOPED_PREFIXES.some((p) => path.startsWith(p))) return path;
+  if (path.includes('salonId=')) return path; // an explicit choice wins
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}salonId=${encodeURIComponent(selected)}`;
+}
+
 export async function callApiPro(
   req: NextRequest,
-  path: string,
+  rawPath: string,
   init: RequestInit = {},
 ): Promise<ApiResult> {
+  const path = withSalonSelection(req, rawPath);
   const at = req.cookies.get(PRO_AT_COOKIE)?.value;
   const rt = req.cookies.get(PRO_RT_COOKIE)?.value;
   if (!at && !rt) return { status: 401, body: { error: 'not_authenticated' } };

@@ -12,6 +12,7 @@ import type { BeforeAfterPair } from '../pro/medias';
 import type { SalonOffer } from '../pro/subscription-plans';
 import type {
   Membership,
+  SalonMembership,
   TeamInvitation,
   TeamMember,
   TeamRoleInput,
@@ -105,6 +106,70 @@ export async function getMyProvider(): Promise<{
     return { status: res.status, error: body.error };
   }
   return { status: 200, profile: (await res.json()) as ProProfile };
+}
+
+// --- « Mes salons » (module `access` R6) -----------------------------------
+
+export async function getMySalons(): Promise<{
+  status: number;
+  items: SalonMembership[];
+  canAddSalon: boolean;
+}> {
+  const res = await fetch('/api/pro/salons');
+  if (!res.ok) return { status: res.status, items: [], canAddSalon: false };
+  const body = (await res.json().catch(() => ({}))) as {
+    items?: SalonMembership[];
+    canAddSalon?: boolean;
+  };
+  return {
+    status: 200,
+    items: body.items ?? [],
+    canAddSalon: body.canAddSalon === true,
+  };
+}
+
+/// « Ajouter un salon » — Réseau-gated server-side (403 `reseau_required`,
+/// 409 `salon_limit`).
+export async function addSalon(fields: {
+  businessName: string;
+  businessType: string;
+  phoneNumber?: string;
+  address?: string;
+}): Promise<{ ok: boolean; status: number; salon?: SalonMembership; error?: string }> {
+  const res = await fetch('/api/pro/salons', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(fields),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status, salon: body.salon as SalonMembership }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+/// Switch (or clear, with null) the acting salon. The BFF validates the
+/// selection against the backend BEFORE setting the httpOnly cookie; a 200
+/// returns the selected salon's /me/provider payload.
+export async function selectSalon(salonId: string | null): Promise<{
+  ok: boolean;
+  status: number;
+  profile?: ProProfile;
+  error?: string;
+}> {
+  const res = await fetch('/api/pro/salons/select', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ salonId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, status: res.status, error: body.error };
+  }
+  return {
+    ok: true,
+    status: res.status,
+    profile: salonId === null ? undefined : (body as ProProfile),
+  };
 }
 
 export async function listProAppointments(): Promise<{

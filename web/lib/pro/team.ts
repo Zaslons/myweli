@@ -9,6 +9,8 @@ import type { components } from '../api/schema';
 export type Membership = components['schemas']['Membership'];
 export type TeamMember = components['schemas']['TeamMember'];
 export type TeamInvitation = components['schemas']['TeamInvitation'];
+/// One « Mes salons » entry (module `access` R6 — GET /me/salons).
+export type SalonMembership = components['schemas']['SalonMembership'];
 
 export type TeamRole = 'owner' | 'manager' | 'reception' | 'staff';
 export type TeamRoleInput = 'manager' | 'reception' | 'staff';
@@ -62,6 +64,11 @@ export function teamErrorMessage(
       return 'Votre accès à ce salon a été retiré.';
     case 'not_found':
       return 'Introuvable. Actualisez et réessayez.';
+    // R6 multi-salons (« Ajouter un salon »).
+    case 'reseau_required':
+      return 'L’offre Réseau est requise pour ajouter un salon. Passez à l’offre Réseau depuis « Mon abonnement ».';
+    case 'salon_limit':
+      return 'Limite de salons atteinte. Contactez-nous pour aller plus loin.';
     case 'forbidden':
       return 'Action réservée au propriétaire du salon.';
     default:
@@ -78,6 +85,9 @@ export function teamErrorCta(
   }
   if (code === 'seat_limit') {
     return { label: 'Changer d’offre', href: '/pro/abonnement' };
+  }
+  if (code === 'reseau_required') {
+    return { label: 'Passer à l’offre Réseau', href: '/pro/abonnement' };
   }
   return null;
 }
