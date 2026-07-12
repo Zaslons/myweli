@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { OpenInAppButton } from '../../../components/OpenInAppButton';
 import { ProConnexionClient } from '../../../components/pro/ProConnexionClient';
 
@@ -16,7 +17,10 @@ export default function ProConnexionPage() {
         Connectez-vous à votre espace salon.
       </p>
       <div className="mt-l">
-        <ProConnexionClient />
+        {/* Suspense: the client reads ?motif= via useSearchParams (R5b). */}
+        <Suspense fallback={null}>
+          <ProConnexionClient />
+        </Suspense>
       </div>
       <p className="mt-l text-sm text-textTertiary">
         Pas encore inscrit&nbsp;? Créez votre salon dans l’app MyWeli Pro.

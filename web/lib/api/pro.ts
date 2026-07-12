@@ -37,6 +37,9 @@ export type ProProfile = {
     businessName: string;
     businessType?: string | null;
     phoneNumber: string;
+    /// The signed-in identity (auth overhaul: verified email) — feeds the
+    /// member identity block (team access R5b).
+    email?: string | null;
     verificationStatus?: 'pending' | 'verified' | 'rejected';
     providerId?: string | null;
   };
@@ -92,9 +95,15 @@ export async function verifyOtpPro(
 export async function getMyProvider(): Promise<{
   status: number;
   profile?: ProProfile;
+  /// Machine code on a non-2xx (team access R5b: `not_a_member` on a 403
+  /// is the revoked-mid-session signal the membership probe acts on).
+  error?: string;
 }> {
   const res = await fetch('/api/pro/me');
-  if (!res.ok) return { status: res.status };
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    return { status: res.status, error: body.error };
+  }
   return { status: 200, profile: (await res.json()) as ProProfile };
 }
 

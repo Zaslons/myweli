@@ -16,7 +16,16 @@ import { Button } from '../Button';
 /// pros): the data export (client-side assembly, like the consumer page) and
 /// the type-SUPPRIMER deletion. Design:
 /// docs/design/pro-account-deletion-export.md.
-export function CompteDangerSection({ profile }: { profile: ProProfile }) {
+/// Team access R5b: `exportEnabled=false` = the MEMBER variant — deletion
+/// parity for everyone, but the salon-data export stays with profile.manage
+/// (a member deletes their own account, not the salon).
+export function CompteDangerSection({
+  profile,
+  exportEnabled = true,
+}: {
+  profile: ProProfile;
+  exportEnabled?: boolean;
+}) {
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -86,22 +95,28 @@ export function CompteDangerSection({ profile }: { profile: ProProfile }) {
     <section className="mt-l rounded-xl border border-border bg-secondary p-m">
       <h2 className="text-lg font-semibold text-textPrimary">Compte</h2>
 
-      <div className="mt-s flex items-center justify-between gap-m">
-        <p className="text-sm text-textSecondary">
-          Recevoir une copie des données de votre salon (compte, fiche,
-          catalogue, rendez-vous, fichier clients, revenus).
-        </p>
-        <div className="flex shrink-0 gap-s">
-          <Button variant="secondary" disabled={exporting} onClick={download}>
-            {exporting ? 'Préparation…' : 'Exporter (JSON)'}
-          </Button>
-          <Button variant="secondary" disabled={exporting} onClick={copy}>
-            {copied ? 'Copié ✓' : 'Copier'}
-          </Button>
+      {exportEnabled ? (
+        <div className="mt-s flex items-center justify-between gap-m">
+          <p className="text-sm text-textSecondary">
+            Recevoir une copie des données de votre salon (compte, fiche,
+            catalogue, rendez-vous, fichier clients, revenus).
+          </p>
+          <div className="flex shrink-0 gap-s">
+            <Button variant="secondary" disabled={exporting} onClick={download}>
+              {exporting ? 'Préparation…' : 'Exporter (JSON)'}
+            </Button>
+            <Button variant="secondary" disabled={exporting} onClick={copy}>
+              {copied ? 'Copié ✓' : 'Copier'}
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="mt-m border-t border-divider pt-m">
+      <div
+        className={
+          exportEnabled ? 'mt-m border-t border-divider pt-m' : 'mt-s'
+        }
+      >
         {!confirmDelete ? (
           <button
             type="button"
@@ -117,9 +132,9 @@ export function CompteDangerSection({ profile }: { profile: ProProfile }) {
         ) : (
           <div className="rounded-lg bg-surface p-m">
             <p className="text-sm text-textSecondary">
-              Cette action est définitive. Votre salon sera retiré de MyWeli.
-              Pensez à exporter vos données avant. Tapez SUPPRIMER pour
-              confirmer.
+              {exportEnabled
+                ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
+                : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}
             </p>
             <input
               value={deleteText}

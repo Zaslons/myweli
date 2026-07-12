@@ -13,6 +13,7 @@ import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import type { SalonClientCard } from '../../lib/pro/clients';
 import { maskPhone, noShowBadge, noShowLabel } from '../../lib/pro/clients';
 import { statusKey } from '../../lib/pro/journal';
+import { type Membership, hasCap } from '../../lib/pro/team';
 import type { ProAppointment } from '../../lib/pro/today';
 import { Button } from '../Button';
 
@@ -21,6 +22,7 @@ import { Button } from '../Button';
 export function JournalPanel({
   providerId,
   appt,
+  membership,
   serviceName,
   onClose,
   onChanged,
@@ -28,6 +30,10 @@ export function JournalPanel({
 }: {
   providerId: string;
   appt: ProAppointment;
+  /// Team access R5b: gates the whole-journal acts (accept/reject/arrive/
+  /// reschedule) and the client-fiche block. UI convenience — the server
+  /// enforces T40 regardless.
+  membership?: Membership | null;
   serviceName: (id: string) => string | undefined;
   onClose: () => void;
   onChanged: () => void;
@@ -40,11 +46,14 @@ export function JournalPanel({
   const [reprogDate, setReprogDate] = useState('');
   const [reprogTime, setReprogTime] = useState('');
   const key = statusKey(appt);
+  const canManageAll = hasCap(membership, 'journal.manage.all');
+  const canViewClients = hasCap(membership, 'clients.view');
 
   // C2: the client mini-card (this GET is audited server-side, by design).
+  // Skipped without clients.view — the fetch would be a guaranteed 403.
   useEffect(() => {
     let active = true;
-    if (appt.salonClientId) {
+    if (appt.salonClientId && canViewClients) {
       getClientCard(providerId, appt.salonClientId).then((r) => {
         if (active && r.status === 200) setCard(r.card ?? null);
       });
@@ -52,7 +61,7 @@ export function JournalPanel({
     return () => {
       active = false;
     };
-  }, [providerId, appt.salonClientId]);
+  }, [providerId, appt.salonClientId, canViewClients]);
 
   async function act(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -140,7 +149,7 @@ export function JournalPanel({
 
       {/* Actions by state */}
       <div className="space-y-s border-t border-border p-m">
-        {appt.status === 'pending' ? (
+        {appt.status === 'pending' && canManageAll ? (
           <div className="flex gap-s">
             <Button
               onClick={() => act(() => proAction(appt.id, 'accept'))}
@@ -159,7 +168,7 @@ export function JournalPanel({
         ) : null}
         {appt.status === 'confirmed' ? (
           <div className="flex flex-wrap gap-s">
-            {key !== 'arrived' ? (
+            {key !== 'arrived' && canManageAll ? (
               <Button
                 onClick={() => act(() => arriveAppointment(appt.id))}
                 disabled={busy}
@@ -184,7 +193,8 @@ export function JournalPanel({
           </div>
         ) : null}
 
-        {appt.status === 'pending' || appt.status === 'confirmed' ? (
+        {(appt.status === 'pending' || appt.status === 'confirmed') &&
+        canManageAll ? (
           !reprog ? (
             <Button
               variant="secondary"

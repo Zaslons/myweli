@@ -266,6 +266,13 @@ Same flows on `/pro/equipe` (list, invite modal, actions) and the invitation
 step in `/pro/connexion`; Collaborateur web = own-calendar view. Ships in the
 same V2 slice (web parity rule).
 
+> **Built (R5a+R5b, 2026-07-12 — docs/design/web-team-access-r5.md).** Notes
+> locked at build: the web member Profil is the SLIM personal view (identity +
+> role chip + salon + « Supprimer mon compte » — deletion parity for all;
+> the salon-data export stays `profile.manage`); the web `not_a_member`
+> probe cadence = every navigation (the membership context re-fetches
+> `/api/pro/me` per pathname change).
+
 ## 6. API slice (contract sketch — the build slice locks DTOs in openapi.yaml)
 
 | Endpoint | Cap | Notes |
@@ -323,8 +330,8 @@ set ops. No new N+1: member list joins artists in one query. Budgets unchanged.
 | Slice | Contents | Phase |
 |---|---|---|
 | A1/R1 | ~~Migration + membership model + middleware swap (owner-only behavior unchanged — pure refactor, zero UX change)~~ ✅ done 2026-07-11 (PR feat/team-access-r1-foundation; + the provisioning guard, deletion revocation and `salon.publish`) | pre-launch |
-| A2/R2 | Invites + accept flow + presets enforcement + audit + tests — **R2a (offers/seats server side) ✅ 2026-07-11 · R2b (invitations API + login bridge) ✅ 2026-07-12 · R3 (pro APP: Équipe screen, login « Invitations » step, offer picker, publish-gate mirror) ✅ 2026-07-12** (docs/design/team-access-r3-app.md); web screens = R5 | pre-launch |
-| A3/R4 | Role-shaped experience ✅ — **R4a (backend: membership-aware /me/provider + `not_a_member` + T40 own-scope enforcement w/ off-day contact masking) ✅ 2026-07-12 · R4b (app: role-gated dashboard/profil, the Collaborateur « Ma journée » 3-tab shell, revoked-mid-session sign-out, mock role demos) ✅ 2026-07-12** (docs/design/team-access-r4-role-shaped-app.md); web own-calendar = R5 | pre-launch |
+| A2/R2 | Invites + accept flow + presets enforcement + audit + tests — **R2a (offers/seats server side) ✅ 2026-07-11 · R2b (invitations API + login bridge) ✅ 2026-07-12 · R3 (pro APP: Équipe screen, login « Invitations » step, offer picker, publish-gate mirror) ✅ 2026-07-12** (docs/design/team-access-r3-app.md); web screens **R5a ✅ 2026-07-12** | pre-launch |
+| A3/R4 | Role-shaped experience ✅ — **R4a (backend: membership-aware /me/provider + `not_a_member` + T40 own-scope enforcement w/ off-day contact masking) ✅ 2026-07-12 · R4b (app: role-gated dashboard/profil, the Collaborateur « Ma journée » 3-tab shell, revoked-mid-session sign-out, mock role demos) ✅ 2026-07-12** (docs/design/team-access-r4-role-shaped-app.md); web own-calendar **R5b ✅ 2026-07-12** (docs/design/web-team-access-r5.md — **the R5 web-parity pair is complete**) | pre-launch |
 | A4 | Seats gate (config-off until pricing) | V2, flag-hidden |
 | A5/R6 | **Multi-salons** (pre-launch, sign-off 2026-07-11): switcher + « Ajouter un salon » + Réseau gating + badge inheritance | pre-launch |
 | A6 | Override matrix UI + owner transfer + audit viewer | V3 |
