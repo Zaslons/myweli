@@ -85,7 +85,7 @@ export function CatalogueClient() {
     setOpen(null);
   }
 
-  const addLabel = tab === 'services' ? 'Ajouter un service' : 'Ajouter un membre';
+  const addLabel = tab === 'services' ? 'Ajouter un service' : 'Ajouter un employé';
 
   return (
     <div>
@@ -100,7 +100,7 @@ export function CatalogueClient() {
         {(
           [
             { key: 'services', label: 'Services' },
-            { key: 'equipe', label: 'Équipe' },
+            { key: 'equipe', label: 'Employés' },
           ] as { key: Tab; label: string }[]
         ).map((t) => (
           <button
@@ -172,7 +172,7 @@ export function CatalogueClient() {
                   onSaved={afterSave}
                 />
               ),
-              'Aucun membre. Ajoutez votre équipe.',
+              'Aucun employé. Ajoutez vos fiches employés.',
             )}
       </div>
     </div>
@@ -614,7 +614,7 @@ function ArtistFormCard({
       <FormActions
         busy={busy}
         canDelete={!!artistId}
-        deleteLabel="Supprimer ce membre ?"
+        deleteLabel="Supprimer cet employé ?"
         confirmDelete={confirmDelete}
         onSave={save}
         onCancel={onCancel}

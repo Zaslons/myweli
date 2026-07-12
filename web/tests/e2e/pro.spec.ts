@@ -130,7 +130,7 @@ test('catalogue: list services + add one', async ({ page }) => {
   await expect(page.getByText('Coupe homme')).toBeVisible();
 });
 
-test('catalogue Équipe: list members + add one', async ({ page }) => {
+test('catalogue Employés: list fiches + add one', async ({ page }) => {
   await page.goto('/pro/connexion');
   await page.locator('input[type=email]').fill('salon@example.com');
   await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
@@ -139,10 +139,12 @@ test('catalogue Équipe: list members + add one', async ({ page }) => {
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 
   await page.getByRole('link', { name: 'Catalogue' }).click();
-  await page.getByRole('button', { name: 'Équipe' }).click();
+  // Team access R5a: the artists tab is now « Employés » (« Équipe » is the
+  // separate members page).
+  await page.getByRole('button', { name: 'Employés' }).click();
   await expect(page.getByText('Awa').first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Ajouter un membre' }).click();
+  await page.getByRole('button', { name: 'Ajouter un employé' }).click();
   await page.getByLabel('Nom').fill('Koffi');
   await page.getByLabel('Spécialisation (optionnel)').fill('Barbier');
   // Audit 3.5: the avatar upload (gallery pipeline).
@@ -198,15 +200,18 @@ test('abonnement shows trial status + revenue on the home', async ({ page }) => 
   // G3: revenue card on the home (stub monthRevenue = 45 000).
   await expect(page.getByText('Revenus ce mois')).toBeVisible();
 
-  // Abonnement view.
+  // Abonnement view — the R5a offer picker (default = live trial).
   await page.getByRole('link', { name: 'Abonnement' }).click();
   await expect(page).toHaveURL(/\/pro\/abonnement/);
   await expect(
     page.getByRole('heading', { name: 'Mon abonnement' }),
   ).toBeVisible();
   await expect(page.getByText(/Essai gratuit/)).toBeVisible();
+  // The three offer cards; the current tier is marked « Offre actuelle ».
+  await expect(page.getByRole('heading', { name: 'Business' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Réseau' })).toBeVisible();
   await expect(
-    page.getByRole('link', { name: 'Nous contacter' }),
+    page.getByRole('button', { name: 'Offre actuelle' }),
   ).toBeVisible();
 });
 

@@ -9,7 +9,13 @@ import type {
 import type { Artist, ArtistInput, Service, ServiceInput } from '../pro/catalogue';
 import type { DepositPolicy } from '../pro/deposit';
 import type { BeforeAfterPair } from '../pro/medias';
-import type { Subscription } from '../pro/subscription-plans';
+import type { SalonOffer } from '../pro/subscription-plans';
+import type {
+  Membership,
+  TeamInvitation,
+  TeamMember,
+  TeamRoleInput,
+} from '../pro/team';
 import type { JournalDay } from '../pro/journal';
 import type { ProAppointment } from '../pro/today';
 import type { EarningsData } from '../pro/earnings';
@@ -54,6 +60,8 @@ export type ProProfile = {
     imageUrls?: string[];
     beforeAfters?: BeforeAfterPair[];
   };
+  /// Team access R4a/R5: the caller's role + server-computed capabilities.
+  membership?: Membership;
 };
 
 export async function requestOtpPro(
@@ -249,6 +257,23 @@ export function createArtist(
   return mutate('/api/pro/catalogue/artists', 'POST', { providerId, artist: input });
 }
 
+/// Team access R5a: create an employee fiche and get it back, for the invite
+/// dialog's inline « Créer une fiche » (which must then select the new id).
+export async function createArtistReturning(
+  providerId: string,
+  input: ArtistInput,
+): Promise<{ ok: boolean; status: number; artist?: Artist; error?: string }> {
+  const res = await fetch('/api/pro/catalogue/artists', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId, artist: input }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status, artist: body as Artist }
+    : { ok: false, status: res.status, error: (body as { error?: string }).error };
+}
+
 export function updateArtist(
   providerId: string,
   artistId: string,
@@ -281,13 +306,34 @@ export function saveAvailability(
 
 // --- abonnement + tableau de bord (7.3d) ------------------------------------
 
-export async function getSubscription(): Promise<{
+/// The salon's offer state (team access R5a). 404 = the free SETUP state
+/// (no offer chosen yet) — a valid state, not an error.
+export async function getSalonSubscription(providerId: string): Promise<{
   status: number;
-  subscription?: Subscription;
+  offer?: SalonOffer;
 }> {
-  const res = await fetch('/api/pro/subscription');
+  const res = await fetch(
+    `/api/pro/salon-subscription?providerId=${encodeURIComponent(providerId)}`,
+  );
   if (!res.ok) return { status: res.status };
-  return { status: 200, subscription: (await res.json()) as Subscription };
+  return { status: 200, offer: (await res.json()) as SalonOffer };
+}
+
+/// Pick/switch the offer (first choice starts the ONE 3-month trial;
+/// switches keep the clock; 409 → `trial_used`).
+export async function chooseOffer(
+  providerId: string,
+  tier: 'pro' | 'business' | 'reseau',
+): Promise<{ ok: boolean; status: number; offer?: SalonOffer; error?: string }> {
+  const res = await fetch('/api/pro/salon-subscription', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId, tier }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status, offer: body as SalonOffer }
+    : { ok: false, status: res.status, error: body.error };
 }
 
 export async function getDashboard(
@@ -382,15 +428,21 @@ export async function logoutPro(): Promise<void> {
 
 // --- Auth overhaul P4 (docs/design/pro-auth-social.md) -----------------------
 
-export async function loginProWithGoogle(
-  idToken: string,
-): Promise<{ ok: boolean; error?: string }> {
+export async function loginProWithGoogle(idToken: string): Promise<{
+  ok: boolean;
+  error?: string;
+  /// Team access R5a: the 202 bridge — pending invitations, no session yet.
+  invitations?: TeamInvitation[];
+}> {
   const res = await fetch('/api/pro/auth/google', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
   const body = await res.json().catch(() => ({}));
+  if (res.status === 202 && Array.isArray(body.invitations)) {
+    return { ok: false, invitations: body.invitations as TeamInvitation[] };
+  }
   return res.ok ? { ok: true } : { ok: false, error: body.error };
 }
 
@@ -411,14 +463,163 @@ export async function requestEmailOtpPro(
 export async function verifyEmailOtpPro(
   email: string,
   code: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; invitations?: TeamInvitation[] }> {
   const res = await fetch('/api/pro/auth/email/verify', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email, code }),
   });
   const body = await res.json().catch(() => ({}));
+  if (res.status === 202 && Array.isArray(body.invitations)) {
+    // The code stays UNCONSUMED server-side — the accept call reuses it.
+    return { ok: false, invitations: body.invitations as TeamInvitation[] };
+  }
   return res.ok ? { ok: true } : { ok: false, error: body.error };
+}
+
+// --- Team access R5a: the public (login-proof) invitation accept/decline ----
+
+export async function acceptInvitationPublic(input: {
+  invitationId: string;
+  idToken?: string;
+  email?: string;
+  code?: string;
+}): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch('/api/pro/auth/invitations/accept', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+export async function declineInvitationPublic(input: {
+  invitationId: string;
+  idToken?: string;
+  email?: string;
+  code?: string;
+}): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch('/api/pro/auth/invitations/decline', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+// --- Team access R5a: the Équipe surface (owner) + authed invitations -------
+
+export async function getTeamMembers(): Promise<{
+  status: number;
+  items: TeamMember[];
+}> {
+  const res = await fetch('/api/pro/members');
+  if (!res.ok) return { status: res.status, items: [] };
+  const body = (await res.json().catch(() => ({}))) as {
+    items?: TeamMember[];
+  };
+  return { status: 200, items: body.items ?? [] };
+}
+
+export async function inviteMember(input: {
+  email: string;
+  role: TeamRoleInput;
+  artistId?: string;
+}): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
+  const res = await fetch('/api/pro/members', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status, member: body as TeamMember }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+export async function changeMemberRole(
+  memberId: string,
+  input: { role: TeamRoleInput; artistId?: string },
+): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
+  const res = await fetch(`/api/pro/members/${encodeURIComponent(memberId)}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status, member: body as TeamMember }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+export async function revokeMember(
+  memberId: string,
+): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
+  const res = await fetch(
+    `/api/pro/members/${encodeURIComponent(memberId)}/revoke`,
+    { method: 'POST' },
+  );
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status, member: body as TeamMember }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+export async function resendInvitation(
+  memberId: string,
+): Promise<{ ok: boolean; status: number; member?: TeamMember; error?: string }> {
+  const res = await fetch(
+    `/api/pro/members/${encodeURIComponent(memberId)}/resend`,
+    { method: 'POST' },
+  );
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status, member: body as TeamMember }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+export async function getMyInvitations(): Promise<{
+  status: number;
+  invitations: TeamInvitation[];
+}> {
+  const res = await fetch('/api/pro/invitations');
+  if (!res.ok) return { status: res.status, invitations: [] };
+  const body = (await res.json().catch(() => ({}))) as {
+    invitations?: TeamInvitation[];
+  };
+  return { status: 200, invitations: body.invitations ?? [] };
+}
+
+export async function acceptMyInvitation(
+  invitationId: string,
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch(
+    `/api/pro/invitations/${encodeURIComponent(invitationId)}/accept`,
+    { method: 'POST' },
+  );
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status }
+    : { ok: false, status: res.status, error: body.error };
+}
+
+export async function declineMyInvitation(
+  invitationId: string,
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  const res = await fetch(
+    `/api/pro/invitations/${encodeURIComponent(invitationId)}/decline`,
+    { method: 'POST' },
+  );
+  const body = await res.json().catch(() => ({}));
+  return res.ok
+    ? { ok: true, status: res.status }
+    : { ok: false, status: res.status, error: body.error };
 }
 
 

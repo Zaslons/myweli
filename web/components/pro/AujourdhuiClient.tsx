@@ -8,6 +8,7 @@ import {
   type ProProfile,
   getDashboard,
   getMyProvider,
+  getSalonSubscription,
   listProAppointments,
 } from '../../lib/api/pro';
 import { formatFcfa } from '../../lib/format';
@@ -18,6 +19,7 @@ import {
 } from '../../lib/pro/today';
 import { GoLiveCard } from './GoLiveCard';
 import { ProAppointmentRow } from './ProAppointmentRow';
+import { ProInvitationsCard } from './ProInvitationsCard';
 
 export function AujourdhuiClient() {
   const router = useRouter();
@@ -25,6 +27,7 @@ export function AujourdhuiClient() {
   const [live, setLive] = useState(false);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [offerLive, setOfferLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -50,6 +53,15 @@ export function AujourdhuiClient() {
       if (me.profile) {
         const dash = await getDashboard(me.profile.provider.id);
         if (active && dash.status === 200) setStats(dash.stats ?? null);
+        // A draft salon needs a live offer to publish (team access R5a).
+        if (me.profile.provider.status === 'draft') {
+          const sub = await getSalonSubscription(me.profile.provider.id);
+          if (active && sub.status === 200 && sub.offer) {
+            setOfferLive(
+              sub.offer.status === 'trial' || sub.offer.status === 'paid',
+            );
+          }
+        }
       }
     })();
     return () => {
@@ -72,10 +84,14 @@ export function AujourdhuiClient() {
       <h1 className="text-2xl font-semibold text-textPrimary">Aujourd’hui</h1>
       <p className="mt-xs text-sm text-textTertiary">{profile?.provider.name}</p>
 
+      {/* Team access R5a: pending invitations for THIS account (if any). */}
+      <ProInvitationsCard />
+
       {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2). */}
       {profile?.provider.status === 'draft' ? (
         <GoLiveCard
           profile={profile}
+          offerLive={offerLive}
           onPublished={() => {
             setProfile({
               ...profile,

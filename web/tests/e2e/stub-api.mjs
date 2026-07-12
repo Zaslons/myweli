@@ -263,6 +263,87 @@ let svcSeq = 1;
 let artSeq = 1;
 let imgSeq = 1;
 
+// --- team access R5a: the salon roster, offer & pending invitations --------
+// The owner row is pinned & inert; the offer defaults to a LIVE trial so the
+// 55 pre-team e2e (publish, abonnement) are untouched. `team-reset` (a
+// test-only DELETE) drops back to the no-offer SETUP state for the picker arc.
+let memberSeq = 1;
+function freshTeam() {
+  return [
+    {
+      id: 'member-owner',
+      providerId: 'p1',
+      accountId: 'acc1',
+      email: 'proprietaire@beaute-divine.test',
+      role: 'owner',
+      artistId: null,
+      artistName: null,
+      status: 'active',
+      invitedAt: '2026-01-01T00:00:00.000Z',
+      acceptedAt: '2026-01-01T00:00:00.000Z',
+      revokedAt: null,
+      expiresAt: null,
+    },
+  ];
+}
+const SEAT_CAP = { pro: 5, business: 15, reseau: 15 };
+function liveOffer() {
+  return {
+    tier: 'pro',
+    status: 'trial',
+    trialEndsAt: '2026-10-12T00:00:00.000Z',
+    paidUntil: null,
+    graceEndsAt: '2026-10-19T00:00:00.000Z',
+    unpublishedForBilling: false,
+    seats: { cap: SEAT_CAP.pro, used: 1 },
+  };
+}
+let teamMembers = freshTeam();
+let salonOffer = liveOffer();
+let trialUsed = true; // the default live offer already consumed the free trial
+// The login-bridge fixture: an invited email that is NOT yet a member — a 202
+// {invitations} login lands on the « Invitations » step.
+const INVITED_EMAIL = 'invitee@equipe.test';
+function seededInvitationFor() {
+  return {
+    id: 'inv-seed-1',
+    providerId: 'p1',
+    salonName: 'Beauté Divine',
+    role: 'manager',
+    roleLabel: 'Manager',
+    expiresAt: '2099-01-01T00:00:00.000Z',
+  };
+}
+// Kept live for the whole run so the login-bridge e2e is retry-safe (a
+// hermetic stub never really "consumes" it).
+const bridgeInvitationLive = true;
+
+function seatsUsed() {
+  return teamMembers.filter((m) => m.status !== 'revoked').length;
+}
+function syncSeats() {
+  if (salonOffer) salonOffer.seats.used = seatsUsed();
+}
+const ROLE_LABELS = {
+  owner: 'Propriétaire',
+  manager: 'Manager',
+  reception: 'Réception',
+  staff: 'Collaborateur',
+};
+// The invitee's view of their own pending rows (module `access` R2b DTO).
+function myInvitations() {
+  return teamMembers
+    .filter((m) => m.status === 'invited')
+    .map((m) => ({
+      id: m.id,
+      providerId: m.providerId,
+      salonName: 'Beauté Divine',
+      role: m.role,
+      roleLabel: ROLE_LABELS[m.role],
+      expiresAt: m.expiresAt,
+    }));
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     let data = '';
@@ -446,12 +527,51 @@ createServer(async (req, res) => {
     url.pathname === '/auth/provider/email/otp/verify' ||
     url.pathname === '/auth/provider/google'
   ) {
+    const b = await readBody(req);
+    // Team access R5a: an invited-but-not-yet-member identity gets the 202
+    // bridge (no session) — the client shows the « Invitations » step. Driven
+    // by the email path (deterministic) or a Google sentinel credential.
+    const invited =
+      (b.email === INVITED_EMAIL || b.idToken === 'google-invitee') &&
+      bridgeInvitationLive;
+    if (invited) {
+      return json(res, 202, { invitations: [seededInvitationFor()] });
+    }
     return json(res, 200, {
       provider: { id: 'acc1', businessName: 'Beauté Divine', providerId: 'p1' },
       accessToken: 'stub-pro-access',
       refreshToken: 'stub-pro-refresh',
       expiresAt: '2099-01-01T00:00:00.000Z',
     });
+  }
+  // Team access R5a: the LOGIN-bridge accept/decline (identity-proven, no
+  // prior session). Accept → a flat ProviderSession (cookies set exactly like
+  // a login); decline → a bare {declined:true}.
+  if (url.pathname === '/auth/provider/invitations/accept') {
+    const b = await readBody(req);
+    if (!b.invitationId || (!b.idToken && !(b.email && b.code))) {
+      return json(res, 400, { error: 'invalid_input' });
+    }
+    if (b.code && b.code !== '123456') {
+      return json(res, 401, { error: 'otp_invalid' });
+    }
+    return json(res, 200, {
+      provider: {
+        id: 'acc-member',
+        businessName: 'Beauté Divine',
+        providerId: 'p1',
+      },
+      accessToken: 'stub-pro-access',
+      refreshToken: 'stub-pro-refresh',
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    });
+  }
+  if (url.pathname === '/auth/provider/invitations/decline') {
+    const b = await readBody(req);
+    if (!b.invitationId || (!b.idToken && !(b.email && b.code))) {
+      return json(res, 400, { error: 'invalid_input' });
+    }
+    return json(res, 200, { declined: true });
   }
   // --- module journal J1 ------------------------------------------------
   const journalM = url.pathname.match(/^\/providers\/([^/]+)\/journal$/);
@@ -637,6 +757,153 @@ createServer(async (req, res) => {
       },
     });
   }
+  // --- team access R5a: the salon roster (owner-only) -------------------
+  if (url.pathname === '/me/provider/members') {
+    if (req.method === 'POST') {
+      const b = await readBody(req);
+      const email = (b.email || '').trim().toLowerCase();
+      const role = b.role;
+      // Backend gate order: offer_required → seat_limit → member_exists →
+      // artist_required/not_found.
+      if (!salonOffer || salonOffer.status === 'expired') {
+        return json(res, 409, { error: 'offer_required' });
+      }
+      if (seatsUsed() >= salonOffer.seats.cap) {
+        return json(res, 409, { error: 'seat_limit' });
+      }
+      if (
+        teamMembers.some(
+          (m) => m.email === email && m.status !== 'revoked',
+        )
+      ) {
+        return json(res, 409, { error: 'member_exists' });
+      }
+      if (role === 'staff') {
+        if (!b.artistId) return json(res, 400, { error: 'artist_required' });
+        const a = (proProvider.artists ?? []).find((x) => x.id === b.artistId);
+        if (!a) return json(res, 400, { error: 'artist_not_found' });
+      }
+      const artist =
+        role === 'staff'
+          ? (proProvider.artists ?? []).find((x) => x.id === b.artistId)
+          : null;
+      const member = {
+        id: `member-${++memberSeq}`,
+        providerId: 'p1',
+        accountId: null,
+        email,
+        role,
+        artistId: artist ? artist.id : null,
+        artistName: artist ? artist.name : null,
+        status: 'invited',
+        invitedAt: todayAt9,
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+        resendsLeft: 3,
+        expired: false,
+      };
+      teamMembers.push(member);
+      syncSeats();
+      return json(res, 201, member);
+    }
+    return json(res, 200, { items: teamMembers });
+  }
+  const memberActionM = url.pathname.match(
+    /^\/me\/provider\/members\/([^/]+)(?:\/(revoke|resend))?$/,
+  );
+  if (memberActionM) {
+    const [, memberId, action] = memberActionM;
+    const member = teamMembers.find((m) => m.id === memberId);
+    if (!member) return json(res, 404, { error: 'not_found' });
+    if (member.role === 'owner') {
+      return json(res, 403, { error: 'owner_protected' });
+    }
+    if (action === 'revoke' && req.method === 'POST') {
+      member.status = 'revoked';
+      member.revokedAt = todayAt9;
+      syncSeats();
+      return json(res, 200, member);
+    }
+    if (action === 'resend' && req.method === 'POST') {
+      if ((member.resendsLeft ?? 0) <= 0) {
+        return json(res, 429, { error: 'invite_rate_limited' });
+      }
+      member.resendsLeft -= 1;
+      return json(res, 200, member);
+    }
+    if (!action && req.method === 'PATCH') {
+      const b = await readBody(req);
+      if (b.role === 'staff') {
+        if (!b.artistId) return json(res, 400, { error: 'artist_required' });
+        const a = (proProvider.artists ?? []).find((x) => x.id === b.artistId);
+        if (!a) return json(res, 400, { error: 'artist_not_found' });
+        member.artistId = a.id;
+        member.artistName = a.name;
+      } else {
+        member.artistId = null;
+        member.artistName = null;
+      }
+      member.role = b.role;
+      return json(res, 200, member);
+    }
+    return json(res, 405, { error: 'method_not_allowed' });
+  }
+  // The signed-in provider's OWN pending invitations + authed accept/decline.
+  if (url.pathname === '/me/provider/invitations') {
+    return json(res, 200, { invitations: myInvitations() });
+  }
+  const myInvActionM = url.pathname.match(
+    /^\/me\/provider\/invitations\/([^/]+)\/(accept|decline)$/,
+  );
+  if (myInvActionM && req.method === 'POST') {
+    const [, invitationId, action] = myInvActionM;
+    const member = teamMembers.find(
+      (m) => m.id === invitationId && m.status === 'invited',
+    );
+    if (!member) return json(res, 404, { error: 'not_found' });
+    if (action === 'accept') {
+      member.status = 'active';
+      member.acceptedAt = todayAt9;
+      member.expiresAt = null;
+    } else {
+      teamMembers = teamMembers.filter((m) => m.id !== invitationId);
+    }
+    syncSeats();
+    return json(res, 200, action === 'accept' ? member : { declined: true });
+  }
+  // The salon offer (pricing pivot). 404 = SETUP (no offer chosen yet).
+  const subM = url.pathname.match(/^\/providers\/[^/]+\/subscription$/);
+  if (subM) {
+    if (req.method === 'PUT') {
+      const b = await readBody(req);
+      if (!['pro', 'business', 'reseau'].includes(b.tier)) {
+        return json(res, 400, { error: 'invalid_input' });
+      }
+      if (!salonOffer) {
+        if (trialUsed) return json(res, 409, { error: 'trial_used' });
+        trialUsed = true;
+        salonOffer = {
+          tier: b.tier,
+          status: 'trial',
+          trialEndsAt: '2026-10-12T00:00:00.000Z',
+          paidUntil: null,
+          graceEndsAt: '2026-10-19T00:00:00.000Z',
+          unpublishedForBilling: false,
+          seats: { cap: SEAT_CAP[b.tier], used: seatsUsed() },
+        };
+      } else {
+        // A switch keeps the trial clock; only the tier/cap change.
+        salonOffer.tier = b.tier;
+        salonOffer.seats.cap = SEAT_CAP[b.tier];
+        syncSeats();
+      }
+      return json(res, 200, salonOffer);
+    }
+    if (!salonOffer) return json(res, 404, { error: 'no_offer' });
+    syncSeats();
+    return json(res, 200, salonOffer);
+  }
   // KYC (web-pro-kyc.md) — stateful: POST stores the docs, stays pending.
   if (url.pathname === '/me/kyc') {
     if (req.method === 'POST') {
@@ -676,15 +943,6 @@ createServer(async (req, res) => {
     }
     return json(res, 404, { error: 'not_found' });
   }
-  // abonnement (7.3d) — read-only plan/trial.
-  if (url.pathname === '/me/subscription') {
-    return json(res, 200, {
-      tier: 'pro',
-      status: 'trial',
-      trialEndsAt: '2026-09-26T00:00:00.000Z',
-      trialDaysLeft: 90,
-    });
-  }
   // tableau de bord (7.3d) — server-computed stats.
   if (url.pathname.match(/^\/providers\/[^/]+\/dashboard$/)) {
     return json(res, 200, {
@@ -696,8 +954,15 @@ createServer(async (req, res) => {
       totalAppointments: 1,
     });
   }
-  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active.
+  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active. Team
+  // access R5a: publishing requires a LIVE offer (else 409 missing:['offer']).
   if (url.pathname.match(/^\/providers\/[^/]+\/publish$/)) {
+    const offerLive =
+      salonOffer &&
+      (salonOffer.status === 'trial' || salonOffer.status === 'paid');
+    if (!offerLive) {
+      return json(res, 409, { error: 'not_ready', missing: ['offer'] });
+    }
     proProvider.status = 'active';
     return json(res, 200, proProvider);
   }

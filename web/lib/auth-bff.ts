@@ -40,6 +40,16 @@ export async function proLoginViaBackend(
     body: JSON.stringify(payload),
   });
   const body = await r.json().catch(() => ({}));
+  // Team access R5a: a verified identity with PENDING invitations comes
+  // back as 202 {invitations} (no session yet — the client shows the
+  // « Invitations » step). Pass it through and NEVER set cookies here:
+  // a session before an explicit accept would be an auth bypass.
+  if (r.status === 202 && Array.isArray(body.invitations)) {
+    return NextResponse.json(
+      { invitations: body.invitations },
+      { status: 202 },
+    );
+  }
   if (!r.ok || !body.accessToken || !body.refreshToken) {
     return NextResponse.json(
       { error: body.error ?? 'login_failed' },

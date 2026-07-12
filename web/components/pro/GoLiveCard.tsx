@@ -13,23 +13,34 @@ import { Button } from '../Button';
 /// publish gate.
 export function GoLiveCard({
   profile,
+  offerLive = false,
   onPublished,
 }: {
   profile: ProProfile;
+  /// Team access R5a: the salon has a live offer (else the `offer` step is
+  /// unchecked and publish 409s with `missing:['offer']`).
+  offerLive?: boolean;
   onPublished: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsOffer, setNeedsOffer] = useState(false);
 
-  const items = publishChecklist(profile.provider);
+  const items = publishChecklist(profile.provider, { offerLive });
   const ready = canPublish(items);
 
   async function publish() {
     setBusy(true);
     setError(null);
+    setNeedsOffer(false);
     const r = await publishSalon(profile.provider.id);
     setBusy(false);
     if (!r.ok) {
+      if (r.status === 409 && r.missing?.includes('offer')) {
+        setNeedsOffer(true);
+        setError('Choisissez votre offre avant la mise en ligne.');
+        return;
+      }
       setError(
         r.status === 409
           ? 'Certaines étapes ne sont pas terminées. Vérifiez la liste.'
@@ -90,6 +101,14 @@ export function GoLiveCard({
           </p>
         ) : null}
         {error ? <p className="mt-xs text-sm text-error">{error}</p> : null}
+        {needsOffer ? (
+          <Link
+            href="/pro/abonnement"
+            className="mt-xs inline-block text-sm text-textPrimary underline"
+          >
+            Choisir mon offre
+          </Link>
+        ) : null}
       </div>
     </section>
   );
