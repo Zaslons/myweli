@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
 import '../models/salon_client.dart';
@@ -9,7 +10,7 @@ import '../services/interfaces/pro_clients_service_interface.dart';
 /// State for the salon client base (module `clients` C1 —
 /// docs/design/clients-c1.md §5): the list (search / tag filter / infinite
 /// scroll) and the open card (stats, notes, visits).
-class ProClientsProvider extends ChangeNotifier {
+class ProClientsProvider extends ChangeNotifier implements SalonScoped {
   final ProClientsServiceInterface _service = serviceLocator.proClientsService;
 
   // ---- List ------------------------------------------------------------
@@ -212,5 +213,20 @@ class ProClientsProvider extends ChangeNotifier {
       return true;
     }
     return false;
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _clients.clear();
+    _total = 0;
+    _availableTags = List.of(salonClientPresetTags);
+    _query = '';
+    _tag = '';
+    _page = 1;
+    _isLoading = false;
+    _isLoadingMore = false;
+    _error = null;
+    notifyListeners();
   }
 }

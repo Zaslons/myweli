@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'core/access/pro_salon_scope.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/router/pro_router.dart';
 import 'core/theme/app_theme.dart';
@@ -65,23 +66,39 @@ class MyweliProApp extends StatelessWidget {
         // Consumer listing data — read-only, powers « Aperçu de ma page »
         // (docs/design/pro-salon-lifecycle.md B5).
         ChangeNotifierProvider(create: (_) => ProviderProvider()),
-        ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
-        ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
-        ChangeNotifierProvider(create: (_) => ProServiceProvider()),
-        ChangeNotifierProvider(create: (_) => ProArtistProvider()),
-        ChangeNotifierProvider(create: (_) => ProClientsProvider()),
-        ChangeNotifierProvider(create: (_) => ProJournalProvider()),
-        ChangeNotifierProvider(create: (_) => ProAvailabilityProvider()),
-        ChangeNotifierProvider(create: (_) => ProEarningsProvider()),
-        ChangeNotifierProvider(create: (_) => ProReviewsProvider()),
-        ChangeNotifierProvider(create: (_) => ProSalonProfileProvider()),
-        ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProDashboardProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProAppointmentProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProServiceProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProArtistProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProClientsProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProJournalProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProAvailabilityProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProEarningsProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProReviewsProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProSalonProfileProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProDepositSettingsProvider())),
         ChangeNotifierProvider(create: (_) => ProKycProvider()),
-        ChangeNotifierProvider(create: (_) => ProOnboardingProvider()),
-        ChangeNotifierProvider(create: (_) => ProGalleryProvider()),
-        ChangeNotifierProvider(create: (_) => ProBeforeAfterProvider()),
-        ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
-        ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProOnboardingProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProGalleryProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProBeforeAfterProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProSubscriptionProvider())),
+        ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProTeamProvider())),
       ],
       child: MaterialApp.router(
         title: 'Myweli Pro',

@@ -76,4 +76,11 @@ abstract class AuthServiceInterface {
   /// GET /me/provider each start). No-op when signed out.
   Future<void> cacheProviderMembership(ProMembership? membership);
   Future<ProMembership?> getCachedProviderMembership();
+
+  /// R6 multi-salons: persist/restore the switched-to salon INSIDE the
+  /// provider session (cold-start continuity; `null` = the default salon).
+  /// The API layer reads it to scope the session-resolved endpoints; the
+  /// server revalidates the membership on every request (T55).
+  Future<void> setSelectedProviderSalon(String? salonId);
+  Future<String?> getSelectedProviderSalon();
 }

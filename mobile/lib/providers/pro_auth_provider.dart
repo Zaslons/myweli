@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
 import '../models/api_response.dart';
 import '../models/pro_membership.dart';
 import '../models/provider_login_result.dart';
 import '../models/provider_user.dart';
+import '../models/salon_membership_info.dart';
 import '../models/team_invitation.dart';
 import '../models/team_member.dart';
 import '../services/interfaces/auth_service_interface.dart';
@@ -36,10 +38,128 @@ class ProAuthProvider extends ChangeNotifier {
   TeamRole get role => _membership?.role ?? TeamRole.owner;
   bool get isStaff => _membership?.role == TeamRole.staff;
 
-  /// The salon the session acts in: the owner's linked salon, else the
-  /// membership's. Screens use THIS (never `provider.id` — an account id is
-  /// not a salon id).
-  String? get activeSalonId => _provider?.providerId ?? _membership?.salonId;
+  // ---- Multi-salons (team access R6) ----------------------------------------
+
+  /// The salon the user SWITCHED to (« Mes salons »), null = the default.
+  /// Persisted in the session (cold-start continuity) and revalidated by
+  /// every `?salonId=` request server-side (T55).
+  String? _selectedSalonId;
+  String? get selectedSalonId => _selectedSalonId;
+
+  /// « Mes salons » — the switcher payload (loaded at start + on demand).
+  List<SalonMembershipInfo> _salons = const [];
+  List<SalonMembershipInfo> get salons => _salons;
+  bool get hasMultipleSalons => _salons.length > 1;
+
+  /// Server-computed « Ajouter un salon » gate (≥1 owned live Réseau).
+  bool _canAddSalon = false;
+  bool get canAddSalon => _canAddSalon;
+
+  bool _loadingSalons = false;
+
+  /// Refresh « Mes salons » (best-effort — the switcher opens on cached
+  /// data and refreshes in place).
+  Future<void> loadMySalons() async {
+    if (_provider == null || _loadingSalons) return;
+    _loadingSalons = true;
+    try {
+      final res = await serviceLocator.proService.getMySalons();
+      if (res.success && res.data != null) {
+        _salons = res.data!.items;
+        _canAddSalon = res.data!.canAddSalon;
+        notifyListeners();
+      }
+    } catch (_) {/* keep the cached list */} finally {
+      _loadingSalons = false;
+    }
+  }
+
+  /// Switch the acting salon: validate against the server (the membership
+  /// there becomes the new shape), persist the selection, and RESET every
+  /// per-salon provider so no stale cross-salon data lingers. False = the
+  /// selection was refused (revoked there / salon gone) — the caller stays
+  /// on the current salon and the list refreshes.
+  Future<bool> switchSalon(String salonId) async {
+    if (_provider == null) return false;
+    if (salonId == activeSalonId) return true;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final res =
+          await serviceLocator.proService.getMyProvider(salonId: salonId);
+      if (res.success && res.data != null) {
+        _selectedSalonId = salonId;
+        await _authService.setSelectedProviderSalon(salonId);
+        _membership = res.data!.membership;
+        await _authService.cacheProviderMembership(_membership);
+        ProSalonScope.resetAll();
+        return true;
+      }
+      // A per-salon denial (uniform 403) — likely revoked there since the
+      // list loaded. Refresh the list; the session stays intact.
+      await loadMySalons();
+      return false;
+    } catch (_) {
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// « Ajouter un salon » (R6): create the additional draft salon, refresh
+  /// « Mes salons » and SWITCH to it (the caller then lands on onboarding).
+  /// Null on failure — [error]/[errorCode] carry the gate
+  /// (`reseau_required`/`salon_limit`) for the form.
+  Future<SalonMembershipInfo?> addSalon({
+    required String businessName,
+    required BusinessType businessType,
+    String? phoneNumber,
+    String? address,
+  }) async {
+    if (_provider == null) return null;
+    _isLoading = true;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+    try {
+      final res = await serviceLocator.proService.addSalon(
+        businessName: businessName,
+        businessType: businessType,
+        phoneNumber: phoneNumber,
+        address: address,
+      );
+      if (res.success && res.data != null) {
+        await loadMySalons();
+        await switchSalon(res.data!.salonId);
+        return res.data;
+      }
+      _error = res.error ?? 'Création du salon impossible.';
+      _errorCode = res.code;
+      return null;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Drop the selection back to the default salon (used when the selected
+  /// salon refuses the session mid-flight).
+  Future<void> _clearSalonSelection() async {
+    _selectedSalonId = null;
+    try {
+      await _authService.setSelectedProviderSalon(null);
+    } catch (_) {/* best-effort */}
+  }
+
+  /// The salon the session acts in: the switched-to salon first (R6), then
+  /// the owner's linked salon, else the membership's. Screens use THIS
+  /// (never `provider.id` — an account id is not a salon id).
+  String? get activeSalonId =>
+      _selectedSalonId ?? _provider?.providerId ?? _membership?.salonId;
 
   String get salonName {
     final fromMembership = _membership?.salonName;
@@ -59,12 +179,18 @@ class ProAuthProvider extends ChangeNotifier {
   bool _refreshingMembership = false;
 
   /// Fetch + cache the membership. On `not_a_member` (revoked — R4a) the
-  /// session ends with the « accès retiré » notice.
+  /// session ends with the « accès retiré » notice. R6: a `forbidden` on a
+  /// SELECTED salon is a per-salon denial — the selection silently falls
+  /// back to the default salon, never a sign-out.
   Future<void> refreshMembership() async {
     if (_provider == null || _refreshingMembership) return;
     _refreshingMembership = true;
     try {
-      final res = await serviceLocator.proService.getMyProvider();
+      var res = await serviceLocator.proService.getMyProvider();
+      if (!res.success && res.code == 'forbidden' && _selectedSalonId != null) {
+        await _clearSalonSelection();
+        res = await serviceLocator.proService.getMyProvider();
+      }
       if (res.success && res.data != null) {
         _membership = res.data!.membership;
         await _authService.cacheProviderMembership(_membership);
@@ -87,7 +213,17 @@ class ProAuthProvider extends ChangeNotifier {
     if (_provider == null || _probing) return;
     _probing = true;
     try {
-      final res = await serviceLocator.proService.getMyProvider();
+      var res = await serviceLocator.proService.getMyProvider();
+      if (!res.success && res.code == 'forbidden' && _selectedSalonId != null) {
+        // R6: revoked from the SELECTED salon only — fall back to the
+        // default salon and reshape; the session survives.
+        await _clearSalonSelection();
+        res = await serviceLocator.proService.getMyProvider();
+        if (res.success && res.data != null) {
+          ProSalonScope.resetAll();
+          await loadMySalons();
+        }
+      }
       if (res.code == 'not_a_member') {
         await _signOutRevoked();
       } else if (res.success && res.data != null) {
@@ -131,11 +267,14 @@ class ProAuthProvider extends ChangeNotifier {
       _provider = await _authService.getCurrentProvider();
       _error = null;
       if (_provider != null) {
-        // Instant shaping from the cached membership, then a live refresh
-        // (which also catches an offline revocation — R4b).
+        // Instant shaping from the cached membership + the R6 selection,
+        // then a live refresh (which also catches an offline revocation —
+        // R4b — and validates the selection, falling back on a 403).
         _membership = await _authService.getCachedProviderMembership();
+        _selectedSalonId = await _authService.getSelectedProviderSalon();
         _syncPush();
         await refreshMembership();
+        unawaited(loadMySalons());
       }
     } catch (e) {
       _error = e.toString();
@@ -218,6 +357,7 @@ class ProAuthProvider extends ChangeNotifier {
         _provider = response.data;
         _syncPush();
         await refreshMembership();
+        unawaited(loadMySalons());
         return true;
       }
       _errorCode = response.code;
@@ -263,6 +403,7 @@ class ProAuthProvider extends ChangeNotifier {
         _provider = result.provider;
         _syncPush();
         await refreshMembership();
+        unawaited(loadMySalons());
         return true;
       }
       if (result.hasInvitations) {
@@ -304,6 +445,7 @@ class ProAuthProvider extends ChangeNotifier {
         _invitationProof = null;
         _syncPush();
         await refreshMembership();
+        unawaited(loadMySalons());
         return true;
       }
       _error = response.error ?? 'Invitation impossible à accepter.';
@@ -445,6 +587,9 @@ class ProAuthProvider extends ChangeNotifier {
       await _authService.logoutProvider();
       _provider = null;
       _membership = null;
+      _selectedSalonId = null;
+      _salons = const [];
+      _canAddSalon = false;
       _error = null;
     } catch (e) {
       _error = e.toString();

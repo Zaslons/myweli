@@ -55,7 +55,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final id = context.read<ProAuthProvider>().provider?.providerId;
+      final id = context.read<ProAuthProvider>().activeSalonId;
       if (id != null && id.isNotEmpty) {
         _providerId = id;
         context.read<ProServiceProvider>().loadServices(id);
@@ -152,7 +152,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       appBar: AppBar(title: const Text('Nouveau rendez-vous')),
       body: Consumer2<ProAuthProvider, ProServiceProvider>(
         builder: (context, auth, serviceProvider, _) {
-          final providerId = auth.provider?.providerId;
+          final providerId = auth.activeSalonId;
           if (providerId == null || providerId.isEmpty) {
             return const EmptyState(
               icon: Icons.storefront_outlined,

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | R6a Built (2026-07-12) — R6b (app) next |
+| **Status** | R6a + R6b Built (2026-07-13) — R6c (web) next |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-07-12 |
 | **PRD ref / phase** | Module `access` §10 slice A5/R6 (sign-off 2026-07-11) · pre-launch |
@@ -117,15 +117,26 @@ Errors: 401 · 403 `forbidden` (non-provider) · 403 **`reseau_required`** ·
 
 ## 6. Clients (R6b/R6c summaries — detail passes at build time)
 
-- **App**: `_selectedSalonId` (persisted in the session store) overrides
-  `activeSalonId`; `switchSalon` = persist + refresh membership + reset ALL
-  ~15 per-salon providers + notify; per-salon 403 on a SELECTED salon →
+- **App (BUILT — R6b, 2026-07-13)**: `_selectedSalonId` persisted INSIDE the
+  `ProviderSession` (cold-start restore, revalidated by the first probe);
+  `switchSalon` = validate via `getMyProvider(salonId:)` + persist + reshape
+  + `ProSalonScope.resetAll()` (16 per-salon ChangeNotifiers implement
+  `SalonScoped.resetForSalonSwitch`); per-salon 403 on a SELECTED salon →
   silent fallback to default (NO sign-out; `not_a_member` keeps the sign-out
-  path). The bottom-sheet picker (commune-picker idiom) shows role chips +
-  status badges + « Ajouter un salon » when `canAddSalon`. The Réseau offer
-  card's « Multi-salons (bientôt disponible) » becomes the CTA. New-salon →
-  switch → onboarding checklist (already stateless). The 15
-  `provider?.providerId` bypass reads are swept to `activeSalonId`.
+  path — both probe seams handle it). The API layer appends `?salonId=` from
+  the session on every family-B call (appointments list, reschedule,
+  members family, gallery sign). The switcher = the tappable dashboard
+  « Bienvenue » header (chevron when >1 salon or the add gate is open) + the
+  « Mes salons » Profil row (ALL roles) + `SalonPickerSheet` (role labels,
+  Brouillon badge, « Vérifié » icon, check on active, « Ajouter un salon »
+  when `canAddSalon`). Add-salon: the Réseau card CTA + `AddSalonScreen`
+  (name/type/phone prefilled/address) → create → auto-switch → the
+  onboarding checklist. The 15 `provider?.providerId` bypass reads swept to
+  `activeSalonId` (pinned by a grep-assertion test); the subscription
+  screen's owner gate now keys on `subscription.manage`. Mock world: the
+  demo owner owns provider1 AND provider2 (email login
+  `jean@salon-excellence.test`), per-salon offers/trials/seats/rosters,
+  mock `getMySalons`/`addSalon` with the real gates.
 - **Web**: httpOnly `myweli_pro_salon` cookie set by a select BFF route;
   `callApiPro` appends `?salonId=` on family-B proxies so all 16 page clients
   become salon-aware with zero per-page edits; the sidebar salon block (all

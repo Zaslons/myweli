@@ -21,7 +21,7 @@ class ReviewsScreen extends StatefulWidget {
 class _ReviewsScreenState extends State<ReviewsScreen> {
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.provider?.providerId ?? authProvider.provider?.id ?? '';
+    return authProvider.activeSalonId ?? '';
   }
 
   @override

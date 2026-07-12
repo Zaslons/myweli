@@ -10,28 +10,66 @@ import 'mock_data.dart';
 /// so the full arc — picker → « 3 mois offerts » trial → team invites — is
 /// demo-able offline. Constructor knobs reach the trial/grace/expired
 /// scenarios for tests and manual QA.
+///
+/// R6 multi-salons: state is keyed PER SALON (each salon has its own offer
+/// and its own single trial). The legacy constructor knobs seed the FIRST
+/// salon touched — exactly the pre-R6 single-salon behavior every existing
+/// test drives.
 class MockSubscriptionService implements SubscriptionServiceInterface {
   MockSubscriptionService({
     SalonSubscription? initial,
     bool trialUsed = false,
-  })  : _salon = initial,
-        _trialUsed = trialUsed || initial != null;
+  })  : _seed = initial,
+        _seedTrialUsed = trialUsed || initial != null;
 
-  SalonSubscription? _salon;
+  final SalonSubscription? _seed;
+  final bool _seedTrialUsed;
+  bool _seedApplied = false;
 
-  /// Whether the salon's ONE trial has started (first choice sets it).
-  bool _trialUsed;
+  final Map<String, SalonSubscription> _byId = {};
+  final Set<String> _trialUsed = {};
+
+  /// Test hook: back to the pristine per-salon SETUP world (the service
+  /// locator is late-final, so tests reset the singleton instead).
+  void resetForTests() {
+    _byId.clear();
+    _trialUsed.clear();
+    _seedApplied = false;
+  }
+
+  void _applySeed(String providerId) {
+    if (_seedApplied) return;
+    _seedApplied = true;
+    final seed = _seed;
+    if (seed != null) _byId[providerId] = seed;
+    if (_seedTrialUsed) _trialUsed.add(providerId);
+  }
+
+  /// R6: the « Ajouter un salon » gate — any of [ownedIds] on a LIVE
+  /// (trial/paid/grace) Réseau offer. Mock-only (the backend computes it).
+  bool hasLiveReseauAmong(Iterable<String> ownedIds) {
+    for (final id in ownedIds) {
+      final salon = _byId[id];
+      if (salon == null) continue;
+      if (salon.tier == SalonTier.reseau &&
+          salon.status != SalonOfferStatus.expired) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
     String providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final salon = _salon;
+    _applySeed(providerId);
+    final salon = _byId[providerId];
     if (salon == null) {
       return ApiResponse.error('', code: 'no_offer');
     }
-    return ApiResponse.success(_withSeats(salon));
+    return ApiResponse.success(_withSeats(salon, providerId));
   }
 
   @override
@@ -40,7 +78,8 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
     SalonTier tier,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final current = _salon;
+    _applySeed(providerId);
+    final current = _byId[providerId];
     if (current != null && current.status == SalonOfferStatus.expired) {
       return ApiResponse.error(
         teamErrorMessage('trial_used'),
@@ -48,16 +87,16 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
       );
     }
     if (current == null) {
-      if (_trialUsed) {
+      if (_trialUsed.contains(providerId)) {
         return ApiResponse.error(
           teamErrorMessage('trial_used'),
           code: 'trial_used',
         );
       }
-      // First choice starts the salon's ONE trial.
-      _trialUsed = true;
+      // First choice starts THIS salon's ONE trial.
+      _trialUsed.add(providerId);
       final trialEnd = DateTime.now().add(const Duration(days: 90));
-      _salon = SalonSubscription(
+      _byId[providerId] = SalonSubscription(
         tier: tier,
         status: SalonOfferStatus.trial,
         trialEndsAt: trialEnd,
@@ -66,7 +105,7 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
       );
     } else {
       // Switches keep the clock — only the tier (and its cap) changes.
-      _salon = SalonSubscription(
+      _byId[providerId] = SalonSubscription(
         tier: tier,
         status: current.status,
         trialEndsAt: current.trialEndsAt,
@@ -76,11 +115,13 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
         seats: current.seats,
       );
     }
-    return ApiResponse.success(_withSeats(_salon!));
+    return ApiResponse.success(_withSeats(_byId[providerId]!, providerId));
   }
 
-  /// Seats derive live from the mock team (owner + active + invited).
-  SalonSubscription _withSeats(SalonSubscription salon) => SalonSubscription(
+  /// Seats derive live from the mock team (owner + active + invited),
+  /// PER SALON (R6).
+  SalonSubscription _withSeats(SalonSubscription salon, String providerId) =>
+      SalonSubscription(
         tier: salon.tier,
         status: salon.status,
         trialEndsAt: salon.trialEndsAt,
@@ -89,7 +130,7 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
         unpublishedForBilling: salon.unpublishedForBilling,
         seats: SalonSeats(
           cap: SubscriptionPlans.seatsFor(salon.tier),
-          used: MockData.teamSeatsUsed(),
+          used: MockData.teamSeatsUsed(providerId: providerId),
         ),
       );
 }

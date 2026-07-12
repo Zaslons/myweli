@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../core/config/app_config.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
+import '../../models/provider_session.dart';
 import '../../models/team_invitation.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_team_service_interface.dart';
@@ -13,8 +14,9 @@ import 'refreshing_http_client.dart';
 
 /// REST impl of the salon team surface (module `access` R3, consuming the
 /// R2b API) — `/me/provider/members*` + `/me/provider/invitations*` on the
-/// **provider** session (silent refresh). The acting salon resolves
-/// server-side from the caller; no id is ever sent.
+/// **provider** session (silent refresh). The acting salon DEFAULTS from the
+/// caller server-side; R6: the persisted salon SELECTION is appended as
+/// `?salonId=` on the members family (invitations stay email-keyed).
 class ApiProTeamService implements ProTeamServiceInterface {
   ApiProTeamService({
     http.Client? client,
@@ -42,7 +44,10 @@ class ApiProTeamService implements ProTeamServiceInterface {
       return ApiResponse.error('Non connecté');
     }
     final res = await _authed.send(
-      (t) => _client.get(_uri('/me/provider/members'), headers: _bearer(t)),
+      (t) async => _client.get(
+        await _membersUri('/me/provider/members'),
+        headers: _bearer(t),
+      ),
     );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
@@ -64,8 +69,8 @@ class ApiProTeamService implements ProTeamServiceInterface {
       return ApiResponse.error('Non connecté');
     }
     final res = await _authed.send(
-      (t) => _client.post(
-        _uri('/me/provider/members'),
+      (t) async => _client.post(
+        await _membersUri('/me/provider/members'),
         headers: _json(t),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
@@ -87,8 +92,8 @@ class ApiProTeamService implements ProTeamServiceInterface {
       return ApiResponse.error('Non connecté');
     }
     final res = await _authed.send(
-      (t) => _client.patch(
-        _uri('/me/provider/members/$memberId'),
+      (t) async => _client.patch(
+        await _membersUri('/me/provider/members/$memberId'),
         headers: _json(t),
         body: jsonEncode({
           'role': role.name,
@@ -156,7 +161,7 @@ class ApiProTeamService implements ProTeamServiceInterface {
       return ApiResponse.error('Non connecté');
     }
     final res = await _authed.send(
-      (t) => _client.post(_uri(path), headers: _bearer(t)),
+      (t) async => _client.post(await _membersUri(path), headers: _bearer(t)),
     );
     return _memberFrom(res, resendBudgetCopy: resendBudgetCopy);
   }
@@ -176,6 +181,23 @@ class ApiProTeamService implements ProTeamServiceInterface {
   }
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
+
+  /// R6: the members family follows the switched-to salon.
+  Future<Uri> _membersUri(String path) async {
+    final raw = await _providerSessionStore.read();
+    String? selected;
+    if (raw != null) {
+      try {
+        selected =
+            ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
+                .selectedSalonId;
+      } catch (_) {/* legacy blob → default salon */}
+    }
+    final uri = _uri(path);
+    if (selected == null || selected.isEmpty) return uri;
+    return uri.replace(queryParameters: {'salonId': selected});
+  }
+
   Map<String, String> _bearer(String t) => {'Authorization': 'Bearer $t'};
   Map<String, String> _json(String t) =>
       {..._bearer(t), 'Content-Type': 'application/json'};

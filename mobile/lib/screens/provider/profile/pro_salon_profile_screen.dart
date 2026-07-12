@@ -58,7 +58,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final id = context.read<ProAuthProvider>().provider?.providerId;
+      final id = context.read<ProAuthProvider>().activeSalonId;
       if (id != null && id.isNotEmpty) {
         _providerId = id;
         context.read<ProSalonProfileProvider>().load(id);

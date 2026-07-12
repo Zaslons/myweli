@@ -116,7 +116,9 @@ void main() {
     // Member header: name + « Salon » row + role chip.
     expect(find.text('Awa Traoré'), findsOneWidget);
     expect(find.text('Salon'), findsOneWidget);
-    expect(find.text('Salon Excellence'), findsOneWidget);
+    // R6: the member card + the « Mes salons » row subtitle both name it.
+    expect(find.text('Salon Excellence'), findsNWidgets(2));
+    expect(find.text('Mes salons'), findsOneWidget);
     expect(find.text('Manager'), findsOneWidget);
     expect(find.text('Nom de l\'entreprise'), findsNothing);
 
@@ -142,7 +144,10 @@ void main() {
 
     expect(find.text('Sonia Koné'), findsOneWidget);
     expect(find.text('Collaborateur'), findsOneWidget);
-    expect(find.text('Salon Excellence'), findsOneWidget);
+    // R6: the slim profile keeps ONE salon row — « Mes salons » (a member
+    // can belong to several salons; the switcher must stay reachable).
+    expect(find.text('Salon Excellence'), findsNWidgets(2));
+    expect(find.text('Mes salons'), findsOneWidget);
     expect(find.text('Profil du salon'), findsNothing);
     expect(find.text('Photos du salon'), findsNothing);
     expect(find.text('Équipe'), findsNothing);

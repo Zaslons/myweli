@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/before_after_pair.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -8,7 +9,7 @@ import '../services/interfaces/pro_service_interface.dart';
 /// Manages a salon's before/after pairs (FR-DISC-006): load, add (two image
 /// uploads via the pipeline) and remove, persisting through [ProServiceInterface].
 /// Mirrors [ProGalleryProvider]. Design: docs/design/provider-before-after.md.
-class ProBeforeAfterProvider extends ChangeNotifier {
+class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
   final ImageUploadServiceInterface _uploadService =
       serviceLocator.imageUploadService;
@@ -122,5 +123,17 @@ class ProBeforeAfterProvider extends ChangeNotifier {
     _error = saved.error ?? 'Échec de la suppression';
     notifyListeners();
     return false;
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _isLoading = false;
+    _loadFailed = false;
+    _isUploading = false;
+    _uploadProgress = 0;
+    _error = null;
+    _pairs = const [];
+    notifyListeners();
   }
 }

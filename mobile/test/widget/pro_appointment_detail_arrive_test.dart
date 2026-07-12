@@ -33,7 +33,9 @@ void main() {
         userId: 'u1',
         providerId: 'p1',
         serviceIds: const ['s1'],
-        appointmentDate: date ?? DateTime.now().add(const Duration(hours: 2)),
+        // Same-day-safe: a fixed +2h crossed midnight on late-UTC CI runs
+        // (a 22h-24h flake window) — "now" is inside today by definition.
+        appointmentDate: date ?? DateTime.now(),
         status: AppointmentStatus.confirmed,
         totalPrice: 10000,
         clientName: 'Koffi',

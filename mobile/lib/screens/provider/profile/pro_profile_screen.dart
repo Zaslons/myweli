@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +14,7 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/team/team_role_chip.dart';
 
 class ProProfileScreen extends StatefulWidget {
@@ -22,6 +25,19 @@ class ProProfileScreen extends StatefulWidget {
 }
 
 class _ProProfileScreenState extends State<ProProfileScreen> {
+  /// R6: open the « Mes salons » switcher; route the add flow and the
+  /// staff-shell reshape after a switch.
+  Future<void> _openSalonPicker() async {
+    final result = await showSalonPicker(context);
+    if (!mounted || result == null) return;
+    if (result == 'add') {
+      unawaited(context.push('/pro/salons/nouveau'));
+      return;
+    }
+    final auth = context.read<ProAuthProvider>();
+    context.go(auth.isStaff ? '/pro/staff' : '/pro/dashboard');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -162,6 +178,25 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       ),
                     ),
                   ),
+                const SizedBox(height: 16),
+                // « Mes salons » (R6): every membership + the switcher — for
+                // ALL roles (a member can belong to several salons too).
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.storefront),
+                    title: const Text('Mes salons'),
+                    subtitle: Text(
+                      authProvider.hasMultipleSalons
+                          ? '${authProvider.salons.length} salons — '
+                              'actif : ${authProvider.salonName}'
+                          : authProvider.salonName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _openSalonPicker,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 // Role-gated rows (access R4b) — UI hiding is convenience;
                 // the routes 403 server-side regardless.

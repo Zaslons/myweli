@@ -36,7 +36,7 @@ class _ClientListScreenState extends State<ClientListScreen> {
 
   String get _providerId {
     final auth = context.read<ProAuthProvider>();
-    return auth.provider?.providerId ?? auth.provider?.id ?? '';
+    return auth.activeSalonId ?? '';
   }
 
   @override

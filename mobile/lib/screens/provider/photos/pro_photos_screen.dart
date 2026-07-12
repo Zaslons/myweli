@@ -25,7 +25,7 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final id = context.read<ProAuthProvider>().provider?.providerId;
+      final id = context.read<ProAuthProvider>().activeSalonId;
       if (id != null && id.isNotEmpty) {
         context.read<ProGalleryProvider>().load(id);
       }
@@ -85,7 +85,7 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
       appBar: AppBar(title: const Text('Photos du salon')),
       body: Consumer2<ProAuthProvider, ProGalleryProvider>(
         builder: (context, auth, gallery, _) {
-          final providerId = auth.provider?.providerId;
+          final providerId = auth.activeSalonId;
           if (providerId == null || providerId.isEmpty) {
             return const EmptyState(
               icon: Icons.storefront_outlined,

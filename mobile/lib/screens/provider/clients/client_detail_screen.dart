@@ -32,7 +32,7 @@ class ClientDetailScreen extends StatefulWidget {
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
   String get _providerId {
     final auth = context.read<ProAuthProvider>();
-    return auth.provider?.providerId ?? auth.provider?.id ?? '';
+    return auth.activeSalonId ?? '';
   }
 
   @override

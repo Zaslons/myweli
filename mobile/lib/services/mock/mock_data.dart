@@ -35,6 +35,9 @@ class MockData {
       phoneNumber: '+225 07 11 22 33 44',
       name: 'Jean Kouassi',
       businessName: 'Salon Excellence',
+      // R6: the demo owner signs in by email (matches the owner roster rows
+      // on provider1 AND provider2 — the multi-salon switcher demo).
+      email: 'jean@salon-excellence.test',
       businessType: BusinessType.barber,
       address: 'Cocody, Angré 7ème Tranche',
       verificationStatus: VerificationStatus.verified,
@@ -684,6 +687,20 @@ class MockData {
           resendsLeft: 1,
           expired: true,
         ),
+        // R6 multi-salons: the demo owner ALSO owns provider2 (« Beauté
+        // Divine ») — the « Mes salons » switcher is demo-able offline.
+        // Per-salon rosters/seats filter by providerId, so provider1's
+        // counts are untouched.
+        TeamMember(
+          id: 'mem_owner2',
+          providerId: 'provider2',
+          email: 'jean@salon-excellence.test',
+          role: TeamRole.owner,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2024, 1, 1),
+          accountId: 'provider_user1',
+          acceptedAt: DateTime(2024, 1, 1),
+        ),
       ];
 
   static Map<String, List<TeamInvitation>> _seedTeamInvitations() => {
@@ -726,15 +743,22 @@ class MockData {
   static final Map<String, List<TeamInvitation>> teamInvitations =
       _seedTeamInvitations();
 
-  /// Seats in use — owner + active + unexpired pending (mirrors the backend).
-  static int teamSeatsUsed() => teamMembers
+  /// R6: mock salons created via « Ajouter un salon » — rendered as DRAFT
+  /// in « Mes salons » (the Provider model carries no status client-side).
+  static final Set<String> draftSalonIds = {};
+
+  /// Seats in use — owner + active + unexpired pending (mirrors the
+  /// backend), PER SALON (R6 multi-salons).
+  static int teamSeatsUsed({String providerId = 'provider1'}) => teamMembers
       .where((m) =>
-          m.status == TeamMemberStatus.active || (m.isPending && !m.expired))
+          m.providerId == providerId &&
+          (m.status == TeamMemberStatus.active || (m.isPending && !m.expired)))
       .length;
 
   /// Restore the seeded roster/cards (tests: call in setUp). Also re-seeds
   /// the three member ACCOUNTS (R4b role demos) if a test stripped them.
   static void resetTeam() {
+    draftSalonIds.clear();
     teamMembers
       ..clear()
       ..addAll(_seedTeamMembers());

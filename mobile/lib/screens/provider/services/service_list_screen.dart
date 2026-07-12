@@ -23,7 +23,7 @@ class ServiceListScreen extends StatefulWidget {
 class _ServiceListScreenState extends State<ServiceListScreen> {
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.provider?.providerId ?? authProvider.provider?.id ?? '';
+    return authProvider.activeSalonId ?? '';
   }
 
   @override

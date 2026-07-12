@@ -28,7 +28,7 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final id = context.read<ProAuthProvider>().provider?.providerId;
+      final id = context.read<ProAuthProvider>().activeSalonId;
       if (id != null && id.isNotEmpty) {
         context.read<ProBeforeAfterProvider>().load(id);
       }
@@ -121,7 +121,7 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
       appBar: AppBar(title: const Text('Avant / Après')),
       body: Consumer2<ProAuthProvider, ProBeforeAfterProvider>(
         builder: (context, auth, p, _) {
-          final providerId = auth.provider?.providerId;
+          final providerId = auth.activeSalonId;
           if (providerId == null || providerId.isEmpty) {
             return const EmptyState(
               icon: Icons.storefront_outlined,

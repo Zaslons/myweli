@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/pro_membership.dart';
 import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
@@ -40,8 +42,10 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
 
   void _maybeLoad() {
     if (_loadRequested || !mounted) return;
-    final providerId = context.read<ProAuthProvider>().provider?.providerId;
-    if (providerId == null) return;
+    final auth = context.read<ProAuthProvider>();
+    final providerId = auth.activeSalonId;
+    // R6: the gate is the CAPABILITY (a member has a salon id too).
+    if (providerId == null || !auth.can(ProCap.subscriptionManage)) return;
     _loadRequested = true;
     context.read<ProSubscriptionProvider>().load(providerId);
   }
@@ -101,12 +105,13 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final providerId = context.watch<ProAuthProvider>().provider?.providerId;
+    final auth = context.watch<ProAuthProvider>();
+    final providerId = auth.activeSalonId;
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoad());
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(title: const Text('Mon abonnement')),
-      body: providerId == null
+      body: providerId == null || !auth.can(ProCap.subscriptionManage)
           ? const EmptyState(
               icon: Icons.workspace_premium_outlined,
               title: 'Réservé au propriétaire',
@@ -174,6 +179,25 @@ class _Body extends StatelessWidget {
           const SizedBox(height: AppTheme.spacingM),
           _SeatsBar(seats: salon.seats),
           const SizedBox(height: AppTheme.spacingM),
+          // R6 multi-salons: a LIVE Réseau offer opens « Ajouter un salon »
+          // (each new salon = its own setup, offer, trial & publish gate).
+          if (salon.tier == SalonTier.reseau && salon.isLive) ...[
+            Card(
+              child: ListTile(
+                leading: const Icon(
+                  Icons.add_business_outlined,
+                  color: AppColors.textPrimary,
+                ),
+                title: const Text('Ajouter un salon'),
+                subtitle: const Text(
+                  'Chaque salon a sa propre offre et son propre essai.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/pro/salons/nouveau'),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+          ],
         ],
         if (provider.chooseErrorCode == 'trial_used') ...[
           _TrialUsedNotice(onContact: onContact),
