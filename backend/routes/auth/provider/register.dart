@@ -8,15 +8,6 @@ import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/validators.dart';
 
-const _businessTypes = {
-  'salon',
-  'barber',
-  'spa',
-  'nailSalon',
-  'massage',
-  'other',
-};
-
 /// `POST /auth/provider/register` — create a salon account with the identity
 /// proof INLINE (auth overhaul: one submit registers AND signs in):
 ///   - Google: `{ idToken, businessName, businessType, phoneNumber, … }`
@@ -41,7 +32,7 @@ Future<Response> onRequest(RequestContext context) async {
   final rawAddress = (body['address'] as String?)?.trim();
   if (!isValidE164(phone) ||
       businessName.isEmpty ||
-      !_businessTypes.contains(businessType)) {
+      !SalonProvisioningService.businessTypes.contains(businessType)) {
     return jsonError(HttpStatus.badRequest, 'invalid_input');
   }
   final address = (rawAddress == null || rawAddress.isEmpty)

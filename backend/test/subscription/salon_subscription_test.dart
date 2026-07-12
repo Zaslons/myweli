@@ -215,7 +215,7 @@ void main() {
         final owner = await registerOwner();
         await service().chooseOffer(owner, 'p1', 'business');
         final legacy = await service().legacySubscriptionFor(owner);
-        expect(legacy.tier, 'pro'); // business maps into the legacy enum
+        expect(legacy!.tier, 'pro'); // business maps into the legacy enum
         expect(legacy.status, 'trial');
         expect(legacy.trialDaysLeft, 90);
       },
@@ -225,7 +225,33 @@ void main() {
       final owner = await registerOwner();
       await service().chooseOffer(owner, 'p1', 'pro');
       now = now.add(const Duration(days: 100));
-      expect((await service().legacySubscriptionFor(owner)).tier, 'free');
+      expect((await service().legacySubscriptionFor(owner))!.tier, 'free');
+    });
+
+    test('R6: an explicit salonId reflects THAT salon; per-salon clocks '
+        'stay independent', () async {
+      final owner = await registerOwner();
+      await service().chooseOffer(owner, 'p1', 'pro');
+      // A second owned salon, offer chosen 0 days ago vs p1's later state.
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: owner,
+        email: 'owner@x.pro',
+      );
+      now = now.add(const Duration(days: 100)); // p1's trial expires
+      await service().chooseOffer(owner, 'p2', 'business');
+
+      // The fallback (scalar p1) reads the EXPIRED salon…
+      expect((await service().legacySubscriptionFor(owner))!.tier, 'free');
+      // …the explicit selection reads p2's fresh trial.
+      final p2 = await service().legacySubscriptionFor(owner, salonId: 'p2');
+      expect(p2!.tier, 'pro');
+      expect(p2.status, 'trial');
+      // A forged selection → null (the route 403s).
+      expect(
+        await service().legacySubscriptionFor(owner, salonId: 'p_forged'),
+        isNull,
+      );
     });
 
     test('no salon → the old account-age derivation', () async {
@@ -240,7 +266,7 @@ void main() {
         googleSub: 'sub-y',
       );
       final legacy = await service().legacySubscriptionFor(bare.provider!.id);
-      expect(legacy.status, 'trial'); // fresh account age
+      expect(legacy!.status, 'trial'); // fresh account age
     });
   });
 

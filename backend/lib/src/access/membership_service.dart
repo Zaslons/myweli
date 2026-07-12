@@ -61,13 +61,28 @@ class MembershipService {
     return (all: false, ownArtistId: null);
   }
 
-  /// The salon [accountId] acts in — its own linked salon (owner) or its
-  /// first active membership (member, R2+). Null for outsiders. R6 replaces
-  /// the single-salon assumption with an explicit selection.
+  /// The NO-SELECTION fallback: the account's linked salon (owner) or its
+  /// first active membership (member, R2+). Null for outsiders. R6: explicit
+  /// selection goes through [salonForRequest]; this stays the default so
+  /// pre-R6 clients keep working unchanged.
   Future<String?> activeSalonFor(String accountId) async {
     final account = await _providerAuth.accountById(accountId);
     if (account?.providerId != null) return account!.providerId;
     return (await _members.firstActiveForAccount(accountId))?.providerId;
+  }
+
+  /// R6: the acting salon for THIS request. An explicit [salonId] must match
+  /// an ACTIVE membership ([memberOf] — incl. the legacy linked-owner
+  /// self-heal); no match → null, and the route answers a uniform 403
+  /// `forbidden` — never-member, revoked-there and nonexistent salons are
+  /// indistinguishable (no membership-existence oracle, threat T55).
+  /// Explicit selection never auto-provisions. Absent/empty → the legacy
+  /// [activeSalonFor] fallback.
+  Future<String?> salonForRequest(String accountId, {String? salonId}) async {
+    if (salonId != null && salonId.isNotEmpty) {
+      return await memberOf(accountId, salonId) == null ? null : salonId;
+    }
+    return activeSalonFor(accountId);
   }
 
   /// Does the account hold ANY membership row (any status)? The provisioning

@@ -169,4 +169,63 @@ void main() {
       expect(await service.hasAnyMembership(memberId), isTrue);
     });
   });
+
+  group('salonForRequest — the R6 explicit selector', () {
+    test('explicit id: an active member gets the selected salon', () async {
+      final memberId = await register(email: 'multi@test.pro');
+      await members.ensureOwner(
+        providerId: 'p8',
+        accountId: memberId,
+        email: 'multi@test.pro',
+      );
+      expect(await service.salonForRequest(memberId, salonId: 'p8'), 'p8');
+    });
+
+    test('explicit id: a linked owner WITHOUT a row yet self-heals', () async {
+      final owner = await register(providerId: 'p1');
+      // No ensureOwner call — memberOf's self-heal must create the row.
+      expect(await service.salonForRequest(owner, salonId: 'p1'), 'p1');
+      expect(await members.activeMember(owner, 'p1'), isNotNull);
+    });
+
+    test('explicit id: revoked-there → null (uniform denial, T55)', () async {
+      final memberId = await register(email: 'rev@test.pro');
+      await members.ensureOwner(
+        providerId: 'p9',
+        accountId: memberId,
+        email: 'rev@test.pro',
+      );
+      await members.revokeAllForAccount(memberId);
+      expect(await service.salonForRequest(memberId, salonId: 'p9'), isNull);
+    });
+
+    test('explicit id: never-a-member and unknown salons → null', () async {
+      final owner = await register(providerId: 'p1');
+      expect(await service.salonForRequest(owner, salonId: 'p2'), isNull);
+      expect(
+        await service.salonForRequest(owner, salonId: 'no-such-salon'),
+        isNull,
+      );
+    });
+
+    test('absent/empty id → the legacy activeSalonFor fallback', () async {
+      final owner = await register(providerId: 'p1');
+      expect(await service.salonForRequest(owner), 'p1');
+      expect(await service.salonForRequest(owner, salonId: ''), 'p1');
+      expect(await service.salonForRequest('ghost'), isNull);
+    });
+
+    test('an owner of TWO salons reaches both explicitly; the fallback '
+        'stays the linked one', () async {
+      final owner = await register(providerId: 'p1');
+      await members.ensureOwner(
+        providerId: 'p2',
+        accountId: owner,
+        email: 'owner@test.pro',
+      );
+      expect(await service.salonForRequest(owner, salonId: 'p1'), 'p1');
+      expect(await service.salonForRequest(owner, salonId: 'p2'), 'p2');
+      expect(await service.salonForRequest(owner), 'p1');
+    });
+  });
 }

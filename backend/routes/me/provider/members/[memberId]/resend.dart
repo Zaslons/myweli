@@ -19,8 +19,11 @@ Future<Response> onRequest(RequestContext context, String memberId) async {
   if (principal.role != 'provider') {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
-  final providerId = await context.read<MembershipService>().activeSalonFor(
+  // R6: the salon defaults from the caller's membership; an explicit
+  // `?salonId=` is honored only against an ACTIVE membership (T55).
+  final providerId = await context.read<MembershipService>().salonForRequest(
     principal.userId,
+    salonId: context.request.uri.queryParameters['salonId'],
   );
   if (providerId == null) {
     return jsonError(HttpStatus.forbidden, 'forbidden');

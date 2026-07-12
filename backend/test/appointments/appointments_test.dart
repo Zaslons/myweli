@@ -587,6 +587,37 @@ void main() {
       expect((await jsonOf(res))['error'], 'forbidden');
     });
 
+    test('R6: GET as a provider with a forged ?salonId= → 403 '
+        'forbidden (T55)', () async {
+      final token = await providerToken(
+        '+2250500000004',
+        providerId: 'provider1',
+      );
+      final res = await list.onRequest(
+        ctx(getReq(token, query: '?salonId=provider9')),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await jsonOf(res))['error'], 'forbidden');
+    });
+
+    test('R6: GET with the OWN salon selected explicitly behaves like the '
+        'default', () async {
+      await list.onRequest(ctx(bookReq(accessA, bookBody(_slotAt(9)))));
+      final token = await providerToken(
+        '+2250500000005',
+        providerId: 'provider1',
+      );
+      final res = await list.onRequest(
+        ctx(getReq(token, query: '?salonId=provider1')),
+      );
+      final body = await jsonOf(res);
+      expect(res.statusCode, HttpStatus.ok);
+      expect(
+        (body['items'] as List).every((a) => a['providerId'] == 'provider1'),
+        isTrue,
+      );
+    });
+
     test('GET /{id} enforces ownership (403) + 404 for unknown', () async {
       final created = await jsonOf(
         await list.onRequest(ctx(bookReq(accessA, bookBody(_slotAt(9))))),

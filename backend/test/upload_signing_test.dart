@@ -155,6 +155,7 @@ void main() {
 
   group('UploadSigningService', () {
     late InMemoryProviderAuthRepository providerAuth;
+    late InMemoryMembershipRepository memberships;
     late UploadSigningService service;
     final tokens = TokenService(secret: 'test-secret');
     late String accountId;
@@ -164,9 +165,10 @@ void main() {
         tokens: tokens,
         isProd: false,
       );
+      memberships = InMemoryMembershipRepository();
       service = UploadSigningService(
         providerAuth,
-        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        MembershipService(memberships, providerAuth),
         const FakeStorageService(),
       );
       final reg = await providerAuth.register(
@@ -206,6 +208,36 @@ void main() {
       expect((data['fields'] as Map)['key'], startsWith('review/u42/'));
       // Public bucket: tiles render the photos.
       expect(data['publicUrl'], contains('review/u42/'));
+    });
+
+    test('R6: a selected salon scopes the gallery key; a forged one is '
+        'denied', () async {
+      // The owner also owns provider2.
+      await memberships.ensureOwner(
+        providerId: 'provider2',
+        accountId: accountId,
+        email: 'reg12@test.pro',
+      );
+      final r = await service.sign(
+        accountId,
+        contentType: 'image/jpeg',
+        purpose: 'gallery',
+        salonId: 'provider2',
+      );
+      expect(r.ok, isTrue);
+      expect(
+        (r.data!['fields'] as Map)['key'],
+        startsWith('gallery/provider2/'),
+      );
+
+      final forged = await service.sign(
+        accountId,
+        contentType: 'image/jpeg',
+        purpose: 'gallery',
+        salonId: 'provider9',
+      );
+      expect(forged.ok, isFalse);
+      expect(forged.error, 'forbidden');
     });
 
     test('rejects a disallowed content-type / purpose', () async {

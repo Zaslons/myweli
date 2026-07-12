@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
 import 'package:myweli_backend/src/admin/audit_log_repository.dart';
@@ -91,17 +92,20 @@ void main() {
     late InMemoryAuditLogRepository audit;
     late AdminKycService svc;
     late InMemoryProvidersRepository listings;
+    late InMemoryMembershipRepository members;
     late String accountId;
 
     setUp(() async {
       providers = InMemoryProviderAuthRepository(tokens: tokens, isProd: false);
       audit = InMemoryAuditLogRepository();
       listings = InMemoryProvidersRepository([]);
+      members = InMemoryMembershipRepository();
       svc = AdminKycService(
         providers,
         const FakeStorageService(),
         audit,
         listings,
+        members,
       );
       final reg = await providers.register(
         email: 'reg5@test.pro',
@@ -168,6 +172,46 @@ void main() {
 
     test('approving an unknown account → not_found', () async {
       expect((await svc.approve('admin_1', 'nope')).error, 'not_found');
+    });
+
+    test('R6: the badge fans out to EVERY owned salon; member-only salons '
+        'stay untouched', () async {
+      // A second OWNED salon + one where the account is only a manager.
+      final second = await listings.createSalon(
+        name: 'Salon Deux',
+        category: 'salon',
+        phoneNumber: '+2250700000042',
+      );
+      final secondId = second['id'] as String;
+      await members.ensureOwner(
+        providerId: secondId,
+        accountId: accountId,
+        email: 'reg5@test.pro',
+      );
+      final managed = await listings.createSalon(
+        name: 'Salon Géré',
+        category: 'salon',
+        phoneNumber: '+2250700000043',
+      );
+      final managedId = managed['id'] as String;
+      final inv = await members.invite(
+        providerId: managedId,
+        email: 'reg5@test.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await members.activate(inv.id, accountId);
+
+      await svc.approve('admin_1', accountId);
+      final linked = (await providers.accountById(accountId))!.providerId!;
+      expect((await listings.byId(linked))!['verified'], isTrue);
+      expect((await listings.byId(secondId))!['verified'], isTrue);
+      expect((await listings.byId(managedId))!['verified'], isNot(isTrue));
+
+      await svc.reject('admin_1', accountId, 'photos illisibles');
+      expect((await listings.byId(linked))!['verified'], isFalse);
+      expect((await listings.byId(secondId))!['verified'], isFalse);
+      expect((await listings.byId(managedId))!['verified'], isNot(isTrue));
     });
   });
 

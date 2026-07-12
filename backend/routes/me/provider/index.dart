@@ -12,12 +12,15 @@ import 'package:myweli_backend/src/salon_provisioning_service.dart';
 
 /// `GET /me/provider` — the signed-in provider's own account + the salon it
 /// acts in + the caller's MEMBERSHIP (role, server-computed capabilities,
-/// staff artist link — module `access` R4a). Provider-scoped: the salon id is
-/// resolved from the account (owner) or the active membership (member) —
-/// never a client-supplied id (BACKEND.md §3.3, threat T29). Anon → 401;
-/// non-provider or unlinked account → 403 `forbidden`; a REVOKED member
-/// (memberships exist, none active) → 403 `not_a_member` (the app's
-/// revoked-mid-session signal, §5.3); missing salon → 404.
+/// staff artist link — module `access` R4a). The salon DEFAULTS from the
+/// account (owner) or the active membership (member); R6: an explicit
+/// `?salonId=` selects among the caller's ACTIVE memberships — any invalid
+/// selection (never-member, revoked-there, unknown) is a uniform 403
+/// `forbidden` (no membership-existence oracle, threat T55) and never
+/// auto-provisions. Anon → 401; non-provider or unlinked account → 403
+/// `forbidden`; a REVOKED member on the NO-PARAM path (memberships exist,
+/// none active) → 403 `not_a_member` (the session-level revoked signal —
+/// a per-salon denial must never sign a user out of their other salons).
 ///
 /// `DELETE /me/provider` — erase the ACCOUNT identity (audit 11.5, AUTH-004
 /// for pros; threat T53): future pending/confirmed bookings → 409
@@ -49,33 +52,48 @@ Future<Response> onRequest(RequestContext context) async {
   if (account == null) {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
-  // Self-heal: accounts registered before salon provisioning existed (or
-  // after a partial failure) get their draft salon on first read
-  // (docs/design/pro-salon-lifecycle.md §2). GUARD (module `access` §2.3-1):
-  // an account that holds ANY membership is a team member, not an ownerless
-  // owner — it must never get a salon auto-created; its salon comes from the
-  // membership instead.
   final members = context.read<MembershipService>();
-  String? providerId = account.providerId;
-  var hadMembership = false;
-  if (providerId == null) {
-    if (await members.hasAnyMembership(account.id)) {
-      hadMembership = true;
-      providerId = await members.activeSalonFor(account.id);
-    } else {
-      account = await context.read<SalonProvisioningService>().ensureSalon(
-        account,
-      );
-      providerId = account.providerId;
-    }
-  }
-  if (providerId == null) {
-    // Memberships exist but none is ACTIVE → a revoked member: the distinct
-    // code lets the app sign out gracefully (« Votre accès a été retiré »).
-    return jsonError(
-      HttpStatus.forbidden,
-      hadMembership ? 'not_a_member' : 'forbidden',
+  final selectedSalonId = context.request.uri.queryParameters['salonId'] ?? '';
+  String? providerId;
+  if (selectedSalonId.isNotEmpty) {
+    // R6 explicit selection: an ACTIVE membership in the selected salon or a
+    // uniform 403 — no self-heal/provisioning, no not_a_member distinction.
+    providerId = await members.salonForRequest(
+      account.id,
+      salonId: selectedSalonId,
     );
+    if (providerId == null) {
+      return jsonError(HttpStatus.forbidden, 'forbidden');
+    }
+  } else {
+    // Self-heal: accounts registered before salon provisioning existed (or
+    // after a partial failure) get their draft salon on first read
+    // (docs/design/pro-salon-lifecycle.md §2). GUARD (module `access`
+    // §2.3-1): an account that holds ANY membership is a team member, not an
+    // ownerless owner — it must never get a salon auto-created; its salon
+    // comes from the membership instead.
+    providerId = account.providerId;
+    var hadMembership = false;
+    if (providerId == null) {
+      if (await members.hasAnyMembership(account.id)) {
+        hadMembership = true;
+        providerId = await members.activeSalonFor(account.id);
+      } else {
+        account = await context.read<SalonProvisioningService>().ensureSalon(
+          account,
+        );
+        providerId = account.providerId;
+      }
+    }
+    if (providerId == null) {
+      // Memberships exist but none is ACTIVE → a revoked member: the
+      // distinct code lets the app sign out gracefully (« Votre accès a été
+      // retiré »).
+      return jsonError(
+        HttpStatus.forbidden,
+        hadMembership ? 'not_a_member' : 'forbidden',
+      );
+    }
   }
 
   final provider = await context.read<ProvidersRepository>().byId(providerId);

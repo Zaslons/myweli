@@ -577,11 +577,14 @@ export interface paths {
         };
         /**
          * The signed-in provider's account + acting salon + membership (web M7 · access R4a)
-         * @description Provider-only; the salon is resolved server-side from the account (owner) or the active membership (team member) — never a client id. The response carries the caller's MEMBERSHIP (role + server-computed capabilities + the staff artist link) so clients shape by role. Non-provider or unlinked account → 403 `forbidden`; a REVOKED member (memberships exist, none active) → 403 `not_a_member` — the revoked-mid-session signal.
+         * @description Provider-only; the salon DEFAULTS server-side from the account (owner) or the active membership (team member). R6: `?salonId=` selects among the caller's ACTIVE memberships — invalid → uniform 403 `forbidden` (T55). The response carries the caller's MEMBERSHIP (role + server-computed capabilities + the staff artist link) so clients shape by role. Non-provider or unlinked account → 403 `forbidden`; a REVOKED member on the NO-PARAM path (memberships exist, none active) → 403 `not_a_member` — the revoked-mid-session signal (a per-salon denial never signs out the whole session).
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -618,7 +621,7 @@ export interface paths {
         post?: never;
         /**
          * Delete the provider ACCOUNT (audit 11.5 — AUTH-004 for pros)
-         * @description Self-scoped and irreversible. Future pending/confirmed bookings block the deletion (409 `future_bookings` — settle the agenda first). The SALON listing is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; the account row, its KYC documents (rows AND the private storage objects), OTP state and every refresh token are erased — all sessions die. Threat T53.
+         * @description Self-scoped and irreversible. Future pending/confirmed bookings in ANY owned salon block the deletion (409 `future_bookings` — settle every agenda first; R6). EVERY salon the account owns is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; member-only salons are untouched; the account row, its KYC documents (rows AND the private storage objects), OTP state and every refresh token are erased — all sessions die. Threat T53.
          */
         delete: {
             parameters: {
@@ -663,11 +666,14 @@ export interface paths {
         };
         /**
          * The salon's team — members + pending invitations (access R2b)
-         * @description Owner-only (`members.manage`, threat T36); the salon resolves from the CALLER's membership, never a client id. Owner first; invited rows carry `expiresAt`/`resendsLeft` and an `expired` flag.
+         * @description Owner-only (`members.manage`, threat T36); the salon DEFAULTS from the caller's membership — R6: `?salonId=` selects among ACTIVE memberships (invalid → uniform 403, T55). Owner first; invited rows carry `expiresAt`/`resendsLeft` and an `expired` flag.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -692,11 +698,14 @@ export interface paths {
         put?: never;
         /**
          * Invite a team member by email (access R2b)
-         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (already active or pending), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity).
+         * @description Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff requires a salon-owned `artistId` (`artist_required` / `artist_not_found`). 409 `member_exists` (already active or pending), `offer_required` (no live offer — R2a pricing pivot), `seat_limit` (offer seats full). 429 `invite_rate_limited` (per-salon daily cap, threat T37). Sends the branded invitation email (7-day validity). R6: `?salonId=` selects the salon.
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -755,7 +764,10 @@ export interface paths {
          */
         patch: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path: {
                     memberId: string;
@@ -804,7 +816,10 @@ export interface paths {
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path: {
                     memberId: string;
@@ -848,7 +863,10 @@ export interface paths {
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path: {
                     memberId: string;
@@ -1331,6 +1349,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/salons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * « Mes salons » — every ACTIVE membership + the add-salon gate (access R6)
+         * @description Provider-only. Every salon the caller holds an ACTIVE membership in (owned first, then salonName), each with the caller's role there and the salon's status/badge — the switcher payload. `canAddSalon` is SERVER-computed (≥1 owned salon on a live Réseau offer, under the salon cap — clients never derive rights). A bare account gets `{items: [], canAddSalon: false}`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The caller's salons + the add gate */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["SalonMembership"][];
+                            canAddSalon: boolean;
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /**
+         * « Ajouter un salon » — an additional draft salon (access R6, Réseau-gated)
+         * @description Provider-only (threat T55). Requires ≥1 OWNED salon with a live (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped at 20 owned salons → 409 `salon_limit`. Creates a DRAFT salon (own setup state — its own offer, its own trial, its own publish gate; no subscription row) plus the owner membership row; the account's default salon link is untouched. The « Vérifié » badge is inherited when the account's KYC is approved (T52). `phoneNumber` defaults to the account's.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        businessName: string;
+                        /** @enum {string} */
+                        businessType: "salon" | "barber" | "spa" | "nailSalon" | "massage" | "other";
+                        phoneNumber?: string;
+                        address?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description The new draft salon's directory entry */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            salon: components["schemas"]["SalonMembership"];
+                        };
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                /** @description Not a provider (`forbidden`), or no live Réseau offer on any owned salon (`reseau_required`). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The owned-salon cap is reached (`salon_limit`). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/subscription": {
         parameters: {
             query?: never;
@@ -1340,11 +1457,14 @@ export interface paths {
         };
         /**
          * LEGACY plan status (compat shape; the real model is per-salon)
-         * @description Provider-role, self-scoped. Derived from the account's signup date (no billing state in V1): Pro during the 90-day trial, else Free.
+         * @description Provider-role, self-scoped; derived from the acting salon's offer (fallback: the account-age derivation). R6: `?salonId=` selects among the caller's ACTIVE memberships (invalid → 403 `forbidden`).
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3254,7 +3374,10 @@ export interface paths {
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3723,12 +3846,14 @@ export interface paths {
         };
         /**
          * List the caller's appointments (B-appt)
-         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it acts in (owner link or active membership). OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access R4a) get their own artist's bookings only, with `clientPhone` masked off-day. A provider account with no salon and no active membership gets 403.
+         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it acts in (owner link or active membership). OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access R4a) get their own artist's bookings only, with `clientPhone` masked off-day. A provider account with no salon and no active membership gets 403. R6: a provider `?salonId=` selects among the caller's ACTIVE memberships (invalid → uniform 403, T55).
          */
         get: {
             parameters: {
                 query?: {
                     status?: "pending" | "confirmed" | "cancelled" | "completed" | "noShow";
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
                 };
                 header?: never;
                 path?: never;
@@ -4070,11 +4195,14 @@ export interface paths {
         put?: never;
         /**
          * Move an appointment to a new time (B-life; B-pro-resched)
-         * @description Role-aware: a `user` reschedules their own booking; a `provider` reschedules one of its own salon's bookings (ownership by the account's linked providerId → 403 cross-salon/unlinked). Both re-validate the new slot (→ 409 slot_unavailable for past/closed/taken). Deposit + balance carry over unchanged.
+         * @description Role-aware: a `user` reschedules their own booking; a `provider` reschedules one of its acting salon's bookings (membership-resolved; the service cross-checks the appointment's salon → 403 cross-salon). R6: `?salonId=` selects the acting salon among ACTIVE memberships. Both re-validate the new slot (→ 409 slot_unavailable for past/closed/taken). Deposit + balance carry over unchanged.
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+                    salonId?: components["parameters"]["SalonSelector"];
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -5746,6 +5874,17 @@ export interface components {
             artistId?: string | null;
             artistName?: string | null;
         };
+        /** @description One « Mes salons » entry (module `access` R6): a salon the caller holds an ACTIVE membership in, with their role there and enough salon surface for the switcher (name, status, badge, thumb). */
+        SalonMembership: {
+            salonId: string;
+            salonName: string;
+            /** @enum {string} */
+            role: "owner" | "manager" | "reception" | "staff";
+            /** @enum {string} */
+            salonStatus: "draft" | "active" | "suspended";
+            verified: boolean;
+            imageUrl?: string | null;
+        };
         /** @description A salon team row (module `access` R2b) — the owner, an active member, or a pending invitation. */
         TeamMember: {
             id: string;
@@ -6271,7 +6410,10 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
+        SalonSelector: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;

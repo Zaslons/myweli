@@ -41,7 +41,11 @@ Future<Response> _list(RequestContext context, Principal principal) async {
     // own-scope members (Collaborateur, T40) get their artist's bookings
     // only, with off-day contact masking (§11.2).
     final members = context.read<MembershipService>();
-    final providerId = await members.activeSalonFor(principal.userId);
+    // R6: `?salonId=` selects among the caller's ACTIVE memberships (T55).
+    final providerId = await members.salonForRequest(
+      principal.userId,
+      salonId: context.request.uri.queryParameters['salonId'],
+    );
     if (providerId == null) {
       return jsonError(HttpStatus.forbidden, 'forbidden');
     }
