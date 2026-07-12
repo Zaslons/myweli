@@ -457,6 +457,81 @@ void main() {
       },
     );
 
+    test('GET as a STAFF member lists own-artist bookings only, phones masked '
+        'off-day (T40/T39 — access R4a)', () async {
+      // A shared membership store so the route sees the staff row.
+      final memberships = InMemoryMembershipRepository();
+      final members = MembershipService(memberships, providerAuth);
+      RequestContext staffCtx(Request request) {
+        final context = _MockRequestContext();
+        when(() => context.request).thenReturn(request);
+        when(() => context.read<TokenService>()).thenReturn(tokens);
+        when(() => context.read<AppointmentRepository>()).thenReturn(appts);
+        when(
+          () => context.read<ProviderAuthRepository>(),
+        ).thenReturn(providerAuth);
+        when(() => context.read<MembershipService>()).thenReturn(members);
+        when(() => context.read<AuthRepository>()).thenReturn(auth);
+        when(() => context.read<ClientsService>()).thenReturn(
+          ClientsService(
+            providerAuth,
+            members,
+            auth,
+            InMemoryClientsRepository(),
+            appts,
+            InMemoryProviderAuditLogRepository(),
+          ),
+        );
+        return context;
+      }
+
+      final sent = await providerAuth.requestEmailOtp('staff@list.pro');
+      final created = await providerAuth.createMemberAccount(
+        email: 'staff@list.pro',
+        authProvider: 'email',
+        emailCode: sent.devCode,
+      );
+      final row = await memberships.invite(
+        providerId: 'provider1',
+        email: 'staff@list.pro',
+        role: 'staff',
+        artistId: 'artist1',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(row.id, created.provider!.id);
+
+      final today = DateTime.now().toUtc();
+      Future<void> seedRow(String id, String? artistId, DateTime when) =>
+          appts.create({
+            'id': id,
+            'userId': 'manual',
+            'providerId': 'provider1',
+            'serviceIds': ['service1'],
+            'artistId': artistId,
+            'clientName': 'Koffi',
+            'clientPhone': '+2250700000042',
+            'status': 'confirmed',
+            'appointmentDate': when.toIso8601String(),
+            'totalPrice': 1000,
+          });
+      await seedRow('own-today', 'artist1', today);
+      await seedRow('own-later', 'artist1', today.add(const Duration(days: 3)));
+      await seedRow('foreign', 'artist2', today);
+
+      final token = tokens
+          .issueAccessToken(subject: created.provider!.id, role: 'provider')
+          .token;
+      final res = await list.onRequest(staffCtx(getReq(token)));
+      final body = await jsonOf(res);
+
+      final items = (body['items'] as List).cast<Map<String, dynamic>>();
+      expect(items.map((a) => a['id']).toSet(), {'own-today', 'own-later'});
+      final byId = {for (final a in items) a['id']: a};
+      // Same-day contact rule: today's phone stays, the future one masks.
+      expect(byId['own-today']!['clientPhone'], '+2250700000042');
+      expect(byId['own-later']!.containsKey('clientPhone'), isFalse);
+    });
+
     test(
       'GET as a provider lists its salon’s appointments (not by user)',
       () async {

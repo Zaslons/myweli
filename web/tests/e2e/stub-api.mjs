@@ -616,6 +616,25 @@ createServer(async (req, res) => {
         providerId: 'p1',
       },
       provider: proProvider,
+      // Access R4a: the caller's membership (the stub session is the owner).
+      membership: {
+        role: 'owner',
+        capabilities: [
+          'availability.manage',
+          'catalogue.manage',
+          'clients.view',
+          'deposit.manage',
+          'finances.view',
+          'journal.manage.all',
+          'journal.manage.own',
+          'journal.view.all',
+          'journal.view.own',
+          'members.manage',
+          'profile.manage',
+          'salon.publish',
+          'subscription.manage',
+        ],
+      },
     });
   }
   // KYC (web-pro-kyc.md) — stateful: POST stores the docs, stays pending.

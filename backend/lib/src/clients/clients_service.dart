@@ -393,6 +393,34 @@ class ClientsService {
     }
   }
 
+  /// Clients §11.2 / T39·T40 (team access R4a): an OWN-SCOPE journal
+  /// exposes `clientPhone` only on SAME-DAY bookings — a Collaborateur can
+  /// call today's client, not walk out with contact data for the future.
+  /// `salonClientId`/`clientNoShowCount` stay (ids and counters, not contact
+  /// data); the client card itself sits behind audited `clients.view`.
+  static List<Map<String, dynamic>> maskContactsOffDay(
+    List<Map<String, dynamic>> appointments, {
+    DateTime? now,
+  }) {
+    final ref = (now ?? DateTime.now()).toUtc();
+    final today = DateTime.utc(ref.year, ref.month, ref.day);
+    return [
+      for (final a in appointments)
+        () {
+          final t = DateTime.tryParse(
+            a['appointmentDate'] as String? ?? '',
+          )?.toUtc();
+          final sameDay =
+              t != null &&
+              t.year == today.year &&
+              t.month == today.month &&
+              t.day == today.day;
+          if (sameDay) return a;
+          return {...a}..remove('clientPhone');
+        }(),
+    ];
+  }
+
   /// Provider appointment payload enrichment: `salonClientId` +
   /// `clientNoShowCount` (the accept-screen badge — clients-c1.md §5).
   Future<List<Map<String, dynamic>>> enrichForProvider(

@@ -1,4 +1,3 @@
-import '../access/capabilities.dart';
 import '../access/membership_service.dart';
 import '../clients/clients_service.dart';
 import '../providers_repository.dart';
@@ -13,27 +12,36 @@ typedef JournalResult = ({bool ok, String? error, Map<String, dynamic>? data});
 ///
 /// Ownership: the caller's account must manage [providerId] (threat T41 —
 /// deny by default; a day of client names+phones is exactly what a cross-salon
-/// attacker would want). Day boundaries are UTC — Côte d'Ivoire runs on
-/// Africa/Abidjan = UTC+0 today; revisit when MyWeli leaves that zone.
+/// attacker would want). OWN-SCOPE callers (Collaborateur — T40, R4a) get
+/// their artist's column only, with off-day contact masking (§11.2). Day
+/// boundaries are UTC — Côte d'Ivoire runs on Africa/Abidjan = UTC+0 today;
+/// revisit when MyWeli leaves that zone.
 class JournalService {
   JournalService(
     this._members,
     this._providers,
     this._appointments,
-    this._clients,
-  );
+    this._clients, {
+    DateTime Function()? clock,
+  }) : _now = clock ?? DateTime.now;
 
   final MembershipService _members;
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final ClientsService _clients;
+  final DateTime Function() _now;
 
   Future<JournalResult> dayFor(
     String accountId,
     String providerId,
     DateTime date,
   ) async {
-    if (!await _members.can(accountId, providerId, Cap.journalViewAll)) {
+    final scope = await _members.journalScope(
+      accountId,
+      providerId,
+      manage: false,
+    );
+    if (!scope.all && scope.ownArtistId == null) {
       return (ok: false, error: 'forbidden', data: null);
     }
     final provider = await _providers.byId(providerId);
@@ -51,13 +59,19 @@ class JournalService {
     final todays =
         [
           for (final a in all)
-            if (_sameUtcDay(a['appointmentDate'] as String?, day)) a,
+            if (_sameUtcDay(a['appointmentDate'] as String?, day) &&
+                (scope.all || a['artistId'] == scope.ownArtistId))
+              a,
         ]..sort(
           (a, b) => (a['appointmentDate'] as String).compareTo(
             b['appointmentDate'] as String,
           ),
         );
-    final enriched = await _clients.enrichForProvider(providerId, todays);
+    var enriched = await _clients.enrichForProvider(providerId, todays);
+    if (!scope.all) {
+      // T39/T40: own-scope days other than TODAY carry no client contact.
+      enriched = ClientsService.maskContactsOffDay(enriched, now: _now());
+    }
 
     return (
       ok: true,
@@ -72,7 +86,8 @@ class JournalService {
           for (final a
               in ((provider['artists'] as List?) ?? const [])
                   .cast<Map<String, dynamic>>())
-            {'id': a['id'], 'name': a['name'], 'imageUrl': a['imageUrl']},
+            if (scope.all || a['id'] == scope.ownArtistId)
+              {'id': a['id'], 'name': a['name'], 'imageUrl': a['imageUrl']},
         ],
         'appointments': enriched,
       },
