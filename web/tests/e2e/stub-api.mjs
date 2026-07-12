@@ -179,7 +179,7 @@ const consumerAppt = (id) => ({
 // Pro side (M7) — pappt1, mutable status via the lifecycle endpoints. Kept
 // separate from the consumer flow (split by token below) so parallel tests
 // don't race on shared state.
-const proStatus = { pappt1: 'pending', pj1: 'pending' };
+const proStatus = { pappt1: 'pending', pj1: 'pending', pstaff1: 'confirmed' };
 const PRO_TRANSITION = {
   accept: 'confirmed',
   reject: 'cancelled',
@@ -202,8 +202,9 @@ const proAppt = (id) => ({
   // Module clients C1: provider-view enrichment (badge + card link).
   salonClientId: 'sc1',
   clientNoShowCount: 2,
-  // Journal J1: column, duration, in-day arrival.
-  artistId: proArrived[id] ? 'artist-a' : null,
+  // Journal J1: column, duration, in-day arrival. pstaff1 (team access
+  // R5b) is PERMANENTLY the member's own row (artist-a / Awa).
+  artistId: id === 'pstaff1' || proArrived[id] ? 'artist-a' : null,
   durationMinutes: 60,
   arrivedAt: proArrived[id] || null,
 });
@@ -237,6 +238,70 @@ const salonClients = [
 const clientNotes = { sc1: [], sc2: [] };
 let clientSeq = 3;
 const isPro = (req) => (req.headers.authorization || '').includes('pro');
+
+// --- team access R5b: per-role sessions -----------------------------------
+// Member logins get role tokens; everything else (stub-pro-access, pro-access,
+// the bridge session) stays OWNER-shaped so the pre-R5b e2e are untouched.
+// NB: a refresh would rotate to the owner token (pro-access-2) — irrelevant
+// here because a 403 never triggers the BFF refresh (401 only).
+function roleOf(req) {
+  const auth = req.headers.authorization || '';
+  if (auth.includes('pro-manager-access')) return 'manager';
+  if (auth.includes('pro-reception-access')) return 'reception';
+  if (auth.includes('pro-staff-access')) return 'staff';
+  if (auth.includes('pro-revoked-access')) return 'revoked';
+  return 'owner';
+}
+// The backend preset matrix (capabilities.dart rolePresets), verbatim.
+const ROLE_CAPS = {
+  owner: [
+    'availability.manage',
+    'catalogue.manage',
+    'clients.view',
+    'deposit.manage',
+    'finances.view',
+    'journal.manage.all',
+    'journal.manage.own',
+    'journal.view.all',
+    'journal.view.own',
+    'members.manage',
+    'profile.manage',
+    'salon.publish',
+    'subscription.manage',
+  ],
+  manager: [
+    'availability.manage',
+    'catalogue.manage',
+    'clients.view',
+    'journal.manage.all',
+    'journal.manage.own',
+    'journal.view.all',
+    'journal.view.own',
+    'profile.manage',
+  ],
+  reception: [
+    'clients.view',
+    'journal.manage.all',
+    'journal.manage.own',
+    'journal.view.all',
+    'journal.view.own',
+  ],
+  staff: ['journal.manage.own', 'journal.view.own'],
+};
+// Login email → role (code 123456). revoked.staff logs in fine but every
+// /me/provider probe 403s not_a_member — the revoked-mid-session journey.
+const MEMBER_LOGINS = {
+  'awa.manager@equipe.test': 'manager',
+  'fatou.reception@equipe.test': 'reception',
+  'sonia.staff@equipe.test': 'staff',
+  'revoked.staff@equipe.test': 'revoked',
+};
+const MEMBER_EMAILS = {
+  owner: 'salon@example.com',
+  manager: 'awa.manager@equipe.test',
+  reception: 'fatou.reception@equipe.test',
+  staff: 'sonia.staff@equipe.test',
+};
 
 // Pro-side mutable salon (catalogue 7.3a) — its own copy so consumer reads of
 // `provider` stay stable. /me/provider returns this.
@@ -537,6 +602,20 @@ createServer(async (req, res) => {
     if (invited) {
       return json(res, 202, { invitations: [seededInvitationFor()] });
     }
+    // Team access R5b: member logins carry ROLE tokens.
+    const memberRole = MEMBER_LOGINS[b.email];
+    if (memberRole) {
+      return json(res, 200, {
+        provider: {
+          id: `acc-${memberRole}`,
+          businessName: 'Beauté Divine',
+          providerId: 'p1',
+        },
+        accessToken: `pro-${memberRole}-access`,
+        refreshToken: `pro-${memberRole}-refresh`,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      });
+    }
     return json(res, 200, {
       provider: { id: 'acc1', businessName: 'Beauté Divine', providerId: 'p1' },
       accessToken: 'stub-pro-access',
@@ -577,6 +656,18 @@ createServer(async (req, res) => {
   const journalM = url.pathname.match(/^\/providers\/([^/]+)\/journal$/);
   if (journalM) {
     const date = url.searchParams.get('date') || todayAt9.slice(0, 10);
+    // Team access R5b: own-scope (staff) gets ONLY their artist's column +
+    // their own rows — mirrors journal_service.dart's journalScope filter.
+    if (roleOf(req) === 'staff') {
+      return json(res, 200, {
+        date,
+        hours: { open: '09:00', close: '18:00', breaks: [{ start: '12:30', end: '13:30' }] },
+        artists: [{ id: 'artist-a', name: 'Awa', imageUrl: null }],
+        appointments: [
+          { ...proAppt('pstaff1'), appointmentDate: `${date}T11:00:00.000Z` },
+        ],
+      });
+    }
     return json(res, 200, {
       date,
       hours: { open: '09:00', close: '18:00', breaks: [{ start: '12:30', end: '13:30' }] },
@@ -724,36 +815,32 @@ createServer(async (req, res) => {
       res.writeHead(204);
       return res.end();
     }
+    const role = roleOf(req);
+    // Team access R5b: a REVOKED member's probe → the distinct 403 that
+    // drives the web sign-out (+ ?motif=acces-retire banner).
+    if (role === 'revoked') {
+      return json(res, 403, { error: 'not_a_member' });
+    }
     return json(res, 200, {
       account: {
-        id: 'acc1',
+        id: role === 'owner' ? 'acc1' : `acc-${role}`,
         businessName: 'Beauté Divine',
         businessType: 'other',
         phoneNumber: '+2250700000000',
+        email: MEMBER_EMAILS[role],
         // The salon session is VERIFIED (T52 flows: acompte editor enabled);
         // the /me/kyc page reads kycState separately (its own e2e).
         verificationStatus: 'verified',
         providerId: 'p1',
       },
       provider: proProvider,
-      // Access R4a: the caller's membership (the stub session is the owner).
+      // Access R4a: the caller's role-shaped membership.
       membership: {
-        role: 'owner',
-        capabilities: [
-          'availability.manage',
-          'catalogue.manage',
-          'clients.view',
-          'deposit.manage',
-          'finances.view',
-          'journal.manage.all',
-          'journal.manage.own',
-          'journal.view.all',
-          'journal.view.own',
-          'members.manage',
-          'profile.manage',
-          'salon.publish',
-          'subscription.manage',
-        ],
+        role,
+        capabilities: ROLE_CAPS[role],
+        ...(role === 'staff'
+          ? { artistId: 'artist-a', artistName: 'Awa' }
+          : {}),
       },
     });
   }
@@ -943,8 +1030,21 @@ createServer(async (req, res) => {
     }
     return json(res, 404, { error: 'not_found' });
   }
-  // tableau de bord (7.3d) — server-computed stats.
+  // tableau de bord (7.3d) — server-computed stats. Team access R5b: staff
+  // (own-scope) → 403; manager/réception → counts WITHOUT the revenue keys
+  // (finances.view field-gating); owner → full.
   if (url.pathname.match(/^\/providers\/[^/]+\/dashboard$/)) {
+    const role = roleOf(req);
+    if (role === 'staff' || role === 'revoked') {
+      return json(res, 403, { error: 'forbidden' });
+    }
+    if (role !== 'owner') {
+      return json(res, 200, {
+        todayAppointments: 1,
+        pendingRequests: 1,
+        totalAppointments: 1,
+      });
+    }
     return json(res, 200, {
       todayAppointments: 1,
       pendingRequests: 1,
@@ -1137,9 +1237,14 @@ createServer(async (req, res) => {
           balanceDue: 15000 - deposit,
         });
       }
-      // Provider list (M7) vs consumer list (M6), split by token.
+      // Provider list (M7) vs consumer list (M6), split by token. Team
+      // access R5b: staff (own-scope) sees only THEIR artist's rows —
+      // pstaff1 stays OUT of the owner list so the pre-R5b count
+      // assertions hold.
       const items = isPro(req)
-        ? [proAppt('pappt1')]
+        ? roleOf(req) === 'staff'
+          ? [proAppt('pstaff1')]
+          : [proAppt('pappt1')]
         : [
             consumerAppt('appt1'),
             consumerAppt('appt2'),
@@ -1174,6 +1279,15 @@ createServer(async (req, res) => {
     if (sub === 'deposit-screenshot') {
       return json(res, 200, { url: 'https://example.test/justificatif.jpg' });
     }
+    // Team access R5b (T40): staff may only complete/no-show THEIR OWN
+    // bookings; accept/reject/arrive/reschedule are whole-journal acts.
+    const staffCaller = roleOf(req) === 'staff';
+    if (
+      staffCaller &&
+      ['arrive', 'reschedule', 'accept', 'reject'].includes(sub)
+    ) {
+      return json(res, 403, { error: 'forbidden' });
+    }
     if (sub === 'arrive') {
       proArrived[id] = new Date().toISOString();
       return json(res, 200, proAppt(id));
@@ -1187,6 +1301,9 @@ createServer(async (req, res) => {
       return json(res, 200, proAppt(id));
     }
     if (PRO_TRANSITION[sub]) {
+      if (staffCaller && id !== 'pstaff1') {
+        return json(res, 403, { error: 'forbidden' });
+      }
       proStatus[id] = PRO_TRANSITION[sub];
       return json(res, 200, proAppt(id));
     }

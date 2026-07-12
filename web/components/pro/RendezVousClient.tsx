@@ -13,6 +13,7 @@ import {
 } from '../../lib/pro/agenda';
 import { getJournalDay } from '../../lib/api/pro';
 import type { JournalDay } from '../../lib/pro/journal';
+import { hasCap } from '../../lib/pro/team';
 import type { ProAppointment } from '../../lib/pro/today';
 import { JournalGrid } from './JournalGrid';
 import { ManualBookingDialog } from './ManualBookingDialog';
@@ -95,11 +96,19 @@ export function RendezVousClient() {
   const dayList = appointmentsOnDate(items, selected);
   const list = filterList(items, listTab);
 
+  // Team access R5b: own-scope roles (Collaborateur) get a read-only,
+  // server-filtered planning — no creation, no drag.
+  const canManageAll = hasCap(profile?.membership, 'journal.manage.all');
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-s">
-        <h1 className="text-2xl font-semibold text-textPrimary">Rendez-vous</h1>
-        {profile ? (
+        <h1 className="text-2xl font-semibold text-textPrimary">
+          {canManageAll
+            ? 'Rendez-vous'
+            : `${profile?.provider.name ?? ''} — votre planning`}
+        </h1>
+        {profile && canManageAll ? (
           <button
             type="button"
             onClick={() => setCreating(true)}
@@ -186,6 +195,7 @@ export function RendezVousClient() {
                   ),
                 }}
                 profile={profile}
+                readOnly={!canManageAll}
                 onChanged={loadJournal}
                 onToast={setToast}
               />

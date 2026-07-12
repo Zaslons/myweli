@@ -14,7 +14,11 @@ import {
   proDepositScreenshotUrl,
 } from '../../lib/api/pro';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
-import { type LifecycleAction, actionsFor } from '../../lib/pro/lifecycle';
+import {
+  type LifecycleAction,
+  actionsForMembership,
+} from '../../lib/pro/lifecycle';
+import { hasCap } from '../../lib/pro/team';
 import { rescheduleAppointment } from '../../lib/api/pro';
 import type { ProAppointment } from '../../lib/pro/today';
 import { Button } from '../Button';
@@ -109,7 +113,12 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     profile?.provider.services?.find((s) => s.id === sid)?.name;
   const services =
     (appt.serviceIds ?? []).map(serviceName).filter(Boolean).join(', ') || '—';
-  const actions = actionsFor(appt.status);
+  // Team access R5b: the role-shaped action set (staff = Terminé/Absent on
+  // their own confirmed bookings; the server enforces T40 regardless).
+  const membership = profile?.membership;
+  const actions = actionsForMembership(appt.status, membership);
+  const canManageAll = hasCap(membership, 'journal.manage.all');
+  const canViewClients = hasCap(membership, 'clients.view');
 
   return (
     <div>
@@ -135,7 +144,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
               </span>
             ) : null}
-            {appt.salonClientId ? (
+            {appt.salonClientId && canViewClients ? (
               <Link
                 href={`/pro/clients/${appt.salonClientId}`}
                 className="text-xs font-normal text-textTertiary underline"
@@ -234,6 +243,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             }).format(new Date(appt.arrivedAt))}
           </p>
         ) : appt.status === 'confirmed' &&
+          canManageAll &&
           appt.appointmentDate.slice(0, 10) ===
             new Date().toISOString().slice(0, 10) ? (
           <div className="mt-m">
@@ -256,7 +266,8 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           </div>
         ) : null}
 
-        {appt.status === 'pending' || appt.status === 'confirmed' ? (
+        {(appt.status === 'pending' || appt.status === 'confirmed') &&
+        canManageAll ? (
           <div className="mt-m border-t border-divider pt-m">
             {!reprog ? (
               <Button

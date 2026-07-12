@@ -13,8 +13,10 @@ import {
   validateProfile,
 } from '../../lib/pro/profile';
 import dynamic from 'next/dynamic';
+import { hasCap } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { CompteDangerSection } from './CompteDangerSection';
+import { TeamRoleChip } from './TeamRoleChip';
 
 // MapLibre is browser-only; the pin picker loads with the page (authed, not
 // an indexed surface — no CWV concern).
@@ -76,6 +78,30 @@ export function ProfilClient() {
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (loadError || !form) {
     return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+  }
+
+  // Team access R5b (amended): members WITHOUT profile.manage get a SLIM
+  // personal view — identity + role + salon + « Supprimer mon compte »
+  // (account-deletion parity for everyone; export stays owner-side).
+  const membership = profile?.membership;
+  if (profile && membership && !hasCap(membership, 'profile.manage')) {
+    return (
+      <div className="max-w-xl">
+        <h1 className="text-2xl font-semibold text-textPrimary">Profil</h1>
+        <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
+          {profile.account.email ? (
+            <p className="break-all text-sm text-textPrimary">
+              {profile.account.email}
+            </p>
+          ) : null}
+          <TeamRoleChip role={membership.role} />
+          <p className="text-sm text-textSecondary">
+            Salon : {profile.provider.name}
+          </p>
+        </section>
+        <CompteDangerSection profile={profile} exportEnabled={false} />
+      </div>
+    );
   }
 
   function set<K extends keyof ProfileForm>(k: K, v: ProfileForm[K]) {

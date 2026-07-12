@@ -12,6 +12,7 @@ import {
   listProAppointments,
 } from '../../lib/api/pro';
 import { formatFcfa } from '../../lib/format';
+import { hasCap } from '../../lib/pro/team';
 import {
   type ProAppointment,
   todayCounts,
@@ -49,12 +50,21 @@ export function AujourdhuiClient() {
       setProfile(me.profile ?? null);
       setItems(appts.items);
       setLoading(false);
-      // Revenue stats are best-effort — don't block the bookings list.
+      // Secondary fetches are capability-gated (team access R5b): the server
+      // would 403/field-gate them anyway — skipping is the honest UI.
       if (me.profile) {
-        const dash = await getDashboard(me.profile.provider.id);
-        if (active && dash.status === 200) setStats(dash.stats ?? null);
-        // A draft salon needs a live offer to publish (team access R5a).
-        if (me.profile.provider.status === 'draft') {
+        const m = me.profile.membership;
+        if (hasCap(m, 'journal.view.all')) {
+          // Revenue stats are best-effort — don't block the bookings list.
+          const dash = await getDashboard(me.profile.provider.id);
+          if (active && dash.status === 200) setStats(dash.stats ?? null);
+        }
+        // A draft salon needs a live offer to publish (team access R5a) —
+        // owner-only concern (salon.publish).
+        if (
+          me.profile.provider.status === 'draft' &&
+          hasCap(m, 'salon.publish')
+        ) {
           const sub = await getSalonSubscription(me.profile.provider.id);
           if (active && sub.status === 200 && sub.offer) {
             setOfferLive(
@@ -79,6 +89,45 @@ export function AujourdhuiClient() {
   const serviceName = (id: string) =>
     profile?.provider.services?.find((s) => s.id === id)?.name;
 
+  // Team access R5b: the role shape. A Collaborateur gets « votre planning »
+  // (own rows, server-filtered) — no stats, no owner cards.
+  const m = profile?.membership;
+  const staffView = !hasCap(m, 'journal.view.all');
+  const salonName = profile?.provider.name ?? '';
+
+  if (staffView) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-textPrimary">
+          {salonName} — votre planning
+        </h1>
+
+        {/* Pending invitations for THIS account (if any). */}
+        <ProInvitationsCard />
+
+        <h2 className="mt-l text-lg font-semibold text-textPrimary">
+          Rendez-vous du jour
+        </h2>
+        <div className="mt-m space-y-s">
+          {today.length === 0 ? (
+            <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
+              Aucun rendez-vous aujourd’hui.
+            </p>
+          ) : (
+            today.map((a) => (
+              <ProAppointmentRow
+                key={a.id}
+                appt={a}
+                serviceName={serviceName}
+                href={`/pro/rendez-vous/${a.id}`}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-textPrimary">Aujourd’hui</h1>
@@ -87,8 +136,9 @@ export function AujourdhuiClient() {
       {/* Team access R5a: pending invitations for THIS account (if any). */}
       <ProInvitationsCard />
 
-      {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2). */}
-      {profile?.provider.status === 'draft' ? (
+      {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2) —
+          publishing is the owner's act (salon.publish). */}
+      {profile?.provider.status === 'draft' && hasCap(m, 'salon.publish') ? (
         <GoLiveCard
           profile={profile}
           offerLive={offerLive}
@@ -108,13 +158,15 @@ export function AujourdhuiClient() {
         </p>
       ) : null}
 
-      <Link
-        href="/pro/profil"
-        className="mt-m flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
-      >
-        <span>Configurer mon profil</span>
-        <span className="text-textTertiary">›</span>
-      </Link>
+      {hasCap(m, 'profile.manage') ? (
+        <Link
+          href="/pro/profil"
+          className="mt-m flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+        >
+          <span>Configurer mon profil</span>
+          <span className="text-textTertiary">›</span>
+        </Link>
+      ) : null}
 
       {profile?.provider.status === 'active' && profile.provider.slug ? (
         <Link
@@ -132,20 +184,24 @@ export function AujourdhuiClient() {
         <Stat label="Total du jour" value={counts.total} />
       </div>
 
-      <div className="mt-m grid grid-cols-3 gap-m">
-        <Stat
-          label="Revenus aujourd’hui"
-          value={stats ? formatFcfa(stats.todayRevenue ?? 0) : '—'}
-        />
-        <Stat
-          label="Revenus cette semaine"
-          value={stats ? formatFcfa(stats.weekRevenue ?? 0) : '—'}
-        />
-        <Stat
-          label="Revenus ce mois"
-          value={stats ? formatFcfa(stats.monthRevenue ?? 0) : '—'}
-        />
-      </div>
+      {/* The money row needs finances.view — the server drops the revenue
+          fields for other roles, so rendering it would show a lying 0 F. */}
+      {hasCap(m, 'finances.view') ? (
+        <div className="mt-m grid grid-cols-3 gap-m">
+          <Stat
+            label="Revenus aujourd’hui"
+            value={stats ? formatFcfa(stats.todayRevenue ?? 0) : '—'}
+          />
+          <Stat
+            label="Revenus cette semaine"
+            value={stats ? formatFcfa(stats.weekRevenue ?? 0) : '—'}
+          />
+          <Stat
+            label="Revenus ce mois"
+            value={stats ? formatFcfa(stats.monthRevenue ?? 0) : '—'}
+          />
+        </div>
+      ) : null}
 
       <h2 className="mt-l text-lg font-semibold text-textPrimary">
         Rendez-vous du jour

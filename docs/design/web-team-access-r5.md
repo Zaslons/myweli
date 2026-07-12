@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | R5a Built (2026-07-12) — R5b next |
+| **Status** | Built — R5a + R5b (2026-07-12) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-07-12 |
 | **PRD ref / phase** | Module `access` §5.4 (web parity) · pre-launch |

@@ -35,17 +35,20 @@ const COL_MIN_W = 168;
 /// The journal day grid (module journal J1 — docs/design/journal-j1-grid.md
 /// §3): artist columns, 15-min axis, now-line, drag-reschedule (optimistic,
 /// 409 snap-back), click-panel + quick-create. `providerId` owns the data;
-/// the backend enforces it.
+/// the backend enforces it. `readOnly` (team access R5b, own-scope roles):
+/// no drag, no quick-create — blocks still open the panel.
 export function JournalGrid({
   providerId,
   day,
   profile,
+  readOnly = false,
   onChanged,
   onToast,
 }: {
   providerId: string;
   day: JournalDay;
   profile: ProProfile;
+  readOnly?: boolean;
   onChanged: () => void;
   onToast: (msg: string) => void;
 }) {
@@ -133,6 +136,7 @@ export function JournalGrid({
               height={height}
               hours={hours}
               nowTop={nowTop}
+              readOnly={readOnly}
               onSelect={setSelected}
               onDrop={drop}
               onEmptyClick={(minute) =>
@@ -148,6 +152,7 @@ export function JournalGrid({
         <JournalPanel
           providerId={providerId}
           appt={selected}
+          membership={profile.membership}
           serviceName={(id) =>
             profile.provider.services?.find((s) => s.id === id)?.name
           }
@@ -185,6 +190,7 @@ function JournalColumn({
   height,
   hours,
   nowTop,
+  readOnly,
   onSelect,
   onDrop,
   onEmptyClick,
@@ -196,6 +202,7 @@ function JournalColumn({
   height: number;
   hours: JournalHours;
   nowTop: number | null;
+  readOnly: boolean;
   onSelect: (a: ProAppointment) => void;
   onDrop: (a: ProAppointment, artistId: string, minute: number) => void;
   onEmptyClick: (minute: number) => void;
@@ -220,30 +227,42 @@ function JournalColumn({
         {artist.name}
       </div>
 
-      {/* click-to-create surface + break bands */}
-      <button
-        type="button"
-        ref={colRef}
-        aria-label={`Créer un rendez-vous — ${artist.name}`}
-        className="absolute inset-x-0 cursor-copy"
-        style={{ top: 32, height }}
-        onClick={(e) => onEmptyClick(minuteAt(e.clientY))}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          const id = e.dataTransfer.getData('text/appt');
-          const appt = appts.find((a) => a.id === id) ?? draggingAppt;
-          if (appt) onDrop(appt, artist.id, minuteAt(e.clientY));
-        }}
-      >
-        {breakBands(hours).map((b, i) => (
-          <div
-            key={i}
-            className="absolute inset-x-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(0,0,0,0.04)_6px,rgba(0,0,0,0.04)_12px)]"
-            style={{ top: b.top, height: b.height }}
-          />
-        ))}
-      </button>
+      {/* click-to-create surface + break bands (inert when readOnly) */}
+      {readOnly ? (
+        <div className="absolute inset-x-0" style={{ top: 32, height }}>
+          {breakBands(hours).map((b, i) => (
+            <div
+              key={i}
+              className="absolute inset-x-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(0,0,0,0.04)_6px,rgba(0,0,0,0.04)_12px)]"
+              style={{ top: b.top, height: b.height }}
+            />
+          ))}
+        </div>
+      ) : (
+        <button
+          type="button"
+          ref={colRef}
+          aria-label={`Créer un rendez-vous — ${artist.name}`}
+          className="absolute inset-x-0 cursor-copy"
+          style={{ top: 32, height }}
+          onClick={(e) => onEmptyClick(minuteAt(e.clientY))}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text/appt');
+            const appt = appts.find((a) => a.id === id) ?? draggingAppt;
+            if (appt) onDrop(appt, artist.id, minuteAt(e.clientY));
+          }}
+        >
+          {breakBands(hours).map((b, i) => (
+            <div
+              key={i}
+              className="absolute inset-x-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(0,0,0,0.04)_6px,rgba(0,0,0,0.04)_12px)]"
+              style={{ top: b.top, height: b.height }}
+            />
+          ))}
+        </button>
+      )}
 
       {/* now line */}
       {nowTop !== null ? (
@@ -256,7 +275,7 @@ function JournalColumn({
       {/* blocks */}
       {appts.map((a) => {
         const box = blockBox(a, openMin);
-        const draggable = isDraggable(a);
+        const draggable = !readOnly && isDraggable(a);
         return (
           <button
             key={a.id}
