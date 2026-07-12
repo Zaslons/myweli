@@ -8,7 +8,8 @@ import 'package:myweli_backend/src/responses.dart';
 
 /// The salon's team (module `access` R2b — docs/design/
 /// team-access-r2b-invitations.md). Owner-only (`members.manage`, T36);
-/// the salon resolves from the CALLER's membership, never a client id.
+/// the salon DEFAULTS from the caller's membership; R6: `?salonId=` selects
+/// among the caller's ACTIVE memberships (invalid → uniform 403, T55).
 ///
 /// `GET /me/provider/members` — the member list, owner first, pending
 /// invitations included (with artist names + expiry flags).
@@ -24,8 +25,11 @@ Future<Response> onRequest(RequestContext context) async {
   if (principal.role != 'provider') {
     return jsonError(HttpStatus.forbidden, 'forbidden');
   }
-  final providerId = await context.read<MembershipService>().activeSalonFor(
+  // R6: the salon defaults from the caller's membership; an explicit
+  // `?salonId=` is honored only against an ACTIVE membership (T55).
+  final providerId = await context.read<MembershipService>().salonForRequest(
     principal.userId,
+    salonId: context.request.uri.queryParameters['salonId'],
   );
   if (providerId == null) {
     return jsonError(HttpStatus.forbidden, 'forbidden');

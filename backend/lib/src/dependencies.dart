@@ -4,6 +4,7 @@ import 'package:postgres/postgres.dart';
 
 import 'access/membership_repository.dart';
 import 'access/membership_service.dart';
+import 'access/salon_directory_service.dart';
 import 'access/team_service.dart';
 import 'admin/admin_auth_repository.dart';
 import 'admin/admin_kyc_service.dart';
@@ -386,6 +387,15 @@ final SalonSubscriptionService salonSubscriptionService =
       providerAuthRepository,
     );
 
+/// R6 — « Mes salons »: the multi-salon directory + « Ajouter un salon ».
+final SalonDirectoryService salonDirectoryService = SalonDirectoryService(
+  membershipRepository,
+  membershipService,
+  providersRepository,
+  salonSubscriptionService,
+  providerAuthRepository,
+);
+
 final bool subscriptionEnforcement =
     (_envOrNull('SUBSCRIPTION_ENFORCEMENT') ?? 'off').toLowerCase() == 'on';
 
@@ -436,6 +446,7 @@ final AdminKycService adminKycService = AdminKycService(
   storageService,
   auditLogRepository,
   providersRepository,
+  membershipRepository,
 );
 
 final ModerationService moderationService = ModerationService(

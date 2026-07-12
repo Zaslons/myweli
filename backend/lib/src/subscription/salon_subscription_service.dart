@@ -134,9 +134,17 @@ class SalonSubscriptionService {
   /// The legacy `/me/subscription` bridge — keeps the app/web/e2e-stub
   /// contract (`tier: free|pro`) intact while the real model lives on the
   /// salon. Falls back to the old account-age derivation when the account
-  /// has no salon or the salon has no offer yet.
-  Future<Subscription> legacySubscriptionFor(String accountId) async {
-    final providerId = await _memberService.activeSalonFor(accountId);
+  /// has no salon or the salon has no offer yet. R6: an explicit [salonId]
+  /// must match an ACTIVE membership — invalid → null (the route 403s).
+  Future<Subscription?> legacySubscriptionFor(
+    String accountId, {
+    String? salonId,
+  }) async {
+    final providerId = await _memberService.salonForRequest(
+      accountId,
+      salonId: salonId,
+    );
+    if (providerId == null && (salonId?.isNotEmpty ?? false)) return null;
     if (providerId != null) {
       final row = await _subscriptions.byProvider(providerId);
       if (row != null) {

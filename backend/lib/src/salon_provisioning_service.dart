@@ -23,6 +23,17 @@ class SalonProvisioningService {
   /// Nullable only for legacy unit tests; production wiring always passes it.
   final SalonSubscriptionService? _subscriptions;
 
+  /// The registration/add-salon business-type enum — ONE source of truth
+  /// (register.dart + SalonDirectoryService.addSalon validate against it).
+  static const Set<String> businessTypes = {
+    'salon',
+    'barber',
+    'spa',
+    'nailSalon',
+    'massage',
+    'other',
+  };
+
   /// `businessType` → public listing category (the seed taxonomy).
   static String categoryFor(String businessType) => switch (businessType) {
     'barber' => 'barber',

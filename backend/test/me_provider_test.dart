@@ -362,5 +362,133 @@ void main() {
       );
       expect(res.statusCode, HttpStatus.methodNotAllowed);
     });
+
+    // ---- R6: the explicit ?salonId= selection ---------------------------
+
+    Request reqSalon(String salonId, {String? token}) => Request(
+      'GET',
+      Uri.parse('http://localhost/me/provider?salonId=$salonId'),
+      headers: token == null ? null : {'Authorization': 'Bearer $token'},
+    );
+
+    test('R6: an owner of TWO salons selects the second explicitly', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: 'p1'));
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: 'acc1',
+        email: 'owner@x.pro',
+      );
+      when(
+        () => providers.byId('p2'),
+      ).thenAnswer((_) async => {'id': 'p2', 'name': 'Salon Deux'});
+
+      final res = await me_provider.onRequest(
+        ctx(reqSalon('p2', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      final m = await res.json() as Map;
+      expect((m['provider'] as Map)['id'], 'p2');
+      expect((m['membership'] as Map)['role'], 'owner');
+    });
+
+    test('R6: a member selects the salon they manage → their role '
+        'shape there', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: null));
+      final invited = await memberships.invite(
+        providerId: 'p3',
+        email: 'mgr@test.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(invited.id, 'acc1');
+      when(
+        () => providers.byId('p3'),
+      ).thenAnswer((_) async => {'id': 'p3', 'name': 'Salon Trois'});
+
+      final res = await me_provider.onRequest(
+        ctx(reqSalon('p3', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      expect(
+        ((await res.json() as Map)['membership'] as Map)['role'],
+        'manager',
+      );
+    });
+
+    test('R6: a NEVER-member salonId → a uniform 403 forbidden (T55), '
+        'and no provisioning', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: 'p1'));
+
+      final res = await me_provider.onRequest(
+        ctx(reqSalon('p_other', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      final body = await res.json() as Map;
+      expect(body['error'], 'forbidden');
+      verifyNever(
+        () => providers.createSalon(
+          name: any(named: 'name'),
+          category: any(named: 'category'),
+          phoneNumber: any(named: 'phoneNumber'),
+          address: any(named: 'address'),
+        ),
+      );
+    });
+
+    test('R6: REVOKED-in-the-selected-salon → 403 forbidden, asserted NOT '
+        'not_a_member (a per-salon denial never signs out the '
+        'session)', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: null));
+      final invited = await memberships.invite(
+        providerId: 'p4',
+        email: 'rev@test.pro',
+        role: 'staff',
+        artistId: 'a1',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(invited.id, 'acc1');
+      await memberships.revokeAllForAccount('acc1');
+
+      final res = await me_provider.onRequest(
+        ctx(reqSalon('p4', token: tok('acc1', 'provider'))),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await res.json() as Map)['error'], 'forbidden');
+    });
+
+    test('R6: DELETE ignores salonId (account-level)', () async {
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account(providerId: 'p1'));
+      when(
+        () => providers.byId('p1'),
+      ).thenAnswer((_) async => {'id': 'p1', 'name': 'Salon Awa'});
+      when(
+        () => appointments.listForProvider('p1'),
+      ).thenAnswer((_) async => []);
+      when(
+        () => providers.setStatus('p1', 'draft'),
+      ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      when(() => auth.deleteAccount('acc1')).thenAnswer((_) async => true);
+
+      final res = await me_provider.onRequest(
+        ctx(
+          Request(
+            'DELETE',
+            Uri.parse('http://localhost/me/provider?salonId=p_ignored'),
+            headers: {'Authorization': 'Bearer ${tok('acc1', 'provider')}'},
+          ),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.noContent);
+    });
   });
 }

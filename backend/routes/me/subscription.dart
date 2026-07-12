@@ -27,8 +27,13 @@ Future<Response> onRequest(RequestContext context) async {
   );
   if (account == null) return jsonError(HttpStatus.notFound, 'not_found');
 
+  // R6: `?salonId=` selects among the caller's ACTIVE memberships (T55).
+  final selected = context.request.uri.queryParameters['salonId'] ?? '';
   final sub = await context
       .read<SalonSubscriptionService>()
-      .legacySubscriptionFor(principal.userId);
+      .legacySubscriptionFor(principal.userId, salonId: selected);
+  if (sub == null) {
+    return jsonError(HttpStatus.forbidden, 'forbidden');
+  }
   return Response.json(body: sub.toJson());
 }

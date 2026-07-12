@@ -40,7 +40,12 @@ Future<Response> onRequest(RequestContext context, String id) async {
     // Module `access` R1: the acting salon comes from the membership layer;
     // the lifecycle service re-checks it against the appointment.
     final members = context.read<MembershipService>();
-    final managedProviderId = await members.activeSalonFor(principal.userId);
+    // R6: `?salonId=` selects among the caller's ACTIVE memberships (T55);
+    // the lifecycle service still cross-checks the appointment's salon.
+    final managedProviderId = await members.salonForRequest(
+      principal.userId,
+      salonId: context.request.uri.queryParameters['salonId'],
+    );
     if (managedProviderId == null ||
         !await members.can(
           principal.userId,

@@ -773,4 +773,90 @@ void main() {
       },
     );
   });
+
+  group('R6 — ?salonId= on the members family', () {
+    /// The owner also owns p2 (owner row + its own live offer).
+    Future<void> ownP2() async {
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: ownerId,
+        email: 'owner@x.pro',
+      );
+      await subscriptions.chooseOffer(ownerId, 'p2', 'pro');
+    }
+
+    test('the roster and invites follow the SELECTED salon (and its '
+        'seats)', () async {
+      await ownP2();
+      // Invite into p2 explicitly; p1's roster must not grow.
+      final inviteRes = await members.onRequest(
+        ctx(
+          req(
+            'POST',
+            '/me/provider/members?salonId=p2',
+            token: tok(ownerId),
+            body: {'email': 'deux@x.pro', 'role': 'reception'},
+          ),
+        ),
+      );
+      expect(inviteRes.statusCode, HttpStatus.created);
+      expect((await inviteRes.json() as Map)['providerId'], 'p2');
+
+      final p2List = await members.onRequest(
+        ctx(req('GET', '/me/provider/members?salonId=p2', token: tok(ownerId))),
+      );
+      final p2Items = (await p2List.json() as Map)['items'] as List;
+      expect(p2Items.map((m) => (m as Map)['email']), contains('deux@x.pro'));
+
+      final p1List = await members.onRequest(
+        ctx(req('GET', '/me/provider/members', token: tok(ownerId))),
+      );
+      final p1Items = (await p1List.json() as Map)['items'] as List;
+      expect(
+        p1Items.map((m) => (m as Map)['email']),
+        isNot(contains('deux@x.pro')),
+      );
+    });
+
+    test('a forged salonId → a uniform 403 forbidden (T55)', () async {
+      final res = await members.onRequest(
+        ctx(req('GET', '/me/provider/members?salonId=p2', token: tok(ownerId))),
+      );
+      // ownerId holds no membership in p2 (no ownP2 here).
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await res.json() as Map)['error'], 'forbidden');
+    });
+
+    test('a MEMBER without members.manage in the selected salon → 403 '
+        '(the capability gate still runs downstream)', () async {
+      // An active member of p1 selects p1 explicitly: the selection passes
+      // (active membership) but the team read stays owner-only.
+      final memberId = await activeMember('rec@x.pro');
+      final res = await members.onRequest(
+        ctx(
+          req('GET', '/me/provider/members?salonId=p1', token: tok(memberId)),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+    });
+
+    test('PATCH a salon-A member with ?salonId=B stays denied (the '
+        'ownership cross-check)', () async {
+      await ownP2();
+      final aMemberId = await invited('cross@x.pro');
+      final res = await member_item.onRequest(
+        ctx(
+          req(
+            'PATCH',
+            '/me/provider/members/$aMemberId?salonId=p2',
+            token: tok(ownerId),
+            body: {'role': 'reception'},
+          ),
+        ),
+        aMemberId,
+      );
+      // The member row lives in p1; acting in p2 must not reach it.
+      expect(res.statusCode, HttpStatus.notFound);
+    });
+  });
 }

@@ -38,6 +38,8 @@ Future<Response> onRequest(RequestContext context) async {
     principal.userId,
     contentType: body['contentType'],
     purpose: body['purpose'],
+    // R6: gallery uploads may target a selected salon (T55).
+    salonId: context.request.uri.queryParameters['salonId'],
   );
   return resultResponse(ok: r.ok, error: r.error, body: r.data);
 }

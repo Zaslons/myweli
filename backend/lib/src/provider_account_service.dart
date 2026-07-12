@@ -33,11 +33,18 @@ class ProviderAccountService {
     final account = await _auth.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden');
 
-    final providerId = account.providerId;
-    if (providerId != null) {
-      // The salon settles its agenda first — no surprise mass-cancellations.
+    // R6 (T53): every salon the account OWNS — the scalar link plus active
+    // owner membership rows. Member-only salons are never touched.
+    final owned = <String>{
+      if (account.providerId != null) account.providerId!,
+      for (final m in await _memberships.listForAccount(accountId))
+        if (m.role == 'owner' && m.status == 'active') m.providerId,
+    };
+    // Every owned salon settles its agenda first — no surprise
+    // mass-cancellations anywhere in the fleet.
+    final now = DateTime.now().toUtc();
+    for (final providerId in owned) {
       final open = await _appointments.listForProvider(providerId);
-      final now = DateTime.now().toUtc();
       final hasFuture = open.any((a) {
         final status = a['status'] as String?;
         if (status != 'pending' && status != 'confirmed') return false;
@@ -45,9 +52,10 @@ class ProviderAccountService {
         return date != null && date.isAfter(now);
       });
       if (hasFuture) return (ok: false, error: 'future_bookings');
-
-      // Unpublish, don't destroy: T51 hides drafts everywhere while bookings,
-      // reviews and the CRM keep resolving (business history ≠ identity).
+    }
+    // Unpublish, don't destroy: T51 hides drafts everywhere while bookings,
+    // reviews and the CRM keep resolving (business history ≠ identity).
+    for (final providerId in owned) {
       await _providers.setStatus(providerId, 'draft');
     }
 

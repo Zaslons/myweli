@@ -44,6 +44,7 @@ class UploadSigningService {
     String accountId, {
     required Object? contentType,
     required Object? purpose,
+    String? salonId,
   }) async {
     final isKyc = purpose == 'kyc';
     final isDeposit = purpose == 'deposit';
@@ -79,9 +80,13 @@ class UploadSigningService {
       prefixId = accountId;
       bucket = StorageBucket.kyc;
     } else {
-      // Module `access` R1: gallery uploads need catalogue.manage inside the
-      // caller's acting salon (R6 adds an explicit salon selection).
-      final providerId = await _members.activeSalonFor(accountId);
+      // Module `access` R1: gallery uploads need catalogue.manage inside
+      // the caller's acting salon; R6: `?salonId=` selects among ACTIVE
+      // memberships (T55).
+      final providerId = await _members.salonForRequest(
+        accountId,
+        salonId: salonId,
+      );
       if (providerId == null ||
           !await _members.can(accountId, providerId, Cap.catalogueManage)) {
         return (ok: false, error: 'forbidden', data: null);

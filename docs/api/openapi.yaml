@@ -328,14 +328,18 @@ paths:
       tags: [auth]
       summary: The signed-in provider's account + acting salon + membership (web M7 · access R4a)
       description: >-
-        Provider-only; the salon is resolved server-side from the account
-        (owner) or the active membership (team member) — never a client id.
-        The response carries the caller's MEMBERSHIP (role + server-computed
-        capabilities + the staff artist link) so clients shape by role.
-        Non-provider or unlinked account → 403 `forbidden`; a REVOKED member
-        (memberships exist, none active) → 403 `not_a_member` — the
-        revoked-mid-session signal.
+        Provider-only; the salon DEFAULTS server-side from the account
+        (owner) or the active membership (team member). R6: `?salonId=`
+        selects among the caller's ACTIVE memberships — invalid → uniform
+        403 `forbidden` (T55). The response carries the caller's MEMBERSHIP
+        (role + server-computed capabilities + the staff artist link) so
+        clients shape by role. Non-provider or unlinked account → 403
+        `forbidden`; a REVOKED member on the NO-PARAM path (memberships
+        exist, none active) → 403 `not_a_member` — the revoked-mid-session
+        signal (a per-salon denial never signs out the whole session).
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: The provider account + its salon + the caller's membership
@@ -362,10 +366,12 @@ paths:
       tags: [auth]
       summary: Delete the provider ACCOUNT (audit 11.5 — AUTH-004 for pros)
       description: >
-        Self-scoped and irreversible. Future pending/confirmed bookings block
-        the deletion (409 `future_bookings` — settle the agenda first). The
-        SALON listing is unpublished (`status → draft`, hidden from every
-        public surface by T51) while bookings/reviews/CRM keep resolving; the
+        Self-scoped and irreversible. Future pending/confirmed bookings in
+        ANY owned salon block the deletion (409 `future_bookings` — settle
+        every agenda first; R6). EVERY salon the account owns is unpublished
+        (`status → draft`, hidden from every public surface by T51) while
+        bookings/reviews/CRM keep resolving; member-only salons are
+        untouched; the
         account row, its KYC documents (rows AND the private storage
         objects), OTP state and every refresh token are erased — all
         sessions die. Threat T53.
@@ -384,10 +390,13 @@ paths:
       tags: [team]
       summary: The salon's team — members + pending invitations (access R2b)
       description: >
-        Owner-only (`members.manage`, threat T36); the salon resolves from
-        the CALLER's membership, never a client id. Owner first; invited rows
+        Owner-only (`members.manage`, threat T36); the salon DEFAULTS from
+        the caller's membership — R6: `?salonId=` selects among ACTIVE
+        memberships (invalid → uniform 403, T55). Owner first; invited rows
         carry `expiresAt`/`resendsLeft` and an `expired` flag.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: The member list
@@ -412,8 +421,10 @@ paths:
         pending), `offer_required` (no live offer — R2a pricing pivot),
         `seat_limit` (offer seats full). 429 `invite_rate_limited`
         (per-salon daily cap, threat T37). Sends the branded invitation
-        email (7-day validity).
+        email (7-day validity). R6: `?salonId=` selects the salon.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       requestBody:
         required: true
         content:
@@ -447,6 +458,7 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: memberId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
       requestBody:
         required: true
         content:
@@ -479,6 +491,7 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: memberId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: Revoked member row
@@ -499,6 +512,7 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: memberId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: Refreshed invitation row
@@ -736,14 +750,96 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /me/salons:
+    get:
+      tags: [team]
+      summary: "« Mes salons » — every ACTIVE membership + the add-salon gate (access R6)"
+      description: >
+        Provider-only. Every salon the caller holds an ACTIVE membership in
+        (owned first, then salonName), each with the caller's role there and
+        the salon's status/badge — the switcher payload. `canAddSalon` is
+        SERVER-computed (≥1 owned salon on a live Réseau offer, under the
+        salon cap — clients never derive rights). A bare account gets
+        `{items: [], canAddSalon: false}`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The caller's salons + the add gate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, canAddSalon]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SalonMembership' }
+                  canAddSalon: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [team]
+      summary: "« Ajouter un salon » — an additional draft salon (access R6, Réseau-gated)"
+      description: >
+        Provider-only (threat T55). Requires ≥1 OWNED salon with a live
+        (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped
+        at 20 owned salons → 409 `salon_limit`. Creates a DRAFT salon (own
+        setup state — its own offer, its own trial, its own publish gate; no
+        subscription row) plus the owner membership row; the account's
+        default salon link is untouched. The « Vérifié » badge is inherited
+        when the account's KYC is approved (T52). `phoneNumber` defaults to
+        the account's.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [businessName, businessType]
+              properties:
+                businessName: { type: string }
+                businessType:
+                  type: string
+                  enum: [salon, barber, spa, nailSalon, massage, other]
+                phoneNumber: { type: string }
+                address: { type: string }
+      responses:
+        '201':
+          description: The new draft salon's directory entry
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [salon]
+                properties:
+                  salon: { $ref: '#/components/schemas/SalonMembership' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Not a provider (`forbidden`), or no live Réseau offer on any
+            owned salon (`reseau_required`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: The owned-salon cap is reached (`salon_limit`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /me/subscription:
     get:
       tags: [provider]
       summary: LEGACY plan status (compat shape; the real model is per-salon)
       description: >
-        Provider-role, self-scoped. Derived from the account's signup date (no
-        billing state in V1): Pro during the 90-day trial, else Free.
+        Provider-role, self-scoped; derived from the acting salon's offer
+        (fallback: the account-age derivation). R6: `?salonId=` selects
+        among the caller's ACTIVE memberships (invalid → 403 `forbidden`).
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: The caller's subscription status
@@ -1797,6 +1893,8 @@ paths:
     post:
       tags: [uploads]
       summary: Presign a direct-to-storage upload (B-upload, B-kyc)
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       description: >
         Provider-only. Returns a short-lived presigned **multipart POST** to
         object storage (Cloudflare R2). The object key is built server-side from
@@ -2073,7 +2171,8 @@ paths:
         OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access
         R4a) get their own artist's bookings only, with `clientPhone` masked
         off-day. A provider account with no salon and no active membership
-        gets 403.
+        gets 403. R6: a provider `?salonId=` selects among the caller's
+        ACTIVE memberships (invalid → uniform 403, T55).
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query
@@ -2081,6 +2180,7 @@ paths:
           schema:
             type: string
             enum: [pending, confirmed, cancelled, completed, noShow]
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: The caller's appointments (own, or the salon's for a provider)
@@ -2291,13 +2391,15 @@ paths:
       summary: Move an appointment to a new time (B-life; B-pro-resched)
       description: >
         Role-aware: a `user` reschedules their own booking; a `provider`
-        reschedules one of its own salon's bookings (ownership by the account's
-        linked providerId → 403 cross-salon/unlinked). Both re-validate the new
-        slot (→ 409 slot_unavailable for past/closed/taken). Deposit + balance
-        carry over unchanged.
+        reschedules one of its acting salon's bookings (membership-resolved;
+        the service cross-checks the appointment's salon → 403 cross-salon).
+        R6: `?salonId=` selects the acting salon among ACTIVE memberships.
+        Both re-validate the new slot (→ 409 slot_unavailable for
+        past/closed/taken). Deposit + balance carry over unchanged.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
       requestBody:
         required: true
         content:
@@ -3121,6 +3223,19 @@ components:
         refresh via /auth/refresh (rotating opaque refresh token). Applied to
         protected routes (e.g. /me) as those slices land — see docs/BACKEND.md §3.1.
 
+  parameters:
+    SalonSelector:
+      name: salonId
+      in: query
+      required: false
+      schema: { type: string }
+      description: >-
+        R6 multi-salons: select the acting salon among the caller's ACTIVE
+        memberships. Absent → the caller's default salon (legacy behavior).
+        Any invalid selection (never-member, revoked-there, unknown id) is a
+        uniform 403 `forbidden` — no membership-existence oracle (threat
+        T55) — and never auto-provisions.
+
   responses:
     BadRequest:
       description: Invalid input
@@ -3238,6 +3353,21 @@ components:
           description: Sorted capability names, e.g. journal.view.own.
         artistId: { type: string, nullable: true }
         artistName: { type: string, nullable: true }
+
+    SalonMembership:
+      type: object
+      description: >
+        One « Mes salons » entry (module `access` R6): a salon the caller
+        holds an ACTIVE membership in, with their role there and enough
+        salon surface for the switcher (name, status, badge, thumb).
+      required: [salonId, salonName, role, salonStatus, verified]
+      properties:
+        salonId: { type: string }
+        salonName: { type: string }
+        role: { type: string, enum: [owner, manager, reception, staff] }
+        salonStatus: { type: string, enum: [draft, active, suspended] }
+        verified: { type: boolean }
+        imageUrl: { type: string, nullable: true }
 
     TeamMember:
       type: object

@@ -141,4 +141,72 @@ void main() {
     expect(await auth.accountById(id), isNotNull);
     verifyNever(() => providers.setStatus(any(), any()));
   });
+
+  group('R6 — deletion across ALL owned salons (T53)', () {
+    late InMemoryMembershipRepository memberships;
+    late ProviderAccountService service;
+
+    setUp(() {
+      memberships = InMemoryMembershipRepository();
+      service = ProviderAccountService(
+        auth,
+        providers,
+        appointments,
+        const FakeStorageService(),
+        memberships,
+        client: MockClient((req) async => http.Response('', 204)),
+      );
+    });
+
+    test('a future booking in the SECOND owned salon blocks the '
+        'deletion', () async {
+      final id = await registerWithKyc(keys: []);
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: id,
+        email: 'del@test.pro',
+      );
+      final future = DateTime.now()
+          .toUtc()
+          .add(const Duration(days: 2))
+          .toIso8601String();
+      when(
+        () => appointments.listForProvider('p1'),
+      ).thenAnswer((_) async => const []);
+      when(() => appointments.listForProvider('p2')).thenAnswer(
+        (_) async => [
+          {'status': 'confirmed', 'appointmentDate': future},
+        ],
+      );
+
+      final r = await service.deleteAccount(id);
+      expect(r.ok, isFalse);
+      expect(r.error, 'future_bookings');
+      verifyNever(() => providers.setStatus(any(), any()));
+    });
+
+    test('both owned salons unpublish; a member-only salon stays '
+        'untouched', () async {
+      final id = await registerWithKyc(keys: []);
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: id,
+        email: 'del@test.pro',
+      );
+      // A salon where the account is only a manager.
+      final inv = await memberships.invite(
+        providerId: 'p_managed',
+        email: 'del@test.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(inv.id, id);
+
+      final r = await service.deleteAccount(id);
+      expect(r.ok, isTrue);
+      verify(() => providers.setStatus('p1', 'draft')).called(1);
+      verify(() => providers.setStatus('p2', 'draft')).called(1);
+      verifyNever(() => providers.setStatus('p_managed', any()));
+    });
+  });
 }

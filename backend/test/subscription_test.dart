@@ -129,5 +129,22 @@ void main() {
       final res = await route.onRequest(ctx(req('POST', token: tok('prov1'))));
       expect(res.statusCode, HttpStatus.methodNotAllowed);
     });
+
+    test('R6: a forged ?salonId= → 403 forbidden (T55)', () async {
+      when(
+        () => providers.accountById('prov1'),
+      ).thenAnswer((_) async => _account(DateTime.now().toUtc()));
+      final res = await route.onRequest(
+        ctx(
+          Request(
+            'GET',
+            Uri.parse('http://localhost/me/subscription?salonId=p_forged'),
+            headers: {'Authorization': 'Bearer ${tok('prov1')}'},
+          ),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await res.json() as Map)['error'], 'forbidden');
+    });
   });
 }
