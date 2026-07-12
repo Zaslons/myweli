@@ -42,11 +42,11 @@ void main() {
     serviceLocator.proArtistService = MockProArtistService();
     serviceLocator.subscriptionService = MockSubscriptionService(
       initial: SalonSubscription(
-        tier: SalonTier.pro,
+        tier: SalonTier.business,
         status: SalonOfferStatus.trial,
         trialEndsAt: DateTime.now().add(const Duration(days: 60)),
         graceEndsAt: DateTime.now().add(const Duration(days: 67)),
-        seats: const SalonSeats(cap: 5, used: 0),
+        seats: const SalonSeats(cap: 15, used: 0),
       ),
     );
   });
@@ -94,13 +94,16 @@ void main() {
     expect(find.text('jean@salon-excellence.test'), findsOneWidget);
     expect(find.text('Propriétaire'), findsOneWidget);
     expect(find.text('Manager'), findsOneWidget);
-    expect(find.text('Collaborateur'), findsOneWidget);
-    expect(find.text('Réception'), findsOneWidget);
+    // R4b seeds: pending invitee (artist2) + ACTIVE sonia (artist1).
+    expect(find.text('Collaborateur'), findsNWidgets(2));
+    // Expired invite + ACTIVE fatou.
+    expect(find.text('Réception'), findsNWidgets(2));
     expect(find.text('Employé : Kouassi Jean'), findsOneWidget);
+    expect(find.text('Employé : Diallo Amadou'), findsOneWidget);
     expect(find.textContaining('Invitation envoyée'), findsOneWidget);
     expect(find.textContaining('Expirée'), findsOneWidget);
-    // Seats derive live: owner + manager + unexpired staff invite = 3.
-    expect(find.text('3 / 5 places'), findsOneWidget);
+    // Seats derive live: owner + manager + réception + staff + 1 pending = 5.
+    expect(find.text('5 / 15 places'), findsOneWidget);
     expect(find.text('Inviter un membre'), findsOneWidget); // the FAB
   });
 

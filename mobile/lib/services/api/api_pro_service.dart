@@ -9,6 +9,7 @@ import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
 import '../../models/journal_day.dart';
 import '../../models/payment.dart';
+import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_session.dart';
 import '../../models/service.dart';
@@ -255,6 +256,32 @@ class ApiProService implements ProServiceInterface {
   }
 
   // ---- Not yet backed by an endpoint → delegate to the mock ----------------
+
+  @override
+  Future<ApiResponse<MyProviderInfo>> getMyProvider() async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final res = await _authed.send(
+      (t) => _client.get(_uri('/me/provider'), headers: _bearer(t)),
+    );
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final salonMap = body['provider'] as Map<String, dynamic>;
+    final membership = ProMembership.fromJson({
+      ...body['membership'] as Map<String, dynamic>,
+      // Folded in so ONE persisted blob shapes the app offline.
+      'salonId': salonMap['id'],
+      'salonName': salonMap['name'],
+    });
+    return ApiResponse.success(
+      MyProviderInfo(
+        salon: Provider.fromJson(salonMap),
+        membership: membership,
+      ),
+    );
+  }
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
@@ -653,6 +680,8 @@ class ApiProService implements ProServiceInterface {
     switch (code) {
       case 'forbidden':
         return 'Action non autorisée pour ce salon.';
+      case 'not_a_member':
+        return 'Votre accès à ce salon a été retiré.';
       case 'not_found':
         return 'Introuvable.';
       case 'invalid_input':

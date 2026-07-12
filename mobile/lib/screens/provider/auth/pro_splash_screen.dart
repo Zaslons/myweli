@@ -56,7 +56,7 @@ class _ProSplashScreenState extends State<ProSplashScreen>
     if (!mounted) return;
 
     if (authProvider.isAuthenticated) {
-      context.go('/pro/dashboard');
+      context.go(authProvider.isStaff ? '/pro/staff' : '/pro/dashboard');
     } else {
       context.go('/pro/login');
     }

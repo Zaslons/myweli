@@ -27,6 +27,7 @@ import '../../screens/provider/reviews/reviews_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
+import '../../screens/provider/staff/staff_home_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
 import '../../screens/provider/team/pro_invitations_screen.dart';
 import '../../screens/provider/team/team_screen.dart';
@@ -57,6 +58,12 @@ class ProRouter {
       // /pro/verify-otp unrouted — phone-OTP login is dormant at launch
       // (AUTH_METHODS gates the backend; ProOtpVerifyScreen kept for the
       // Termii-era phone VERIFICATION reuse). docs/design/pro-auth-social.md.
+      // The Collaborateur shell (access R4b): Journée · Calendrier · Profil.
+      GoRoute(
+        path: '/pro/staff',
+        name: 'pro-staff',
+        builder: (context, state) => const StaffHomeScreen(),
+      ),
       GoRoute(
         path: '/pro/dashboard',
         name: 'pro-dashboard',
@@ -163,7 +170,7 @@ class ProRouter {
         name: 'pro-deposit-settings',
         builder: (context, state) {
           final providerId =
-              context.read<ProAuthProvider>().provider?.providerId ?? '';
+              context.read<ProAuthProvider>().activeSalonId ?? '';
           return DepositSettingsScreen(providerId: providerId);
         },
       ),
@@ -194,7 +201,7 @@ class ProRouter {
         builder: (context, state) {
           // Owner preview of the public listing (pro-salon-lifecycle B5).
           final providerId =
-              context.read<ProAuthProvider>().provider?.providerId ?? '';
+              context.read<ProAuthProvider>().activeSalonId ?? '';
           return ProviderDetailScreen(providerId: providerId, preview: true);
         },
       ),

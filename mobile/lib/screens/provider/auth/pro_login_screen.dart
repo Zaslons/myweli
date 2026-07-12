@@ -41,6 +41,21 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   final _codeController = TextEditingController();
   _Step _step = _Step.options;
 
+  /// Revoked-mid-session notice (access R4b §5.3): consumed once from the
+  /// auth provider after the global handler signed the member out.
+  String? _revokedSalon;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notice = context.read<ProAuthProvider>().consumeRevokedNotice();
+      if (notice != null && mounted) {
+        setState(() => _revokedSalon = notice);
+      }
+    });
+  }
+
   bool get _emailValid => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
       .hasMatch(_emailController.text.trim());
 
@@ -55,7 +70,13 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     super.dispose();
   }
 
-  void _finish() => context.go(widget.returnTo ?? '/pro/dashboard');
+  void _finish() {
+    // A Collaborateur lands on their shell; returnTo may point at owner
+    // surfaces they can't use (access R4b).
+    final auth = context.read<ProAuthProvider>();
+    context.go(
+        auth.isStaff ? '/pro/staff' : (widget.returnTo ?? '/pro/dashboard'));
+  }
 
   Future<void> _handleGoogle() async {
     final auth = context.read<ProAuthProvider>();
@@ -159,6 +180,37 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_revokedSalon != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacingM),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_off_outlined,
+                          color: AppColors.error),
+                      const SizedBox(width: AppTheme.spacingS),
+                      Expanded(
+                        child: Text(
+                          _revokedSalon == 'votre salon'
+                              ? 'Votre accès à ce salon a été retiré.'
+                              : 'Votre accès à $_revokedSalon a été '
+                                  'retiré.',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               SvgPicture.asset(
                 'assets/brand/myweli_lockup_vertical_black.svg',

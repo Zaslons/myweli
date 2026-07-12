@@ -52,6 +52,36 @@ class MockData {
       createdAt: DateTime(2024, 1, 15),
       providerId: 'provider2',
     ),
+    // Team-member accounts (access R4b): BARE — no providerId (that field
+    // means salon OWNERSHIP); their salon resolves via the roster rows.
+    // Email-OTP login (code 123456) as each demos the role-shaped app.
+    ProviderUser(
+      id: 'member_awa',
+      phoneNumber: '',
+      name: 'Awa Traoré',
+      businessName: '',
+      businessType: BusinessType.other,
+      email: 'awa.manager@myweli.test',
+      createdAt: DateTime(2026, 6, 2),
+    ),
+    ProviderUser(
+      id: 'member_fatou',
+      phoneNumber: '',
+      name: 'Fatou Bamba',
+      businessName: '',
+      businessType: BusinessType.other,
+      email: 'fatou.reception@myweli.test',
+      createdAt: DateTime(2026, 6, 10),
+    ),
+    ProviderUser(
+      id: 'member_sonia',
+      phoneNumber: '',
+      name: 'Sonia Koné',
+      businessName: '',
+      businessType: BusinessType.other,
+      email: 'sonia.staff@myweli.test',
+      createdAt: DateTime(2026, 6, 15),
+    ),
   ];
 
   // Build a simple per-day working-hours map (one range per listed weekday).
@@ -615,10 +645,33 @@ class MockData {
           role: TeamRole.staff,
           status: TeamMemberStatus.invited,
           invitedAt: DateTime.now().subtract(const Duration(days: 2)),
-          artistId: 'artist1',
-          artistName: 'Kouassi Jean',
+          artistId: 'artist2',
+          artistName: 'Diallo Amadou',
           expiresAt: DateTime.now().add(const Duration(days: 5)),
           resendsLeft: 3,
+        ),
+        // ACTIVE members backing the R4b role demos (accounts seeded above).
+        TeamMember(
+          id: 'mem_reception2',
+          providerId: 'provider1',
+          email: 'fatou.reception@myweli.test',
+          role: TeamRole.reception,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2026, 6, 10),
+          accountId: 'member_fatou',
+          acceptedAt: DateTime(2026, 6, 11),
+        ),
+        TeamMember(
+          id: 'mem_staff2',
+          providerId: 'provider1',
+          email: 'sonia.staff@myweli.test',
+          role: TeamRole.staff,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2026, 6, 15),
+          accountId: 'member_sonia',
+          acceptedAt: DateTime(2026, 6, 16),
+          artistId: 'artist1',
+          artistName: 'Kouassi Jean',
         ),
         TeamMember(
           id: 'mem_reception1',
@@ -679,7 +732,8 @@ class MockData {
           m.status == TeamMemberStatus.active || (m.isPending && !m.expired))
       .length;
 
-  /// Restore the seeded roster/cards (tests: call in setUp).
+  /// Restore the seeded roster/cards (tests: call in setUp). Also re-seeds
+  /// the three member ACCOUNTS (R4b role demos) if a test stripped them.
   static void resetTeam() {
     teamMembers
       ..clear()
@@ -687,5 +741,22 @@ class MockData {
     teamInvitations
       ..clear()
       ..addAll(_seedTeamInvitations());
+    for (final email in const [
+      'awa.manager@myweli.test',
+      'fatou.reception@myweli.test',
+      'sonia.staff@myweli.test',
+    ]) {
+      if (!providerUsers.any((p) => p.email == email)) {
+        final id = 'member_${email.split('.').first}';
+        providerUsers.add(ProviderUser(
+          id: id,
+          phoneNumber: '',
+          businessName: '',
+          businessType: BusinessType.other,
+          email: email,
+          createdAt: DateTime(2026, 6, 1),
+        ));
+      }
+    }
   }
 }

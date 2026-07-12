@@ -4,35 +4,49 @@ import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
 import '../../models/journal_day.dart';
 import '../../models/payment.dart';
+import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/service.dart';
 
-// Dashboard stats model
+// Dashboard stats model. The revenue fields are NULLABLE: the server
+// field-gates them away for callers without `finances.view` (module `access`
+// R1/R4) — absence is a valid state, not an error.
 class DashboardStats {
   final int todayAppointments;
   final int pendingRequests;
-  final double todayRevenue;
-  final double weekRevenue;
-  final double monthRevenue;
+  final double? todayRevenue;
+  final double? weekRevenue;
+  final double? monthRevenue;
   final int totalAppointments;
 
   const DashboardStats({
     required this.todayAppointments,
     required this.pendingRequests,
-    required this.todayRevenue,
-    required this.weekRevenue,
-    required this.monthRevenue,
     required this.totalAppointments,
+    this.todayRevenue,
+    this.weekRevenue,
+    this.monthRevenue,
   });
+
+  bool get hasRevenue => todayRevenue != null;
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) => DashboardStats(
         todayAppointments: (json['todayAppointments'] as num).toInt(),
         pendingRequests: (json['pendingRequests'] as num).toInt(),
-        todayRevenue: (json['todayRevenue'] as num).toDouble(),
-        weekRevenue: (json['weekRevenue'] as num).toDouble(),
-        monthRevenue: (json['monthRevenue'] as num).toDouble(),
+        todayRevenue: (json['todayRevenue'] as num?)?.toDouble(),
+        weekRevenue: (json['weekRevenue'] as num?)?.toDouble(),
+        monthRevenue: (json['monthRevenue'] as num?)?.toDouble(),
         totalAppointments: (json['totalAppointments'] as num).toInt(),
       );
+}
+
+/// GET /me/provider (team access R4b): the acting salon + the caller's
+/// membership — how the app learns WHO it is inside the salon.
+class MyProviderInfo {
+  const MyProviderInfo({required this.salon, required this.membership});
+
+  final Provider salon;
+  final ProMembership membership;
 }
 
 // Earnings data model
@@ -79,6 +93,11 @@ class EarningsTransaction {
 }
 
 abstract class ProServiceInterface {
+  /// The acting identity (team access R4b): the salon + the caller's
+  /// membership from GET /me/provider. A revoked member surfaces the
+  /// machine code `not_a_member`.
+  Future<ApiResponse<MyProviderInfo>> getMyProvider();
+
   // Dashboard
   Future<ApiResponse<DashboardStats>> getDashboardStats(String providerId);
 

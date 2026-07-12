@@ -72,14 +72,15 @@ void main() {
   final team = _SwitchableTeam();
 
   void useOffer({required bool live}) {
+    // Business cap: the R4b seeds already occupy 5 of a Pro offer's seats.
     final subs = live
         ? MockSubscriptionService(
             initial: SalonSubscription(
-              tier: SalonTier.pro,
+              tier: SalonTier.business,
               status: SalonOfferStatus.trial,
               trialEndsAt: DateTime.now().add(const Duration(days: 60)),
               graceEndsAt: DateTime.now().add(const Duration(days: 67)),
-              seats: const SalonSeats(cap: 5, used: 0),
+              seats: const SalonSeats(cap: 15, used: 0),
             ),
           )
         : MockSubscriptionService();

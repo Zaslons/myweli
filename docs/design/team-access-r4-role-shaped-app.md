@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved (plan sign-off 2026-07-12) — R4a building |
+| **Status** | Built (R4a + R4b, 2026-07-12) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-07-12 |
 | **PRD ref / phase** | Module `access` (docs/modules/access.md §5.3, §10 A3) · pre-launch |
