@@ -9,6 +9,7 @@ enum OnboardingStepKey {
   deposit,
   verification,
   photos,
+  offer,
 }
 
 enum OnboardingStepStatus { done, todo, inProgress, optional }
@@ -38,6 +39,7 @@ List<OnboardingStep> buildOnboardingChecklist({
   required VerificationStatus verificationStatus,
   required bool hasSubmittedKyc,
   required BusinessType businessType,
+  required bool offerLive,
 }) {
   OnboardingStepStatus doneIf(bool ok) =>
       ok ? OnboardingStepStatus.done : OnboardingStepStatus.todo;
@@ -70,19 +72,24 @@ List<OnboardingStep> buildOnboardingChecklist({
     OnboardingStep(OnboardingStepKey.verification, verificationStep()),
     // The upload pipeline shipped — photos gate go-live like the server does.
     OnboardingStep(OnboardingStepKey.photos, doneIf(photoCount >= kMinPhotos)),
+    // Pricing pivot (team access R2a/R3): publishing requires a live offer
+    // (trial/paid/grace) — the server gate's `offer` key mirrored.
+    OnboardingStep(OnboardingStepKey.offer, doneIf(offerLive)),
   ];
 }
 
 /// The steps that gate « Mettre mon profil en ligne » — the MIRROR of the
-/// server's publish gate (docs/design/pro-salon-lifecycle.md): profile +
-/// location + ≥3 services + hours + ≥3 photos. Deposit and verification are
-/// shown and recommended but never block (matching the server).
+/// server's publish gate (docs/design/pro-salon-lifecycle.md + the R2a
+/// pricing pivot): profile + location + ≥3 services + hours + ≥3 photos +
+/// a live offer. Deposit and verification are shown and recommended but
+/// never block (matching the server).
 const Set<OnboardingStepKey> _goLiveKeys = {
   OnboardingStepKey.profile,
   OnboardingStepKey.location,
   OnboardingStepKey.services,
   OnboardingStepKey.availability,
   OnboardingStepKey.photos,
+  OnboardingStepKey.offer,
 };
 
 bool canGoLive(List<OnboardingStep> steps) =>

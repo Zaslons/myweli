@@ -176,6 +176,20 @@ class ApiProService implements ProServiceInterface {
         ));
     if (res == null) return _networkError();
     if (res.statusCode == 409) {
+      // The gate's `missing` keys — `offer` (pricing pivot) gets its own
+      // code so the screen can CTA to the offer picker.
+      List<dynamic> missing = const [];
+      try {
+        missing = (jsonDecode(res.body) as Map<String, dynamic>)['missing']
+                as List<dynamic>? ??
+            const [];
+      } catch (_) {/* keep the generic message */}
+      if (missing.contains('offer')) {
+        return ApiResponse.error(
+          'Choisissez votre offre avant la mise en ligne.',
+          code: 'offer_required',
+        );
+      }
       return ApiResponse.error(
         'Complétez les étapes requises avant la mise en ligne.',
         code: 'incomplete',

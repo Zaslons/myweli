@@ -33,19 +33,32 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 
   Future<void> _goLive() async {
     final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     final providerId =
         context.read<ProAuthProvider>().provider?.providerId ?? '';
     final onboarding = context.read<ProOnboardingProvider>();
     final ok = await onboarding.publish(providerId);
     if (!mounted) return;
+    // Pricing pivot: the server's `offer` gate points to the picker.
+    final offerRequired =
+        !ok && onboarding.publishErrorCode == 'offer_required';
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           ok
               ? '🎉 Votre profil est en ligne !'
-              : (onboarding.error ?? 'La mise en ligne a échoué'),
+              : offerRequired
+                  ? 'Choisissez votre offre avant la mise en ligne.'
+                  : (onboarding.error ?? 'La mise en ligne a échoué'),
         ),
         backgroundColor: ok ? AppColors.success : AppColors.error,
+        action: offerRequired
+            ? SnackBarAction(
+                label: 'Choisir',
+                textColor: AppColors.surface,
+                onPressed: () => router.push('/pro/subscription'),
+              )
+            : null,
       ),
     );
   }
@@ -183,6 +196,8 @@ class _StepRow extends StatelessWidget {
         return 'Vérification (KYC)';
       case OnboardingStepKey.photos:
         return 'Photos (3 minimum)';
+      case OnboardingStepKey.offer:
+        return 'Choisissez votre offre';
     }
   }
 
@@ -204,6 +219,8 @@ class _StepRow extends StatelessWidget {
         return '/pro/verification';
       case OnboardingStepKey.photos:
         return '/pro/photos';
+      case OnboardingStepKey.offer:
+        return '/pro/subscription';
     }
   }
 
@@ -214,6 +231,9 @@ class _StepRow extends StatelessWidget {
     }
     if (step.key == OnboardingStepKey.photos) {
       return 'Ajouter des photos du salon';
+    }
+    if (step.key == OnboardingStepKey.offer) {
+      return '3 mois offerts';
     }
     if (step.status == OnboardingStepStatus.inProgress) {
       return 'En cours';

@@ -3,8 +3,11 @@ import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
 import '../../models/api_response.dart';
+import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
 import '../../models/session.dart';
+import '../../models/team_invitation.dart';
+import '../../models/team_member.dart';
 import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
@@ -376,28 +379,50 @@ class MockAuthService implements AuthServiceInterface {
     return null;
   }
 
-  Future<ApiResponse<ProviderUser>> _providerLogin(String email) async {
+  /// Unexpired invitee cards for a verified email (the mock 202 bridge).
+  List<TeamInvitation> _pendingInvitationsFor(String email) {
+    final cards = MockData.teamInvitations[email.toLowerCase()] ??
+        const <TeamInvitation>[];
+    return cards
+        .where(
+            (c) => c.expiresAt == null || c.expiresAt!.isAfter(DateTime.now()))
+        .toList();
+  }
+
+  /// Three-way login (team access R3): account → signed in · pending
+  /// invitations → invited (with the proof to accept) · else not found.
+  ProviderLoginResult _providerLogin(String email, InvitationProof? proof) {
     final account = _providerByEmail(email);
-    if (account == null) {
-      return ApiResponse.error(
-        'Compte introuvable. Créez votre compte.',
-        code: 'provider_not_found',
-      );
+    if (account != null) {
+      _currentProvider = account;
+      return ProviderLoginResult.signedIn(account);
     }
-    _currentProvider = account;
-    return ApiResponse.success(account, message: 'Connexion réussie');
+    if (proof != null) {
+      final invitations = _pendingInvitationsFor(email);
+      if (invitations.isNotEmpty) {
+        return ProviderLoginResult.invited(invitations, proof);
+      }
+    }
+    return const ProviderLoginResult.failure(
+      'Compte introuvable. Créez votre compte.',
+      code: 'provider_not_found',
+    );
   }
 
   @override
-  Future<ApiResponse<ProviderUser>> signInProviderWithGoogle() async {
+  Future<ProviderLoginResult> signInProviderWithGoogle() async {
     await Future.delayed(AppConstants.mockDelay);
-    return _providerLogin(mockProGoogleEmail);
+    return _providerLogin(
+      mockProGoogleEmail,
+      const GoogleInvitationProof('mock-google-id-token'),
+    );
   }
 
   @override
-  Future<ApiResponse<ProviderUser>> signInProviderWithApple() async {
+  Future<ProviderLoginResult> signInProviderWithApple() async {
     await Future.delayed(AppConstants.mockDelay);
-    return _providerLogin('mock.apple@salon.test');
+    // No 202 bridge on the Apple route (contract) — never `.invited`.
+    return _providerLogin('mock.apple@salon.test', null);
   }
 
   @override
@@ -408,17 +433,102 @@ class MockAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ApiResponse<ProviderUser>> verifyProviderEmailOtp(
+  Future<ProviderLoginResult> verifyProviderEmailOtp(
       String email, String code) async {
     await Future.delayed(AppConstants.mockDelay);
     final key = email.trim().toLowerCase();
     if (_providerEmailOtpStore[key] != code) {
+      return const ProviderLoginResult.failure('Code incorrect.',
+          code: 'otp_invalid');
+    }
+    // LOGIN-ONLY; a correct code with no salon keeps the code for register —
+    // and for the invitation ACCEPT (the 202 bridge never consumes it).
+    final res = _providerLogin(key, EmailOtpInvitationProof(key, code));
+    if (res.signedIn) _providerEmailOtpStore.remove(key);
+    return res;
+  }
+
+  /// Resolve + check the invitation proof; returns the proven email or null.
+  /// The email code is validated WITHOUT being consumed (accept consumes it
+  /// on success — mirrors the backend, T37).
+  String? _provenEmail(InvitationProof proof) => switch (proof) {
+        GoogleInvitationProof() => mockProGoogleEmail,
+        EmailOtpInvitationProof(:final email, :final code) =>
+          _providerEmailOtpStore[email.trim().toLowerCase()] == code
+              ? email.trim().toLowerCase()
+              : null,
+      };
+
+  @override
+  Future<ApiResponse<ProviderUser>> acceptProviderInvitation(
+      String invitationId, InvitationProof proof) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final email = _provenEmail(proof);
+    if (email == null) {
       return ApiResponse.error('Code incorrect.', code: 'otp_invalid');
     }
-    // LOGIN-ONLY; a correct code with no salon keeps the code for register.
-    final res = await _providerLogin(key);
-    if (res.success) _providerEmailOtpStore.remove(key);
-    return res;
+    final cards = MockData.teamInvitations[email] ?? const <TeamInvitation>[];
+    TeamInvitation? card;
+    for (final c in cards) {
+      if (c.id == invitationId) card = c;
+    }
+    if (card == null) {
+      return ApiResponse.error('Invitation introuvable.', code: 'not_found');
+    }
+    if (card.expiresAt != null && card.expiresAt!.isBefore(DateTime.now())) {
+      return ApiResponse.error(
+        'Cette invitation a expiré. Demandez au salon de la renvoyer.',
+        code: 'invitation_expired',
+      );
+    }
+
+    // Existing account signs in; otherwise a BARE member account is created
+    // (no business fields, no salon — the provisioning guard holds).
+    var account = _providerByEmail(email);
+    if (account == null) {
+      account = ProviderUser(
+        id: 'member_${DateTime.now().millisecondsSinceEpoch}',
+        phoneNumber: '',
+        businessName: '',
+        businessType: BusinessType.other,
+        email: email,
+        createdAt: DateTime.now(),
+      );
+      MockData.providerUsers.add(account);
+    }
+    _currentProvider = account;
+    _providerEmailOtpStore.remove(email);
+
+    // Activate the roster row (when this salon's roster is modeled).
+    final i = MockData.teamMembers.indexWhere((m) => m.id == invitationId);
+    if (i != -1) {
+      MockData.teamMembers[i] = MockData.teamMembers[i].copyWith(
+        status: TeamMemberStatus.active,
+        accountId: account.id,
+        acceptedAt: DateTime.now(),
+      );
+    }
+    MockData.teamInvitations[email]?.removeWhere((c) => c.id == invitationId);
+    return ApiResponse.success(account, message: 'Invitation acceptée');
+  }
+
+  @override
+  Future<ApiResponse<bool>> declineProviderInvitation(
+      String invitationId, InvitationProof proof) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final email = _provenEmail(proof);
+    if (email == null) {
+      return ApiResponse.error('Code incorrect.', code: 'otp_invalid');
+    }
+    final cards = MockData.teamInvitations[email];
+    final exists = cards?.any((c) => c.id == invitationId) ?? false;
+    if (!exists) {
+      return ApiResponse.error('Invitation introuvable.', code: 'not_found');
+    }
+    // The probe never consumes the code — another invitation stays acceptable.
+    cards!.removeWhere((c) => c.id == invitationId);
+    MockData.teamMembers.removeWhere((m) => m.id == invitationId);
+    return ApiResponse.success(true);
   }
 
   ProviderUser _createProvider({

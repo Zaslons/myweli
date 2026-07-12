@@ -25,6 +25,7 @@ import 'providers/pro_reviews_provider.dart';
 import 'providers/pro_salon_profile_provider.dart';
 import 'providers/pro_service_provider.dart';
 import 'providers/pro_subscription_provider.dart';
+import 'providers/pro_team_provider.dart';
 import 'providers/provider_provider.dart';
 
 void main() {
@@ -80,6 +81,7 @@ class MyweliProApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProGalleryProvider()),
         ChangeNotifierProvider(create: (_) => ProBeforeAfterProvider()),
         ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
+        ChangeNotifierProvider(create: (_) => ProTeamProvider()),
       ],
       child: MaterialApp.router(
         title: 'Myweli Pro',

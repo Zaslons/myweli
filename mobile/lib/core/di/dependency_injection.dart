@@ -9,6 +9,7 @@ import '../../services/api/api_pro_clients_service.dart';
 import '../../services/api/api_pro_kyc_service.dart';
 import '../../services/api/api_pro_service.dart';
 import '../../services/api/api_pro_subscription_service.dart';
+import '../../services/api/api_pro_team_service.dart';
 import '../../services/api/api_provider_service.dart';
 import '../../services/api/api_review_service.dart';
 import '../../services/interfaces/appointment_service_interface.dart';
@@ -22,6 +23,7 @@ import '../../services/interfaces/pro_artist_service_interface.dart';
 import '../../services/interfaces/pro_clients_service_interface.dart';
 import '../../services/interfaces/pro_kyc_service_interface.dart';
 import '../../services/interfaces/pro_service_interface.dart';
+import '../../services/interfaces/pro_team_service_interface.dart';
 import '../../services/interfaces/provider_service_interface.dart';
 import '../../services/interfaces/push_notification_service_interface.dart';
 import '../../services/interfaces/review_service_interface.dart';
@@ -37,6 +39,7 @@ import '../../services/mock/mock_pro_artist_service.dart';
 import '../../services/mock/mock_pro_clients_service.dart';
 import '../../services/mock/mock_pro_kyc_service.dart';
 import '../../services/mock/mock_pro_service.dart';
+import '../../services/mock/mock_pro_team_service.dart';
 import '../../services/mock/mock_provider_service.dart';
 import '../../services/mock/mock_push_notification_service.dart';
 import '../../services/mock/mock_review_service.dart';
@@ -66,6 +69,7 @@ class ServiceLocator {
   late final ProClientsServiceInterface proClientsService;
   late final ProKycServiceInterface proKycService;
   late final SubscriptionServiceInterface subscriptionService;
+  late final ProTeamServiceInterface proTeamService;
   late final ImageUploadServiceInterface imageUploadService;
   late final ImageUploadServiceInterface reviewImageUploadService;
   late final ReviewServiceInterface reviewService;
@@ -134,13 +138,21 @@ class ServiceLocator {
                 SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockProKycService();
-    // Provider plan & trial status (read-only; derived server-side).
+    // The salon's offer & billing state (pricing pivot, team access R3).
     subscriptionService = AppConfig.useApiBackend
         ? ApiProSubscriptionService(
             providerSessionStore:
                 SecureSessionStore(key: 'myweli_provider_session'),
           )
         : MockSubscriptionService();
+    // Team & invitations (module access R3); the mock enforces the offer and
+    // seat gates against the mock subscription so the demo mirrors prod.
+    proTeamService = AppConfig.useApiBackend
+        ? ApiProTeamService(
+            providerSessionStore:
+                SecureSessionStore(key: 'myweli_provider_session'),
+          )
+        : MockProTeamService(subscriptions: subscriptionService);
     // Real upload pipeline (compress → presigned direct-to-R2) with provider
     // silent refresh; mock echoes the source in demo mode.
     imageUploadService = AppConfig.useApiBackend

@@ -7,6 +7,8 @@ import '../../models/provider.dart';
 import '../../models/provider_user.dart';
 import '../../models/review.dart';
 import '../../models/service.dart';
+import '../../models/team_invitation.dart';
+import '../../models/team_member.dart';
 import '../../models/user.dart';
 
 class MockData {
@@ -578,5 +580,112 @@ class MockData {
     }
 
     return slots;
+  }
+
+  // ---- Team access (module access R3) --------------------------------------
+  // provider1's roster (« Salon Excellence ») + invitee-facing cards keyed by
+  // email. Mutable so accepts/declines/revokes flow through the demo; call
+  // [resetTeam] in test setUp to avoid cross-test bleed.
+
+  static List<TeamMember> _seedTeamMembers() => [
+        TeamMember(
+          id: 'mem_owner1',
+          providerId: 'provider1',
+          email: 'jean@salon-excellence.test',
+          role: TeamRole.owner,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2024, 1, 1),
+          accountId: 'provider_user1',
+          acceptedAt: DateTime(2024, 1, 1),
+        ),
+        TeamMember(
+          id: 'mem_manager1',
+          providerId: 'provider1',
+          email: 'awa.manager@myweli.test',
+          role: TeamRole.manager,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2026, 6, 1),
+          accountId: 'member_awa',
+          acceptedAt: DateTime(2026, 6, 2),
+        ),
+        TeamMember(
+          id: 'mem_staff1',
+          providerId: 'provider1',
+          email: 'invitee@myweli.test',
+          role: TeamRole.staff,
+          status: TeamMemberStatus.invited,
+          invitedAt: DateTime.now().subtract(const Duration(days: 2)),
+          artistId: 'artist1',
+          artistName: 'Kouassi Jean',
+          expiresAt: DateTime.now().add(const Duration(days: 5)),
+          resendsLeft: 3,
+        ),
+        TeamMember(
+          id: 'mem_reception1',
+          providerId: 'provider1',
+          email: 'retard@myweli.test',
+          role: TeamRole.reception,
+          status: TeamMemberStatus.invited,
+          invitedAt: DateTime.now().subtract(const Duration(days: 9)),
+          expiresAt: DateTime.now().subtract(const Duration(days: 2)),
+          resendsLeft: 1,
+          expired: true,
+        ),
+      ];
+
+  static Map<String, List<TeamInvitation>> _seedTeamInvitations() => {
+        'invitee@myweli.test': [
+          TeamInvitation(
+            id: 'mem_staff1',
+            providerId: 'provider1',
+            salonName: 'Salon Excellence',
+            role: TeamRole.staff,
+            roleLabel: 'Collaborateur',
+            expiresAt: DateTime.now().add(const Duration(days: 5)),
+          ),
+        ],
+        'mock.google@salon.test': [
+          TeamInvitation(
+            id: 'mem_google1',
+            providerId: 'provider2',
+            salonName: 'Beauté Divine',
+            role: TeamRole.manager,
+            roleLabel: 'Manager',
+            expiresAt: DateTime.now().add(const Duration(days: 6)),
+          ),
+        ],
+        // Expired card — the accept path's invitation_expired scenario.
+        'retard@myweli.test': [
+          TeamInvitation(
+            id: 'mem_reception1',
+            providerId: 'provider1',
+            salonName: 'Salon Excellence',
+            role: TeamRole.reception,
+            roleLabel: 'Réception',
+            expiresAt: DateTime.now().subtract(const Duration(days: 2)),
+          ),
+        ],
+      };
+
+  static final List<TeamMember> teamMembers = _seedTeamMembers();
+
+  /// Invitee-facing pending cards, keyed by lowercased email.
+  static final Map<String, List<TeamInvitation>> teamInvitations =
+      _seedTeamInvitations();
+
+  /// Seats in use — owner + active + unexpired pending (mirrors the backend).
+  static int teamSeatsUsed() => teamMembers
+      .where((m) =>
+          m.status == TeamMemberStatus.active || (m.isPending && !m.expired))
+      .length;
+
+  /// Restore the seeded roster/cards (tests: call in setUp).
+  static void resetTeam() {
+    teamMembers
+      ..clear()
+      ..addAll(_seedTeamMembers());
+    teamInvitations
+      ..clear()
+      ..addAll(_seedTeamInvitations());
   }
 }

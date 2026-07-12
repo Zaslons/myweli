@@ -28,6 +28,8 @@ import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
+import '../../screens/provider/team/pro_invitations_screen.dart';
+import '../../screens/provider/team/team_screen.dart';
 import '../../screens/providers/provider_detail_screen.dart';
 
 class ProRouter {
@@ -169,6 +171,17 @@ class ProRouter {
         path: '/pro/subscription',
         name: 'pro-subscription',
         builder: (context, state) => const ProSubscriptionScreen(),
+      ),
+      // Team access R3 (docs/design/team-access-r3-app.md).
+      GoRoute(
+        path: '/pro/team',
+        name: 'pro-team',
+        builder: (context, state) => const TeamScreen(),
+      ),
+      GoRoute(
+        path: '/pro/invitations',
+        name: 'pro-invitations',
+        builder: (context, state) => const ProInvitationsScreen(),
       ),
       GoRoute(
         path: '/pro/verification',

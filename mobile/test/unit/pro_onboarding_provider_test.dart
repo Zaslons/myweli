@@ -105,5 +105,19 @@ void main() {
       expect(await p.publish('p1'), isFalse);
       expect(p.error, contains('Complétez les étapes'));
     });
+
+    test(
+        'offer_required (pricing pivot) exposes the machine code so the '
+        'screen can CTA to the offer picker', () async {
+      when(() => pro.publishSalon('p1')).thenAnswer(
+        (_) async => ApiResponse.error(
+          'Choisissez votre offre avant la mise en ligne.',
+          code: 'offer_required',
+        ),
+      );
+      final p = ProOnboardingProvider();
+      expect(await p.publish('p1'), isFalse);
+      expect(p.publishErrorCode, 'offer_required');
+    });
   });
 }

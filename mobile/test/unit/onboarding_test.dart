@@ -14,6 +14,7 @@ void main() {
     VerificationStatus verificationStatus = VerificationStatus.verified,
     bool hasSubmittedKyc = true,
     BusinessType businessType = BusinessType.salon,
+    bool offerLive = true,
   }) =>
       buildOnboardingChecklist(
         profileComplete: profileComplete,
@@ -26,6 +27,7 @@ void main() {
         verificationStatus: verificationStatus,
         hasSubmittedKyc: hasSubmittedKyc,
         businessType: businessType,
+        offerLive: offerLive,
       );
 
   OnboardingStepStatus statusOf(
@@ -105,6 +107,15 @@ void main() {
     expect(canGoLive(build(photoCount: 0)), isFalse);
   });
 
+  test('the OFFER gates go-live (pricing pivot — team access R2a/R3)', () {
+    final steps = build(offerLive: false);
+    expect(statusOf(steps, OnboardingStepKey.offer), OnboardingStepStatus.todo);
+    expect(canGoLive(steps), isFalse);
+    expect(
+        statusOf(build(), OnboardingStepKey.offer), OnboardingStepStatus.done);
+    expect(canGoLive(build()), isTrue);
+  });
+
   test('progress ignores optional steps', () {
     final steps = build(
       businessType: BusinessType.other,
@@ -113,8 +124,8 @@ void main() {
     );
     final p = onboardingProgress(steps);
     // actionable = profile, location, services, availability, deposit,
-    // verification, photos (staff optional for a freelancer).
-    expect(p.total, 7);
-    expect(p.done, 6); // photos still todo
+    // verification, photos, offer (staff optional for a freelancer).
+    expect(p.total, 8);
+    expect(p.done, 7); // photos still todo
   });
 }
