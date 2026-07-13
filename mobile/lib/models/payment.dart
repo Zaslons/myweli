@@ -1,32 +1,8 @@
-/// Mobile Money operators available in Côte d'Ivoire.
-enum MobileMoneyOperator { wave, orangeMoney, mtnMoMo, moov }
-
-extension MobileMoneyOperatorX on MobileMoneyOperator {
-  String get displayName {
-    switch (this) {
-      case MobileMoneyOperator.wave:
-        return 'Wave';
-      case MobileMoneyOperator.orangeMoney:
-        return 'Orange Money';
-      case MobileMoneyOperator.mtnMoMo:
-        return 'MTN MoMo';
-      case MobileMoneyOperator.moov:
-        return 'Moov Money';
-    }
-  }
-
-  /// The wire name (matches the backend enum), e.g. `orangeMoney`.
-  String get apiName => name;
-
-  /// Parse a wire name (e.g. `wave`) back to an operator, or null.
-  static MobileMoneyOperator? fromApi(String? name) {
-    if (name == null) return null;
-    for (final op in MobileMoneyOperator.values) {
-      if (op.name == name) return op;
-    }
-    return null;
-  }
-}
+// Multi-pays MP2 (docs/design/multi-pays-end-version.md §5): Mobile-Money
+// operators are DATA — ids/labels/deep-link kinds come from the salon
+// country's catalog (`GET /localities` → `MomoOperatorInfo`), never a client
+// enum. The wire values (`wave`, `orangeMoney`, `mtnMoMo`, `moov`, …) are
+// plain strings validated server-side against the catalog.
 
 /// A provider's deposit policy: whether an acompte is required and, if so, the
 /// fraction of the total charged up front.
@@ -35,8 +11,9 @@ class DepositPolicy {
   final double depositPercentage;
   final int cancellationWindowHours;
 
-  /// Mobile Money handle the deposit is sent to (client→salon directly).
-  final MobileMoneyOperator? mobileMoneyOperator;
+  /// Mobile Money handle the deposit is sent to (client→salon directly) —
+  /// an operator id from the salon country's catalog.
+  final String? mobileMoneyOperator;
   final String? mobileMoneyNumber;
 
   const DepositPolicy({
@@ -52,9 +29,7 @@ class DepositPolicy {
         depositPercentage: (json['depositPercentage'] as num?)?.toDouble() ?? 0,
         cancellationWindowHours:
             (json['cancellationWindowHours'] as num?)?.toInt() ?? 24,
-        mobileMoneyOperator: MobileMoneyOperatorX.fromApi(
-          json['mobileMoneyOperator'] as String?,
-        ),
+        mobileMoneyOperator: json['mobileMoneyOperator'] as String?,
         mobileMoneyNumber: json['mobileMoneyNumber'] as String?,
       );
 }

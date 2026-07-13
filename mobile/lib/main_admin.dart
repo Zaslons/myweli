@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'core/router/admin_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
+import 'core/utils/salon_time.dart';
 import 'providers/admin/admin_audit_provider.dart';
 import 'providers/admin/admin_auth_provider.dart';
 import 'providers/admin/admin_dashboard_provider.dart';
@@ -34,6 +35,9 @@ void main() {
         );
       };
       await initializeDateFormatting('fr_FR', null);
+      // Multi-pays MP2: load the tz database once — salon times
+      // render in each salon's own timezone (salon_time.dart).
+      initSalonTime();
       runApp(const MyweliAdminApp());
     },
     (error, stack) => AppLogger.error(

@@ -11,6 +11,7 @@ import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
@@ -30,6 +31,12 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _businessNameController = TextEditingController();
   final _addressController = TextEditingController();
+
+  /// Multi-pays MP2: the optional locality pick at creation — the server
+  /// derives the salon's commune/city/timezone/currency from it (T57). The
+  /// publish gate requires it before go-live; picking it here saves a step.
+  String? _areaId;
+  String _communeName = '';
   final _emailController = TextEditingController();
   final _codeController = TextEditingController();
   String _phoneNumber = '';
@@ -41,6 +48,19 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
 
   bool get _showApple =>
       FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
+
+  Future<void> _pickCommune() async {
+    final choice = await showCommunePicker(
+      context,
+      selected: _communeName.isEmpty ? null : _communeName,
+      allowAll: false,
+    );
+    if (choice == null || choice.areaId == null || !mounted) return;
+    setState(() {
+      _areaId = choice.areaId;
+      _communeName = choice.commune ?? '';
+    });
+  }
 
   @override
   void dispose() {
@@ -77,6 +97,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
       businessName: _businessNameController.text.trim(),
       businessType: _selectedBusinessType!,
       address: _addressController.text.trim(),
+      areaId: _areaId,
     );
     if (ok && mounted) _finish();
   }
@@ -104,6 +125,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
       businessName: _businessNameController.text.trim(),
       businessType: _selectedBusinessType!,
       address: _addressController.text.trim(),
+      areaId: _areaId,
     );
     if (ok && mounted) _finish();
   }
@@ -219,6 +241,33 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                InkWell(
+                  onTap: _pickCommune,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  child: InputDecorator(
+                    decoration:
+                        const InputDecoration(labelText: 'Commune (optionnel)'),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _communeName.isEmpty
+                                ? 'Choisir une commune'
+                                : _communeName,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: _communeName.isEmpty
+                                  ? AppColors.textTertiary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.expand_more,
+                            color: AppColors.textTertiary),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 28),
                 Text(

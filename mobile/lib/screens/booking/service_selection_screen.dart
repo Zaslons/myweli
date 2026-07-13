@@ -180,8 +180,9 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                         ),
                         Text(
                           _hasRange()
-                              ? 'À partir de ${Formatters.formatCurrency(_calculateTotal())}'
-                              : Formatters.formatCurrency(_calculateTotal()),
+                              ? 'À partir de ${Formatters.formatCurrency(_calculateTotal(), currency: p.currency)}'
+                              : Formatters.formatCurrency(_calculateTotal(),
+                                  currency: p.currency),
                           style: AppTextStyles.titleLarge.copyWith(
                             color: AppColors.primary,
                           ),
@@ -275,7 +276,11 @@ class _ServiceCard extends StatelessWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                Formatters.formatPriceRange(service.price, service.priceMax),
+                Formatters.formatPriceRange(service.price, service.priceMax,
+                    currency: context
+                        .read<ProviderProvider>()
+                        .selectedProvider
+                        ?.currency),
                 textAlign: TextAlign.end,
                 style: AppTextStyles.titleMedium.copyWith(
                   color:

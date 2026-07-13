@@ -22,21 +22,22 @@ class Formatters {
   /// Format currency for display: "15 000 FCFA". XOF and XAF (the two CFA
   /// francs) both read « FCFA » — the colloquial name across the zone
   /// (docs/modules/multi-pays.md §4); any other ISO code renders as itself.
-  /// Defaults to XOF (Côte d'Ivoire).
-  static String formatCurrency(double amount, {String currency = 'XOF'}) {
+  /// Null (unthreaded/pre-MP1 payloads) falls back to XOF HERE — the one
+  /// designated seam — so call sites pass carriers straight through.
+  static String formatCurrency(double amount, {String? currency}) {
     final formatter = NumberFormat.currency(
       symbol: '',
       decimalDigits: 0,
       locale: 'fr_FR',
     );
-    final suffix = (currency == 'XOF' || currency == 'XAF') ? 'FCFA' : currency;
+    final code = currency ?? 'XOF';
+    final suffix = (code == 'XOF' || code == 'XAF') ? 'FCFA' : code;
     return '${formatter.format(amount)} $suffix';
   }
 
   /// Format a price as a single value or a range:
   /// "15 000 FCFA" or "15 000 – 25 000 FCFA".
-  static String formatPriceRange(double min, double? max,
-      {String currency = 'XOF'}) {
+  static String formatPriceRange(double min, double? max, {String? currency}) {
     if (max == null || max <= min) {
       return formatCurrency(min, currency: currency);
     }

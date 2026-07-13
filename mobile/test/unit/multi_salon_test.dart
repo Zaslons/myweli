@@ -5,6 +5,7 @@ import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/provider_session.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_membership_info.dart';
@@ -150,6 +151,34 @@ void main() {
         await serviceLocator.authService.getSelectedProviderSalon(),
         'provider2',
       );
+    });
+
+    test(
+        'switchSalon refetches the salon MARKET facts — timezone + currency '
+        '(multi-pays MP2)', () async {
+      // Move provider2 to Gabon for this test only (the committed seeds stay
+      // CI — demo realism); restore after.
+      final i = MockData.providers.indexWhere((p) => p.id == 'provider2');
+      final original = MockData.providers[i];
+      MockData.providers[i] = original.copyWith(
+        countryCode: 'GA',
+        timezone: 'Africa/Libreville',
+        currency: 'XAF',
+      );
+      addTearDown(() => MockData.providers[i] = original);
+
+      final auth = await signInOwner();
+      expect(auth.salonTimezone, kSalonTz);
+      expect(auth.salonCurrency, 'XOF');
+
+      expect(await auth.switchSalon('provider2'), isTrue);
+      expect(auth.salonTimezone, 'Africa/Libreville');
+      expect(auth.salonCurrency, 'XAF');
+      expect(auth.salonCountryCode, 'GA');
+
+      expect(await auth.switchSalon('provider1'), isTrue);
+      expect(auth.salonTimezone, kSalonTz);
+      expect(auth.salonCurrency, 'XOF');
     });
 
     test('cold start restores the switched-to salon', () async {

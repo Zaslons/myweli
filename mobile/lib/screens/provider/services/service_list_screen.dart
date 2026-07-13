@@ -164,7 +164,10 @@ class _ServiceCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  Formatters.formatCurrency(service.price),
+                  Formatters.formatCurrency(
+                    service.price,
+                    currency: context.read<ProAuthProvider>().salonCurrency,
+                  ),
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,

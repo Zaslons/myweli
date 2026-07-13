@@ -219,9 +219,9 @@ it "works" for Côte d'Ivoire.
 
 | Surface | The seams |
 |---|---|
-| Mobile | `core/constants/communes.dart` · `core/utils/mobile_money.dart` · `core/utils/formatters.dart` · `core/utils/salon_time.dart` (first slice) |
-| Web | `lib/landing.ts` / `lib/discovery.ts` / `lib/service-landing.ts` (taxonomy) · `lib/format.ts` · `lib/time.ts` (first slice) |
-| Backend | provisioning business types + commune validation · UTC storage ([BACKEND.md §2](../BACKEND.md)) · the salon-time constant (first slice) |
+| Mobile (MP2) | **the live tree: `providers/locality_provider.dart` + the `LocalityService` seam** (fed by `GET /localities`) · `core/constants/communes.dart` (**mock seed only**) · `core/utils/mobile_money.dart` · `core/utils/formatters.dart` · `core/utils/salon_time.dart` (`package:timezone`, per-salon `tz`) |
+| Web | `lib/landing.ts` / `lib/discovery.ts` / `lib/service-landing.ts` (taxonomy) · `lib/format.ts` · `lib/time.ts` — the locality tree goes live at MP3 |
+| Backend (MP1) | `lib/src/localities/` (the seeded tree + `GET /localities`) · `lib/src/salon_time.dart` (`package:timezone`) · UTC storage ([BACKEND.md §2](../BACKEND.md)) |
 
 Mirrored as one rule line in [DESIGN-STANDARDS §4](../design/DESIGN-STANDARDS.md),
 [WEB-DESIGN-STANDARDS §5](../design/WEB-DESIGN-STANDARDS.md),

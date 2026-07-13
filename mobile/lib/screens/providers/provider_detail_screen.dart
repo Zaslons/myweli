@@ -1273,7 +1273,11 @@ class _ServiceTile extends StatelessWidget {
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              Formatters.formatPriceRange(service.price, service.priceMax),
+              Formatters.formatPriceRange(service.price, service.priceMax,
+                  currency: context
+                      .read<ProviderProvider>()
+                      .selectedProvider
+                      ?.currency),
               textAlign: TextAlign.end,
               style: AppTextStyles.titleSmall.copyWith(
                 color: AppColors.primary,

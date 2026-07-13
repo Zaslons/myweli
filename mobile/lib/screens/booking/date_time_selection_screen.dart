@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
@@ -12,6 +14,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
+import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_button.dart';
@@ -41,14 +44,24 @@ class DateTimeSelectionScreen extends StatefulWidget {
 }
 
 class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
+  /// The VIEWED salon's timezone (multi-pays MP2) — null until the provider
+  /// loads (the Abidjan fallback keeps the first frame correct).
+  String? get _tz =>
+      context.read<ProviderProvider>().selectedProvider?.timezone;
+
   /// The salon "today" as a NAIVE date — table_calendar compares its naive
   /// day cells field-to-field (never `.toUtc()` these).
-  static DateTime _salonTodayNaive() {
+  DateTime _salonTodayNaive() {
+    final s = salonNow(tz: _tz);
+    return DateTime(s.year, s.month, s.day);
+  }
+
+  static DateTime _todayNaiveDefault() {
     final s = salonNow();
     return DateTime(s.year, s.month, s.day);
   }
 
-  DateTime _selectedDate = _salonTodayNaive();
+  DateTime _selectedDate = _todayNaiveDefault();
   DateTime? _selectedTime;
   List<DateTime> _availableSlots = [];
   bool _loadingSlots = true;
@@ -59,12 +72,15 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     super.initState();
     if (widget.initialDateTime != null) {
       // Prefill reads the instant as SALON wall-clock (salon_time.dart).
-      final dt = toSalonTime(widget.initialDateTime!);
+      // The provider isn't loaded yet — the tz getter falls back to
+      // Abidjan; the slot reload after load() re-anchors everything.
+      final dt = toSalonTime(widget.initialDateTime!, tz: _tz);
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
-      _selectedTime =
-          salonDateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute);
+      _selectedTime = salonDateTime(dt.year, dt.month, dt.day,
+          hour: dt.hour, minute: dt.minute, tz: _tz);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(context.read<LocalityProvider>().ensureLoaded());
       await Provider.of<ProviderProvider>(context, listen: false)
           .loadProviderById(widget.providerId);
       if (!mounted) return;
@@ -140,8 +156,9 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       _selectedDate.year,
       _selectedDate.month,
       _selectedDate.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
+      hour: _selectedTime!.hour,
+      minute: _selectedTime!.minute,
+      tz: _tz,
     );
 
     if (widget.returnToHub) {
@@ -225,8 +242,15 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                     'Heures disponibles',
                     style: AppTextStyles.titleLarge,
                   ),
-                  const SalonTimeHint(
-                    padding: EdgeInsets.only(top: AppTheme.spacingXS),
+                  SalonTimeHint(
+                    tz: _tz,
+                    countryLabel: context.watch<LocalityProvider>().countryName(
+                          context
+                              .read<ProviderProvider>()
+                              .selectedProvider
+                              ?.countryCode,
+                        ),
+                    padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                   ),
                   const SizedBox(height: 16),
                   if (_loadingSlots)
@@ -269,7 +293,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                             ),
                             child: Center(
                               child: Text(
-                                Formatters.formatTime(slot),
+                                Formatters.formatTime(
+                                    toSalonTime(slot, tz: _tz)),
                                 style: AppTextStyles.bodyMedium.copyWith(
                                   color: isSelected
                                       ? AppColors.secondary

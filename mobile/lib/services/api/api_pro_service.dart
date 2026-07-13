@@ -336,6 +336,7 @@ class ApiProService implements ProServiceInterface {
     required BusinessType businessType,
     String? phoneNumber,
     String? address,
+    String? areaId,
   }) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
@@ -350,6 +351,7 @@ class ApiProService implements ProServiceInterface {
           if (phoneNumber != null && phoneNumber.isNotEmpty)
             'phoneNumber': phoneNumber,
           if (address != null && address.isNotEmpty) 'address': address,
+          if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
         }),
       ),
     );
@@ -709,7 +711,7 @@ class ApiProService implements ProServiceInterface {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,
-    MobileMoneyOperator? mobileMoneyOperator,
+    String? mobileMoneyOperator,
     String? mobileMoneyNumber,
   }) async {
     if (await _authed.accessToken() == null) {
@@ -722,7 +724,7 @@ class ApiProService implements ProServiceInterface {
             'depositRequired': depositRequired,
             'depositPercentage': depositPercentage,
             'cancellationWindowHours': cancellationWindowHours,
-            'mobileMoneyOperator': mobileMoneyOperator?.apiName,
+            'mobileMoneyOperator': mobileMoneyOperator,
             'mobileMoneyNumber': mobileMoneyNumber,
           }),
         ));

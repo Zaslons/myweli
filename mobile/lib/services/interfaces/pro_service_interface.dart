@@ -54,15 +54,22 @@ class MyProviderInfo {
 // Earnings data model
 class EarningsData {
   final double totalEarnings;
+
+  /// The salon's ISO-4217 currency (multi-pays MP1 stamp; XOF/XAF display
+  /// as « FCFA »). Null on pre-MP1 payloads → the caller falls back to the
+  /// active salon's currency.
+  final String? currency;
   final List<EarningsTransaction> transactions;
 
   const EarningsData({
     required this.totalEarnings,
     required this.transactions,
+    this.currency,
   });
 
   factory EarningsData.fromJson(Map<String, dynamic> json) => EarningsData(
         totalEarnings: (json['totalEarnings'] as num).toDouble(),
+        currency: json['currency'] as String?,
         transactions: ((json['transactions'] as List?) ?? const [])
             .map((e) => EarningsTransaction.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -115,6 +122,7 @@ abstract class ProServiceInterface {
     required BusinessType businessType,
     String? phoneNumber,
     String? address,
+    String? areaId,
   });
 
   // Dashboard
@@ -229,7 +237,7 @@ abstract class ProServiceInterface {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,
-    MobileMoneyOperator? mobileMoneyOperator,
+    String? mobileMoneyOperator,
     String? mobileMoneyNumber,
   });
 

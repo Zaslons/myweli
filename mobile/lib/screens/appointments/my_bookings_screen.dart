@@ -199,7 +199,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           const SizedBox(width: AppTheme.spacingM),
           Expanded(
             child: _summaryMetric(
-              Formatters.formatCurrency(spent),
+              // MVP: a mixed-currency history sums nominally and reads the
+              // first visit's currency (per-currency grouping is post-MP2).
+              Formatters.formatCurrency(
+                spent,
+                currency:
+                    visits.first.currency ?? visits.first.providerCurrency,
+              ),
               'dépensés',
             ),
           ),

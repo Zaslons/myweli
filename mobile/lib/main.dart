@@ -8,9 +8,11 @@ import 'core/di/dependency_injection.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
+import 'core/utils/salon_time.dart';
 import 'providers/appointment_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/favorites_provider.dart';
+import 'providers/locality_provider.dart';
 import 'providers/messaging_provider.dart';
 import 'providers/notification_preferences_provider.dart';
 import 'providers/notifications_provider.dart';
@@ -31,6 +33,9 @@ void main() {
         );
       };
       await initializeDateFormatting('fr_FR', null);
+      // Multi-pays MP2: load the tz database once — salon times
+      // render in each salon's own timezone (salon_time.dart).
+      initSalonTime();
       setupDependencyInjection();
       runApp(const MyweliApp());
     },
@@ -51,6 +56,7 @@ class MyweliApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProviderProvider()),
+        ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ChangeNotifierProvider(create: (_) => MessagingProvider()),

@@ -296,41 +296,46 @@ class MockAppointmentService implements AppointmentServiceInterface {
   }) async {
     await Future.delayed(AppConstants.mockDelay);
 
-    // The requested calendar day IS a salon day, and slot instants are built
-    // in SALON time — mirroring the API, which returns UTC instants
-    // (salon_time.dart; the old device-local synthesis drifted off-UTC).
-    final selectedDate = salonDateTime(date.year, date.month, date.day);
-    final today = salonToday();
-
-    // Skip past dates
-    if (selectedDate.isBefore(today)) {
-      return ApiResponse.success([]);
-    }
-
     final provider = MockData.providers.firstWhere(
       (p) => p.id == providerId,
       orElse: () => MockData.providers.first,
     );
+    // The requested calendar day (its y/m/d FIELDS) names THIS salon's day,
+    // and slot instants are that salon's wall-clocks — mirroring the MP1
+    // backend slot engine (salon_time.dart).
+    final tz = provider.timezone;
+    final dayStartUtc = salonDateTime(date.year, date.month, date.day, tz: tz);
+    final todayStartUtc = salonDayBoundsUtc(tz: tz).startUtc;
 
-    // Respect blocked dates from provider availability.
-    final blocked = provider.availability.blockedDates.any((d) =>
-        d.year == selectedDate.year &&
-        d.month == selectedDate.month &&
-        d.day == selectedDate.day);
+    // Skip past dates
+    if (dayStartUtc.isBefore(todayStartUtc)) {
+      return ApiResponse.success([]);
+    }
+
+    // Respect blocked dates (SALON calendar days) from provider availability.
+    final blocked = provider.availability.blockedDates.any((d) {
+      final wall = toSalonTime(d, tz: tz);
+      return wall.year == date.year &&
+          wall.month == date.month &&
+          wall.day == date.day;
+    });
     if (blocked) return ApiResponse.success([]);
 
-    // Determine base opening slots from weekly schedule (30min slots).
-    final weekdayIndex = selectedDate.weekday - 1; // Mon=1..Sun=7 -> 0..6
+    // Determine base opening slots from weekly schedule (30min slots) —
+    // weekday of the requested calendar date (pure field math).
+    final weekdayIndex =
+        DateTime.utc(date.year, date.month, date.day).weekday - 1;
     final templateSlots =
         provider.availability.weeklySchedule[weekdayIndex] ?? const [];
     final openingSlots = templateSlots
         .where((s) => s.isAvailable)
         .map((s) => salonDateTime(
-              selectedDate.year,
-              selectedDate.month,
-              selectedDate.day,
-              s.startTime.hour,
-              s.startTime.minute,
+              date.year,
+              date.month,
+              date.day,
+              hour: s.startTime.hour,
+              minute: s.startTime.minute,
+              tz: tz,
             ))
         .toList()
       ..sort((a, b) => a.compareTo(b));
@@ -338,8 +343,8 @@ class MockAppointmentService implements AppointmentServiceInterface {
     if (openingSlots.isEmpty) return ApiResponse.success([]);
 
     // For today, skip slots in the past (start 1 hour from now).
-    final minStart = selectedDate.isAtSameMomentAs(today)
-        ? salonNow().add(const Duration(hours: 1))
+    final minStart = dayStartUtc.isAtSameMomentAs(todayStartUtc)
+        ? DateTime.now().toUtc().add(const Duration(hours: 1))
         : null;
 
     final duration = durationMinutes ??

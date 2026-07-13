@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../common/timed_cached_image.dart';
 
@@ -127,12 +128,19 @@ class CompactAppointmentTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '${Formatters.formatDateShort(appointment.appointmentDate)} • ${Formatters.formatTime(appointment.appointmentDate)}',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Builder(builder: (context) {
+                    // The booking renders in ITS salon's time (multi-pays).
+                    final wall = toSalonTime(
+                      appointment.appointmentDate,
+                      tz: appointment.providerTimezone,
+                    );
+                    return Text(
+                      '${Formatters.formatDateShort(wall)} • ${Formatters.formatTime(wall)}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    );
+                  }),
                   if (hint != null) ...[
                     const SizedBox(height: 6),
                     Row(

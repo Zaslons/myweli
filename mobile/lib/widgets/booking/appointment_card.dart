@@ -7,6 +7,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/provider.dart' as models;
@@ -339,8 +340,9 @@ class AppointmentCard extends StatelessWidget {
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              Formatters.formatDateShort(
-                                  appointment.appointmentDate),
+                              Formatters.formatDateShort(toSalonTime(
+                                  appointment.appointmentDate,
+                                  tz: appointment.providerTimezone)),
                               style: AppTextStyles.bodyMedium.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -357,8 +359,9 @@ class AppointmentCard extends StatelessWidget {
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              Formatters.formatTime(
-                                  appointment.appointmentDate),
+                              Formatters.formatTime(toSalonTime(
+                                  appointment.appointmentDate,
+                                  tz: appointment.providerTimezone)),
                               style: AppTextStyles.bodyMedium.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -380,7 +383,10 @@ class AppointmentCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      Formatters.formatCurrency(appointment.totalPrice),
+                      Formatters.formatCurrency(appointment.totalPrice,
+                          currency: appointment.currency ??
+                              appointment.providerCurrency ??
+                              'XOF'),
                       style: AppTextStyles.titleMedium.copyWith(
                         color: AppColors.primary,
                       ),

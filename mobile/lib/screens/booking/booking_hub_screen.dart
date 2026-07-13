@@ -180,10 +180,15 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     return '$count services';
   }
 
+  /// The VIEWED salon's timezone (multi-pays MP2; null → Abidjan).
+  String? get _tz =>
+      context.read<ProviderProvider>().selectedProvider?.timezone;
+
   String _dateTimeLabel() {
     final dt = _draft.dateTime;
     if (dt == null) return 'Choisir';
-    return '${Formatters.formatDateShort(dt)} • ${Formatters.formatTime(dt)}';
+    final wall = toSalonTime(dt, tz: _tz);
+    return '${Formatters.formatDateShort(wall)} • ${Formatters.formatTime(wall)}';
   }
 
   bool _artistCanDoServices(
@@ -322,7 +327,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     final serviceIds = _draft.serviceIds;
     if (serviceIds.isEmpty) return null;
 
-    final startDay = salonToday();
+    final startDay = salonToday(tz: _tz);
     for (var i = 0; i <= daysAhead; i++) {
       final d = startDay.add(Duration(days: i));
       final slots = await appointmentProvider.getAvailableTimeSlots(
@@ -450,8 +455,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               return _SelectableRow(
                                 title: s.name,
                                 subtitle: s.durationVariants.isNotEmpty
-                                    ? '${Formatters.formatPriceRange(s.price, s.priceMax)} • durée selon la longueur'
-                                    : '${Formatters.formatDuration(s.durationMinutes)} • ${Formatters.formatPriceRange(s.price, s.priceMax)}',
+                                    ? '${Formatters.formatPriceRange(s.price, s.priceMax, currency: p.currency)} • durée selon la longueur'
+                                    : '${Formatters.formatDuration(s.durationMinutes)} • ${Formatters.formatPriceRange(s.price, s.priceMax, currency: p.currency)}',
                                 selected: selected,
                                 onTap: () async {
                                   _setEntryPointIfNeeded(
@@ -720,8 +725,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 final picked = await showDatePicker(
                                   context: context,
                                   initialDate: initial,
-                                  firstDate: salonToday(),
-                                  lastDate: salonToday()
+                                  firstDate: salonToday(tz: _tz),
+                                  lastDate: salonToday(tz: _tz)
                                       .add(const Duration(days: 365)),
                                 );
                                 if (!mounted || picked == null) return;
@@ -757,7 +762,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   final selected = _draft.dateTime != null &&
                                       _draft.dateTime!.isAtSameMomentAs(slot);
                                   return ChoiceChip(
-                                    label: Text(Formatters.formatTime(slot)),
+                                    label: Text(Formatters.formatTime(
+                                        toSalonTime(slot, tz: _tz))),
                                     selected: selected,
                                     onSelected: (_) async {
                                       _setEntryPointIfNeeded(
@@ -792,7 +798,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 _draft.dateTime != null) ...[
                               const SizedBox(height: AppTheme.spacingS),
                               Text(
-                                'Prochain créneau: ${Formatters.formatDateShort(_draft.dateTime!)} • ${Formatters.formatTime(_draft.dateTime!)}',
+                                'Prochain créneau: ${_dateTimeLabel()}',
                                 style: AppTextStyles.bodySmall
                                     .copyWith(color: AppColors.textSecondary),
                               ),
@@ -820,7 +826,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                         children: [
                           const Text('Total', style: AppTextStyles.titleMedium),
                           Text(
-                            Formatters.formatCurrency(totalPrice),
+                            Formatters.formatCurrency(totalPrice,
+                                currency: p.currency),
                             style: AppTextStyles.titleLarge
                                 .copyWith(color: AppColors.primary),
                           ),

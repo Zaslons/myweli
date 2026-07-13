@@ -69,11 +69,11 @@ class MockProviderService implements ProviderServiceInterface {
     return ApiResponse.success(paginatedProviders);
   }
 
-  /// Cheap "open today" proxy for the mock: open on the SALON's today
-  /// (weekday 0=Mon) and not blocked today. (The API uses the real slot
-  /// engine.)
+  /// Cheap "open today" proxy for the mock: open on THIS salon's today
+  /// (weekday 0=Mon, in its own timezone) and not blocked today. (The API
+  /// uses the real slot engine.)
   bool _openToday(Provider p) {
-    final today = salonToday();
+    final today = salonToday(tz: p.timezone);
     final blocked = p.availability.blockedDates.any(
       (d) =>
           d.year == today.year && d.month == today.month && d.day == today.day,

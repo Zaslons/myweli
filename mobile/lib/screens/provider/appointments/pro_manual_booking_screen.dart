@@ -38,13 +38,10 @@ class ProManualBookingScreen extends StatefulWidget {
 
 class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   final Set<String> _selected = {};
-  // Seeds + the recombined instant are SALON wall-clock (salon_time.dart).
-  late DateTime? _date = widget.initialDateTime == null
-      ? null
-      : toSalonTime(widget.initialDateTime!);
-  late TimeOfDay? _time = widget.initialDateTime == null
-      ? null
-      : TimeOfDay.fromDateTime(toSalonTime(widget.initialDateTime!));
+  // Seeds + the recombined instant are the ACTIVE SALON's wall-clock
+  // (salon_time.dart) — tz from ProAuthProvider, seeded in initState.
+  DateTime? _date;
+  TimeOfDay? _time;
   late final _phone =
       TextEditingController(text: widget.initialClientPhone ?? '');
   late final _name =
@@ -55,9 +52,17 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   bool _submitting = false;
   String? _providerId;
 
+  String? get _tz => context.read<ProAuthProvider>().salonTimezone;
+
   @override
   void initState() {
     super.initState();
+    final dt = widget.initialDateTime;
+    if (dt != null) {
+      final wall = toSalonTime(dt, tz: _tz);
+      _date = wall;
+      _time = TimeOfDay.fromDateTime(wall);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final id = context.read<ProAuthProvider>().activeSalonId;
       if (id != null && id.isNotEmpty) {
@@ -78,8 +83,8 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
 
   DateTime? get _dateTime {
     if (_date == null || _time == null) return null;
-    return salonDateTime(
-        _date!.year, _date!.month, _date!.day, _time!.hour, _time!.minute);
+    return salonDateTime(_date!.year, _date!.month, _date!.day,
+        hour: _time!.hour, minute: _time!.minute, tz: _tz);
   }
 
   bool get _canSubmit =>
@@ -89,7 +94,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       !_submitting;
 
   Future<void> _pickDate() async {
-    final today = salonToday();
+    final today = salonToday(tz: _tz);
     final picked = await showDatePicker(
       context: context,
       initialDate: _date ?? today,
@@ -102,7 +107,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
         context: context,
-        initialTime: _time ?? TimeOfDay.fromDateTime(salonNow()));
+        initialTime: _time ?? TimeOfDay.fromDateTime(salonNow(tz: _tz)));
     if (picked != null) setState(() => _time = picked);
   }
 
@@ -199,7 +204,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                       }),
                       title: Text(s.name),
                       subtitle: Text(
-                        '${Formatters.formatPriceRange(s.price, s.priceMax)} · '
+                        '${Formatters.formatPriceRange(s.price, s.priceMax, currency: context.read<ProAuthProvider>().salonCurrency)} · '
                         '${Formatters.formatDuration(s.durationMinutes)}',
                       ),
                       contentPadding: EdgeInsets.zero,
@@ -279,7 +284,10 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                       style: AppTextStyles.bodyMedium
                           .copyWith(color: AppColors.textSecondary)),
                   Text(
-                    Formatters.formatCurrency(total),
+                    Formatters.formatCurrency(
+                      total,
+                      currency: context.read<ProAuthProvider>().salonCurrency,
+                    ),
                     style: AppTextStyles.titleMedium
                         .copyWith(color: AppColors.primary),
                   ),

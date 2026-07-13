@@ -210,6 +210,7 @@ class MockProService implements ProServiceInterface {
     required BusinessType businessType,
     String? phoneNumber,
     String? address,
+    String? areaId,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
     final account = await serviceLocator.authService.getCurrentProvider();
@@ -467,14 +468,19 @@ class MockProService implements ProServiceInterface {
     DateTime date,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final key = salonDayKey(date);
+    // Day keys in THIS salon's timezone (multi-pays MP2 mock fidelity).
+    final tz = MockData.providers
+        .where((p) => p.id == providerId)
+        .map((p) => p.timezone)
+        .firstOrNull;
+    final key = salonDayKey(date, tz: tz);
     final row = await _currentMemberRow();
     final ownArtist =
         (row != null && row.role == TeamRole.staff) ? row.artistId : null;
     final all = MockData.appointments
         .where((a) => a.providerId == providerId)
         .where((a) => ownArtist == null || a.artistId == ownArtist)
-        .where((a) => salonDayKey(a.appointmentDate) == key)
+        .where((a) => salonDayKey(a.appointmentDate, tz: tz) == key)
         .toList()
       ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
     final artistIds = {
@@ -747,8 +753,14 @@ class MockProService implements ProServiceInterface {
             ))
         .toList();
 
+    // Multi-pays MP1 mirror: the ledger carries the salon's currency.
+    final salon = MockData.providers.firstWhere(
+      (p) => p.id == providerId,
+      orElse: () => MockData.providers.first,
+    );
     return ApiResponse.success(EarningsData(
       totalEarnings: totalEarnings,
+      currency: salon.currency,
       transactions: transactions,
     ));
   }
@@ -777,7 +789,7 @@ class MockProService implements ProServiceInterface {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,
-    MobileMoneyOperator? mobileMoneyOperator,
+    String? mobileMoneyOperator,
     String? mobileMoneyNumber,
   }) async {
     await Future.delayed(AppConstants.mockDelay);

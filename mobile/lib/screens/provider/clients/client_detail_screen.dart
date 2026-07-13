@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../models/appointment.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -282,17 +283,27 @@ class _StatsStrip extends StatelessWidget {
           ),
         );
 
+    final auth = context.read<ProAuthProvider>();
     return Row(
       children: [
         tile('Visites', '${stats.visits}'),
         const SizedBox(width: AppTheme.spacingS),
-        tile('Dépensé', Formatters.formatCurrency(stats.spentFcfa.toDouble())),
+        tile(
+          'Dépensé',
+          Formatters.formatCurrency(
+            stats.spentFcfa.toDouble(),
+            currency: auth.salonCurrency,
+          ),
+        ),
         const SizedBox(width: AppTheme.spacingS),
         tile('Absences', '${stats.noShows}', alert: stats.noShows >= 2),
         const SizedBox(width: AppTheme.spacingS),
         tile(
           'Dernière',
-          lastVisitAt == null ? '—' : Formatters.formatDate(lastVisitAt!),
+          lastVisitAt == null
+              ? '—'
+              : Formatters.formatDate(
+                  toSalonTime(lastVisitAt!, tz: auth.salonTimezone)),
         ),
       ],
     );
@@ -332,7 +343,12 @@ class _UpcomingCard extends StatelessWidget {
             ),
             const SizedBox(height: AppTheme.spacingXS),
             Text(
-              date == null ? '—' : Formatters.formatDateTime(date),
+              date == null
+                  ? '—'
+                  : Formatters.formatDateTime(toSalonTime(
+                      date,
+                      tz: context.read<ProAuthProvider>().salonTimezone,
+                    )),
               style: AppTextStyles.bodyLarge.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w500,
@@ -536,14 +552,20 @@ class _VisitsSection extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        Formatters.formatDateTime(v.appointmentDate),
+                        Formatters.formatDateTime(toSalonTime(
+                          v.appointmentDate,
+                          tz: context.read<ProAuthProvider>().salonTimezone,
+                        )),
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: AppColors.textPrimary,
                         ),
                       ),
                     ),
                     Text(
-                      Formatters.formatCurrency(v.totalPrice),
+                      Formatters.formatCurrency(
+                        v.totalPrice,
+                        currency: context.read<ProAuthProvider>().salonCurrency,
+                      ),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textSecondary,
                       ),

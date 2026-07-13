@@ -9,6 +9,7 @@ import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/commune_picker_sheet.dart';
 
 /// « Ajouter un salon » (module `access` R6 — docs/design/
 /// team-access-r6-multi-salons.md §6): the second-salon form, reached from
@@ -32,6 +33,11 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
   BusinessType? _businessType = BusinessType.salon;
   bool _submitting = false;
 
+  /// Multi-pays MP2: the optional locality pick at creation — the server
+  /// derives the salon's commune/city/timezone/currency from it (T57).
+  String? _areaId;
+  String _communeName = '';
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +55,19 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
     super.dispose();
   }
 
+  Future<void> _pickCommune() async {
+    final choice = await showCommunePicker(
+      context,
+      selected: _communeName.isEmpty ? null : _communeName,
+      allowAll: false,
+    );
+    if (choice == null || choice.areaId == null || !mounted) return;
+    setState(() {
+      _areaId = choice.areaId;
+      _communeName = choice.commune ?? '';
+    });
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
@@ -60,6 +79,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
       address: _addressController.text.trim().isEmpty
           ? null
           : _addressController.text.trim(),
+      areaId: _areaId,
     );
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -157,9 +177,39 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
                 const SizedBox(height: AppTheme.spacingM),
                 AppTextField(
                   label: 'Adresse (optionnel)',
-                  hint: 'Quartier, commune…',
+                  hint: 'Rue, repère…',
                   controller: _addressController,
                   prefixIcon: const Icon(Icons.location_on_outlined),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+                InkWell(
+                  onTap: _pickCommune,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Commune (optionnel)',
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _communeName.isEmpty
+                                ? 'Choisir une commune'
+                                : _communeName,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: _communeName.isEmpty
+                                  ? AppColors.textTertiary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.expand_more,
+                          color: AppColors.textTertiary,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spacingL),
                 Consumer<ProAuthProvider>(

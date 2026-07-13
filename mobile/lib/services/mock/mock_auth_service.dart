@@ -572,6 +572,7 @@ class MockAuthService implements AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId, // accepted for parity; the mock draft has no doc to stamp
   }) async {
     await Future.delayed(AppConstants.mockDelay);
     if (_providerByEmail(mockProGoogleEmail) != null) {
@@ -600,6 +601,7 @@ class MockAuthService implements AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId, // accepted for parity; the mock draft has no doc to stamp
   }) async {
     await Future.delayed(AppConstants.mockDelay);
     final key = email.trim().toLowerCase();

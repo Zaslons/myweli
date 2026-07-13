@@ -34,13 +34,14 @@ CalendarEventData buildAppointmentCalendarEvent({
   required int totalDurationMinutes,
   double depositAmount = 0,
   double balanceDue = 0,
+  String? currency,
 }) {
   final minutes = totalDurationMinutes > 0 ? totalDurationMinutes : 30;
   final lines = <String>[
     if (serviceNames.isNotEmpty) serviceNames.join(', '),
     if (depositAmount > 0)
-      'Acompte ${Formatters.formatCurrency(depositAmount)} · '
-          'Solde ${Formatters.formatCurrency(balanceDue)}',
+      'Acompte ${Formatters.formatCurrency(depositAmount, currency: currency)} · '
+          'Solde ${Formatters.formatCurrency(balanceDue, currency: currency)}',
   ];
   return CalendarEventData(
     title: 'Rendez-vous — $providerName',

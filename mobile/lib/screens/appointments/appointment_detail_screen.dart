@@ -10,8 +10,10 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/calendar_event.dart';
 import '../../core/utils/cancellation_policy.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
+import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
@@ -40,29 +42,37 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<AppointmentProvider>(context, listen: false);
       provider.loadAppointmentById(widget.appointmentId);
+      // The country label of the « heure du salon » hint reads the tree.
+      context.read<LocalityProvider>().ensureLoaded();
     });
   }
 
-  // Parity 1.8: the chosen spécialiste, resolved once from the salon's
-  // public team (the payload carries only artistId).
+  // ONE lazy provider fetch per appointment: the chosen spécialiste
+  // (parity 1.8 — the payload carries only artistId) AND the salon's
+  // country for the hint label (multi-pays MP2).
   String? _artistName;
-  String? _artistLookupFor;
+  String? _providerCountryCode;
+  String? _providerLookupFor;
 
-  void _maybeResolveArtist(Appointment appointment) {
+  void _maybeResolveProviderFacts(Appointment appointment) {
+    if (_providerLookupFor == appointment.providerId) return;
+    _providerLookupFor = appointment.providerId;
     final artistId = appointment.artistId;
-    if (artistId == null || artistId.isEmpty) return;
-    if (_artistLookupFor == artistId) return;
-    _artistLookupFor = artistId;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final res = await serviceLocator.providerService.getProviderById(
         appointment.providerId,
       );
       if (!mounted) return;
-      final name = res.data?.artists
-          .where((a) => a.id == artistId)
-          .map((a) => a.name)
-          .firstOrNull;
-      if (name != null) setState(() => _artistName = name);
+      final name = (artistId == null || artistId.isEmpty)
+          ? null
+          : res.data?.artists
+              .where((a) => a.id == artistId)
+              .map((a) => a.name)
+              .firstOrNull;
+      setState(() {
+        _providerCountryCode = res.data?.countryCode;
+        if (name != null) _artistName = name;
+      });
     });
   }
 
@@ -145,10 +155,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                             ? 'Annulation à moins de '
                                 '${appointment.cancellationWindowHours} h : '
                                 'votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount)} '
+                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
                                 'ne sera pas remboursé.'
                             : 'Votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount)} '
+                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
                                 'sera remboursé.',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: outcome.depositForfeited
@@ -247,7 +257,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       balanceDue: appointment.balanceDue,
       providerName: p?.name ?? 'le salon',
       depositOperator: p?.depositMobileMoneyOperator,
+      depositCountryCode: p?.countryCode,
       depositNumber: p?.depositMobileMoneyNumber,
+      currency: appointment.currency ?? p?.currency,
     );
     if (sent != true || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -286,7 +298,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   /// confirmation (view proof) → confirmé. Myweli never holds the money.
   Widget _depositSection(Appointment a) {
     final hasProof = a.depositScreenshotUrl != null;
-    final amount = Formatters.formatCurrency(a.depositAmount);
+    final amount = Formatters.formatCurrency(a.depositAmount,
+        currency: a.currency ?? a.providerCurrency ?? 'XOF');
 
     IconData icon;
     String label;
@@ -381,6 +394,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         totalDurationMinutes: totalDuration,
         depositAmount: appointment.depositAmount,
         balanceDue: appointment.balanceDue,
+        currency: appointment.currency ?? appointment.providerCurrency,
       ),
     );
     if (!mounted) return;
@@ -428,7 +442,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           }
 
           final appointment = provider.selectedAppointment;
-          if (appointment != null) _maybeResolveArtist(appointment);
+          if (appointment != null) _maybeResolveProviderFacts(appointment);
           if (appointment == null) {
             return Center(
               child: Column(
@@ -472,18 +486,24 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       _InfoRow(
                         icon: Icons.calendar_today,
                         label: 'Date',
-                        value:
-                            Formatters.formatDate(appointment.appointmentDate),
+                        value: Formatters.formatDate(toSalonTime(
+                            appointment.appointmentDate,
+                            tz: appointment.providerTimezone)),
                       ),
                       const SizedBox(height: 16),
                       _InfoRow(
                         icon: Icons.access_time,
                         label: 'Heure',
-                        value:
-                            Formatters.formatTime(appointment.appointmentDate),
+                        value: Formatters.formatTime(toSalonTime(
+                            appointment.appointmentDate,
+                            tz: appointment.providerTimezone)),
                       ),
-                      const SalonTimeHint(
-                        padding: EdgeInsets.only(top: AppTheme.spacingXS),
+                      SalonTimeHint(
+                        tz: appointment.providerTimezone,
+                        countryLabel: context
+                            .watch<LocalityProvider>()
+                            .countryName(_providerCountryCode),
+                        padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       ),
                       if (_artistName != null) ...[
                         const SizedBox(height: 16),
@@ -497,8 +517,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       _InfoRow(
                         icon: Icons.attach_money,
                         label: 'Prix total',
-                        value:
-                            Formatters.formatCurrency(appointment.totalPrice),
+                        value: Formatters.formatCurrency(appointment.totalPrice,
+                            currency: appointment.currency ??
+                                appointment.providerCurrency ??
+                                'XOF'),
                       ),
                       if (appointment.depositAmount > 0) ...[
                         const SizedBox(height: 16),
@@ -507,8 +529,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                         _InfoRow(
                           icon: Icons.account_balance_wallet_outlined,
                           label: 'Solde à régler au salon',
-                          value:
-                              Formatters.formatCurrency(appointment.balanceDue),
+                          value: Formatters.formatCurrency(
+                              appointment.balanceDue,
+                              currency: appointment.currency ??
+                                  appointment.providerCurrency ??
+                                  'XOF'),
                         ),
                       ],
                       if (appointment.notes != null &&

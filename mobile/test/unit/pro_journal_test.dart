@@ -160,6 +160,42 @@ void main() {
       expect(ok, isFalse);
       expect(p.error, isNotNull);
     });
+
+    test(
+        'the ACTIVE salon tz shapes keyOf/todayKey (multi-pays MP2) and '
+        'resets on salon switch', () async {
+      fake.day = JournalDay(
+        date: '2026-07-13',
+        artists: const [],
+        appointments: const [],
+      );
+      final p = ProJournalProvider();
+      final lateNight = DateTime.utc(2026, 7, 13, 23, 30);
+
+      await p.load('p1'); // no tz → Abidjan (Wave 0)
+      expect(p.keyOf(lateNight), '2026-07-13');
+
+      await p.load('p1', tz: 'Africa/Libreville'); // UTC+1
+      expect(p.keyOf(lateNight), '2026-07-14');
+
+      p.resetForSalonSwitch(); // the next salon's tz arrives with its load
+      expect(p.keyOf(lateNight), '2026-07-13');
+    });
+
+    test('an error retry does NOT reset the selected date to today', () async {
+      fake.day = JournalDay(
+        date: '2026-07-13',
+        artists: const [],
+        appointments: const [],
+      );
+      final p = ProJournalProvider();
+      final past = DateTime.utc(2026, 1, 5);
+      await p.load('p1', date: past);
+      expect(p.selectedDate, past);
+      fake.fail = true;
+      await p.load('p1'); // the screen's « Réessayer » path
+      expect(p.selectedDate, past);
+    });
   });
 
   group('MockProService.getJournalDay', () {

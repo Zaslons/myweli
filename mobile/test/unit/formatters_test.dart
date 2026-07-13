@@ -63,6 +63,11 @@ void main() {
       expect(Formatters.formatCurrency(1500), contains('500'));
     });
 
+    test('a NULL currency (unthreaded/pre-MP1) falls back to FCFA in the seam',
+        () {
+      expect(Formatters.formatCurrency(1500, currency: null), endsWith('FCFA'));
+    });
+
     test('XOF and XAF both read FCFA; other ISO codes render as themselves',
         () {
       expect(

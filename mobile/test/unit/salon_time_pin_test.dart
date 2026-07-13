@@ -58,5 +58,39 @@ void main() {
             'one place',
       );
     });
+
+    test(
+        "no 'Africa/Abidjan' STRING literal outside the seam (multi-pays "
+        'MP2) — per-salon timezones come from the API, the fallback lives '
+        'in kSalonTz', () {
+      expect(
+        offenders(
+          roots: ['lib'],
+          token: "'Africa/Abidjan'",
+          allow: ['core/utils/salon_time.dart'],
+        ),
+        isEmpty,
+        reason: 'use kSalonTz (or better: thread the salon tz) — '
+            'core/utils/salon_time.dart',
+      );
+    });
+
+    test(
+        'no `constants/communes.dart` import outside the mock locality seed '
+        '(multi-pays MP2) — the live tree comes from GET /localities', () {
+      expect(
+        offenders(
+          roots: ['lib'],
+          token: 'constants/communes.dart',
+          allow: [
+            'core/constants/communes.dart',
+            'services/mock/mock_locality_service.dart',
+          ],
+        ),
+        isEmpty,
+        reason: 'read localities via LocalityProvider '
+            '(providers/locality_provider.dart)',
+      );
+    });
   });
 }

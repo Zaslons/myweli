@@ -536,6 +536,7 @@ class ApiAuthService implements AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   }) async {
     try {
       final idToken = await _googleIdToken();
@@ -546,6 +547,7 @@ class ApiAuthService implements AuthServiceInterface {
         'businessName': businessName,
         'businessType': businessType.name,
         if (address != null && address.isNotEmpty) 'address': address,
+        if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
       });
       return _providerLoginFrom(res, expected: 201);
     } catch (_) {
@@ -564,6 +566,7 @@ class ApiAuthService implements AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   }) async {
     final res = await _post('/auth/provider/register', {
       'email': email,
@@ -572,6 +575,7 @@ class ApiAuthService implements AuthServiceInterface {
       'businessName': businessName,
       'businessType': businessType.name,
       if (address != null && address.isNotEmpty) 'address': address,
+      if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
     });
     return _providerLoginFrom(res, expected: 201);
   }

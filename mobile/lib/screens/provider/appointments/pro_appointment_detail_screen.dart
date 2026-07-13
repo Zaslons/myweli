@@ -152,8 +152,10 @@ class _ProAppointmentDetailScreenState
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          Formatters.formatDateTime(
-                              appointment.appointmentDate),
+                          Formatters.formatDateTime(toSalonTime(
+                            appointment.appointmentDate,
+                            tz: authProvider.salonTimezone,
+                          )),
                           style: AppTextStyles.bodyLarge
                               .copyWith(color: AppColors.textSecondary),
                         ),
@@ -176,7 +178,10 @@ class _ProAppointmentDetailScreenState
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          Formatters.formatCurrency(appointment.totalPrice),
+                          Formatters.formatCurrency(
+                            appointment.totalPrice,
+                            currency: authProvider.salonCurrency,
+                          ),
                           style: AppTextStyles.headlineSmall
                               .copyWith(color: AppColors.primary),
                         ),
@@ -190,7 +195,7 @@ class _ProAppointmentDetailScreenState
                               Expanded(
                                 child: Text(
                                   'Acompte annoncé : '
-                                  '${Formatters.formatCurrency(appointment.depositAmount)}',
+                                  '${Formatters.formatCurrency(appointment.depositAmount, currency: authProvider.salonCurrency)}',
                                   style: AppTextStyles.bodyMedium,
                                 ),
                               ),
@@ -245,12 +250,13 @@ class _ProAppointmentDetailScreenState
                   ),
                 ] else if (appointment.status ==
                     AppointmentStatus.confirmed) ...[
-                  // Same-day gate for « Client arrivé » — SALON day, never
-                  // the device's (the server re-checks anyway).
+                  // Same-day gate for « Client arrivé » — the ACTIVE SALON's
+                  // day, never the device's (the server re-checks anyway).
                   if (!ownMode &&
                       appointment.arrivedAt == null &&
                       isSameSalonDay(
-                          appointment.appointmentDate, salonNow())) ...[
+                          appointment.appointmentDate, DateTime.now(),
+                          tz: authProvider.salonTimezone)) ...[
                     AppButton(
                       text: 'Client arrivé',
                       icon: Icons.how_to_reg_outlined,
