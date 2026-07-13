@@ -1405,6 +1405,8 @@ export interface paths {
                         businessType: "salon" | "barber" | "spa" | "nailSalon" | "massage" | "other";
                         phoneNumber?: string;
                         address?: string;
+                        /** @description Optional locality pick (an `Area.id` from GET /localities) — market facts derive from it (400 `invalid_area` when unknown). */
+                        areaId?: string;
                     };
                 };
             };
@@ -1673,6 +1675,8 @@ export interface paths {
                         /** @description E.164 — required salon contact. */
                         phoneNumber: string;
                         address?: string;
+                        /** @description Optional locality pick (an `Area.id` from GET /localities) — the salon's commune/city/timezone/currency DERIVE from it server-side (multi-pays MP1; unknown → 400 `invalid_area`). */
+                        areaId?: string;
                         providerId?: string;
                         /** @description Google ID token (identity proof). */
                         idToken?: string;
@@ -2153,6 +2157,45 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/localities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The public locality reference tree (multi-pays MP1)
+         * @description Countries → Mobile-Money operator catalog + cities → areas (communes/quartiers). Read-only seeded reference data — the source of every locality picker, discovery filter, SEO landing family and the salon's derived timezone/currency (threat T56: no write endpoint exists; clients build payment deep links ONLY from the closed `deepLinkKind` vocabulary). Cacheable (`Cache-Control: public, max-age=3600`).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The tree */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LocalityTree"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3744,7 +3787,7 @@ export interface paths {
         };
         /**
          * The journal day view in ONE payload (module journal J1)
-         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientNoShowCount / arrivedAt. OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a) receive their own artist's column and bookings only, and `clientPhone` is masked on any day other than today (the same-day contact rule). Day boundary is UTC (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
+         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientNoShowCount / arrivedAt. OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a) receive their own artist's column and bookings only, and `clientPhone` is masked on any day other than today (the same-day contact rule). The `date` names a calendar day in the SALON's timezone (multi-pays MP1). Design: docs/design/journal-j1-grid.md.
          */
         get: {
             parameters: {
@@ -4436,6 +4479,7 @@ export interface paths {
             parameters: {
                 query: {
                     providerId: string;
+                    /** @description A calendar day in the SALON's timezone (multi-pays MP1). */
                     date: string;
                     /** @description Comma-separated; sums their durations if durationMinutes is absent. */
                     serviceIds?: string;
@@ -5959,6 +6003,12 @@ export interface components {
             artistId?: string | null;
             /** Format: date-time */
             appointmentDate: string;
+            /** @description Stamped from the salon at creation (multi-pays §4 — immutable); absent on pre-MP1 rows (read as the salon's). */
+            currency?: string | null;
+            /** @description Consumer-read enrichment (multi-pays MP1) — the salon's IANA timezone, for salon-time rendering. */
+            providerTimezone?: string | null;
+            /** @description Consumer-read enrichment — the salon's ISO-4217 currency. */
+            providerCurrency?: string | null;
             /** @description Server-computed total service duration; backs the booking overlap-exclusion constraint. Read-only. */
             durationMinutes?: number;
             /** @enum {string} */
@@ -6214,8 +6264,8 @@ export interface components {
             /** @description Fraction of the total (0.30 = 30%); > 0 when required. */
             depositPercentage: number;
             cancellationWindowHours: number;
-            /** @enum {string|null} */
-            mobileMoneyOperator?: "wave" | "orangeMoney" | "mtnMoMo" | "moov" | null;
+            /** @description An operator id from the salon COUNTRY's catalog (GET /localities → country.operators — multi-pays MP1). */
+            mobileMoneyOperator?: string | null;
             /** @description E.164. Required (with operator) when depositRequired. */
             mobileMoneyNumber?: string | null;
         };
@@ -6287,14 +6337,18 @@ export interface components {
             beforeAfters: components["schemas"]["BeforeAfterPair"][];
         };
         EarningsData: {
-            /** @description Σ totalPrice of completed bookings in range (FCFA). */
+            /** @description Σ totalPrice of completed bookings in range. */
             totalEarnings: number;
+            /** @description The salon's ISO-4217 currency (multi-pays MP1); XOF/XAF display as « FCFA ». */
+            currency?: string;
             transactions: components["schemas"]["EarningsTransaction"][];
         };
         EarningsTransaction: {
             id: string;
             appointmentId: string;
             amount: number;
+            /** @description The stamped record currency (multi-pays §4). */
+            currency?: string | null;
             /** Format: date-time */
             date: string;
             /** @description "completed". */
@@ -6311,6 +6365,46 @@ export interface components {
             logoUrl?: string | null;
             imageUrls?: string[];
             depositRequired?: boolean;
+        };
+        LocalityTree: {
+            countries: components["schemas"]["LocalityCountry"][];
+        };
+        LocalityCountry: {
+            /** @description ISO-3166 alpha-2 (e.g. CI). */
+            code: string;
+            name: string;
+            /** @description ISO-4217 (e.g. XOF). */
+            currency: string;
+            /** @description E.164 prefix (e.g. +225). */
+            phonePrefix: string;
+            operators: components["schemas"]["MomoOperator"][];
+            cities: components["schemas"]["LocalityCity"][];
+        };
+        LocalityCity: {
+            id: string;
+            slug: string;
+            name: string;
+            /** @description IANA — drives every salon in the city. */
+            timezone: string;
+            lat?: number | null;
+            lng?: number | null;
+            areas: components["schemas"]["LocalityArea"][];
+        };
+        LocalityArea: {
+            id: string;
+            slug: string;
+            name: string;
+            /** @enum {string} */
+            labelKind: "commune" | "quartier" | "arrondissement";
+            lat?: number | null;
+            lng?: number | null;
+        };
+        MomoOperator: {
+            /** @description The wire value used by deposit policies. */
+            id: string;
+            label: string;
+            /** @description Closed vocabulary driving client payment deep links (`wave` today) — clients never build links from payload URLs (T56). */
+            deepLinkKind?: string | null;
         };
         /** @description Full provider detail. Mirrors Provider.toJson() field-for-field. */
         Provider: {
@@ -6329,6 +6423,15 @@ export interface components {
             address: string;
             city?: string | null;
             commune?: string | null;
+            /** @description The salon's locality (an `Area.id` from GET /localities). Market facts below DERIVE from it server-side (multi-pays MP1, T57). */
+            areaId?: string | null;
+            citySlug?: string | null;
+            /** @description ISO-3166 alpha-2. */
+            countryCode?: string | null;
+            /** @description IANA — derived from the salon's city; every displayed time and day boundary uses it (salon time). Never client-writable. */
+            timezone?: string | null;
+            /** @description ISO-4217 — derived from the salon's country at creation, immutable self-serve; XOF/XAF display as « FCFA ». */
+            currency?: string | null;
             latitude?: number | null;
             longitude?: number | null;
             imageUrls: string[];
@@ -6343,8 +6446,8 @@ export interface components {
             category: string;
             depositRequired?: boolean;
             depositPercentage?: number;
-            /** @enum {string|null} */
-            depositMobileMoneyOperator?: "wave" | "orangeMoney" | "mtnMoMo" | "moov" | null;
+            /** @description An operator id from the salon COUNTRY's catalog (GET /localities → country.operators — multi-pays MP1). */
+            depositMobileMoneyOperator?: string | null;
             depositMobileMoneyNumber?: string | null;
             cancellationWindowHours?: number;
             /** @description Staff/artists; may be absent/empty. */

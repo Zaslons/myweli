@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
+import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/validators.dart';
@@ -38,6 +39,16 @@ Future<Response> onRequest(RequestContext context) async {
   final address = (rawAddress == null || rawAddress.isEmpty)
       ? null
       : rawAddress;
+  // Multi-pays MP1: an optional locality pick — validated against the tree,
+  // the salon's market facts derive from it (threat T57).
+  final areaIdRaw = (body['areaId'] as String?)?.trim();
+  SalonMarket? market;
+  if (areaIdRaw != null && areaIdRaw.isNotEmpty) {
+    market = await context.read<LocalitiesService>().resolveArea(areaIdRaw);
+    if (market == null) {
+      return jsonError(HttpStatus.badRequest, 'invalid_area');
+    }
+  }
   final providerIdRaw = (body['providerId'] as String?)?.trim();
   final providerId = (providerIdRaw == null || providerIdRaw.isEmpty)
       ? null
@@ -57,6 +68,7 @@ Future<Response> onRequest(RequestContext context) async {
     return providerSessionResponse(
       await _provisioned(
         context,
+        market,
         await repo.register(
           businessName: businessName,
           businessType: businessType,
@@ -90,6 +102,7 @@ Future<Response> onRequest(RequestContext context) async {
     return providerSessionResponse(
       await _provisioned(
         context,
+        market,
         await repo.register(
           businessName: businessName,
           businessType: businessType,
@@ -115,6 +128,7 @@ Future<Response> onRequest(RequestContext context) async {
     return providerSessionResponse(
       await _provisioned(
         context,
+        market,
         await repo.register(
           businessName: businessName,
           businessType: businessType,
@@ -139,11 +153,13 @@ Future<Response> onRequest(RequestContext context) async {
 /// failure here is tolerable: /me/provider self-heals on first read.
 Future<ProviderVerifyResult> _provisioned(
   RequestContext context,
+  SalonMarket? market,
   ProviderVerifyResult result,
 ) async {
   if (!result.ok) return result;
   final account = await context.read<SalonProvisioningService>().ensureSalon(
     result.provider!,
+    market: market,
   );
   return (ok: true, error: null, provider: account, tokens: result.tokens);
 }

@@ -1,5 +1,7 @@
 import 'access/membership_repository.dart';
 import 'auth/provider_auth_repository.dart';
+import 'localities/localities_repository.dart';
+import 'localities/localities_service.dart';
 import 'providers_repository.dart';
 import 'subscription/salon_subscription_service.dart';
 
@@ -45,8 +47,14 @@ class SalonProvisioningService {
 
   /// The ONE create+link path: returns the account with a salon attached —
   /// creating a draft from the account's business fields when missing.
-  /// Idempotent; used by register AND the /me/provider self-heal.
-  Future<ProviderAccount> ensureSalon(ProviderAccount account) async {
+  /// Idempotent; used by register AND the /me/provider self-heal. An
+  /// optional resolved [market] (multi-pays MP1 — the route validated the
+  /// `areaId` against the locality tree) stamps the salon's derived
+  /// commune/city/timezone/currency at creation.
+  Future<ProviderAccount> ensureSalon(
+    ProviderAccount account, {
+    SalonMarket? market,
+  }) async {
     if (account.providerId != null) {
       // Module `access` R1: keep the membership table authoritative — the
       // linked owner gets its row even on the already-linked path.
@@ -60,6 +68,9 @@ class SalonProvisioningService {
       address: account.address,
     );
     final id = salon['id'] as String;
+    if (market != null) {
+      await _providers.updateProfile(id, market.providerChanges);
+    }
     await _accounts.linkProvider(account.id, id);
     account.providerId = id;
     await _ensureOwnerRow(account, id);
@@ -80,7 +91,16 @@ class SalonProvisioningService {
     final description = (provider['description'] as String?)?.trim() ?? '';
     final address = (provider['address'] as String?)?.trim() ?? '';
     final commune = (provider['commune'] as String?)?.trim() ?? '';
-    if (description.isEmpty || address.isEmpty || commune.isEmpty) {
+    // Multi-pays MP1: the commune must be a VALID locality (an areaId, or a
+    // name that resolves to one — publish() self-heals the match first); a
+    // free-text miss stays under the existing `profile` checklist key.
+    final validArea =
+        provider['areaId'] != null ||
+        (commune.isNotEmpty && seedAreaForCommuneName(commune) != null);
+    if (description.isEmpty ||
+        address.isEmpty ||
+        commune.isEmpty ||
+        !validArea) {
       missing.add('profile');
     }
     // The map pin (L1) — no coordinates, no listing on the discovery map.
@@ -109,9 +129,23 @@ class SalonProvisioningService {
   Future<({bool ok, String? error, Object? data})> publish(
     String providerId,
   ) async {
-    final provider = await _providers.byId(providerId);
+    var provider = await _providers.byId(providerId);
     if (provider == null) {
       return (ok: false, error: 'not_found', data: null);
+    }
+    // Multi-pays MP1 self-heal: a legacy commune display name that matches a
+    // seeded area gets its market facts stamped before gating.
+    if (provider['areaId'] == null) {
+      final commune = (provider['commune'] as String?)?.trim() ?? '';
+      final area = commune.isEmpty ? null : seedAreaForCommuneName(commune);
+      if (area != null) {
+        provider =
+            await _providers.updateProfile(
+              providerId,
+              marketChangesForArea(area),
+            ) ??
+            provider;
+      }
     }
     final missing = publishGate(provider);
     // The pricing pivot: going live requires a live offer (trial/paid/grace)

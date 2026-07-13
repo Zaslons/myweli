@@ -3,6 +3,7 @@ import '../notifications/notification_prefs_repository.dart';
 import '../notifications/notifications_repository.dart';
 import '../providers_repository.dart';
 import '../push/push_service.dart';
+import '../salon_time.dart';
 import 'messaging_models.dart';
 import 'messaging_service.dart';
 
@@ -36,10 +37,8 @@ class BookingNotifier {
   ) async {
     if (appointment == null) return;
     try {
-      final providerName = await _providerName(
-        appointment['providerId'] as String?,
-      );
-      final params = _params(appointment, providerName);
+      final salon = await _salon(appointment['providerId'] as String?);
+      final params = _params(appointment, salon);
 
       // Per-user opt-out prefs (FR-NOTIF-004). Manual bookings (no app user) →
       // all-true defaults, unchanged behaviour.
@@ -135,28 +134,44 @@ class BookingNotifier {
     return (await _users.userById(userId))?.phoneNumber;
   }
 
-  Future<String> _providerName(String? providerId) async {
-    if (providerId == null) return 'votre salon';
-    final p = await _providers.byId(providerId);
-    return (p?['name'] as String?) ?? 'votre salon';
+  /// The salon's name + market facts in ONE lookup (multi-pays MP1): message
+  /// times render the SALON's wall-clock, amounts its currency.
+  Future<({String name, String? tzName, String currency})> _salon(
+    String? providerId,
+  ) async {
+    final p = providerId == null ? null : await _providers.byId(providerId);
+    return (
+      name: (p?['name'] as String?) ?? 'votre salon',
+      tzName: p?['timezone'] as String?,
+      currency: (p?['currency'] as String?) ?? 'XOF',
+    );
   }
 
-  Map<String, String> _params(Map<String, dynamic> a, String providerName) {
+  Map<String, String> _params(
+    Map<String, dynamic> a,
+    ({String name, String? tzName, String currency}) salon,
+  ) {
     final dt = DateTime.tryParse('${a['appointmentDate'] ?? ''}')?.toUtc();
+    final wall = dt == null ? null : salonWallClock(dt, salon.tzName);
     final deposit = a['depositAmount'] as num?;
     final total = a['totalPrice'] as num?;
     return {
-      'provider': providerName,
-      if (dt != null) 'date': _date(dt),
-      if (dt != null) 'time': _time(dt),
-      if (deposit != null) 'deposit': _fcfa(deposit),
-      if (total != null) 'amount': _fcfa(total),
+      'provider': salon.name,
+      if (wall != null) 'date': _date(wall),
+      if (wall != null) 'time': _time(wall),
+      if (deposit != null) 'deposit': _money(deposit, salon.currency),
+      if (total != null) 'amount': _money(total, salon.currency),
     };
   }
 
-  // Côte d'Ivoire is UTC, so UTC == local — no timezone conversion needed.
   String _date(DateTime d) => '${_pad(d.day)}/${_pad(d.month)}/${d.year}';
   String _time(DateTime d) => '${_pad(d.hour)}:${_pad(d.minute)}';
   String _pad(int n) => n.toString().padLeft(2, '0');
-  String _fcfa(num n) => '${n.round()} XOF';
+
+  /// « FCFA » is the display name for both CFA francs (multi-pays §4);
+  /// other ISO codes render as themselves.
+  String _money(num n, String currency) {
+    final suffix = (currency == 'XOF' || currency == 'XAF') ? 'FCFA' : currency;
+    return '${n.round()} $suffix';
+  }
 }

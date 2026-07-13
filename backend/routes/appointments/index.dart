@@ -7,6 +7,7 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `/appointments`.
@@ -69,7 +70,12 @@ Future<Response> _list(RequestContext context, Principal principal) async {
       rows,
     );
     if (!scope.all) {
-      items = ClientsService.maskContactsOffDay(items);
+      // « Today » is the SALON's calendar day (multi-pays MP1).
+      final salon = await context.read<ProvidersRepository>().byId(providerId);
+      items = ClientsService.maskContactsOffDay(
+        items,
+        tzName: salon?['timezone'] as String?,
+      );
     }
   } else {
     // Auto-sync (FR-APPT-008): also surface provider-entered bookings made to
@@ -87,6 +93,12 @@ Future<Response> _list(RequestContext context, Principal principal) async {
           ? account?.phoneNumber
           : null,
     );
+    // Multi-pays MP1: stamp each booking with its salon's market facts so
+    // consumer surfaces render the SALON's clock + currency.
+    items = await withProviderMarket(
+      context.read<ProvidersRepository>(),
+      items,
+    );
   }
 
   return Response.json(
@@ -97,6 +109,28 @@ Future<Response> _list(RequestContext context, Principal principal) async {
       'total': items.length,
     },
   );
+}
+
+/// Adds `providerTimezone` + `providerCurrency` to consumer appointment
+/// payloads (multi-pays MP1) — one provider lookup per distinct salon.
+Future<List<Map<String, dynamic>>> withProviderMarket(
+  ProvidersRepository providers,
+  List<Map<String, dynamic>> items,
+) async {
+  final cache = <String, Map<String, dynamic>?>{};
+  final out = <Map<String, dynamic>>[];
+  for (final a in items) {
+    final pid = a['providerId'] as String? ?? '';
+    final p = cache.containsKey(pid)
+        ? cache[pid]
+        : (cache[pid] = await providers.byId(pid));
+    out.add({
+      ...a,
+      'providerTimezone': p?['timezone'],
+      'providerCurrency': p?['currency'],
+    });
+  }
+  return out;
 }
 
 Future<Response> _book(RequestContext context, String userId) async {

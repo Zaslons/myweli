@@ -5,6 +5,10 @@
 /// `mobile/lib/models/provider.dart`). It is replaced by a Postgres-backed
 /// repository in a later slice — the route handlers depend only on this small
 /// surface (`query` + `byId`), so that swap stays localized.
+library;
+
+import 'slug.dart' show isReservedSlug;
+
 /// Read access to providers. In-memory now; a Postgres impl (B3b) satisfies the
 /// same interface, so the route handlers are unchanged when the store swaps.
 abstract interface class ProvidersRepository {
@@ -365,7 +369,9 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     final id = 'provider_${DateTime.now().microsecondsSinceEpoch}';
     var slug = slugifySalonName(name);
     var n = 2;
-    while (await bySlug(slug) != null) {
+    // Reserved slugs (multi-pays MP1): taxonomy roots / city slugs / web
+    // routes are never claimable — « Coiffure » becomes coiffure-2.
+    while (isReservedSlug(slug) || await bySlug(slug) != null) {
       slug = '${slugifySalonName(name)}-${n++}';
     }
     final salon = draftSalonDocument(
@@ -482,6 +488,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Rue des Jardins, Cocody, Abidjan',
     'city': 'Abidjan',
     'commune': 'Cocody',
+    'areaId': 'cocody',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.3599,
     'longitude': -3.9871,
     'imageUrls': <String>['asset:assets/images/salon1.jpg'],
@@ -528,6 +539,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Boulevard Latrille, Cocody, Abidjan',
     'city': 'Abidjan',
     'commune': 'Cocody',
+    'areaId': 'cocody',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.3712,
     'longitude': -3.9923,
     'imageUrls': <String>['asset:assets/images/salon2.jpg'],
@@ -566,6 +582,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Avenue Principale, Yopougon, Abidjan',
     'city': 'Abidjan',
     'commune': 'Yopougon',
+    'areaId': 'yopougon',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.3456,
     'longitude': -4.0712,
     'imageUrls': <String>['asset:assets/images/barber1.jpg'],
@@ -603,6 +624,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Zone 4, Marcory, Abidjan',
     'city': 'Abidjan',
     'commune': 'Marcory',
+    'areaId': 'marcory',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.2998,
     'longitude': -3.9876,
     'imageUrls': <String>['asset:assets/images/nails1.jpg'],
@@ -672,6 +698,14 @@ Map<String, dynamic> draftSalonDocument({
   'address': address ?? '',
   'city': 'Abidjan',
   'commune': null,
+  // Multi-pays Wave-0 defaults — re-derived on every areaId write
+  // (docs/design/multi-pays-end-version.md §2; registration is
+  // CI-scoped until a multi-country registration UX exists).
+  'areaId': null,
+  'citySlug': null,
+  'countryCode': 'CI',
+  'timezone': 'Africa/Abidjan',
+  'currency': 'XOF',
   'latitude': null,
   'longitude': null,
   'imageUrls': <String>[],

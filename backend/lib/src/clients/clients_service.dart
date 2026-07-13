@@ -5,6 +5,7 @@ import '../access/membership_service.dart';
 import '../appointments/appointment_repository.dart';
 import '../auth/auth_repository.dart';
 import '../auth/provider_auth_repository.dart';
+import '../salon_time.dart';
 import 'clients_repository.dart';
 import 'provider_audit_log.dart';
 
@@ -396,25 +397,20 @@ class ClientsService {
   /// Clients §11.2 / T39·T40 (team access R4a): an OWN-SCOPE journal
   /// exposes `clientPhone` only on SAME-DAY bookings — a Collaborateur can
   /// call today's client, not walk out with contact data for the future.
+  /// « Today » is the SALON's calendar day (multi-pays MP1 — salon_time.dart).
   /// `salonClientId`/`clientNoShowCount` stay (ids and counters, not contact
   /// data); the client card itself sits behind audited `clients.view`.
   static List<Map<String, dynamic>> maskContactsOffDay(
     List<Map<String, dynamic>> appointments, {
     DateTime? now,
+    String? tzName,
   }) {
     final ref = (now ?? DateTime.now()).toUtc();
-    final today = DateTime.utc(ref.year, ref.month, ref.day);
     return [
       for (final a in appointments)
         () {
-          final t = DateTime.tryParse(
-            a['appointmentDate'] as String? ?? '',
-          )?.toUtc();
-          final sameDay =
-              t != null &&
-              t.year == today.year &&
-              t.month == today.month &&
-              t.day == today.day;
+          final t = DateTime.tryParse(a['appointmentDate'] as String? ?? '');
+          final sameDay = t != null && sameSalonDay(t, ref, tzName);
           if (sameDay) return a;
           return {...a}..remove('clientPhone');
         }(),

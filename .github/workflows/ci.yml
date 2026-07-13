@@ -178,6 +178,10 @@ jobs:
           # /providers → seeded data (proves migrations + seed ran on Postgres)
           curl -fsS "http://localhost:${PORT}/providers" | tee /tmp/providers.json; echo
           grep -q '"id":"provider1"' /tmp/providers.json
+          # /localities → the seeded reference tree (multi-pays MP1)
+          curl -fsS "http://localhost:${PORT}/localities" | tee /tmp/localities.json; echo
+          grep -q '"code":"CI"' /tmp/localities.json
+          grep -q '"id":"cocody"' /tmp/localities.json
           # Auth round-trip: request OTP → devCode → verify → tokens
           REQ=$(curl -fsS -X POST "http://localhost:${PORT}/auth/otp/request" \
             -H 'content-type: application/json' \

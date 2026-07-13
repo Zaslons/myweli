@@ -13,7 +13,7 @@ in §9, and the first slice ([design/timezone-salon-time.md](../design/timezone-
 
 | | |
 |---|---|
-| **Status** | 📘 End version agreed (2026-07-13) · Wave 0 (Côte d'Ivoire) live · **slice 1 (salon time) BUILT 2026-07-13** |
+| **Status** | 📘 End version agreed (2026-07-13) · slice 1 (salon time) built 2026-07-13 · **FULL MACHINERY BUILD in progress (user decision 2026-07-14): MP1 backend → MP2 mobile → MP3 web** — see [design/multi-pays-end-version.md](../design/multi-pays-end-version.md) |
 | **Module slug** | `multi-pays` (cross-cutting — every module stands on it, like identity/design/security) |
 | **First slice** | [design/timezone-salon-time.md](../design/timezone-salon-time.md) — the salon-time seam |
 | **Companions** | [MODULES.md](../MODULES.md) · [ROADMAP.md](../ROADMAP.md) · [PRD.md](../PRD.md) (CI scope) · module [`network`](../MODULES.md) (V3 layer above) |
@@ -78,10 +78,10 @@ changes hands.
 - The tree powers: the discovery commune filter, « Près de moi » resolution,
   the map center/zoom, the registration picker, widget/catalog placement, and
   the **SEO landing families**.
-- **URLs:** today's flat `/tresses-cocody` stays until a **second city**
-  exists; then the Planity tree (`/tresses` → `/tresses/abidjan` →
-  `/tresses/abidjan/cocody`) with **301s from every flat slug**. Never churn
-  the PRD's main acquisition channel early.
+- **URLs:** the Planity tree (`/tresses` → `/tresses/abidjan` →
+  `/tresses/abidjan/cocody`) with **permanent redirects from every flat
+  slug** — *user decision 2026-07-14: nested NOW (MP3), ahead of the
+  second-city trigger; redirects + nested sitemap ship in one deploy.*
 - **Today's seed (the seam):** `mobile/lib/core/constants/communes.dart`
   (`abidjanCommunes`), the web landing taxonomy (`web/lib/landing.ts`,
   `discovery.ts`, `service-landing.ts`), backend commune validation
@@ -175,16 +175,19 @@ constant. The helpers don't change.
 
 ## 7. The waves — what flips when
 
-| Wave | Markets | Zone | What flips | What stays |
-|---|---|---|---|---|
-| **0 (live)** | Côte d'Ivoire | UTC+0 · XOF | — | Everything |
-| **1** | Sénégal · Mali · Burkina · Togo | UTC+0 · XOF · FR | **Data only:** localities seed, operator catalog, SMS route + sender, KYC docs, legal | All code — zero machinery (the Planity move) |
-| **2** | Bénin · Niger | **UTC+1** · XOF · FR | **The timezone seam:** `cities.timezone` → salon snapshot → delete the `Africa/Abidjan` constant | Currency, formatters, operators pattern |
-| **3** | Gabon · Cameroun (CEMAC) | UTC+1 · **XAF** · FR | **The currency field activates:** country-derived `providers.currency`, record stamping live | Display (« FCFA » covers XAF); no conversion ever |
+> **Post-MP1–MP3 (decision 2026-07-14): ALL the machinery below is live with
+> CI-only data — every wave becomes a data-only market entry (§8 checklist +
+> seed rows). The table is kept as the market map.**
 
-Bénin/Niger are **the trap inside UEMOA**: same XOF, different clock — which
-is exactly why the timezone seam is built first (Wave 2 is one contained
-slice, not a sweep).
+| Wave | Markets | Zone | What their entry needs now |
+|---|---|---|---|
+| **0 (live)** | Côte d'Ivoire | UTC+0 · XOF | — (the seed) |
+| **1** | Sénégal · Mali · Burkina · Togo | UTC+0 · XOF · FR | Seed rows (localities + operators) + SMS route + KYC docs + legal |
+| **2** | Bénin · Niger | **UTC+1** · XOF · FR | Same — the per-salon timezone machinery is already live |
+| **3** | Gabon · Cameroun (CEMAC) | UTC+1 · **XAF** · FR | Same — per-salon currency + « FCFA » display already cover XAF |
+
+Bénin/Niger were **the trap inside UEMOA** (same XOF, different clock) — the
+reason timezone machinery was built before any expansion.
 
 ---
 
@@ -227,17 +230,24 @@ keeps the next hundred screens end-version ready.
 
 ---
 
-## 10. Explicitly NOT built now (V1 discipline)
+## 10. The machinery build (decision 2026-07-14 — supersedes the wave gating)
 
-- ❌ No `countries`/`cities`/`areas` tables — the commune lists stay constants
-  until the second city.
-- ❌ No `providers.currency` column, no record stamping — Wave 3.
-- ❌ No operator catalog table — the enum stays until the first foreign market.
-- ❌ No nested SEO URLs, no 301s — second city.
-- ❌ No i18n.
+The original discipline deferred each mechanism to its wave trigger. **The
+user decided on 2026-07-14 to build the complete end version now** — program
+spec: [design/multi-pays-end-version.md](../design/multi-pays-end-version.md)
+(MP1 backend → MP2 mobile → MP3 web):
 
-**Readiness now = exactly three things, ALL SHIPPED (2026-07-13):** the
-salon-time slice ([design/timezone-salon-time.md](../design/timezone-salon-time.md)
-— Built), the currency-parameterized formatters inside it (display unified on
-« FCFA » across app + web), and this document + the §9 rule (grep-pinned in
-both test suites).
+- ✅ `countries`/`cities`/`areas` + `momo_operators` tables, seeded (CI) and
+  served by public `GET /localities` — MP1.
+- ✅ Per-salon `timezone` (city-derived) through ALL backend day-math
+  (`package:timezone`) and client display — MP1 + MP2/MP3.
+- ✅ Per-salon `currency` (country-derived), stamped on financial records,
+  threaded through display — MP1 + MP2/MP3.
+- ✅ Operator catalog validation + catalog-driven rendering (client enums
+  retire; wire strings unchanged) — MP1 + MP2/MP3.
+- ✅ Nested SEO URLs + permanent redirects — MP3.
+- ❌ Still no i18n (francophone-only stands) and no non-CI seed rows — **a
+  new market is now purely §8 checklist + data.**
+
+Slice-1 foundations (salon time, « FCFA » display, the §9 guardrail pins)
+shipped 2026-07-13 via [design/timezone-salon-time.md](../design/timezone-salon-time.md).

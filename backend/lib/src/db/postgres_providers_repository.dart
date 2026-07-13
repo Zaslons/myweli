@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:postgres/postgres.dart';
 
 import '../providers_repository.dart';
+import '../slug.dart' show isReservedSlug;
 import 'migrations.dart' show insertProviderAvailability;
 
 /// Postgres-backed [ProvidersRepository].
@@ -597,7 +598,9 @@ class PostgresProvidersRepository implements ProvidersRepository {
     final id = 'provider_${DateTime.now().microsecondsSinceEpoch}';
     var slug = slugifySalonName(name);
     var n = 2;
-    while (await bySlug(slug) != null) {
+    // Reserved slugs (multi-pays MP1): taxonomy roots / city slugs / web
+    // routes are never claimable — « Coiffure » becomes coiffure-2.
+    while (isReservedSlug(slug) || await bySlug(slug) != null) {
       slug = '${slugifySalonName(name)}-${n++}';
     }
     final salon = draftSalonDocument(

@@ -1,6 +1,8 @@
 import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'appointments/appointment_repository.dart';
+import 'providers_repository.dart';
+import 'salon_time.dart';
 
 /// Outcome of a dashboard read; [data] is the `DashboardStats` map on success.
 typedef DashboardResult = ({
@@ -11,14 +13,23 @@ typedef DashboardResult = ({
 
 /// Server-authoritative pro dashboard stats
 /// (docs/design/provider-dashboard-stats.md). Ownership-scoped: the access
-/// token's account must manage `providerId` (→ `forbidden`). Stats are computed
-/// in UTC (Abidjan is UTC+0) from the salon's appointments — revenue counts
+/// token's account must manage `providerId` (→ `forbidden`). Bucket
+/// boundaries (today / Monday-week / calendar month) are the SALON's
+/// timezone (multi-pays MP1 — salon_time.dart); revenue counts
 /// `confirmed` + `completed`; `todayAppointments` excludes `cancelled`.
 class ProviderDashboardService {
-  ProviderDashboardService(this._members, this._appointments);
+  ProviderDashboardService(
+    this._members,
+    this._appointments, {
+    ProvidersRepository? providers,
+    DateTime Function()? clock,
+  }) : _providers = providers,
+       _now = clock ?? DateTime.now;
 
   final MembershipService _members;
   final AppointmentRepository _appointments;
+  final ProvidersRepository? _providers;
+  final DateTime Function() _now;
 
   static const _revenueStatuses = {'confirmed', 'completed'};
 
@@ -27,7 +38,8 @@ class ProviderDashboardService {
       return (ok: false, error: 'forbidden', data: null);
     }
     final appointments = await _appointments.listForProvider(providerId);
-    final stats = _compute(appointments);
+    final salon = await _providers?.byId(providerId);
+    final stats = _compute(appointments, salon?['timezone'] as String?);
     // Field-level gating (module `access` §4): money figures only for
     // finances.view — absence is a valid state, not an error.
     if (!await _members.can(accountId, providerId, Cap.financesView)) {
@@ -39,14 +51,39 @@ class ProviderDashboardService {
     return (ok: true, error: null, data: stats);
   }
 
-  Map<String, dynamic> _compute(List<Map<String, dynamic>> appointments) {
-    final now = DateTime.now().toUtc();
-    final todayStart = DateTime.utc(now.year, now.month, now.day);
-    final todayEnd = todayStart.add(const Duration(days: 1));
-    final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 7));
-    final monthStart = DateTime.utc(now.year, now.month, 1);
-    final monthEnd = DateTime.utc(now.year, now.month + 1, 1);
+  Map<String, dynamic> _compute(
+    List<Map<String, dynamic>> appointments,
+    String? tzName,
+  ) {
+    final now = _now().toUtc();
+    // Salon-day buckets: today, Monday-start week, calendar month — all as
+    // UTC instants of the SALON's midnights.
+    final wall = salonWallClock(now, tzName);
+    final today = salonDayBoundsUtc(now, tzName);
+    final todayStart = today.startUtc;
+    final todayEnd = today.endUtc;
+    final weekStart = salonWallClockToUtc(
+      wall.year,
+      wall.month,
+      wall.day - (wall.weekday - 1),
+      0,
+      tzName,
+    );
+    final weekEnd = salonWallClockToUtc(
+      wall.year,
+      wall.month,
+      wall.day - (wall.weekday - 1) + 7,
+      0,
+      tzName,
+    );
+    final monthStart = salonWallClockToUtc(wall.year, wall.month, 1, 0, tzName);
+    final monthEnd = salonWallClockToUtc(
+      wall.year,
+      wall.month + 1,
+      1,
+      0,
+      tzName,
+    );
 
     bool inWindow(DateTime d, DateTime start, DateTime end) =>
         !d.isBefore(start) && d.isBefore(end);

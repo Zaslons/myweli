@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:postgres/postgres.dart';
 
+import '../localities/localities_repository.dart';
 import '../providers_repository.dart';
 
 /// One migration: an id and its ordered statements (each `execute` runs a
@@ -754,6 +755,58 @@ ON CONFLICT (provider_id) DO NOTHING''',
           'ON provider_members (email, status)',
     ],
   ),
+  (
+    id: '0030_localities_and_salon_market',
+    statements: [
+      // Module `multi-pays` MP1 (docs/design/multi-pays-end-version.md §2):
+      // the locality reference tree + the per-country Mobile-Money operator
+      // catalog. Reference data only — seeded from the Dart seed lists
+      // (seedLocalitiesIfEmpty), changed by reviewed deploys (threat T56).
+      // The salon's market fields (areaId/citySlug/countryCode/timezone/
+      // currency) ride the providers `data` jsonb — no providers columns.
+      '''
+CREATE TABLE IF NOT EXISTS countries (
+  code          text PRIMARY KEY,
+  name          text NOT NULL,
+  currency      text NOT NULL,
+  phone_prefix  text NOT NULL,
+  active        boolean NOT NULL DEFAULT true
+)''',
+      '''
+CREATE TABLE IF NOT EXISTS cities (
+  id            text PRIMARY KEY,
+  country_code  text NOT NULL REFERENCES countries(code),
+  name          text NOT NULL,
+  slug          text NOT NULL,
+  timezone      text NOT NULL,
+  lat           double precision,
+  lng           double precision,
+  active        boolean NOT NULL DEFAULT true,
+  UNIQUE (country_code, slug)
+)''',
+      '''
+CREATE TABLE IF NOT EXISTS areas (
+  id          text PRIMARY KEY,
+  city_id     text NOT NULL REFERENCES cities(id),
+  name        text NOT NULL,
+  slug        text NOT NULL,
+  label_kind  text NOT NULL,
+  lat         double precision,
+  lng         double precision,
+  active      boolean NOT NULL DEFAULT true,
+  UNIQUE (city_id, slug)
+)''',
+      '''
+CREATE TABLE IF NOT EXISTS momo_operators (
+  country_code    text NOT NULL REFERENCES countries(code),
+  id              text NOT NULL,
+  label           text NOT NULL,
+  deep_link_kind  text,
+  active          boolean NOT NULL DEFAULT true,
+  PRIMARY KEY (country_code, id)
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
@@ -977,4 +1030,137 @@ String _timeOfDay(String iso) {
   final hh = t.hour.toString().padLeft(2, '0');
   final mm = t.minute.toString().padLeft(2, '0');
   return '$hh:$mm:00';
+}
+
+/// Seeds the locality reference tables from the Dart seed lists when empty
+/// (multi-pays MP1 — docs/design/multi-pays-end-version.md §2). The Dart
+/// lists in `localities_repository.dart` are the single source of truth; a
+/// new market appends rows there and redeploys.
+Future<void> seedLocalitiesIfEmpty(Pool<void> pool) async {
+  final count = await pool.execute('SELECT count(*) AS n FROM countries');
+  if ((count.first.toColumnMap()['n'] as int) > 0) return;
+  await pool.runTx((tx) async {
+    for (final c in seedCountries) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO countries (code, name, currency, phone_prefix, active) '
+          'VALUES (@code, @name, @currency, @prefix, @active)',
+        ),
+        parameters: {
+          'code': c.code,
+          'name': c.name,
+          'currency': c.currency,
+          'prefix': c.phonePrefix,
+          'active': c.active,
+        },
+      );
+    }
+    for (final city in seedCities) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO cities '
+          '(id, country_code, name, slug, timezone, lat, lng, active) '
+          'VALUES (@id, @country, @name, @slug, @tz, @lat, @lng, @active)',
+        ),
+        parameters: {
+          'id': city.id,
+          'country': city.countryCode,
+          'name': city.name,
+          'slug': city.slug,
+          'tz': city.timezone,
+          'lat': city.lat,
+          'lng': city.lng,
+          'active': city.active,
+        },
+      );
+    }
+    for (final a in seedAreas) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO areas '
+          '(id, city_id, name, slug, label_kind, lat, lng, active) '
+          'VALUES (@id, @city, @name, @slug, @kind, @lat, @lng, @active)',
+        ),
+        parameters: {
+          'id': a.id,
+          'city': a.cityId,
+          'name': a.name,
+          'slug': a.slug,
+          'kind': a.labelKind,
+          'lat': a.lat,
+          'lng': a.lng,
+          'active': a.active,
+        },
+      );
+    }
+    for (final o in seedMomoOperators) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO momo_operators '
+          '(country_code, id, label, deep_link_kind, active) '
+          'VALUES (@country, @id, @label, @kind, @active)',
+        ),
+        parameters: {
+          'country': o.countryCode,
+          'id': o.id,
+          'label': o.label,
+          'kind': o.deepLinkKind,
+          'active': o.active,
+        },
+      );
+    }
+  });
+}
+
+/// Backfills the salon market fields (areaId/citySlug/countryCode/timezone/
+/// currency) onto every provider document that predates multi-pays MP1 —
+/// commune display names slug-match into areas (accent/case-insensitive);
+/// a miss leaves `areaId` null (it self-heals at the first picker save and
+/// only blocks a NEW publish). Wave-0 defaults (CI · Africa/Abidjan · XOF)
+/// apply regardless, since every pre-MP1 salon is Ivorian. Idempotent: docs
+/// that already carry `timezone` are skipped. Like `backfillCatalogueIfNeeded`
+/// this is a Dart read-modify-write — the `data` value round-trips as a JSON
+/// document, so SQL-side jsonb operators are not used.
+Future<void> backfillSalonMarketIfNeeded(Pool<void> pool) async {
+  final providers = await pool.execute('SELECT id, data FROM providers');
+  if (providers.isEmpty) return;
+
+  await pool.runTx((tx) async {
+    for (final row in providers) {
+      final m = row.toColumnMap();
+      final raw = m['data'];
+      final doc = raw is String
+          ? jsonDecode(raw) as Map<String, dynamic>
+          : Map<String, dynamic>.from(raw as Map);
+      if (doc['timezone'] != null) continue; // already market-stamped
+      await tx.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {
+          'id': m['id'],
+          'data': jsonEncode(applySalonMarketDefaults(doc)),
+        },
+      );
+    }
+  });
+}
+
+/// Stamps the Wave-0 market defaults + the commune→area match onto a provider
+/// [doc] (shared by the Postgres backfill and the in-memory seed/self-heal).
+/// Market facts derive from the SEED lists (the locality tree), never from
+/// literals, so a matched area in any future city resolves correctly.
+Map<String, dynamic> applySalonMarketDefaults(Map<String, dynamic> doc) {
+  final commune = doc['commune'] as String?;
+  final match = commune == null ? null : seedAreaForCommuneName(commune);
+  if (match != null) {
+    doc.addAll(marketChangesForArea(match));
+    return doc;
+  }
+  // Wave-0 defaults when unmatched — every pre-MP1 salon is Ivorian; the
+  // areaId self-heals at the first picker save (and gates NEW publishes).
+  doc['areaId'] = null;
+  doc['citySlug'] = null;
+  doc['countryCode'] = 'CI';
+  doc['timezone'] = 'Africa/Abidjan';
+  doc['currency'] = 'XOF';
+  return doc;
 }

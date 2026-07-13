@@ -804,6 +804,12 @@ paths:
                   enum: [salon, barber, spa, nailSalon, massage, other]
                 phoneNumber: { type: string }
                 address: { type: string }
+                areaId:
+                  type: string
+                  description: >-
+                    Optional locality pick (an `Area.id` from GET /localities)
+                    — market facts derive from it (400 `invalid_area` when
+                    unknown).
       responses:
         '201':
           description: The new draft salon's directory entry
@@ -942,6 +948,13 @@ paths:
                   enum: [salon, barber, spa, nailSalon, massage, other]
                 phoneNumber: { type: string, description: E.164 — required salon contact. }
                 address: { type: string }
+                areaId:
+                  type: string
+                  description: >-
+                    Optional locality pick (an `Area.id` from GET /localities)
+                    — the salon's commune/city/timezone/currency DERIVE from
+                    it server-side (multi-pays MP1; unknown → 400
+                    `invalid_area`).
                 providerId: { type: string }
                 idToken: { type: string, description: Google ID token (identity proof). }
                 identityToken: { type: string, description: Apple identity token. }
@@ -1230,6 +1243,25 @@ paths:
               schema: { $ref: '#/components/schemas/TokenPair' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /localities:
+    get:
+      tags: [system]
+      summary: The public locality reference tree (multi-pays MP1)
+      description: >-
+        Countries → Mobile-Money operator catalog + cities → areas
+        (communes/quartiers). Read-only seeded reference data — the source of
+        every locality picker, discovery filter, SEO landing family and the
+        salon's derived timezone/currency (threat T56: no write endpoint
+        exists; clients build payment deep links ONLY from the closed
+        `deepLinkKind` vocabulary). Cacheable (`Cache-Control: public,
+        max-age=3600`).
+      responses:
+        '200':
+          description: The tree
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalityTree' }
 
   /providers:
     get:
@@ -2116,8 +2148,9 @@ paths:
         salonClientId / clientNoShowCount / arrivedAt. OWN-SCOPE callers
         (Collaborateur, `journal.view.own` — T40, access R4a) receive their
         own artist's column and bookings only, and `clientPhone` is masked
-        on any day other than today (the same-day contact rule). Day
-        boundary is UTC (Africa/Abidjan). Design: docs/design/journal-j1-grid.md.
+        on any day other than today (the same-day contact rule). The `date`
+        names a calendar day in the SALON's timezone (multi-pays MP1).
+        Design: docs/design/journal-j1-grid.md.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: query, name: date, required: true, schema: { type: string, format: date } }
@@ -2520,6 +2553,7 @@ paths:
         - in: query
           name: date
           required: true
+          description: A calendar day in the SALON's timezone (multi-pays MP1).
           schema: { type: string, format: date, example: '2026-06-25' }
         - in: query
           name: serviceIds
@@ -3465,6 +3499,22 @@ components:
           items: { type: string }
         artistId: { type: string, nullable: true }
         appointmentDate: { type: string, format: date-time }
+        currency:
+          type: string
+          nullable: true
+          description: >-
+            Stamped from the salon at creation (multi-pays §4 — immutable);
+            absent on pre-MP1 rows (read as the salon's).
+        providerTimezone:
+          type: string
+          nullable: true
+          description: >-
+            Consumer-read enrichment (multi-pays MP1) — the salon's IANA
+            timezone, for salon-time rendering.
+        providerCurrency:
+          type: string
+          nullable: true
+          description: Consumer-read enrichment — the salon's ISO-4217 currency.
         durationMinutes:
           type: integer
           description: >
@@ -3837,7 +3887,9 @@ components:
         mobileMoneyOperator:
           type: string
           nullable: true
-          enum: [wave, orangeMoney, mtnMoMo, moov]
+          description: >-
+            An operator id from the salon COUNTRY's catalog
+            (GET /localities → country.operators — multi-pays MP1).
         mobileMoneyNumber:
           type: string
           nullable: true
@@ -3936,7 +3988,12 @@ components:
       properties:
         totalEarnings:
           type: number
-          description: Σ totalPrice of completed bookings in range (FCFA).
+          description: Σ totalPrice of completed bookings in range.
+        currency:
+          type: string
+          description: >-
+            The salon's ISO-4217 currency (multi-pays MP1); XOF/XAF display
+            as « FCFA ».
         transactions:
           type: array
           items: { $ref: '#/components/schemas/EarningsTransaction' }
@@ -3948,6 +4005,10 @@ components:
         id: { type: string }
         appointmentId: { type: string }
         amount: { type: number }
+        currency:
+          type: string
+          nullable: true
+          description: The stamped record currency (multi-pays §4).
         date: { type: string, format: date-time }
         status: { type: string, description: '"completed".' }
 
@@ -3967,6 +4028,69 @@ components:
           type: array
           items: { type: string }
         depositRequired: { type: boolean }
+
+    LocalityTree:
+      type: object
+      required: [countries]
+      properties:
+        countries:
+          type: array
+          items: { $ref: '#/components/schemas/LocalityCountry' }
+
+    LocalityCountry:
+      type: object
+      required: [code, name, currency, phonePrefix, operators, cities]
+      properties:
+        code: { type: string, description: ISO-3166 alpha-2 (e.g. CI). }
+        name: { type: string }
+        currency: { type: string, description: ISO-4217 (e.g. XOF). }
+        phonePrefix: { type: string, description: E.164 prefix (e.g. +225). }
+        operators:
+          type: array
+          items: { $ref: '#/components/schemas/MomoOperator' }
+        cities:
+          type: array
+          items: { $ref: '#/components/schemas/LocalityCity' }
+
+    LocalityCity:
+      type: object
+      required: [id, slug, name, timezone, areas]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        timezone: { type: string, description: IANA — drives every salon in the city. }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        areas:
+          type: array
+          items: { $ref: '#/components/schemas/LocalityArea' }
+
+    LocalityArea:
+      type: object
+      required: [id, slug, name, labelKind]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        labelKind:
+          type: string
+          enum: [commune, quartier, arrondissement]
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+
+    MomoOperator:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string, description: The wire value used by deposit policies. }
+        label: { type: string }
+        deepLinkKind:
+          type: string
+          nullable: true
+          description: >-
+            Closed vocabulary driving client payment deep links (`wave`
+            today) — clients never build links from payload URLs (T56).
 
     Provider:
       type: object
@@ -3991,6 +4115,26 @@ components:
         address: { type: string }
         city: { type: string, nullable: true }
         commune: { type: string, nullable: true }
+        areaId:
+          type: string
+          nullable: true
+          description: >-
+            The salon's locality (an `Area.id` from GET /localities). Market
+            facts below DERIVE from it server-side (multi-pays MP1, T57).
+        citySlug: { type: string, nullable: true }
+        countryCode: { type: string, nullable: true, description: ISO-3166 alpha-2. }
+        timezone:
+          type: string
+          nullable: true
+          description: >-
+            IANA — derived from the salon's city; every displayed time and
+            day boundary uses it (salon time). Never client-writable.
+        currency:
+          type: string
+          nullable: true
+          description: >-
+            ISO-4217 — derived from the salon's country at creation, immutable
+            self-serve; XOF/XAF display as « FCFA ».
         latitude: { type: number, nullable: true }
         longitude: { type: number, nullable: true }
         imageUrls:
@@ -4014,7 +4158,9 @@ components:
         depositMobileMoneyOperator:
           type: string
           nullable: true
-          enum: [wave, orangeMoney, mtnMoMo, moov]
+          description: >-
+            An operator id from the salon COUNTRY's catalog
+            (GET /localities → country.operators — multi-pays MP1).
         depositMobileMoneyNumber: { type: string, nullable: true }
         cancellationWindowHours: { type: integer }
         artists:
