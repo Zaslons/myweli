@@ -53,7 +53,10 @@ shared component, never a one-off inline.
 
 ## 5. French copy & locale
 French throughout (labels, errors, empty/loading, SEO text); FCFA + Ivorian phone
-formatting; CI service taxonomy (PRD Appendix A); commune-aware.
+formatting; CI service taxonomy (PRD Appendix A); commune-aware. Market facts
+(communes, operators, currency, timezone) only via their seams, and times render
+in **salon time**, never the browser's — see
+[modules/multi-pays.md](../modules/multi-pays.md) §9 + [WEB.md §3](../WEB.md).
 
 ## 6. SEO / AEO / GEO presentation conventions (public pages)
 - One `<h1>` = the page's core entity (salon name + commune; or "Coiffure à Cocody").

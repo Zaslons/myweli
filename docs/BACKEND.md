@@ -52,7 +52,12 @@ Rules:
 - **Method gating** — handlers reject unsupported verbs with 405.
 - **Pagination** — list endpoints return `{ items, page, pageSize, total }`;
   `pageSize` is clamped server-side (default 20, max 50).
-- **Time** — UTC ISO-8601 everywhere.
+- **Time** — UTC ISO-8601 everywhere at rest and on the wire. **Interpretation
+  (day boundaries, « aujourd'hui » gates, masking/cron windows) is salon
+  time** — today `Africa/Abidjan` = UTC year-round, so existing UTC day-math
+  is correct; the constant becomes a per-salon value derived from the salon's
+  city at multi-pays Wave 2 ([modules/multi-pays.md](modules/multi-pays.md)
+  §3). Never the server's or client's locale.
 
 ## 3. Security model (server-side companion to ROADMAP Part 5)
 

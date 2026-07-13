@@ -41,10 +41,18 @@ void main() {
   late InMemoryMembershipRepository memberships;
   late MembershipService members;
 
-  // A Monday (open 09:00–18:00 in the seeded schedule), fixed + future-proof.
-  final monday = DateTime.utc(2026, 7, 13);
-  // A Sunday — weekday '6' has no schedule → closed.
-  final sunday = DateTime.utc(2026, 7, 12);
+  // The next Monday strictly in the future (open 09:00–18:00 in the seeded
+  // schedule) — computed, never today, whatever day the suite runs: the
+  // arrive `not_today` guard below relies on it not being today's date.
+  // (A fixed 2026-07-13 detonated the day the calendar caught up with it.)
+  final bootClock = DateTime.now().toUtc();
+  final monday = DateTime.utc(
+    bootClock.year,
+    bootClock.month,
+    bootClock.day,
+  ).add(Duration(days: 8 - bootClock.weekday));
+  // The Sunday after it — weekday '6' has no schedule → closed.
+  final sunday = monday.add(const Duration(days: 6));
 
   Future<void> seed({
     required String id,
@@ -168,7 +176,7 @@ void main() {
         final r = await journal.dayFor(accountId, 'provider1', monday);
         expect(r.ok, isTrue);
         final data = r.data!;
-        expect(data['date'], '2026-07-13');
+        expect(data['date'], monday.toIso8601String().substring(0, 10));
         expect((data['hours'] as Map)['open'], '09:00');
         expect((data['hours'] as Map)['close'], '18:00');
         expect(((data['artists'] as List).single as Map)['name'], 'Awa');
@@ -430,7 +438,7 @@ void main() {
         'invalid_state',
       );
 
-      await seed(id: 'nextweek'); // fixed future Monday — not today
+      await seed(id: 'nextweek'); // the computed next Monday — never today
       expect(
         (await proService.arrive('nextweek', accountId)).error,
         'not_today',

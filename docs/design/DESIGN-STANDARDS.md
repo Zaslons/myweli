@@ -36,6 +36,7 @@ Defined in `mobile/lib/core/theme/`: `colors.dart`, `text_styles.dart`, `app_the
 4. **Plan the UX + get sign-off first** for user-facing work (goal, flow, all states, edge cases, interaction, copy, fit) — see the skill's "UX first" section.
 5. **Accessibility:** ≥4.5:1 contrast (monochrome passes), tooltips on icon-only controls, dialog focus.
 6. **Performance:** `const` where possible, paginate, lazy/cached images, low-end Android budget (ROADMAP Part 6).
+7. **Market data & salon time:** market-specific facts — communes, Mobile Money operators, currency, timezone, phone prefixes — live **only** in their seams (`core/constants/communes.dart`, `core/utils/mobile_money.dart`, `core/utils/formatters.dart`, `core/utils/salon_time.dart` once built); displayed times and day boundaries are **salon time**, never the device's ([modules/multi-pays.md](../modules/multi-pays.md) §3/§9). Hardcoding a market fact elsewhere fails review, even when it works for CI.
 
 ## 5. Pre-build checklist (UI)
 - [ ] Read this doc + the part's `docs/design/<part>.md` spec.

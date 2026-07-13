@@ -27,6 +27,7 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| Salon time — the timezone seam (multi-pays slice 1) | [timezone-salon-time.md](timezone-salon-time.md) | **Draft — awaiting sign-off** — salon-time rule behind `Africa/Abidjan` helpers, the 3 leak fixes + sweep, « heure du salon » hint, TZ-pinned harnesses, currency-param formatters; end version in [modules/multi-pays.md](../modules/multi-pays.md) |
 | Auth overhaul — Google + Apple + Email OTP (phone → contact) | [auth-social-email.md](auth-social-email.md) | **Building** — P1 backend built (verifiers · email OTP · migration 0022 · AUTH_METHODS gate); web → mobile → pro next |
 | Pro auth — Google + Email OTP for salons (P4) | [pro-auth-social.md](pro-auth-social.md) | **Built** — login-only social + identity-inline registration (backend + pro app + pro web) + AUTH_METHODS gate on pro phone |
 | Clients C1 — salon client base (list · card · notes · tags · badge) | [clients-c1.md](clients-c1.md) | **Built** — backend + web + app (#184/#185/C1c); first slice of [modules/clients.md](../modules/clients.md) |
