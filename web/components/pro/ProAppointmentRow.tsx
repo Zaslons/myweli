@@ -2,13 +2,10 @@ import Link from 'next/link';
 import { statusLabelFr } from '../../lib/account/appointments';
 import { formatFcfa } from '../../lib/format';
 import type { ProAppointment } from '../../lib/pro/today';
+import { salonFormatter } from '../../lib/time';
 
 const slotTime = (iso: string) =>
-  new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  }).format(new Date(iso));
+  salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 
 /// One booking row in the pro views (Aujourd'hui + Rendez-vous). Service names
 /// are resolved by the caller from the salon's catalogue. When `href` is set the

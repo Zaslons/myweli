@@ -15,6 +15,7 @@ import { getJournalDay } from '../../lib/api/pro';
 import type { JournalDay } from '../../lib/pro/journal';
 import { hasCap } from '../../lib/pro/team';
 import type { ProAppointment } from '../../lib/pro/today';
+import { salonFormatter } from '../../lib/time';
 import { JournalGrid } from './JournalGrid';
 import { ManualBookingDialog } from './ManualBookingDialog';
 import { MonthCalendar } from './MonthCalendar';
@@ -22,13 +23,11 @@ import { ProAppointmentRow } from './ProAppointmentRow';
 
 type View = 'journal' | 'calendar' | 'list';
 
+// Midday anchors the key inside its salon day at any wave offset (±11 h).
 const dayLabel = (key: string) =>
-  new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${key}T00:00:00.000Z`));
+  salonFormatter({ day: 'numeric', month: 'long', year: 'numeric' }).format(
+    new Date(`${key}T12:00:00.000Z`),
+  );
 
 export function RendezVousClient() {
   const router = useRouter();

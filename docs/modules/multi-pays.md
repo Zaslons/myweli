@@ -13,7 +13,7 @@ in §9, and the first slice ([design/timezone-salon-time.md](../design/timezone-
 
 | | |
 |---|---|
-| **Status** | 📘 End version agreed (2026-07-13) · Wave 0 (Côte d'Ivoire) live · first slice spec Draft |
+| **Status** | 📘 End version agreed (2026-07-13) · Wave 0 (Côte d'Ivoire) live · **slice 1 (salon time) BUILT 2026-07-13** |
 | **Module slug** | `multi-pays` (cross-cutting — every module stands on it, like identity/design/security) |
 | **First slice** | [design/timezone-salon-time.md](../design/timezone-salon-time.md) — the salon-time seam |
 | **Companions** | [MODULES.md](../MODULES.md) · [ROADMAP.md](../ROADMAP.md) · [PRD.md](../PRD.md) (CI scope) · module [`network`](../MODULES.md) (V3 layer above) |
@@ -103,8 +103,9 @@ show the hint.
 3. The salon's timezone is **derived from its city** — no IANA picker, ever.
    Denormalized onto the salon at creation.
 4. Until Wave 2, the derivation is a **single constant** `Africa/Abidjan`
-   (= UTC+0 year-round) behind tz-parameterized helpers — the seam the first
-   slice builds ([design/timezone-salon-time.md](../design/timezone-salon-time.md)).
+   (= UTC+0 year-round) behind tz-parameterized helpers — **the seam is BUILT
+   (2026-07-13)**: `web/lib/time.ts` + `mobile/lib/core/utils/salon_time.dart`
+   ([design/timezone-salon-time.md](../design/timezone-salon-time.md)).
 5. **Viewer hint:** when the viewer's device offset differs from the salon's,
    surfaces that show bookable/booked times display « Heures affichées : heure
    du salon (Côte d'Ivoire) » (the traveler-in-France case).
@@ -235,6 +236,8 @@ keeps the next hundred screens end-version ready.
 - ❌ No nested SEO URLs, no 301s — second city.
 - ❌ No i18n.
 
-**Readiness now = exactly three things:** the salon-time slice
-([design/timezone-salon-time.md](../design/timezone-salon-time.md)), the
-currency-parameterized formatters inside it, and this document + the §9 rule.
+**Readiness now = exactly three things, ALL SHIPPED (2026-07-13):** the
+salon-time slice ([design/timezone-salon-time.md](../design/timezone-salon-time.md)
+— Built), the currency-parameterized formatters inside it (display unified on
+« FCFA » across app + web), and this document + the §9 rule (grep-pinned in
+both test suites).

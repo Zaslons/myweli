@@ -628,13 +628,15 @@ test('revenus: total + ledger + period tabs (parity 9.1)', async ({ page }) => {
   await page.getByRole('link', { name: 'Revenus' }).click();
   await expect(page).toHaveURL(/\/pro\/revenus/);
 
-  // « Tout » (default): both stub transactions → 35 000 FCFA.
-  await expect(page.getByText(/35\s000\sFCFA/)).toBeVisible();
+  // « Tout » (default): the three stub transactions → 37 000 FCFA.
+  await expect(page.getByText(/37\s000\sFCFA/)).toBeVisible();
 
-  // « Aujourd'hui » narrows to today's 15 000 transaction.
+  // « Aujourd'hui » narrows to today's two transactions (15 000 + the 23:30
+  // salon-day-boundary probe — timezone-salon-time.md §8: device-local
+  // bucketing used to drop it on non-UTC machines).
   await page.getByRole('button', { name: 'Aujourd’hui' }).click();
-  await expect(page.getByText(/15\s000\sFCFA/).first()).toBeVisible();
-  await expect(page.getByText(/35\s000\sFCFA/)).toBeHidden();
+  await expect(page.getByText(/17\s000\sFCFA/).first()).toBeVisible();
+  await expect(page.getByText(/37\s000\sFCFA/)).toBeHidden();
 });
 
 // LAST test in the file: it ends the pro session (stateless stub login —

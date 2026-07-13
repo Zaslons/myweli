@@ -24,6 +24,7 @@ import {
   statusKey,
 } from '../../lib/pro/journal';
 import type { ProAppointment } from '../../lib/pro/today';
+import { salonFormatter } from '../../lib/time';
 import { JournalPanel } from './JournalPanel';
 import { ManualBookingDialog } from './ManualBookingDialog';
 
@@ -298,7 +299,9 @@ function JournalColumn({
             style={{ top: 32 + box.top, height: box.height }}
           >
             <span className="block font-medium">
-              {new Date(a.appointmentDate).toISOString().slice(11, 16)}{' '}
+              {salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(
+                new Date(a.appointmentDate),
+              )}{' '}
               {a.clientName ?? 'Client'}
             </span>
             {box.height > 34 ? (

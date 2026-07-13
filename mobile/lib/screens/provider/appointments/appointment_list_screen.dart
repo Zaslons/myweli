@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
@@ -81,9 +82,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     AppointmentStatus? status;
 
     switch (index) {
-      case 0: // Today
-        final today = DateTime.now();
-        final todayStart = DateTime(today.year, today.month, today.day);
+      case 0: // Today — SALON day bounds (salon_time.dart), never the device's.
+        final todayStart = salonToday();
         final todayEnd = todayStart.add(const Duration(days: 1));
         appointmentProvider.loadAppointments(
           authProvider.activeSalonId ?? '',

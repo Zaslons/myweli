@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
 import '../../../models/appointment.dart';
 
@@ -24,13 +25,20 @@ class AppointmentCalendarView extends StatefulWidget {
 
 class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
   late ValueNotifier<List<Appointment>> _selectedAppointments;
-  DateTime _focusedDay = DateTime.now();
+  late DateTime _focusedDay = _salonTodayNaive();
   DateTime? _selectedDay;
+
+  /// The salon "today" as a NAIVE date — table_calendar compares its naive
+  /// day cells field-to-field (never `.toUtc()` these).
+  static DateTime _salonTodayNaive() {
+    final s = salonNow();
+    return DateTime(s.year, s.month, s.day);
+  }
 
   @override
   void initState() {
     super.initState();
-    _selectedDay = DateTime.now();
+    _selectedDay = _salonTodayNaive();
     _selectedAppointments =
         ValueNotifier(_getAppointmentsForDay(_selectedDay!));
   }
@@ -40,7 +48,7 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.appointments != widget.appointments) {
       _selectedAppointments.value =
-          _getAppointmentsForDay(_selectedDay ?? DateTime.now());
+          _getAppointmentsForDay(_selectedDay ?? _salonTodayNaive());
     }
   }
 
@@ -51,11 +59,11 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
   }
 
   List<Appointment> _getAppointmentsForDay(DateTime day) {
+    // `day` is a naive table_calendar cell; the booking date is a UTC
+    // instant — compare both as SALON calendar days.
     return widget.appointments.where((appointment) {
-      final appointmentDate = appointment.appointmentDate;
-      return appointmentDate.year == day.year &&
-          appointmentDate.month == day.month &&
-          appointmentDate.day == day.day;
+      final d = toSalonTime(appointment.appointmentDate);
+      return d.year == day.year && d.month == day.month && d.day == day.day;
     }).toList();
   }
 
@@ -73,9 +81,11 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
             boxShadow: AppTheme.elevation1,
           ),
           child: TableCalendar<Appointment>(
-            firstDay: DateTime.now().subtract(const Duration(days: 365)),
-            lastDay: DateTime.now().add(const Duration(days: 365)),
+            firstDay: _salonTodayNaive().subtract(const Duration(days: 365)),
+            lastDay: _salonTodayNaive().add(const Duration(days: 365)),
             focusedDay: _focusedDay,
+            // The « today » ring follows the SALON's today, not the device's.
+            currentDay: _salonTodayNaive(),
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             calendarFormat: CalendarFormat.month,
             startingDayOfWeek: StartingDayOfWeek.monday,

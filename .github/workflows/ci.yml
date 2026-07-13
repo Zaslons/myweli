@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Every job runs on UTC clocks — the salon timezone is UTC+0 and date-boundary
+# seeds must be deterministic (docs/design/timezone-salon-time.md §4).
+env:
+  TZ: UTC
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

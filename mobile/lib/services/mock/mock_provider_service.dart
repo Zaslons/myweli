@@ -1,4 +1,5 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 import '../interfaces/provider_service_interface.dart';
@@ -68,15 +69,17 @@ class MockProviderService implements ProviderServiceInterface {
     return ApiResponse.success(paginatedProviders);
   }
 
-  /// Cheap "open today" proxy for the mock: open on today's weekday (0=Mon) and
-  /// not blocked today. (The API uses the real slot engine.)
+  /// Cheap "open today" proxy for the mock: open on the SALON's today
+  /// (weekday 0=Mon) and not blocked today. (The API uses the real slot
+  /// engine.)
   bool _openToday(Provider p) {
-    final now = DateTime.now();
+    final today = salonToday();
     final blocked = p.availability.blockedDates.any(
-      (d) => d.year == now.year && d.month == now.month && d.day == now.day,
+      (d) =>
+          d.year == today.year && d.month == today.month && d.day == today.day,
     );
     if (blocked) return false;
-    final slots = p.availability.weeklySchedule[now.weekday - 1] ?? const [];
+    final slots = p.availability.weeklySchedule[today.weekday - 1] ?? const [];
     return slots.any((s) => s.isAvailable);
   }
 

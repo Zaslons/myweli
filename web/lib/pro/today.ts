@@ -1,5 +1,7 @@
 /// Pure helpers for the pro "Aujourd'hui" view. Unit-tested.
 
+import { salonDayKey } from '../time';
+
 export type ProAppointment = {
   id: string;
   status: string;
@@ -22,10 +24,10 @@ export type ProAppointment = {
 };
 
 export function todayKey(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10);
+  return salonDayKey(now);
 }
 
-/// Today's bookings (UTC day, matching the API), sorted by time.
+/// Today's bookings (SALON day — lib/time.ts), sorted by time.
 export function todaysAppointments(
   items: ProAppointment[],
   now: Date = new Date(),

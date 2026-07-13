@@ -21,6 +21,7 @@ import {
 import { hasCap } from '../../lib/pro/team';
 import { rescheduleAppointment } from '../../lib/api/pro';
 import type { ProAppointment } from '../../lib/pro/today';
+import { isSameSalonDay, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
@@ -236,16 +237,13 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         {appt.arrivedAt ? (
           <p className="mt-m text-sm text-textSecondary">
             Arrivé à{' '}
-            {new Intl.DateTimeFormat('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              timeZone: 'UTC',
-            }).format(new Date(appt.arrivedAt))}
+            {salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(
+              new Date(appt.arrivedAt),
+            )}
           </p>
         ) : appt.status === 'confirmed' &&
           canManageAll &&
-          appt.appointmentDate.slice(0, 10) ===
-            new Date().toISOString().slice(0, 10) ? (
+          isSameSalonDay(new Date(appt.appointmentDate), new Date()) ? (
           <div className="mt-m">
             <Button
               variant="secondary"

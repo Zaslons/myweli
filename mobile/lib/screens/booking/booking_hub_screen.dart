@@ -9,6 +9,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/rebook.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
@@ -89,7 +90,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   // Distinguish "not picked yet" vs "picked 'no preference'".
   bool _artistChosen = false;
 
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = salonToday();
   List<DateTime> _availableSlotsForSelectedDate = const [];
   bool _isLoadingSlots = false;
   int _slotsRequestId = 0;
@@ -321,10 +322,9 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     final serviceIds = _draft.serviceIds;
     if (serviceIds.isEmpty) return null;
 
-    final startDay = DateTime.now();
+    final startDay = salonToday();
     for (var i = 0; i <= daysAhead; i++) {
-      final d = DateTime(startDay.year, startDay.month, startDay.day)
-          .add(Duration(days: i));
+      final d = startDay.add(Duration(days: i));
       final slots = await appointmentProvider.getAvailableTimeSlots(
         providerId: widget.providerId,
         date: d,
@@ -720,8 +720,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 final picked = await showDatePicker(
                                   context: context,
                                   initialDate: initial,
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now()
+                                  firstDate: salonToday(),
+                                  lastDate: salonToday()
                                       .add(const Duration(days: 365)),
                                 );
                                 if (!mounted || picked == null) return;

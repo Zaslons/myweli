@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
 import '../../../models/api_response.dart';
 import '../../../models/appointment.dart';
@@ -43,12 +44,6 @@ class _ProAppointmentDetailScreenState
         appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
       }
     });
-  }
-
-  /// Same-day gate for « Client arrivé » (the server re-checks anyway).
-  static bool _isToday(DateTime d) {
-    final now = DateTime.now();
-    return d.year == now.year && d.month == now.month && d.day == now.day;
   }
 
   @override
@@ -250,9 +245,12 @@ class _ProAppointmentDetailScreenState
                   ),
                 ] else if (appointment.status ==
                     AppointmentStatus.confirmed) ...[
+                  // Same-day gate for « Client arrivé » — SALON day, never
+                  // the device's (the server re-checks anyway).
                   if (!ownMode &&
                       appointment.arrivedAt == null &&
-                      _isToday(appointment.appointmentDate)) ...[
+                      isSameSalonDay(
+                          appointment.appointmentDate, salonNow())) ...[
                     AppButton(
                       text: 'Client arrivé',
                       icon: Icons.how_to_reg_outlined,

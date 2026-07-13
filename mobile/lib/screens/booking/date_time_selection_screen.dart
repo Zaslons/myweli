@@ -9,11 +9,13 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/salon_time_hint.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
   final String providerId;
@@ -39,7 +41,14 @@ class DateTimeSelectionScreen extends StatefulWidget {
 }
 
 class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
-  DateTime _selectedDate = DateTime.now();
+  /// The salon "today" as a NAIVE date — table_calendar compares its naive
+  /// day cells field-to-field (never `.toUtc()` these).
+  static DateTime _salonTodayNaive() {
+    final s = salonNow();
+    return DateTime(s.year, s.month, s.day);
+  }
+
+  DateTime _selectedDate = _salonTodayNaive();
   DateTime? _selectedTime;
   List<DateTime> _availableSlots = [];
   bool _loadingSlots = true;
@@ -49,9 +58,11 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   void initState() {
     super.initState();
     if (widget.initialDateTime != null) {
-      final dt = widget.initialDateTime!;
+      // Prefill reads the instant as SALON wall-clock (salon_time.dart).
+      final dt = toSalonTime(widget.initialDateTime!);
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
-      _selectedTime = DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute);
+      _selectedTime =
+          salonDateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Provider.of<ProviderProvider>(context, listen: false)
@@ -105,7 +116,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   }
 
   void _onDateSelected(DateTime date, DateTime focusedDate) {
-    if (date.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+    // Reject days before the SALON's today (naive-vs-naive compare).
+    if (date.isBefore(_salonTodayNaive())) {
       return;
     }
     setState(() {
@@ -123,7 +135,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       return;
     }
 
-    final dateTime = DateTime(
+    // The chosen wall-clock IS salon time — serializes with a Z.
+    final dateTime = salonDateTime(
       _selectedDate.year,
       _selectedDate.month,
       _selectedDate.day,
@@ -179,9 +192,11 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                   ],
                   // Calendar
                   TableCalendar(
-                    firstDay: DateTime.now(),
-                    lastDay: DateTime.now().add(const Duration(days: 90)),
+                    firstDay: _salonTodayNaive(),
+                    lastDay: _salonTodayNaive().add(const Duration(days: 90)),
                     focusedDay: _selectedDate,
+                    // The « today » ring follows the SALON's today.
+                    currentDay: _salonTodayNaive(),
                     selectedDayPredicate: (day) {
                       return day.year == _selectedDate.year &&
                           day.month == _selectedDate.month &&
@@ -209,6 +224,9 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                   const Text(
                     'Heures disponibles',
                     style: AppTextStyles.titleLarge,
+                  ),
+                  const SalonTimeHint(
+                    padding: EdgeInsets.only(top: AppTheme.spacingXS),
                   ),
                   const SizedBox(height: 16),
                   if (_loadingSlots)

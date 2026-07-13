@@ -44,18 +44,16 @@ import {
   formatFcfa,
   priceRange,
 } from '../../lib/format';
+import { salonDayKey, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
+import { SalonTimeHint } from '../SalonTimeHint';
 import { LoginOptions } from '../auth/LoginOptions';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
 import { DepositProof } from './DepositProof';
 
 const slotTime = (iso: string) =>
-  new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  }).format(new Date(iso));
+  salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 
 function totalLabel(p: Provider, ids: string[]): string {
   const t = priceTotal(p, ids);
@@ -155,7 +153,7 @@ export function BookingFlow({
   async function findEarliestSlot(state: HubState): Promise<string | null> {
     const start = Date.parse(`${todayYmd()}T00:00:00Z`);
     for (let i = 0; i <= 14; i++) {
-      const day = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+      const day = salonDayKey(new Date(start + i * 86_400_000));
       const r = await fetchSlotsFor(state, day);
       if (r.length > 0) return r[0];
     }
@@ -307,6 +305,7 @@ export function BookingFlow({
               value={`${formatDateFr(s.slot)} à ${slotTime(s.slot)}`}
             />
           ) : null}
+          {s.slot ? <SalonTimeHint date={s.slot} className="text-xs text-textTertiary" /> : null}
           <Recap label="Total" value={totalLabel(provider, s.serviceIds)} />
           {provider.depositRequired ? (
             <Recap
@@ -561,6 +560,7 @@ export function BookingFlow({
               Prochain créneau : {formatDateFr(s.slot)} · {slotTime(s.slot)}
             </p>
           ) : null}
+          <SalonTimeHint date={s.slot ?? undefined} />
         </SectionCard>
       </div>
 

@@ -92,6 +92,9 @@ class _AdminAuditScreenState extends State<AdminAuditScreen> {
   String _when(Object? raw) {
     final d = DateTime.tryParse('${raw ?? ''}');
     if (d == null) return '—';
+    // Device time ON PURPOSE — the internal ops console reads audit stamps
+    // in the operator's own zone (docs/design/timezone-salon-time.md §2);
+    // this is the grep-pin allowlist's single `.toLocal()` exception.
     final local = d.toLocal();
     return '${Formatters.formatDateShort(local)} ${Formatters.formatTime(local)}';
   }

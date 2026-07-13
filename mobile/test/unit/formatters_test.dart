@@ -53,13 +53,23 @@ void main() {
 
   group('Formatters.formatCurrency', () {
     // fr_FR formatting uses a non-breaking thousands separator, so assert on
-    // the stable parts (the value digits and the XOF suffix) rather than exact
-    // whitespace.
-    test('produces an XOF-suffixed amount', () {
+    // the stable parts (the value digits and the FCFA suffix) rather than
+    // exact whitespace.
+    test('produces an FCFA-suffixed amount (the display name, multi-pays §4)',
+        () {
       expect(Formatters.formatCurrency(0), startsWith('0'));
-      expect(Formatters.formatCurrency(0), endsWith('XOF'));
-      expect(Formatters.formatCurrency(1500), endsWith('XOF'));
+      expect(Formatters.formatCurrency(0), endsWith('FCFA'));
+      expect(Formatters.formatCurrency(1500), endsWith('FCFA'));
       expect(Formatters.formatCurrency(1500), contains('500'));
+    });
+
+    test('XOF and XAF both read FCFA; other ISO codes render as themselves',
+        () {
+      expect(
+          Formatters.formatCurrency(1500, currency: 'XOF'), endsWith('FCFA'));
+      expect(
+          Formatters.formatCurrency(1500, currency: 'XAF'), endsWith('FCFA'));
+      expect(Formatters.formatCurrency(1500, currency: 'GHS'), endsWith('GHS'));
     });
   });
 
@@ -110,7 +120,7 @@ void main() {
   group('Formatters.formatPriceRange', () {
     test('single value when there is no max', () {
       final s = Formatters.formatPriceRange(15000, null);
-      expect(s, endsWith('XOF'));
+      expect(s, endsWith('FCFA'));
       expect(s, isNot(contains('–')));
     });
 

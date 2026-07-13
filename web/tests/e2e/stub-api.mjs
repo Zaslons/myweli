@@ -137,9 +137,14 @@ const NOTIFS = [
   },
 ];
 
-// Earnings ledger (parity 9.1): one transaction today, one older.
+// Earnings ledger (parity 9.1): one transaction today, one at TODAY 23:30 —
+// the salon-day boundary probe (timezone-salon-time.md §8: it must land in
+// « Aujourd'hui » under the TZ-pinned harness; device-local bucketing used
+// to drop it on non-UTC machines) — and one older.
+const todayAt2330 = `${todayAt9.slice(0, 10)}T23:30:00.000Z`;
 const EARN_TX = [
   { id: 't1', appointmentId: 'e1', amount: 15000, date: todayAt9, status: 'completed' },
+  { id: 't3', appointmentId: 'e3', amount: 2000, date: todayAt2330, status: 'completed' },
   {
     id: 't2',
     appointmentId: 'e2',

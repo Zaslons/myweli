@@ -1,7 +1,11 @@
+import { salonDayKey, salonFormatter } from '../time';
 import type { ProAppointment } from './today';
 
 /// Pure helpers for the pro « Rendez-vous » views (Calendrier + Liste).
-/// Unit-tested. Mirrors the app's appointment screen filters.
+/// Unit-tested. Mirrors the app's appointment screen filters. Day identity
+/// comes from the salon-time seam (lib/time.ts); the Date objects inside the
+/// month grid are midnight-UTC anchors used as day IDENTIFIERS, so their
+/// UTC arithmetic is zone-agnostic calendar math, not display logic.
 
 export type ListTab = 'today' | 'upcoming' | 'pending' | 'all';
 
@@ -13,7 +17,7 @@ export const LIST_TABS: { key: ListTab; label: string }[] = [
 ];
 
 export function dateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return salonDayKey(d);
 }
 
 export function addDays(d: Date, n: number): Date {
@@ -60,11 +64,7 @@ export function monthMatrix(focused: Date): Date[][] {
 }
 
 export function monthLabelFr(d: Date): string {
-  return new Intl.DateTimeFormat('fr-FR', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
+  return salonFormatter({ month: 'long', year: 'numeric' }).format(d);
 }
 
 /// Liste sub-tab filters, mirroring the app (Aujourd'hui/À venir/En attente/Tous).

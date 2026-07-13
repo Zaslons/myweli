@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/breaks.dart';
+import '../../core/utils/salon_time.dart';
 import '../../core/utils/staff_hours.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
@@ -295,10 +296,11 @@ class MockAppointmentService implements AppointmentServiceInterface {
   }) async {
     await Future.delayed(AppConstants.mockDelay);
 
-    // Normalize date to start of day
-    final selectedDate = DateTime(date.year, date.month, date.day);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    // The requested calendar day IS a salon day, and slot instants are built
+    // in SALON time — mirroring the API, which returns UTC instants
+    // (salon_time.dart; the old device-local synthesis drifted off-UTC).
+    final selectedDate = salonDateTime(date.year, date.month, date.day);
+    final today = salonToday();
 
     // Skip past dates
     if (selectedDate.isBefore(today)) {
@@ -323,7 +325,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
         provider.availability.weeklySchedule[weekdayIndex] ?? const [];
     final openingSlots = templateSlots
         .where((s) => s.isAvailable)
-        .map((s) => DateTime(
+        .map((s) => salonDateTime(
               selectedDate.year,
               selectedDate.month,
               selectedDate.day,
@@ -337,7 +339,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
     // For today, skip slots in the past (start 1 hour from now).
     final minStart = selectedDate.isAtSameMomentAs(today)
-        ? now.add(const Duration(hours: 1))
+        ? salonNow().add(const Duration(hours: 1))
         : null;
 
     final duration = durationMinutes ??

@@ -16,6 +16,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
@@ -480,6 +481,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                         label: 'Heure',
                         value:
                             Formatters.formatTime(appointment.appointmentDate),
+                      ),
+                      const SalonTimeHint(
+                        padding: EdgeInsets.only(top: AppTheme.spacingXS),
                       ),
                       if (_artistName != null) ...[
                         const SizedBox(height: 16),
