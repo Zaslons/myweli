@@ -19,6 +19,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/push/push_permission_sheet.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
@@ -319,6 +320,9 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                             style: AppTextStyles.bodyMedium,
                           ),
                         ],
+                      ),
+                      const SalonTimeHint(
+                        padding: EdgeInsets.only(top: AppTheme.spacingXS),
                       ),
                       if (widget.lengthVariant != null) ...[
                         const SizedBox(height: 8),

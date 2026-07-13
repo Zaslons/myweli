@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
@@ -244,17 +245,18 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     ProAvailabilityProvider provider,
     String providerId,
   ) async {
+    // A blocked date is a SALON calendar day (salon_time.dart).
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: salonToday(),
+      firstDate: salonToday(),
+      lastDate: salonToday().add(const Duration(days: 365)),
     );
 
     if (selectedDate != null && context.mounted) {
       final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
-        ..add(
-            DateTime(selectedDate.year, selectedDate.month, selectedDate.day));
+        ..add(salonDateTime(
+            selectedDate.year, selectedDate.month, selectedDate.day));
       final updatedAvailability =
           availability.copyWith(blockedDates: updatedBlockedDates);
       await provider.updateAvailability(providerId, updatedAvailability);

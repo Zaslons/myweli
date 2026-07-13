@@ -1,5 +1,6 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/di/dependency_injection.dart';
+import '../../core/utils/salon_time.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
@@ -466,15 +467,14 @@ class MockProService implements ProServiceInterface {
     DateTime date,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final key = date.toUtc().toIso8601String().substring(0, 10);
+    final key = salonDayKey(date);
     final row = await _currentMemberRow();
     final ownArtist =
         (row != null && row.role == TeamRole.staff) ? row.artistId : null;
     final all = MockData.appointments
         .where((a) => a.providerId == providerId)
         .where((a) => ownArtist == null || a.artistId == ownArtist)
-        .where((a) =>
-            a.appointmentDate.toUtc().toIso8601String().substring(0, 10) == key)
+        .where((a) => salonDayKey(a.appointmentDate) == key)
         .toList()
       ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
     final artistIds = {

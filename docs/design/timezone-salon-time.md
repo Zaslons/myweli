@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft — awaiting sign-off** |
+| **Status** | **Built (2026-07-13)** — sign-off same day: §11.a consumer-only hint · §11.b render.yaml pin folded in. Build extras: the app's `earnings_screen` period buckets were the mobile twin of leak 1 (fixed); aligning the mock slot engine to salon instants surfaced flag-mixing bugs in `overlapsBreak`/`artistWorksDuring` (fixed); the calendars' « today » ring now follows the salon day (`currentDay`). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-07-13 |
 | **Module / phase** | `multi-pays` (cross-cutting) · readiness now — Wave-2 flip stays deferred |
@@ -163,12 +163,19 @@ the rule is one coherent change. Mock services stay default; no flag needed
 foreign devices + determinism in CI).
 
 ## 10. Definition of done
-- [ ] analyze 0 · format clean · web typecheck/lint/build · all tests green.
-- [ ] The two leaks + display class fixed; sweep done + grep pin added.
-- [ ] Hint live on the four consumer surfaces; French copy; tokens only.
-- [ ] Harnesses pinned (`timezoneId`, stub `TZ`, `render.yaml`).
-- [ ] Formatters take `currency` (default XOF).
-- [ ] Spec status → Built; ROADMAP + multi-pays §3 refreshed; seam files
+- [x] analyze 0 · format clean · web typecheck/lint/build · all tests green
+      (527 mobile · 280 web unit · 66 e2e — the e2e ran green on a UTC+3
+      machine, the flake's original habitat).
+- [x] The leaks + display class fixed (incl. the app `earnings_screen` twin);
+      sweep done + grep pins added (web `tests/time-pin.test.ts`, mobile
+      `test/unit/salon_time_pin_test.dart`).
+- [x] Hint live on the consumer surfaces (booking time step, confirm/recap,
+      appointment detail — app + web); French copy; tokens only.
+- [x] Harnesses pinned (`timezoneId: 'UTC'` + webServer `TZ`, CI top-level
+      `TZ: UTC`, `render.yaml` `TZ=UTC`).
+- [x] Formatters take `currency` (default XOF; XOF/XAF → « FCFA », and the
+      app's money display aligned from « XOF » to « FCFA »).
+- [x] Spec status → Built; ROADMAP + multi-pays §3 refreshed; seam files
       cross-linked. Task chip `task_a491ec55` (stub date-flake) dismissed as
       superseded.
 

@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
@@ -405,19 +406,21 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
   }
 
   Future<void> _reschedule(ProJournalProvider journal, Appointment a) async {
+    // Picker seeds + result are SALON wall-clock (salon_time.dart) — never
+    // the device's zone.
     final date = await showDatePicker(
       context: context,
-      initialDate: a.appointmentDate.toLocal(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: toSalonTime(a.appointmentDate),
+      firstDate: salonToday(),
+      lastDate: salonToday().add(const Duration(days: 365)),
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(a.appointmentDate.toLocal()),
+      initialTime: TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate)),
     );
     if (time == null || !mounted) return;
-    final newDt = DateTime(
+    final newDt = salonDateTime(
       date.year,
       date.month,
       date.day,
@@ -454,10 +457,8 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = journal.selectedDate;
-    final isToday = ProJournalProvider.keyOf(date) ==
-        ProJournalProvider.keyOf(
-          DateTime.now().toUtc(),
-        );
+    final isToday =
+        ProJournalProvider.keyOf(date) == ProJournalProvider.keyOf(salonNow());
     return Container(
       color: AppColors.surface,
       padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
@@ -477,7 +478,7 @@ class _Header extends StatelessWidget {
                   child: Text(
                     isToday
                         ? "Aujourd'hui"
-                        : Formatters.formatDate(date.toLocal()),
+                        : Formatters.formatDate(toSalonTime(date)),
                     textAlign: TextAlign.center,
                     style: AppTextStyles.titleMedium.copyWith(
                       color: AppColors.textPrimary,
@@ -648,13 +649,13 @@ class _TimelineCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                Formatters.formatTime(appt.appointmentDate.toLocal()),
+                Formatters.formatTime(toSalonTime(appt.appointmentDate)),
                 style: AppTextStyles.titleMedium.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
               Text(
-                Formatters.formatTime(end.toLocal()),
+                Formatters.formatTime(toSalonTime(end)),
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),

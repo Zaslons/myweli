@@ -1,4 +1,5 @@
 import type { Artist, Provider, Service } from '../api/providers';
+import { salonToday } from '../time';
 
 /// Pure booking-HUB state (module online-booking, K2 —
 /// docs/design/booking-capacity-web-hub.md §4). A faithful port of the app's
@@ -30,7 +31,7 @@ export type HubState = {
   autoPicked: boolean;
 };
 
-export const todayYmd = (): string => new Date().toISOString().slice(0, 10);
+export const todayYmd = (): string => salonToday();
 
 export function initialHubState(prefill?: {
   serviceIds?: string[];

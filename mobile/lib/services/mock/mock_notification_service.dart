@@ -23,7 +23,7 @@ class MockNotificationService implements NotificationServiceInterface {
         id: 'notif2',
         type: AppNotificationType.depositReceived,
         title: 'Acompte reçu',
-        body: '6 000 XOF pour votre rendez-vous',
+        body: '6 000 FCFA pour votre rendez-vous',
         createdAt: now.subtract(const Duration(hours: 2, minutes: 1)),
         route: '/bookings',
       ),

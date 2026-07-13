@@ -255,7 +255,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   ),
                   const SizedBox(height: AppTheme.spacingM),
                   AppTextField(
-                    label: 'Prix — à partir de (XOF)',
+                    label: 'Prix — à partir de (FCFA)',
                     hint: 'Ex: 5000',
                     controller: _priceController,
                     keyboardType: TextInputType.number,

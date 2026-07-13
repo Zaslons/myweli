@@ -14,8 +14,10 @@ typedef JournalResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// deny by default; a day of client names+phones is exactly what a cross-salon
 /// attacker would want). OWN-SCOPE callers (Collaborateur — T40, R4a) get
 /// their artist's column only, with off-day contact masking (§11.2). Day
-/// boundaries are UTC — Côte d'Ivoire runs on Africa/Abidjan = UTC+0 today;
-/// revisit when MyWeli leaves that zone.
+/// boundaries are UTC — Côte d'Ivoire runs on Africa/Abidjan = UTC+0, so
+/// existing UTC day-math IS salon time (the platform convention:
+/// docs/modules/multi-pays.md §3 / docs/design/timezone-salon-time.md); the
+/// per-salon timezone arrives at multi-pays Wave 2.
 class JournalService {
   JournalService(
     this._members,

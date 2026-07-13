@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_time.dart';
 import '../models/api_response.dart';
 import '../models/appointment.dart';
 import '../models/journal_day.dart';
@@ -61,13 +62,9 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   final Map<String, int> _weekCounts = {};
   Map<String, int> get weekCounts => Map.unmodifiable(_weekCounts);
 
-  static DateTime _todayUtc() {
-    final n = DateTime.now().toUtc();
-    return DateTime.utc(n.year, n.month, n.day);
-  }
+  static DateTime _todayUtc() => salonToday();
 
-  static String keyOf(DateTime d) =>
-      d.toUtc().toIso8601String().substring(0, 10);
+  static String keyOf(DateTime d) => salonDayKey(d);
 
   /// The visible (filtered) bookings, time-ascending; cancelled hidden unless
   /// [showCancelled].

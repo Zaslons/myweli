@@ -14,9 +14,10 @@ import {
   isFutureIso,
   manualBookingTotal,
 } from '../../lib/pro/manual-booking';
+import { salonToday } from '../../lib/time';
 import { Button } from '../Button';
 
-const todayYmd = () => new Date().toISOString().slice(0, 10);
+const todayYmd = () => salonToday();
 
 /// The web salon-entered booking (docs/design/web-manual-booking.md) — the
 /// app's `ProManualBookingScreen`, web-adapted, with the J1 §3.4 C1 client

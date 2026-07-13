@@ -19,21 +19,29 @@ class Formatters {
     return phone; // other country / unexpected length → as-is
   }
 
-  /// Format currency (XOF - West African CFA franc)
-  static String formatCurrency(double amount) {
+  /// Format currency for display: "15 000 FCFA". XOF and XAF (the two CFA
+  /// francs) both read « FCFA » — the colloquial name across the zone
+  /// (docs/modules/multi-pays.md §4); any other ISO code renders as itself.
+  /// Defaults to XOF (Côte d'Ivoire).
+  static String formatCurrency(double amount, {String currency = 'XOF'}) {
     final formatter = NumberFormat.currency(
       symbol: '',
       decimalDigits: 0,
       locale: 'fr_FR',
     );
-    return '${formatter.format(amount)} XOF';
+    final suffix = (currency == 'XOF' || currency == 'XAF') ? 'FCFA' : currency;
+    return '${formatter.format(amount)} $suffix';
   }
 
   /// Format a price as a single value or a range:
-  /// "15 000 XOF" or "15 000 – 25 000 XOF".
-  static String formatPriceRange(double min, double? max) {
-    if (max == null || max <= min) return formatCurrency(min);
-    return '${formatCurrency(min)} – ${formatCurrency(max)}';
+  /// "15 000 FCFA" or "15 000 – 25 000 FCFA".
+  static String formatPriceRange(double min, double? max,
+      {String currency = 'XOF'}) {
+    if (max == null || max <= min) {
+      return formatCurrency(min, currency: currency);
+    }
+    return '${formatCurrency(min, currency: currency)} – '
+        '${formatCurrency(max, currency: currency)}';
   }
 
   /// Format date: "Lundi 15 janvier 2024"

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
@@ -235,7 +236,7 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final day = date.toUtc().toIso8601String().substring(0, 10);
+    final day = salonDayKey(date);
     final res = await _authed.send(
       (token) => _client.get(
         _uri('/providers/$providerId/journal').replace(

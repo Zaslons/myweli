@@ -15,7 +15,9 @@ export function manualBookingTotal(
 }
 
 /// Combine the dialog's date (YYYY-MM-DD) + time (HH:MM) inputs into the
-/// booking ISO instant (UTC — Côte d'Ivoire is UTC+0). Null when incomplete.
+/// booking ISO instant. The picked wall-clock IS salon time (multi-pays §3;
+/// Africa/Abidjan = UTC+0, hence the literal Z — Wave 2 swaps this to an
+/// offset-aware builder in lib/time.ts). Null when incomplete.
 export function combineDateTime(ymd: string, hm: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !/^\d{2}:\d{2}$/.test(hm)) {
     return null;

@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
@@ -37,10 +38,13 @@ class ProManualBookingScreen extends StatefulWidget {
 
 class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   final Set<String> _selected = {};
-  late DateTime? _date = widget.initialDateTime?.toLocal();
+  // Seeds + the recombined instant are SALON wall-clock (salon_time.dart).
+  late DateTime? _date = widget.initialDateTime == null
+      ? null
+      : toSalonTime(widget.initialDateTime!);
   late TimeOfDay? _time = widget.initialDateTime == null
       ? null
-      : TimeOfDay.fromDateTime(widget.initialDateTime!.toLocal());
+      : TimeOfDay.fromDateTime(toSalonTime(widget.initialDateTime!));
   late final _phone =
       TextEditingController(text: widget.initialClientPhone ?? '');
   late final _name =
@@ -74,7 +78,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
 
   DateTime? get _dateTime {
     if (_date == null || _time == null) return null;
-    return DateTime(
+    return salonDateTime(
         _date!.year, _date!.month, _date!.day, _time!.hour, _time!.minute);
   }
 
@@ -85,19 +89,20 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       !_submitting;
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final today = salonToday();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date ?? now,
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: now.add(const Duration(days: 90)),
+      initialDate: _date ?? today,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 90)),
     );
     if (picked != null) setState(() => _date = picked);
   }
 
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
-        context: context, initialTime: _time ?? TimeOfDay.now());
+        context: context,
+        initialTime: _time ?? TimeOfDay.fromDateTime(salonNow()));
     if (picked != null) setState(() => _time = picked);
   }
 

@@ -20,7 +20,9 @@ import {
 } from '../../lib/api/account';
 import { fetchSlots } from '../../lib/booking/client';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
+import { salonFormatter, salonToday } from '../../lib/time';
 import { Button } from '../Button';
+import { SalonTimeHint } from '../SalonTimeHint';
 import { DepositProof } from '../booking/DepositProof';
 import { ReviewForm } from './ReviewForm';
 
@@ -80,7 +82,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     setReschedError(null);
     setRescheduled(false);
     const day = a.appointmentDate.slice(0, 10);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = salonToday();
     const initial = day > today ? day : today;
     setReschedDate(initial);
     loadSlots(a, initial);
@@ -220,6 +222,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             <Row label="Reste à payer" value={formatFcfa(appt.balanceDue)} />
           ) : null}
         </dl>
+        <SalonTimeHint date={appt.appointmentDate} />
 
         {appt.salonEntered ? (
           <p className="mt-m text-xs text-textTertiary">
@@ -278,7 +281,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 <input
                   type="date"
                   aria-label="Nouvelle date"
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={salonToday()}
                   value={reschedDate}
                   onChange={(e) => {
                     setReschedDate(e.target.value);
@@ -307,10 +310,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                             : 'border-border bg-secondary text-textPrimary'
                         }`}
                       >
-                        {new Intl.DateTimeFormat('fr-FR', {
+                        {salonFormatter({
                           hour: '2-digit',
                           minute: '2-digit',
-                          timeZone: 'UTC',
                         }).format(new Date(iso))}
                       </button>
                     ))}

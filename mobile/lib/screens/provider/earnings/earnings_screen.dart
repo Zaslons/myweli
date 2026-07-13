@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_earnings_provider.dart';
 
@@ -46,23 +47,26 @@ class _EarningsScreenState extends State<EarningsScreen>
 
     final earningsProvider =
         Provider.of<ProEarningsProvider>(context, listen: false);
-    final now = DateTime.now();
+    // Period buckets on SALON days (salon_time.dart) — the old device-local
+    // math drifted off-UTC, and the week even started at Monday's current
+    // HOUR instead of its midnight.
+    final today = salonToday();
 
     DateTime? startDate;
     DateTime? endDate;
 
     switch (index) {
       case 0: // Today
-        startDate = DateTime(now.year, now.month, now.day);
-        endDate = startDate.add(const Duration(days: 1));
+        startDate = today;
+        endDate = today.add(const Duration(days: 1));
         break;
-      case 1: // Week
-        startDate = now.subtract(Duration(days: now.weekday - 1));
+      case 1: // Week (Monday-start)
+        startDate = today.subtract(Duration(days: today.weekday - 1));
         endDate = startDate.add(const Duration(days: 7));
         break;
       case 2: // Month
-        startDate = DateTime(now.year, now.month, 1);
-        endDate = DateTime(now.year, now.month + 1, 1);
+        startDate = DateTime.utc(today.year, today.month, 1);
+        endDate = DateTime.utc(today.year, today.month + 1, 1);
         break;
       case 3: // All
         break;

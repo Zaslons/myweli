@@ -1,7 +1,9 @@
+import { salonDayKey, salonMinutesOfDay } from '../time';
 import type { ProAppointment } from './today';
 
 /// Module `journal` J1 (docs/design/journal-j1-grid.md) — pure geometry +
-/// types for the day grid. Unit-tested; no React here.
+/// types for the day grid. Unit-tested; no React here. Day identity and
+/// minutes-of-day come from the salon-time seam (lib/time.ts).
 
 export type JournalHours = {
   open: string; // 'HH:mm'
@@ -36,10 +38,9 @@ export function hhmm(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/// Minutes-from-midnight (UTC = Abidjan) of an ISO instant.
+/// Minutes past SALON midnight of an ISO instant.
 export function minutesOfDay(iso: string): number {
-  const d = new Date(iso);
-  return d.getUTCHours() * 60 + d.getUTCMinutes();
+  return salonMinutesOfDay(new Date(iso));
 }
 
 export function snapToQuarter(minutes: number): number {
@@ -71,8 +72,8 @@ export function nowLineTop(
   dayKey: string,
   hours: JournalHours,
 ): number | null {
-  if (now.toISOString().slice(0, 10) !== dayKey) return null;
-  const minute = now.getUTCHours() * 60 + now.getUTCMinutes();
+  if (salonDayKey(now) !== dayKey) return null;
+  const minute = salonMinutesOfDay(now);
   const openMin = parseHhmm(hours.open);
   const closeMin = parseHhmm(hours.close);
   if (minute < openMin || minute > closeMin) return null;
@@ -108,7 +109,9 @@ export function axisHeight(hours: JournalHours): number {
   return (parseHhmm(hours.close) - parseHhmm(hours.open)) * PX_PER_MIN;
 }
 
-/// The ISO instant for a snapped drop at [minute] on [dayKey] (UTC).
+/// The ISO instant for a snapped drop at [minute] on [dayKey] — a SALON
+/// wall-clock (Africa/Abidjan = UTC+0, hence the literal Z; Wave 2 swaps
+/// this to an offset-aware builder in lib/time.ts).
 export function isoAt(dayKey: string, minute: number): string {
   const snapped = snapToQuarter(minute);
   const h = Math.floor(snapped / 60);
