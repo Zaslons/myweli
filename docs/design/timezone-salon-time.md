@@ -149,6 +149,12 @@ mobile helpers are arithmetic only. No budget impact.
   smoke that seeds a 23:30 UTC booking and checks the « aujourd'hui » bucket).
 - **Gates:** analyze 0 · typecheck/lint/build · full suites green on both
   surfaces.
+- **Test date hygiene (rule, applies suite-wide):** no fixed calendar dates
+  that the run date can catch up with — a "today"-sensitive test either
+  injects a clock or computes a strictly-future date (the backend
+  `journal_test.dart` « fixed future Monday » `2026-07-13` detonated on
+  2026-07-13 and failed every PR for one day; fixed alongside this spec —
+  the mobile twin was R6b's `pro_appointment_detail_arrive_test`).
 
 ## 9. Rollout & scope discipline
 One PR (web + mobile + config + docs cross-links) — the slice is small and
