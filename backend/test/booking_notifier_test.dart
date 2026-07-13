@@ -47,6 +47,28 @@ void main() {
     InMemoryNotificationPrefsRepository(),
   );
 
+  test('message times render the SALON wall-clock; amounts read FCFA '
+      '(multi-pays MP1)', () async {
+    when(() => providers.byId(any())).thenAnswer(
+      (_) async => {
+        'name': 'Institut Libreville',
+        'timezone': 'Africa/Libreville', // UTC+1
+        'currency': 'XAF',
+      },
+    );
+    await notifier().notify({
+      'id': 'lbv1',
+      'providerId': 'p9',
+      'clientPhone': '+2410700000001',
+      'appointmentDate': '2026-06-28T09:00:00.000Z', // = 10:00 Libreville
+      'depositAmount': 5000,
+    }, MessageTemplate.bookingConfirmed);
+    final row = (await outbox.list()).items.single;
+    final body = row['body'] as String;
+    expect(body, contains('10:00')); // salon wall-clock, not 09:00Z
+    expect(body, contains('5000 FCFA')); // XAF reads FCFA, never « XOF »
+  });
+
   test('uses clientPhone (manual booking) without a user lookup', () async {
     await notifier().notify({
       'id': 'a1',

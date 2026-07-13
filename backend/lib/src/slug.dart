@@ -41,3 +41,25 @@ String slugify(String input) {
   final hyphenated = deaccented.replaceAll(RegExp('[^a-z0-9]+'), '-');
   return hyphenated.replaceAll(RegExp('^-+|-+\$'), '');
 }
+
+/// Public URL slugs a salon may NEVER claim (multi-pays MP1): the web's
+/// taxonomy roots, the seeded city slugs and the web app's own top-level
+/// routes all share the `/[slug]` namespace with provider pages — a salon
+/// named « Coiffure » must never shadow `/coiffure`. Salon slug generation
+/// uniquifies past these. Kept in sync with `web/lib/landing.ts` +
+/// `web/lib/service-landing.ts` (taxonomy) and the localities seed (city
+/// slugs — pinned by a test against `seedCities`).
+const Set<String> reservedPublicSlugs = {
+  // Category landing roots (web/lib/landing.ts).
+  'coiffure', 'barbier', 'onglerie', 'spa', 'massage',
+  // Curated service landing roots (web/lib/service-landing.ts).
+  'tresses', 'tissage', 'defrisage', 'coupe-homme', 'barbe', 'coupe-femme',
+  'locks', 'coloration', 'manucure', 'pedicure', 'ongles', 'soin-visage',
+  // Web top-level routes + API roots sharing the namespace.
+  'recherche', 'connexion', 'mon-compte', 'pro', 'api', 'localities',
+  'sitemap', 'robots',
+  // Seeded city slugs (the nested landing tree /<taxo>/<ville>/<commune>).
+  'abidjan',
+};
+
+bool isReservedSlug(String slug) => reservedPublicSlugs.contains(slug);

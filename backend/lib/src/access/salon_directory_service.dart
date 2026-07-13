@@ -1,4 +1,5 @@
 import '../auth/provider_auth_repository.dart';
+import '../localities/localities_service.dart';
 import '../providers_repository.dart';
 import '../salon_provisioning_service.dart';
 import '../subscription/salon_subscription_service.dart';
@@ -95,6 +96,7 @@ class SalonDirectoryService {
     required Object? businessType,
     Object? phoneNumber,
     Object? address,
+    SalonMarket? market,
   }) async {
     final account = await _accounts.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden', data: null);
@@ -138,6 +140,11 @@ class SalonDirectoryService {
       address: where,
     );
     final id = salon['id'] as String;
+    // Multi-pays MP1: the route-validated locality pick stamps the derived
+    // market facts (commune/city/timezone/currency — threat T57).
+    if (market != null) {
+      await _providers.updateProfile(id, market.providerChanges);
+    }
     await _members.ensureOwner(
       providerId: id,
       accountId: accountId,

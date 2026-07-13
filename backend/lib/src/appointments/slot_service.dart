@@ -1,4 +1,5 @@
 import '../providers_repository.dart';
+import '../salon_time.dart';
 import 'appointment_repository.dart';
 
 typedef SlotResult = ({bool ok, String? error, List<DateTime>? slots});
@@ -20,7 +21,10 @@ typedef SlotResult = ({bool ok, String? error, List<DateTime>? slots});
 ///   chair is taken, « Sans préférence » is NOT bookable either.**
 /// - A salon with no artists keeps the v1 single-chair behaviour.
 ///
-/// All times are UTC (Côte d'Ivoire is UTC+0).
+/// Instants are UTC; the `?date=` calendar day, the today/past gates and the
+/// weekly-hour wall-clocks are interpreted in the SALON's timezone
+/// (multi-pays MP1 — salon_time.dart; Abidjan = UTC+0 keeps Wave-0 salons
+/// bit-identical).
 class SlotService {
   SlotService(this._providers, this._appointments);
 
@@ -50,24 +54,30 @@ class SlotService {
       return (ok: false, error: 'invalid_artist', slots: null);
     }
 
-    final day = DateTime.utc(date.year, date.month, date.day);
+    final tzName = provider['timezone'] as String?;
+    // The requested calendar day + « today », both as SALON days.
+    final dayBounds = salonCalendarDayBoundsUtc(date, tzName);
     final now = DateTime.now().toUtc();
-    final today = DateTime.utc(now.year, now.month, now.day);
-    if (day.isBefore(today)) {
+    final todayBounds = salonDayBoundsUtc(now, tzName);
+    if (dayBounds.startUtc.isBefore(todayBounds.startUtc)) {
       return (ok: true, error: null, slots: const <DateTime>[]);
     }
 
     final availability = (provider['availability'] as Map)
         .cast<String, dynamic>();
 
+    // Blocked dates name SALON calendar days.
     final isBlocked = (availability['blockedDates'] as List? ?? const [])
-        .map((d) => DateTime.parse(d as String).toUtc())
+        .map((d) => salonWallClock(DateTime.parse(d as String), tzName))
         .any(
-          (d) => d.year == day.year && d.month == day.month && d.day == day.day,
+          (d) =>
+              d.year == date.year && d.month == date.month && d.day == date.day,
         );
     if (isBlocked) return (ok: true, error: null, slots: const <DateTime>[]);
 
-    final weekday = '${day.weekday - 1}'; // Mon=1..Sun=7 → '0'..'6'
+    // Weekday of the requested calendar date (pure field math).
+    final weekday =
+        '${DateTime.utc(date.year, date.month, date.day).weekday - 1}';
     final open = _openMinutes(availability['weeklySchedule'], weekday);
     if (open.isEmpty) return (ok: true, error: null, slots: const <DateTime>[]);
 
@@ -75,7 +85,7 @@ class SlotService {
     final blocks = (duration / _step).ceil().clamp(1, 48);
     final buffer = (availability['bufferMinutes'] as num?)?.toInt() ?? 0;
     final breaks = _windowsFor(availability['breaks'], weekday);
-    final busy = await _busyWindows(provider, day, buffer, providerId);
+    final busy = await _busyWindows(provider, date, tzName, buffer, providerId);
 
     // Capacity inputs. Capable = can do every selected service (a selection
     // containing an unrestricted service is open to all — the app's rule).
@@ -88,9 +98,10 @@ class SlotService {
       return (ok: true, error: null, slots: const <DateTime>[]);
     }
 
-    // For today, only offer starts ≥ 1h from now.
-    final minStartMinute = day.isAtSameMomentAs(today)
-        ? now.difference(day).inMinutes + 60
+    // For today, only offer starts ≥ 1h from now (minutes past SALON midnight).
+    final minStartMinute =
+        dayBounds.startUtc.isAtSameMomentAs(todayBounds.startUtc)
+        ? now.difference(dayBounds.startUtc).inMinutes + 60
         : -1;
 
     final slots = <DateTime>[];
@@ -111,8 +122,21 @@ class SlotService {
       // Not inside a break.
       if (breaks.any((b) => startMin < b.$2 && endMin > b.$1)) continue;
 
-      final start = day.add(Duration(minutes: startMin));
-      final end = day.add(Duration(minutes: endMin));
+      // Wall-clock minutes on the SALON's calendar day → UTC instants.
+      final start = salonWallClockToUtc(
+        date.year,
+        date.month,
+        date.day,
+        startMin,
+        tzName,
+      );
+      final end = salonWallClockToUtc(
+        date.year,
+        date.month,
+        date.day,
+        endMin,
+        tzName,
+      );
       bool overlaps(({DateTime start, DateTime end, String? artistId}) w) =>
           start.isBefore(w.end) && end.isAfter(w.start);
 
@@ -257,13 +281,15 @@ class SlotService {
     return total == 0 ? _step : total;
   }
 
-  /// Buffer-padded busy windows from existing non-cancelled bookings on
-  /// [day], each tagged with its assigned artist (null = « Sans préférence »,
-  /// consuming one chair from the pool). Uses the booking's stored
-  /// `durationMinutes` when present (variant-accurate), else recomputes.
+  /// Buffer-padded busy windows from existing non-cancelled bookings on the
+  /// requested SALON calendar [date], each tagged with its assigned artist
+  /// (null = « Sans préférence », consuming one chair from the pool). Uses
+  /// the booking's stored `durationMinutes` when present (variant-accurate),
+  /// else recomputes.
   Future<List<({DateTime start, DateTime end, String? artistId})>> _busyWindows(
     Map<dynamic, dynamic> provider,
-    DateTime day,
+    DateTime date,
+    String? tzName,
     int buffer,
     String providerId,
   ) async {
@@ -272,9 +298,10 @@ class SlotService {
     for (final a in appts) {
       if (a['status'] == 'cancelled') continue;
       final start = DateTime.parse(a['appointmentDate'] as String).toUtc();
-      if (start.year != day.year ||
-          start.month != day.month ||
-          start.day != day.day) {
+      final wall = salonWallClock(start, tzName);
+      if (wall.year != date.year ||
+          wall.month != date.month ||
+          wall.day != date.day) {
         continue;
       }
       final dur =

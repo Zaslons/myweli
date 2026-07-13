@@ -1,5 +1,7 @@
 import '../access/membership_service.dart';
 import '../clients/clients_service.dart';
+import '../providers_repository.dart';
+import '../salon_time.dart';
 import 'appointment_repository.dart';
 
 typedef ProLifecycleResult = ({
@@ -20,7 +22,9 @@ class ProAppointmentService {
     this._members,
     this._appointments, {
     ClientsService? clients,
-  }) : _clients = clients;
+    ProvidersRepository? providers,
+  }) : _clients = clients,
+       _providers = providers;
 
   final MembershipService _members;
   final AppointmentRepository _appointments;
@@ -28,6 +32,10 @@ class ProAppointmentService {
   /// Module `clients`: a completed visit bumps the client's `lastVisitAt`
   /// (docs/design/clients-c1.md). Best-effort.
   final ClientsService? _clients;
+
+  /// Multi-pays MP1: resolves the salon's timezone for the same-day gate
+  /// (absent → Africa/Abidjan, the Wave-0 behavior).
+  final ProvidersRepository? _providers;
 
   Future<ProLifecycleResult> accept(String appointmentId, String accountId) =>
       _transition(
@@ -55,9 +63,9 @@ class ProAppointmentService {
       );
 
   /// « Client arrivé » (journal J2 — docs/design/journal-j1-grid.md §2.2):
-  /// stamps `arrivedAt` on a CONFIRMED booking, only on its calendar day
-  /// (UTC — Abidjan time), idempotently. Threat T43 guards. [now] is
-  /// injectable for tests.
+  /// stamps `arrivedAt` on a CONFIRMED booking, only on its calendar day in
+  /// the SALON's timezone (multi-pays MP1 — salon_time.dart), idempotently.
+  /// Threat T43 guards. [now] is injectable for tests.
   Future<ProLifecycleResult> arrive(
     String appointmentId,
     String accountId, {
@@ -85,10 +93,11 @@ class ProAppointmentService {
     final start = DateTime.tryParse(
       appointment['appointmentDate'] as String? ?? '',
     )?.toUtc();
-    if (start == null ||
-        start.year != at.year ||
-        start.month != at.month ||
-        start.day != at.day) {
+    final salon = await _providers?.byId(
+      appointment['providerId'] as String? ?? '',
+    );
+    final tzName = salon?['timezone'] as String?;
+    if (start == null || !sameSalonDay(start, at, tzName)) {
       return (ok: false, error: 'not_today', appointment: null);
     }
     if (appointment['arrivedAt'] != null) {

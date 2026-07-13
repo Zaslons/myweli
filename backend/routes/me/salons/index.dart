@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:myweli_backend/src/access/salon_directory_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
+import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// Module `access` R6 — « Mes salons » (docs/design/
@@ -42,12 +43,23 @@ Future<Response> onRequest(RequestContext context) async {
       } catch (_) {
         return jsonError(HttpStatus.badRequest, 'invalid_body');
       }
+      // Multi-pays MP1: an optional locality pick — validated against the
+      // tree; the salon's market facts derive from it (threat T57).
+      final areaId = (body['areaId'] as String?)?.trim();
+      SalonMarket? market;
+      if (areaId != null && areaId.isNotEmpty) {
+        market = await context.read<LocalitiesService>().resolveArea(areaId);
+        if (market == null) {
+          return jsonError(HttpStatus.badRequest, 'invalid_area');
+        }
+      }
       final r = await directory.addSalon(
         principal.userId,
         businessName: body['businessName'],
         businessType: body['businessType'],
         phoneNumber: body['phoneNumber'],
         address: body['address'],
+        market: market,
       );
       if (!r.ok) {
         return switch (r.error) {

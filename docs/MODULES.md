@@ -260,10 +260,13 @@ d'Ivoire without refactoring** — decided 2026-07-13 after verified research
   sequencing like Planity** — Wave 1 (UTC+0 · XOF: Sénégal/Mali/Burkina/Togo)
   is data-only; Wave 2 (Bénin/Niger, UTC+1) flips the timezone seam; Wave 3
   (CEMAC, XAF) activates the currency field. Francophone-only by decision.
-- **Readiness now:** the salon-time seam
-  ([design/timezone-salon-time.md](design/timezone-salon-time.md), slice 1) +
-  the §9 guardrail (market data lives only in its seams) mirrored in the
-  standards docs. Nothing else built ahead of need.
+- **Built:** the salon-time seam (slice 1, 2026-07-13,
+  [design/timezone-salon-time.md](design/timezone-salon-time.md)) + the §9
+  guardrail pins; **the full machinery (user decision 2026-07-14): locality
+  tree + `GET /localities`, per-salon timezone/currency, operator catalog,
+  nested SEO tree — program MP1→MP3,
+  [design/multi-pays-end-version.md](design/multi-pays-end-version.md).**
+  A new market is now purely seed data + the launch checklist.
 - **Module doc:** **[docs/modules/multi-pays.md](modules/multi-pays.md)** ✅
   (2026-07-13 — end version, waves, per-market launch checklist).
 

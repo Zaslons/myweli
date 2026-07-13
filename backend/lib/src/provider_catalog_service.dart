@@ -1,6 +1,8 @@
 import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'auth/provider_auth_repository.dart';
+import 'localities/localities_repository.dart';
+import 'localities/localities_service.dart';
 import 'providers_repository.dart';
 import 'validators.dart';
 
@@ -20,11 +22,18 @@ class ProviderCatalogService {
     this._providerAuth,
     this._members, {
     List<String> allowedImageOrigins = const [],
-  }) : _allowedImageOrigins = allowedImageOrigins;
+    LocalitiesService? localities,
+  }) : _allowedImageOrigins = allowedImageOrigins,
+       _localities = localities;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _providerAuth;
   final MembershipService _members;
+
+  /// Multi-pays MP1: locality resolution for `areaId` profile writes + the
+  /// per-country deposit-operator catalog. Nullable only for legacy unit
+  /// tests (falls back to the seed-list matcher / the Wave-0 operator set).
+  final LocalitiesService? _localities;
 
   /// Gallery URL origins accepted on write. Empty → accept any (dev). When set
   /// (prod), each gallery URL must start with one of these (anti-SSRF/hotlink).
@@ -154,12 +163,46 @@ class ProviderCatalogService {
         if (body.containsKey(k))
           k: body[k] is String ? (body[k] as String).trim() : body[k],
     };
+
+    // Multi-pays MP1 (threat T57): an explicit `areaId` pick is validated
+    // against the locality tree and the market facts (commune/city/timezone/
+    // currency) DERIVE from it — overriding any client-sent display names; a
+    // legacy commune display name without areaId self-heals on slug match.
+    // Direct client writes of timezone/currency/countryCode/citySlug/areaId
+    // are never in the editable list.
+    final areaIdRaw = body['areaId'];
+    if (body.containsKey('areaId')) {
+      if (areaIdRaw is! String || areaIdRaw.trim().isEmpty) {
+        return (ok: false, error: 'invalid_area', data: null);
+      }
+      final market = _localities != null
+          ? await _localities.resolveArea(areaIdRaw.trim())
+          : null;
+      final changesForArea =
+          market?.providerChanges ?? _seedMarketForAreaId(areaIdRaw.trim());
+      if (changesForArea == null) {
+        return (ok: false, error: 'invalid_area', data: null);
+      }
+      changes.addAll(changesForArea);
+    } else if (changes['commune'] is String) {
+      final area = seedAreaForCommuneName(changes['commune'] as String);
+      if (area != null) changes.addAll(marketChangesForArea(area));
+    }
+
     if (changes.isEmpty) {
       return (ok: false, error: 'invalid_input', data: null);
     }
     final updated = await _providers.updateProfile(providerId, changes);
     if (updated == null) return _notFound;
     return (ok: true, error: null, data: updated);
+  }
+
+  /// Seed-list fallback for legacy test wiring without a LocalitiesService.
+  Map<String, dynamic>? _seedMarketForAreaId(String areaId) {
+    for (final a in seedAreas) {
+      if (a.id == areaId) return marketChangesForArea(a);
+    }
+    return null;
   }
 
   String? _validateProfile(Map<String, dynamic> body) {
@@ -479,7 +522,16 @@ class ProviderCatalogService {
     if (!await _can(accountId, providerId, Cap.depositManage)) {
       return _forbidden;
     }
-    final error = _validateDepositPolicy(body);
+    // Multi-pays MP1: the operator accept-list is the salon COUNTRY's
+    // catalog (identical to the legacy set for CI — threat T57).
+    final salon = await _providers.byId(providerId);
+    if (salon == null) return _notFound;
+    final allowedOperators = _localities != null
+        ? await _localities.operatorIdsForCountry(
+            (salon['countryCode'] as String?) ?? 'CI',
+          )
+        : _operators;
+    final error = _validateDepositPolicy(body, allowedOperators);
     if (error != null) return (ok: false, error: error, data: null);
 
     final required = body['depositRequired'] as bool;
@@ -515,10 +567,15 @@ class ProviderCatalogService {
     'mobileMoneyNumber': p['depositMobileMoneyNumber'],
   };
 
+  /// Wave-0 fallback only (legacy test wiring without a LocalitiesService) —
+  /// production reads the salon country's catalog.
   static const _operators = {'wave', 'orangeMoney', 'mtnMoMo', 'moov'};
   static const _maxCancellationHours = 720; // 30 days
 
-  String? _validateDepositPolicy(Map<String, dynamic> body) {
+  String? _validateDepositPolicy(
+    Map<String, dynamic> body,
+    Set<String> allowedOperators,
+  ) {
     final required = body['depositRequired'];
     if (required is! bool) return 'invalid_input';
 
@@ -532,7 +589,7 @@ class ProviderCatalogService {
     }
 
     final op = body['mobileMoneyOperator'];
-    if (op != null && (op is! String || !_operators.contains(op))) {
+    if (op != null && (op is! String || !allowedOperators.contains(op))) {
       return 'invalid_input';
     }
     final number = body['mobileMoneyNumber'];

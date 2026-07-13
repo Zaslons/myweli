@@ -28,6 +28,7 @@ import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/favorites_service.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
+import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
@@ -104,6 +105,7 @@ Handler middleware(Handler handler) {
       .use(provider<ReviewsService>((_) => reviewsService))
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository))
+      .use(provider<LocalitiesService>((_) => localitiesService))
       // Outermost: browser CORS for the Next.js web app(s).
       .use(corsMiddleware(webOrigins));
 }

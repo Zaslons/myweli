@@ -319,6 +319,9 @@ void main() {
         MembershipService(InMemoryMembershipRepository(), providerAuth),
       );
       when(() => context.read<AuthRepository>()).thenReturn(auth);
+      // Multi-pays MP1: the market enrichment + off-day masking read the
+      // salon's timezone/currency from the providers repo.
+      when(() => context.read<ProvidersRepository>()).thenReturn(providers);
       when(() => context.read<ClientsService>()).thenReturn(
         ClientsService(
           providerAuth,
@@ -472,6 +475,7 @@ void main() {
         ).thenReturn(providerAuth);
         when(() => context.read<MembershipService>()).thenReturn(members);
         when(() => context.read<AuthRepository>()).thenReturn(auth);
+        when(() => context.read<ProvidersRepository>()).thenReturn(providers);
         when(() => context.read<ClientsService>()).thenReturn(
           ClientsService(
             providerAuth,

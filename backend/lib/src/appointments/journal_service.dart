@@ -1,6 +1,7 @@
 import '../access/membership_service.dart';
 import '../clients/clients_service.dart';
 import '../providers_repository.dart';
+import '../salon_time.dart';
 import 'appointment_repository.dart';
 
 typedef JournalResult = ({bool ok, String? error, Map<String, dynamic>? data});
@@ -14,10 +15,9 @@ typedef JournalResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// deny by default; a day of client names+phones is exactly what a cross-salon
 /// attacker would want). OWN-SCOPE callers (Collaborateur — T40, R4a) get
 /// their artist's column only, with off-day contact masking (§11.2). Day
-/// boundaries are UTC — Côte d'Ivoire runs on Africa/Abidjan = UTC+0, so
-/// existing UTC day-math IS salon time (the platform convention:
-/// docs/modules/multi-pays.md §3 / docs/design/timezone-salon-time.md); the
-/// per-salon timezone arrives at multi-pays Wave 2.
+/// boundaries are the SALON's timezone (multi-pays MP1 — salon_time.dart,
+/// read from the provider document; Abidjan = UTC+0 keeps Wave-0 salons
+/// bit-identical). The requested `date`'s y/m/d fields NAME a salon day.
 class JournalService {
   JournalService(
     this._members,
@@ -51,6 +51,7 @@ class JournalService {
       return (ok: false, error: 'not_found', data: null);
     }
 
+    final tzName = provider['timezone'] as String?;
     final day = DateTime.utc(date.year, date.month, date.day);
     final availability =
         (provider['availability'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -61,7 +62,11 @@ class JournalService {
     final todays =
         [
           for (final a in all)
-            if (_sameUtcDay(a['appointmentDate'] as String?, day) &&
+            if (_sameSalonCalendarDay(
+                  a['appointmentDate'] as String?,
+                  day,
+                  tzName,
+                ) &&
                 (scope.all || a['artistId'] == scope.ownArtistId))
               a,
         ]..sort(
@@ -72,7 +77,11 @@ class JournalService {
     var enriched = await _clients.enrichForProvider(providerId, todays);
     if (!scope.all) {
       // T39/T40: own-scope days other than TODAY carry no client contact.
-      enriched = ClientsService.maskContactsOffDay(enriched, now: _now());
+      enriched = ClientsService.maskContactsOffDay(
+        enriched,
+        now: _now(),
+        tzName: tzName,
+      );
     }
 
     return (
@@ -83,7 +92,7 @@ class JournalService {
             '${day.year.toString().padLeft(4, '0')}-'
             '${day.month.toString().padLeft(2, '0')}-'
             '${day.day.toString().padLeft(2, '0')}',
-        'hours': _hoursFor(availability, day),
+        'hours': _hoursFor(availability, day, tzName),
         'artists': [
           for (final a
               in ((provider['artists'] as List?) ?? const [])
@@ -102,9 +111,10 @@ class JournalService {
   Map<String, dynamic>? _hoursFor(
     Map<String, dynamic> availability,
     DateTime day,
+    String? tzName,
   ) {
     final blocked = ((availability['blockedDates'] as List?) ?? const []).any(
-      (d) => _sameUtcDay(d as String?, day),
+      (d) => _sameSalonCalendarDay(d as String?, day, tzName),
     );
     if (blocked) return null;
 
@@ -151,11 +161,14 @@ class JournalService {
       '${(minutes ~/ 60).toString().padLeft(2, '0')}:'
       '${(minutes % 60).toString().padLeft(2, '0')}';
 
-  static bool _sameUtcDay(String? iso, DateTime day) {
-    final t = iso == null ? null : DateTime.tryParse(iso)?.toUtc();
-    return t != null &&
-        t.year == day.year &&
-        t.month == day.month &&
-        t.day == day.day;
+  /// Does the ISO instant fall on the salon calendar day named by [day]'s
+  /// y/m/d fields (in the salon's timezone)?
+  static bool _sameSalonCalendarDay(String? iso, DateTime day, String? tzName) {
+    final t = iso == null ? null : DateTime.tryParse(iso);
+    if (t == null) return false;
+    final wall = salonWallClock(t, tzName);
+    return wall.year == day.year &&
+        wall.month == day.month &&
+        wall.day == day.day;
   }
 }

@@ -105,6 +105,9 @@ class BookingService {
     final appointment = {
       'id':
           'appt_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}',
+      // Multi-pays §4: financial records are stamped with the salon's
+      // currency at write time (immutable — the Fresha rule).
+      'currency': provider['currency'] ?? 'XOF',
       'userId': userId,
       'providerId': providerId,
       'serviceIds': serviceIds,
@@ -186,6 +189,8 @@ class BookingService {
     final appointment = {
       'id':
           'manual_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}',
+      // Multi-pays §4: stamped with the salon's currency at write time.
+      'currency': provider['currency'] ?? 'XOF',
       'userId': 'manual', // walk-in / phone client — no app account
       'providerId': providerId,
       'serviceIds': serviceIds,

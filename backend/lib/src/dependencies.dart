@@ -56,6 +56,8 @@ import 'email/resend_email_provider.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'kyc_service.dart';
+import 'localities/localities_repository.dart';
+import 'localities/localities_service.dart';
 import 'messaging/booking_notifier.dart';
 import 'messaging/messaging_outbox_repository.dart';
 import 'messaging/messaging_prefs_repository.dart';
@@ -212,6 +214,16 @@ final ProvidersRepository providersRepository = _pool == null
     ? InMemoryProvidersRepository()
     : PostgresProvidersRepository(_pool!);
 
+/// Multi-pays MP1 — the locality reference tree
+/// (docs/design/multi-pays-end-version.md §2).
+final LocalitiesRepository localitiesRepository = _pool == null
+    ? InMemoryLocalitiesRepository()
+    : PostgresLocalitiesRepository(_pool!);
+
+final LocalitiesService localitiesService = LocalitiesService(
+  localitiesRepository,
+);
+
 final ProviderAuthRepository providerAuthRepository = _pool == null
     ? InMemoryProviderAuthRepository(tokens: tokenService, isProd: _isProd)
     : PostgresProviderAuthRepository(
@@ -278,6 +290,7 @@ final ProAppointmentService proAppointmentService = ProAppointmentService(
   membershipService,
   appointmentRepository,
   clients: clientsService,
+  providers: providersRepository,
 );
 
 /// Journal day view (module journal J1 — docs/design/journal-j1-grid.md).
@@ -340,6 +353,7 @@ final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   providerAuthRepository,
   membershipService,
   allowedImageOrigins: _galleryAllowedOrigins,
+  localities: localitiesService,
 );
 
 final UploadSigningService uploadSigningService = UploadSigningService(
@@ -489,11 +503,16 @@ final AnalyticsService analyticsService = AnalyticsService(
 );
 
 final ProviderDashboardService providerDashboardService =
-    ProviderDashboardService(membershipService, appointmentRepository);
+    ProviderDashboardService(
+      membershipService,
+      appointmentRepository,
+      providers: providersRepository,
+    );
 
 final ProviderEarningsService providerEarningsService = ProviderEarningsService(
   membershipService,
   appointmentRepository,
+  providers: providersRepository,
 );
 
 final ReviewsService reviewsService = ReviewsService(
@@ -641,6 +660,11 @@ Future<void> initializeDatabase() async {
     // Move services/availability out of the provider JSONB into the normalized
     // catalogue tables (single source of truth). See migration 0005.
     await backfillCatalogueIfNeeded(pool);
+    // Multi-pays MP1: seed the locality reference tree, then stamp the salon
+    // market fields onto pre-MP1 provider documents
+    // (docs/design/multi-pays-end-version.md §2).
+    await seedLocalitiesIfEmpty(pool);
+    await backfillSalonMarketIfNeeded(pool);
   }
   // Seed the super-admin from env (idempotent), after migrations so the table
   // exists. Runs in both modes; no-op when ADMIN_EMAIL/ADMIN_PASSWORD are unset.
