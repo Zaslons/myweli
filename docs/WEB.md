@@ -51,6 +51,13 @@ web/
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.
 - Lists use the API's `{items,page,pageSize,total}` pagination.
+- **Market data & salon time** — market-specific facts (communes/taxonomy,
+  operators, currency, timezone) live **only** in their seams (`lib/landing.ts`
+  / `lib/discovery.ts` / `lib/service-landing.ts`, `lib/format.ts`,
+  `lib/time.ts` once built); displayed times and day boundaries are **salon
+  time**, never the browser's
+  ([modules/multi-pays.md](modules/multi-pays.md) §3/§9). Hardcoding a market
+  fact elsewhere fails review, even when it works for CI.
 
 ## 4. Auth & session (web) — BFF + httpOnly cookies
 - **BFF pattern (M5):** the browser only talks to **Next route handlers**

@@ -38,11 +38,12 @@ declares which module it belongs to.
 | 8 | Payments & deposits | `payments` | Прием платежей | 🟢 built (no-custody, by decision) |
 | 9 | Finance & earnings | `finance` | Финансовый учет | 🟡 basic |
 | 10 | Analytics & reports | `analytics` | Аналитика / конструктор отчетов | 🟡 basic |
-| 11 | Team access (RBAC) | `access` | Пользователи и доступ | 🟡 owner-only → ⏳/🔮 |
+| 11 | Team access (RBAC) | `access` | Пользователи и доступ | 🟢 built (R1→R6, incl. multi-salons) |
 | 12 | Payroll | `payroll` | Расчет зарплат | 🔮 V3 |
 | 13 | Inventory | `inventory` | Складской учет | 🔮 V3 |
 | 14 | Multi-location networks | `network` | Сети | 🔮 V3 |
 | 15 | Trust & operations | `trust` | *(no YCLIENTS analog — marketplace-specific)* | 🟢 built |
+| 16 | Multi-pays (marchés · fuseaux · devises · opérateurs) | `multi-pays` | Город филиала / каталог городов | 📘 end version documented · activation per wave |
 
 **Cross-cutting foundations** (not modules — every module stands on them):
 identity & auth (Google/Apple/email OTP, JWT + rotating refresh), the design
@@ -191,19 +192,23 @@ Deliberately different from YCLIENTS's online acquiring: **no-custody**
 - **Placeholder:** `screens/provider/features/reports_analytics_screen.dart`.
 - **Module doc:** `docs/modules/analytics.md` *(to write)*.
 
-## 11. Team access (RBAC) — `access` 🟡
+## 11. Team access (RBAC) — `access` 🟢
 
-Designed 2026-07-07 (chat), YCLIENTS-style: **preset roles seeding a
-capability matrix**, per-user overrides exposed later.
+Built 2026-07-07 → 2026-07-13 (R1→R6, PRs #212…#232), YCLIENTS-style:
+**preset roles seeding a capability matrix**, resolved per request.
 
-- **Today:** one login per salon (the owner); `role` claim ∈ user/provider/
-  admin + tenant ownership on every route; artists are records, not logins.
-- **To build (⏳ V2):** preset roles (Propriétaire / Manager / Collaborateur)
-  on a capability matrix, email invitations, per-request resolution (instant
-  revocation), artist auto-link, owner-protected actions, access audit; staff
-  seats = paid add-on. **(🔮 V3):** override matrix UI, Réception preset,
-  owner transfer, audit viewer.
-- **Module doc:** **[docs/modules/access.md](modules/access.md)** ✅ (2026-07-07).
+- **Built:** the four roles (Propriétaire / Manager / Réception /
+  Collaborateur) on a server-side capability matrix (`can()` per request —
+  instant revocation), email invitations (202 login bridge), salon offers &
+  seats (Pro / Business / Réseau, 3 mois offerts, grace → unpublish), the
+  role-shaped app AND web (capability-gated dashboards/sidebars, staff « Ma
+  journée », own-scope + contact masking), artist auto-link, owner-protected
+  actions, access audit — and **multi-salons** (one account ↔ many salons:
+  the `?salonId=` selector, « Mes salons » switchers on app + web,
+  Réseau-gated « Ajouter un salon », KYC badge fan-out, deletion fan-out).
+- **Remaining (🔮 V3):** per-user override matrix UI, owner transfer,
+  audit viewer.
+- **Module doc:** **[docs/modules/access.md](modules/access.md)** ✅.
 
 ## 12. Payroll — `payroll` 🔮
 
@@ -221,8 +226,11 @@ multi-warehouse). V3, gated on PMF. Placeholder:
 ## 14. Multi-location networks — `network` 🔮
 
 YCLIENTS's Сети: shared clients/staff/catalogue/analytics across branches,
-network-level users. The `access` membership model is built to extend here
-(one account ↔ many salons). V3.
+network-level users. **The foundation shipped with `access` R6 (2026-07-13):**
+one account ↔ many salons, per-salon offers/seats, the salon switcher on every
+surface. `network` remains the V3 layer above it (cross-branch sharing +
+consolidated analytics — grouped by currency per
+[modules/multi-pays.md](modules/multi-pays.md) §4).
 **Module doc:** `docs/modules/network.md` *(to write at V3 approach)*.
 
 ## 15. Trust & operations — `trust` 🟢
@@ -237,6 +245,27 @@ than a SaaS clone: consumers must be able to trust salons they've never met.
 - **Code:** `backend/routes/admin/*`, `/me/kyc`, `/reviews/[id]/report`;
   admin Flutter-web app (`main_admin.dart`) at admin.myweli.com.
 - **Module doc:** `docs/modules/trust.md` *(to write)*.
+
+## 16. Multi-pays — `multi-pays` 📘
+
+Cross-cutting, not a feature module: **how MyWeli expands beyond Côte
+d'Ivoire without refactoring** — decided 2026-07-13 after verified research
+(YCLIENTS · Fresha · Booksy · Planity).
+
+- **The model:** a seeded **locality tree** (country → city → commune) as the
+  root; the salon picks a locality and **derives** everything — timezone from
+  the city (YCLIENTS), currency fixed at creation from the country (Fresha),
+  the Mobile Money operator catalog, SEO landing families (Planity's page
+  tree), SMS routes, KYC doc types. Strategy: **architecture like YCLIENTS,
+  sequencing like Planity** — Wave 1 (UTC+0 · XOF: Sénégal/Mali/Burkina/Togo)
+  is data-only; Wave 2 (Bénin/Niger, UTC+1) flips the timezone seam; Wave 3
+  (CEMAC, XAF) activates the currency field. Francophone-only by decision.
+- **Readiness now:** the salon-time seam
+  ([design/timezone-salon-time.md](design/timezone-salon-time.md), slice 1) +
+  the §9 guardrail (market data lives only in its seams) mirrored in the
+  standards docs. Nothing else built ahead of need.
+- **Module doc:** **[docs/modules/multi-pays.md](modules/multi-pays.md)** ✅
+  (2026-07-13 — end version, waves, per-market launch checklist).
 
 ---
 
