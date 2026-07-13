@@ -9,9 +9,11 @@ import 'package:myweli/models/artist.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/providers/appointment_provider.dart';
+import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/screens/appointments/appointment_detail_screen.dart';
 import 'package:myweli/services/interfaces/appointment_service_interface.dart';
 import 'package:myweli/services/interfaces/provider_service_interface.dart';
+import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:provider/provider.dart';
 
 class _MockAppointments extends Mock implements AppointmentServiceInterface {}
@@ -28,6 +30,8 @@ void main() {
     await initializeDateFormatting('fr_FR', null);
     serviceLocator.appointmentService = appointments;
     serviceLocator.providerService = providers;
+    // MP2: the detail loads the locality tree for the hint's country label.
+    serviceLocator.localityService = MockLocalityService();
   });
 
   Appointment appt({String? artistId}) => Appointment(
@@ -42,8 +46,11 @@ void main() {
         createdAt: DateTime.now(),
       );
 
-  Widget host() => ChangeNotifierProvider(
-        create: (_) => AppointmentProvider(),
+  Widget host() => MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        ],
         child: const MaterialApp(
           home: AppointmentDetailScreen(appointmentId: 'a1'),
         ),
@@ -88,6 +95,9 @@ void main() {
   testWidgets('no artist on the booking → no row', (tester) async {
     when(() => appointments.getAppointmentById('a1'))
         .thenAnswer((_) async => ApiResponse.success(appt()));
+    when(() => providers.getProviderById('p1')).thenAnswer(
+      (_) async => ApiResponse.error('hors ligne'), // facts stay null → OK
+    );
 
     await tester.pumpWidget(host());
     await tester.pump();

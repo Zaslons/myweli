@@ -1,8 +1,8 @@
+import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
-import '../../models/payment.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
 import '../../models/review.dart';
@@ -290,6 +290,12 @@ class MockData {
       address: 'Cocody, Angré 7ème Tranche',
       commune: 'Cocody',
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'cocody',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.3600,
       longitude: -4.0083,
       imageUrls: const [
@@ -342,9 +348,15 @@ class MockData {
       commune: 'Marcory',
       depositRequired: true,
       depositPercentage: 0.50,
-      depositMobileMoneyOperator: MobileMoneyOperator.wave,
+      depositMobileMoneyOperator: 'wave',
       depositMobileMoneyNumber: '+225 05 44 55 66 77',
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'marcory',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.2800,
       longitude: -4.0500,
       imageUrls: const [
@@ -379,6 +391,12 @@ class MockData {
       commune: 'Yopougon',
       depositRequired: false,
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'yopougon',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.3200,
       longitude: -4.0800,
       imageUrls: const [
@@ -412,6 +430,12 @@ class MockData {
       address: 'Plateau, Avenue Franchet d\'Esperey',
       commune: 'Plateau',
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'plateau',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.3200,
       longitude: -4.0300,
       imageUrls: const [

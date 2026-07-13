@@ -12,6 +12,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_salon_profile_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -43,10 +44,15 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   final _name = TextEditingController();
   final _description = TextEditingController();
   final _address = TextEditingController();
-  final _commune = TextEditingController();
-  final _city = TextEditingController();
   final _phone = TextEditingController();
   final _whatsapp = TextEditingController();
+
+  /// Multi-pays MP2: the commune is a LOCALITY pick (areaId) — the server
+  /// derives city/timezone/currency from it (T57). The display name shows
+  /// in the picker row; legacy free-text communes keep their name until the
+  /// first pick self-heals them.
+  String? _areaId;
+  String _communeName = '';
   String _category = 'salon';
   LatLng? _pin;
   bool _filled = false;
@@ -73,8 +79,6 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       _name,
       _description,
       _address,
-      _commune,
-      _city,
       _phone,
       _whatsapp,
     ]) {
@@ -89,8 +93,8 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     _name.text = p.name;
     _description.text = p.description;
     _address.text = p.address;
-    _commune.text = p.commune ?? '';
-    _city.text = p.city ?? '';
+    _areaId = p.areaId;
+    _communeName = p.commune ?? '';
     _phone.text = p.phoneNumber;
     _whatsapp.text = p.whatsapp ?? '';
     if (salonCategories.any((c) => c.$1 == p.category)) {
@@ -127,6 +131,19 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     }
   }
 
+  Future<void> _pickCommune() async {
+    final choice = await showCommunePicker(
+      context,
+      selected: _communeName.isEmpty ? null : _communeName,
+      allowAll: false, // a salon belongs to exactly one commune
+    );
+    if (choice == null || choice.areaId == null || !mounted) return;
+    setState(() {
+      _areaId = choice.areaId;
+      _communeName = choice.commune ?? '';
+    });
+  }
+
   void _toast(String message, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -146,8 +163,11 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       'name': _name.text.trim(),
       'description': _description.text.trim(),
       'address': _address.text.trim(),
-      'commune': _commune.text.trim(),
-      'city': _city.text.trim(),
+      // The locality pick — the server derives commune/city/timezone/
+      // currency from it; a legacy free-text name rides along until the
+      // first pick (the server self-heals matching names).
+      if (_areaId != null) 'areaId': _areaId,
+      if (_areaId == null) 'commune': _communeName.trim(),
       'phoneNumber': _phone.text.trim(),
       'whatsapp': _whatsapp.text.trim(),
       'category': _category,
@@ -205,9 +225,33 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(label: 'Adresse', controller: _address),
               const SizedBox(height: AppTheme.spacingS),
-              AppTextField(label: 'Commune', controller: _commune),
-              const SizedBox(height: AppTheme.spacingS),
-              AppTextField(label: 'Ville', controller: _city),
+              InkWell(
+                onTap: _pickCommune,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Commune'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _communeName.isEmpty
+                              ? 'Choisir une commune'
+                              : _communeName,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: _communeName.isEmpty
+                                ? AppColors.textTertiary
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.expand_more,
+                        color: AppColors.textTertiary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'Téléphone',

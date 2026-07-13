@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
 import '../../../models/appointment.dart';
+import '../../../providers/pro_auth_provider.dart';
 
 class AppointmentCalendarView extends StatefulWidget {
   final List<Appointment> appointments;
@@ -28,10 +30,12 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
   late DateTime _focusedDay = _salonTodayNaive();
   DateTime? _selectedDay;
 
-  /// The salon "today" as a NAIVE date — table_calendar compares its naive
-  /// day cells field-to-field (never `.toUtc()` these).
-  static DateTime _salonTodayNaive() {
-    final s = salonNow();
+  String? get _tz => context.read<ProAuthProvider>().salonTimezone;
+
+  /// The ACTIVE salon's "today" as a NAIVE date — table_calendar compares
+  /// its naive day cells field-to-field (never `.toUtc()` these).
+  DateTime _salonTodayNaive() {
+    final s = salonNow(tz: _tz);
     return DateTime(s.year, s.month, s.day);
   }
 
@@ -60,9 +64,9 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
 
   List<Appointment> _getAppointmentsForDay(DateTime day) {
     // `day` is a naive table_calendar cell; the booking date is a UTC
-    // instant — compare both as SALON calendar days.
+    // instant — compare both as the ACTIVE SALON's calendar days.
     return widget.appointments.where((appointment) {
-      final d = toSalonTime(appointment.appointmentDate);
+      final d = toSalonTime(appointment.appointmentDate, tz: _tz);
       return d.year == day.year && d.month == day.month && d.day == day.day;
     }).toList();
   }
@@ -242,7 +246,8 @@ class _AppointmentCard extends StatelessWidget {
           ),
         ),
         title: Text(
-          Formatters.formatTime(appointment.appointmentDate),
+          Formatters.formatTime(toSalonTime(appointment.appointmentDate,
+              tz: context.read<ProAuthProvider>().salonTimezone)),
           style:
               AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
         ),
@@ -251,7 +256,10 @@ class _AppointmentCard extends StatelessWidget {
           children: [
             const SizedBox(height: 4),
             Text('${appointment.serviceIds.length} service(s)'),
-            Text(Formatters.formatCurrency(appointment.totalPrice)),
+            Text(Formatters.formatCurrency(
+              appointment.totalPrice,
+              currency: context.read<ProAuthProvider>().salonCurrency,
+            )),
           ],
         ),
         trailing: Chip(

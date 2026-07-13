@@ -3,6 +3,7 @@ import '../../services/api/api_auth_service.dart';
 import '../../services/api/api_device_registration_service.dart';
 import '../../services/api/api_favorites_service.dart';
 import '../../services/api/api_image_upload_service.dart';
+import '../../services/api/api_locality_service.dart';
 import '../../services/api/api_notification_service.dart';
 import '../../services/api/api_pro_artist_service.dart';
 import '../../services/api/api_pro_clients_service.dart';
@@ -17,6 +18,7 @@ import '../../services/interfaces/auth_service_interface.dart';
 import '../../services/interfaces/device_registration_service_interface.dart';
 import '../../services/interfaces/favorites_service_interface.dart';
 import '../../services/interfaces/image_upload_service_interface.dart';
+import '../../services/interfaces/locality_service_interface.dart';
 import '../../services/interfaces/messaging_service_interface.dart';
 import '../../services/interfaces/notification_service_interface.dart';
 import '../../services/interfaces/pro_artist_service_interface.dart';
@@ -33,6 +35,7 @@ import '../../services/mock/mock_auth_service.dart';
 import '../../services/mock/mock_device_registration_service.dart';
 import '../../services/mock/mock_favorites_service.dart';
 import '../../services/mock/mock_image_upload_service.dart';
+import '../../services/mock/mock_locality_service.dart';
 import '../../services/mock/mock_messaging_service.dart';
 import '../../services/mock/mock_notification_service.dart';
 import '../../services/mock/mock_pro_artist_service.dart';
@@ -61,6 +64,7 @@ class ServiceLocator {
   // Services
   late final AuthServiceInterface authService;
   late final ProviderServiceInterface providerService;
+  late final LocalityServiceInterface localityService;
   late final AppointmentServiceInterface appointmentService;
   late final FavoritesServiceInterface favoritesService;
   late final NotificationServiceInterface notificationService;
@@ -94,6 +98,9 @@ class ServiceLocator {
     // Provider reads are the first slice swapped to the real backend (B1).
     providerService =
         AppConfig.useApiBackend ? ApiProviderService() : MockProviderService();
+    // The locality reference tree (multi-pays MP2) — public, cacheable.
+    localityService =
+        AppConfig.useApiBackend ? ApiLocalityService() : MockLocalityService();
     // Appointments (book/list/cancel/reschedule/slots) — B-appt slice.
     appointmentService = AppConfig.useApiBackend
         ? ApiAppointmentService(sessionStore: SecureSessionStore())

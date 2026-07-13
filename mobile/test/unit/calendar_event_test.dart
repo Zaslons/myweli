@@ -58,4 +58,20 @@ void main() {
     );
     expect(noDeposit.description, isNot(contains('Acompte')));
   });
+
+  test(
+      'the deposit line renders the booking currency — XAF reads FCFA '
+      '(multi-pays MP2)', () {
+    final e = buildAppointmentCalendarEvent(
+      providerName: 'Institut Libreville',
+      serviceNames: const ['Coupe'],
+      start: start,
+      totalDurationMinutes: 30,
+      depositAmount: 6000,
+      balanceDue: 14000,
+      currency: 'XAF',
+    );
+    expect(e.description, contains('FCFA'));
+    expect(e.description, isNot(contains('XAF')));
+  });
 }

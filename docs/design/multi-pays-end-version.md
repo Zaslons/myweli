@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved — in build** (user decision 2026-07-14: build all four dimensions now, ahead of the wave triggers; nested URLs now; three PRs) |
+| **Status** | **MP1 (backend, PR #235) + MP2 (mobile) BUILT — MP3 (web) remaining** (user decision 2026-07-14: build all four dimensions now, ahead of the wave triggers; nested URLs now; three PRs) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-07-14 |
 | **Module / phase** | `multi-pays` (cross-cutting) — supersedes the wave-gated §10 of the module doc |
@@ -116,12 +116,21 @@ labels and the Wave deep link from `deepLinkKind` — the client enum retires.
 
 ## 6. Geography on the clients (MP2 mobile · MP3 web)
 
-- **Mobile:** new `LocalityServiceInterface` + Mock/Api + `LocalityProvider`
-  (lazy fetch + cache, four states); the commune picker renders the tree
-  (still RETURNS the name — the `?commune=` filter contract is unchanged);
-  « Près de moi » resolves against area centroids from data; pro profile /
-  registration / add-salon write `areaId`; `communes.dart` demotes to the
-  mock seed.
+- **Mobile (BUILT — MP2):** new `LocalityServiceInterface` + Mock/Api +
+  `LocalityProvider` (lazy fetch + cache, four states); the commune picker
+  renders the tree (still RETURNS the name — the `?commune=` filter contract
+  is unchanged) + writes `areaId` from pro profile / registration /
+  add-salon; « Près de moi » resolves against area centroids;
+  `communes.dart` demoted to the mock seed (`nearestCommune` deleted). The
+  tz seam runs on `package:timezone` (**latest_all** — the MP1 LINK-zone
+  lesson) with `{String? tz}` on every helper; pro surfaces read
+  `ProAuthProvider.salonTimezone/salonCurrency` (refetched on switch —
+  tested), consumer surfaces the viewed provider / the appointment carriers;
+  the operator catalog renders pickers, labels and the Wave deep link
+  (`deepLinkKindIsWave`); « FCFA » currency threading covers every salon
+  money surface (platform billing/admin stay XOF by design); the hint's
+  country label is dynamic on all three consumer surfaces; grep pins extended
+  (quoted-`Africa/Abidjan` + communes-import).
 - **Web:** `lib/api/localities.ts` (server-side, revalidate 3600); the
   hardcoded commune list dies; **nested landings** `/coiffure` →
   `/coiffure/abidjan` → `/coiffure/abidjan/cocody` (categories AND services),
@@ -186,8 +195,9 @@ ONE deploy.
 - [ ] MP1: analyze 0 · format · full backend suite · boot smoke (+
       `/localities`) · contract + schema.ts regen in-PR · T56/T57 rows ·
       docs refreshed.
-- [ ] MP2: analyze 0 · full mobile suite · APK size delta noted (tzdata) ·
-      pins extended.
+- [x] MP2: analyze 0 · full mobile suite (543) · APK size delta noted
+      (tzdata latest_all ≈ 1 MB raw / ~450 KB compressed — the MP1 LINK-zone
+      trade) · pins extended.
 - [ ] MP3: typecheck/lint/build/vitest/e2e (nested + 308 + precedence) ·
       Lighthouse budgets hold.
 - [ ] Each PR: CI green → USER merges before the next slice starts; spec

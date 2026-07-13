@@ -9,6 +9,8 @@ import 'core/di/dependency_injection.dart';
 import 'core/router/pro_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
+import 'core/utils/salon_time.dart';
+import 'providers/locality_provider.dart';
 import 'providers/pro_appointment_provider.dart';
 import 'providers/pro_artist_provider.dart';
 import 'providers/pro_auth_provider.dart';
@@ -44,6 +46,9 @@ void main() {
         );
       };
       await initializeDateFormatting('fr_FR', null);
+      // Multi-pays MP2: load the tz database once — salon times
+      // render in each salon's own timezone (salon_time.dart).
+      initSalonTime();
       setupDependencyInjection();
       runApp(const MyweliProApp());
     },
@@ -66,6 +71,7 @@ class MyweliProApp extends StatelessWidget {
         // Consumer listing data — read-only, powers « Aperçu de ma page »
         // (docs/design/pro-salon-lifecycle.md B5).
         ChangeNotifierProvider(create: (_) => ProviderProvider()),
+        ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ChangeNotifierProvider(
             create: (_) => ProSalonScope.track(ProDashboardProvider())),
         ChangeNotifierProvider(

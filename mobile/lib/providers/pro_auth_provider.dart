@@ -8,6 +8,7 @@ import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
 import '../models/api_response.dart';
 import '../models/pro_membership.dart';
+import '../models/provider.dart';
 import '../models/provider_login_result.dart';
 import '../models/provider_user.dart';
 import '../models/salon_membership_info.dart';
@@ -37,6 +38,24 @@ class ProAuthProvider extends ChangeNotifier {
 
   TeamRole get role => _membership?.role ?? TeamRole.owner;
   bool get isStaff => _membership?.role == TeamRole.staff;
+
+  // ---- Salon market facts (multi-pays MP2) ----------------------------------
+
+  /// The acting salon's payload from GET /me/provider — the carrier of its
+  /// server-derived market facts (multi-pays-end-version.md §3–5). Refreshed
+  /// with the membership on every probe AND on every salon switch.
+  Provider? _activeSalon;
+  Provider? get activeSalon => _activeSalon;
+
+  /// IANA timezone every pro time-display/day-boundary call site passes into
+  /// the salon_time helpers (null → the Abidjan fallback).
+  String? get salonTimezone => _activeSalon?.timezone;
+
+  /// ISO-4217 currency every pro money call site passes into the formatters.
+  String? get salonCurrency => _activeSalon?.currency;
+
+  String? get salonCountryCode => _activeSalon?.countryCode;
+  String? get salonAreaId => _activeSalon?.areaId;
 
   // ---- Multi-salons (team access R6) ----------------------------------------
 
@@ -91,6 +110,7 @@ class ProAuthProvider extends ChangeNotifier {
         _selectedSalonId = salonId;
         await _authService.setSelectedProviderSalon(salonId);
         _membership = res.data!.membership;
+        _activeSalon = res.data!.salon;
         await _authService.cacheProviderMembership(_membership);
         ProSalonScope.resetAll();
         return true;
@@ -116,6 +136,7 @@ class ProAuthProvider extends ChangeNotifier {
     required BusinessType businessType,
     String? phoneNumber,
     String? address,
+    String? areaId,
   }) async {
     if (_provider == null) return null;
     _isLoading = true;
@@ -128,6 +149,7 @@ class ProAuthProvider extends ChangeNotifier {
         businessType: businessType,
         phoneNumber: phoneNumber,
         address: address,
+        areaId: areaId,
       );
       if (res.success && res.data != null) {
         await loadMySalons();
@@ -193,6 +215,7 @@ class ProAuthProvider extends ChangeNotifier {
       }
       if (res.success && res.data != null) {
         _membership = res.data!.membership;
+        _activeSalon = res.data!.salon;
         await _authService.cacheProviderMembership(_membership);
         notifyListeners();
       } else if (res.code == 'not_a_member') {
@@ -228,6 +251,7 @@ class ProAuthProvider extends ChangeNotifier {
         await _signOutRevoked();
       } else if (res.success && res.data != null) {
         _membership = res.data!.membership;
+        _activeSalon = res.data!.salon;
         await _authService.cacheProviderMembership(_membership);
         notifyListeners();
       }
@@ -248,6 +272,7 @@ class ProAuthProvider extends ChangeNotifier {
   Future<void> _signOutRevoked() async {
     _revokedNotice = salonName;
     _membership = null;
+    _activeSalon = null;
     await logout();
     ProRouter.router.go('/pro/login');
   }
@@ -542,12 +567,14 @@ class ProAuthProvider extends ChangeNotifier {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   }) =>
       _login(() => _authService.registerProviderWithGoogle(
             phoneNumber: phoneNumber,
             businessName: businessName,
             businessType: businessType,
             address: address,
+            areaId: areaId,
           ));
 
   Future<bool> registerWithEmail({
@@ -557,6 +584,7 @@ class ProAuthProvider extends ChangeNotifier {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   }) =>
       _login(() => _authService.registerProviderWithEmail(
             email: email,
@@ -565,6 +593,7 @@ class ProAuthProvider extends ChangeNotifier {
             businessName: businessName,
             businessType: businessType,
             address: address,
+            areaId: areaId,
           ));
 
   /// Best-effort: register this device under the provider session if push
@@ -587,6 +616,7 @@ class ProAuthProvider extends ChangeNotifier {
       await _authService.logoutProvider();
       _provider = null;
       _membership = null;
+      _activeSalon = null;
       _selectedSalonId = null;
       _salons = const [];
       _canAddSalon = false;

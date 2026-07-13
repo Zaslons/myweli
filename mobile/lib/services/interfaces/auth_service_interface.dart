@@ -58,6 +58,7 @@ abstract class AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   });
   Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
     required String email,
@@ -66,6 +67,7 @@ abstract class AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   });
 
   Future<ProviderUser?> getCurrentProvider();

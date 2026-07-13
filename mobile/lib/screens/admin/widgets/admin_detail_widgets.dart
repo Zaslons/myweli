@@ -132,6 +132,7 @@ class AdminBookingsCard extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
+              // Platform console — platform currency by design (multi-pays).
               price == null ? '—' : Formatters.formatCurrency(price.toDouble()),
               style: AppTextStyles.bodyMedium
                   .copyWith(color: AppColors.textSecondary),

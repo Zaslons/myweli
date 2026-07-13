@@ -12,8 +12,10 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/deposit.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locality_provider.dart';
 import '../../providers/messaging_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
@@ -86,6 +88,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
       final provider = Provider.of<ProviderProvider>(context, listen: false);
       provider.loadProviderById(widget.providerId);
+      context.read<LocalityProvider>().ensureLoaded();
     });
   }
 
@@ -99,14 +102,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   void _fireBookingConfirmation(double depositAmount) {
     final phone = context.read<AuthProvider>().user?.phoneNumber;
     if (phone == null || phone.isEmpty) return;
-    final providerName =
-        context.read<ProviderProvider>().selectedProvider?.name ?? 'le salon';
+    final salon = context.read<ProviderProvider>().selectedProvider;
     unawaited(
       context.read<MessagingProvider>().sendBookingConfirmation(
             recipientPhone: phone,
-            providerName: providerName,
+            providerName: salon?.name ?? 'le salon',
             dateTime: widget.appointmentDateTime,
             depositAmount: depositAmount,
+            tz: salon?.timezone,
+            currency: salon?.currency,
           ),
     );
   }
@@ -136,7 +140,9 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         serviceIds: widget.serviceIds,
         appointmentDateTime: widget.appointmentDateTime,
         depositOperator: p?.depositMobileMoneyOperator,
+        depositCountryCode: p?.countryCode,
         depositNumber: p?.depositMobileMoneyNumber,
+        currency: p?.currency,
         artistId: widget.artistId,
         notes: notes,
       );
@@ -262,7 +268,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                                 ),
                                 Text(
                                   Formatters.formatPriceRange(
-                                      service.price, service.priceMax),
+                                      service.price, service.priceMax,
+                                      currency: p.currency),
                                   style: AppTextStyles.bodyMedium.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
@@ -303,8 +310,9 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                               size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Text(
-                            Formatters.formatDateShort(
-                                widget.appointmentDateTime),
+                            Formatters.formatDateShort(toSalonTime(
+                                widget.appointmentDateTime,
+                                tz: p.timezone)),
                             style: AppTextStyles.bodyMedium,
                           ),
                         ],
@@ -316,13 +324,19 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                               size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Text(
-                            Formatters.formatTime(widget.appointmentDateTime),
+                            Formatters.formatTime(toSalonTime(
+                                widget.appointmentDateTime,
+                                tz: p.timezone)),
                             style: AppTextStyles.bodyMedium,
                           ),
                         ],
                       ),
-                      const SalonTimeHint(
-                        padding: EdgeInsets.only(top: AppTheme.spacingXS),
+                      SalonTimeHint(
+                        tz: p.timezone,
+                        countryLabel: context
+                            .watch<LocalityProvider>()
+                            .countryName(p.countryCode),
+                        padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       ),
                       if (widget.lengthVariant != null) ...[
                         const SizedBox(height: 8),
@@ -352,8 +366,9 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                           ),
                           Text(
                             hasRange
-                                ? 'À partir de ${Formatters.formatCurrency(total)}'
-                                : Formatters.formatCurrency(total),
+                                ? 'À partir de ${Formatters.formatCurrency(total, currency: p.currency)}'
+                                : Formatters.formatCurrency(total,
+                                    currency: p.currency),
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -370,7 +385,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                               style: AppTextStyles.titleMedium,
                             ),
                             Text(
-                              Formatters.formatCurrency(depositAmount),
+                              Formatters.formatCurrency(depositAmount,
+                                  currency: p.currency),
                               style: AppTextStyles.titleLarge.copyWith(
                                 color: AppColors.primary,
                               ),
@@ -388,7 +404,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                               ),
                             ),
                             Text(
-                              Formatters.formatCurrency(balanceDue),
+                              Formatters.formatCurrency(balanceDue,
+                                  currency: p.currency),
                               style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textTertiary,
                               ),
@@ -410,7 +427,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 const SizedBox(height: 24),
                 AppButton(
                   text: depositAmount > 0
-                      ? 'Payer l\'acompte · ${Formatters.formatCurrency(depositAmount)}'
+                      ? 'Payer l\'acompte · ${Formatters.formatCurrency(depositAmount, currency: p.currency)}'
                       : 'Confirmer la réservation',
                   onPressed: _isLoading
                       ? null

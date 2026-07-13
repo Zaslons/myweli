@@ -47,7 +47,10 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncLock();
-      context.read<ProJournalProvider>().load(_providerId);
+      context.read<ProJournalProvider>().load(
+            _providerId,
+            tz: context.read<ProAuthProvider>().salonTimezone,
+          );
     });
   }
 
@@ -138,7 +141,10 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
         title: 'Une erreur est survenue',
         description: journal.error,
         actionText: 'Réessayer',
-        onAction: () => journal.load(_providerId),
+        onAction: () => journal.load(
+          _providerId,
+          tz: context.read<ProAuthProvider>().salonTimezone,
+        ),
       );
     }
     final items = journal.visibleAppointments;
@@ -226,7 +232,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
               const Icon(Icons.add, size: 16, color: AppColors.textTertiary),
               const SizedBox(width: AppTheme.spacingS),
               Text(
-                'Libre — ${Formatters.formatTime(start)}',
+                'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),
@@ -406,26 +412,29 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
   }
 
   Future<void> _reschedule(ProJournalProvider journal, Appointment a) async {
-    // Picker seeds + result are SALON wall-clock (salon_time.dart) — never
-    // the device's zone.
+    // Picker seeds + result are the ACTIVE SALON's wall-clock
+    // (salon_time.dart) — never the device's zone.
+    final tz = context.read<ProAuthProvider>().salonTimezone;
     final date = await showDatePicker(
       context: context,
-      initialDate: toSalonTime(a.appointmentDate),
-      firstDate: salonToday(),
-      lastDate: salonToday().add(const Duration(days: 365)),
+      initialDate: toSalonTime(a.appointmentDate, tz: tz),
+      firstDate: salonToday(tz: tz),
+      lastDate: salonToday(tz: tz).add(const Duration(days: 365)),
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate)),
+      initialTime:
+          TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate, tz: tz)),
     );
     if (time == null || !mounted) return;
     final newDt = salonDateTime(
       date.year,
       date.month,
       date.day,
-      time.hour,
-      time.minute,
+      hour: time.hour,
+      minute: time.minute,
+      tz: tz,
     );
     final ok = await journal.reschedule(a.id, newDt);
     if (!ok && mounted) {
@@ -457,8 +466,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = journal.selectedDate;
-    final isToday =
-        ProJournalProvider.keyOf(date) == ProJournalProvider.keyOf(salonNow());
+    final isToday = journal.keyOf(date) == journal.todayKey;
     return Container(
       color: AppColors.surface,
       padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
@@ -478,7 +486,10 @@ class _Header extends StatelessWidget {
                   child: Text(
                     isToday
                         ? "Aujourd'hui"
-                        : Formatters.formatDate(toSalonTime(date)),
+                        : Formatters.formatDate(toSalonTime(
+                            date,
+                            tz: context.read<ProAuthProvider>().salonTimezone,
+                          )),
                     textAlign: TextAlign.center,
                     style: AppTextStyles.titleMedium.copyWith(
                       color: AppColors.textPrimary,
@@ -527,8 +538,8 @@ class _WeekStrip extends StatelessWidget {
   }
 
   Widget _dayPill(BuildContext context, DateTime d, String label) {
-    final key = ProJournalProvider.keyOf(d);
-    final isSel = key == ProJournalProvider.keyOf(journal.selectedDate);
+    final key = journal.keyOf(d);
+    final isSel = key == journal.keyOf(journal.selectedDate);
     final count = journal.weekCounts[key] ?? 0;
     return GestureDetector(
       onTap: () => journal.setDate(d),
@@ -632,6 +643,7 @@ class _TimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tz = context.read<ProAuthProvider>().salonTimezone;
     final end = appt.appointmentDate.add(
       Duration(minutes: appt.durationMinutes ?? 30),
     );
@@ -649,13 +661,14 @@ class _TimelineCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                Formatters.formatTime(toSalonTime(appt.appointmentDate)),
+                Formatters.formatTime(
+                    toSalonTime(appt.appointmentDate, tz: tz)),
                 style: AppTextStyles.titleMedium.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
               Text(
-                Formatters.formatTime(toSalonTime(end)),
+                Formatters.formatTime(toSalonTime(end, tz: tz)),
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),

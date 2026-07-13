@@ -516,6 +516,8 @@ class _OfferCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
+                  // PLATFORM billing — Myweli invoices in XOF regardless
+                  // of the salon's market (multi-pays §4).
                   Formatters.formatCurrency(anchor.toDouble()),
                   style: AppTextStyles.titleMedium.copyWith(
                     color: AppColors.textTertiary,

@@ -242,8 +242,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Expanded(
                           child: _StatCard(
                             title: 'Aujourd\'hui',
-                            value:
-                                Formatters.formatCurrency(stats.todayRevenue!),
+                            value: Formatters.formatCurrency(
+                              stats.todayRevenue!,
+                              currency:
+                                  context.read<ProAuthProvider>().salonCurrency,
+                            ),
                             subtitle: 'Revenus',
                             icon: Icons.attach_money,
                             color: AppColors.success,
@@ -253,8 +256,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Expanded(
                           child: _StatCard(
                             title: 'Ce mois',
-                            value:
-                                Formatters.formatCurrency(stats.monthRevenue!),
+                            value: Formatters.formatCurrency(
+                              stats.monthRevenue!,
+                              currency:
+                                  context.read<ProAuthProvider>().salonCurrency,
+                            ),
                             subtitle: 'Revenus',
                             icon: Icons.trending_up,
                             color: AppColors.info,

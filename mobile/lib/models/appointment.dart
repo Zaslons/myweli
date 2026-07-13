@@ -46,6 +46,13 @@ class Appointment extends Equatable {
   final DateTime? arrivedAt;
   final int? durationMinutes;
 
+  /// Multi-pays MP2 (multi-pays-end-version.md §3–4): the record's stamped
+  /// currency + the salon's market facts enriched onto consumer reads —
+  /// every display renders the SALON's clock and currency.
+  final String? currency;
+  final String? providerTimezone;
+  final String? providerCurrency;
+
   const Appointment({
     required this.id,
     required this.userId,
@@ -67,6 +74,9 @@ class Appointment extends Equatable {
     this.clientNoShowCount,
     this.arrivedAt,
     this.durationMinutes,
+    this.currency,
+    this.providerTimezone,
+    this.providerCurrency,
   });
 
   @override
@@ -91,6 +101,9 @@ class Appointment extends Equatable {
         clientNoShowCount,
         arrivedAt,
         durationMinutes,
+        currency,
+        providerTimezone,
+        providerCurrency,
       ];
 
   Appointment copyWith({
@@ -114,6 +127,9 @@ class Appointment extends Equatable {
     int? clientNoShowCount,
     DateTime? arrivedAt,
     int? durationMinutes,
+    String? currency,
+    String? providerTimezone,
+    String? providerCurrency,
   }) {
     return Appointment(
       id: id ?? this.id,
@@ -137,6 +153,9 @@ class Appointment extends Equatable {
       clientNoShowCount: clientNoShowCount ?? this.clientNoShowCount,
       arrivedAt: arrivedAt ?? this.arrivedAt,
       durationMinutes: durationMinutes ?? this.durationMinutes,
+      currency: currency ?? this.currency,
+      providerTimezone: providerTimezone ?? this.providerTimezone,
+      providerCurrency: providerCurrency ?? this.providerCurrency,
     );
   }
 
@@ -162,6 +181,9 @@ class Appointment extends Equatable {
       if (clientNoShowCount != null) 'clientNoShowCount': clientNoShowCount,
       if (arrivedAt != null) 'arrivedAt': arrivedAt!.toIso8601String(),
       if (durationMinutes != null) 'durationMinutes': durationMinutes,
+      if (currency != null) 'currency': currency,
+      if (providerTimezone != null) 'providerTimezone': providerTimezone,
+      if (providerCurrency != null) 'providerCurrency': providerCurrency,
     };
   }
 
@@ -192,6 +214,9 @@ class Appointment extends Equatable {
           ? null
           : DateTime.tryParse(json['arrivedAt'] as String),
       durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
+      currency: json['currency'] as String?,
+      providerTimezone: json['providerTimezone'] as String?,
+      providerCurrency: json['providerCurrency'] as String?,
     );
   }
 }

@@ -82,13 +82,12 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     AppointmentStatus? status;
 
     switch (index) {
-      case 0: // Today — SALON day bounds (salon_time.dart), never the device's.
-        final todayStart = salonToday();
-        final todayEnd = todayStart.add(const Duration(days: 1));
+      case 0: // Today — the ACTIVE SALON's day bounds (salon_time.dart).
+        final bounds = salonDayBoundsUtc(tz: authProvider.salonTimezone);
         appointmentProvider.loadAppointments(
           authProvider.activeSalonId ?? '',
-          startDate: todayStart,
-          endDate: todayEnd,
+          startDate: bounds.startUtc,
+          endDate: bounds.endUtc,
         );
         return;
       case 1: // Upcoming
@@ -265,7 +264,10 @@ class _AppointmentCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         title: Text(
-          Formatters.formatDateTime(appointment.appointmentDate),
+          Formatters.formatDateTime(toSalonTime(
+            appointment.appointmentDate,
+            tz: context.read<ProAuthProvider>().salonTimezone,
+          )),
           style:
               AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
         ),
@@ -297,7 +299,10 @@ class _AppointmentCard extends StatelessWidget {
               ],
             ),
             Text('${appointment.serviceIds.length} service(s)'),
-            Text(Formatters.formatCurrency(appointment.totalPrice)),
+            Text(Formatters.formatCurrency(
+              appointment.totalPrice,
+              currency: context.read<ProAuthProvider>().salonCurrency,
+            )),
           ],
         ),
         trailing: Chip(

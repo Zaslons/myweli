@@ -47,26 +47,30 @@ class _EarningsScreenState extends State<EarningsScreen>
 
     final earningsProvider =
         Provider.of<ProEarningsProvider>(context, listen: false);
-    // Period buckets on SALON days (salon_time.dart) — the old device-local
-    // math drifted off-UTC, and the week even started at Monday's current
-    // HOUR instead of its midnight.
-    final today = salonToday();
+    // Period buckets on the ACTIVE SALON's days (salon_time.dart, MP2):
+    // bounds are UTC instants of the salon's midnights.
+    final tz = authProvider.salonTimezone;
+    final today = salonToday(tz: tz);
 
     DateTime? startDate;
     DateTime? endDate;
 
     switch (index) {
       case 0: // Today
-        startDate = today;
-        endDate = today.add(const Duration(days: 1));
+        final bounds = salonDayBoundsUtc(tz: tz);
+        startDate = bounds.startUtc;
+        endDate = bounds.endUtc;
         break;
       case 1: // Week (Monday-start)
-        startDate = today.subtract(Duration(days: today.weekday - 1));
-        endDate = startDate.add(const Duration(days: 7));
+        final monday = today.subtract(Duration(days: today.weekday - 1));
+        startDate =
+            salonWallClockToUtc(monday.year, monday.month, monday.day, tz: tz);
+        endDate = salonWallClockToUtc(monday.year, monday.month, monday.day + 7,
+            tz: tz);
         break;
       case 2: // Month
-        startDate = DateTime.utc(today.year, today.month, 1);
-        endDate = DateTime.utc(today.year, today.month + 1, 1);
+        startDate = salonWallClockToUtc(today.year, today.month, 1, tz: tz);
+        endDate = salonWallClockToUtc(today.year, today.month + 1, 1, tz: tz);
         break;
       case 3: // All
         break;
@@ -131,7 +135,11 @@ class _EarningsScreenState extends State<EarningsScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      Formatters.formatCurrency(earnings.totalEarnings),
+                      Formatters.formatCurrency(
+                        earnings.totalEarnings,
+                        currency:
+                            earnings.currency ?? authProvider.salonCurrency,
+                      ),
                       style: AppTextStyles.headlineLarge
                           .copyWith(color: AppColors.primary),
                     ),
@@ -156,10 +164,15 @@ class _EarningsScreenState extends State<EarningsScreen>
                             margin: const EdgeInsets.only(
                                 bottom: AppTheme.spacingM),
                             child: ListTile(
-                              title: Text(
-                                  Formatters.formatDateTime(transaction.date)),
+                              title: Text(Formatters.formatDateTime(toSalonTime(
+                                  transaction.date,
+                                  tz: authProvider.salonTimezone))),
                               trailing: Text(
-                                Formatters.formatCurrency(transaction.amount),
+                                Formatters.formatCurrency(
+                                  transaction.amount,
+                                  currency: earnings.currency ??
+                                      authProvider.salonCurrency,
+                                ),
                                 style: AppTextStyles.titleMedium
                                     .copyWith(color: AppColors.primary),
                               ),

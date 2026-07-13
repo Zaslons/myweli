@@ -4,11 +4,13 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
+import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
+import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:provider/provider.dart';
 
 class _MockProService extends Mock implements ProServiceInterface {}
@@ -16,6 +18,8 @@ class _MockProService extends Mock implements ProServiceInterface {}
 void main() {
   setUpAll(() {
     serviceLocator.authService = MockAuthService();
+    // Multi-pays MP2: the operator chips read the country's catalog.
+    serviceLocator.localityService = MockLocalityService();
   });
 
   late _MockProService service;
@@ -32,6 +36,8 @@ void main() {
           ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
           // T52 lock reads the session's verification status.
           ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+          // Multi-pays MP2: the operator-catalog chips.
+          ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
         child: const MaterialApp(
           home: DepositSettingsScreen(providerId: 'p1'),
@@ -77,5 +83,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("Pourcentage de l'acompte"), findsNothing);
+    // Drain the mock locality fetch (pumpAndSettle never advances bare
+    // timers — the R4b lesson).
+    await tester.pump(const Duration(milliseconds: 400));
   });
 }

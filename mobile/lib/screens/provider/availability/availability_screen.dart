@@ -245,18 +245,20 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     ProAvailabilityProvider provider,
     String providerId,
   ) async {
-    // A blocked date is a SALON calendar day (salon_time.dart).
+    // A blocked date is the ACTIVE SALON's calendar day (salon_time.dart).
+    final tz = context.read<ProAuthProvider>().salonTimezone;
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: salonToday(),
-      firstDate: salonToday(),
-      lastDate: salonToday().add(const Duration(days: 365)),
+      initialDate: salonToday(tz: tz),
+      firstDate: salonToday(tz: tz),
+      lastDate: salonToday(tz: tz).add(const Duration(days: 365)),
     );
 
     if (selectedDate != null && context.mounted) {
       final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
         ..add(salonDateTime(
-            selectedDate.year, selectedDate.month, selectedDate.day));
+            selectedDate.year, selectedDate.month, selectedDate.day,
+            tz: tz));
       final updatedAvailability =
           availability.copyWith(blockedDates: updatedBlockedDates);
       await provider.updateAvailability(providerId, updatedAvailability);

@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
-import '../models/payment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Holds the editable deposit policy for the signed-in provider and persists it
@@ -17,7 +16,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   bool _depositRequired = false;
   double _depositPercentage = 0.30;
   int _cancellationWindowHours = 24;
-  MobileMoneyOperator? _mobileMoneyOperator;
+  String? _mobileMoneyOperator;
   String _mobileMoneyNumber = '';
 
   bool get isLoading => _isLoading;
@@ -27,7 +26,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   bool get depositRequired => _depositRequired;
   double get depositPercentage => _depositPercentage;
   int get cancellationWindowHours => _cancellationWindowHours;
-  MobileMoneyOperator? get mobileMoneyOperator => _mobileMoneyOperator;
+  String? get mobileMoneyOperator => _mobileMoneyOperator;
   String get mobileMoneyNumber => _mobileMoneyNumber;
 
   void setDepositRequired(bool value) {
@@ -35,7 +34,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
     notifyListeners();
   }
 
-  void setMobileMoneyOperator(MobileMoneyOperator value) {
+  void setMobileMoneyOperator(String value) {
     _mobileMoneyOperator = value;
     notifyListeners();
   }

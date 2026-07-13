@@ -163,6 +163,7 @@ class _AdminDisputeDetailScreenState extends State<AdminDisputeDetailScreen> {
 
   String _fcfa(Object? raw) {
     final n = raw as num?;
+    // Platform console — platform currency by design (multi-pays).
     return n == null ? '—' : Formatters.formatCurrency(n.toDouble());
   }
 }

@@ -19,10 +19,16 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
 
   String _providerId = '';
 
+  /// The ACTIVE salon's IANA timezone (multi-pays MP2) — set by [load] from
+  /// `ProAuthProvider.salonTimezone`; null = Africa/Abidjan (Wave 0).
+  String? _tz;
+  bool _loadedOnce = false;
+
   JournalDay? _day;
   JournalDay? get day => _day;
 
-  DateTime _selectedDate = _todayUtc();
+  // Abidjan seed; re-derived with the real salon tz on the first [load].
+  DateTime _selectedDate = salonToday();
   DateTime get selectedDate => _selectedDate;
 
   /// Artist filter: null = « Tous »; '' = « Sans artiste ».
@@ -62,9 +68,16 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   final Map<String, int> _weekCounts = {};
   Map<String, int> get weekCounts => Map.unmodifiable(_weekCounts);
 
-  static DateTime _todayUtc() => salonToday();
+  DateTime _todayUtc() => salonToday(tz: _tz);
 
-  static String keyOf(DateTime d) => salonDayKey(d);
+  /// The salon day key of an instant — also applied to date-only MARKERS
+  /// (selected date, week-strip days), which is safe for the UTC+0/+1
+  /// francophone-Africa scope (a midnight-UTC marker stays inside its salon
+  /// day) but would shift west of UTC.
+  String keyOf(DateTime d) => salonDayKey(d, tz: _tz);
+
+  /// Today's salon day key (the « Aujourd'hui » header check).
+  String get todayKey => keyOf(DateTime.now());
 
   /// The visible (filtered) bookings, time-ascending; cancelled hidden unless
   /// [showCancelled].
@@ -83,9 +96,17 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   bool get hasUnassigned =>
       (_day?.appointments ?? const []).any((a) => a.artistId == null);
 
-  Future<void> load(String providerId, {DateTime? date}) async {
+  Future<void> load(String providerId, {DateTime? date, String? tz}) async {
     _providerId = providerId;
-    if (date != null) _selectedDate = date;
+    if (tz != null) _tz = tz;
+    if (date != null) {
+      _selectedDate = date;
+    } else if (!_loadedOnce) {
+      // First load only: anchor « aujourd'hui » in the REAL salon tz. A
+      // no-date reload after an error must NOT jump the date back to today.
+      _selectedDate = _todayUtc();
+    }
+    _loadedOnce = true;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -181,6 +202,8 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   @override
   void resetForSalonSwitch() {
     _providerId = '';
+    _tz = null; // the next salon's tz arrives with its first load
+    _loadedOnce = false;
     _day = null;
     _selectedDate = _todayUtc();
     _artistFilter = null;

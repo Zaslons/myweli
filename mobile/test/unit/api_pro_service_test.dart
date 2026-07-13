@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
-import 'package:myweli/models/payment.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
@@ -211,7 +210,7 @@ void main() {
     expect(res.success, isTrue);
     expect(res.data!.depositRequired, isTrue);
     expect(res.data!.depositPercentage, 0.4);
-    expect(res.data!.mobileMoneyOperator, MobileMoneyOperator.orangeMoney);
+    expect(res.data!.mobileMoneyOperator, 'orangeMoney');
   });
 
   test('updateDepositPolicy PUTs the policy (operator by wire name)', () async {
@@ -227,13 +226,13 @@ void main() {
       depositRequired: true,
       depositPercentage: 0.5,
       cancellationWindowHours: 48,
-      mobileMoneyOperator: MobileMoneyOperator.wave,
+      mobileMoneyOperator: 'wave',
       mobileMoneyNumber: '+2250700000000',
     );
     expect(res.success, isTrue);
     expect(body!['mobileMoneyOperator'], 'wave');
     expect(body!['depositPercentage'], 0.5);
-    expect(res.data!.mobileMoneyOperator, MobileMoneyOperator.wave);
+    expect(res.data!.mobileMoneyOperator, 'wave');
   });
 
   test('getEarnings GETs /providers/{id}/earnings with the range + parses',
@@ -244,6 +243,7 @@ void main() {
       return http.Response(
         jsonEncode({
           'totalEarnings': 15000,
+          'currency': 'XAF', // the MP1 stamp
           'transactions': [
             {
               'id': 'transaction_a1',
@@ -263,7 +263,16 @@ void main() {
     );
     expect(res.success, isTrue);
     expect(res.data!.totalEarnings, 15000);
+    expect(res.data!.currency, 'XAF');
     expect(res.data!.transactions.single.appointmentId, 'a1');
+  });
+
+  test('getEarnings tolerates a pre-MP1 payload without currency', () async {
+    final client = MockClient((req) async => http.Response(
+        jsonEncode({'totalEarnings': 0, 'transactions': <Object>[]}), 200));
+    final res = await _linked(client).getEarnings('provider1');
+    expect(res.success, isTrue);
+    expect(res.data!.currency, isNull);
   });
 
   test('getDashboardStats GETs /providers/{id}/dashboard + parses', () async {

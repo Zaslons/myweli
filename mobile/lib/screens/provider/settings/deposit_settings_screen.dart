@@ -7,8 +7,8 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/deposit.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../models/payment.dart';
 import '../../../models/provider_user.dart';
+import '../../../providers/locality_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_button.dart';
@@ -37,6 +37,8 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProDepositSettingsProvider>().load(widget.providerId);
+      // Multi-pays MP2: the operator chips render the salon COUNTRY's catalog.
+      context.read<LocalityProvider>().ensureLoaded();
     });
   }
 
@@ -201,7 +203,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Exemple sur une prestation de ${Formatters.formatCurrency(_sampleTotal)}',
+                  'Exemple sur une prestation de ${Formatters.formatCurrency(_sampleTotal, currency: context.read<ProAuthProvider>().salonCurrency)}',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -213,7 +215,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                     const Text('Acompte payé en ligne',
                         style: AppTextStyles.bodyMedium),
                     Text(
-                      Formatters.formatCurrency(deposit),
+                      Formatters.formatCurrency(
+                        deposit,
+                        currency: context.read<ProAuthProvider>().salonCurrency,
+                      ),
                       style: AppTextStyles.bodyMedium
                           .copyWith(fontWeight: FontWeight.w600),
                     ),
@@ -230,7 +235,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                       ),
                     ),
                     Text(
-                      Formatters.formatCurrency(balance),
+                      Formatters.formatCurrency(
+                        balance,
+                        currency: context.read<ProAuthProvider>().salonCurrency,
+                      ),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -261,19 +269,54 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                       .copyWith(color: AppColors.textTertiary),
                 ),
                 const SizedBox(height: AppTheme.spacingM),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: MobileMoneyOperator.values.map((op) {
-                    return ChoiceChip(
-                      label: Text(op.displayName),
-                      selected: provider.mobileMoneyOperator == op,
-                      showCheckmark: false,
-                      selectedColor: AppColors.primary,
-                      backgroundColor: AppColors.surface,
-                      onSelected: (_) => provider.setMobileMoneyOperator(op),
+                // Multi-pays MP2: the salon COUNTRY's operator catalog
+                // (GET /localities) — never a hardcoded list.
+                Consumer<LocalityProvider>(
+                  builder: (context, locality, _) {
+                    final operators = locality.operatorsFor(
+                      context.read<ProAuthProvider>().salonCountryCode,
                     );
-                  }).toList(),
+                    if (operators.isEmpty) {
+                      if (locality.error != null) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Impossible de charger les opérateurs.',
+                                style: AppTextStyles.bodySmall
+                                    .copyWith(color: AppColors.textTertiary),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: locality.retry,
+                              child: const Text('Réessayer'),
+                            ),
+                          ],
+                        );
+                      }
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(AppTheme.spacingS),
+                          child: LoadingIndicator(),
+                        ),
+                      );
+                    }
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: operators.map((op) {
+                        return ChoiceChip(
+                          label: Text(op.label),
+                          selected: provider.mobileMoneyOperator == op.id,
+                          showCheckmark: false,
+                          selectedColor: AppColors.primary,
+                          backgroundColor: AppColors.surface,
+                          onSelected: (_) =>
+                              provider.setMobileMoneyOperator(op.id),
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
                 const SizedBox(height: AppTheme.spacingM),
                 AppTextField(
