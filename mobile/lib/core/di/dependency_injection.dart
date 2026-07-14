@@ -71,6 +71,7 @@ class ServiceLocator {
   late final AppointmentServiceInterface appointmentService;
   late final FavoritesServiceInterface favoritesService;
   late final NotificationServiceInterface notificationService;
+  late final NotificationServiceInterface proNotificationService;
   late final ProServiceInterface proService;
   late final ProArtistServiceInterface proArtistService;
   late final ProClientsServiceInterface proClientsService;
@@ -115,6 +116,15 @@ class ServiceLocator {
         : MockFavoritesService();
     notificationService = AppConfig.useApiBackend
         ? ApiNotificationService(sessionStore: SecureSessionStore())
+        : MockNotificationService();
+    // The SAME feed under the provider session: /me/notifications is
+    // role-agnostic, so a salon account reads its team's notifications
+    // (docs/design/push-notifications-fcm.md §10 — the pro bell).
+    proNotificationService = AppConfig.useApiBackend
+        ? ApiNotificationService(
+            sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
+            refreshPath: '/auth/provider/refresh',
+          )
         : MockNotificationService();
     // Pro appointment surface (list + accept/reject/complete/no-show) on the
     // real backend with provider silent refresh; the rest delegates to mock.

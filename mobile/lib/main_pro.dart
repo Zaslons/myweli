@@ -13,6 +13,7 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'core/utils/salon_time.dart';
 import 'providers/locality_provider.dart';
+import 'providers/notifications_provider.dart';
 import 'providers/pro_appointment_provider.dart';
 import 'providers/pro_artist_provider.dart';
 import 'providers/pro_auth_provider.dart';
@@ -106,6 +107,15 @@ class MyweliProApp extends StatelessWidget {
         // (docs/design/pro-salon-lifecycle.md B5).
         ChangeNotifierProvider(create: (_) => ProviderProvider()),
         ChangeNotifierProvider(create: (_) => LocalityProvider()),
+        // The salon's notification feed (the bell). ACCOUNT-scoped, not
+        // salon-scoped: /me/notifications is keyed by the token subject, so a
+        // multi-salon owner sees one merged feed and a switch must not reset
+        // it — hence no ProSalonScope.track here.
+        ChangeNotifierProvider(
+          create: (_) => NotificationsProvider(
+            service: serviceLocator.proNotificationService,
+          ),
+        ),
         ChangeNotifierProvider(
             create: (_) => ProSalonScope.track(ProDashboardProvider())),
         ChangeNotifierProvider(

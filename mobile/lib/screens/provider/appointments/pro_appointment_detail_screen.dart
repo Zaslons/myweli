@@ -21,9 +21,14 @@ import '../../../widgets/common/timed_cached_image.dart';
 class ProAppointmentDetailScreen extends StatefulWidget {
   final String appointmentId;
 
+  /// The salon this booking belongs to (`?salon=` — a notification may point
+  /// at another of the account's salons). Null → whatever is active.
+  final String? salonId;
+
   const ProAppointmentDetailScreen({
     super.key,
     required this.appointmentId,
+    this.salonId,
   });
 
   @override
@@ -36,14 +41,28 @@ class _ProAppointmentDetailScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-      if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final appointmentProvider =
-            Provider.of<ProAppointmentProvider>(context, listen: false);
-        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  /// Loads the booking — switching salon FIRST when the notification that
+  /// brought us here belongs to another of the account's salons (R6;
+  /// `switchSalon` returns true immediately when it's already the active one
+  /// and resets every salon-scoped provider otherwise).
+  Future<void> _load() async {
+    final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated || authProvider.provider == null) return;
+
+    final wanted = widget.salonId;
+    if (wanted != null && wanted != authProvider.activeSalonId) {
+      await authProvider.switchSalon(wanted);
+    }
+    if (!mounted) return;
+
+    final appointmentProvider =
+        Provider.of<ProAppointmentProvider>(context, listen: false);
+    await appointmentProvider.loadAppointments(
+      authProvider.activeSalonId ?? '',
+    );
   }
 
   @override
