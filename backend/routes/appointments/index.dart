@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
@@ -7,6 +8,7 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 
@@ -168,6 +170,15 @@ Future<Response> _book(RequestContext context, String userId) async {
     };
     return jsonError(status, result.error!);
   }
+  // The salon team learns about the new (pending) request — this is the
+  // CLIENT's booking route; salon-entered bookings ride
+  // `POST /providers/{id}/appointments` and never notify the salon itself.
+  unawaited(
+    context.read<SalonNotifier>().notify(
+      result.appointment,
+      SalonEvent.newBooking,
+    ),
+  );
   return Response.json(
     statusCode: HttpStatus.created,
     body: result.appointment,

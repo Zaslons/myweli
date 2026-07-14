@@ -14,8 +14,14 @@ import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
+import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
+import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/push/push_provider.dart';
+import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/appointments/[id]/index.dart' as detail;
@@ -45,6 +51,11 @@ void main() {
   late BookingService booking;
   late InMemoryProviderAuthRepository providerAuth;
   late _MockAuth auth;
+  // Provider-directed pushes (design §10): the salon team's feed + devices.
+  late InMemoryMembershipRepository members;
+  late InMemoryNotificationsRepository salonFeed;
+  late InMemoryDeviceTokenRepository salonDevices;
+  late SalonNotifier salonNotifier;
   final tokens = TokenService(secret: 'test-secret');
   final accessA = tokens
       .issueAccessToken(subject: 'user_A', role: 'user')
@@ -65,6 +76,16 @@ void main() {
     // By default a token subject has no consumer account on file → no phone →
     // auto-sync match is off (own bookings only).
     when(() => auth.userById(any())).thenAnswer((_) async => null);
+    members = InMemoryMembershipRepository();
+    salonFeed = InMemoryNotificationsRepository();
+    salonDevices = InMemoryDeviceTokenRepository();
+    salonNotifier = SalonNotifier(
+      members,
+      PushService(LogPushProvider(), salonDevices),
+      salonFeed,
+      InMemoryNotificationPrefsRepository(),
+      providers,
+    );
   });
 
   /// Registers a provider account (optionally linked to [providerId]) and
@@ -319,6 +340,7 @@ void main() {
         MembershipService(InMemoryMembershipRepository(), providerAuth),
       );
       when(() => context.read<AuthRepository>()).thenReturn(auth);
+      when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
       // Multi-pays MP1: the market enrichment + off-day masking read the
       // salon's timezone/currency from the providers repo.
       when(() => context.read<ProvidersRepository>()).thenReturn(providers);
@@ -375,6 +397,41 @@ void main() {
       expect(body['userId'], 'user_A');
       expect(body['status'], 'pending');
     });
+
+    test(
+      'POST notifies the SALON team (design §10): the owner gets a feed '
+      'row + a device push; the client’s own push is BookingNotifier’s job',
+      () async {
+        // An owner of provider1 with a registered device.
+        await members.ensureOwner(
+          providerId: 'provider1',
+          accountId: 'acc-owner',
+          email: 'owner@salon.test',
+        );
+        await salonDevices.upsert(
+          token: 'tok-owner',
+          userId: 'acc-owner',
+          role: 'provider',
+          platform: 'android',
+        );
+
+        final res = await list.onRequest(
+          ctx(bookReq(accessA, bookBody(_slotAt(9)))),
+        );
+        expect(res.statusCode, HttpStatus.created);
+        final id = (await jsonOf(res))['id'];
+
+        // The hook is fire-and-forget (unawaited) — let the microtasks land.
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        final rows = await salonFeed.listForUser('acc-owner');
+        expect(rows, hasLength(1));
+        expect(rows.single['title'], 'Nouvelle réservation');
+        expect(rows.single['route'], '/pro/appointment/$id');
+        // The device survived (LogPushProvider reports nothing invalid).
+        expect(await salonDevices.tokensForUser('acc-owner'), ['tok-owner']);
+      },
+    );
 
     test('POST an unavailable slot → 409', () async {
       final res = await list.onRequest(

@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-NOTIF-001 (push channel — FCM) |
 | **Phase** | Phase 4 — productionize integrations (deferred V1 channel) |
-| **Status** | Spec; building (backend foundation + FCM v1 adapter). App plugin = ops follow-up. |
+| **Status** | **Built** — backend foundation + FCM v1 adapter (PR #101); **provider-directed events + deep-link routes + per-platform options** (this PR, 2026-07-14). The app plugin lands in the mobile slice ([push-notifications-app.md](push-notifications-app.md)). |
 | **Decision** | Write the **FCM HTTP v1** adapter now (mock-tested); **backend-only** this slice |
 
 ## 1. Goal & scope
@@ -93,8 +93,61 @@ CREATE INDEX device_tokens_user_idx ON device_tokens(user_id);
   (`firebase_messaging` + platform config) to retrieve tokens and `POST
   /me/devices`. Then lifecycle events + reminders reach devices.
 
-## 9. Open questions
-- App deep-link targets for each event (tap → which screen) — settled with the
-  app integration.
-- Per-platform notification options (Android channel id, iOS APNs headers) — add
-  to `FcmV1PushProvider` message when the app integration lands.
+## 9. Open questions — ANSWERED (2026-07-14, with the app integration)
+- **Deep-link target per event** → the push `data` carries a **`route`**:
+  consumer pushes `/appointment/{id}` (fallback `/bookings`), salon pushes
+  `/pro/appointment/{id}` (see §10). The in-app FEED row deliberately keeps
+  `/bookings` on the consumer side — the web notification center maps that path.
+- **Per-platform options** → `FcmV1PushProvider` now sends
+  `android: { priority: 'high', notification: { channel_id: 'myweli_default' } }`
+  and `apns: { headers: { 'apns-priority': '10' } }`. Bookings are
+  time-sensitive; the channel id is the one the app creates at boot
+  (`FcmV1PushProvider.androidChannelId` == the app's `kPushChannelId` — a
+  background notification would otherwise land in the unnamed default channel).
+
+## 10. Provider-directed pushes — `SalonNotifier` (2026-07-14)
+
+`BookingNotifier` only ever notified the **consumer**, while the pro app asked
+for push permission promising « soyez prévenu·e dès qu'un client réserve ».
+`SalonNotifier` is its provider-directed sibling: **push + in-app feed only**
+(no WhatsApp/SMS to salons — the `MessageTemplate` set maps 1:1 to approved
+consumer templates and stays untouched).
+
+| Event | Fired from | Title (FR) |
+|---|---|---|
+| `newBooking` | `POST /appointments` (the client's own booking) | « Nouvelle réservation » |
+| `clientCancelled` | `POST /appointments/{id}/cancel` (consumer-owned route) | « Réservation annulée » |
+| `depositSubmitted` | `POST /appointments/{id}/deposit` (proof attached) | « Justificatif d'acompte reçu » |
+
+**The guard:** salon-entered bookings ride `POST /providers/{id}/appointments`,
+which has **no hook** — a salon is never notified about its own entry (pinned
+by a test that provides a live notifier and asserts an empty feed).
+
+**Recipient rule (stated once, enforced in `_recipients`):** every **ACTIVE**
+member with a **linked account** whose role can see the whole journal
+(`Cap.journalViewAll` — owner / manager / réception); an **own-scope**
+Collaborateur (`Cap.journalViewOwn`) only when the booking is assigned to
+**their** artist. An unassigned booking therefore reaches view-all members
+only. Deduped by account. Invited (not yet accepted) and revoked rows are
+skipped.
+
+**Preferences:** all three events are **transactional**, so the
+reminders/marketing toggles don't apply; the push channel still honours each
+recipient's `push` preference. The **in-app feed row is always written** — a
+passive history log (the same posture as the consumer feed, threat T24) that
+fuels the pro bell.
+
+**Payload:**
+```json
+{ "event": "new_booking|client_cancelled|deposit_submitted",
+  "appointmentId": "a1",
+  "providerId": "p1",          // the pro app switches salon before deep-linking (R6)
+  "route": "/pro/appointment/a1" }
+```
+Bodies render the **salon's wall-clock** (multi-pays §3) and carry **no client
+PII** — the name/phone stay in the app behind auth (threat T58).
+
+**No REST contract change:** no new endpoints; `/me/devices`,
+`/me/notifications` and `/me/notification-preferences` are already
+role-agnostic (a provider account reads its own feed with its provider
+session). `openapi.yaml` is untouched by this PR.
