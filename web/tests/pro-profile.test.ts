@@ -16,6 +16,7 @@ const profile: ProfileForm = {
   name: 'Beauté Divine',
   description: 'Salon',
   address: 'Cocody',
+  areaId: null,
   commune: 'Cocody',
   city: 'Abidjan',
   phoneNumber: '+2250700000000',
@@ -44,6 +45,21 @@ describe('pro profile form', () => {
       whatsapp: null,
       category: 'salon',
     });
+  });
+
+  it('an areaId REPLACES the name fields — the server derives them (MP3)', () => {
+    const payload = buildProfilePayload({ ...profile, areaId: 'marcory' });
+    expect(payload.areaId).toBe('marcory');
+    expect('commune' in payload).toBe(false);
+    expect('city' in payload).toBe(false);
+    // No areaId (legacy / tree-down fallback) → the free-text path stands.
+    expect(buildProfilePayload(profile).commune).toBe('Cocody');
+    expect('areaId' in buildProfilePayload(profile)).toBe(false);
+  });
+
+  it('profileToForm carries the stored areaId (MP3)', () => {
+    expect(profileToForm({ areaId: 'cocody' }).areaId).toBe('cocody');
+    expect(profileToForm({}).areaId).toBeNull();
   });
 
   it('the map pin rides along only once PLACED (paired — L1)', () => {

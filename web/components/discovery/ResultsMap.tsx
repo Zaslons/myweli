@@ -11,8 +11,8 @@ import {
   Popup,
 } from '@vis.gl/react-maplibre';
 import {
-  ABIDJAN_CENTER,
   DEFAULT_ZOOM,
+  FALLBACK_CENTER,
   type MappableProvider,
   boundsFor,
 } from '../../lib/discovery/map';
@@ -31,11 +31,15 @@ export function ResultsMap({
   hoveredId,
   selectedId,
   onSelect,
+  center = FALLBACK_CENTER,
 }: {
   items: MappableProvider[];
   hoveredId: string | null;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /// Empty-result center — the searched city's centroid from the locality
+  /// tree (multi-pays MP3); results themselves auto-fit via bounds.
+  center?: [number, number];
 }) {
   const mapRef = useRef<MapRef>(null);
   const bounds = useMemo(() => boundsFor(items), [items]);
@@ -56,8 +60,8 @@ export function ResultsMap({
       <Map
         ref={mapRef}
         initialViewState={{
-          longitude: ABIDJAN_CENTER[0],
-          latitude: ABIDJAN_CENTER[1],
+          longitude: center[0],
+          latitude: center[1],
           zoom: DEFAULT_ZOOM,
         }}
         mapStyle={MAP_STYLE}
@@ -131,7 +135,7 @@ function MiniCard({ provider: p }: { provider: MappableProvider }) {
       </p>
       {min != null ? (
         <p className="mt-xs text-xs text-textTertiary">
-          à partir de {formatFcfa(min)}
+          à partir de {formatFcfa(min, p.currency ?? undefined)}
         </p>
       ) : null}
       <p className="mt-s flex gap-m text-sm">

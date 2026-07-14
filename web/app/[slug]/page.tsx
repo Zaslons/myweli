@@ -1,38 +1,41 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { LandingView, landingMetadata } from '../../components/landing/LandingView';
+import { notFound, permanentRedirect } from 'next/navigation';
 import {
-  ServiceLandingView,
-  serviceLandingMetadata,
-} from '../../components/landing/ServiceLandingView';
+  TaxonomyLandingView,
+  taxonomyMetadata,
+} from '../../components/landing/TaxonomyLandingView';
 import {
   ProviderView,
   providerMetadata,
 } from '../../components/provider/ProviderView';
+import { countryName, getLocalityTree } from '../../lib/api/localities';
 import {
   getAllProviderSlugs,
-  getLandingSlugs,
   getProviderBySlug,
-  getServiceLandingSlugs,
 } from '../../lib/api/providers';
-import { parseLandingSlug } from '../../lib/landing';
-import { parseServiceLanding } from '../../lib/service-landing';
+import { parseFlatLanding } from '../../lib/landing';
+import { parseFlatServiceLanding } from '../../lib/service-landing';
+import { resolveTaxonomyRoot, taxonomyRootSlugs } from '../../lib/taxonomy';
 
 export const revalidate = 3600;
 export const dynamicParams = true;
 
-/// Single-segment space, resolved provider-first → category·commune landing →
-/// 404 (docs/design/web-m4-landing.md). Prebuilds known provider slugs + the
-/// landing combos present in the catalogue; others render on-demand.
+/// Single-segment space (multi-pays MP3): taxonomy ROOT (/coiffure, /tresses
+/// — safe first: the backend reserves these slugs, no salon can own one) →
+/// provider → LEGACY flat landing (coiffure-cocody) permanently redirected
+/// (308 ≡ 301 for SEO) to its nested home → 404. Prebuilds provider slugs +
+/// the 18 roots; others render on demand.
 export async function generateStaticParams() {
-  const [slugs, landings, serviceLandings] = await Promise.all([
-    getAllProviderSlugs(),
-    getLandingSlugs(),
-    getServiceLandingSlugs(),
-  ]);
-  return [...new Set([...slugs, ...landings, ...serviceLandings])].map(
-    (slug) => ({ slug }),
-  );
+  const slugs = await getAllProviderSlugs();
+  return [...new Set([...slugs, ...taxonomyRootSlugs()])].map((slug) => ({
+    slug,
+  }));
+}
+
+/// The nested path a LEGACY flat slug 308s to, or null.
+async function flatRedirectTarget(slug: string): Promise<string | null> {
+  const tree = await getLocalityTree();
+  return parseFlatLanding(slug, tree) ?? parseFlatServiceLanding(slug, tree);
 }
 
 export async function generateMetadata({
@@ -40,12 +43,22 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
+  const root = resolveTaxonomyRoot(params.slug);
+  if (root) {
+    return taxonomyMetadata({ level: 'root', root, tree: await getLocalityTree() });
+  }
   const provider = await getProviderBySlug(params.slug);
-  if (provider) return providerMetadata(provider, params.slug);
-  const landing = parseLandingSlug(params.slug);
-  if (landing) return landingMetadata(landing, params.slug);
-  const service = parseServiceLanding(params.slug);
-  if (service) return serviceLandingMetadata(service, params.slug);
+  if (provider) {
+    const tree = await getLocalityTree();
+    return providerMetadata(
+      provider,
+      params.slug,
+      countryName(tree, provider.countryCode),
+    );
+  }
+  if (await flatRedirectTarget(params.slug)) {
+    return { robots: { index: false, follow: true } };
+  }
   return { title: 'Page introuvable' };
 }
 
@@ -54,16 +67,26 @@ export default async function SlugPage({
 }: {
   params: { slug: string };
 }) {
-  const provider = await getProviderBySlug(params.slug);
-  if (provider) return <ProviderView provider={provider} slug={params.slug} />;
-
-  const landing = parseLandingSlug(params.slug);
-  if (landing) return <LandingView landing={landing} slug={params.slug} />;
-
-  const service = parseServiceLanding(params.slug);
-  if (service) {
-    return <ServiceLandingView landing={service} slug={params.slug} />;
+  const root = resolveTaxonomyRoot(params.slug);
+  if (root) {
+    const tree = await getLocalityTree();
+    return <TaxonomyLandingView level="root" root={root} tree={tree} />;
   }
+
+  const provider = await getProviderBySlug(params.slug);
+  if (provider) {
+    const tree = await getLocalityTree();
+    return (
+      <ProviderView
+        provider={provider}
+        slug={params.slug}
+        countryName={countryName(tree, provider.countryCode)}
+      />
+    );
+  }
+
+  const target = await flatRedirectTarget(params.slug);
+  if (target) permanentRedirect(target);
 
   notFound();
 }

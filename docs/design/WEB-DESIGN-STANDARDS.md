@@ -54,8 +54,13 @@ shared component, never a one-off inline.
 ## 5. French copy & locale
 French throughout (labels, errors, empty/loading, SEO text); FCFA + Ivorian phone
 formatting; CI service taxonomy (PRD Appendix A); commune-aware. Market facts
-(communes, operators, currency, timezone) only via their seams, and times render
-in **salon time**, never the browser's — see
+(geography, operators, currency, timezone) are **DATA from `GET /localities`**
+(multi-pays MP3): `lib/api/localities.ts` server-side, `lib/use-localities.ts`
+client-side; salon locality input goes through the standard **`LocalityPicker`**
+component (writes `areaId`, four states); operator labels/deep links through
+`lib/mobile-money.ts`. Times render in **salon time** with the salon's own
+`timezone`/`currency` threaded into the seams — never the browser's zone, never
+a hardcoded market fact (grep-pinned) — see
 [modules/multi-pays.md](../modules/multi-pays.md) §9 + [WEB.md §3](../WEB.md).
 
 ## 6. SEO / AEO / GEO presentation conventions (public pages)

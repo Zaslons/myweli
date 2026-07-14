@@ -17,7 +17,7 @@ import {
 import { salonToday } from '../../lib/time';
 import { Button } from '../Button';
 
-const todayYmd = () => salonToday();
+const todayYmd = (tz?: string) => salonToday(new Date(), tz);
 
 /// The web salon-entered booking (docs/design/web-manual-booking.md) — the
 /// app's `ProManualBookingScreen`, web-adapted, with the J1 §3.4 C1 client
@@ -48,8 +48,12 @@ export function ManualBookingDialog({
   const services = (profile.provider.services ?? []).filter(
     (s) => s.active !== false,
   );
+  // The ACTIVE salon's market (multi-pays MP3): picked wall-clocks are the
+  // SALON's; prices carry its currency.
+  const tz = profile.provider.timezone ?? undefined;
+  const currency = profile.provider.currency ?? undefined;
   const [selected, setSelected] = useState<string[]>([]);
-  const [date, setDate] = useState(initialDate ?? todayYmd());
+  const [date, setDate] = useState(initialDate ?? todayYmd(tz));
   const [time, setTime] = useState('');
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<SalonClientListItem[]>([]);
@@ -63,7 +67,11 @@ export function ManualBookingDialog({
 
   // Grid-cell entry: the tapped cell IS the date/time choice.
   const fixed = Boolean(dateTimeIso);
-  const dt = fixed ? dateTimeIso! : time ? combineDateTime(date, time) : null;
+  const dt = fixed
+    ? dateTimeIso!
+    : time
+      ? combineDateTime(date, time, tz)
+      : null;
   const phone = picked?.phone ?? (newPhone.trim() || undefined);
   const total = manualBookingTotal(services, selected);
 
@@ -138,7 +146,7 @@ export function ManualBookingDialog({
         </h2>
         {fixed ? (
           <p className="mt-xs text-sm text-textSecondary">
-            {formatDateTimeFr(dateTimeIso!)}
+            {formatDateTimeFr(dateTimeIso!, tz)}
           </p>
         ) : null}
 
@@ -163,7 +171,7 @@ export function ManualBookingDialog({
                   />
                   <span className="flex-1 text-textPrimary">{s.name}</span>
                   <span className="text-textTertiary">
-                    {priceRange(s.price ?? 0, s.priceMax)} ·{' '}
+                    {priceRange(s.price ?? 0, s.priceMax, currency)} ·{' '}
                     {formatDuration(s.durationMinutes ?? 0)}
                   </span>
                 </label>
@@ -182,7 +190,7 @@ export function ManualBookingDialog({
               <input
                 type="date"
                 aria-label="Date du rendez-vous"
-                min={todayYmd()}
+                min={todayYmd(tz)}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
@@ -296,7 +304,9 @@ export function ManualBookingDialog({
         {/* Total (the app's running sum; server re-prices) */}
         <div className="mt-m flex items-center justify-between text-sm">
           <span className="text-textSecondary">Total</span>
-          <span className="font-semibold text-primary">{formatFcfa(total)}</span>
+          <span className="font-semibold text-primary">
+            {formatFcfa(total, currency)}
+          </span>
         </div>
 
         <div className="mt-l flex justify-end gap-s">

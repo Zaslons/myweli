@@ -21,7 +21,7 @@ export function BookingPanel({
         <>
           <p className="text-xs text-textTertiary">À partir de</p>
           <p className="text-2xl font-semibold text-textPrimary">
-            {formatFcfa(min)}
+            {formatFcfa(min, provider.currency ?? undefined)}
           </p>
         </>
       ) : null}

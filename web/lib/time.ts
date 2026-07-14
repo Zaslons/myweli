@@ -117,6 +117,26 @@ export function addSalonDays(
   return salonMidnight(new Date(Date.UTC(y, m - 1, day + n, 12)), tz);
 }
 
+/// The UTC instant of a SALON wall-clock — `dayKey` ('YYYY-MM-DD', a salon
+/// calendar day) + minutes past salon midnight. The offset-aware builder
+/// behind journal drag-drops and manual-booking pickers (multi-pays MP3 —
+/// retires their hardcoded-Z construction). Two-pass: guess in UTC, correct
+/// by the zone offset at the guess; a DST edge converges in one re-check
+/// (no DST in the launch markets — this is future-proofing).
+export function salonWallClockToUtc(
+  dayKey: string,
+  minutes: number,
+  tz: string = SALON_TZ,
+): Date {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const guess = Date.UTC(y, m - 1, d, 0, minutes);
+  const offset = tzOffsetMinutes(new Date(guess), tz);
+  let instant = guess - offset * 60_000;
+  const offsetAtInstant = tzOffsetMinutes(new Date(instant), tz);
+  if (offsetAtInstant !== offset) instant = guess - offsetAtInstant * 60_000;
+  return new Date(instant);
+}
+
 export type SalonPeriod = 'today' | 'week' | 'month' | 'all';
 
 /// Inclusive-start/exclusive-end ISO range for a period, computed on SALON

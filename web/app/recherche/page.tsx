@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { RechercheClient } from '../../components/discovery/RechercheClient';
+import { getLocalityTree } from '../../lib/api/localities';
 import { searchProviders } from '../../lib/api/providers';
 
 // Results are query-dependent + thin → render on demand, noindex (the indexed
@@ -35,14 +36,17 @@ export default async function RecherchePage({
     : 'relevance';
   const dispo = searchParams.dispo === '1';
 
-  const results = await searchProviders({
-    q: q || undefined,
-    commune: commune || undefined,
-    category: category || undefined,
-    sort,
-    availableToday: dispo || undefined,
-    pageSize: 24,
-  });
+  const [results, tree] = await Promise.all([
+    searchProviders({
+      q: q || undefined,
+      commune: commune || undefined,
+      category: category || undefined,
+      sort,
+      availableToday: dispo || undefined,
+      pageSize: 24,
+    }),
+    getLocalityTree(),
+  ]);
 
   const title = q
     ? `Recherche : ${q}`
@@ -63,6 +67,7 @@ export default async function RecherchePage({
         category={category}
         sort={sort}
         dispo={dispo}
+        tree={tree}
       />
     </main>
   );

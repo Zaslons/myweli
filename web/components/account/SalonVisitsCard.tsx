@@ -61,7 +61,10 @@ export function SalonVisitsCard({ providerId }: { providerId: string }) {
                   className="flex items-center justify-between gap-m rounded-lg bg-surface px-m py-s text-sm hover:bg-surfaceVariant"
                 >
                   <span className="text-textPrimary">
-                    {formatDateTimeFr(a.appointmentDate)}
+                    {formatDateTimeFr(
+                      a.appointmentDate,
+                      a.providerTimezone ?? undefined,
+                    )}
                   </span>
                   <span className="text-textTertiary">
                     {statusLabelFr(a.status)}

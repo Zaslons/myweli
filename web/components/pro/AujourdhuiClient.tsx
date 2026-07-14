@@ -84,8 +84,11 @@ export function AujourdhuiClient() {
     return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
-  const today = todaysAppointments(items);
-  const counts = todayCounts(items);
+  // The ACTIVE salon's market (multi-pays MP3) — day boundary + money label.
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
+  const today = todaysAppointments(items, new Date(), tz);
+  const counts = todayCounts(items, new Date(), tz);
   const serviceName = (id: string) =>
     profile?.provider.services?.find((s) => s.id === id)?.name;
 
@@ -120,6 +123,8 @@ export function AujourdhuiClient() {
                 appt={a}
                 serviceName={serviceName}
                 href={`/pro/rendez-vous/${a.id}`}
+                tz={tz}
+                currency={currency}
               />
             ))
           )}
@@ -190,15 +195,15 @@ export function AujourdhuiClient() {
         <div className="mt-m grid grid-cols-3 gap-m">
           <Stat
             label="Revenus aujourd’hui"
-            value={stats ? formatFcfa(stats.todayRevenue ?? 0) : '—'}
+            value={stats ? formatFcfa(stats.todayRevenue ?? 0, currency) : '—'}
           />
           <Stat
             label="Revenus cette semaine"
-            value={stats ? formatFcfa(stats.weekRevenue ?? 0) : '—'}
+            value={stats ? formatFcfa(stats.weekRevenue ?? 0, currency) : '—'}
           />
           <Stat
             label="Revenus ce mois"
-            value={stats ? formatFcfa(stats.monthRevenue ?? 0) : '—'}
+            value={stats ? formatFcfa(stats.monthRevenue ?? 0, currency) : '—'}
           />
         </div>
       ) : null}
@@ -218,6 +223,8 @@ export function AujourdhuiClient() {
               appt={a}
               serviceName={serviceName}
               href={`/pro/rendez-vous/${a.id}`}
+              tz={tz}
+              currency={currency}
             />
           ))
         )}

@@ -18,6 +18,8 @@ export function AvisClient() {
   const [items, setItems] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  // The active salon's timezone (multi-pays MP3) — review dates in SALON time.
+  const [salonTz, setSalonTz] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -37,6 +39,7 @@ export function AvisClient() {
     }
     const pid = me.profile.provider.id;
     setProviderId(pid);
+    setSalonTz(me.profile.provider.timezone ?? undefined);
     const r = await listProviderReviews(pid, 1);
     if (r.status !== 200) {
       setError(true);
@@ -158,7 +161,7 @@ export function AvisClient() {
                       </p>
                     </div>
                     <p className="mt-xs text-xs text-textTertiary">
-                      {formatDateFr(r.createdAt)}
+                      {formatDateFr(r.createdAt, salonTz)}
                       {r.serviceName ? ` · ${r.serviceName}` : ''}
                       {r.artistName ? ` · avec ${r.artistName}` : ''}
                     </p>

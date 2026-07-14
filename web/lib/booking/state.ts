@@ -31,12 +31,17 @@ export type HubState = {
   autoPicked: boolean;
 };
 
-export const todayYmd = (): string => salonToday();
+/// « Today » is the SALON's calendar day (multi-pays MP3: pass the viewed
+/// salon's timezone; default = Wave-0 Abidjan).
+export const todayYmd = (tz?: string): string => salonToday(new Date(), tz);
 
-export function initialHubState(prefill?: {
-  serviceIds?: string[];
-  artistId?: string | null;
-}): HubState {
+export function initialHubState(
+  prefill?: {
+    serviceIds?: string[];
+    artistId?: string | null;
+  },
+  tz?: string,
+): HubState {
   const serviceIds = prefill?.serviceIds ?? [];
   const artistId = prefill?.artistId ?? null;
   return {
@@ -48,7 +53,7 @@ export function initialHubState(prefill?: {
     lengthVariant: null,
     artistId,
     artistChosen: artistId != null,
-    date: todayYmd(),
+    date: todayYmd(tz),
     slot: null,
     autoPicked: false,
   };

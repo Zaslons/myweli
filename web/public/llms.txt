@@ -16,4 +16,6 @@ WhatsApp/SMS reminders. Mobile-first; native apps on Android & iOS plus the web.
 ## Key pages
 - Home: /
 - Provider page: /<slug>  (e.g. /beaute-divine)
-- Category by commune: /<categorie>-<commune>  (e.g. /tresses-cocody)
+- Category / service landings (nested): /<categorie-ou-service> →
+  /<categorie-ou-service>/<ville> → /<categorie-ou-service>/<ville>/<commune>
+  (e.g. /coiffure/abidjan/cocody, /tresses/abidjan/cocody)

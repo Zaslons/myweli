@@ -23,26 +23,35 @@ export type ProAppointment = {
   arrivedAt?: string | null;
 };
 
-export function todayKey(now: Date = new Date()): string {
-  return salonDayKey(now);
+export function todayKey(now: Date = new Date(), tz?: string): string {
+  return salonDayKey(now, tz);
+}
+
+/// The SALON day an appointment falls on (multi-pays MP3: the instant's day
+/// in the salon's zone — NOT the ISO string's UTC prefix, which is one day
+/// off past midnight at UTC+1).
+export function apptDayKey(a: ProAppointment, tz?: string): string {
+  return salonDayKey(new Date(a.appointmentDate), tz);
 }
 
 /// Today's bookings (SALON day — lib/time.ts), sorted by time.
 export function todaysAppointments(
   items: ProAppointment[],
   now: Date = new Date(),
+  tz?: string,
 ): ProAppointment[] {
-  const k = todayKey(now);
+  const k = todayKey(now, tz);
   return items
-    .filter((a) => a.appointmentDate.slice(0, 10) === k)
+    .filter((a) => apptDayKey(a, tz) === k)
     .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate));
 }
 
 export function todayCounts(
   items: ProAppointment[],
   now: Date = new Date(),
+  tz?: string,
 ): { total: number; pending: number; confirmed: number } {
-  const t = todaysAppointments(items, now);
+  const t = todaysAppointments(items, now, tz);
   return {
     total: t.length,
     pending: t.filter((a) => a.status === 'pending').length,

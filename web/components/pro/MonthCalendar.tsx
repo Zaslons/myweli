@@ -2,6 +2,7 @@
 
 import {
   addMonths,
+  anchorKey,
   dateKey,
   daysWithBookings,
   monthLabelFr,
@@ -13,24 +14,28 @@ import { Button } from '../Button';
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 /// Month grid (Monday-start) — mirrors the app's calendar view: today + days with
-/// bookings are marked; clicking a day selects it.
+/// bookings are marked; clicking a day selects it. Cell identity is anchor
+/// (UTC-field) math; « today » and the booking dots are SALON-day facts and
+/// take the active salon's tz (multi-pays MP3).
 export function MonthCalendar({
   items,
   focused,
   selected,
   onFocus,
   onSelect,
+  tz,
 }: {
   items: ProAppointment[];
   focused: Date;
   selected: string;
   onFocus: (d: Date) => void;
   onSelect: (key: string) => void;
+  tz?: string | null;
 }) {
   const weeks = monthMatrix(focused);
-  const booked = daysWithBookings(items);
+  const booked = daysWithBookings(items, tz ?? undefined);
   const month = focused.getUTCMonth();
-  const todayK = dateKey(new Date());
+  const todayK = dateKey(new Date(), tz ?? undefined);
 
   return (
     <div>
@@ -53,7 +58,7 @@ export function MonthCalendar({
       </div>
       <div className="mt-xs grid grid-cols-7 gap-xs">
         {weeks.flat().map((d) => {
-          const k = dateKey(d);
+          const k = anchorKey(d);
           const inMonth = d.getUTCMonth() === month;
           const isSel = k === selected;
           const isToday = k === todayK;

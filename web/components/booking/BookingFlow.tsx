@@ -52,14 +52,17 @@ import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
 import { DepositProof } from './DepositProof';
 
-const slotTime = (iso: string) =>
-  salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+const slotTime = (iso: string, tz?: string) =>
+  salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
+    new Date(iso),
+  );
 
 function totalLabel(p: Provider, ids: string[]): string {
   const t = priceTotal(p, ids);
+  const cur = p.currency ?? undefined;
   return t.max > t.min
-    ? `${formatFcfa(t.min)} – ${formatFcfa(t.max)}`
-    : formatFcfa(t.min);
+    ? `${formatFcfa(t.min, cur)} – ${formatFcfa(t.max, cur)}`
+    : formatFcfa(t.min, cur);
 }
 
 /// The booking HUB (K2 — docs/design/booking-capacity-web-hub.md §4): the
@@ -73,18 +76,26 @@ export function BookingFlow({
   provider,
   prefillServiceIds,
   prefillArtistId,
+  countryLabel,
 }: {
   provider: Provider;
   prefillServiceIds?: string[];
   prefillArtistId?: string | null;
+  /// The salon country's display name (tree lookup by the reserver page) —
+  /// feeds the salon-time hint (multi-pays MP3).
+  countryLabel?: string | null;
 }) {
+  // The viewed SALON's market (multi-pays): its clock shapes every day/time
+  // rendered here; its currency labels every price.
+  const tz = provider.timezone ?? undefined;
+  const currency = provider.currency ?? undefined;
   const [s, setS] = useState<HubState>(() => {
     const clean = sanitizeRebookSelection(
       provider,
       prefillServiceIds ?? [],
       prefillArtistId ?? null,
     );
-    return initialHubState(clean);
+    return initialHubState(clean, tz);
   });
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -151,9 +162,9 @@ export function BookingFlow({
 
   /// Artist-first rule: auto-pick the earliest slot within 14 days.
   async function findEarliestSlot(state: HubState): Promise<string | null> {
-    const start = Date.parse(`${todayYmd()}T00:00:00Z`);
+    const start = Date.parse(`${todayYmd(tz)}T00:00:00Z`);
     for (let i = 0; i <= 14; i++) {
-      const day = salonDayKey(new Date(start + i * 86_400_000));
+      const day = salonDayKey(new Date(start + i * 86_400_000), tz);
       const r = await fetchSlotsFor(state, day);
       if (r.length > 0) return r[0];
     }
@@ -267,6 +278,7 @@ export function BookingFlow({
               amount={deposit}
               operator={provider.depositMobileMoneyOperator}
               number={provider.depositMobileMoneyNumber}
+              currency={currency}
             />
           </div>
         ) : null}
@@ -302,15 +314,25 @@ export function BookingFlow({
           {s.slot ? (
             <Recap
               label="Date"
-              value={`${formatDateFr(s.slot)} à ${slotTime(s.slot)}`}
+              value={`${formatDateFr(s.slot, tz)} à ${slotTime(s.slot, tz)}`}
             />
           ) : null}
-          {s.slot ? <SalonTimeHint date={s.slot} className="text-xs text-textTertiary" /> : null}
+          {s.slot ? (
+            <SalonTimeHint
+              date={s.slot}
+              tz={provider.timezone}
+              countryLabel={countryLabel}
+              className="text-xs text-textTertiary"
+            />
+          ) : null}
           <Recap label="Total" value={totalLabel(provider, s.serviceIds)} />
           {provider.depositRequired ? (
             <Recap
               label="Acompte estimé"
-              value={formatFcfa(estimatedDeposit(provider, s.serviceIds))}
+              value={formatFcfa(
+                estimatedDeposit(provider, s.serviceIds),
+                currency,
+              )}
             />
           ) : null}
         </dl>
@@ -406,8 +428,8 @@ export function BookingFlow({
                         <span className="text-textPrimary">{svc.name}</span>
                         <span className="block text-sm text-textTertiary">
                           {hasVariants
-                            ? `${priceRange(svc.price, svc.priceMax)} · durée selon la longueur`
-                            : `${formatDuration(svc.durationMinutes)} · ${priceRange(svc.price, svc.priceMax)}`}
+                            ? `${priceRange(svc.price, svc.priceMax, currency)} · durée selon la longueur`
+                            : `${formatDuration(svc.durationMinutes)} · ${priceRange(svc.price, svc.priceMax, currency)}`}
                         </span>
                       </span>
                       <input
@@ -517,7 +539,9 @@ export function BookingFlow({
         <SectionCard
           title="Date et heure"
           value={
-            s.slot ? `${formatDateFr(s.slot)} · ${slotTime(s.slot)}` : 'Choisir'
+            s.slot
+              ? `${formatDateFr(s.slot, tz)} · ${slotTime(s.slot, tz)}`
+              : 'Choisir'
           }
           expanded={s.activeSection === 'time'}
           onHeaderTap={() => onOpenSection('time')}
@@ -525,7 +549,7 @@ export function BookingFlow({
           <input
             type="date"
             aria-label="Date"
-            min={todayYmd()}
+            min={todayYmd(tz)}
             value={s.date}
             onChange={(e) => onDate(e.target.value)}
             className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
@@ -547,7 +571,7 @@ export function BookingFlow({
                       : 'border-border bg-surface text-textPrimary'
                   }`}
                 >
-                  {slotTime(iso)}
+                  {slotTime(iso, tz)}
                 </button>
               ))}
             </div>
@@ -557,10 +581,15 @@ export function BookingFlow({
           s.serviceIds.length > 0 &&
           s.slot ? (
             <p className="mt-s text-sm text-textSecondary">
-              Prochain créneau : {formatDateFr(s.slot)} · {slotTime(s.slot)}
+              Prochain créneau : {formatDateFr(s.slot, tz)} ·{' '}
+              {slotTime(s.slot, tz)}
             </p>
           ) : null}
-          <SalonTimeHint date={s.slot ?? undefined} />
+          <SalonTimeHint
+            date={s.slot ?? undefined}
+            tz={provider.timezone}
+            countryLabel={countryLabel}
+          />
         </SectionCard>
       </div>
 

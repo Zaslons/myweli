@@ -12,7 +12,9 @@ import {
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import type { SalonClientCard } from '../../lib/pro/clients';
 import { maskPhone, noShowBadge, noShowLabel } from '../../lib/pro/clients';
-import { statusKey } from '../../lib/pro/journal';
+import { hhmm, minutesOfDay, statusKey } from '../../lib/pro/journal';
+import { combineDateTime } from '../../lib/pro/manual-booking';
+import { salonDayKey } from '../../lib/time';
 import { type Membership, hasCap } from '../../lib/pro/team';
 import type { ProAppointment } from '../../lib/pro/today';
 import { Button } from '../Button';
@@ -27,6 +29,8 @@ export function JournalPanel({
   onClose,
   onChanged,
   onToast,
+  tz,
+  currency,
 }: {
   providerId: string;
   appt: ProAppointment;
@@ -38,6 +42,10 @@ export function JournalPanel({
   onClose: () => void;
   onChanged: () => void;
   onToast: (msg: string) => void;
+  /// The active salon's timezone/currency (multi-pays MP3) — wall-clocks and
+  /// money render in the SALON's market, never the viewer's.
+  tz?: string;
+  currency?: string;
 }) {
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [busy, setBusy] = useState(false);
@@ -118,7 +126,7 @@ export function JournalPanel({
             <div className="mt-s rounded-lg bg-surface p-s text-xs text-textSecondary">
               <div className="flex justify-between">
                 <span>{card.stats.visits} visites</span>
-                <span>{formatFcfa(card.stats.spentFcfa)}</span>
+                <span>{formatFcfa(card.stats.spentFcfa, currency)}</span>
                 <span>{card.stats.noShows} absences</span>
               </div>
               {card.notes[0] ? (
@@ -139,10 +147,13 @@ export function JournalPanel({
         {/* Facts */}
         <dl className="space-y-xs text-sm">
           <Row label="Statut" value={statusLabelFr(key)} />
-          <Row label="Date" value={formatDateTimeFr(appt.appointmentDate)} />
+          <Row
+            label="Date"
+            value={formatDateTimeFr(appt.appointmentDate, tz)}
+          />
           <Row label="Prestations" value={services} />
           {typeof appt.totalPrice === 'number' ? (
-            <Row label="Total" value={formatFcfa(appt.totalPrice)} />
+            <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
         </dl>
       </div>
@@ -201,8 +212,12 @@ export function JournalPanel({
               disabled={busy}
               onClick={() => {
                 setReprog(true);
-                setReprogDate(appt.appointmentDate.slice(0, 10));
-                setReprogTime(appt.appointmentDate.slice(11, 16));
+                // Prefill with the SALON wall-clock (multi-pays MP3 — the old
+                // ISO-prefix reads were the UTC clock face).
+                setReprogDate(salonDayKey(new Date(appt.appointmentDate), tz));
+                setReprogTime(
+                  hhmm(minutesOfDay(appt.appointmentDate, tz)),
+                );
               }}
             >
               Reprogrammer
@@ -236,7 +251,9 @@ export function JournalPanel({
                     act(() =>
                       rescheduleAppointment(
                         appt.id,
-                        `${reprogDate}T${reprogTime}:00.000Z`,
+                        // The picked wall-clock IS salon time — offset-aware
+                        // build through the seam (multi-pays MP3).
+                        combineDateTime(reprogDate, reprogTime, tz) ?? '',
                       ),
                     )
                   }

@@ -8,13 +8,14 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
+import { operatorsFor } from '../../lib/api/localities';
 import {
   type DepositForm,
-  OPERATORS,
   buildDepositPayload,
   depositToForm,
   validateDeposit,
 } from '../../lib/pro/deposit';
+import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 
 const input =
@@ -22,6 +23,10 @@ const input =
 
 export function AcompteClient() {
   const router = useRouter();
+  // Multi-pays MP3: the operator list is the salon COUNTRY's catalog
+  // (GET /localities) — the backend validates against the same source.
+  const localities = useLocalities();
+  const [countryCode, setCountryCode] = useState<string | null>(null);
   const [providerId, setProviderId] = useState('');
   const [form, setForm] = useState<DepositForm | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +55,7 @@ export function AcompteClient() {
       const dp = await getDepositPolicy(pid);
       if (!active) return;
       setProviderId(pid);
+      setCountryCode(me.profile.provider.countryCode ?? null);
       setVerified(me.profile.account.verificationStatus === 'verified');
       setForm(depositToForm(dp.status === 200 ? dp.policy : undefined));
       setLoading(false);
@@ -137,18 +143,33 @@ export function AcompteClient() {
             </label>
             <label className="block text-sm text-textTertiary">
               Opérateur Mobile Money
-              <select
-                className={input}
-                value={form.operator}
-                onChange={(e) => set('operator', e.target.value)}
-              >
-                <option value="">— Choisir —</option>
-                {OPERATORS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {localities.loading ? (
+                <select className={input} disabled>
+                  <option>Chargement…</option>
+                </select>
+              ) : localities.error ? (
+                <span className="mt-xs flex items-center gap-s">
+                  <span className="flex-1 text-sm text-error">
+                    Liste des opérateurs indisponible.
+                  </span>
+                  <Button variant="secondary" onClick={localities.retry}>
+                    Réessayer
+                  </Button>
+                </span>
+              ) : (
+                <select
+                  className={input}
+                  value={form.operator}
+                  onChange={(e) => set('operator', e.target.value)}
+                >
+                  <option value="">— Choisir —</option>
+                  {operatorsFor(localities.tree, countryCode).map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
             <label className="block text-sm text-textTertiary">
               Numéro Mobile Money

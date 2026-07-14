@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-test('service landing lists matching salons + ItemList JSON-LD', async ({
+/// The nested service landing family (multi-pays MP3):
+/// /tresses → /tresses/abidjan → /tresses/abidjan/cocody.
+
+test('service area landing lists matching salons + ItemList JSON-LD', async ({
   page,
 }) => {
-  await page.goto('/tresses-cocody');
+  await page.goto('/tresses/abidjan/cocody');
 
   await expect(
     page.getByRole('heading', { level: 1, name: 'Tresses & nattes à Cocody' }),
@@ -18,7 +21,23 @@ test('service landing lists matching salons + ItemList JSON-LD', async ({
   expect(types).toContain('BreadcrumbList');
 });
 
-test('unknown service combo → 404', async ({ page }) => {
-  const res = await page.goto('/tresses-nowhere');
+test('service root + city levels render down the tree', async ({ page }) => {
+  await page.goto('/tresses');
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: /Tresses & nattes en Côte d.Ivoire/,
+    }),
+  ).toBeVisible();
+
+  await page.goto('/tresses/abidjan');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Tresses & nattes à Abidjan' }),
+  ).toBeVisible();
+  await expect(page.getByText('Beauté Divine')).toBeVisible();
+});
+
+test('unknown area under a service root → 404', async ({ page }) => {
+  const res = await page.goto('/tresses/abidjan/nowhere');
   expect(res?.status()).toBe(404);
 });

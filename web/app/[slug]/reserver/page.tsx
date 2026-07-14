@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { BookingFlow } from '../../../components/booking/BookingFlow';
+import { countryName, getLocalityTree } from '../../../lib/api/localities';
 import { getProviderBySlug } from '../../../lib/api/providers';
 import { categoryLabelFr } from '../../../lib/seo/jsonld';
 
@@ -28,6 +29,9 @@ export default async function ReserverPage({
 }) {
   const p = await getProviderBySlug(params.slug);
   if (!p) notFound();
+  // The salon-time hint's country label (multi-pays MP3) — tree lookup on
+  // the salon's own countryCode, server-side.
+  const country = countryName(await getLocalityTree(), p.countryCode);
 
   // Rebook prefill (?services=a,b&artist=x) — sanitized against the live
   // catalogue inside the hub, so stale ids are silently dropped.
@@ -52,6 +56,7 @@ export default async function ReserverPage({
           provider={p}
           prefillServiceIds={prefillServiceIds}
           prefillArtistId={prefillArtistId}
+          countryLabel={country}
         />
       </div>
     </main>

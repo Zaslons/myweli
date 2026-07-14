@@ -88,7 +88,9 @@ export function localBusinessJsonLd(p: Provider, url: string) {
       '@type': 'PostalAddress',
       streetAddress: p.address,
       addressLocality: p.commune ?? p.city ?? undefined,
-      addressCountry: 'CI',
+      // Multi-pays MP3: the salon's own market fields ('CI' = the
+      // pre-backfill fallback only).
+      addressCountry: p.countryCode ?? 'CI',
     },
     ...(p.latitude != null && p.longitude != null
       ? {
@@ -111,7 +113,7 @@ export function localBusinessJsonLd(p: Provider, url: string) {
     ...(reviews.length ? { review: reviews } : {}),
     makesOffer: services.map((s) => ({
       '@type': 'Offer',
-      priceCurrency: 'XOF',
+      priceCurrency: p.currency ?? 'XOF',
       price: s.price,
       itemOffered: { '@type': 'Service', name: s.name },
     })),

@@ -1,10 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { defaultCity, findCity, type LocalityTree } from '../../lib/api/localities';
 import type { Provider } from '../../lib/api/providers';
+import { resolveArea } from '../../lib/discovery';
 import { categoryList } from '../../lib/landing';
-import { withCoords } from '../../lib/discovery/map';
+import { centerOf, withCoords } from '../../lib/discovery/map';
 import {
   addFavorite,
   getFavorites,
@@ -47,6 +49,7 @@ export function RechercheClient({
   category,
   sort,
   dispo,
+  tree,
 }: {
   title: string;
   results: Provider[];
@@ -55,6 +58,9 @@ export function RechercheClient({
   category: string;
   sort: string;
   dispo: boolean;
+  /// The locality tree (multi-pays MP3) — search suggestions/routing + the
+  /// map's empty-result center.
+  tree: LocalityTree;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // Parity 2.15: hearts on the result cards — ONE session probe (anonymous
@@ -65,6 +71,13 @@ export function RechercheClient({
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const mappable = withCoords(results);
+  // Map center for empty results: the searched commune's city, else the
+  // home market's first city (results themselves auto-fit via bounds).
+  const mapCenter = useMemo(() => {
+    const area = commune ? resolveArea(commune, tree) : null;
+    const city = area ? findCity(tree, area.citySlug) : defaultCity(tree);
+    return centerOf(city);
+  }, [commune, tree]);
 
   useEffect(() => {
     let active = true;
@@ -133,7 +146,7 @@ export function RechercheClient({
       >
         <h1 className="text-2xl font-semibold text-textPrimary">{title}</h1>
         <div className="mt-m">
-          <HomeSearch defaultService={q} defaultCommune={commune} />
+          <HomeSearch tree={tree} defaultService={q} defaultCommune={commune} />
         </div>
 
         {/* Category chips — « filter by type » without retyping the search. */}
@@ -238,6 +251,7 @@ export function RechercheClient({
             hoveredId={hoveredId}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            center={mapCenter}
           />
         </div>
       </div>

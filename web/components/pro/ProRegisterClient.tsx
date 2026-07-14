@@ -9,6 +9,7 @@ import PhoneInput, {
 import 'react-phone-number-input/style.css';
 import { registerPro, requestEmailOtpPro } from '../../lib/api/pro';
 import { Button } from '../Button';
+import { LocalityPicker } from './LocalityPicker';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -31,6 +32,9 @@ export function ProRegisterClient() {
   const [businessType, setBusinessType] = useState('salon');
   const [phone, setPhone] = useState<string | undefined>();
   const [address, setAddress] = useState('');
+  // Multi-pays MP3: the locality area — optional here, the publish gate
+  // enforces it (T57).
+  const [areaId, setAreaId] = useState<string | null>(null);
 
   // Email identity path.
   const [email, setEmail] = useState('');
@@ -70,6 +74,7 @@ export function ProRegisterClient() {
       businessType,
       phoneNumber: phone!,
       address: address.trim() || undefined,
+      areaId: areaId ?? undefined,
     });
     setBusy(false);
     if (r.ok) {
@@ -124,7 +129,7 @@ export function ProRegisterClient() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleClientId, businessName, businessType, phone, address]);
+  }, [googleClientId, businessName, businessType, phone, address, areaId]);
 
   async function sendCode() {
     if (!fieldsOrError()) return;
@@ -192,6 +197,12 @@ export function ProRegisterClient() {
           className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
         />
       </label>
+
+      {/* Multi-pays MP3: où se trouve le salon (recommandé — requis pour la
+          mise en ligne). */}
+      <div className="mt-m">
+        <LocalityPicker areaId={areaId} onChange={setAreaId} />
+      </div>
 
       {/* Identity */}
       <h2 className="mt-l font-medium text-textPrimary">

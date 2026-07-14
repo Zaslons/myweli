@@ -13,6 +13,12 @@ const provider = {
   address: 'Rue des Jardins, Cocody',
   city: 'Abidjan',
   commune: 'Cocody',
+  // Multi-pays MP1 salon market fields (server-derived from the area).
+  areaId: 'cocody',
+  citySlug: 'abidjan',
+  countryCode: 'CI',
+  timezone: 'Africa/Abidjan',
+  currency: 'XOF',
   latitude: 5.35,
   longitude: -3.99,
   imageUrls: ['https://cdn.stub/p1.jpg', 'https://cdn.stub/p2.jpg'],
@@ -96,6 +102,82 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+// Multi-pays MP1 — the public locality tree (GET /localities, T56). CI
+// mirrors the backend seed (order included — the home directory shows the
+// first city's first areas); GA backs the Libreville/XAF fixtures (hint
+// label, operator catalogs, p3).
+const AREA = (id, name, lat, lng) => ({
+  id,
+  slug: id,
+  name,
+  labelKind: 'commune',
+  lat,
+  lng,
+});
+const LOCALITIES = {
+  countries: [
+    {
+      code: 'CI',
+      name: "Côte d'Ivoire",
+      currency: 'XOF',
+      phonePrefix: '+225',
+      operators: [
+        { id: 'wave', label: 'Wave', deepLinkKind: 'wave' },
+        { id: 'orangeMoney', label: 'Orange Money', deepLinkKind: null },
+        { id: 'mtnMoMo', label: 'MTN MoMo', deepLinkKind: null },
+        { id: 'moov', label: 'Moov Money', deepLinkKind: null },
+      ],
+      cities: [
+        {
+          id: 'abidjan',
+          slug: 'abidjan',
+          name: 'Abidjan',
+          timezone: 'Africa/Abidjan',
+          lat: 5.336,
+          lng: -4.026,
+          areas: [
+            AREA('cocody', 'Cocody', 5.36, -4.0083),
+            AREA('marcory', 'Marcory', 5.28, -4.05),
+            AREA('plateau', 'Plateau', 5.32, -4.03),
+            AREA('yopougon', 'Yopougon', 5.32, -4.08),
+            AREA('treichville', 'Treichville', 5.293, -4.01),
+            AREA('adjame', 'Adjamé', 5.366, -4.025),
+            AREA('abobo', 'Abobo', 5.42, -4.02),
+            AREA('koumassi', 'Koumassi', 5.29, -3.945),
+            AREA('port-bouet', 'Port-Bouët', 5.255, -3.926),
+            AREA('attecoube', 'Attécoubé', 5.34, -4.035),
+            AREA('bingerville', 'Bingerville', 5.355, -3.89),
+          ],
+        },
+      ],
+    },
+    {
+      code: 'GA',
+      name: 'Gabon',
+      currency: 'XAF',
+      phonePrefix: '+241',
+      operators: [
+        { id: 'airtelMoney', label: 'Airtel Money', deepLinkKind: null },
+        { id: 'moovMoneyGa', label: 'Moov Money', deepLinkKind: null },
+      ],
+      cities: [
+        {
+          id: 'libreville',
+          slug: 'libreville',
+          name: 'Libreville',
+          timezone: 'Africa/Libreville',
+          lat: 0.4162,
+          lng: 9.4673,
+          areas: [
+            AREA('glass', 'Glass', 0.3901, 9.4544),
+            AREA('akanda', 'Akanda', 0.5167, 9.4833),
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 // Dated "today" (UTC) so the pro views show it whenever the suite runs.
 const todayAt9 = `${new Date().toISOString().slice(0, 10)}T09:00:00.000Z`;
 // Consumer bookings sit TOMORROW so future-only actions (« Reporter ») show.
@@ -157,11 +239,22 @@ const EARN_TX = [
 const consumerAppt = (id) => ({
   id,
   userId: 'u1',
-  providerId: 'p1',
+  // Multi-pays MP3: appt4 is the GABON booking (p3 — Libreville/XAF) with
+  // the backend-stamped currency + provider market carriers; the account
+  // surfaces must render its wall-clock at UTC+1 and « FCFA » from XAF.
+  providerId: id === 'appt4' ? 'p3' : 'p1',
+  ...(id === 'appt4'
+    ? {
+        currency: 'XAF',
+        providerTimezone: 'Africa/Libreville',
+        providerCurrency: 'XAF',
+        providerCountryCode: 'GA',
+      }
+    : { currency: 'XOF' }),
   serviceIds: ['s1'],
   clientName: 'Awa',
   // P3: the chosen spécialiste (1.8) + the booking note (1.4).
-  artistId: 'a1',
+  artistId: id === 'appt4' ? null : 'a1',
   notes: 'Cheveux fragiles',
   appointmentDate: tomorrowAt9,
   status:
@@ -344,6 +437,16 @@ secondSalon.name = 'Institut Belle Vue';
 secondSalon.status = 'draft';
 secondSalon.artists = [];
 secondSalon.imageUrls = [];
+// Multi-pays MP3: p3 is the GABON fixture — Libreville wall-clocks (UTC+1)
+// and XAF money prove per-salon rendering (consumer arc via appt4's
+// carriers; pro arc via the /me/provider carrier after a switch).
+secondSalon.city = 'Libreville';
+secondSalon.commune = 'Glass';
+secondSalon.areaId = 'glass';
+secondSalon.citySlug = 'libreville';
+secondSalon.countryCode = 'GA';
+secondSalon.timezone = 'Africa/Libreville';
+secondSalon.currency = 'XAF';
 let addedSalonSeq = 3;
 // salonId → the pro-side salon document (p1 keeps the historical proProvider).
 const ownedSalons = new Map([
@@ -466,6 +569,13 @@ createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   if (url.pathname === '/sitemap/providers') {
     return json(res, 200, { items: [{ slug: 'beaute-divine' }] });
+  }
+  if (url.pathname === '/localities') {
+    res.writeHead(200, {
+      'content-type': 'application/json',
+      'cache-control': 'public, max-age=3600',
+    });
+    return res.end(JSON.stringify(LOCALITIES));
   }
   const m = url.pathname.match(/^\/providers\/by-slug\/(.+)$/);
   if (m) {
@@ -1189,6 +1299,8 @@ createServer(async (req, res) => {
     );
     return json(res, 200, {
       totalEarnings: tx.reduce((sum, t) => sum + t.amount, 0),
+      // Multi-pays MP1: the earnings envelope carries the salon currency.
+      currency: 'XOF',
       transactions: tx,
     });
   }
@@ -1367,6 +1479,7 @@ createServer(async (req, res) => {
             consumerAppt('appt1'),
             consumerAppt('appt2'),
             consumerAppt('appt3'),
+            consumerAppt('appt4'),
           ];
       return json(res, 200, {
         items,
@@ -1437,6 +1550,8 @@ createServer(async (req, res) => {
     }
     if (provMatch[1] === 'p1') return json(res, 200, provider);
     if (provMatch[1] === 'p2') return json(res, 200, depositProvider);
+    // Multi-pays MP3: appt4's enrichment reads the Gabon salon.
+    if (provMatch[1] === 'p3') return json(res, 200, secondSalon);
     return json(res, 404, { error: 'not_found' });
   }
   return json(res, 404, { error: 'not_found' });

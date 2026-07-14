@@ -234,6 +234,8 @@ function OfferCardView({
         </span>
         {card.anchorFcfa != null ? (
           <span className="ml-s text-sm text-textTertiary line-through">
+            {/* PLATFORM billing — XOF by design (multi-pays §4), not the
+                salon's own currency. */}
             {formatFcfa(card.anchorFcfa)}/mois
           </span>
         ) : (

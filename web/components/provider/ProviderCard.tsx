@@ -43,7 +43,7 @@ export function ProviderCard({
       ) : null}
       {min != null ? (
         <p className="mt-xs text-sm text-textTertiary">
-          à partir de {formatFcfa(min)}
+          à partir de {formatFcfa(min, provider.currency ?? undefined)}
         </p>
       ) : null}
     </a>

@@ -2,15 +2,20 @@
 
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
+import type { LocalityTree } from '../../lib/api/localities';
+import { allAreas } from '../../lib/api/localities';
 import { resolveSearchHref } from '../../lib/discovery';
-import { communes } from '../../lib/landing';
 
 /// Hero/discovery search: service + commune → an existing SEO landing when both
-/// resolve, else /recherche. Reused (prefilled) on the results page.
+/// resolve, else /recherche. Reused (prefilled) on the results page. The
+/// commune suggestions + routing geography come from the locality tree
+/// (multi-pays MP3), passed by the server page.
 export function HomeSearch({
+  tree,
   defaultService = '',
   defaultCommune = '',
 }: {
+  tree: LocalityTree;
   defaultService?: string;
   defaultCommune?: string;
 }) {
@@ -20,7 +25,7 @@ export function HomeSearch({
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    router.push(resolveSearchHref(service, commune));
+    router.push(resolveSearchHref(service, commune, tree));
   }
 
   const field =
@@ -44,8 +49,8 @@ export function HomeSearch({
         className={`${field} sm:w-56`}
       />
       <datalist id="myweli-communes">
-        {communes.map((c) => (
-          <option key={c} value={c} />
+        {allAreas(tree).map(({ area }) => (
+          <option key={`${area.slug}`} value={area.name} />
         ))}
       </datalist>
       <button
