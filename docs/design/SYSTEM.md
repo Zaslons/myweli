@@ -612,7 +612,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 | No literals (§3, §4, §5, §6) | `test/design_system_pin_test.dart` — grep-as-test with the §21 register as its allowlist, which **shrinks** with each burn-down PR |
 | Tap targets + labels (§13.2, §13.4) | `meetsGuideline(androidTapTargetGuideline / labeledTapTargetGuideline / textContrastGuideline)` |
 | Text scale (§13.3) | Key screens pumped at `TextScaler.linear(2.0)`, asserted not to overflow |
-| Visual regression | Golden tests (bundled test font, so macOS and CI agree) |
+| Visual regression | **Goldens** — `test/golden/`, see below |
 | Market data (§18) | `salon_time_pin_test.dart` |
 | Everything | `flutter analyze --fatal-infos` = 0 |
 
@@ -623,6 +623,50 @@ grep -rn  --include='*.dart' "Color(0x" lib | grep -v lib/core/theme/
 grep -rEn --include='*.dart' "Colors\.(red|green|blue|orange|grey|gray|amber|purple|teal|pink|yellow|indigo|cyan|brown)" lib | grep -v lib/core/theme/
 grep -rn  --include='*.dart' "fontSize:" lib | grep -v lib/core/theme/
 ```
+
+### 20.1 Goldens — the eye
+
+`mobile/test/golden/` holds 17 goldens, and they are the **only** thing in the
+repo that renders the real design system: not one of the 34 widget tests passes
+`theme:`, so the whole suite would stay green while the product restyled
+underneath it.
+
+- **The token catalogue** (`tokens_*`, `components_*`) — every colour with its
+  measured ratio, the whole type scale, the buttons, the text field in all five
+  states, status/chips/cards/rating, and `AdminDataTable`'s four states. A token
+  change lights these up immediately.
+- **Real screens** (`consumer_*`, `pro_*`) — because a token can be right in the
+  catalogue and still wreck a page.
+
+**Goldens are authored on Linux, and only on Linux.** Flutter rasterizes glyphs
+through CoreText on macOS and FreeType on Linux — same font, same Skia, different
+pixels — so a Mac-authored golden fails in CI on every PR, forever. CI (ubuntu,
+Flutter 3.38.6) therefore *is* the authority: the goldens run inside the existing
+blocking `analyze-and-test` job. Everywhere else they **skip with a reason**, so
+`flutter test` on a Mac says so out loud instead of failing mysteriously.
+
+```bash
+./tool/update_goldens.sh          # regenerate in the pinned Linux image (Docker)
+./tool/update_goldens.sh <name>   # …just the ones matching a name
+```
+
+No Docker? Run the **“Goldens — regenerate”** workflow from the Actions tab and
+download the `goldens` artifact. Either way: **review every changed PNG before
+committing.** A wrong baseline is worse than none, because every later PR is then
+diffed against a lie. When a golden fails in CI, the diff images are uploaded as
+the `golden-failures` artifact — a golden failure is a picture, and you should
+look at it.
+
+**No fonts are vendored.** The harness loads Roboto and MaterialIcons out of the
+SDK's own cache (`$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/`), and CI pins
+the same SDK — so the bytes are identical on both sides, nothing is committed, and
+it cannot drift. Roboto is also Android's system font, our primary target.
+
+**Two things a golden cannot pin**, both deliberate:
+- **The brand loader.** `BrandLoader` is an infinitely-repeating Lottie; any
+  golden of it would be a picture of an arbitrary animation frame. The loading
+  state we *do* pin is `AdminDataTable`'s skeleton, which is static.
+- **Anything that reads the wall clock** — see register row 23.
 
 ---
 
@@ -655,11 +699,18 @@ own design system?" — today, mostly not.
 | 18 | One `ConfirmDialog` (§15) | **11** copy-pasted | | *A6* |
 | 19 | Field-anchored errors (§14) | **1** caller passes `errorText` | validation = "throw a red toast" | *A8* |
 | 20 | Reduced motion (§9) | **0** | | *A9* |
-| 21 | Tests wrap the real theme | **0 of 34** widget tests | a restyle can't fail a test that never loads the theme | **A3** |
+| 21 | Tests wrap the real theme | **0 of 34** widget tests → **17 goldens do** | a restyle can't fail a test that never loads the theme | **A3** (PR-0.5 opened the eye) |
 | 22 | Deferred V2/V3 `Colors.*` | ~52 | flag-hidden `ComingSoon` screens | *allowlisted — fix if un-shelved* |
+| 23 | **No clock seam** (§20.1) | pro dashboard + journal | `ProJournalProvider._selectedDate = salonToday()`; `MockProService.getDashboard()` buckets by `DateTime.now().weekday` — so those screens **cannot be golden-tested**: the image would change value with the day of the week, failing CI every morning. `package:clock` is unused. | *new — needs its own slice* |
+| 24 | Disabled labels legible | all | the disabled primary button is `#5C5C5C` on `#949495` — **2.21:1**. WCAG exempts disabled controls, so this is not a violation; it is, measurably, hard to read. | *A3 (`disabledForegroundColor`)* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.
+
+Rows **23** and **24** were found by PR-0.5 — by the act of taking the pictures.
+Row 23 is the more serious of the two: it says the pro surfaces take the time from
+the machine they run on, which makes them not just un-golden-able but *fragile*,
+and it is the kind of thing that is invisible until someone tries to pin them.
 
 ---
 

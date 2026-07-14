@@ -47,3 +47,7 @@ app.*.map.json
 
 
 
+
+# Golden diffs written by a failing run — artifacts, never committed
+# (CI uploads them; see .github/workflows/ci.yml).
+test/golden/failures/

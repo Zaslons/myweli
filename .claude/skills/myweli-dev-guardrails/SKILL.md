@@ -102,6 +102,7 @@ Treat any unchecked box as "not done."
 - [ ] All four UI states present (loading / empty / error / success).
 - [ ] **Design tokens:** no literal colors/sizes/durations — `AppColors`/`AppTextStyles`/`AppTheme` only; shared components reused. Run the enforcement ([SYSTEM.md §20](../../../docs/design/SYSTEM.md#20-enforcement)) and don't grow the count.
 - [ ] **Accessibility ([SYSTEM.md §13](../../../docs/design/SYSTEM.md#13-accessibility)):** contrast floors met; **every tap target ≥48×48**; icon-only controls have a `tooltip:`; custom gestures have `Semantics`; the screen survives **200% text scale**; no meaning carried by color alone.
+- [ ] **Goldens ([SYSTEM.md §20.1](../../../docs/design/SYSTEM.md#201-goldens--the-eye)):** if the change affects rendering, regenerate with **`./tool/update_goldens.sh`** (they are authored on **Linux** — a Mac-authored golden fails CI forever) and **look at every changed PNG** before committing. Put the before/after in the PR.
 - [ ] **Security:** no secrets or keys added; tokens in secure storage; inputs validated; no PII/secret in logs; server-authority assumed.
 - [ ] **Performance:** meets budgets on the reference low-end Android; `const` used where the analyzer asks; lists paginated; images compressed/lazy.
 - [ ] **Scope:** V1 only; no V2/V3 screen shipped or made reachable; deferred feature screens stay flag-hidden.

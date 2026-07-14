@@ -48,6 +48,11 @@ jobs:
       - name: Analyze (zero issues required)
         run: flutter analyze --fatal-infos --fatal-warnings
 
+      # This also runs the GOLDEN tests. They only execute on Linux (see
+      # test/support/golden.dart) — which is this runner, and which is why the
+      # committed PNGs are authored here too, via tool/update_goldens.sh.
+      # Elsewhere they skip with a reason instead of failing on font
+      # rasterization differences.
       - name: Run tests (with coverage)
         run: flutter test --coverage
 
@@ -58,6 +63,16 @@ jobs:
           name: coverage-lcov
           path: mobile/coverage/lcov.info
           if-no-files-found: warn
+
+      # A golden failure is a PICTURE. Without these, all you get in the log is
+      # "pixels differ" and no way to see what moved.
+      - name: Upload golden failures
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-failures
+          path: mobile/test/golden/failures/
+          if-no-files-found: ignore
 
   backend:
     name: Backend — Analyze & Test
