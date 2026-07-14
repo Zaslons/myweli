@@ -1,20 +1,41 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
+import { useIsDesktop } from '../../lib/pro/use-is-desktop';
 import { ProLogoutButton } from './ProLogoutButton';
 import { TeamRoleChip } from './TeamRoleChip';
 import { useProMembership } from './ProMembershipContext';
 
-/// Sidebar nav — capability-filtered per role (team access R5b). The width
-/// is constant (w-60) and loading shows skeleton rows, so the filter never
-/// shifts layout. R6 multi-salons: the salon block at the top is the
-/// « Mes salons » SWITCHER for every role (a member can belong to several
-/// salons too); « Ajouter un salon » appears when the server-computed gate
-/// is open. Members keep their identity block (email + role chip).
-export function ProSidebar() {
+/// Whether the nav's active-route highlight should light up for [href].
+/// « Aujourd'hui » (/pro) matches exactly; every other entry also stays active
+/// on its detail routes (/pro/rendez-vous → …/[id]).
+function isActive(pathname: string | null, href: string): boolean {
+  if (!pathname) return false;
+  if (href === '/pro') return pathname === '/pro';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/// The pro dashboard's navigation (team access R5b — capability-filtered per
+/// role). At `lg+` it is a persistent sidebar; below `lg` it is the off-canvas
+/// drawer that `ProShell` opens (WEB-SYSTEM §9) — ONE instance either way, so the
+/// e2e/RTL selectors never see a duplicate. R6 multi-salons: the salon block at
+/// the top is the « Mes salons » SWITCHER for every role; « Ajouter un salon »
+/// appears when the server-computed gate is open. Members keep their identity
+/// block (email + role chip).
+///
+/// [open] drives the drawer slide (ignored at `lg+`); [onClose] is provided only
+/// in drawer mode and renders the mobile close button.
+export function ProSidebar({
+  open = false,
+  onClose,
+}: {
+  open?: boolean;
+  onClose?: () => void;
+}) {
   const {
     loading,
     membership,
@@ -26,16 +47,29 @@ export function ProSidebar() {
     canAddSalon,
     switchSalon,
   } = useProMembership();
+  const pathname = usePathname();
+  const isDesktop = useIsDesktop();
   const entries = navForMembership(membership);
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState(false);
 
   const switchable = salons.length > 1 || canAddSalon;
 
-  async function pick(salonId: string, isActive: boolean) {
-    if (isActive) {
-      setOpen(false);
+  // Keep the CLOSED drawer out of the tab order on a phone (it's translated
+  // off-screen, but still focusable without this). Set via a ref, not a JSX
+  // prop, because React 18 doesn't recognise `inert`. Guarded on `isDesktop` so
+  // the desktop column — and jsdom, where `isDesktop` stays true — is never
+  // inert, which is what keeps the existing RTL test able to find these buttons.
+  const asideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = asideRef.current;
+    if (el) el.inert = !open && !isDesktop;
+  }, [open, isDesktop]);
+
+  async function pick(salonId: string, active: boolean) {
+    if (active) {
+      setMenuOpen(false);
       return;
     }
     setSwitching(salonId);
@@ -46,12 +80,31 @@ export function ProSidebar() {
       setSwitchError(true);
       return;
     }
-    setOpen(false);
+    setMenuOpen(false);
   }
 
   return (
-    <aside className="w-60 shrink-0 border-r border-divider bg-secondary p-m">
-      <p className="px-s text-lg font-semibold text-textPrimary">MyWeli Pro</p>
+    <aside
+      ref={asideRef}
+      id="pro-sidebar-nav"
+      aria-label="Navigation du salon"
+      className={`fixed inset-y-0 left-0 z-40 w-60 overflow-y-auto border-r border-divider bg-secondary p-m transition-transform duration-200 motion-reduce:transition-none lg:static lg:z-auto lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:transition-none ${
+        open ? 'translate-x-0 shadow-xl lg:shadow-none' : '-translate-x-full'
+      }`}
+    >
+      <div className="flex items-center justify-between px-s">
+        <p className="text-lg font-semibold text-textPrimary">MyWeli Pro</p>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer le menu"
+            className="rounded-lg p-xs text-textTertiary hover:bg-surfaceVariant lg:hidden"
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
+        ) : null}
+      </div>
       {loading ? (
         <div className="mt-l space-y-xs" aria-hidden="true">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -68,9 +121,9 @@ export function ProSidebar() {
                 <button
                   type="button"
                   aria-label="Changer de salon"
-                  aria-expanded={open}
+                  aria-expanded={menuOpen}
                   onClick={() => {
-                    setOpen((o) => !o);
+                    setMenuOpen((o) => !o);
                     setSwitchError(false);
                   }}
                   className="flex w-full items-center justify-between gap-xs rounded-lg border border-border bg-surface px-s py-xs text-left text-sm text-textPrimary hover:bg-surfaceVariant"
@@ -85,16 +138,16 @@ export function ProSidebar() {
                   {salonName}
                 </p>
               )}
-              {open ? (
+              {menuOpen ? (
                 <div className="absolute inset-x-s z-20 mt-xs rounded-lg border border-border bg-secondary py-xs shadow-lg">
                   {salons.map((s) => {
-                    const isActive = s.salonId === providerId;
+                    const active = s.salonId === providerId;
                     return (
                       <button
                         key={s.salonId}
                         type="button"
                         disabled={switching !== null}
-                        onClick={() => pick(s.salonId, isActive)}
+                        onClick={() => pick(s.salonId, active)}
                         className="flex w-full items-center justify-between gap-xs px-s py-s text-left text-sm text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
                       >
                         <span className="min-w-0">
@@ -104,7 +157,7 @@ export function ProSidebar() {
                             {s.salonStatus === 'draft' ? ' · Brouillon' : ''}
                           </span>
                         </span>
-                        {isActive ? (
+                        {active ? (
                           <span aria-hidden="true" className="shrink-0">
                             ✓
                           </span>
@@ -117,7 +170,7 @@ export function ProSidebar() {
                       <div className="my-xs border-t border-divider" />
                       <Link
                         href="/pro/salons/nouveau"
-                        onClick={() => setOpen(false)}
+                        onClick={() => setMenuOpen(false)}
                         className="block px-s py-s text-sm text-textPrimary underline hover:bg-surfaceVariant"
                       >
                         Ajouter un salon
@@ -135,15 +188,23 @@ export function ProSidebar() {
             </div>
           ) : null}
           <nav className="mt-l space-y-xs">
-            {entries.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="block rounded-lg px-s py-s text-sm text-textPrimary hover:bg-surfaceVariant"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {entries.map((item) => {
+              const active = isActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`block rounded-lg px-s py-s text-sm hover:bg-surfaceVariant ${
+                    active
+                      ? 'bg-surfaceVariant font-medium text-textPrimary'
+                      : 'text-textPrimary'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
           {membership && role && role !== 'owner' ? (
             <div className="mt-l space-y-xs rounded-lg border border-border bg-surface p-s">

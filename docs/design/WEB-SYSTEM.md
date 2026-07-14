@@ -207,10 +207,11 @@ Breakpoints are Tailwind's `sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1536`,
 they map onto the same window classes as the apps
 ([SYSTEM.md §10](SYSTEM.md#10-layout-breakpoints-content-width-z-index)).
 
-> 🔴 **A layout that only exists at one width is a bug at every other width.**
-> `ProSidebar.tsx:53` is `<aside className="w-60 shrink-0 …">` with no `hidden lg:*`
-> — on a 375px phone the sidebar eats 240px and leaves ~135px of content, **on
-> every `/pro` route, in production**. Off-canvas below `lg`, persistent at `lg+`.
+**A layout that only exists at one width is a bug at every other width.** The pro
+dashboard's nav is the reference: a persistent sidebar at `lg+`, an off-canvas
+**drawer** below — one `<ProSidebar>`, repositioned by CSS, opened by a hamburger
+in a slim top bar (B0; [web-pro-mobile-nav.md](web-pro-mobile-nav.md)). It used to
+be `w-60` with no breakpoint, eating 240px of a 375px phone on every `/pro` route.
 
 ### z-index
 
@@ -313,7 +314,7 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 
 | # | Rule | Violations | Worst instance | Slice |
 |---|---|---|---|---|
-| 1 | 🔴 Layout works at every width (§9) | 1 | **`ProSidebar.tsx:53`** — 240px sidebar on a 375px phone, **every `/pro` route, live** | **B0** |
+| 1 | Layout works at every width (§9) | ~~1~~ → **0** | the pro sidebar ate 240px of a 375px phone on every `/pro` route; now an off-canvas drawer below `lg`, persistent at `lg+` ([web-pro-mobile-nav.md](web-pro-mobile-nav.md)) | ✅ **B0** |
 | 2 | `textTertiary` ≥ 4.5:1 | **170** | 3.22:1 | **B1** |
 | 3 | Control borders ≥ 3:1 | **186** `border` uses | 1.44:1 | **B1** |
 | 4 | Token exists ⇒ no substitution | 1 | `gold` missing from `tokens.ts` → **`TeamRoleChip` silently uses `starRating`** | **B1** |
