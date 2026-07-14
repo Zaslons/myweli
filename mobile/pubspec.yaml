@@ -46,7 +46,7 @@ dependencies:
   # Pull-to-refresh with the brand mark_loader instead of the Material spinner.
   custom_refresh_indicator: ^4.0.1
   flutter_slidable: ^3.1.1
-  intl: ^0.20.2
+  intl: ^0.20.3
   # International phone entry: country-code picker (default Côte d'Ivoire) + E.164.
   intl_phone_field: ^3.2.0
 
