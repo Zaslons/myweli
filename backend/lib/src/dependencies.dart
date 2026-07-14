@@ -65,6 +65,7 @@ import 'messaging/messaging_provider.dart';
 import 'messaging/messaging_service.dart';
 import 'messaging/reminder_log_repository.dart';
 import 'messaging/reminder_scheduler.dart';
+import 'messaging/salon_notifier.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
@@ -631,6 +632,17 @@ final BookingNotifier bookingNotifier = BookingNotifier(
   pushService,
   notificationsRepository,
   notificationPrefsRepository,
+);
+
+/// The provider-directed sibling: turns client-driven booking events into
+/// SALON-team notifications (push + in-app feed), scoped by team capabilities.
+/// Design: docs/design/push-notifications-fcm.md §10.
+final SalonNotifier salonNotifier = SalonNotifier(
+  membershipRepository,
+  pushService,
+  notificationsRepository,
+  notificationPrefsRepository,
+  providersRepository,
 );
 
 final ReminderLogRepository reminderLogRepository = _pool == null

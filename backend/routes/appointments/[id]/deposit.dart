@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /appointments/{id}/deposit` — the consumer attaches (or replaces) the
@@ -39,6 +40,13 @@ Future<Response> onRequest(RequestContext context, String id) async {
       context.read<BookingNotifier>().notify(
         r.data as Map<String, dynamic>?,
         MessageTemplate.depositReceived,
+      ),
+    );
+    // The salon must know a justificatif landed — it gates the confirmation.
+    unawaited(
+      context.read<SalonNotifier>().notify(
+        r.data as Map<String, dynamic>?,
+        SalonEvent.depositSubmitted,
       ),
     );
     return Response.json(body: r.data);

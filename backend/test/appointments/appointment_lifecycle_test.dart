@@ -12,6 +12,7 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:test/test.dart';
 
@@ -21,6 +22,8 @@ import '../../routes/appointments/[id]/reschedule.dart' as reschedule_route;
 class _MockRequestContext extends Mock implements RequestContext {}
 
 class _MockNotifier extends Mock implements BookingNotifier {}
+
+class _MockSalonNotifier extends Mock implements SalonNotifier {}
 
 /// A future Mon–Sat at 09:00 UTC — an open slot in the seed schedule.
 DateTime _slotAt(int hour) {
@@ -37,9 +40,13 @@ DateTime _slotAt(int hour) {
 }
 
 void main() {
-  setUpAll(() => registerFallbackValue(MessageTemplate.bookingConfirmed));
+  setUpAll(() {
+    registerFallbackValue(MessageTemplate.bookingConfirmed);
+    registerFallbackValue(SalonEvent.newBooking);
+  });
   late InMemoryAppointmentRepository appts;
   late AppointmentLifecycleService lifecycle;
+  final salonNotifier = _MockSalonNotifier();
   late InMemoryProviderAuthRepository providerAuth;
   final tokens = TokenService(secret: 'test-secret');
   final accessA = tokens
@@ -218,6 +225,10 @@ void main() {
       final notifier = _MockNotifier();
       when(() => notifier.notify(any(), any())).thenAnswer((_) async {});
       when(() => context.read<BookingNotifier>()).thenReturn(notifier);
+      // Provider-directed events (design §10) — the client-cancel route also
+      // tells the salon team.
+      when(() => salonNotifier.notify(any(), any())).thenAnswer((_) async {});
+      when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
       return context;
     }
 
