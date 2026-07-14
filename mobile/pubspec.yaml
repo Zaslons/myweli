@@ -70,6 +70,20 @@ dependencies:
   add_2_calendar: ^3.0.1
   timezone: ^0.11.1
 
+  # Push notifications (FR-NOTIF-001 — docs/design/push-notifications-app.md).
+  # The real FCM adapter behind the push seam; Firebase is initialized ONLY in
+  # backend mode (demo runs and `flutter test` never touch it).
+  firebase_core: ^4.1.1
+  firebase_messaging: ^16.0.2
+  # Android foreground display: FCM does not draw `notification` payloads while
+  # the app is foregrounded, so we render them ourselves in the `myweli_default`
+  # channel. iOS uses setForegroundNotificationPresentationOptions instead.
+  # v22: v19/v20 pin `timezone ^0.10`, which collides with the ^0.11 the
+  # salon-time seam runs on (core/utils/salon_time.dart).
+  flutter_local_notifications: ^22.0.1
+  # The re-enable path when notifications are denied at the OS level.
+  app_settings: ^7.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
