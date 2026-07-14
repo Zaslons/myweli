@@ -47,8 +47,8 @@ declares which module it belongs to.
 
 **Cross-cutting foundations** (not modules — every module stands on them):
 identity & auth (Google/Apple/email OTP, JWT + rotating refresh), the design
-system ([design/DESIGN-STANDARDS.md](design/DESIGN-STANDARDS.md) +
-[design/WEB-DESIGN-STANDARDS.md](design/WEB-DESIGN-STANDARDS.md), MyWeli brand),
+system ([design/SYSTEM.md](design/SYSTEM.md) +
+[design/WEB-SYSTEM.md](design/WEB-SYSTEM.md), MyWeli brand),
 the security model ([BACKEND.md](BACKEND.md) §3 + STRIDE §7), the API contract
 ([api/openapi.yaml](api/openapi.yaml)), and infra (Render · Vercel · R2 ·
 Cloudflare · Resend · FCM).
