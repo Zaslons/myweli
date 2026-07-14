@@ -143,7 +143,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           icon: Icon(
             featured ? Icons.star : Icons.star_border,
             size: 20,
-            color: featured ? AppColors.starRating : AppColors.textTertiary,
+            color: featured ? AppColors.gold : AppColors.textTertiary,
           ),
           onPressed: acting ? null : () => _feature(id, !featured),
         ),

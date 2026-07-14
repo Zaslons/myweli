@@ -137,7 +137,7 @@ class _SalonTile extends StatelessWidget {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor:
-            isActive ? AppColors.textPrimary : AppColors.surfaceVariant,
+            isActive ? AppColors.primary : AppColors.surfaceVariant,
         foregroundColor: isActive ? AppColors.secondary : AppColors.textPrimary,
         child: Text(
           salon.salonName.isEmpty

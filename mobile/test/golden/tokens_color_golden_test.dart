@@ -9,10 +9,14 @@ import '../support/wcag.dart';
 /// Every color token, with its MEASURED contrast ratio against the background it
 /// has to survive (docs/design/SYSTEM.md §3).
 ///
-/// This is the golden A1 exists for. Six token lines move ~370 render sites, and
-/// this sheet is where that becomes visible in one glance — including the three
-/// current failures, which are labelled ✗ right in the image:
-///   textTertiary 3.22:1 · border 1.44:1 · starRating 1.62:1.
+/// This is the golden A1 exists for. Every floor is rendered INTO the image, so
+/// "does the palette pass?" is answered by looking, not by recomputing.
+///
+/// Before A1 this sheet carried three ✗: `textTertiary` at 3.22:1 (202 sites),
+/// `border` at 1.44:1 on every input, and `starRating` at 1.62:1 doing the work
+/// of a state. All three are now ✓ — `textTertiary` is 4.76:1, control outlines
+/// moved to the new `borderStrong` (3.22:1), and gold-as-state moved to `gold`
+/// (3.04:1). The two remaining un-floored rows are decoration, and say so.
 void main() {
   group('goldens', () {
     setUpAll(loadGoldenFonts);
@@ -21,7 +25,7 @@ void main() {
       await pumpGolden(
         tester,
         const _ColorSheet(),
-        size: const Size(470, 1660),
+        size: const Size(470, 1710),
       );
       await expectGolden(tester, 'tokens_color');
     });
@@ -54,7 +58,8 @@ class _ColorSheet extends StatelessWidget {
             child: _Swatches([
               _Tok('primary', AppColors.primary,
                   note: 'brand fill — never text'),
-              _Tok('primaryLight', AppColors.primaryLight, note: 'hover'),
+              _Tok('primaryHover', AppColors.primaryHover,
+                  note: 'hover/pressed'),
               _Tok('secondary', AppColors.secondary, note: 'card'),
               _Tok('background', AppColors.background),
               _Tok('surface', AppColors.surface),
@@ -70,12 +75,19 @@ class _ColorSheet extends StatelessWidget {
               _Tok('textDisabled', AppColors.textDisabled, note: 'exempt'),
             ]),
           ),
+          // Three roles, three weights (§3.3). Only `borderStrong` carries the
+          // 3:1 duty — it is the sole boundary of an interactive control. The
+          // other two are decoration and are exempt, which is why we did NOT
+          // darken every border in the app and box the product in.
           GoldenSection(
-            title: 'Borders',
+            title: 'Borders — three roles',
             child: _Swatches([
-              _Tok('divider', AppColors.divider, note: 'decorative'),
-              _Tok('border', AppColors.border, floor: kFloorNonText),
-              _Tok('borderFocus', AppColors.borderFocus, floor: kFloorNonText),
+              _Tok('divider', AppColors.divider, note: 'decorative rules'),
+              _Tok('border', AppColors.border, note: 'container hairlines'),
+              _Tok('borderStrong', AppColors.borderStrong,
+                  floor: kFloorNonText, note: 'interactive controls'),
+              _Tok('borderFocus', AppColors.borderFocus,
+                  floor: kFloorNonText, note: 'the focus ring'),
             ]),
           ),
           GoldenSection(
@@ -91,12 +103,19 @@ class _ColorSheet extends StatelessWidget {
               _Tok('infoLight', AppColors.infoLight, floor: kFloorText),
             ]),
           ),
+          // `starRating` carries NO floor — not because we gave up on it, but
+          // because at 1.62:1 it can only ever be decoration, and §3.5 makes that
+          // safe: the star is always paired with the numeral that actually holds
+          // the information. Gold that carries STATE is `gold`, which does clear
+          // the floor.
           GoldenSection(
             title: 'Accents',
             child: _Swatches([
-              _Tok('starRating', AppColors.starRating, floor: kFloorNonText),
+              _Tok('starRating', AppColors.starRating,
+                  note: 'star glyph only — the numeral informs'),
               _Tok('favorite', AppColors.favorite, floor: kFloorNonText),
-              _Tok('gold', AppColors.gold, floor: kFloorNonText),
+              _Tok('gold', AppColors.gold,
+                  floor: kFloorNonText, note: 'gold-as-state'),
             ]),
           ),
           GoldenSection(

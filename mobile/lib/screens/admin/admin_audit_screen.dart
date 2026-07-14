@@ -118,7 +118,7 @@ class _ActionFilter extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.secondary,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderStrong),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(

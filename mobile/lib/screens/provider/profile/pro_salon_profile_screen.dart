@@ -280,13 +280,14 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                     DropdownMenuItem(value: c.$1, child: Text(c.$2)),
                 ],
                 onChanged: (v) => setState(() => _category = v ?? _category),
-                decoration: InputDecoration(
+                // Borders come from the theme (borderStrong + the focus ring).
+                // It used to set only `border:` — which InputDecorator uses as a
+                // FALLBACK, so the theme's `enabledBorder` won at rest anyway and
+                // the custom radius silently applied to nothing. Inheriting makes
+                // it match every other field on this screen.
+                decoration: const InputDecoration(
                   filled: true,
                   fillColor: AppColors.secondary,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
                 ),
               ),
               const SizedBox(height: AppTheme.spacingM),
@@ -314,7 +315,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.border),
+                      side: const BorderSide(color: AppColors.borderStrong),
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -265,7 +265,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                       decoration: BoxDecoration(
                         borderRadius:
                             BorderRadius.circular(AppTheme.radiusMedium),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: AppColors.borderStrong),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,

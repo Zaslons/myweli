@@ -121,7 +121,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           onPressed: () => context.push('/pro/apercu'),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.textPrimary,
-            side: const BorderSide(color: AppColors.border),
+            side: const BorderSide(color: AppColors.borderStrong),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
           child: const Text('Aperçu de ma page'),

@@ -222,7 +222,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           ),
           decoration: BoxDecoration(
             border: Border.all(
-              color: AppColors.divider,
+              color: AppColors.borderStrong,
               style: BorderStyle.solid,
             ),
             borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

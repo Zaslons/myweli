@@ -45,7 +45,7 @@ class AdminSegmentedControl extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? AppColors.secondary : Colors.transparent,
           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          border: active ? Border.all(color: AppColors.border) : null,
+          border: active ? Border.all(color: AppColors.borderStrong) : null,
         ),
         child: Text(
           label,

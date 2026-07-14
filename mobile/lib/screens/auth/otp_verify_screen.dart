@@ -309,7 +309,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   }
 
   Widget _buildOtpBox(int index) {
-    final borderColor = _hasError ? AppColors.error : AppColors.border;
+    final borderColor = _hasError ? AppColors.error : AppColors.borderStrong;
     return Container(
       width: 50,
       height: 64,

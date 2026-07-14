@@ -164,7 +164,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                     backgroundColor: AppColors.surface,
                                     valueColor:
                                         const AlwaysStoppedAnimation<Color>(
-                                            AppColors.starRating),
+                                            AppColors.gold),
                                   ),
                                 ),
                                 const SizedBox(width: 8),

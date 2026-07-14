@@ -431,7 +431,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderStrong),
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         ),
         child: Row(

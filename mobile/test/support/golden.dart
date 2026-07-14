@@ -179,25 +179,53 @@ Future<void> settleMocks(WidgetTester tester, {int rounds = 1}) async {
 
 /// Focuses the field under [finder] and lets the focus TRANSITION finish.
 ///
-/// The two pumps are not superstition. Flutter's `_BorderContainer` TWEENS
-/// between the enabled and focused borders, and it only *starts* that animation
-/// on the frame where focus lands — so a single `pump(400ms)` renders frame 0
-/// of the tween, i.e. still the OLD border. One pump applies the focus, a second
-/// runs the animation out. Get this wrong and a "focused" golden silently
-/// captures an UNFOCUSED field — and `borderFocus`, the app's only focus
-/// indicator (SYSTEM.md §13.5), would never appear in any golden.
+/// Flutter's `_BorderContainer` TWEENS between the enabled and focused borders,
+/// and it only *starts* that tween on the frame where focus lands — so pumping
+/// too few times renders frame 0 of it, i.e. still the OLD border. The result is
+/// a focused field wearing its unfocused outline, and `borderFocus` — the app's
+/// only focus indicator (SYSTEM.md §13.5) — never appearing in any golden.
+///
+/// This is not hypothetical: **the PR-0.5 baseline shipped exactly that bug.**
+/// It is why the assertion below exists, and why the pump count is spelled out.
 ///
 /// Focus goes straight to the node rather than through `tester.tap`, because a
 /// tap also raises a text-selection handle — realistic, but noise in a sheet
-/// whose subject is the border.
+/// whose subject is the border. The catch is that a tap consumes an extra frame
+/// for free, and `requestFocus` does not: see the three pumps below.
 Future<void> focusAndSettle(WidgetTester tester, Finder finder) async {
   final editable = find.descendant(
     of: finder,
     matching: find.byType(EditableText),
   );
   tester.widget<EditableText>(editable).focusNode.requestFocus();
-  await tester.pump(); // focus lands; the border tween STARTS
-  await tester.pump(const Duration(milliseconds: 400)); // …and completes
+
+  // THREE pumps, and every one of them is load-bearing:
+  //   1. `FocusManager` applies the request in a microtask — i.e. AFTER this
+  //      frame's build — so the field is not focused until it lands.
+  //   2. Now the rebuild happens with `isFocused: true`, and only NOW does
+  //      `_BorderContainer` start tweening enabled → focused. This frame still
+  //      paints the OLD border (t=0 of the tween).
+  //   3. …and this one runs the tween out.
+  // Two pumps look like enough and are not: you get a focused field wearing its
+  // unfocused border. (`tester.tap` hides this by consuming a frame internally,
+  // which is why the tap-based version of this helper appeared to work.)
+  await tester.pump();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+
+  // ASSERT it, don't assume it. A golden cannot tell you it photographed the
+  // wrong thing — it quietly becomes the new truth instead. This one already did:
+  // the PR-0.5 baseline shipped a "focused" field that was never focused.
+  final decorator = tester.widget<InputDecorator>(
+    find.descendant(of: finder, matching: find.byType(InputDecorator)),
+  );
+  expect(
+    decorator.isFocused,
+    isTrue,
+    reason:
+        'the field never took focus — this golden would capture the ENABLED '
+        'border and call it the focus ring',
+  );
 }
 
 /// Captures the whole surface. [name] → `test/golden/goldens/<name>.png`.
