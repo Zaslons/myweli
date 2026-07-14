@@ -68,7 +68,24 @@ class AppTheme {
         ),
       ];
 
-  static ThemeData get lightTheme {
+  /// The app's theme. Production passes no [fontFamily], so text renders in the
+  /// platform's system font (SF Pro on iOS, Roboto on Android) — unchanged.
+  static ThemeData get lightTheme => themeData();
+
+  /// [fontFamily] pins the typeface for every text style the theme sets.
+  ///
+  /// `ThemeData(fontFamily:)` alone would NOT be enough: the styles below are
+  /// passed explicitly (the AppBar title, the three button labels, the input
+  /// label/hint, the nav labels), and an explicit style's null family wins over
+  /// the theme's. So the family is applied to each of them here, in one place.
+  ///
+  /// Only the golden tests pass it today (they pin Roboto so the rendered bytes
+  /// are reproducible — see test/support/golden.dart). It is also the seam the
+  /// brand font will use when it lands (docs/design/SYSTEM.md §22).
+  static ThemeData themeData({String? fontFamily}) {
+    TextStyle f(TextStyle style) =>
+        fontFamily == null ? style : style.copyWith(fontFamily: fontFamily);
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: const ColorScheme.light(
@@ -82,7 +99,6 @@ class AppTheme {
         onError: AppColors.secondary,
       ),
       scaffoldBackgroundColor: AppColors.background,
-      // fontFamily: 'Inter', // Using system fonts for now
       textTheme: const TextTheme(
         displayLarge: AppTextStyles.displayLarge,
         displayMedium: AppTextStyles.displayMedium,
@@ -99,14 +115,14 @@ class AppTheme {
         labelLarge: AppTextStyles.labelLarge,
         labelMedium: AppTextStyles.labelMedium,
         labelSmall: AppTextStyles.labelSmall,
-      ),
+      ).apply(fontFamily: fontFamily),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        titleTextStyle: AppTextStyles.headlineSmall.copyWith(
-          color: AppColors.textPrimary,
+        titleTextStyle: f(
+          AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),
         ),
         iconTheme: const IconThemeData(
           color: AppColors.textPrimary,
@@ -139,11 +155,11 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
-        labelStyle: AppTextStyles.labelMedium.copyWith(
-          color: AppColors.textSecondary,
+        labelStyle: f(
+          AppTextStyles.labelMedium.copyWith(color: AppColors.textSecondary),
         ),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textTertiary,
+        hintStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.textTertiary),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -159,7 +175,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
-          textStyle: AppTextStyles.labelLarge,
+          textStyle: f(AppTextStyles.labelLarge),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -174,7 +190,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
-          textStyle: AppTextStyles.labelLarge,
+          textStyle: f(AppTextStyles.labelLarge),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -185,7 +201,7 @@ class AppTheme {
             vertical: spacingS,
           ),
           minimumSize: const Size(0, 40),
-          textStyle: AppTextStyles.labelLarge,
+          textStyle: f(AppTextStyles.labelLarge),
         ),
       ),
       cardTheme: CardThemeData(
@@ -201,14 +217,14 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.secondary,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textTertiary,
         type: BottomNavigationBarType.fixed,
         elevation: 3,
-        selectedLabelStyle: AppTextStyles.labelSmall,
-        unselectedLabelStyle: AppTextStyles.labelSmall,
+        selectedLabelStyle: f(AppTextStyles.labelSmall),
+        unselectedLabelStyle: f(AppTextStyles.labelSmall),
       ),
     );
   }
