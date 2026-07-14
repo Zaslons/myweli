@@ -427,7 +427,7 @@ void main() {
         final rows = await salonFeed.listForUser('acc-owner');
         expect(rows, hasLength(1));
         expect(rows.single['title'], 'Nouvelle réservation');
-        expect(rows.single['route'], '/pro/appointment/$id');
+        expect(rows.single['route'], '/pro/appointment/$id?salon=provider1');
         // The device survived (LogPushProvider reports nothing invalid).
         expect(await salonDevices.tokensForUser('acc-owner'), ['tok-owner']);
       },

@@ -133,11 +133,15 @@ void main() {
     expect(s.data['event'], 'new_booking');
     expect(s.data['appointmentId'], 'a1');
     expect(s.data['providerId'], 'p1');
-    expect(s.data['route'], '/pro/appointment/a1');
+    // The route carries the salon: the pro app switches to it before opening
+    // the booking (a multi-salon owner may be on another one).
+    expect(s.data['route'], '/pro/appointment/a1?salon=p1');
 
     final rows = await feed.listForUser('acc-owner');
     expect(rows.single['type'], 'general');
-    expect(rows.single['route'], '/pro/appointment/a1');
+    // The FEED row has no `providerId` field of its own — the salon rides in
+    // the route, so a tap from the notification center switches too.
+    expect(rows.single['route'], '/pro/appointment/a1?salon=p1');
   });
 
   test('own-scope staff: notified ONLY for their own artist’s bookings; an '
