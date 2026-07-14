@@ -5,7 +5,7 @@ import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
 /// = outline. Tokens only.
 export function TeamRoleChip({ role }: { role: TeamRole }) {
   const styles: Record<TeamRole, string> = {
-    owner: 'bg-starRating/15 text-textPrimary border border-starRating/40',
+    owner: 'bg-gold/15 text-textPrimary border border-gold/40',
     manager: 'bg-primary text-secondary',
     reception: 'border border-border text-textSecondary',
     staff: 'border border-border text-textSecondary',

@@ -55,7 +55,7 @@ export function HomeSearch({
       </datalist>
       <button
         type="submit"
-        className="rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+        className="rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
       >
         Rechercher
       </button>
