@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/di/dependency_injection.dart';
+import '../../../core/push/system_settings.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/notifications_provider.dart';
+import '../../../services/interfaces/push_notification_service_interface.dart';
 import '../../../widgets/notifications/notifications_list.dart';
+import '../../../widgets/push/push_blocked_banner.dart';
 
 /// The salon's notification centre — what the dashboard bell finally opens.
 ///
@@ -15,9 +20,53 @@ import '../../../widgets/notifications/notifications_list.dart';
 /// salon before opening the booking.
 ///
 /// The list itself is the shared [NotificationsList]; only the chrome differs
-/// from the consumer centre (no bottom nav).
-class ProNotificationsScreen extends StatelessWidget {
-  const ProNotificationsScreen({super.key});
+/// from the consumer centre (no bottom nav). The pro app has no preferences
+/// screen, so this is also where a salon learns that its phone is blocking
+/// notifications — and how to fix it.
+class ProNotificationsScreen extends StatefulWidget {
+  const ProNotificationsScreen({
+    super.key,
+    this.openSettings = openSystemNotificationSettings,
+    this.permissionStatus,
+  });
+
+  /// Test seams.
+  final SettingsOpener openSettings;
+  final Future<PushPermissionStatus> Function()? permissionStatus;
+
+  @override
+  State<ProNotificationsScreen> createState() => _ProNotificationsScreenState();
+}
+
+class _ProNotificationsScreenState extends State<ProNotificationsScreen>
+    with WidgetsBindingObserver {
+  bool _osDenied = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshOsPermission());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshOsPermission();
+  }
+
+  Future<void> _refreshOsPermission() async {
+    final read = widget.permissionStatus ??
+        serviceLocator.pushNotificationService.permissionStatus;
+    final status = await read();
+    if (!mounted) return;
+    setState(() => _osDenied = status == PushPermissionStatus.denied);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +91,27 @@ class ProNotificationsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const NotificationsList(
-        emptyTitle: 'Aucune notification',
-        emptyDescription:
-            'Les réservations, annulations et acomptes de vos clients '
-            'apparaîtront ici.',
+      body: Column(
+        children: [
+          if (_osDenied)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                0,
+              ),
+              child: PushBlockedBanner(onOpenSettings: widget.openSettings),
+            ),
+          const Expanded(
+            child: NotificationsList(
+              emptyTitle: 'Aucune notification',
+              emptyDescription:
+                  'Les réservations, annulations et acomptes de vos clients '
+                  'apparaîtront ici.',
+            ),
+          ),
+        ],
       ),
     );
   }

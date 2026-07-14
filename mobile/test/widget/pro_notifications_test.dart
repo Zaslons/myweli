@@ -9,6 +9,7 @@ import 'package:myweli/models/app_notification.dart';
 import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/screens/provider/notifications/pro_notifications_screen.dart';
 import 'package:myweli/services/interfaces/notification_service_interface.dart';
+import 'package:myweli/services/interfaces/push_notification_service_interface.dart';
 import 'package:myweli/widgets/common/empty_state.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
@@ -140,7 +141,11 @@ void main() {
     await tester.pumpWidget(
       host(
         NotificationsProvider(service: service),
-        child: const ProNotificationsScreen(),
+        child: ProNotificationsScreen(
+          // This file doesn't boot DI; the OS-permission read is injected
+          // (its own coverage lives in push_blocked_banner_test).
+          permissionStatus: () async => PushPermissionStatus.granted,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -164,7 +169,12 @@ void main() {
 
     final provider = NotificationsProvider(service: service);
     await tester.pumpWidget(
-      host(provider, child: const ProNotificationsScreen()),
+      host(
+        provider,
+        child: ProNotificationsScreen(
+          permissionStatus: () async => PushPermissionStatus.granted,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
