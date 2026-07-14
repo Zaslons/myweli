@@ -1,0 +1,65 @@
+name: Goldens — regenerate
+
+# The no-Docker path for regenerating the golden baseline.
+#
+# Goldens are authored on LINUX and only on Linux (Flutter rasterizes glyphs
+# through CoreText on macOS and FreeType here — same font, different pixels), so
+# they cannot be regenerated on a developer's Mac. `tool/update_goldens.sh` does
+# it locally in the pinned Linux image; this does the same thing on the real
+# runner when Docker isn't an option.
+#
+# Run it from the Actions tab against your branch, download the `goldens`
+# artifact, unzip it over mobile/test/golden/goldens/, review every changed PNG,
+# and commit.
+#
+# It deliberately does NOT push a commit: a golden is a design decision, and a
+# bot that silently rewrites the baseline would let a regression become the new
+# truth without anyone looking at it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TZ: UTC
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  regenerate:
+    name: Regenerate on ubuntu (the golden authority)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Must match ci.yml + tool/update_goldens.sh. The SDK also SHIPS the
+          # fonts the goldens load (Roboto + MaterialIcons), so the version pin
+          # is what keeps the typeface identical between here and the gate.
+          flutter-version: 3.38.6
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Regenerate the baseline
+        run: flutter test test/golden --update-goldens
+
+      - name: Show what moved
+        if: always()
+        run: git status --short test/golden/goldens/ || true
+
+      - name: Upload the goldens
+        uses: actions/upload-artifact@v7
+        with:
+          name: goldens
+          path: mobile/test/golden/goldens/
+          if-no-files-found: error
