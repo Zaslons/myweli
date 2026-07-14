@@ -52,7 +52,8 @@ class _ColorSheet extends StatelessWidget {
           GoldenSection(
             title: 'Brand & surface',
             child: _Swatches([
-              _Tok('primary', AppColors.primary, note: 'brand fill — never text'),
+              _Tok('primary', AppColors.primary,
+                  note: 'brand fill — never text'),
               _Tok('primaryLight', AppColors.primaryLight, note: 'hover'),
               _Tok('secondary', AppColors.secondary, note: 'card'),
               _Tok('background', AppColors.background),
@@ -102,7 +103,8 @@ class _ColorSheet extends StatelessWidget {
             title: 'Category (sanctioned exception)',
             child: _Swatches([
               _Tok('categorySpa', AppColors.categorySpa, floor: kFloorText),
-              _Tok('categoryBarber', AppColors.categoryBarber, floor: kFloorText),
+              _Tok('categoryBarber', AppColors.categoryBarber,
+                  floor: kFloorText),
               _Tok('categorySalon', AppColors.categorySalon, floor: kFloorText),
             ]),
           ),

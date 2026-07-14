@@ -58,6 +58,17 @@ docker run --rm \
     flutter test test/golden --update-goldens ${FILTER:+--plain-name '${FILTER}'}
   "
 
+# The container's `flutter pub get` writes mobile/.dart_tool/package_config.json
+# — inside the mounted repo — with CONTAINER paths (/root/.pub-cache/...). Left
+# that way, `dart format` and `dart analyze` on the host then crash trying to
+# read packages that don't exist here… and `dart format` reports success while
+# formatting nothing. Which is exactly how unformatted files reach CI.
+#
+# So put the host's own package config back before returning.
+echo
+echo "→ Restoring the host's package config (the container's pub get overwrote it)…"
+(cd "${REPO_ROOT}/mobile" && flutter pub get >/dev/null)
+
 echo
 echo "✓ Done. Review every changed PNG before committing:"
 echo "    git status --short mobile/test/golden/goldens/"

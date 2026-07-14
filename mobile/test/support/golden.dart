@@ -30,11 +30,11 @@ import 'package:myweli/core/theme/app_theme.dart';
 /// silently stop working, and off Linux the runner PRINTS the reason instead of
 /// failing with a mystery pixel diff. (`group` takes an `Object? skip`, so it
 /// carries the message; `testWidgets` only takes a `bool?`.)
-final Object? kGoldensSkip = Platform.isLinux ||
-        Platform.environment['MYWELI_GOLDEN_LOCAL'] == '1'
-    ? null
-    : 'goldens are authored on Linux — run tool/update_goldens.sh '
-        '(or MYWELI_GOLDEN_LOCAL=1 to preview locally, without committing)';
+final Object? kGoldensSkip =
+    Platform.isLinux || Platform.environment['MYWELI_GOLDEN_LOCAL'] == '1'
+        ? null
+        : 'goldens are authored on Linux — run tool/update_goldens.sh '
+            '(or MYWELI_GOLDEN_LOCAL=1 to preview locally, without committing)';
 
 /// A phone. The apps have no breakpoints (SYSTEM.md §10), so this is the only
 /// surface that matters today.
@@ -59,7 +59,8 @@ bool _fontsLoaded = false;
 Future<void> loadGoldenFonts() async {
   if (_fontsLoaded) return;
 
-  final fonts = Directory('${_flutterRoot()}/bin/cache/artifacts/material_fonts');
+  final fonts =
+      Directory('${_flutterRoot()}/bin/cache/artifacts/material_fonts');
   if (!fonts.existsSync()) {
     throw StateError(
       'Font cache not found at ${fonts.path}. Goldens need the SDK fonts; '

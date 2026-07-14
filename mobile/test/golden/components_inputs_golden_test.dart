@@ -29,7 +29,8 @@ void main() {
       // a sheet that never focuses anything would never render it. Focus it the
       // way a user would, and let the border tween finish (see focusAndSettle:
       // one pump short and this captures an unfocused field).
-      await focusAndSettle(tester, find.byKey(const Key('golden-focused-field')));
+      await focusAndSettle(
+          tester, find.byKey(const Key('golden-focused-field')));
 
       await expectGolden(tester, 'components_inputs');
     });

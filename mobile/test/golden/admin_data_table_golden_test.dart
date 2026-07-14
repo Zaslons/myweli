@@ -70,7 +70,8 @@ Widget _table({
         onRetry: _noop,
         emptyTitle: 'Aucune demande en attente',
         emptyIcon: Icons.inbox_outlined,
-        emptyDescription: 'Les nouvelles demandes de vérification arriveront ici.',
+        emptyDescription:
+            'Les nouvelles demandes de vérification arriveront ici.',
       ),
     );
 
