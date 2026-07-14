@@ -13,9 +13,13 @@ import {
   validateProfile,
 } from '../../lib/pro/profile';
 import dynamic from 'next/dynamic';
+import { findCity } from '../../lib/api/localities';
+import { centerOf } from '../../lib/discovery/map';
 import { hasCap } from '../../lib/pro/team';
+import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 import { CompteDangerSection } from './CompteDangerSection';
+import { LocalityPicker } from './LocalityPicker';
 import { TeamRoleChip } from './TeamRoleChip';
 
 // MapLibre is browser-only; the pin picker loads with the page (authed, not
@@ -37,6 +41,9 @@ const input =
 
 export function ProfilClient() {
   const router = useRouter();
+  // The locality tree (multi-pays MP3) — the area picker + the map's
+  // unplaced-pin center.
+  const { tree } = useLocalities();
   const [providerId, setProviderId] = useState('');
   // Kept whole for the export assembly (audit 11.5).
   const [profile, setProfile] = useState<ProProfile | null>(null);
@@ -156,22 +163,15 @@ export function ProfilClient() {
             onChange={(e) => set('address', e.target.value)}
           />
         </Field>
-        <div className="flex gap-s">
-          <Field label="Commune" className="flex-1">
-            <input
-              className={input}
-              value={form.commune}
-              onChange={(e) => set('commune', e.target.value)}
-            />
-          </Field>
-          <Field label="Ville" className="flex-1">
-            <input
-              className={input}
-              value={form.city}
-              onChange={(e) => set('city', e.target.value)}
-            />
-          </Field>
-        </div>
+        {/* Multi-pays MP3: the area picker writes areaId — the serveur en
+            dérive commune/ville (et fuseau/devise, T57). */}
+        <LocalityPicker
+          areaId={form.areaId}
+          legacyCommune={form.commune}
+          onChange={(areaId) => set('areaId', areaId)}
+          fallbackValue={form.commune}
+          onFallbackChange={(v) => set('commune', v)}
+        />
         <Field label="Téléphone">
           <input
             className={input}
@@ -205,6 +205,10 @@ export function ProfilClient() {
           <LocationPicker
             latitude={form.latitude}
             longitude={form.longitude}
+            fallbackCenter={centerOf(
+              findCity(tree, profile?.provider.citySlug ?? '') ??
+                tree.countries[0]?.cities[0],
+            )}
             onChange={(lat, lng) =>
               setForm((f) =>
                 f ? { ...f, latitude: lat, longitude: lng } : f,

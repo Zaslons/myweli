@@ -20,8 +20,10 @@ import {
 } from '../../lib/pro/lifecycle';
 import { hasCap } from '../../lib/pro/team';
 import { rescheduleAppointment } from '../../lib/api/pro';
+import { hhmm, minutesOfDay } from '../../lib/pro/journal';
+import { combineDateTime } from '../../lib/pro/manual-booking';
 import type { ProAppointment } from '../../lib/pro/today';
-import { isSameSalonDay, salonFormatter } from '../../lib/time';
+import { isSameSalonDay, salonDayKey, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
@@ -71,9 +73,15 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     if (!reprogDate || !reprogTime) return;
     setBusy(true);
     setReprogError(null);
+    // The picked wall-clock IS salon time — offset-aware build through the
+    // seam (multi-pays MP3).
     const r = await rescheduleAppointment(
       id,
-      `${reprogDate}T${reprogTime}:00.000Z`,
+      combineDateTime(
+        reprogDate,
+        reprogTime,
+        profile?.provider.timezone ?? undefined,
+      ) ?? '',
     );
     setBusy(false);
     if (!r.ok) {
@@ -110,6 +118,9 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     return <p className="text-error">Rendez-vous introuvable.</p>;
   }
 
+  // The ACTIVE salon's market (multi-pays MP3).
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
   const serviceName = (sid: string) =>
     profile?.provider.services?.find((s) => s.id === sid)?.name;
   const services =
@@ -160,16 +171,22 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         </div>
 
         <dl className="mt-m space-y-xs text-sm">
-          <Row label="Date" value={formatDateTimeFr(appt.appointmentDate)} />
+          <Row
+            label="Date"
+            value={formatDateTimeFr(appt.appointmentDate, tz)}
+          />
           {appt.clientPhone ? (
             <Row label="Téléphone" value={appt.clientPhone} />
           ) : null}
           <Row label="Prestations" value={services} />
           {typeof appt.totalPrice === 'number' ? (
-            <Row label="Total" value={formatFcfa(appt.totalPrice)} />
+            <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
           {appt.depositAmount ? (
-            <Row label="Acompte annoncé" value={formatFcfa(appt.depositAmount)} />
+            <Row
+              label="Acompte annoncé"
+              value={formatFcfa(appt.depositAmount, currency)}
+            />
           ) : null}
         </dl>
 
@@ -237,13 +254,13 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         {appt.arrivedAt ? (
           <p className="mt-m text-sm text-textSecondary">
             Arrivé à{' '}
-            {salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(
+            {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
               new Date(appt.arrivedAt),
             )}
           </p>
         ) : appt.status === 'confirmed' &&
           canManageAll &&
-          isSameSalonDay(new Date(appt.appointmentDate), new Date()) ? (
+          isSameSalonDay(new Date(appt.appointmentDate), new Date(), tz) ? (
           <div className="mt-m">
             <Button
               variant="secondary"
@@ -274,8 +291,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                 onClick={() => {
                   setReprog(true);
                   setReprogError(null);
-                  setReprogDate(appt.appointmentDate.slice(0, 10));
-                  setReprogTime(appt.appointmentDate.slice(11, 16));
+                  // Prefill with the SALON wall-clock (multi-pays MP3).
+                  setReprogDate(
+                    salonDayKey(new Date(appt.appointmentDate), tz),
+                  );
+                  setReprogTime(hhmm(minutesOfDay(appt.appointmentDate, tz)));
                 }}
               >
                 Reprogrammer

@@ -24,6 +24,13 @@ export type Appointment = {
   depositMobileMoneyNumber?: string | null;
   serviceNames?: string[];
   salonEntered?: boolean;
+  /// Multi-pays carriers: `currency` is stamped at booking creation (MP1 —
+  /// immutable, the Fresha rule); the provider* fields ride the enrichment
+  /// so the account renders the SALON's clock, money and country label.
+  currency?: string | null;
+  providerTimezone?: string | null;
+  providerCurrency?: string | null;
+  providerCountryCode?: string | null;
 };
 
 /// The « Réserver à nouveau » link, carrying the rebook prefill (K2). The hub

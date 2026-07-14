@@ -43,7 +43,7 @@ declares which module it belongs to.
 | 13 | Inventory | `inventory` | Складской учет | 🔮 V3 |
 | 14 | Multi-location networks | `network` | Сети | 🔮 V3 |
 | 15 | Trust & operations | `trust` | *(no YCLIENTS analog — marketplace-specific)* | 🟢 built |
-| 16 | Multi-pays (marchés · fuseaux · devises · opérateurs) | `multi-pays` | Город филиала / каталог городов | 📘 end version documented · activation per wave |
+| 16 | Multi-pays (marchés · fuseaux · devises · opérateurs) | `multi-pays` | Город филиала / каталог городов | 🟢 machinery complete (MP1→MP3) · markets = data |
 
 **Cross-cutting foundations** (not modules — every module stands on them):
 identity & auth (Google/Apple/email OTP, JWT + rotating refresh), the design
@@ -246,7 +246,7 @@ than a SaaS clone: consumers must be able to trust salons they've never met.
   admin Flutter-web app (`main_admin.dart`) at admin.myweli.com.
 - **Module doc:** `docs/modules/trust.md` *(to write)*.
 
-## 16. Multi-pays — `multi-pays` 📘
+## 16. Multi-pays — `multi-pays` 🟢
 
 Cross-cutting, not a feature module: **how MyWeli expands beyond Côte
 d'Ivoire without refactoring** — decided 2026-07-13 after verified research
@@ -260,12 +260,14 @@ d'Ivoire without refactoring** — decided 2026-07-13 after verified research
   sequencing like Planity** — Wave 1 (UTC+0 · XOF: Sénégal/Mali/Burkina/Togo)
   is data-only; Wave 2 (Bénin/Niger, UTC+1) flips the timezone seam; Wave 3
   (CEMAC, XAF) activates the currency field. Francophone-only by decision.
-- **Built:** the salon-time seam (slice 1, 2026-07-13,
+- **Built (COMPLETE, 2026-07-14):** the salon-time seam (slice 1,
   [design/timezone-salon-time.md](design/timezone-salon-time.md)) + the §9
-  guardrail pins; **the full machinery (user decision 2026-07-14): locality
-  tree + `GET /localities`, per-salon timezone/currency, operator catalog,
-  nested SEO tree — program MP1→MP3,
-  [design/multi-pays-end-version.md](design/multi-pays-end-version.md).**
+  guardrail pins, then **the full machinery — program MP1 backend → MP2
+  mobile → MP3 web
+  ([design/multi-pays-end-version.md](design/multi-pays-end-version.md)):
+  locality tree + `GET /localities`, per-salon timezone/currency through
+  every surface, operator catalogs, `areaId` write paths + pickers, the
+  nested SEO tree (`/coiffure/abidjan/cocody`) with permanent redirects.**
   A new market is now purely seed data + the launch checklist.
 - **Module doc:** **[docs/modules/multi-pays.md](modules/multi-pays.md)** ✅
   (2026-07-13 — end version, waves, per-market launch checklist).

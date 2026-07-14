@@ -226,6 +226,11 @@ test('profil: edit + save; acompte: enable + save', async ({ page }) => {
   await page.getByRole('link', { name: 'Profil', exact: true }).click();
   await expect(page).toHaveURL(/\/pro\/profil/);
   await page.getByLabel('Nom du salon').fill('Beauté Divine Web');
+  // Multi-pays MP3: the commune is a locality PICKER (writes areaId; the
+  // server derives commune/ville/fuseau/devise — T57).
+  await expect(page.getByLabel('Ville')).toHaveValue('abidjan');
+  await expect(page.getByLabel('Commune')).toHaveValue('cocody');
+  await page.getByLabel('Commune').selectOption('marcory');
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByText('Profil enregistré.')).toBeVisible();
 

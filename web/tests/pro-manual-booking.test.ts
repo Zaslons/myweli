@@ -30,6 +30,12 @@ describe('combineDateTime', () => {
     );
   });
 
+  it('the picked wall-clock IS salon time — offset-aware (MP3)', () => {
+    expect(combineDateTime('2026-12-01', '14:30', 'Africa/Libreville')).toBe(
+      '2026-12-01T13:30:00.000Z',
+    );
+  });
+
   it('rejects incomplete/malformed parts', () => {
     expect(combineDateTime('', '14:30')).toBeNull();
     expect(combineDateTime('2026-12-01', '')).toBeNull();

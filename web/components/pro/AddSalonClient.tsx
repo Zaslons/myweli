@@ -11,6 +11,7 @@ import {
 } from '../../lib/api/pro';
 import { teamErrorCta, teamErrorMessage } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { LocalityPicker } from './LocalityPicker';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -34,6 +35,9 @@ export function AddSalonClient() {
   const [businessType, setBusinessType] = useState('salon');
   const [phone, setPhone] = useState<string | undefined>(undefined);
   const [address, setAddress] = useState('');
+  // Multi-pays MP3: the locality area — optional here, the publish gate
+  // enforces it (T57).
+  const [areaId, setAreaId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorCode, setErrorCode] = useState<string | undefined>();
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -74,6 +78,7 @@ export function AddSalonClient() {
       businessType,
       phoneNumber: phone,
       address: address.trim() === '' ? undefined : address.trim(),
+      areaId: areaId ?? undefined,
     });
     if (!r.ok || !r.salon) {
       setBusy(false);
@@ -141,6 +146,12 @@ export function AddSalonClient() {
           className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
         />
       </label>
+
+      {/* Multi-pays MP3: où se trouve le salon (recommandé — requis pour la
+          mise en ligne). */}
+      <div className="mt-m">
+        <LocalityPicker areaId={areaId} onChange={setAreaId} />
+      </div>
 
       {fieldError ? (
         <p className="mt-s text-sm text-error">{fieldError}</p>

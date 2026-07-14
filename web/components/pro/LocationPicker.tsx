@@ -3,7 +3,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Map, Marker, NavigationControl } from '@vis.gl/react-maplibre';
 import { useState } from 'react';
-import { ABIDJAN_CENTER } from '../../lib/discovery/map';
+import { FALLBACK_CENTER } from '../../lib/discovery/map';
 import { MAP_STYLE } from '../map/salon-pin';
 
 /// The salon pin picker (docs/design/pro-salon-lifecycle.md L1): tap or drag
@@ -13,10 +13,14 @@ export function LocationPicker({
   latitude,
   longitude,
   onChange,
+  fallbackCenter = FALLBACK_CENTER,
 }: {
   latitude: number | null;
   longitude: number | null;
   onChange: (lat: number, lng: number) => void;
+  /// Unplaced-pin center — the salon city's centroid from the locality tree
+  /// (multi-pays MP3); the Wave-0 constant otherwise.
+  fallbackCenter?: [number, number];
 }) {
   const placed = latitude != null && longitude != null;
   const [note, setNote] = useState<string | null>(null);
@@ -37,8 +41,8 @@ export function LocationPicker({
       <div className="h-64 w-full overflow-hidden rounded-lg border border-border md:h-80">
         <Map
           initialViewState={{
-            longitude: longitude ?? ABIDJAN_CENTER[0],
-            latitude: latitude ?? ABIDJAN_CENTER[1],
+            longitude: longitude ?? fallbackCenter[0],
+            latitude: latitude ?? fallbackCenter[1],
             zoom: placed ? 15 : 11,
           }}
           mapStyle={MAP_STYLE}

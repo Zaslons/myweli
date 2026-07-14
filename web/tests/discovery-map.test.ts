@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Provider } from '../lib/api/providers';
 import {
-  ABIDJAN_CENTER,
+  FALLBACK_CENTER,
   boundsFor,
+  centerOf,
   markerColor,
   withCoords,
 } from '../lib/discovery/map';
@@ -37,10 +38,18 @@ describe('withCoords', () => {
   });
 });
 
+describe('centerOf (multi-pays MP3 — city centroids from the tree)', () => {
+  it('a city centroid maps to [lng, lat]; degraded tree → the fallback', () => {
+    expect(centerOf({ lat: 0.4162, lng: 9.4673 })).toEqual([9.4673, 0.4162]);
+    expect(centerOf(null)).toEqual(FALLBACK_CENTER);
+    expect(centerOf({ lat: null, lng: null })).toEqual(FALLBACK_CENTER);
+  });
+});
+
 describe('boundsFor', () => {
-  it('null when nothing is mappable (map stays on Abidjan)', () => {
+  it('null when nothing is mappable (map stays on the fallback center)', () => {
     expect(boundsFor([])).toBeNull();
-    expect(ABIDJAN_CENTER).toEqual([-4.026, 5.336]); // the app's center, lng/lat
+    expect(FALLBACK_CENTER).toEqual([-4.026, 5.336]); // Wave-0, lng/lat
   });
 
   it('single result → a point box; multi → the enclosing box (lng/lat)', () => {

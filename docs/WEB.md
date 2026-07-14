@@ -37,8 +37,12 @@ web/
 ```
 
 ## 2. Rendering rules (pick deliberately)
-- **Public, SEO pages** (provider `/<slug>`, landing `/<categorie>-<commune>`,
-  home) → **SSG + ISR** (revalidate on profile edit) — instant, crawlable, cheap.
+- **Public, SEO pages** (provider `/<slug>`, the nested landing tree
+  `/<racine>` → `/<racine>/<ville>` → `/<racine>/<ville>/<commune>` —
+  categories AND services, multi-pays MP3 — home) → **SSG + ISR** (revalidate
+  on profile edit) — instant, crawlable, cheap. Legacy flat slugs
+  (`/coiffure-cocody`) **permanently redirect (308 ≡ 301)** to their nested
+  home — never re-emit them in links or the sitemap.
 - **Authed, app-like surfaces** (consumer account, booking funnel, pro dashboard)
   → **SSR shell + client components**; code-split per route.
 - Never client-render content that must be crawlable.
@@ -51,13 +55,21 @@ web/
   (booking/auth) call the existing hardened API endpoints — reuse their
   validation/authz/notifications; never reimplement business logic on web.
 - Lists use the API's `{items,page,pageSize,total}` pagination.
-- **Market data & salon time** — market-specific facts (communes/taxonomy,
-  operators, currency, timezone) live **only** in their seams (`lib/landing.ts`
-  / `lib/discovery.ts` / `lib/service-landing.ts`, `lib/format.ts`,
-  `lib/time.ts` once built); displayed times and day boundaries are **salon
-  time**, never the browser's
-  ([modules/multi-pays.md](modules/multi-pays.md) §3/§9). Hardcoding a market
-  fact elsewhere fails review, even when it works for CI.
+- **Market data & salon time (multi-pays MP3 — live)** — geography, operator
+  catalogs, currency and timezone are **DATA from `GET /localities`**:
+  server components read `lib/api/localities.ts` (module-cached, empty-tree
+  fallback), client components the `/api/localities` BFF via
+  `lib/use-localities.ts`. The taxonomy libs (`lib/landing.ts` /
+  `lib/service-landing.ts` / `lib/discovery.ts` / `lib/taxonomy.ts`) stay
+  pure and take geography as parameters; Mobile-Money labels/deep links go
+  through `lib/mobile-money.ts` (closed `deepLinkKind` vocabulary — T56).
+  Displayed times and day boundaries are **salon time** — thread the salon's
+  `timezone`/`currency` (provider payload, appointment carriers,
+  `getMyProvider`) into the already-parameterized `lib/time.ts` /
+  `lib/format.ts` / `lib/pro/*` helpers; build wall-clock instants ONLY via
+  `salonWallClockToUtc` ([modules/multi-pays.md](modules/multi-pays.md)
+  §3/§9). Hardcoding a market fact elsewhere fails review (grep-pinned),
+  even when it works for CI.
 
 ## 4. Auth & session (web) — BFF + httpOnly cookies
 - **BFF pattern (M5):** the browser only talks to **Next route handlers**

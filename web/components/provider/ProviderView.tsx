@@ -23,12 +23,20 @@ import { MapEmbed } from './MapEmbed';
 import { ReviewList } from './ReviewList';
 import { ServiceList } from './ServiceList';
 
-export function providerMetadata(p: Provider, slug: string): Metadata {
-  const commune = p.commune ?? 'Abidjan';
+/// The salon's place words come from ITS market fields (multi-pays MP3):
+/// commune/city ride the provider payload; the country display name is the
+/// tree lookup the caller passes (« Côte d'Ivoire » = degraded fallback).
+export function providerMetadata(
+  p: Provider,
+  slug: string,
+  countryName?: string | null,
+): Metadata {
+  const commune = p.commune ?? p.city ?? 'Abidjan';
+  const country = countryName ?? 'Côte d’Ivoire';
   const cat = categoryLabelFr(p.category);
   const title = `${p.name} — ${cat} à ${commune}`;
   const description =
-    `${p.name} : ${cat.toLowerCase()} à ${commune}, Côte d’Ivoire. ` +
+    `${p.name} : ${cat.toLowerCase()} à ${commune}, ${country}. ` +
     'Réservez en ligne — services, tarifs, horaires et avis.';
   const url = `${siteUrl}/${slug}`;
   return {
@@ -44,8 +52,11 @@ export function providerMetadata(p: Provider, slug: string): Metadata {
   };
 }
 
-function buildFaq(p: Provider): { question: string; answer: string }[] {
-  const commune = p.commune ?? 'Abidjan';
+function buildFaq(
+  p: Provider,
+  country: string,
+): { question: string; answer: string }[] {
+  const commune = p.commune ?? p.city ?? 'Abidjan';
   const items = [
     {
       question: `Comment réserver chez ${p.name} ?`,
@@ -57,7 +68,7 @@ function buildFaq(p: Provider): { question: string; answer: string }[] {
       question: `Où se trouve ${p.name} ?`,
       answer:
         `${p.name} est situé à ${commune}` +
-        `${p.address ? `, ${p.address}` : ''}, Côte d’Ivoire.`,
+        `${p.address ? `, ${p.address}` : ''}, ${country}.`,
     },
   ];
   const active = (p.services ?? []).filter((s) => s.active !== false);
@@ -66,7 +77,8 @@ function buildFaq(p: Provider): { question: string; answer: string }[] {
     items.push({
       question: `Quels sont les tarifs de ${p.name} ?`,
       answer:
-        `Les prestations démarrent à partir de ${formatFcfa(min)}. ` +
+        `Les prestations démarrent à partir de ` +
+        `${formatFcfa(min, p.currency ?? undefined)}. ` +
         'Voir la liste complète des services et tarifs sur la page.',
     });
   }
@@ -87,15 +99,20 @@ export function ProviderView({
   provider: p,
   slug,
   preview = false,
+  countryName,
 }: {
   provider: Provider;
   slug: string;
   preview?: boolean;
+  /// The salon country's display name (tree lookup on p.countryCode);
+  /// omitted → the Wave-0 fallback.
+  countryName?: string | null;
 }) {
   const url = `${siteUrl}/${slug}`;
-  const commune = p.commune ?? 'Abidjan';
+  const commune = p.commune ?? p.city ?? 'Abidjan';
+  const country = countryName ?? 'Côte d’Ivoire';
   const cat = categoryLabelFr(p.category).toLowerCase();
-  const faq = buildFaq(p);
+  const faq = buildFaq(p, country);
   const artists = p.artists ?? [];
   const min = minActivePrice(p.services);
 
@@ -119,7 +136,7 @@ export function ProviderView({
       <div className="lg:grid lg:grid-cols-3 lg:gap-l">
         <div className="lg:col-span-2">
           <p className="px-m pt-m text-textSecondary">
-            Réservez en ligne chez {p.name}, {cat} à {commune} (Côte d’Ivoire).
+            Réservez en ligne chez {p.name}, {cat} à {commune} ({country}).
             Services, tarifs, horaires et avis — réservation 24/7, sans appel.
           </p>
 
@@ -131,7 +148,7 @@ export function ProviderView({
 
           <Gallery images={(p.imageUrls ?? []).slice(1)} />
 
-          <ServiceList services={p.services ?? []} />
+          <ServiceList services={p.services ?? []} currency={p.currency} />
 
           <BeforeAfter pairs={p.beforeAfters ?? []} />
 
@@ -164,6 +181,7 @@ export function ProviderView({
             rating={p.rating}
             reviewCount={p.reviewCount}
             slug={p.slug ?? ''}
+            tz={p.timezone}
           />
 
           <MapEmbed
@@ -214,7 +232,7 @@ export function ProviderView({
           <div className="text-sm">
             <span className="text-textTertiary">À partir de </span>
             <span className="font-semibold text-textPrimary">
-              {formatFcfa(min)}
+              {formatFcfa(min, p.currency ?? undefined)}
             </span>
           </div>
         ) : (

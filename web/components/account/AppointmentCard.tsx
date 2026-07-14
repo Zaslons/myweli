@@ -18,7 +18,10 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
             {appt.providerName ?? 'Salon'}
           </p>
           <p className="mt-xs text-sm text-textSecondary">
-            {formatDateTimeFr(appt.appointmentDate)}
+            {formatDateTimeFr(
+              appt.appointmentDate,
+              appt.providerTimezone ?? undefined,
+            )}
           </p>
           {appt.serviceNames && appt.serviceNames.length > 0 ? (
             <p className="mt-xs text-sm text-textTertiary">
@@ -37,7 +40,10 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           </span>
           {typeof appt.totalPrice === 'number' ? (
             <p className="mt-s text-sm text-textPrimary">
-              {formatFcfa(appt.totalPrice)}
+              {formatFcfa(
+                appt.totalPrice,
+                appt.currency ?? appt.providerCurrency ?? undefined,
+              )}
             </p>
           ) : null}
         </div>

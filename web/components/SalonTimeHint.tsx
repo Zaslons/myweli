@@ -3,19 +3,27 @@
 import { useEffect, useState } from 'react';
 import { salonOffsetDiffers } from '../lib/time';
 
-/// « Heures affichées : heure du salon (Côte d'Ivoire) » — rendered ONLY when
-/// the viewer's device clock disagrees with the salon's (a traveler booking
-/// from abroad); visitors in Côte d'Ivoire never see it. Consumer surfaces
-/// only. Mounted-flag gated: the device offset exists client-side only, so
+/// « Heures affichées : heure du salon (…) » — rendered ONLY when the
+/// viewer's device clock disagrees with the SALON's (a traveler booking from
+/// abroad); visitors in the salon's own zone never see it. Consumer surfaces
+/// only. Multi-pays MP3: takes the salon's IANA [tz] and its country's
+/// display [countryLabel] (locality-tree lookup) — defaults keep the Wave-0
+/// copy. Mounted-flag gated: the device offset exists client-side only, so
 /// rendering before mount would mismatch the server HTML for foreign-TZ
 /// visitors. Design: docs/design/timezone-salon-time.md §2.
 export function SalonTimeHint({
   date,
+  tz,
+  countryLabel,
   deviceOffsetMin,
   className = 'mt-s text-xs text-textTertiary',
 }: {
   /// The displayed instant (defaults to now) — offsets are date-dependent.
   date?: string;
+  /// The salon's IANA timezone (null → Africa/Abidjan).
+  tz?: string | null;
+  /// The salon country's display name (null → Côte d'Ivoire).
+  countryLabel?: string | null;
   /// Test seam: inject the device offset (minutes EAST of UTC).
   deviceOffsetMin?: number;
   className?: string;
@@ -28,12 +36,12 @@ export function SalonTimeHint({
   const at = date ? new Date(date) : new Date();
   const differs =
     deviceOffsetMin === undefined
-      ? salonOffsetDiffers(at)
-      : salonOffsetDiffers(at, undefined, deviceOffsetMin);
+      ? salonOffsetDiffers(at, tz ?? undefined)
+      : salonOffsetDiffers(at, tz ?? undefined, deviceOffsetMin);
   if (!differs) return null;
   return (
     <p className={className}>
-      Heures affichées : heure du salon (Côte d’Ivoire)
+      Heures affichées : heure du salon ({countryLabel ?? 'Côte d’Ivoire'})
     </p>
   );
 }

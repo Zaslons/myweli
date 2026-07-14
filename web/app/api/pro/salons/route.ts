@@ -14,9 +14,8 @@ const TYPES = new Set(['salon', 'barber', 'spa', 'nailSalon', 'massage', 'other'
 /// POST — « Ajouter un salon » (Réseau-gated server-side, T55): 201 the new
 /// draft salon's entry · 403 `reseau_required` · 409 `salon_limit`.
 export async function POST(req: NextRequest) {
-  const { businessName, businessType, phoneNumber, address } = await req
-    .json()
-    .catch(() => ({}));
+  const { businessName, businessType, phoneNumber, address, areaId } =
+    await req.json().catch(() => ({}));
   if (
     typeof businessName !== 'string' ||
     businessName.trim() === '' ||
@@ -35,6 +34,11 @@ export async function POST(req: NextRequest) {
           : {}),
         ...(typeof address === 'string' && address.trim() !== ''
           ? { address: address.trim() }
+          : {}),
+        // Multi-pays MP3: the picked area — the server validates it against
+        // ACTIVE areas (400 invalid_area, T57).
+        ...(typeof areaId === 'string' && areaId.trim() !== ''
+          ? { areaId: areaId.trim() }
           : {}),
       }),
     }),

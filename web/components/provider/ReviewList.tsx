@@ -15,11 +15,14 @@ export function ReviewList({
   rating,
   reviewCount,
   slug,
+  tz,
 }: {
   reviews: Review[];
   rating: number;
   reviewCount: number;
   slug: string;
+  /// The salon's timezone (multi-pays MP3) — review dates in SALON time.
+  tz?: string | null;
 }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
 
@@ -66,7 +69,7 @@ export function ReviewList({
             ) : null}
             <div className="mt-xs flex items-center justify-between gap-m">
               <p className="text-xs text-textTertiary">
-                {formatDateFr(r.createdAt)}
+                {formatDateFr(r.createdAt, tz ?? undefined)}
               </p>
               <ReportAction reviewId={r.id} slug={slug} />
             </div>

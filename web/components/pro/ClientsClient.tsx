@@ -21,6 +21,9 @@ import { Button } from '../Button';
 export function ClientsClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
+  // The active salon's timezone (multi-pays MP3) — visit dates render in
+  // SALON time.
+  const [salonTz, setSalonTz] = useState<string | undefined>(undefined);
   const [items, setItems] = useState<SalonClientListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -74,6 +77,7 @@ export function ClientsClient() {
       }
       const pid = me.profile.provider.id;
       setProviderId(pid);
+      setSalonTz(me.profile.provider.timezone ?? undefined);
       await load(pid, { query: '', tag: '', page: 1 });
     })();
   }, [router, load]);
@@ -187,7 +191,7 @@ export function ClientsClient() {
                         ? ` · ${c.visits} visite${c.visits > 1 ? 's' : ''}`
                         : ''}
                       {c.lastVisitAt
-                        ? ` · dernière ${formatDateFr(c.lastVisitAt)}`
+                        ? ` · dernière ${formatDateFr(c.lastVisitAt, salonTz)}`
                         : ''}
                     </span>
                   </span>

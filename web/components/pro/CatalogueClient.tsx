@@ -145,7 +145,11 @@ export function CatalogueClient() {
               services,
               open,
               (s) => (
-                <ServiceRow service={s} onEdit={() => setOpen(s.id)} />
+                <ServiceRow
+                  service={s}
+                  currency={profile?.provider.currency}
+                  onEdit={() => setOpen(s.id)}
+                />
               ),
               (s) => (
                 <ServiceFormCard
@@ -201,9 +205,12 @@ function renderList<T extends { id: string }>(
 function ServiceRow({
   service,
   onEdit,
+  currency,
 }: {
   service: Service;
   onEdit: () => void;
+  /// The salon's currency (multi-pays MP3).
+  currency?: string | null;
 }) {
   return (
     <div className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m">
@@ -221,7 +228,7 @@ function ServiceRow({
             ? `${formatDuration(service.durationMinutes)} · `
             : ''}
           {service.price != null
-            ? priceRange(service.price, service.priceMax)
+            ? priceRange(service.price, service.priceMax, currency ?? undefined)
             : ''}
         </p>
       </div>

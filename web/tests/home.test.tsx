@@ -5,6 +5,7 @@ const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 import { HomeSearch } from '../components/home/HomeSearch';
+import { fixtureTree } from './localities.test';
 
 afterEach(() => {
   cleanup();
@@ -12,8 +13,8 @@ afterEach(() => {
 });
 
 describe('HomeSearch', () => {
-  it('routes service + commune to the existing landing', () => {
-    render(<HomeSearch />);
+  it('routes service + commune to the existing NESTED landing (MP3)', () => {
+    render(<HomeSearch tree={fixtureTree} />);
     fireEvent.change(screen.getByLabelText('Service ou salon'), {
       target: { value: 'Coiffure' },
     });
@@ -21,11 +22,20 @@ describe('HomeSearch', () => {
       target: { value: 'Cocody' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Rechercher' }));
-    expect(push).toHaveBeenCalledWith('/coiffure-cocody');
+    expect(push).toHaveBeenCalledWith('/coiffure/abidjan/cocody');
+  });
+
+  it('suggests the tree areas in the commune datalist', () => {
+    const { container } = render(<HomeSearch tree={fixtureTree} />);
+    const options = [
+      ...container.querySelectorAll('datalist option'),
+    ].map((o) => o.getAttribute('value'));
+    expect(options).toContain('Cocody');
+    expect(options).toContain('Glass'); // a second-market area rides along
   });
 
   it('routes free text to /recherche', () => {
-    render(<HomeSearch />);
+    render(<HomeSearch tree={fixtureTree} />);
     fireEvent.change(screen.getByLabelText('Service ou salon'), {
       target: { value: 'coupe afro' },
     });

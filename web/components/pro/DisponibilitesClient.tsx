@@ -190,7 +190,11 @@ export function DisponibilitesClient() {
                 key={date}
                 className="flex items-center justify-between gap-m text-sm"
               >
-                <span className="text-textPrimary">{formatDateFr(date)}</span>
+                <span className="text-textPrimary">
+                  {/* Midday anchor: a blocked DATE is a salon-day identifier,
+                      stable at any wave offset (multi-pays MP3). */}
+                  {formatDateFr(`${date}T12:00:00.000Z`)}
+                </span>
                 <button
                   type="button"
                   className="text-textTertiary underline"

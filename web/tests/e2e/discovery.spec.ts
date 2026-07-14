@@ -14,10 +14,10 @@ test('home: hero, categories, directory, FAQ + WebSite JSON-LD', async ({
   await expect(
     page.getByRole('heading', { name: 'Partout à Abidjan' }),
   ).toBeVisible();
-  // Directory links to the existing SEO landings.
+  // Directory links into the NESTED SEO landing tree (multi-pays MP3).
   await expect(
     page.getByRole('link', { name: 'Coiffure à Cocody' }),
-  ).toHaveAttribute('href', '/coiffure-cocody');
+  ).toHaveAttribute('href', '/coiffure/abidjan/cocody');
   // WebSite + SearchAction JSON-LD present.
   const ld = await page
     .locator('script[type="application/ld+json"]')
@@ -25,12 +25,12 @@ test('home: hero, categories, directory, FAQ + WebSite JSON-LD', async ({
   expect(ld.join(' ')).toContain('SearchAction');
 });
 
-test('home search: service + commune → existing landing', async ({ page }) => {
+test('home search: service + commune → the nested landing', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Service ou salon').fill('Coiffure');
   await page.getByLabel('Commune').fill('Cocody');
   await page.getByRole('button', { name: 'Rechercher' }).click();
-  await expect(page).toHaveURL(/\/coiffure-cocody/);
+  await expect(page).toHaveURL(/\/coiffure\/abidjan\/cocody/);
   await expect(
     page.getByRole('heading', { level: 1, name: 'Coiffure à Cocody' }),
   ).toBeVisible();

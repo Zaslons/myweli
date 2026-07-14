@@ -18,9 +18,11 @@ import {
   getAppointment,
   rescheduleAppointment,
 } from '../../lib/api/account';
+import { countryName } from '../../lib/api/localities';
 import { fetchSlots } from '../../lib/booking/client';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
-import { salonFormatter, salonToday } from '../../lib/time';
+import { salonDayKey, salonFormatter, salonToday } from '../../lib/time';
+import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 import { SalonTimeHint } from '../SalonTimeHint';
 import { DepositProof } from '../booking/DepositProof';
@@ -28,6 +30,9 @@ import { ReviewForm } from './ReviewForm';
 
 export function AppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
+  // Multi-pays MP3: the SALON's clock/currency ride the appointment's
+  // carriers; the tree only resolves the hint's country label (best-effort).
+  const { tree } = useLocalities();
   const [appt, setAppt] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -81,8 +86,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     setRescheduling(true);
     setReschedError(null);
     setRescheduled(false);
-    const day = a.appointmentDate.slice(0, 10);
-    const today = salonToday();
+    const tz = a.providerTimezone ?? undefined;
+    const day = salonDayKey(new Date(a.appointmentDate), tz);
+    const today = salonToday(new Date(), tz);
     const initial = day > today ? day : today;
     setReschedDate(initial);
     loadSlots(a, initial);
@@ -124,6 +130,11 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   if (notFound || !appt) {
     return <p className="text-error">Rendez-vous introuvable.</p>;
   }
+
+  // The salon's market (multi-pays): booking-stamped currency first (the
+  // Fresha rule), then the provider carrier; timezone from the carrier.
+  const tz = appt.providerTimezone ?? undefined;
+  const currency = appt.currency ?? appt.providerCurrency ?? undefined;
 
   return (
     <div>
@@ -204,7 +215,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         <dl className="mt-m space-y-xs text-sm">
-          <Row label="Date" value={formatDateTimeFr(appt.appointmentDate)} />
+          <Row
+            label="Date"
+            value={formatDateTimeFr(appt.appointmentDate, tz)}
+          />
           {appt.serviceNames && appt.serviceNames.length > 0 ? (
             <Row label="Prestations" value={appt.serviceNames.join(', ')} />
           ) : null}
@@ -213,16 +227,26 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           ) : null}
           {appt.notes ? <Row label="Notes" value={appt.notes} /> : null}
           {typeof appt.totalPrice === 'number' ? (
-            <Row label="Total" value={formatFcfa(appt.totalPrice)} />
+            <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
           {appt.depositAmount ? (
-            <Row label="Acompte" value={formatFcfa(appt.depositAmount)} />
+            <Row
+              label="Acompte"
+              value={formatFcfa(appt.depositAmount, currency)}
+            />
           ) : null}
           {typeof appt.balanceDue === 'number' ? (
-            <Row label="Reste à payer" value={formatFcfa(appt.balanceDue)} />
+            <Row
+              label="Reste à payer"
+              value={formatFcfa(appt.balanceDue, currency)}
+            />
           ) : null}
         </dl>
-        <SalonTimeHint date={appt.appointmentDate} />
+        <SalonTimeHint
+          date={appt.appointmentDate}
+          tz={appt.providerTimezone}
+          countryLabel={countryName(tree, appt.providerCountryCode)}
+        />
 
         {appt.salonEntered ? (
           <p className="mt-m text-xs text-textTertiary">
@@ -238,6 +262,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               amount={appt.depositAmount ?? 0}
               operator={appt.depositMobileMoneyOperator}
               number={appt.depositMobileMoneyNumber}
+              currency={currency}
               onAttached={load}
             />
           </div>
@@ -281,7 +306,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 <input
                   type="date"
                   aria-label="Nouvelle date"
-                  min={salonToday()}
+                  min={salonToday(new Date(), tz)}
                   value={reschedDate}
                   onChange={(e) => {
                     setReschedDate(e.target.value);
@@ -310,10 +335,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                             : 'border-border bg-secondary text-textPrimary'
                         }`}
                       >
-                        {salonFormatter({
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }).format(new Date(iso))}
+                        {salonFormatter(
+                          { hour: '2-digit', minute: '2-digit' },
+                          tz,
+                        ).format(new Date(iso))}
                       </button>
                     ))}
                   </div>

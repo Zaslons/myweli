@@ -24,8 +24,8 @@ import { ProAppointmentRow } from './ProAppointmentRow';
 type View = 'journal' | 'calendar' | 'list';
 
 // Midday anchors the key inside its salon day at any wave offset (±11 h).
-const dayLabel = (key: string) =>
-  salonFormatter({ day: 'numeric', month: 'long', year: 'numeric' }).format(
+const dayLabel = (key: string, tz?: string) =>
+  salonFormatter({ day: 'numeric', month: 'long', year: 'numeric' }, tz).format(
     new Date(`${key}T12:00:00.000Z`),
   );
 
@@ -62,6 +62,11 @@ export function RendezVousClient() {
       }
       setProfile(me.profile ?? null);
       setItems(appts.items);
+      // « Aujourd'hui » is the ACTIVE salon's day (multi-pays MP3) — the
+      // pre-profile defaults assumed Abidjan; realign before first paint.
+      const salonTz = me.profile?.provider.timezone ?? undefined;
+      setJournalDate(dateKey(new Date(), salonTz));
+      setSelected(dateKey(new Date(), salonTz));
       setLoading(false);
     })();
     return () => {
@@ -92,8 +97,11 @@ export function RendezVousClient() {
 
   const serviceName = (id: string) =>
     profile?.provider.services?.find((s) => s.id === id)?.name;
-  const dayList = appointmentsOnDate(items, selected);
-  const list = filterList(items, listTab);
+  // The ACTIVE salon's market (multi-pays MP3).
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
+  const dayList = appointmentsOnDate(items, selected, tz);
+  const list = filterList(items, listTab, new Date(), tz);
 
   // Team access R5b: own-scope roles (Collaborateur) get a read-only,
   // server-filtered planning — no creation, no drag.
@@ -144,7 +152,14 @@ export function RendezVousClient() {
                 aria-label="Jour précédent"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
-                  setJournalDate(dateKey(addDays(new Date(`${journalDate}T00:00:00Z`), -1)))
+                  // Midday anchor: ±1 day stays inside the salon day at any
+                  // wave offset.
+                  setJournalDate(
+                    dateKey(
+                      addDays(new Date(`${journalDate}T12:00:00.000Z`), -1),
+                      tz,
+                    ),
+                  )
                 }
               >
                 ‹
@@ -161,7 +176,12 @@ export function RendezVousClient() {
                 aria-label="Jour suivant"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
-                  setJournalDate(dateKey(addDays(new Date(`${journalDate}T00:00:00Z`), 1)))
+                  setJournalDate(
+                    dateKey(
+                      addDays(new Date(`${journalDate}T12:00:00.000Z`), 1),
+                      tz,
+                    ),
+                  )
                 }
               >
                 ›
@@ -169,7 +189,7 @@ export function RendezVousClient() {
               <button
                 type="button"
                 className="text-sm text-textTertiary underline"
-                onClick={() => setJournalDate(dateKey(new Date()))}
+                onClick={() => setJournalDate(dateKey(new Date(), tz))}
               >
                 Aujourd’hui
               </button>
@@ -211,9 +231,12 @@ export function RendezVousClient() {
             selected={selected}
             onFocus={setFocused}
             onSelect={setSelected}
+            tz={tz}
           />
           <div>
-            <p className="text-sm text-textTertiary">pour {dayLabel(selected)}</p>
+            <p className="text-sm text-textTertiary">
+              pour {dayLabel(selected, tz)}
+            </p>
             <div className="mt-s space-y-s">
               {dayList.length === 0 ? (
                 <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
@@ -226,6 +249,8 @@ export function RendezVousClient() {
                     appt={a}
                     serviceName={serviceName}
                     href={`/pro/rendez-vous/${a.id}`}
+                    tz={tz}
+                    currency={currency}
                   />
                 ))
               )}
@@ -262,6 +287,8 @@ export function RendezVousClient() {
                   appt={a}
                   serviceName={serviceName}
                   href={`/pro/rendez-vous/${a.id}`}
+                  tz={tz}
+                  currency={currency}
                 />
               ))
             )}

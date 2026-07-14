@@ -54,6 +54,10 @@ export function JournalGrid({
   onToast: (msg: string) => void;
 }) {
   const hours = day.hours ?? CLOSED_AXIS;
+  // The ACTIVE salon's market (multi-pays MP3): its clock places blocks, the
+  // now-line and drop instants; its currency labels the block prices.
+  const tz = profile.provider.timezone ?? undefined;
+  const currency = profile.provider.currency ?? undefined;
   const openMin = parseHhmm(hours.open);
   const columns = useMemo(() => columnsFor(day), [day]);
   const height = axisHeight(hours);
@@ -67,11 +71,11 @@ export function JournalGrid({
 
   // Live « Maintenant » line.
   useEffect(() => {
-    const tick = () => setNowTop(nowLineTop(new Date(), day.date, hours));
+    const tick = () => setNowTop(nowLineTop(new Date(), day.date, hours, tz));
     tick();
     const t = setInterval(tick, 60_000);
     return () => clearInterval(t);
-  }, [day.date, hours]);
+  }, [day.date, hours, tz]);
 
   // Auto-scroll the now-line (or ~open) into view once.
   useEffect(() => {
@@ -85,7 +89,7 @@ export function JournalGrid({
     day.appointments.filter((a) => (a.artistId ?? '') === artistId);
 
   async function drop(appt: ProAppointment, artistId: string, minute: number) {
-    const newIso = isoAt(day.date, minute);
+    const newIso = isoAt(day.date, minute, tz);
     const columnChanged = (appt.artistId ?? '') !== artistId;
     if (newIso === appt.appointmentDate && !columnChanged) return;
     const r = await rescheduleAppointment(
@@ -144,6 +148,8 @@ export function JournalGrid({
                 setQuick({ artistId: col.id, minute })
               }
               colMinW={COL_MIN_W}
+              tz={tz}
+              currency={currency}
             />
           ))}
         </div>
@@ -154,6 +160,8 @@ export function JournalGrid({
           providerId={providerId}
           appt={selected}
           membership={profile.membership}
+          tz={tz}
+          currency={currency}
           serviceName={(id) =>
             profile.provider.services?.find((s) => s.id === id)?.name
           }
@@ -171,7 +179,7 @@ export function JournalGrid({
           providerId={providerId}
           profile={profile}
           artistId={quick.artistId}
-          dateTimeIso={isoAt(day.date, quick.minute)}
+          dateTimeIso={isoAt(day.date, quick.minute, tz)}
           onClose={() => setQuick(null)}
           onCreated={() => {
             setQuick(null);
@@ -196,6 +204,8 @@ function JournalColumn({
   onDrop,
   onEmptyClick,
   colMinW,
+  tz,
+  currency,
 }: {
   artist: { id: string; name: string };
   appts: ProAppointment[];
@@ -208,6 +218,8 @@ function JournalColumn({
   onDrop: (a: ProAppointment, artistId: string, minute: number) => void;
   onEmptyClick: (minute: number) => void;
   colMinW: number;
+  tz?: string;
+  currency?: string;
 }) {
   const colRef = useRef<HTMLButtonElement>(null);
 
@@ -275,7 +287,7 @@ function JournalColumn({
 
       {/* blocks */}
       {appts.map((a) => {
-        const box = blockBox(a, openMin);
+        const box = blockBox(a, openMin, tz);
         const draggable = !readOnly && isDraggable(a);
         return (
           <button
@@ -299,14 +311,16 @@ function JournalColumn({
             style={{ top: 32 + box.top, height: box.height }}
           >
             <span className="block font-medium">
-              {salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(
+              {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
                 new Date(a.appointmentDate),
               )}{' '}
               {a.clientName ?? 'Client'}
             </span>
             {box.height > 34 ? (
               <span className="block text-textSecondary">
-                {typeof a.totalPrice === 'number' ? formatFcfa(a.totalPrice) : ''}
+                {typeof a.totalPrice === 'number'
+                  ? formatFcfa(a.totalPrice, currency)
+                  : ''}
                 {a.depositAmount && a.depositAmount > 0 ? ' · ₣' : ''}
               </span>
             ) : null}

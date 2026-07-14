@@ -18,23 +18,33 @@ import { Button } from '../Button';
 export function RevenusClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
+  // The ACTIVE salon's market (multi-pays MP3): its timezone shapes the
+  // period boundaries; its currency labels the ledger (earnings.currency is
+  // the backend-stamped authority, this is the fallback).
+  const [salonTz, setSalonTz] = useState<string | undefined>(undefined);
+  const [salonCurrency, setSalonCurrency] = useState<string | undefined>(
+    undefined,
+  );
   const [period, setPeriod] = useState<PeriodKey>('all');
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const loadPeriod = useCallback(async (pid: string, key: PeriodKey) => {
-    setLoading(true);
-    setError(false);
-    const r = await getEarnings(pid, periodRange(key));
-    if (r.status !== 200 || !r.earnings) {
-      setError(true);
+  const loadPeriod = useCallback(
+    async (pid: string, key: PeriodKey, tz?: string) => {
+      setLoading(true);
+      setError(false);
+      const r = await getEarnings(pid, periodRange(key, new Date(), tz));
+      if (r.status !== 200 || !r.earnings) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+      setEarnings(r.earnings);
       setLoading(false);
-      return;
-    }
-    setEarnings(r.earnings);
-    setLoading(false);
-  }, []);
+    },
+    [],
+  );
 
   const init = useCallback(async () => {
     setLoading(true);
@@ -50,8 +60,11 @@ export function RevenusClient() {
       return;
     }
     const pid = me.profile.provider.id;
+    const tz = me.profile.provider.timezone ?? undefined;
     setProviderId(pid);
-    await loadPeriod(pid, 'all');
+    setSalonTz(tz);
+    setSalonCurrency(me.profile.provider.currency ?? undefined);
+    await loadPeriod(pid, 'all', tz);
   }, [router, loadPeriod]);
 
   useEffect(() => {
@@ -60,8 +73,10 @@ export function RevenusClient() {
 
   function pick(key: PeriodKey) {
     setPeriod(key);
-    if (providerId) loadPeriod(providerId, key);
+    if (providerId) loadPeriod(providerId, key, salonTz);
   }
+
+  const currency = earnings?.currency ?? salonCurrency;
 
   return (
     <div className="max-w-3xl">
@@ -103,7 +118,7 @@ export function RevenusClient() {
           <div className="mt-l rounded-xl border border-border bg-secondary p-l text-center">
             <p className="text-sm text-textSecondary">Total</p>
             <p className="mt-xs text-3xl font-semibold text-textPrimary">
-              {formatFcfa(earnings.totalEarnings)}
+              {formatFcfa(earnings.totalEarnings, currency)}
             </p>
           </div>
 
@@ -119,10 +134,10 @@ export function RevenusClient() {
                   className="flex items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
                 >
                   <span className="text-sm text-textPrimary">
-                    {formatDateTimeFr(t.date)}
+                    {formatDateTimeFr(t.date, salonTz)}
                   </span>
                   <span className="text-sm font-semibold text-textPrimary">
-                    {formatFcfa(t.amount)}
+                    {formatFcfa(t.amount, t.currency ?? currency)}
                   </span>
                 </li>
               ))}

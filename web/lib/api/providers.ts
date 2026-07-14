@@ -1,9 +1,8 @@
-import { buildLandingSlug, categorySlugForApiKey } from '../landing';
-import {
-  buildServiceLandingSlug,
-  serviceSlugsForName,
-} from '../service-landing';
+import { categorySlugForApiKey } from '../landing';
+import { serviceSlugsForName } from '../service-landing';
+import { slugify } from '../slug';
 import { api } from './client';
+import { allAreas, type LocalityTree } from './localities';
 import type { components } from './schema';
 
 export type Provider = components['schemas']['Provider'];
@@ -85,20 +84,42 @@ export async function searchProviders(opts: {
   }
 }
 
-/// Landing slugs (category-commune) that actually have providers — for
+/// A landing route param triple ({slug}/{city}/{area}) — nested URLs
+/// (multi-pays MP3).
+export type LandingParams = { slug: string; city: string; area: string };
+
+/// The salon's (city, area) slugs in the locality tree — from the MP1
+/// `areaId` when present, else a slug match on the legacy commune name.
+function areaParamsOf(
+  p: Provider,
+  tree: LocalityTree,
+): { city: string; area: string } | null {
+  const areaSlug = p.areaId ?? (p.commune ? slugify(p.commune) : null);
+  if (!areaSlug) return null;
+  for (const { city, area } of allAreas(tree)) {
+    if (area.slug === areaSlug) return { city: city.slug, area: area.slug };
+  }
+  return null;
+}
+
+/// Category×area landing params that actually have providers — for
 /// generateStaticParams + the sitemap. Derived from the live catalogue.
-export async function getLandingSlugs(): Promise<string[]> {
+export async function getLandingParams(
+  tree: LocalityTree,
+): Promise<LandingParams[]> {
   try {
     const { data } = await api.GET('/providers', {
       params: { query: { pageSize: 50 } },
     });
-    const seen = new Set<string>();
+    const seen = new Map<string, LandingParams>();
     for (const p of data?.items ?? []) {
       const catSlug = categorySlugForApiKey(p.category);
-      if (!catSlug || !p.commune) continue;
-      seen.add(buildLandingSlug(catSlug, p.commune));
+      const geo = areaParamsOf(p, tree);
+      if (!catSlug || !geo) continue;
+      const key = `${catSlug}/${geo.city}/${geo.area}`;
+      seen.set(key, { slug: catSlug, ...geo });
     }
-    return [...seen];
+    return [...seen.values()];
   } catch {
     return [];
   }
@@ -120,22 +141,25 @@ export async function listProvidersByCommune(
   }
 }
 
-/// Service-commune landing slugs with ≥1 matching provider (catalogue-derived).
-export async function getServiceLandingSlugs(): Promise<string[]> {
+/// Service×area landing params with ≥1 matching provider (catalogue-derived).
+export async function getServiceLandingParams(
+  tree: LocalityTree,
+): Promise<LandingParams[]> {
   try {
     const { data } = await api.GET('/providers', {
       params: { query: { pageSize: 50 } },
     });
-    const seen = new Set<string>();
+    const seen = new Map<string, LandingParams>();
     for (const p of data?.items ?? []) {
-      if (!p.commune) continue;
+      const geo = areaParamsOf(p, tree);
+      if (!geo) continue;
       for (const svc of p.services ?? []) {
         for (const slug of serviceSlugsForName(svc.name)) {
-          seen.add(buildServiceLandingSlug(slug, p.commune));
+          seen.set(`${slug}/${geo.city}/${geo.area}`, { slug, ...geo });
         }
       }
     }
-    return [...seen];
+    return [...seen.values()];
   } catch {
     return [];
   }

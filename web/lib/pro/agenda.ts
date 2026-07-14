@@ -1,5 +1,5 @@
 import { salonDayKey, salonFormatter } from '../time';
-import type { ProAppointment } from './today';
+import { apptDayKey, type ProAppointment } from './today';
 
 /// Pure helpers for the pro « Rendez-vous » views (Calendrier + Liste).
 /// Unit-tested. Mirrors the app's appointment screen filters. Day identity
@@ -16,8 +16,18 @@ export const LIST_TABS: { key: ListTab; label: string }[] = [
   { key: 'all', label: 'Tous' },
 ];
 
-export function dateKey(d: Date): string {
-  return salonDayKey(d);
+export function dateKey(d: Date, tz?: string): string {
+  return salonDayKey(d, tz);
+}
+
+/// The identity key of a month-grid day ANCHOR (a midnight-UTC Date used as
+/// a day identifier — zone-agnostic calendar math, NOT display; never pass a
+/// real instant here).
+export function anchorKey(d: Date): string {
+  const y = String(d.getUTCFullYear()).padStart(4, '0');
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function addDays(d: Date, n: number): Date {
@@ -31,17 +41,23 @@ export function addMonths(d: Date, n: number): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
 }
 
+/// Bookings on a SALON day key (multi-pays MP3: the instant's salon day, not
+/// the ISO string's UTC prefix).
 export function appointmentsOnDate(
   items: ProAppointment[],
   key: string,
+  tz?: string,
 ): ProAppointment[] {
   return items
-    .filter((a) => a.appointmentDate.slice(0, 10) === key)
+    .filter((a) => apptDayKey(a, tz) === key)
     .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate));
 }
 
-export function daysWithBookings(items: ProAppointment[]): Set<string> {
-  return new Set(items.map((a) => a.appointmentDate.slice(0, 10)));
+export function daysWithBookings(
+  items: ProAppointment[],
+  tz?: string,
+): Set<string> {
+  return new Set(items.map((a) => apptDayKey(a, tz)));
 }
 
 /// A 6×7 Monday-start matrix of dates for the month containing `focused`.
@@ -63,8 +79,8 @@ export function monthMatrix(focused: Date): Date[][] {
   return weeks;
 }
 
-export function monthLabelFr(d: Date): string {
-  return salonFormatter({ month: 'long', year: 'numeric' }).format(d);
+export function monthLabelFr(d: Date, tz?: string): string {
+  return salonFormatter({ month: 'long', year: 'numeric' }, tz).format(d);
 }
 
 /// Liste sub-tab filters, mirroring the app (Aujourd'hui/À venir/En attente/Tous).
@@ -72,18 +88,19 @@ export function filterList(
   items: ProAppointment[],
   tab: ListTab,
   now: Date = new Date(),
+  tz?: string,
 ): ProAppointment[] {
-  const k = dateKey(now);
+  const k = dateKey(now, tz);
   const sorted = [...items].sort((a, b) =>
     a.appointmentDate.localeCompare(b.appointmentDate),
   );
   switch (tab) {
     case 'today':
-      return sorted.filter((a) => a.appointmentDate.slice(0, 10) === k);
+      return sorted.filter((a) => apptDayKey(a, tz) === k);
     case 'upcoming':
       return sorted.filter(
         (a) =>
-          a.appointmentDate.slice(0, 10) >= k &&
+          apptDayKey(a, tz) >= k &&
           (a.status === 'pending' || a.status === 'confirmed'),
       );
     case 'pending':

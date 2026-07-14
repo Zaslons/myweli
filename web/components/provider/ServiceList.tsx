@@ -1,7 +1,14 @@
 import type { Service } from '../../lib/api/providers';
 import { formatDuration, priceRange } from '../../lib/format';
 
-export function ServiceList({ services }: { services: Service[] }) {
+export function ServiceList({
+  services,
+  currency,
+}: {
+  services: Service[];
+  /// The salon's currency (multi-pays) — omitted → XOF.
+  currency?: string | null;
+}) {
   const active = services.filter((s) => s.active !== false);
   if (active.length === 0) return null;
   return (
@@ -20,7 +27,7 @@ export function ServiceList({ services }: { services: Service[] }) {
               </p>
             </div>
             <p className="whitespace-nowrap text-textPrimary">
-              {priceRange(s.price, s.priceMax)}
+              {priceRange(s.price, s.priceMax, currency ?? undefined)}
             </p>
           </li>
         ))}

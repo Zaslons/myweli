@@ -65,7 +65,9 @@ test('staff: own planning, read-only journal, Terminé/Absent only', async ({
 
   // The dashboard is « votre planning » — no stats, no owner cards.
   await expect(
-    page.getByRole('heading', { name: 'Beauté Divine — votre planning' }),
+    // Rename-tolerant: pro.spec's profil journey renames the shared stub
+    // salon to « Beauté Divine Web » — worker scheduling decides the order.
+    page.getByRole('heading', { name: /Beauté Divine( Web)? — votre planning/ }),
   ).toBeVisible();
   await expect(page.getByText('À confirmer')).toHaveCount(0);
   await expect(page.getByText('Revenus ce mois')).toHaveCount(0);
@@ -74,7 +76,9 @@ test('staff: own planning, read-only journal, Terminé/Absent only', async ({
   // The journal: same header, the single own column, no creation.
   await page.getByRole('link', { name: 'Rendez-vous' }).click();
   await expect(
-    page.getByRole('heading', { name: 'Beauté Divine — votre planning' }),
+    // Rename-tolerant: pro.spec's profil journey renames the shared stub
+    // salon to « Beauté Divine Web » — worker scheduling decides the order.
+    page.getByRole('heading', { name: /Beauté Divine( Web)? — votre planning/ }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: '+ Nouveau rendez-vous' }),

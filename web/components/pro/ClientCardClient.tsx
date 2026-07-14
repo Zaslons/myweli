@@ -92,6 +92,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // The ACTIVE salon's market (multi-pays MP3).
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
+
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (notFound) {
     return (
@@ -301,7 +305,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                     <p>{n.body}</p>
                     <p className="mt-xs flex items-center justify-between text-xs text-textTertiary">
                       <span>
-                        {n.authorName} · {formatDateFr(n.createdAt)}
+                        {n.authorName} · {formatDateFr(n.createdAt, tz)}
                       </span>
                       <button
                         type="button"
@@ -323,7 +327,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
         <div>
           <div className="grid grid-cols-2 gap-s">
             <Stat label="Visites" value={String(card.stats.visits)} />
-            <Stat label="Dépensé" value={formatFcfa(card.stats.spentFcfa)} />
+            <Stat
+              label="Dépensé"
+              value={formatFcfa(card.stats.spentFcfa, currency)}
+            />
             <Stat
               label="Absences"
               value={String(card.stats.noShows)}
@@ -331,7 +338,9 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             />
             <Stat
               label="Dernière visite"
-              value={card.lastVisitAt ? formatDateFr(card.lastVisitAt) : '—'}
+              value={
+                card.lastVisitAt ? formatDateFr(card.lastVisitAt, tz) : '—'
+              }
             />
           </div>
 
@@ -344,7 +353,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 Prochain rendez-vous
               </p>
               <p className="mt-xs text-sm font-medium text-textPrimary">
-                {formatDateTimeFr(card.upcoming.appointmentDate)} ·{' '}
+                {formatDateTimeFr(card.upcoming.appointmentDate, tz)} ·{' '}
                 {statusLabelFr(card.upcoming.status)}
               </p>
             </Link>
@@ -366,12 +375,12 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                     className="flex items-center justify-between py-s text-sm"
                   >
                     <span className="text-textPrimary">
-                      {formatDateTimeFr(v.appointmentDate)}
+                      {formatDateTimeFr(v.appointmentDate, tz)}
                     </span>
                     <span className="flex items-center gap-s">
                       {typeof v.totalPrice === 'number' ? (
                         <span className="text-textSecondary">
-                          {formatFcfa(v.totalPrice)}
+                          {formatFcfa(v.totalPrice, currency)}
                         </span>
                       ) : null}
                       <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
