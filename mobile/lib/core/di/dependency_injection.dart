@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../services/api/api_appointment_service.dart';
 import '../../services/api/api_auth_service.dart';
 import '../../services/api/api_device_registration_service.dart';
@@ -47,6 +49,7 @@ import '../../services/mock/mock_provider_service.dart';
 import '../../services/mock/mock_push_notification_service.dart';
 import '../../services/mock/mock_review_service.dart';
 import '../../services/mock/mock_subscription_service.dart';
+import '../../services/push/fcm_push_notification_service.dart';
 import '../../services/secure_session_store.dart';
 import '../config/app_config.dart';
 import '../push/push_registration.dart';
@@ -68,6 +71,7 @@ class ServiceLocator {
   late final AppointmentServiceInterface appointmentService;
   late final FavoritesServiceInterface favoritesService;
   late final NotificationServiceInterface notificationService;
+  late final NotificationServiceInterface proNotificationService;
   late final ProServiceInterface proService;
   late final ProArtistServiceInterface proArtistService;
   late final ProClientsServiceInterface proClientsService;
@@ -112,6 +116,15 @@ class ServiceLocator {
         : MockFavoritesService();
     notificationService = AppConfig.useApiBackend
         ? ApiNotificationService(sessionStore: SecureSessionStore())
+        : MockNotificationService();
+    // The SAME feed under the provider session: /me/notifications is
+    // role-agnostic, so a salon account reads its team's notifications
+    // (docs/design/push-notifications-fcm.md §10 — the pro bell).
+    proNotificationService = AppConfig.useApiBackend
+        ? ApiNotificationService(
+            sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
+            refreshPath: '/auth/provider/refresh',
+          )
         : MockNotificationService();
     // Pro appointment surface (list + accept/reject/complete/no-show) on the
     // real backend with provider silent refresh; the rest delegates to mock.
@@ -183,12 +196,19 @@ class ServiceLocator {
         ? ApiReviewService(sessionStore: SecureSessionStore())
         : MockReviewService();
     messagingService = MockMessagingService();
-    // Push (FR-NOTIF-001, app side). The FCM token/permission seam stays on the
-    // mock until the real FcmPushNotificationService + Firebase config land in
-    // the accounts phase (docs/design/push-notifications-app.md); only this line
-    // changes then. Device registration (/me/devices) is real when the backend
-    // is on, scoped to the consumer session.
-    pushNotificationService = MockPushNotificationService();
+    // Push (FR-NOTIF-001, app side — docs/design/push-notifications-app.md).
+    // REAL FCM whenever the backend is on; the mock elsewhere (demo runs, and
+    // every `flutter test` — no test sets USE_API_BACKEND, which is exactly
+    // what keeps the suite off Firebase; pinned by di_push_wiring_test).
+    //
+    // We do NOT fall back to the mock when Firebase init fails in backend
+    // mode: the mock grants on first ask and hands out the literal token
+    // 'mock-fcm-token', which PushRegistration would then POST to the real
+    // /me/devices. The adapter degrades internally instead (null token → the
+    // registration simply no-ops). Web has no push by design.
+    pushNotificationService = AppConfig.useApiBackend && !kIsWeb
+        ? FcmPushNotificationService()
+        : MockPushNotificationService();
     deviceRegistrationService = AppConfig.useApiBackend
         ? ApiDeviceRegistrationService(sessionStore: SecureSessionStore())
         : MockDeviceRegistrationService();

@@ -5,12 +5,14 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
+import 'package:myweli/services/mock/mock_notification_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
@@ -64,6 +66,12 @@ void main() {
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
+        // The bell's feed (its unread badge) — the pro app runs the shared
+        // NotificationsProvider on its own session.
+        ChangeNotifierProvider(
+          create: (_) =>
+              NotificationsProvider(service: MockNotificationService()),
+        ),
       ],
       child: MaterialApp.router(routerConfig: router),
     );

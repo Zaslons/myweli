@@ -59,7 +59,13 @@ class SalonNotifier {
       final title = _title(event);
       final body = _body(event, appointment, tzName);
       final id = appointment['id'];
-      final route = id != null ? '/pro/appointment/$id' : '/pro/appointments';
+      // The route carries its SALON (`?salon=`): a multi-salon owner may be
+      // signed in on another one, and the pro app switches before opening the
+      // booking (R6). The push `data` also carries `providerId`; the in-app
+      // FEED row has only this route, which is why the salon rides IN it.
+      final route = id != null
+          ? '/pro/appointment/$id?salon=$providerId'
+          : '/pro/appointments';
 
       for (final accountId in recipients) {
         // The push channel honours the account's opt-out; the feed row is a

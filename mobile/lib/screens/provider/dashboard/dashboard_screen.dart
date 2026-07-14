@@ -12,6 +12,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/pro_membership.dart';
+import '../../../providers/notifications_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
@@ -60,6 +61,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Provider.of<ProDashboardProvider>(context, listen: false);
         _loadedForSalon = _resolvedProviderId(context);
         dashboardProvider.loadDashboardStats(_loadedForSalon!);
+        // The bell's unread badge (the salon's notification feed).
+        unawaited(context.read<NotificationsProvider>().load());
         _maybeAskPush();
       }
     });
@@ -85,9 +88,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('Tableau de bord'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+          Consumer<NotificationsProvider>(
+            builder: (context, notifications, _) {
+              final unread = notifications.unreadCount;
+              final bell = IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: () => context.push('/pro/notifications'),
+              );
+              if (unread == 0) return bell;
+              return Badge.count(
+                count: unread,
+                backgroundColor: AppColors.error,
+                textColor: AppColors.secondary,
+                offset: const Offset(-6, 6),
+                child: bell,
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.account_circle),

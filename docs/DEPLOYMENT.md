@@ -65,10 +65,61 @@ DB tier — **upgrade to a paid plan (backups + no 90-day expiry) before launch.
 Keys → `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`,
 `TWILIO_WHATSAPP_FROM`, `MESSAGING_WEBHOOK_SECRET`.
 
-**B4. Firebase/FCM** (spec: push-notifications-fcm): create project; add iOS +
-Android apps (download `GoogleService-Info.plist` + `google-services.json`); create
-a service account. Keys → `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`
-(keep `\n` escapes).
+**B4. Firebase/FCM** — the app code is DONE (real `firebase_messaging`, both
+apps); what's left is console work. Specs:
+[push-notifications-fcm.md](design/push-notifications-fcm.md) (backend) +
+[push-notifications-app.md](design/push-notifications-app.md) (app).
+
+1. **Create the Firebase project.**
+2. **Register TWO Android apps** — one per flavor, matching the applicationIds:
+   `com.myweli.app` (consumer) and `com.myweli.pro` (pro).
+3. **Download the two `google-services.json`** and drop each in its flavor's
+   source set — create the dir if missing:
+   - `mobile/android/app/src/consumer/google-services.json`
+   - `mobile/android/app/src/pro/google-services.json`
+   Commit them. They are **public client config** (they ship inside the APK) —
+   `.gitleaks.toml` already allowlists these paths. The Gradle plugin applies
+   itself as soon as a file is present; without them the repo still builds.
+4. **Service account** (Project settings → Service accounts → Generate key) →
+   Render env: `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` (keep the
+   `\n` escapes). This one **is** a secret — never in the repo.
+5. **Reminder cron** — Render Cron Job, `POST /internal/cron/reminders` with the
+   `X-Cron-Secret` header, every ~15 min (Phase C step 5).
+6. **Android smoke test — two real devices** (the first true end-to-end run;
+   there is no Android SDK in CI, so this is where the native build is proven):
+   ```sh
+   cd mobile
+   flutter build apk --debug --flavor consumer -t lib/main.dart   # must build
+   flutter build apk --debug --flavor pro      -t lib/main_pro.dart
+
+   flutter run --flavor consumer -t lib/main.dart \
+     --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com
+   flutter run --flavor pro -t lib/main_pro.dart \
+     --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com
+   ```
+   Then walk the story:
+   - Book from the consumer → the **pro** device gets « Nouvelle réservation »
+     (named channel « Notifications Myweli », `ic_stat_myweli` in the status
+     bar) → tap → the booking opens (**switching salon first** if it belongs to
+     another of the account's salons).
+   - Accept from the pro → the **consumer** device gets « Réservation acceptée »
+     → tap → the booking opens.
+   - Repeat with each app **killed** (a cold-start tap is buffered, then opens
+     once the session restores) and **foregrounded** (Android draws it locally).
+   - The pro bell shows the unread badge; `/pro/notifications` lists the feed;
+     « Tout lire » clears it.
+   - Turn « Notifications push » OFF in consumer prefs → the next event is
+     silent, but the in-app feed row still lands (server-side gate).
+   - Deny notifications in the OS → the prefs screen shows « Notifications
+     désactivées pour l'appareil » → « Ouvrir les réglages » → re-enable →
+     return to the app → the banner disappears.
+7. **iOS (deferred — needs the Apple developer account).** The code is
+   complete but was never compiled. In Xcode: set `CODE_SIGN_ENTITLEMENTS` to
+   `Runner/Runner.entitlements`, add the **Push Notifications** capability,
+   realign the bundle IDs (`com.example.*` → `com.myweli.app` / `com.myweli.pro`),
+   register the two iOS apps in Firebase, add `GoogleService-Info.plist`, and
+   upload the **APNs key** to Firebase. Then re-run the smoke test on an iPhone
+   (a simulator never receives push).
 
 ## Phase C — Deploy the backend (Render, from `render.yaml`)
 1. **Render Dashboard → New → Blueprint** → connect the GitHub repo → it reads
@@ -114,10 +165,11 @@ The admin is a Flutter-Web SPA that calls `api.myweli.com` **directly** (CORS), 
 1. **Android — scaffolded ✅ (#3).** Two Gradle flavors: `consumer`
    (`com.myweli.app`, "Myweli") + `pro` (`com.myweli.pro`, "Myweli Pro"). Realign
    the **iOS** bundle ids to match (`com.myweli.app` / `com.myweli.pro`).
-2. Add `google-services.json` (Android) + `GoogleService-Info.plist` (iOS); enable
-   iOS Push capability; ship the real **`FcmPushNotificationService`** (the app
-   token-registration seam + permission UX already ship — #2; this is the last
-   plugin impl, then flip the DI line).
+2. **Push — real FCM ✅ (2026-07-14).** The `firebase_messaging` adapter,
+   foreground display, tap→deep-link (with the pro salon switch), the OS-denied
+   re-enable path and the pro notification centre all ship. What remains is
+   console work: **§B4** (the two `google-services.json`, the service account,
+   the cron, the device smoke test) — and, for iOS, the Apple developer account.
 3. Real launcher icons/splash (per flavor); iOS signing (Apple Dev); Android
    signing keystore (`key.properties`, gitignored).
 4. Build prod (per flavor):
@@ -138,8 +190,11 @@ again** with a small Actions spending limit (or accept the monthly quota).
 
 ## Remaining code work (no accounts needed — makes deploy turnkey)
 - ✅ `backend/Dockerfile` + `.dockerignore`.
-- ✅ App push seam + permission UX on mocks (#2) — token → `/me/devices`; real
-  `firebase_messaging` impl deferred to the accounts phase.
+- ✅ App push seam + permission UX (#2) — token → `/me/devices`.
+- ✅ **Real FCM (2026-07-14)** — `firebase_messaging` adapter, foreground
+  display, tap→deep-link + pro salon switch, OS-denied re-enable path, the pro
+  notification centre, Android/iOS scaffolding. Only the Firebase console steps
+  remain (§B4); iOS is code-complete but needs the Apple account to build.
 - ✅ Android project scaffolded (#3) — flavors `consumer` (`com.myweli.app`) +
   `pro` (`com.myweli.pro`); real launcher icons + `google-services.json` later.
 - ✅ Pro-app push wiring (#2b) — provider-session registration + first-dashboard-visit prompt.
