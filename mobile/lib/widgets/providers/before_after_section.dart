@@ -58,7 +58,9 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
                         borderRadius:
                             BorderRadius.circular(AppTheme.radiusSmall),
                         border: Border.all(
-                          color: active ? AppColors.primary : AppColors.border,
+                          color: active
+                              ? AppColors.primary
+                              : AppColors.borderStrong,
                           width: active ? 2 : 1,
                         ),
                       ),

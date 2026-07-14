@@ -358,7 +358,7 @@ class _RoleCard extends StatelessWidget {
           color: selected ? AppColors.surfaceVariant : AppColors.secondary,
           borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? AppColors.primary : AppColors.borderStrong,
             width: selected ? 2 : 1,
           ),
         ),

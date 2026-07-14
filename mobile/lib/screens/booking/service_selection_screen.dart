@@ -230,7 +230,7 @@ class _ServiceCard extends StatelessWidget {
           color: isDisabled ? AppColors.surface : AppColors.secondary,
           borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? AppColors.primary : AppColors.borderStrong,
             width: isSelected ? 2 : 1,
           ),
         ),

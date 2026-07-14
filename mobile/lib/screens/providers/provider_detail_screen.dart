@@ -961,7 +961,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             label: const Text('Appeler'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.textPrimary,
-                              side: const BorderSide(color: AppColors.border),
+                              side: const BorderSide(
+                                  color: AppColors.borderStrong),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),

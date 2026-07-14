@@ -287,7 +287,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                               border: Border.all(
                                 color: isSelected
                                     ? AppColors.primary
-                                    : AppColors.border,
+                                    : AppColors.borderStrong,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),

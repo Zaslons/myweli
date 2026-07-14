@@ -8,11 +8,16 @@ import '../support/golden.dart';
 
 /// The text field in all five of its states (docs/design/SYSTEM.md §11.1, §14).
 ///
-/// **This is the golden for the WCAG 1.4.11 failure** (register row 2). Today
-/// `inputDecorationTheme` draws its border with `AppColors.border` — `#D0D0D0`,
-/// **1.44:1** against the background. The outline of every text field in the
-/// product is, to a low-vision user, not there. A1 moves it to `borderStrong`
-/// (3.22:1) and this image is where that becomes undeniable.
+/// **This is the golden for the WCAG 1.4.11 fix** (register row 2). The outline
+/// of every text field in the product used to be `AppColors.border` — `#D0D0D0`,
+/// **1.44:1** — i.e. to a low-vision user, not there. A1 moved it to the new
+/// `borderStrong` (3.22:1), and this image is the proof.
+///
+/// It is also where the focus ring appears for the first time. The PR-0.5
+/// baseline shipped a "focused" row that was never actually focused — the border
+/// TWEEN needs a frame the helper wasn't giving it — so this sheet was quietly
+/// photographing an enabled field and calling it focus. `focusAndSettle` now
+/// asserts `isFocused` instead of assuming it.
 ///
 /// The `error` row is also the ONE pattern §14 says every form should use — and
 /// which exactly one caller in the codebase actually uses (register row 19).
@@ -49,7 +54,7 @@ class _InputSheet extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         children: [
           GoldenSection(
-            title: 'enabled — border #D0D0D0, 1.44:1',
+            title: 'enabled — borderStrong #8A8A8A, 3.22:1',
             child: AppTextField(
               label: 'Nom complet',
               controller: TextEditingController(text: 'Awa Koné'),
@@ -78,7 +83,7 @@ class _InputSheet extends StatelessWidget {
             ),
           ),
           GoldenSection(
-            title: 'disabled',
+            title: 'disabled — recedes to border #D0D0D0 (exempt)',
             child: AppTextField(
               label: 'Salon',
               controller: TextEditingController(text: 'Beauté Divine'),

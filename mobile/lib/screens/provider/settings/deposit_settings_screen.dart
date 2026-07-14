@@ -132,7 +132,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   onPressed: () => context.push('/pro/verification'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.border),
+                    side: const BorderSide(color: AppColors.borderStrong),
                   ),
                   child: const Text('Vérifier mon compte'),
                 ),

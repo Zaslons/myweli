@@ -141,6 +141,18 @@ We deliberately did **not** darken all borders to 3:1. A card hairline is not a
 control; darkening it would box the product in and lose the airy monochrome for no
 accessibility gain.
 
+**Where the line actually falls** (settled in A1, after walking all 34 bordered
+interactive things): `borderStrong` goes on **form controls and selection states** —
+inputs, OTP boxes, dropdowns, the custom checkbox, unselected chips and filter pills,
+time-slot cells, radio-style option cards, picker rows, upload dropzones, outlined
+buttons. A tappable **card** keeps the soft `border`: a stat card or an action tile is
+identified by its icon and its label, not by its hairline, and 1.4.11 only demands 3:1
+on the visual information *required to identify* a control.
+
+**Disabled controls recede.** `inputDecorationTheme.disabledBorder` is the soft
+`border` — deliberately *below* the enabled state. (It used to be unset, which meant a
+disabled field fell through to an untokened Material default.)
+
 ### 3.4 Semantic
 
 Status colors come from here — never `Colors.green`/`Colors.red`.
@@ -414,9 +426,15 @@ does — see §21.
 
 ### 13.1 Contrast
 
-Every rule in §3 is **executable**: `test/design_contrast_test.dart` computes real
-WCAG relative luminance for every token pair and asserts it against its floor. A
-token that fails cannot be merged. Prose can drift; a failing test cannot.
+Every rule in §3 is **executable**: `test/unit/design_contrast_test.dart` computes
+real WCAG relative luminance for every token pair and asserts it against its floor,
+using the same `test/support/wcag.dart` the goldens use — so the two can never
+disagree about what "passes" means. A token that fails cannot be merged. Prose can
+drift; a failing test cannot.
+
+It also pins the two **usages** A1 fixed, because a value can be asserted but a usage
+has to be grepped: the ink may never appear as a fill or a stroke (that is how the
+brand black silently softens), and `starRating` may only ever colour a star glyph.
 
 ### 13.2 Touch targets — ≥48×48
 
@@ -608,7 +626,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 
 | Rule | Gate |
 |---|---|
-| Contrast (§3, §13.1) | `test/design_contrast_test.dart` — real WCAG math per token pair |
+| Contrast (§3, §13.1) | **`test/unit/design_contrast_test.dart`** — real WCAG math per token pair, + grep-pins on the ink/brand split and gold-as-state |
 | No literals (§3, §4, §5, §6) | `test/design_system_pin_test.dart` — grep-as-test with the §21 register as its allowlist, which **shrinks** with each burn-down PR |
 | Tap targets + labels (§13.2, §13.4) | `meetsGuideline(androidTapTargetGuideline / labeledTapTargetGuideline / textContrastGuideline)` |
 | Text scale (§13.3) | Key screens pumped at `TextScaler.linear(2.0)`, asserted not to overflow |
@@ -679,9 +697,10 @@ own design system?" — today, mostly not.
 
 | # | Rule | Violations | Worst instance | Slice |
 |---|---|---|---|---|
-| 1 | `textTertiary` ≥ 4.5:1 (§3.2) | **202** | Bottom-nav label at 11px; every input hint | **A1** |
-| 2 | Control borders ≥ 3:1 (§3.3) | every input | `inputDecorationTheme` uses `border` (1.44:1) | **A1** |
-| 3 | Ink ≠ brand black (§1) | 130 | `textPrimary` = `#000000` | **A1** |
+| 1 | `textTertiary` ≥ 4.5:1 (§3.2) | ~~202~~ → **0** | was 3.22:1 on every input hint and the 11px nav label; now **4.76:1** | ✅ **A1** |
+| 2 | Control borders ≥ 3:1 (§3.3) | ~~every input~~ → **0** | every field was outlined at **1.44:1**; the worst was a *tappable* journal tile on `divider` at **1.24:1**. Now `borderStrong` (3.22:1) on ~30 form controls + selection states — and *not* on content-identified cards, which would have boxed the product for no gain | ✅ **A1** |
+| 3 | Ink ≠ brand black (§1) | ~~130~~ → **0** | `textPrimary` is `#1A1A1A`; `primary` stays `#000000`. Exactly ONE site had the brand black wearing the ink token (a `CircleAvatar` fill) — now grep-pinned so it can't come back | ✅ **A1** |
+| 3b | Gold carries state at ≥3:1 (§3.5) | ~~3~~ → **0** | the unseen-story ring was a **1.62:1** stroke — a state indicator you could not see. Gold-as-state → `gold` (3.04:1); the 12 real star glyphs keep `starRating` | ✅ **A1** |
 | 4 | Spacing on-grid (§5) | ~128 `SizedBox` + ~45 `EdgeInsets` | `12` appears **76×** | **A2** |
 | 5 | Radius tokens (§6) | 23 | `999` appears **21×** | **A2** |
 | 6 | Type scale ≥ 11px (§4) | 9 raw `fontSize:` | six at **10px** | **A2** |
@@ -703,14 +722,16 @@ own design system?" — today, mostly not.
 | 22 | Deferred V2/V3 `Colors.*` | ~52 | flag-hidden `ComingSoon` screens | *allowlisted — fix if un-shelved* |
 | 23 | **No clock seam** (§20.1) | pro dashboard + journal | `ProJournalProvider._selectedDate = salonToday()`; `MockProService.getDashboard()` buckets by `DateTime.now().weekday` — so those screens **cannot be golden-tested**: the image would change value with the day of the week, failing CI every morning. `package:clock` is unused. | *new — needs its own slice* |
 | 24 | Disabled labels legible | all | the disabled primary button is `#5C5C5C` on `#949495` — **2.21:1**. WCAG exempts disabled controls, so this is not a violation; it is, measurably, hard to read. | *A3 (`disabledForegroundColor`)* |
+| 25 | No meaning by colour alone (§13.6) | 1 | the story ring says seen/unseen with **hue and nothing else**. A1 made it legible (`gold`, 3.04:1); it still doesn't survive greyscale. Needs a second cue — weight, or a dot. | *A4* |
+| 26 | Unselected segments have no boundary | 2 | both hand-rolled segmented controls draw a border on the **active** segment only (`active ? Border.all(…) : null`). A1 made that border 3:1, so the *state* is now identifiable — but the unselected segments still have no edge of their own. | *A3 (`segmentedButtonTheme`)* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.
 
-Rows **23** and **24** were found by PR-0.5 — by the act of taking the pictures.
-Row 23 is the more serious of the two: it says the pro surfaces take the time from
-the machine they run on, which makes them not just un-golden-able but *fragile*,
-and it is the kind of thing that is invisible until someone tries to pin them.
+Rows **23–26** were not in the original audit. Each was found by *doing the work*:
+23 and 24 by taking the pictures (PR-0.5), 25 and 26 by walking every bordered
+control in A1. That is the register behaving as intended — it gets **more honest**
+as it shrinks, not just shorter.
 
 ---
 

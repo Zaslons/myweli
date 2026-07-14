@@ -151,8 +151,8 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         decoration: BoxDecoration(
           color: active ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(999),
-          border:
-              Border.all(color: active ? AppColors.primary : AppColors.border),
+          border: Border.all(
+              color: active ? AppColors.primary : AppColors.borderStrong),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

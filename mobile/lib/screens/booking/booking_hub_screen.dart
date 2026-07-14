@@ -785,7 +785,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                       side: BorderSide(
                                         color: selected
                                             ? AppColors.primary
-                                            : AppColors.border,
+                                            : AppColors.borderStrong,
                                       ),
                                     ),
                                     backgroundColor: AppColors.secondary,
@@ -909,8 +909,8 @@ class _HubSectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.secondary,
         borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        border:
-            Border.all(color: expanded ? AppColors.primary : AppColors.border),
+        border: Border.all(
+            color: expanded ? AppColors.primary : AppColors.borderStrong),
         boxShadow: AppTheme.elevation1,
       ),
       child: Column(
@@ -1004,7 +1004,8 @@ class _SelectableRow extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(7),
                 border: Border.all(
-                    color: selected ? AppColors.primary : AppColors.border),
+                    color:
+                        selected ? AppColors.primary : AppColors.borderStrong),
                 color: selected
                     ? AppColors.primary.withValues(alpha: 0.12)
                     : Colors.transparent,
@@ -1062,7 +1063,7 @@ class _DatePickerRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderStrong),
           color: AppColors.secondary,
         ),
         child: Row(

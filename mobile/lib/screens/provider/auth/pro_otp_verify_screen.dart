@@ -202,13 +202,13 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                           borderRadius:
                               BorderRadius.circular(AppTheme.radiusLarge),
                           borderSide: const BorderSide(
-                              color: AppColors.border, width: 1.5),
+                              color: AppColors.borderStrong, width: 1.5),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius:
                               BorderRadius.circular(AppTheme.radiusLarge),
                           borderSide: const BorderSide(
-                              color: AppColors.border, width: 1.5),
+                              color: AppColors.borderStrong, width: 1.5),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius:

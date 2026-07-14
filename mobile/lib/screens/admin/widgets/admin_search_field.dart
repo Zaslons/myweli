@@ -36,7 +36,7 @@ class AdminSearchField extends StatelessWidget {
           fillColor: AppColors.secondary,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderSide: const BorderSide(color: AppColors.borderStrong),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),

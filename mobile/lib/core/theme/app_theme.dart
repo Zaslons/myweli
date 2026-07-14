@@ -135,11 +135,24 @@ class AppTheme {
           horizontal: spacingM,
           vertical: spacingM,
         ),
+        // WCAG 1.4.11 (SYSTEM.md §3.3): a field's outline is the ONLY thing that
+        // says a field is there, so it is `borderStrong` (3.22:1) — not `border`
+        // (1.44:1), which is what every input in the product used to be outlined
+        // in, i.e. invisible to a low-vision user. These two lines fix every
+        // AppTextField in all three apps, plus the DropdownButtonFormFields that
+        // don't override the theme.
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusLarge),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: const BorderSide(color: AppColors.borderStrong),
         ),
         enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+          borderSide: const BorderSide(color: AppColors.borderStrong),
+        ),
+        // Disabled controls are exempt from the contrast rule — and SHOULD recede
+        // below the enabled state. Without this the disabled field fell through to
+        // an untokened Material default; now it is deliberately the soft `border`.
+        disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: AppColors.border),
         ),
