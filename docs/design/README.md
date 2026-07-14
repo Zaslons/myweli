@@ -4,9 +4,11 @@ Every non-trivial part of Myweli gets a **design spec here before any code is wr
 
 This is a standing rule, not a suggestion (see the `myweli-dev-guardrails` / `myweli-backend-guardrails` skills and the `design-spec-per-part` memory).
 
-> **Before any UI/design work, read [DESIGN-STANDARDS.md](DESIGN-STANDARDS.md)** — the canonical design + UX standards (identity, tokens, components, the four-states/French rules, the consistency sweep). Plus the part's spec below. (Rule: `check-design-standards-first`.)
+> **Before any UI/design work, read [SYSTEM.md](SYSTEM.md)** — **the design system** for the apps: identity (incl. the brand-black vs ink rule), every token, the component catalog, the four-states contract, accessibility, forms, feedback, microcopy, the enforcement gates, and §21 — the honest register of what the code still violates. Plus the part's spec below. (Rule: `check-design-standards-first`.)
 >
-> **Working on the web (`web/`)?** Read **[WEB-DESIGN-STANDARDS.md](WEB-DESIGN-STANDARDS.md)** (web design system) + **[../WEB.md](../WEB.md)** (web architecture/conventions) first, and invoke the **`myweli-web-guardrails`** skill.
+> **Working on the web (`web/`)?** Read **[WEB-SYSTEM.md](WEB-SYSTEM.md)** (the web half — semantic HTML, focus, ARIA, responsive/desktop, SEO, the install push; shared rules stay in SYSTEM.md) + **[../WEB.md](../WEB.md)** (web architecture/conventions) first, and invoke the **`myweli-web-guardrails`** skill.
+>
+> *(`DESIGN-STANDARDS.md` and `WEB-DESIGN-STANDARDS.md` are superseded stubs that redirect here.)*
 
 ## The workflow — for every part
 
@@ -27,6 +29,8 @@ When is a spec required? Any new feature, slice, endpoint, screen, or integratio
 
 | Part | Spec | Status |
 |------|------|--------|
+| **The design system — apps** (identity · tokens · components · a11y · forms · feedback · enforcement · the violations register) | **[SYSTEM.md](SYSTEM.md)** | **Canonical** — supersedes `DESIGN-STANDARDS.md`. Read before ANY UI work. |
+| **The design system — web** (Tailwind mapping · semantic HTML · focus · ARIA · responsive/desktop · SEO · install push) | **[WEB-SYSTEM.md](WEB-SYSTEM.md)** | **Canonical** — supersedes `WEB-DESIGN-STANDARDS.md`. Shared rules live in SYSTEM.md. |
 | Multi-pays — the end version, built (program MP1→MP3) | [multi-pays-end-version.md](multi-pays-end-version.md) | **COMPLETE — MP1 backend (#235) + MP2 mobile (#236) + MP3 web built** — locality tree + /localities on every surface, per-salon timezone (package:timezone through all day-math + all three clients), per-salon currency stamping + threading, operator catalog end-to-end, nested SEO tree (`/coiffure/abidjan/cocody`) + 308 redirects, locality pickers writing areaId; user decision 2026-07-14 |
 | Salon time — the timezone seam (multi-pays slice 1) | [timezone-salon-time.md](timezone-salon-time.md) | **Built** — salon-time rule behind the `Africa/Abidjan` seams (`web/lib/time.ts` + `core/utils/salon_time.dart`), leak fixes (incl. the app earnings twin) + sweep + grep pins, « heure du salon » hint (consumer), TZ-pinned harnesses + Render, currency-param formatters (« FCFA » unified); end version in [modules/multi-pays.md](../modules/multi-pays.md) |
 | Auth overhaul — Google + Apple + Email OTP (phone → contact) | [auth-social-email.md](auth-social-email.md) | **Building** — P1 backend built (verifiers · email OTP · migration 0022 · AUTH_METHODS gate); web → mobile → pro next |

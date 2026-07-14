@@ -1,7 +1,8 @@
 # Myweli Web — architecture, conventions & Definition of Done
 
 The rulebook for the **Next.js web surface** (`web/`) — the web mirror of
-[BACKEND.md](BACKEND.md). Read this + [WEB-DESIGN-STANDARDS.md](design/WEB-DESIGN-STANDARDS.md)
+[BACKEND.md](BACKEND.md). Read this + [WEB-SYSTEM.md](design/WEB-SYSTEM.md) (the
+web design system; shared rules in [SYSTEM.md](design/SYSTEM.md))
 + the part's `docs/design/web-<part>.md` spec before any web work. Enforced by the
 **`myweli-web-guardrails`** skill.
 
@@ -138,5 +139,5 @@ jobs; **all green before merge**.
 - [ ] Feature branch + PR; conventional commit (no Claude attribution); ROADMAP refreshed.
 
 ## 11. Keep it honest
-A real decision that changes a rule updates **this doc** / WEB-DESIGN-STANDARDS /
+A real decision that changes a rule updates **this doc** / [WEB-SYSTEM.md](design/WEB-SYSTEM.md) /
 the contract in the same change. Stale rules are worse than no rules.
