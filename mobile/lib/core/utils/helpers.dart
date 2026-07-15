@@ -181,18 +181,16 @@ class Helpers {
     );
   }
 
-  /// Show snackbar with message
+  /// Show snackbar with message. Background/behaviour/shape come from
+  /// `snackBarTheme` (SYSTEM.md §15); only the error tone overrides it — the
+  /// non-error case used to hardcode `Colors.black87`, now the theme's ink.
   static void showSnackBar(BuildContext context, String message,
       {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? AppColors.error : Colors.black87,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        margin: const EdgeInsets.all(16),
+        backgroundColor: isError ? AppColors.error : null,
+        margin: const EdgeInsets.all(AppTheme.spacingM),
       ),
     );
   }

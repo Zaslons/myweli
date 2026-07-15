@@ -84,7 +84,10 @@ class AppButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
-        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+        // A legible-inert disabled pair (SYSTEM.md §21 row 24). The old
+        // primary@40% was #999 under white text — 2.21:1.
+        disabledBackgroundColor: AppColors.surfaceVariant,
+        disabledForegroundColor: AppColors.textDisabled,
         minimumSize:
             isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
       ),

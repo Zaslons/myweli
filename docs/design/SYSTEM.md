@@ -644,15 +644,17 @@ grep -rn  --include='*.dart' "fontSize:" lib | grep -v lib/core/theme/
 
 ### 20.1 Goldens — the eye
 
-`mobile/test/golden/` holds 17 goldens, and they are the **only** thing in the
+`mobile/test/golden/` holds 19 goldens, and they are the **only** thing in the
 repo that renders the real design system: not one of the 34 widget tests passes
 `theme:`, so the whole suite would stay green while the product restyled
-underneath it.
+underneath it (until the `pumpApp()` migration, A3b).
 
 - **The token catalogue** (`tokens_*`, `components_*`) — every colour with its
   measured ratio, the whole type scale, the buttons, the text field in all five
-  states, status/chips/cards/rating, and `AdminDataTable`'s four states. A token
-  change lights these up immediately.
+  states, status/chips/cards/rating, `AdminDataTable`'s four states, and the
+  **themed Material components** (`components_material` / `components_dialog` — the
+  proof A3 de-purpled the chips/switch/checkbox/slider/tabs/icons and the dialog).
+  A token or theme change lights these up immediately.
 - **Real screens** (`consumer_*`, `pro_*`) — because a token can be right in the
   catalogue and still wreck a page.
 
@@ -706,9 +708,9 @@ own design system?" — today, mostly not.
 | 6 | Type scale ≥ 11px (§4) | 9 raw `fontSize:` | six at **10px** | **A2** |
 | 7 | Icon-size tokens (§7) | **19 distinct values**, 0 constants | | **A2** |
 | 8 | Motion tokens (§9) | **12 distinct durations**, 0 constants | | *A9* |
-| 9 | Full `ColorScheme` (§3) | **23 component themes missing** | unstyled M3 widgets fall back to **Material purple** | **A3** |
-| 10 | Button min-height 48 (§13.2) | all | `textButtonTheme.minimumSize = Size(0, 40)` | **A3** |
-| 11 | Buttons sized by container (§10) | all | `elevatedButtonTheme.minimumSize = Size(double.infinity, 48)` | **A3** |
+| 9 | Full `ColorScheme` + component themes (§3) | ~~23 missing~~ → **0** | the scheme set 8 of ~30 slots, so unthemed M3 widgets (pickers, snackbars, chips, tabs, icons, sheets) fell back to **Material purple**. Now the full scheme + a component theme for every component the app renders — verified by the `components_material` golden | ✅ **A3** |
+| 10 | Button min-height 48 (§13.2) | ~~all~~ → **0** | `textButtonTheme.minimumSize` `Size(0, 40)` → `Size(0, 48)` — raw TextButtons and `AppButton.text` alike | ✅ **A3** |
+| 11 | Buttons sized by container (§10) | ~~all~~ → **0** | `elevated`/`outlinedButtonTheme` `Size(double.infinity, 48)` → `Size(0, 48)` — width comes from the container, not a forced full-width bar | ✅ **A3** |
 | 12 | Tap targets ≥ 48 (§13.2) | **67** hand-rolled gestures, 0 constraints | photo re-order arrow = **20×20**; favourite heart = **32×32** | **A4** |
 | 13 | Icon-only controls labelled (§13.4) | **26 of 40** IconButtons | the **consumer app has 0 tooltips** | **A4** |
 | 14 | `Semantics` on custom controls (§13.4) | **0** in three apps | | **A4** |
@@ -718,12 +720,12 @@ own design system?" — today, mostly not.
 | 18 | One `ConfirmDialog` (§15) | **11** copy-pasted | | *A6* |
 | 19 | Field-anchored errors (§14) | **1** caller passes `errorText` | validation = "throw a red toast" | *A8* |
 | 20 | Reduced motion (§9) | **0** | | *A9* |
-| 21 | Tests wrap the real theme | **0 of 34** widget tests → **17 goldens do** | a restyle can't fail a test that never loads the theme | **A3** (PR-0.5 opened the eye) |
+| 21 | Tests wrap the real theme | **0 of 34** widget tests → **19 goldens do** | a restyle can't fail a test that never loads the theme | **A3b** (the `pumpApp()` migration; the goldens are the interim net) |
 | 22 | Deferred V2/V3 `Colors.*` | ~52 | flag-hidden `ComingSoon` screens | *allowlisted — fix if un-shelved* |
 | 23 | **No clock seam** (§20.1) | pro dashboard + journal | `ProJournalProvider._selectedDate = salonToday()`; `MockProService.getDashboard()` buckets by `DateTime.now().weekday` — so those screens **cannot be golden-tested**: the image would change value with the day of the week, failing CI every morning. `package:clock` is unused. | *new — needs its own slice* |
-| 24 | Disabled labels legible | all | the disabled primary button is `#5C5C5C` on `#949495` — **2.21:1**. WCAG exempts disabled controls, so this is not a violation; it is, measurably, hard to read. | *A3 (`disabledForegroundColor`)* |
+| 24 | Disabled labels legible | ~~all~~ → **0** | was `#5C5C5C` on `#949495` (2.21:1). Now a legible-inert pair (`surfaceVariant` / `textDisabled`) in the button themes + `AppButton`. WCAG exempts disabled, but it now reads as *disabled*, not blank. | ✅ **A3** |
 | 25 | No meaning by colour alone (§13.6) | 1 | the story ring says seen/unseen with **hue and nothing else**. A1 made it legible (`gold`, 3.04:1); it still doesn't survive greyscale. Needs a second cue — weight, or a dot. | *A4* |
-| 26 | Unselected segments have no boundary | 2 | both hand-rolled segmented controls draw a border on the **active** segment only (`active ? Border.all(…) : null`). A1 made that border 3:1, so the *state* is now identifiable — but the unselected segments still have no edge of their own. | *A3 (`segmentedButtonTheme`)* |
+| 26 | Unselected segments have no boundary | 2 | both **hand-rolled** segmented controls (not Material `SegmentedButton`) draw a border on the active segment only — so `segmentedButtonTheme` can't fix them; it's a widget change, not a ThemeData one. | *a widget cleanup, not A3* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.

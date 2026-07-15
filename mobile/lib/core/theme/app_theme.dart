@@ -88,15 +88,50 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
+      // The FULL scheme (SYSTEM.md §21 row 9). We used to set 8 slots; the other
+      // ~22 fell back to Material 3's PURPLE baseline, and since nothing reads a
+      // slot by name, that purple leaked implicitly through every unthemed
+      // component (pickers, snackbars, chips, tab labels, icons, sheets…).
+      // Filling them all — monochrome, token-derived — de-purples the whole app
+      // at once, present components and future ones alike.
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
-        secondary: AppColors.secondary,
-        surface: AppColors.surface,
-        error: AppColors.error,
         onPrimary: AppColors.secondary,
-        onSecondary: AppColors.primary,
-        onSurface: AppColors.textPrimary,
+        primaryContainer: AppColors.surfaceVariant,
+        onPrimaryContainer: AppColors.textPrimary,
+        secondary: AppColors.primary,
+        onSecondary: AppColors.secondary,
+        secondaryContainer: AppColors.surfaceVariant, // was #E8DEF8 purple
+        onSecondaryContainer: AppColors.textPrimary,
+        tertiary: AppColors.primary,
+        onTertiary: AppColors.secondary,
+        tertiaryContainer: AppColors.surfaceVariant,
+        onTertiaryContainer: AppColors.textPrimary,
+        error: AppColors.error,
         onError: AppColors.secondary,
+        errorContainer: AppColors.secondaryVariant,
+        onErrorContainer: AppColors.error,
+        surface: AppColors.surface,
+        onSurface: AppColors.textPrimary,
+        // The single worst leak: icon/label defaults resolve to onSurfaceVariant.
+        onSurfaceVariant: AppColors.textSecondary,
+        // The neutral surface ramp (M3 draws menus/sheets/switch tracks from it).
+        surfaceDim: AppColors.secondaryVariant,
+        surfaceBright: AppColors.secondary,
+        surfaceContainerLowest: AppColors.secondary,
+        surfaceContainerLow: AppColors.surface,
+        surfaceContainer: AppColors.secondaryVariant,
+        surfaceContainerHigh: AppColors.secondaryVariant,
+        surfaceContainerHighest: AppColors.divider,
+        outline: AppColors.borderStrong, // 3.22:1
+        outlineVariant: AppColors.border,
+        inverseSurface: AppColors.textPrimary, // snackbar bg
+        onInverseSurface: AppColors.secondary,
+        inversePrimary: AppColors.secondary,
+        shadow: Colors.black,
+        scrim: Colors.black,
+        surfaceTint:
+            Colors.transparent, // flat monochrome — no M3 elevation tint
       ),
       scaffoldBackgroundColor: AppColors.background,
       textTheme: const TextTheme(
@@ -179,12 +214,20 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.secondary,
+          // Disabled reads as disabled, and legibly (SYSTEM.md §21 row 24): the
+          // old #5C5C5C-on-#949495 was 2.21:1. Exempt from WCAG, but this pair
+          // is a clearly-inert light grey.
+          disabledBackgroundColor: AppColors.surfaceVariant,
+          disabledForegroundColor: AppColors.textDisabled,
           elevation: 1,
           padding: const EdgeInsets.symmetric(
             horizontal: spacingM,
             vertical: spacingM,
           ),
-          minimumSize: const Size(double.infinity, 48),
+          // Height floor only — a button takes its WIDTH from its container, not
+          // a forced `double.infinity` (which became a ~1000px bar on a tablet).
+          // AppButton overrides this for its own full-width sizing.
+          minimumSize: const Size(0, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
@@ -194,12 +237,13 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
+          disabledForegroundColor: AppColors.textDisabled,
           side: const BorderSide(color: AppColors.primary),
           padding: const EdgeInsets.symmetric(
             horizontal: spacingM,
             vertical: spacingM,
           ),
-          minimumSize: const Size(double.infinity, 48),
+          minimumSize: const Size(0, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
@@ -209,11 +253,14 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
+          disabledForegroundColor: AppColors.textDisabled,
           padding: const EdgeInsets.symmetric(
             horizontal: spacingM,
             vertical: spacingS,
           ),
-          minimumSize: const Size(0, 40),
+          // 48, not 40 — the WCAG tap-target floor (§13.2). Raises raw
+          // TextButtons and AppButton.text alike.
+          minimumSize: const Size(0, 48),
           textStyle: f(AppTextStyles.labelLarge),
         ),
       ),
@@ -238,6 +285,183 @@ class AppTheme {
         elevation: 3,
         selectedLabelStyle: f(AppTextStyles.labelSmall),
         unselectedLabelStyle: f(AppTextStyles.labelSmall),
+      ),
+      // ---- The component themes (SYSTEM.md §21 row 9) -----------------------
+      // Everything below used to render off Material's purple defaults. Only the
+      // components the app ACTUALLY renders are themed here; the completed
+      // ColorScheme above already keeps the unused ones (radio, segmented,
+      // badge, drawer) on-token, so we don't add dead config.
+
+      // Fixes the ~65 bare SnackBars (were dark purple-grey `inverseSurface`),
+      // and lets Helpers.showSnackBar drop its hardcoded Colors.black87.
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.textPrimary,
+        contentTextStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.secondary),
+        ),
+        actionTextColor: AppColors.secondary,
+        behavior: SnackBarBehavior.floating,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+      ),
+      // Bare chips were filled with #E8DEF8 purple (`secondaryContainer`).
+      // The label INVERTS to white on the black selected fill — via a
+      // `WidgetStateColor`, not `secondaryLabelStyle` (which M3's RawChip
+      // ignores; it resolves `labelStyle.color` per-state instead). This works
+      // uniformly for Chip / ChoiceChip / FilterChip — the golden proved that
+      // secondaryLabelStyle left FilterChip's selected label dark-on-black.
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surface,
+        selectedColor: AppColors.primary,
+        disabledColor: AppColors.surfaceVariant,
+        checkmarkColor: AppColors.secondary,
+        side: const BorderSide(color: AppColors.borderStrong),
+        shape: const StadiumBorder(),
+        labelStyle: f(AppTextStyles.labelMedium).copyWith(
+          color: WidgetStateColor.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? AppColors.secondary
+                : AppColors.textPrimary,
+          ),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.secondary
+              : AppColors.surface,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.surfaceVariant,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(AppColors.borderStrong),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.secondary,
+        ),
+        checkColor: const WidgetStatePropertyAll(AppColors.secondary),
+        side: const BorderSide(color: AppColors.borderStrong, width: 2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSmall),
+        ),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: AppColors.primary,
+        inactiveTrackColor: AppColors.surfaceVariant, // was purple-tinted
+        thumbColor: AppColors.primary,
+        overlayColor: AppColors.primary.withValues(alpha: 0.12),
+        valueIndicatorColor: AppColors.textPrimary,
+        valueIndicatorTextStyle: f(
+          AppTextStyles.labelMedium.copyWith(color: AppColors.secondary),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColors.textPrimary,
+        unselectedLabelColor: AppColors.textTertiary, // was onSurfaceVariant
+        labelStyle: f(AppTextStyles.titleSmall),
+        unselectedLabelStyle: f(AppTextStyles.titleSmall),
+        indicatorColor: AppColors.primary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: AppColors.divider,
+      ),
+      // The ~30 uncolored IconButtons defaulted to `onSurfaceVariant`.
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: AppColors.textPrimary),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.secondary,
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+        ),
+        titleTextStyle: f(
+          AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+        ),
+        contentTextStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.secondary,
+        modalBackgroundColor: AppColors.secondary,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radiusXXL)),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: AppColors.secondary,
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+        textStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.secondary,
+        indicatorColor: AppColors.surfaceVariant,
+        surfaceTintColor: Colors.transparent,
+        labelTextStyle: WidgetStatePropertyAll(
+          f(AppTextStyles.labelSmall.copyWith(color: AppColors.textPrimary)),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (s) => IconThemeData(
+            color: s.contains(WidgetState.selected)
+                ? AppColors.primary
+                : AppColors.textTertiary,
+          ),
+        ),
+      ),
+      // ListTile leading/trailing icons defaulted to `onSurfaceVariant`.
+      listTileTheme: const ListTileThemeData(
+        iconColor: AppColors.textSecondary,
+        textColor: AppColors.textPrimary,
+      ),
+      // No explicit tooltips today, but A4 adds ~26 — themed now so they land
+      // on-brand (dark, rounded, white text).
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: AppColors.textPrimary,
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+        textStyle: f(
+          AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.secondary,
+      ),
+      // The 11 date/time pickers were the worst purple offenders. Most of it
+      // now derives from the completed ColorScheme; these pin the header/surface
+      // to the flat monochrome brand.
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: AppColors.secondary,
+        surfaceTintColor: Colors.transparent,
+        headerBackgroundColor: AppColors.primary,
+        headerForegroundColor: AppColors.secondary,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+        ),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: AppColors.secondary,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+        ),
       ),
     );
   }
