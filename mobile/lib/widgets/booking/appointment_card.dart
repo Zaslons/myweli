@@ -152,71 +152,87 @@ class AppointmentCard extends StatelessWidget {
                           ),
                           if (provider != null && provider.city != null) ...[
                             const SizedBox(height: AppTheme.spacingXS),
-                            GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () {
-                                if (provider == null ||
-                                    provider.latitude == null ||
-                                    provider.longitude == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Localisation non disponible pour ce salon'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                context.push(
-                                    '/favorites?providerId=${provider.id}');
-                              },
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.location_on,
-                                      size: AppTheme.iconXS,
-                                      color: AppColors.textTertiary),
-                                  const SizedBox(width: AppTheme.spacingXS),
-                                  Expanded(
-                                    child: Text(
-                                      provider.city ?? provider.address,
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.textSecondary,
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                  minHeight: 48), // §13.2 touch target
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  if (provider == null ||
+                                      provider.latitude == null ||
+                                      provider.longitude == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Localisation non disponible pour ce salon'),
+                                        duration: Duration(seconds: 2),
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    );
+                                    return;
+                                  }
+                                  context.push(
+                                      '/favorites?providerId=${provider.id}');
+                                },
+                                child: Center(
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.location_on,
+                                          size: AppTheme.iconXS,
+                                          color: AppColors.textTertiary),
+                                      const SizedBox(width: AppTheme.spacingXS),
+                                      Expanded(
+                                        child: Text(
+                                          provider.city ?? provider.address,
+                                          style:
+                                              AppTextStyles.bodySmall.copyWith(
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const Icon(Icons.map,
+                                          size: AppTheme.iconXS,
+                                          color: AppColors.textTertiary),
+                                    ],
                                   ),
-                                  const Icon(Icons.map,
-                                      size: AppTheme.iconXS,
-                                      color: AppColors.textTertiary),
-                                ],
+                                ),
                               ),
                             ),
                             if (provider.latitude != null &&
                                 provider.longitude != null) ...[
-                              const SizedBox(height: AppTheme.spacingXS),
-                              GestureDetector(
-                                onTap: () {
-                                  Helpers.launchNavigation(
-                                    latitude: provider!.latitude!,
-                                    longitude: provider.longitude!,
-                                    label: provider.name,
-                                    context: context,
-                                  );
-                                },
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.directions,
-                                        size: AppTheme.iconXS,
-                                        color: AppColors.primary),
-                                    const SizedBox(width: AppTheme.spacingXS),
-                                    Text(
-                                      'Itinéraire',
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.primary,
-                                      ),
+                              const SizedBox(height: AppTheme.spacingS),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                    minHeight: 48), // §13.2 touch target
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    Helpers.launchNavigation(
+                                      latitude: provider!.latitude!,
+                                      longitude: provider.longitude!,
+                                      label: provider.name,
+                                      context: context,
+                                    );
+                                  },
+                                  child: Center(
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.directions,
+                                            size: AppTheme.iconXS,
+                                            color: AppColors.primary),
+                                        const SizedBox(
+                                            width: AppTheme.spacingXS),
+                                        Text(
+                                          'Itinéraire',
+                                          style:
+                                              AppTextStyles.bodySmall.copyWith(
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ],

@@ -108,8 +108,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius:
                             BorderRadius.circular(AppTheme.radiusPill),
                         child: Container(
-                          width: 44,
-                          height: 44,
+                          width: 48, // §13.2 touch target
+                          height: 48, // §13.2 touch target
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: AppColors.secondary,
                             borderRadius:

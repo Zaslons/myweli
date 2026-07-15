@@ -37,22 +37,29 @@ class AdminSegmentedControl extends StatelessWidget {
 
   Widget _seg(String label, int index) {
     final active = selected == index;
-    return InkWell(
-      onTap: () => onSelect(index),
-      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
-        decoration: BoxDecoration(
-          color: active ? AppColors.secondary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          border: active ? Border.all(color: AppColors.borderStrong) : null,
-        ),
-        child: Text(
-          label,
-          style: (active ? AppTextStyles.titleSmall : AppTextStyles.bodyMedium)
-              .copyWith(
-            color: active ? AppColors.textPrimary : AppColors.textSecondary,
+    return ConstrainedBox(
+      // §13.2 touch target ≥48. minHeight (not a fixed height) so the segment
+      // still grows with the OS text scale (§13.3).
+      constraints: const BoxConstraints(minHeight: 48),
+      child: InkWell(
+        onTap: () => onSelect(index),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
+          decoration: BoxDecoration(
+            color: active ? AppColors.secondary : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            border: active ? Border.all(color: AppColors.borderStrong) : null,
+          ),
+          child: Text(
+            label,
+            style:
+                (active ? AppTextStyles.titleSmall : AppTextStyles.bodyMedium)
+                    .copyWith(
+              color: active ? AppColors.textPrimary : AppColors.textSecondary,
+            ),
           ),
         ),
       ),

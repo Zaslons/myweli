@@ -603,69 +603,81 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             ),
                             const _Divider(),
                             // Phone
-                            InkWell(
-                              onTap: () async {
-                                final uri = Uri.parse(
-                                    'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri);
-                                }
-                              },
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusLarge),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: AppTheme.spacingS),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.phone_outlined,
-                                        size: AppTheme.iconS,
-                                        color: AppColors.textTertiary),
-                                    const SizedBox(width: AppTheme.spacingSM),
-                                    Text(
-                                      Formatters.formatPhoneNumber(
-                                          p.phoneNumber),
-                                      style: AppTextStyles.bodyMedium.copyWith(
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (p.whatsapp != null &&
-                                p.whatsapp!.isNotEmpty) ...[
-                              const _Divider(),
-                              InkWell(
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                  minHeight: 48), // §13.2 touch target
+                              child: InkWell(
                                 onTap: () async {
-                                  final digits = p.whatsapp!
-                                      .replaceAll(RegExp(r'[^0-9]'), '');
-                                  final uri =
-                                      Uri.parse('https://wa.me/$digits');
+                                  final uri = Uri.parse(
+                                      'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
                                   if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri,
-                                        mode: LaunchMode.externalApplication);
+                                    await launchUrl(uri);
                                   }
                                 },
                                 borderRadius:
                                     BorderRadius.circular(AppTheme.radiusLarge),
-                                child: Padding(
+                                child: Container(
+                                  alignment: Alignment.center,
                                   padding: const EdgeInsets.symmetric(
                                       vertical: AppTheme.spacingS),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.chat_outlined,
+                                      const Icon(Icons.phone_outlined,
                                           size: AppTheme.iconS,
                                           color: AppColors.textTertiary),
                                       const SizedBox(width: AppTheme.spacingSM),
                                       Text(
-                                        'WhatsApp',
+                                        Formatters.formatPhoneNumber(
+                                            p.phoneNumber),
                                         style:
                                             AppTextStyles.bodyMedium.copyWith(
                                           color: AppColors.textPrimary,
                                         ),
                                       ),
                                     ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (p.whatsapp != null &&
+                                p.whatsapp!.isNotEmpty) ...[
+                              const _Divider(),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                    minHeight: 48), // §13.2 touch target
+                                child: InkWell(
+                                  onTap: () async {
+                                    final digits = p.whatsapp!
+                                        .replaceAll(RegExp(r'[^0-9]'), '');
+                                    final uri =
+                                        Uri.parse('https://wa.me/$digits');
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri,
+                                          mode: LaunchMode.externalApplication);
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(
+                                      AppTheme.radiusLarge),
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: AppTheme.spacingS),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.chat_outlined,
+                                            size: AppTheme.iconS,
+                                            color: AppColors.textTertiary),
+                                        const SizedBox(
+                                            width: AppTheme.spacingSM),
+                                        Text(
+                                          'WhatsApp',
+                                          style:
+                                              AppTextStyles.bodyMedium.copyWith(
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1154,25 +1166,31 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            InkWell(
-              onTap: onHeaderTap,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
-                child: Row(
-                  children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.textPrimary,
+            ConstrainedBox(
+              // §13.2 touch target — only enforced when the header is tappable
+              constraints:
+                  BoxConstraints(minHeight: onHeaderTap != null ? 48 : 0),
+              child: InkWell(
+                onTap: onHeaderTap,
+                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+                  child: Row(
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    if (trailing != null) ...[
-                      const Spacer(),
-                      trailing!,
+                      if (trailing != null) ...[
+                        const Spacer(),
+                        trailing!,
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

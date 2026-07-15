@@ -140,31 +140,35 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     required VoidCallback onTap,
   }) {
     final fg = active ? AppColors.secondary : AppColors.textPrimary;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM,
-          vertical: AppTheme.spacingS,
-        ),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-          border: Border.all(
-              color: active ? AppColors.primary : AppColors.borderStrong),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: AppTheme.iconXS, color: fg),
-            const SizedBox(width: AppTheme.spacingS),
-            Text(
-              label,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: fg, fontWeight: FontWeight.w600),
-            ),
-          ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingM,
+            vertical: AppTheme.spacingS,
+          ),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primary : AppColors.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+            border: Border.all(
+                color: active ? AppColors.primary : AppColors.borderStrong),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: AppTheme.iconXS, color: fg),
+              const SizedBox(width: AppTheme.spacingS),
+              Text(
+                label,
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: fg, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
         ),
       ),
     );

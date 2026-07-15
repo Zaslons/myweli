@@ -630,7 +630,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 |---|---|
 | Contrast (§3, §13.1) | **`test/unit/design_contrast_test.dart`** — real WCAG math per token pair, + grep-pins on the ink/brand split and gold-as-state |
 | No literals (§4, §5, §6, §7) | **`test/unit/design_system_pin_test.dart`** — sweep-as-test, **complete**: no raw spacing (§5), radius (§6), type (§4), or icon-size (§7) literal survives. Excludes `core/theme/` (token defs) + the flag-hidden `features/` (§22); a `// ds-ignore` line is a declared fixed-dimension exception |
-| Tap targets + labels (§13.2, §13.4) | `meetsGuideline(androidTapTargetGuideline / labeledTapTargetGuideline / textContrastGuideline)` |
+| Tap targets + labels (§13.2, §13.4) | **`test/a11y/`** — `meetsGuideline(androidTapTargetGuideline)` live (A4a); `labeledTapTargetGuideline` + `textContrastGuideline` join in A4b |
 | Text scale (§13.3) | Key screens pumped at `TextScaler.linear(2.0)`, asserted not to overflow |
 | Visual regression | **Goldens** — `test/golden/`, see below |
 | Market data (§18) | `salon_time_pin_test.dart` |
@@ -713,7 +713,7 @@ own design system?" — today, mostly not.
 | 9 | Full `ColorScheme` + component themes (§3) | ~~23 missing~~ → **0** | the scheme set 8 of ~30 slots, so unthemed M3 widgets (pickers, snackbars, chips, tabs, icons, sheets) fell back to **Material purple**. Now the full scheme + a component theme for every component the app renders — verified by the `components_material` golden | ✅ **A3** |
 | 10 | Button min-height 48 (§13.2) | ~~all~~ → **0** | `textButtonTheme.minimumSize` `Size(0, 40)` → `Size(0, 48)` — raw TextButtons and `AppButton.text` alike | ✅ **A3** |
 | 11 | Buttons sized by container (§10) | ~~all~~ → **0** | `elevated`/`outlinedButtonTheme` `Size(double.infinity, 48)` → `Size(0, 48)` — width comes from the container, not a forced full-width bar | ✅ **A3** |
-| 12 | Tap targets ≥ 48 (§13.2) | **67** hand-rolled gestures, 0 constraints | photo re-order arrow = **20×20**; favourite heart = **32×32** | **A4** |
+| 12 | Tap targets ≥ 48 (§13.2) | ~~67~~ → **0** | **26** of the 67 rendered <48 (favourite hearts, photo arrows, close/remove ×, contact + text-link rows, pills, segments) + 3 adjacency (<8px) + `review_tile`'s `shrinkWrap` 32px button. Icon-glyphs → 48 transparent hit area (glyph unmoved, anchor compensated); rows/pills → `ConstrainedBox(minHeight: 48)` (grows with text scale). New **`test/a11y/`** gate — `meetsGuideline(androidTapTargetGuideline)` on 5 components — went **red** before the fixes | ✅ **A4a** |
 | 13 | Icon-only controls labelled (§13.4) | **26 of 40** IconButtons | the **consumer app has 0 tooltips** | **A4** |
 | 14 | `Semantics` on custom controls (§13.4) | **0** in three apps | | **A4** |
 | 15 | 200% text scale (§13.3) | **3 confirmed breaks** + 24 at risk | `widgets/home/category_chips.dart:25` — **the home screen** | **A5** |
