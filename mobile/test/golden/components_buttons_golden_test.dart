@@ -114,7 +114,7 @@ class _ButtonSheet extends StatelessWidget {
                 SizedBox(height: AppTheme.spacingS),
                 OutlinedButton(onPressed: _noop, child: Text('OutlinedButton')),
                 SizedBox(height: AppTheme.spacingS),
-                TextButton(onPressed: _noop, child: Text('TextButton — 40px')),
+                TextButton(onPressed: _noop, child: Text('TextButton — 48px')),
               ],
             ),
           ),
