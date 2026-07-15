@@ -142,7 +142,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           tooltip: featured ? 'Retirer la mise en avant' : 'Mettre en avant',
           icon: Icon(
             featured ? Icons.star : Icons.star_border,
-            size: 20,
+            size: AppTheme.iconS,
             color: featured ? AppColors.gold : AppColors.textTertiary,
           ),
           onPressed: acting ? null : () => _feature(id, !featured),

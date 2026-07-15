@@ -108,7 +108,8 @@ class AppointmentCard extends StatelessWidget {
                               height: 80,
                               color: AppColors.surface,
                               child: const Icon(Icons.store,
-                                  size: 40, color: AppColors.textTertiary),
+                                  size: AppTheme.iconL,
+                                  color: AppColors.textTertiary),
                             ),
                     ),
                     const SizedBox(width: AppTheme.spacingM),
@@ -172,7 +173,8 @@ class AppointmentCard extends StatelessWidget {
                               child: Row(
                                 children: [
                                   const Icon(Icons.location_on,
-                                      size: 14, color: AppColors.textTertiary),
+                                      size: AppTheme.iconXS,
+                                      color: AppColors.textTertiary),
                                   const SizedBox(width: AppTheme.spacingXS),
                                   Expanded(
                                     child: Text(
@@ -185,7 +187,8 @@ class AppointmentCard extends StatelessWidget {
                                     ),
                                   ),
                                   const Icon(Icons.map,
-                                      size: 14, color: AppColors.textTertiary),
+                                      size: AppTheme.iconXS,
+                                      color: AppColors.textTertiary),
                                 ],
                               ),
                             ),
@@ -204,7 +207,8 @@ class AppointmentCard extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     const Icon(Icons.directions,
-                                        size: 14, color: AppColors.primary),
+                                        size: AppTheme.iconXS,
+                                        color: AppColors.primary),
                                     const SizedBox(width: AppTheme.spacingXS),
                                     Text(
                                       'Itinéraire',
@@ -239,7 +243,7 @@ class AppointmentCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.store_mall_directory_outlined,
-                            size: 14, color: AppColors.info),
+                            size: AppTheme.iconXS, color: AppColors.info),
                         const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           'Réservé par votre salon',
@@ -313,7 +317,8 @@ class AppointmentCard extends StatelessWidget {
                       return Row(
                         children: [
                           const Icon(Icons.person,
-                              size: 16, color: AppColors.textTertiary),
+                              size: AppTheme.iconXS,
+                              color: AppColors.textTertiary),
                           const SizedBox(width: AppTheme.spacingS),
                           Expanded(
                             child: Text(
@@ -336,7 +341,8 @@ class AppointmentCard extends StatelessWidget {
                       child: Row(
                         children: [
                           const Icon(Icons.calendar_today,
-                              size: 16, color: AppColors.textTertiary),
+                              size: AppTheme.iconXS,
+                              color: AppColors.textTertiary),
                           const SizedBox(width: AppTheme.spacingS),
                           Flexible(
                             child: Text(
@@ -355,7 +361,8 @@ class AppointmentCard extends StatelessWidget {
                       child: Row(
                         children: [
                           const Icon(Icons.access_time,
-                              size: 16, color: AppColors.textTertiary),
+                              size: AppTheme.iconXS,
+                              color: AppColors.textTertiary),
                           const SizedBox(width: AppTheme.spacingS),
                           Flexible(
                             child: Text(

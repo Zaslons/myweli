@@ -35,7 +35,8 @@ class CommunePill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.location_on, size: 16, color: AppColors.secondary),
+            const Icon(Icons.location_on,
+                size: AppTheme.iconXS, color: AppColors.secondary),
             const SizedBox(width: AppTheme.spacingS),
             Flexible(
               child: Text(
@@ -51,7 +52,7 @@ class CommunePill extends StatelessWidget {
             const SizedBox(width: AppTheme.spacingXS),
             const Icon(
               Icons.keyboard_arrow_down,
-              size: 16,
+              size: AppTheme.iconXS,
               color: AppColors.secondary,
             ),
           ],

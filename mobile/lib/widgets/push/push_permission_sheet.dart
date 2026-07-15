@@ -66,7 +66,7 @@ class _PushPermissionSheet extends StatelessWidget {
               const SizedBox(height: AppTheme.spacingL),
               const Icon(
                 Icons.notifications_active_outlined,
-                size: 40,
+                size: AppTheme.iconL,
                 color: AppColors.textPrimary,
               ),
               const SizedBox(height: AppTheme.spacingM),

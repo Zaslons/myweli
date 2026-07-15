@@ -103,7 +103,7 @@ class _NotificationPreferencesScreenState
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.error_outline,
-                        size: 64, color: AppColors.error),
+                        size: AppTheme.iconXL, color: AppColors.error),
                     const SizedBox(height: AppTheme.spacingM),
                     Text(
                       provider.error ?? 'Erreur lors du chargement',
@@ -166,7 +166,7 @@ class _NotificationPreferencesScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(Icons.info_outline,
-                      size: 18, color: AppColors.textTertiary),
+                      size: AppTheme.iconS, color: AppColors.textTertiary),
                   const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(

@@ -105,7 +105,7 @@ class _TopBar extends StatelessWidget {
               padding: const EdgeInsets.only(right: AppTheme.spacingS),
               child: IconButton(
                 tooltip: 'Retour',
-                icon: const Icon(Icons.arrow_back, size: 20),
+                icon: const Icon(Icons.arrow_back, size: AppTheme.iconS),
                 onPressed: () => context.canPop()
                     ? context.pop()
                     : context.go(_parentPath(context)),
@@ -145,7 +145,8 @@ class _Sidebar extends StatelessWidget {
                 AppTheme.spacingL, AppTheme.spacingL, AppTheme.spacingM),
             child: Row(
               children: [
-                const Icon(Icons.spa, size: 20, color: AppColors.primary),
+                const Icon(Icons.spa,
+                    size: AppTheme.iconS, color: AppColors.primary),
                 const SizedBox(width: AppTheme.spacingS),
                 Text('Myweli · Admin', style: AppTextStyles.titleMedium),
               ],
@@ -192,7 +193,7 @@ class _Sidebar extends StatelessWidget {
                 ),
                 IconButton(
                   tooltip: 'Déconnexion',
-                  icon: const Icon(Icons.logout, size: 18),
+                  icon: const Icon(Icons.logout, size: AppTheme.iconS),
                   onPressed: () => context.read<AdminAuthProvider>().logout(),
                 ),
               ],
@@ -230,7 +231,7 @@ class _NavTile extends StatelessWidget {
             children: [
               Icon(
                 item.icon,
-                size: 18,
+                size: AppTheme.iconS,
                 color: active ? AppColors.textPrimary : AppColors.textSecondary,
               ),
               const SizedBox(width: AppTheme.spacingSM),

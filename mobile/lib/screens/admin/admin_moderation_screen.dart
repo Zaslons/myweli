@@ -79,7 +79,7 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       actions: [
         IconButton(
           tooltip: 'Rafraîchir',
-          icon: const Icon(Icons.refresh, size: 20),
+          icon: const Icon(Icons.refresh, size: AppTheme.iconS),
           onPressed: () => _segment == 0 ? p.loadReported() : p.loadHidden(),
         ),
       ],
@@ -192,7 +192,8 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       children: [
         Row(
           children: [
-            const Icon(Icons.star, size: 13, color: AppColors.starRating),
+            const Icon(Icons.star,
+                size: AppTheme.iconXS, color: AppColors.starRating),
             const SizedBox(width: AppTheme.spacingXS),
             Text('$rating/5',
                 style: AppTextStyles.bodySmall

@@ -309,7 +309,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                 children: [
                   OutlinedButton.icon(
                     onPressed: _locating ? null : _useMyPosition,
-                    icon: const Icon(Icons.my_location, size: 18),
+                    icon: const Icon(Icons.my_location, size: AppTheme.iconS),
                     label: Text(
                       _locating ? 'Recherche…' : 'Utiliser ma position',
                     ),
@@ -397,7 +397,7 @@ class _LocationField extends StatelessWidget {
                       child: const Icon(
                         Icons.location_on,
                         color: AppColors.primary,
-                        size: 22,
+                        size: AppTheme.iconM,
                       ),
                     ),
                   ),

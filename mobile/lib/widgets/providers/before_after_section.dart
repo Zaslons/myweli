@@ -179,7 +179,7 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
                         shape: BoxShape.circle,
                       ).copyWith(boxShadow: AppTheme.elevation2),
                       child: const Icon(Icons.compare_arrows,
-                          size: 18, color: AppColors.primary),
+                          size: AppTheme.iconS, color: AppColors.primary),
                     ),
                   ),
                 ],

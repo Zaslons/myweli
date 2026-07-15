@@ -210,7 +210,8 @@ class _ProAppointmentDetailScreenState
                           Row(
                             children: [
                               const Icon(Icons.savings_outlined,
-                                  size: 18, color: AppColors.textSecondary),
+                                  size: AppTheme.iconS,
+                                  color: AppColors.textSecondary),
                               const SizedBox(width: AppTheme.spacingS),
                               Expanded(
                                 child: Text(

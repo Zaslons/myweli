@@ -109,7 +109,7 @@ class _ProKycScreenState extends State<ProKycScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.lock_outline,
-                size: 16, color: AppColors.textTertiary),
+                size: AppTheme.iconXS, color: AppColors.textTertiary),
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
@@ -251,7 +251,7 @@ class _StatusBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 22),
+          Icon(icon, color: color, size: AppTheme.iconM),
           const SizedBox(width: AppTheme.spacingSM),
           Expanded(
             child: Column(
@@ -306,7 +306,8 @@ class _DocumentTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(_icon(type), size: 22, color: AppColors.textSecondary),
+          Icon(_icon(type),
+              size: AppTheme.iconM, color: AppColors.textSecondary),
           const SizedBox(width: AppTheme.spacingSM),
           Expanded(
             child: Column(
@@ -333,13 +334,13 @@ class _DocumentTile extends StatelessWidget {
               child: SizedBox(
                 width: 18,
                 height: 18,
-                child: BrandLoader(size: 20, fast: true),
+                child: BrandLoader(size: AppTheme.iconS, fast: true),
               ),
             )
           else if (!readOnly) ...[
             if (provided)
               IconButton(
-                icon: const Icon(Icons.close, size: 18),
+                icon: const Icon(Icons.close, size: AppTheme.iconS),
                 color: AppColors.textTertiary,
                 onPressed: onRemove,
                 tooltip: 'Retirer',

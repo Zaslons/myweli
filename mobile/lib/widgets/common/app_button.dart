@@ -36,7 +36,7 @@ class AppButton extends StatelessWidget {
       return TextButton(
         onPressed: isEnabled ? onPressed : null,
         child: isLoading
-            ? const BrandLoader(size: 20, fast: true)
+            ? const BrandLoader(size: AppTheme.iconS, fast: true)
             : Row(
                 mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -45,7 +45,7 @@ class AppButton extends StatelessWidget {
                     leading!,
                     const SizedBox(width: AppTheme.spacingS),
                   ] else if (icon != null) ...[
-                    Icon(icon, size: 20),
+                    Icon(icon, size: AppTheme.iconS),
                     const SizedBox(width: AppTheme.spacingS),
                   ],
                   Text(text),
@@ -62,7 +62,7 @@ class AppButton extends StatelessWidget {
               isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
         ),
         child: isLoading
-            ? const BrandLoader(size: 20, fast: true)
+            ? const BrandLoader(size: AppTheme.iconS, fast: true)
             : Row(
                 mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -71,7 +71,7 @@ class AppButton extends StatelessWidget {
                     leading!,
                     const SizedBox(width: AppTheme.spacingS),
                   ] else if (icon != null) ...[
-                    Icon(icon, size: 20),
+                    Icon(icon, size: AppTheme.iconS),
                     const SizedBox(width: AppTheme.spacingS),
                   ],
                   Text(text),
@@ -93,7 +93,7 @@ class AppButton extends StatelessWidget {
             isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
       ),
       child: isLoading
-          ? const BrandLoader(size: 20, fast: true, onDark: true)
+          ? const BrandLoader(size: AppTheme.iconS, fast: true, onDark: true)
           : Row(
               mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +102,7 @@ class AppButton extends StatelessWidget {
                   leading!,
                   const SizedBox(width: AppTheme.spacingS),
                 ] else if (icon != null) ...[
-                  Icon(icon, size: 20),
+                  Icon(icon, size: AppTheme.iconS),
                   const SizedBox(width: AppTheme.spacingS),
                 ],
                 Text(text),

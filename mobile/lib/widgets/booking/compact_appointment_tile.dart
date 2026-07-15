@@ -147,7 +147,8 @@ class CompactAppointmentTile extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(Icons.refresh,
-                            size: 14, color: AppColors.textPrimary),
+                            size: AppTheme.iconXS,
+                            color: AppColors.textPrimary),
                         const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           hint!,

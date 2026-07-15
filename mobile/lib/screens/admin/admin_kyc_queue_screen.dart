@@ -40,7 +40,7 @@ class _AdminKycQueueScreenState extends State<AdminKycQueueScreen> {
       actions: [
         IconButton(
           tooltip: 'Rafraîchir',
-          icon: const Icon(Icons.refresh, size: 20),
+          icon: const Icon(Icons.refresh, size: AppTheme.iconS),
           onPressed: () => context.read<AdminKycProvider>().loadQueue(),
         ),
       ],

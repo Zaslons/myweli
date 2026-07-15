@@ -188,7 +188,8 @@ class _PhotoTile extends StatelessWidget {
                 color: Colors.black54,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.close, size: 14, color: Colors.white),
+              child: const Icon(Icons.close,
+                  size: AppTheme.iconXS, color: Colors.white),
             ),
           ),
         ),
@@ -286,7 +287,7 @@ class _AddTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.add_a_photo_outlined,
-                color: AppColors.textSecondary, size: 24),
+                color: AppColors.textSecondary, size: AppTheme.iconM),
             const SizedBox(height: AppTheme.spacingXS),
             Text('Ajouter',
                 style: AppTextStyles.labelSmall
@@ -338,7 +339,7 @@ class _ArrowButton extends StatelessWidget {
         ),
         child: Icon(
           icon,
-          size: 16,
+          size: AppTheme.iconXS,
           color: Colors.white,
           semanticLabel: semanticLabel,
         ),

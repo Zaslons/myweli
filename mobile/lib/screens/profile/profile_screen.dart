@@ -38,7 +38,7 @@ class ProfileScreen extends StatelessWidget {
                   child: user?.avatarUrl == null
                       ? const Icon(
                           Icons.person,
-                          size: 40,
+                          size: AppTheme.iconL,
                           color: AppColors.textTertiary,
                         )
                       : ClipOval(

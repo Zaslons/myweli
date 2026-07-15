@@ -69,7 +69,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.favorite_border,
-                      size: 64, color: AppColors.textTertiary),
+                      size: AppTheme.iconXL, color: AppColors.textTertiary),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Connectez-vous pour voir vos favoris',

@@ -362,7 +362,7 @@ class _BufferSection extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.hourglass_bottom,
-                  size: 18, color: AppColors.textSecondary),
+                  size: AppTheme.iconS, color: AppColors.textSecondary),
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 'Temps de battement',
@@ -540,7 +540,8 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                     child: Column(
                       children: [
                         const Icon(Icons.access_time,
-                            size: 48, color: AppColors.textSecondary),
+                            size: AppTheme.iconXL,
+                            color: AppColors.textSecondary),
                         const SizedBox(height: AppTheme.spacingSM),
                         Text(
                           'Aucun créneau horaire',
@@ -576,7 +577,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: BrandLoader(size: 20, fast: true),
+                          child: BrandLoader(size: AppTheme.iconS, fast: true),
                         )
                       : const Text('Enregistrer'),
                 ),

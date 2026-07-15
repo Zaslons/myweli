@@ -440,11 +440,11 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
               const SizedBox(
                 width: 18,
                 height: 18,
-                child: BrandLoader(size: 20, fast: true),
+                child: BrandLoader(size: AppTheme.iconS, fast: true),
               )
             else
               const Icon(Icons.attachment,
-                  size: 18, color: AppColors.textSecondary),
+                  size: AppTheme.iconS, color: AppColors.textSecondary),
             const SizedBox(width: AppTheme.spacingM),
             Expanded(
               child: Text(

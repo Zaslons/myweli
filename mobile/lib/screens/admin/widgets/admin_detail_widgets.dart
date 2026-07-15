@@ -153,7 +153,7 @@ class AdminBookingsCard extends StatelessWidget {
               width: 40,
               child: IconButton(
                 tooltip: 'Ouvrir un litige',
-                icon: const Icon(Icons.gavel_outlined, size: 18),
+                icon: const Icon(Icons.gavel_outlined, size: AppTheme.iconS),
                 onPressed: () => onOpenDispute!('${a['id']}'),
               ),
             ),

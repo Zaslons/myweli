@@ -192,7 +192,7 @@ class _ClientListScreenState extends State<ClientListScreen> {
           if (i >= clients.clients.length) {
             return const Padding(
               padding: EdgeInsets.all(AppTheme.spacingM),
-              child: LoadingIndicator(size: 24),
+              child: LoadingIndicator(size: AppTheme.iconM),
             );
           }
           return _ClientRow(client: clients.clients[i]);
@@ -295,7 +295,7 @@ class _MiniBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppTextStyles.bodySmall.copyWith(color: color, fontSize: 10),
+        style: AppTextStyles.labelSmall.copyWith(color: color),
       ),
     );
   }

@@ -168,7 +168,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error_outline,
-                      size: 64, color: AppColors.error),
+                      size: AppTheme.iconXL, color: AppColors.error),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     provider.error ?? 'Salon introuvable',
@@ -287,7 +287,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                               top: AppTheme.spacingXS),
                                           child: Icon(
                                             Icons.verified,
-                                            size: 20,
+                                            size: AppTheme.iconS,
                                             color: AppColors.info,
                                             semanticLabel: 'Salon vérifié',
                                           ),
@@ -299,7 +299,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   Row(
                                     children: [
                                       const Icon(Icons.location_on_outlined,
-                                          size: 14,
+                                          size: AppTheme.iconXS,
                                           color: AppColors.textTertiary),
                                       const SizedBox(width: AppTheme.spacingXS),
                                       Expanded(
@@ -319,7 +319,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   Row(
                                     children: [
                                       const Icon(Icons.star,
-                                          size: 16,
+                                          size: AppTheme.iconXS,
                                           color: AppColors.starRating),
                                       const SizedBox(width: AppTheme.spacingXS),
                                       Text(
@@ -558,7 +558,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 child: Row(
                                   children: [
                                     const Icon(Icons.map_outlined,
-                                        size: 20,
+                                        size: AppTheme.iconS,
                                         color: AppColors.textTertiary),
                                     const SizedBox(width: AppTheme.spacingSM),
                                     Expanded(
@@ -619,7 +619,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 child: Row(
                                   children: [
                                     const Icon(Icons.phone_outlined,
-                                        size: 20,
+                                        size: AppTheme.iconS,
                                         color: AppColors.textTertiary),
                                     const SizedBox(width: AppTheme.spacingSM),
                                     Text(
@@ -655,7 +655,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   child: Row(
                                     children: [
                                       const Icon(Icons.chat_outlined,
-                                          size: 20,
+                                          size: AppTheme.iconS,
                                           color: AppColors.textTertiary),
                                       const SizedBox(width: AppTheme.spacingSM),
                                       Text(
@@ -679,7 +679,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Icon(Icons.schedule_outlined,
-                                      size: 20, color: AppColors.textTertiary),
+                                      size: AppTheme.iconS,
+                                      color: AppColors.textTertiary),
                                   const SizedBox(width: AppTheme.spacingSM),
                                   Expanded(
                                     child: Column(
@@ -773,7 +774,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             Row(
                               children: [
                                 const Icon(Icons.star,
-                                    size: 28, color: AppColors.starRating),
+                                    size: AppTheme.iconL,
+                                    color: AppColors.starRating),
                                 const SizedBox(width: AppTheme.spacingSM),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -864,7 +866,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                           children: [
                                             const Icon(
                                               Icons.star_border,
-                                              size: 28,
+                                              size: AppTheme.iconL,
                                               color: AppColors.textTertiary,
                                             ),
                                             const SizedBox(
@@ -939,7 +941,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: null,
-                            icon: const Icon(Icons.calendar_today, size: 20),
+                            icon: const Icon(Icons.calendar_today,
+                                size: AppTheme.iconS),
                             label: const Text(
                               'Réserver (après la mise en ligne)',
                             ),
@@ -962,7 +965,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 await launchUrl(uri);
                               }
                             },
-                            icon: const Icon(Icons.phone_outlined, size: 20),
+                            icon: const Icon(Icons.phone_outlined,
+                                size: AppTheme.iconS),
                             label: const Text('Appeler'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.textPrimary,
@@ -979,7 +983,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           child: ElevatedButton.icon(
                             onPressed: () =>
                                 context.push('/booking?providerId=${p.id}'),
-                            icon: const Icon(Icons.calendar_today, size: 20),
+                            icon: const Icon(Icons.calendar_today,
+                                size: AppTheme.iconS),
                             label: const Text('Réserver'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
@@ -1064,7 +1069,8 @@ class _FullScreenPhotoGalleryState extends State<_FullScreenPhotoGallery> {
             right: 16,
             child: IconButton(
               onPressed: widget.onClose,
-              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              icon: const Icon(Icons.close,
+                  color: Colors.white, size: AppTheme.iconL),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.black54,
               ),
@@ -1107,10 +1113,9 @@ class PageViewIndicator extends StatelessWidget {
         return Text(
           '${page + 1} / $itemCount',
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: AppTextStyles.bodyMedium.copyWith(
             color: Colors.white,
-            fontSize: 14,
-            shadows: [
+            shadows: const [
               Shadow(
                   color: Colors.black54, offset: Offset(0, 1), blurRadius: 2),
             ],
@@ -1207,7 +1212,7 @@ class _SalonLogo extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: const Icon(Icons.store_outlined,
-          size: 36, color: AppColors.textTertiary),
+          size: AppTheme.iconL, color: AppColors.textTertiary),
     );
   }
 }

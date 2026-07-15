@@ -29,7 +29,7 @@ class AppSearchBar extends StatelessWidget {
             const Icon(
               Icons.search,
               color: AppColors.textTertiary,
-              size: 24,
+              size: AppTheme.iconM,
             ),
             const SizedBox(width: AppTheme.spacingSM),
             Text(

@@ -91,7 +91,7 @@ class _ProSplashScreenState extends State<ProSplashScreen>
                   ),
                   child: const Icon(
                     Icons.business,
-                    size: 60,
+                    size: AppTheme.iconXL,
                     color: AppColors.secondary,
                   ),
                 ),

@@ -253,7 +253,7 @@ class _PairCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onRemove,
                   style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                  icon: const Icon(Icons.delete_outline, size: 18),
+                  icon: const Icon(Icons.delete_outline, size: AppTheme.iconS),
                   label: const Text('Supprimer'),
                 ),
               ],

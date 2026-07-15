@@ -225,7 +225,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
                   children: [
                     const Icon(
                       Icons.info_outline,
-                      size: 18,
+                      size: AppTheme.iconS,
                       color: AppColors.textTertiary,
                     ),
                     const SizedBox(width: AppTheme.spacingS),

@@ -290,7 +290,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                             return Row(
                               children: [
                                 const Icon(Icons.person,
-                                    size: 16, color: AppColors.textSecondary),
+                                    size: AppTheme.iconXS,
+                                    color: AppColors.textSecondary),
                                 const SizedBox(width: AppTheme.spacingS),
                                 Expanded(
                                   child: Text(
@@ -308,7 +309,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       Row(
                         children: [
                           const Icon(Icons.calendar_today,
-                              size: 16, color: AppColors.textSecondary),
+                              size: AppTheme.iconXS,
+                              color: AppColors.textSecondary),
                           const SizedBox(width: AppTheme.spacingS),
                           Text(
                             Formatters.formatDateShort(toSalonTime(
@@ -322,7 +324,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       Row(
                         children: [
                           const Icon(Icons.access_time,
-                              size: 16, color: AppColors.textSecondary),
+                              size: AppTheme.iconXS,
+                              color: AppColors.textSecondary),
                           const SizedBox(width: AppTheme.spacingS),
                           Text(
                             Formatters.formatTime(toSalonTime(
@@ -344,7 +347,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         Row(
                           children: [
                             const Icon(Icons.content_cut,
-                                size: 16, color: AppColors.textSecondary),
+                                size: AppTheme.iconXS,
+                                color: AppColors.textSecondary),
                             const SizedBox(width: AppTheme.spacingS),
                             Text(
                               'Longueur : '
