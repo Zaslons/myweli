@@ -135,13 +135,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Icon(Icons.lock_outline,
                       size: 64, color: AppColors.textSecondary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Veuillez vous connecter',
                     style: AppTextStyles.titleLarge
                         .copyWith(color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   ElevatedButton(
                     onPressed: () => context.go('/pro/login'),
                     child: const Text('Se connecter'),
@@ -209,7 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   // Go-live is owner-only (salon.publish, sign-off) — the
                   // card hides for members; the server 403s regardless.
                   if (authProvider.can(ProCap.salonPublish)) ...[
@@ -223,9 +223,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onTap: () => context.push('/pro/onboarding'),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   // Stats Cards
                   Row(
                     children: [
@@ -238,7 +238,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppTheme.spacingSM),
                       Expanded(
                         child: _StatCard(
                           title: 'En attente',
@@ -253,7 +253,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Money figures are field-gated server-side without
                   // finances.view (R1/R4) — absence is a valid state.
                   if (stats.hasRevenue) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppTheme.spacingSM),
                     Row(
                       children: [
                         Expanded(
@@ -269,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: AppColors.success,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AppTheme.spacingSM),
                         Expanded(
                           child: _StatCard(
                             title: 'Ce mois',
@@ -286,7 +286,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   // Role-gated sections (access R4b): UI hiding is
                   // convenience — the routes 403 server-side regardless.
                   ..._section(context, 'Opérations quotidiennes', [
@@ -355,7 +355,7 @@ List<Widget> _section(BuildContext context, String title, List<Widget> cards) {
       title,
       style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
     ),
-    const SizedBox(height: 12),
+    const SizedBox(height: AppTheme.spacingSM),
     GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -365,7 +365,7 @@ List<Widget> _section(BuildContext context, String title, List<Widget> cards) {
       childAspectRatio: 1.1,
       children: cards,
     ),
-    const SizedBox(height: 24),
+    const SizedBox(height: AppTheme.spacingL),
   ];
 }
 
@@ -407,7 +407,7 @@ class _StatCard extends StatelessWidget {
               Icon(icon, color: color, size: 20),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacingS),
           Text(
             value,
             style: AppTextStyles.headlineSmall
@@ -449,7 +449,7 @@ class _ActionCard extends StatelessWidget {
         child: Column(
           children: [
             Icon(icon, size: 32, color: AppColors.primary),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.spacingS),
             Text(
               title,
               style: AppTextStyles.bodyMedium

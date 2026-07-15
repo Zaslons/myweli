@@ -272,7 +272,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                   letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               DropdownButtonFormField<String>(
                 initialValue: _category,
                 items: [
@@ -298,13 +298,13 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                   letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               _LocationField(
                 pin: _pin,
                 defaultCenter: _defaultCenter,
                 onPick: (latLng) => setState(() => _pin = latLng),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Row(
                 children: [
                   OutlinedButton.icon(
@@ -318,7 +318,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                       side: const BorderSide(color: AppColors.borderStrong),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppTheme.spacingSM),
                   Expanded(
                     child: Text(
                       _pin == null

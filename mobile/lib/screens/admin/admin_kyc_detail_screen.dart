@@ -113,7 +113,7 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
 
   Widget _info(Map<String, dynamic> d) {
     Widget row(String label, String value) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingSM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -249,7 +249,7 @@ class _DocTile extends StatelessWidget {
                   ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppTheme.spacingXS),
         Text(type, style: AppTextStyles.bodySmall),
       ],
     );

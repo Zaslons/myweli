@@ -133,7 +133,7 @@ class _EarningsScreenState extends State<EarningsScreen>
                       style: AppTextStyles.bodyMedium
                           .copyWith(color: AppColors.textSecondary),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     Text(
                       Formatters.formatCurrency(
                         earnings.totalEarnings,

@@ -92,20 +92,20 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       _resolvedProviderId(context),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   Text(
                     'Pauses',
                     style: AppTextStyles.titleLarge
                         .copyWith(color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     'Une pause récurrente par jour (ex. déjeuner). '
                     'Aucun créneau ne sera proposé pendant ces heures.',
                     style: AppTextStyles.bodySmall
                         .copyWith(color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                   WeeklyHoursEditor(
                     hours: availability.breaks,
                     offLabel: 'Aucune',
@@ -119,13 +119,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       _resolvedProviderId(context),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   Text(
                     'Horaires de travail',
                     style: AppTextStyles.titleLarge
                         .copyWith(color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   ...List.generate(7, (index) {
                     final dayName = _getDayName(index);
                     final daySlots = availability.weeklySchedule[index] ?? [];
@@ -142,13 +142,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                           _resolvedProviderId(context)),
                     );
                   }),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   Text(
                     'Dates bloquées',
                     style: AppTextStyles.titleLarge
                         .copyWith(color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                   if (availability.blockedDates.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -161,7 +161,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         children: [
                           const Icon(Icons.info_outline,
                               color: AppColors.textSecondary),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppTheme.spacingSM),
                           Expanded(
                             child: Text(
                               'Aucune date bloquée',
@@ -184,7 +184,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                             _resolvedProviderId(context),
                           ),
                         )),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                   OutlinedButton.icon(
                     onPressed: () => _showAddBlockedDateDialog(
                       context,
@@ -363,7 +363,7 @@ class _BufferSection extends StatelessWidget {
             children: [
               const Icon(Icons.hourglass_bottom,
                   size: 18, color: AppColors.textSecondary),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppTheme.spacingS),
               Text(
                 'Temps de battement',
                 style: AppTextStyles.titleMedium
@@ -371,7 +371,7 @@ class _BufferSection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             'Pause automatique entre deux rendez-vous (nettoyage, '
             'préparation). Les créneaux proposés aux clients en tiennent compte.',
@@ -541,14 +541,14 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                       children: [
                         const Icon(Icons.access_time,
                             size: 48, color: AppColors.textSecondary),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppTheme.spacingSM),
                         Text(
                           'Aucun créneau horaire',
                           style: AppTextStyles.titleMedium.copyWith(
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Text(
                           'Ajoutez des créneaux pour définir vos horaires',
                           style: AppTextStyles.bodySmall.copyWith(
@@ -567,7 +567,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                       onRemove: () => _removeTimeSlot(index),
                     );
                   }),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 ElevatedButton(
                   onPressed: provider.isLoading
                       ? null

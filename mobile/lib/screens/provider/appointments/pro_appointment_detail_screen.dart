@@ -119,8 +119,8 @@ class _ProAppointmentDetailScreenState
                             if ((appointment.clientNoShowCount ?? 0) >= 1)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
+                                  horizontal: AppTheme.spacingS,
+                                  vertical: AppTheme.spacingXS,
                                 ),
                                 decoration: BoxDecoration(
                                   color: ((appointment.clientNoShowCount ??
@@ -153,7 +153,8 @@ class _ProAppointmentDetailScreenState
                               '/pro/clients/${appointment.salonClientId}',
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.only(
+                                  top: AppTheme.spacingXS),
                               child: Text(
                                 'Voir la fiche client',
                                 style: AppTextStyles.bodySmall.copyWith(
@@ -163,13 +164,13 @@ class _ProAppointmentDetailScreenState
                               ),
                             ),
                           ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Date et heure',
                           style: AppTextStyles.titleMedium
                               .copyWith(color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Text(
                           Formatters.formatDateTime(toSalonTime(
                             appointment.appointmentDate,
@@ -178,24 +179,24 @@ class _ProAppointmentDetailScreenState
                           style: AppTextStyles.bodyLarge
                               .copyWith(color: AppColors.textSecondary),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Statut',
                           style: AppTextStyles.titleMedium
                               .copyWith(color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Chip(
                           label: Text(_getStatusText(appointment.status)),
                           backgroundColor: _getStatusColor(appointment.status),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Prix total',
                           style: AppTextStyles.titleMedium
                               .copyWith(color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Text(
                           Formatters.formatCurrency(
                             appointment.totalPrice,
@@ -210,7 +211,7 @@ class _ProAppointmentDetailScreenState
                             children: [
                               const Icon(Icons.savings_outlined,
                                   size: 18, color: AppColors.textSecondary),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppTheme.spacingS),
                               Expanded(
                                 child: Text(
                                   'Acompte annoncé : '
@@ -226,7 +227,7 @@ class _ProAppointmentDetailScreenState
                             style: AppTextStyles.bodySmall
                                 .copyWith(color: AppColors.textTertiary),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppTheme.spacingS),
                           _DepositProof(
                             appointmentId: appointment.id,
                             hasProof: appointment.depositScreenshotUrl != null,
@@ -236,7 +237,7 @@ class _ProAppointmentDetailScreenState
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 if (!ownMode &&
                     appointment.status == AppointmentStatus.pending) ...[
                   AppButton(
@@ -252,7 +253,7 @@ class _ProAppointmentDetailScreenState
                       }
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                   AppButton(
                     text: 'Rejeter',
                     type: AppButtonType.secondary,
@@ -301,7 +302,7 @@ class _ProAppointmentDetailScreenState
                         }
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppTheme.spacingSM),
                   ],
                   AppButton(
                     text: 'Marquer comme terminé',
@@ -317,7 +318,7 @@ class _ProAppointmentDetailScreenState
                     },
                   ),
                   if (!appointment.appointmentDate.isAfter(DateTime.now())) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppTheme.spacingSM),
                     AppButton(
                       text: 'Marquer comme absent',
                       type: AppButtonType.secondary,

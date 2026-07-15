@@ -122,7 +122,7 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                                   p.name,
                                   style: AppTextStyles.titleMedium,
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: AppTheme.spacingXS),
                                 Text(
                                   p.address,
                                   style: AppTextStyles.bodySmall.copyWith(
@@ -135,7 +135,7 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     // Services List
                     ...p.services.map((service) {
                       final isSelected =
@@ -189,7 +189,7 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     AppButton(
                       text: 'Continuer',
                       onPressed:
@@ -241,7 +241,7 @@ class _ServiceCard extends StatelessWidget {
               onChanged: isDisabled ? null : (_) => onTap(),
               activeColor: AppColors.primary,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +254,7 @@ class _ServiceCard extends StatelessWidget {
                           : AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     service.description,
                     style: AppTextStyles.bodySmall.copyWith(
@@ -263,7 +263,7 @@ class _ServiceCard extends StatelessWidget {
                           : AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     Formatters.formatDuration(service.durationMinutes),
                     style: AppTextStyles.bodySmall.copyWith(
@@ -273,7 +273,7 @@ class _ServiceCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTheme.spacingS),
             Flexible(
               child: Text(
                 Formatters.formatPriceRange(service.price, service.priceMax,

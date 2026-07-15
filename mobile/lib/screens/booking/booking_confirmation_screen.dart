@@ -244,7 +244,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         children: [
                           const Icon(Icons.store,
                               color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppTheme.spacingS),
                           Expanded(
                             child: Text(
                               p.name,
@@ -256,7 +256,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       const Divider(height: 24),
                       // Services
                       ...selectedServices.map((service) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(
+                                bottom: AppTheme.spacingS),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -290,7 +291,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                               children: [
                                 const Icon(Icons.person,
                                     size: 16, color: AppColors.textSecondary),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: AppTheme.spacingS),
                                 Expanded(
                                   child: Text(
                                     artist.name,
@@ -308,7 +309,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         children: [
                           const Icon(Icons.calendar_today,
                               size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppTheme.spacingS),
                           Text(
                             Formatters.formatDateShort(toSalonTime(
                                 widget.appointmentDateTime,
@@ -317,12 +318,12 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppTheme.spacingS),
                       Row(
                         children: [
                           const Icon(Icons.access_time,
                               size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppTheme.spacingS),
                           Text(
                             Formatters.formatTime(toSalonTime(
                                 widget.appointmentDateTime,
@@ -339,12 +340,12 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       ),
                       if (widget.lengthVariant != null) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Row(
                           children: [
                             const Icon(Icons.content_cut,
                                 size: 16, color: AppColors.textSecondary),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: AppTheme.spacingS),
                             Text(
                               'Longueur : '
                               '${lengthVariantLabel(widget.lengthVariant!)}',
@@ -376,7 +377,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         ],
                       ),
                       if (depositAmount > 0) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -393,7 +394,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppTheme.spacingXS),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -416,7 +417,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 // Notes
                 AppTextField(
                   label: 'Notes (optionnel)',
@@ -424,7 +425,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                   controller: _notesController,
                   maxLines: 4,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 AppButton(
                   text: depositAmount > 0
                       ? 'Payer l\'acompte · ${Formatters.formatCurrency(depositAmount, currency: p.currency)}'
@@ -434,7 +435,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       : () => _handleConfirm(depositAmount, balanceDue),
                   isLoading: _isLoading,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 Text(
                   'En confirmant, vous acceptez nos conditions d\'utilisation',
                   style: AppTextStyles.bodySmall.copyWith(

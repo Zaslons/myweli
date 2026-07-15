@@ -22,7 +22,7 @@ class CommunePill extends StatelessWidget {
     final label = commune ?? 'Toutes les communes';
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppTheme.spacingM,
@@ -30,13 +30,13 @@ class CommunePill extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.location_on, size: 16, color: AppColors.secondary),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppTheme.spacingS),
             Flexible(
               child: Text(
                 label,
@@ -48,7 +48,7 @@ class CommunePill extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: AppTheme.spacingXS),
             const Icon(
               Icons.keyboard_arrow_down,
               size: 16,

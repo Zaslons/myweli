@@ -146,7 +146,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 Text(
                   'Créez votre compte professionnel',
                   style: AppTextStyles.headlineLarge.copyWith(
@@ -154,7 +154,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 Text(
                   'Rejoignez MyWeli Pro et gérez votre salon',
                   style: AppTextStyles.bodyLarge.copyWith(
@@ -162,7 +162,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppTheme.spacingXL),
                 AppTextField(
                   label: 'Nom de l\'entreprise',
                   hint: 'Ex: Salon de Beauté Marie',
@@ -175,7 +175,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 DropdownButtonFormField<BusinessType>(
                   initialValue: _selectedBusinessType,
                   decoration: InputDecoration(
@@ -223,12 +223,12 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 PhoneNumberField(
                   label: 'Téléphone du salon',
                   onChanged: (e164) => _phoneNumber = e164,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 AppTextField(
                   label: 'Adresse',
                   hint: 'Adresse de l\'entreprise',
@@ -269,21 +269,21 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: AppTheme.spacingXL),
                 Text(
                   'Votre identité de connexion',
                   style: AppTextStyles.titleMedium.copyWith(
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   'Elle vous servira à vous connecter à votre espace pro.',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 AppButton(
                   text: 'S\'inscrire avec Google',
                   type: AppButtonType.secondary,
@@ -291,14 +291,14 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   onPressed: auth.isLoading ? null : _handleGoogle,
                 ),
                 if (_showApple) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                   AppButton(
                     text: 'S\'inscrire avec Apple',
                     type: AppButtonType.secondary,
                     onPressed: auth.isLoading ? null : () {},
                   ),
                 ],
-                const SizedBox(height: 20),
+                const SizedBox(height: AppTheme.spacingL),
                 Row(
                   children: [
                     const Expanded(child: Divider(color: AppColors.divider)),
@@ -316,7 +316,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     const Expanded(child: Divider(color: AppColors.divider)),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppTheme.spacingL),
                 AppTextField(
                   controller: _emailController,
                   label: 'Votre e-mail',
@@ -325,7 +325,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   onChanged: (_) => setState(() {}),
                 ),
                 if (!_codeSent) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   AppButton(
                     text: 'Recevoir un code',
                     onPressed:
@@ -333,7 +333,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     isLoading: auth.isLoading,
                   ),
                 ] else ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   AppTextField(
                     controller: _codeController,
                     label: 'Code à 6 chiffres',
@@ -342,7 +342,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     onChanged: (_) => setState(() {}),
                   ),
                   if (auth.emailDevCode != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.spacingXS),
                     Text(
                       'Code (dev) : ${auth.emailDevCode}',
                       style: AppTextStyles.bodySmall.copyWith(
@@ -350,7 +350,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   AppButton(
                     text: 'S\'inscrire',
                     onPressed: (auth.isLoading ||
@@ -359,7 +359,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                         : _handleEmailRegister,
                     isLoading: auth.isLoading,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                   AppButton(
                     text: 'Renvoyer le code',
                     type: AppButtonType.text,
@@ -367,7 +367,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   ),
                 ],
                 if (auth.error != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                   Text(
                     auth.error!,
                     style: AppTextStyles.bodySmall
@@ -375,7 +375,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

@@ -355,11 +355,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         Expanded(
                           child: _variantField('Court', _courtController),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppTheme.spacingS),
                         Expanded(
                           child: _variantField('Moyen', _moyenController),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppTheme.spacingS),
                         Expanded(
                           child: _variantField('Long', _longController),
                         ),
@@ -382,14 +382,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppTheme.spacingXS),
                           Text(
                             'Aucune sélection = toute l\'équipe.',
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.textTertiary,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppTheme.spacingXS),
                           for (final artist in artists)
                             CheckboxListTile(
                               value: _artistIds.contains(artist.id),

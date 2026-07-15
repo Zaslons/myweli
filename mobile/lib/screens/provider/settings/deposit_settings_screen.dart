@@ -127,7 +127,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                     color: AppColors.warning,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 OutlinedButton(
                   onPressed: () => context.push('/pro/verification'),
                   style: OutlinedButton.styleFrom(
@@ -208,7 +208,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -224,7 +224,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.spacingXS),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -261,7 +261,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
               children: [
                 const Text('Recevoir l\'acompte',
                     style: AppTextStyles.bodyMedium),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   'Le client envoie l\'acompte directement sur ce compte '
                   'Mobile Money. Myweli ne le traite pas.',
@@ -344,7 +344,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                 "Politique d'annulation",
                 style: AppTextStyles.bodyMedium,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.spacingXS),
               Text(
                 'Au-delà de ce délai avant le rendez-vous, le client peut '
                 "annuler et garder son acompte ; en deçà, l'acompte n'est pas "

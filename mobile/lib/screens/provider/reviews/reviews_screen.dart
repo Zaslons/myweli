@@ -71,13 +71,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 children: [
                   const Icon(Icons.star_outline,
                       size: 64, color: AppColors.textSecondary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Aucun avis',
                     style: AppTextStyles.titleLarge
                         .copyWith(color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                   Text(
                     'Les avis de vos clients apparaîtront ici',
                     style: AppTextStyles.bodyMedium
@@ -114,7 +114,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                             children: [
                               const Icon(Icons.star,
                                   size: 32, color: AppColors.starRating),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppTheme.spacingS),
                               Text(
                                 averageRating.toStringAsFixed(1),
                                 style: AppTextStyles.headlineMedium.copyWith(
@@ -123,7 +123,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppTheme.spacingXS),
                           Text(
                             '${reviews.length} avis',
                             style: AppTextStyles.bodySmall.copyWith(
@@ -143,7 +143,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                           final percentage =
                               reviews.isEmpty ? 0.0 : count / reviews.length;
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.only(
+                                bottom: AppTheme.spacingXS),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -153,10 +154,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: AppTheme.spacingXS),
                                 const Icon(Icons.star,
                                     size: 14, color: AppColors.starRating),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: AppTheme.spacingS),
                                 SizedBox(
                                   width: 100,
                                   child: LinearProgressIndicator(
@@ -167,7 +168,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                             AppColors.gold),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: AppTheme.spacingS),
                                 Text(
                                   '$count',
                                   style: AppTextStyles.bodySmall.copyWith(
@@ -230,7 +231,7 @@ class _ReviewCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,14 +258,14 @@ class _ReviewCard extends StatelessWidget {
                               )),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     Formatters.formatDateShort(review.createdAt),
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textTertiary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                   Text(
                     review.text,
                     style: AppTextStyles.bodyMedium.copyWith(

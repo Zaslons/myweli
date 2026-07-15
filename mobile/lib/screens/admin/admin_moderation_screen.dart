@@ -193,18 +193,18 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
         Row(
           children: [
             const Icon(Icons.star, size: 13, color: AppColors.starRating),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppTheme.spacingXS),
             Text('$rating/5',
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.textSecondary)),
           ],
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppTheme.spacingXS),
         Text(text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodyMedium),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppTheme.spacingXS),
         Text(sub,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -251,7 +251,7 @@ class _Segments extends StatelessWidget {
         color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
       ),
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(AppTheme.spacingXS),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -269,7 +269,8 @@ class _Segments extends StatelessWidget {
         onTap: () => onSelect(index),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
           decoration: BoxDecoration(
             color: active ? AppColors.secondary : Colors.transparent,
             borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

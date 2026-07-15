@@ -46,7 +46,7 @@ class CategoryChips extends StatelessWidget {
                         ? AppColors.secondary
                         : AppColors.textPrimary,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: AppTheme.spacingS),
                   Text(category['name'] as String),
                 ],
               ),

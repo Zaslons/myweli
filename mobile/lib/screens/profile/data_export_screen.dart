@@ -209,7 +209,7 @@ class _SectionCard extends StatelessWidget {
               color: AppColors.textTertiary,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.spacingXS),
           child,
         ],
       ),
@@ -235,7 +235,7 @@ class _MetricCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('$value', style: AppTextStyles.headlineMedium),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             label,
             style: AppTextStyles.bodySmall.copyWith(

@@ -153,7 +153,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
       child: items.isEmpty
           ? ListView(
               children: [
-                const SizedBox(height: 80),
+                const SizedBox(height: AppTheme.spacingXXXL),
                 EmptyState(
                   icon: Icons.event_available,
                   title: 'Aucun rendez-vous ce jour',
@@ -552,7 +552,7 @@ class _WeekStrip extends StatelessWidget {
               fontSize: 10,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppTheme.spacingXS),
           Container(
             width: 32,
             height: 32,
@@ -568,7 +568,7 @@ class _WeekStrip extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppTheme.spacingXS),
           Container(
             width: count == 0 ? 0 : (3 + count.clamp(0, 5)).toDouble(),
             height: 4,
@@ -729,7 +729,8 @@ class _TimelineCard extends StatelessWidget {
 
   Widget _badge(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

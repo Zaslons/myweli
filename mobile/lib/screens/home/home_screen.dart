@@ -105,13 +105,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: AppTheme.spacingS),
                       InkWell(
                         onTap: () => context.push('/profile'),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusPill),
                         child: Container(
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
                             color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusPill),
                             border: Border.all(color: AppColors.border),
                           ),
                           child: const Icon(

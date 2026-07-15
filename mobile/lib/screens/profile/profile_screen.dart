@@ -30,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.all(AppTheme.spacingL),
             child: Column(
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 // Avatar
                 CircleAvatar(
                   radius: 40,
@@ -50,13 +50,13 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 // Name
                 Text(
                   user?.name ?? 'Utilisateur',
                   style: AppTextStyles.headlineMedium,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 // Phone
                 Text(
                   user?.phoneNumber ?? '',
@@ -64,7 +64,7 @@ class ProfileScreen extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppTheme.spacingXL),
                 // Settings List
                 _SettingsItem(
                   icon: Icons.edit,
@@ -150,7 +150,7 @@ class ProfileScreen extends StatelessWidget {
                     onTap: () => _handleDelete(context, authProvider),
                   ),
                 ],
-                const SizedBox(height: 32),
+                const SizedBox(height: AppTheme.spacingXL),
                 // Logout Button (only show if authenticated)
                 if (user != null)
                   AppButton(
@@ -245,7 +245,7 @@ class ProfileScreen extends StatelessWidget {
             title: const Row(
               children: [
                 Icon(Icons.warning_amber_rounded, color: AppColors.error),
-                SizedBox(width: 8),
+                SizedBox(width: AppTheme.spacingS),
                 Expanded(child: Text('Supprimer mon compte')),
               ],
             ),
@@ -257,14 +257,14 @@ class ProfileScreen extends StatelessWidget {
                   'Cette action est définitive. Vos rendez-vous, favoris et '
                   'avis seront supprimés. Pensez à exporter vos données avant.',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 Text(
                   'Tapez SUPPRIMER pour confirmer',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 TextField(
                   controller: controller,
                   autofocus: true,

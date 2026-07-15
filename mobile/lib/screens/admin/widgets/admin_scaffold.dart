@@ -141,11 +141,12 @@ class _Sidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            padding: const EdgeInsets.fromLTRB(AppTheme.spacingL,
+                AppTheme.spacingL, AppTheme.spacingL, AppTheme.spacingM),
             child: Row(
               children: [
                 const Icon(Icons.spa, size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppTheme.spacingS),
                 Text('Myweli · Admin', style: AppTextStyles.titleMedium),
               ],
             ),
@@ -156,7 +157,11 @@ class _Sidebar extends StatelessWidget {
               children: [
                 for (final group in _groups) ...[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppTheme.spacingL,
+                        AppTheme.spacingSM,
+                        AppTheme.spacingL,
+                        AppTheme.spacingXS),
                     child: Text(
                       group.title,
                       style: AppTextStyles.bodySmall
@@ -174,7 +179,8 @@ class _Sidebar extends StatelessWidget {
           ),
           const Divider(height: 1, color: AppColors.divider),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+            padding: const EdgeInsets.fromLTRB(AppTheme.spacingL,
+                AppTheme.spacingS, AppTheme.spacingS, AppTheme.spacingS),
             child: Row(
               children: [
                 Expanded(
@@ -210,7 +216,8 @@ class _NavTile extends StatelessWidget {
       child: InkWell(
         onTap: () => context.go(item.path),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM, vertical: AppTheme.spacingSM),
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
@@ -226,7 +233,7 @@ class _NavTile extends StatelessWidget {
                 size: 18,
                 color: active ? AppColors.textPrimary : AppColors.textSecondary,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppTheme.spacingSM),
               Text(
                 item.label,
                 style: (active

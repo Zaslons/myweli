@@ -280,7 +280,9 @@ times. A pill is a *shape*, not a number — name it.
 
 ## 7. Icon size
 
-The codebase currently uses **19 distinct icon sizes**. Five is enough.
+Source: `AppTheme.iconXS…iconXL` (defined in A2). The codebase used **19 distinct
+icon sizes**; five is enough. The 146 `size:` call-sites migrate to these tokens in
+A2b (§21 row 7).
 
 | Token | Value | Use for |
 |---|---|---|
@@ -627,7 +629,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 | Rule | Gate |
 |---|---|
 | Contrast (§3, §13.1) | **`test/unit/design_contrast_test.dart`** — real WCAG math per token pair, + grep-pins on the ink/brand split and gold-as-state |
-| No literals (§3, §4, §5, §6) | `test/design_system_pin_test.dart` — grep-as-test with the §21 register as its allowlist, which **shrinks** with each burn-down PR |
+| No literals (§3, §4, §5, §6) | **`test/unit/design_system_pin_test.dart`** — sweep-as-test. Live for **spacing (§5)** and **radius (§6)** (A2); the **type (§4)** and **icon-size (§7)** checks arrive with A2b. Excludes `core/theme/` (token defs) + the flag-hidden `features/` (§22); a `// ds-ignore` line is a declared fixed-dimension exception |
 | Tap targets + labels (§13.2, §13.4) | `meetsGuideline(androidTapTargetGuideline / labeledTapTargetGuideline / textContrastGuideline)` |
 | Text scale (§13.3) | Key screens pumped at `TextScaler.linear(2.0)`, asserted not to overflow |
 | Visual regression | **Goldens** — `test/golden/`, see below |
@@ -703,10 +705,10 @@ own design system?" — today, mostly not.
 | 2 | Control borders ≥ 3:1 (§3.3) | ~~every input~~ → **0** | every field was outlined at **1.44:1**; the worst was a *tappable* journal tile on `divider` at **1.24:1**. Now `borderStrong` (3.22:1) on ~30 form controls + selection states — and *not* on content-identified cards, which would have boxed the product for no gain | ✅ **A1** |
 | 3 | Ink ≠ brand black (§1) | ~~130~~ → **0** | `textPrimary` is `#1A1A1A`; `primary` stays `#000000`. Exactly ONE site had the brand black wearing the ink token (a `CircleAvatar` fill) — now grep-pinned so it can't come back | ✅ **A1** |
 | 3b | Gold carries state at ≥3:1 (§3.5) | ~~3~~ → **0** | the unseen-story ring was a **1.62:1** stroke — a state indicator you could not see. Gold-as-state → `gold` (3.04:1); the 12 real star glyphs keep `starRating` | ✅ **A1** |
-| 4 | Spacing on-grid (§5) | ~128 `SizedBox` + ~45 `EdgeInsets` | `12` appears **76×** | **A2** |
-| 5 | Radius tokens (§6) | 23 | `999` appears **21×** | **A2** |
-| 6 | Type scale ≥ 11px (§4) | 9 raw `fontSize:` | six at **10px** | **A2** |
-| 7 | Icon-size tokens (§7) | **19 distinct values**, 0 constants | | **A2** |
+| 4 | Spacing on-grid (§5) | ~~128~~ → **0** | the register **under-counted**: it missed the pixel-identical on-grid literals, so the true in-scope set was **~488** raw spacing literals. `12`×76 → the new `spacingSM`; ~90 off-grid (`2/6/10/14/20/28/…`) resolved to the nearest token (tie → up); the rest are exact-value swaps. One fixed clearance keeps its literal under `// ds-ignore`. Pinned by `design_system_pin_test.dart` | ✅ **A2** |
+| 5 | Radius tokens (§6) | ~~23~~ → **0** | `999`×21 → `radiusPill`; `16`/`24` → `radiusXL`/`radiusXXL`; `7`/`2` → nearest. Pinned | ✅ **A2** |
+| 6 | Type scale ≥ 11px (§4) | 9 raw `fontSize:` | six at **10px** | **A2b** |
+| 7 | Icon-size tokens (§7) | **19 distinct values** → 5 (`AppTheme.iconXS…XL`, defined in A2) | 146 `size:` sites migrate in A2b | **A2b** |
 | 8 | Motion tokens (§9) | **12 distinct durations**, 0 constants | | *A9* |
 | 9 | Full `ColorScheme` + component themes (§3) | ~~23 missing~~ → **0** | the scheme set 8 of ~30 slots, so unthemed M3 widgets (pickers, snackbars, chips, tabs, icons, sheets) fell back to **Material purple**. Now the full scheme + a component theme for every component the app renders — verified by the `components_material` golden | ✅ **A3** |
 | 10 | Button min-height 48 (§13.2) | ~~all~~ → **0** | `textButtonTheme.minimumSize` `Size(0, 40)` → `Size(0, 48)` — raw TextButtons and `AppButton.text` alike | ✅ **A3** |
@@ -732,8 +734,10 @@ scheduled for re-evaluation after it.
 
 Rows **23–26** were not in the original audit. Each was found by *doing the work*:
 23 and 24 by taking the pictures (PR-0.5), 25 and 26 by walking every bordered
-control in A1. That is the register behaving as intended — it gets **more honest**
-as it shrinks, not just shorter.
+control in A1. Row **4's count was wrong** — the audit said ~128, but migrating it
+found **~488** (it had never counted the pixel-identical on-grid literals). That is
+the register behaving as intended — it gets **more honest** as it shrinks, not just
+shorter. A count is a hypothesis; the burn-down is the measurement.
 
 ---
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/admin/admin_kyc_provider.dart';
@@ -44,7 +45,7 @@ class _AdminKycQueueScreenState extends State<AdminKycQueueScreen> {
         ),
       ],
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppTheme.spacingL),
         child: AdminDataTable(
           isLoading: p.isLoading,
           error: p.error,

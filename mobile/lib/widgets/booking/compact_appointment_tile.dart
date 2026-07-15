@@ -111,12 +111,13 @@ class CompactAppointmentTile extends StatelessWidget {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: AppTheme.spacingS,
+                          vertical: AppTheme.spacingXS,
                         ),
                         decoration: BoxDecoration(
                           color: statusColor.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusPill),
                         ),
                         child: Text(
                           _statusText(appointment.status),
@@ -127,7 +128,7 @@ class CompactAppointmentTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppTheme.spacingS),
                   Builder(builder: (context) {
                     // The booking renders in ITS salon's time (multi-pays).
                     final wall = toSalonTime(
@@ -142,12 +143,12 @@ class CompactAppointmentTile extends StatelessWidget {
                     );
                   }),
                   if (hint != null) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppTheme.spacingS),
                     Row(
                       children: [
                         const Icon(Icons.refresh,
                             size: 14, color: AppColors.textPrimary),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           hint!,
                           style: AppTextStyles.labelSmall.copyWith(

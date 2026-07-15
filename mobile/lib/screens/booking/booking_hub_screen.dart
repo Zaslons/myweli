@@ -426,7 +426,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(p.name, style: AppTextStyles.titleLarge),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppTheme.spacingXS),
                             Text(
                               p.address,
                               style: AppTextStyles.bodySmall
@@ -613,7 +613,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 }
                               },
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: AppTheme.spacingS),
                             ...p.artists.map((a) {
                               final selected =
                                   _artistChosen && _draft.artistId == a.id;
@@ -740,13 +740,14 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             const SizedBox(height: AppTheme.spacingS),
                             if (_isLoadingSlots)
                               const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingSM),
                                 child: Center(child: LoadingIndicator()),
                               )
                             else if (_availableSlotsForSelectedDate.isEmpty)
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS),
                                 child: Text(
                                   'Aucun créneau disponible',
                                   style: AppTextStyles.bodySmall
@@ -781,7 +782,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                           : AppColors.textPrimary,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(999),
+                                      borderRadius: BorderRadius.circular(
+                                          AppTheme.radiusPill),
                                       side: BorderSide(
                                         color: selected
                                             ? AppColors.primary
@@ -834,7 +836,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                         ],
                       ),
                       if (totalDuration > 0) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppTheme.spacingXS),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
@@ -845,7 +847,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                         ),
                       ],
                       if (!_artistChosen && p.artists.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: AppTheme.spacingS),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
@@ -863,7 +865,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.secondary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: AppTheme.spacingM),
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(AppTheme.radiusLarge),
@@ -925,7 +928,7 @@ class _HubSectionCard extends StatelessWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Icon(icon, color: AppColors.textPrimary),
@@ -936,7 +939,7 @@ class _HubSectionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, style: AppTextStyles.titleSmall),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppTheme.spacingXS),
                       Text(
                         value,
                         style: AppTextStyles.bodyMedium
@@ -995,14 +998,14 @@ class _SelectableRow extends StatelessWidget {
       onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSM),
         child: Row(
           children: [
             Container(
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
                     color:
                         selected ? AppColors.primary : AppColors.borderStrong),
@@ -1014,7 +1017,7 @@ class _SelectableRow extends StatelessWidget {
                   ? const Icon(Icons.check, size: 18, color: AppColors.primary)
                   : null,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1026,7 +1029,7 @@ class _SelectableRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTheme.spacingXS),
                     Text(
                       subtitle!,
                       style: AppTextStyles.bodySmall
@@ -1060,7 +1063,8 @@ class _DatePickerRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingSM),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
           border: Border.all(color: AppColors.borderStrong),
@@ -1069,7 +1073,7 @@ class _DatePickerRow extends StatelessWidget {
         child: Row(
           children: [
             const Icon(Icons.event, color: AppColors.textSecondary, size: 18),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Text(
                 Formatters.formatDate(date),

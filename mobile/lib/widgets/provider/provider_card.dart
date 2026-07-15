@@ -121,7 +121,7 @@ class ProviderCard extends StatelessWidget {
                               }
                             },
                             child: Container(
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(AppTheme.spacingS),
                               decoration: BoxDecoration(
                                 color:
                                     AppColors.secondary.withValues(alpha: 0.9),
@@ -159,7 +159,7 @@ class ProviderCard extends StatelessWidget {
                                 ),
                               ),
                               if (provider.verified) ...[
-                                const SizedBox(width: 4),
+                                const SizedBox(width: AppTheme.spacingXS),
                                 const Icon(
                                   Icons.verified,
                                   size: 16,
@@ -169,19 +169,19 @@ class ProviderCard extends StatelessWidget {
                               ],
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppTheme.spacingXS),
                           Row(
                             children: [
                               const Icon(Icons.star,
                                   size: 16, color: AppColors.starRating),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: AppTheme.spacingXS),
                               Text(
                                 provider.rating.toStringAsFixed(1),
                                 style: AppTextStyles.bodySmall.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppTheme.spacingS),
                               Text(
                                 '(${provider.reviewCount})',
                                 style: AppTextStyles.bodySmall.copyWith(
@@ -190,12 +190,12 @@ class ProviderCard extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppTheme.spacingXS),
                           Row(
                             children: [
                               const Icon(Icons.location_on,
                                   size: 16, color: AppColors.textTertiary),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: AppTheme.spacingXS),
                               Expanded(
                                 child: Text(
                                   provider.city ?? provider.address,
@@ -291,7 +291,7 @@ class ProviderCard extends StatelessWidget {
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(AppTheme.spacingXS),
                           decoration: BoxDecoration(
                             color: AppColors.secondary.withValues(alpha: 0.9),
                             shape: BoxShape.circle,
@@ -322,19 +322,19 @@ class ProviderCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppTheme.spacingXS),
                         Row(
                           children: [
                             const Icon(Icons.star,
                                 size: 16, color: AppColors.starRating),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: AppTheme.spacingXS),
                             Text(
                               provider.rating.toStringAsFixed(1),
                               style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textSecondary,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: AppTheme.spacingS),
                             Text(
                               '(${provider.reviewCount})',
                               style: AppTextStyles.bodySmall.copyWith(
@@ -343,12 +343,12 @@ class ProviderCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppTheme.spacingXS),
                         Row(
                           children: [
                             const Icon(Icons.location_on,
                                 size: 14, color: AppColors.textTertiary),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: AppTheme.spacingXS),
                             Expanded(
                               child: Text(
                                 provider.city ?? provider.address,

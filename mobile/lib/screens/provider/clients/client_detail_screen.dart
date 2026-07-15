@@ -175,8 +175,8 @@ class _Header extends StatelessWidget {
                           const SizedBox(width: AppTheme.spacingXS),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                              horizontal: AppTheme.spacingS,
+                              vertical: AppTheme.spacingXS,
                             ),
                             decoration: BoxDecoration(
                               color: AppColors.surfaceVariant,
@@ -269,7 +269,7 @@ class _StatsStrip extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   label,
                   style: AppTextStyles.bodySmall.copyWith(
@@ -464,7 +464,7 @@ class _NotesSectionState extends State<_NotesSection> {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppTheme.spacingXS),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [

@@ -179,7 +179,8 @@ class _MapScreenState extends State<MapScreen> {
                       height: 5,
                       decoration: BoxDecoration(
                         color: AppColors.divider,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusPill),
                       ),
                     ),
                   ),
@@ -208,18 +209,18 @@ class _MapScreenState extends State<MapScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppTheme.spacingXS),
                             Row(
                               children: [
                                 const Icon(Icons.star,
                                     size: 16, color: AppColors.starRating),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: AppTheme.spacingXS),
                                 Text(
                                   p.rating.toStringAsFixed(1),
                                   style: AppTextStyles.bodySmall
                                       .copyWith(color: AppColors.textSecondary),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: AppTheme.spacingS),
                                 Text(
                                   '(${p.reviewCount})',
                                   style: AppTextStyles.bodySmall
@@ -227,7 +228,7 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppTheme.spacingXS),
                             Text(
                               p.city ?? p.address,
                               style: AppTextStyles.bodySmall
@@ -278,7 +279,7 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                   if (p.latitude != null && p.longitude != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppTheme.spacingSM),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -421,7 +422,7 @@ class _MapScreenState extends State<MapScreen> {
                     children: [
                       const Icon(Icons.info_outline,
                           color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppTheme.spacingS),
                       Expanded(
                         child: Text(
                           _locationError!,

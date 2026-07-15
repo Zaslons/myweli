@@ -34,7 +34,7 @@ class TeamRoleChip extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingS, vertical: 2),
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

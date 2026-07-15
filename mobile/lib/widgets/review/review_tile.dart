@@ -62,7 +62,7 @@ class ReviewTile extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppTheme.spacingSM),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,12 +81,12 @@ class ReviewTile extends StatelessWidget {
                     ),
                   ),
                   if (review.verified) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.spacingS),
                     const _VerifiedBadge(),
                   ],
                 ],
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppTheme.spacingXS),
               Row(
                 children: [
                   ...List.generate(
@@ -99,7 +99,7 @@ class ReviewTile extends StatelessWidget {
                   ),
                   if (review.artistName != null &&
                       review.artistName!.isNotEmpty) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.spacingS),
                     Flexible(
                       child: Text(
                         'avec ${review.artistName}',
@@ -113,7 +113,7 @@ class ReviewTile extends StatelessWidget {
                   ],
                 ],
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppTheme.spacingXS),
               Text(
                 Formatters.formatDateShort(review.createdAt),
                 style: AppTextStyles.bodySmall.copyWith(
@@ -121,7 +121,7 @@ class ReviewTile extends StatelessWidget {
                 ),
               ),
               if (review.text.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   review.text,
                   style: AppTextStyles.bodySmall.copyWith(
@@ -130,13 +130,14 @@ class ReviewTile extends StatelessWidget {
                 ),
               ],
               if (review.photoUrls.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 SizedBox(
                   height: 64,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: review.photoUrls.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: AppTheme.spacingS),
                     itemBuilder: (context, index) {
                       final url = review.photoUrls[index];
                       return GestureDetector(
@@ -188,16 +189,17 @@ class _VerifiedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
       decoration: BoxDecoration(
         color: AppColors.success.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.verified, size: 12, color: AppColors.success),
-          const SizedBox(width: 3),
+          const SizedBox(width: AppTheme.spacingXS),
           Text(
             'Réservation vérifiée',
             style: AppTextStyles.labelSmall.copyWith(color: AppColors.success),

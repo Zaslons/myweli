@@ -70,7 +70,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   children: [
                     const Icon(Icons.build,
                         size: 64, color: AppColors.textSecondary),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun service pour le moment',
                       style: AppTextStyles.titleLarge.copyWith(
@@ -78,7 +78,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     Text(
                       'Ajoutez vos services pour que les clients puissent réserver.',
                       style: AppTextStyles.bodyMedium.copyWith(
@@ -86,7 +86,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppTheme.spacingL),
                     AppButton(
                       text: 'Ajouter un service',
                       onPressed: () => context.push('/pro/service/new'),
@@ -160,7 +160,7 @@ class _ServiceCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.spacingS),
             Row(
               children: [
                 Text(
@@ -173,7 +173,7 @@ class _ServiceCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppTheme.spacingS),
                 Text(
                   '• ${Formatters.formatDuration(service.durationMinutes)}',
                   style: AppTextStyles.bodyMedium.copyWith(
@@ -183,7 +183,7 @@ class _ServiceCard extends StatelessWidget {
               ],
             ),
             if (service.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Text(
                 service.description,
                 style: AppTextStyles.bodySmall.copyWith(

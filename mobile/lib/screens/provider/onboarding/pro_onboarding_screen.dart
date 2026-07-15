@@ -103,9 +103,9 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           style:
               AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         ClipRRect(
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
           child: LinearProgressIndicator(
             value: ratio,
             minHeight: 6,
@@ -122,7 +122,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.textPrimary,
             side: const BorderSide(color: AppColors.borderStrong),
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
           ),
           child: const Text('Aperçu de ma page'),
         ),
@@ -133,7 +133,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           onPressed: onboarding.readyToGoLive ? _goLive : null,
         ),
         if (!onboarding.readyToGoLive) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacingS),
           Text(
             'Complétez les étapes essentielles pour mettre votre profil en ligne.',
             textAlign: TextAlign.center,
@@ -158,7 +158,7 @@ class _StepRow extends StatelessWidget {
     final sublabel = _sublabel(step);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
       child: ListTile(
         leading:
             Icon(_statusIcon(step.status), color: _statusColor(step.status)),

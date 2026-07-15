@@ -127,7 +127,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           children: [
             const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
             if (appointment.depositAmount > 0) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppTheme.spacingSM),
               Container(
                 padding: const EdgeInsets.all(AppTheme.spacingM),
                 decoration: BoxDecoration(
@@ -148,7 +148,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           ? AppColors.error
                           : AppColors.success,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.spacingS),
                     Expanded(
                       child: Text(
                         outcome.depositForfeited
@@ -347,7 +347,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       children: [
         _InfoRow(icon: icon, label: label, value: amount),
         if (hint != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             hint,
             style:
@@ -355,7 +355,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           ),
         ],
         if (action != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacingS),
           action,
         ],
       ],
@@ -450,7 +450,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 children: [
                   const Icon(Icons.error_outline,
                       size: 64, color: AppColors.error),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   Text(
                     provider.error ?? 'Rendez-vous non trouvé',
                     style: AppTextStyles.bodyMedium.copyWith(
@@ -490,7 +490,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                             appointment.appointmentDate,
                             tz: appointment.providerTimezone)),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppTheme.spacingM),
                       _InfoRow(
                         icon: Icons.access_time,
                         label: 'Heure',
@@ -506,14 +506,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                         padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       ),
                       if (_artistName != null) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         _InfoRow(
                           icon: Icons.person_outline,
                           label: 'Spécialiste',
                           value: _artistName!,
                         ),
                       ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppTheme.spacingM),
                       _InfoRow(
                         icon: Icons.attach_money,
                         label: 'Prix total',
@@ -523,9 +523,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                                 'XOF'),
                       ),
                       if (appointment.depositAmount > 0) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         _depositSection(appointment),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         _InfoRow(
                           icon: Icons.account_balance_wallet_outlined,
                           label: 'Solde à régler au salon',
@@ -538,7 +538,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       ],
                       if (appointment.notes != null &&
                           appointment.notes!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         _InfoRow(
                           icon: Icons.note,
                           label: 'Notes',
@@ -548,7 +548,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 // Action Buttons
                 if (appointment.status != AppointmentStatus.cancelled &&
                     appointment.status != AppointmentStatus.completed) ...[
@@ -559,14 +559,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       isLoading: provider.isLoading,
                       onPressed: () => _handleReschedule(appointment),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     AppButton(
                       text: 'Ajouter au calendrier',
                       type: AppButtonType.secondary,
                       icon: Icons.event_available,
                       onPressed: () => _addToCalendar(appointment),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                   ],
                   AppButton(
                     text: 'Annuler le rendez-vous',
@@ -574,7 +574,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     isLoading: provider.isLoading,
                     onPressed: () => _handleCancel(appointment),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (appointment.status == AppointmentStatus.completed) ...[
                   AppButton(
@@ -582,14 +582,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     icon: Icons.rate_review_outlined,
                     onPressed: () => _leaveReview(appointment),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 AppButton(
                   text: 'Appeler',
                   icon: Icons.phone,
                   onPressed: () => _contactSalon(appointment, whatsapp: false),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 AppButton(
                   text: 'WhatsApp',
                   icon: Icons.chat_outlined,
@@ -622,7 +622,7 @@ class _InfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 20, color: AppColors.textSecondary),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppTheme.spacingSM),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,7 +633,7 @@ class _InfoRow extends StatelessWidget {
                   color: AppColors.textTertiary,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.spacingXS),
               Text(
                 value,
                 style: AppTextStyles.bodyMedium,

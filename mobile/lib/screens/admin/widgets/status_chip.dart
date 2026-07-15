@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 
@@ -67,10 +68,11 @@ class StatusChip extends StatelessWidget {
         ),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingXS),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
       ),
       child: Text(
         label,

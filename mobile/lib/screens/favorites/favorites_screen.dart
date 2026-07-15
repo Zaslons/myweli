@@ -70,14 +70,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 children: [
                   const Icon(Icons.favorite_border,
                       size: 64, color: AppColors.textTertiary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Connectez-vous pour voir vos favoris',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   ElevatedButton(
                     onPressed: () {
                       context.go(
