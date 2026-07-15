@@ -158,7 +158,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.event_busy,
-                                size: 64, color: AppColors.textSecondary),
+                                size: AppTheme.iconXL,
+                                color: AppColors.textSecondary),
                             const SizedBox(height: AppTheme.spacingM),
                             Text(
                               'Aucun rendez-vous',
@@ -195,7 +196,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(Icons.event_busy,
-                                      size: 64, color: AppColors.textSecondary),
+                                      size: AppTheme.iconXL,
+                                      color: AppColors.textSecondary),
                                   const SizedBox(height: AppTheme.spacingM),
                                   Text(
                                     'Aucun rendez-vous',

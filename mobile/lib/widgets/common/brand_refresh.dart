@@ -1,6 +1,7 @@
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import 'brand_loader.dart';
 
 /// Pull-to-refresh with the MyWeli `mark_loader` instead of the Material spinner.
@@ -21,7 +22,7 @@ class BrandRefresh extends StatelessWidget {
     return CustomMaterialIndicator(
       onRefresh: onRefresh,
       indicatorBuilder: (context, controller) =>
-          const BrandLoader(size: 24, fast: true),
+          const BrandLoader(size: AppTheme.iconM, fast: true),
       child: child,
     );
   }

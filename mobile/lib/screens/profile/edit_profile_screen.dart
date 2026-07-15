@@ -146,7 +146,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               backgroundColor: AppColors.surface,
                               child: user.avatarUrl == null
                                   ? const Icon(Icons.person_outline,
-                                      size: 40, color: AppColors.textSecondary)
+                                      size: AppTheme.iconL,
+                                      color: AppColors.textSecondary)
                                   : ClipOval(
                                       child: TimedCachedImage(
                                         imageUrl: user.avatarUrl!,
@@ -165,7 +166,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     width: 26,
                                     height: 26,
                                     child: BrandLoader(
-                                        size: 20, fast: true, onDark: true),
+                                        size: AppTheme.iconS,
+                                        fast: true,
+                                        onDark: true),
                                   ),
                                 ),
                               ),

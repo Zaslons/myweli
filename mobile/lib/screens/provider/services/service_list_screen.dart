@@ -69,7 +69,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.build,
-                        size: 64, color: AppColors.textSecondary),
+                        size: AppTheme.iconXL, color: AppColors.textSecondary),
                     const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun service pour le moment',

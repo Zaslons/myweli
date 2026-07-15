@@ -215,7 +215,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               const SizedBox(height: AppTheme.spacingXL),
               const Icon(
                 Icons.lock_outline,
-                size: 80,
+                size: AppTheme.iconXL,
                 color: AppColors.primary,
               ),
               const SizedBox(height: AppTheme.spacingL),
@@ -251,7 +251,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       _entryDisabled
                           ? Icons.shield_outlined
                           : Icons.error_outline,
-                      size: 16,
+                      size: AppTheme.iconXS,
                       color: AppColors.error,
                     ),
                     const SizedBox(width: AppTheme.spacingS),
@@ -333,7 +333,6 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
           autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
           style: AppTextStyles.headlineMedium.copyWith(
             color: _hasError ? AppColors.error : AppColors.textPrimary,
-            fontSize: 26,
             fontWeight: FontWeight.bold,
             letterSpacing: 0,
             height: 1.2,

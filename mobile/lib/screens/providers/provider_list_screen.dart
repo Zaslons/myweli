@@ -157,7 +157,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: fg),
+            Icon(icon, size: AppTheme.iconXS, color: fg),
             const SizedBox(width: AppTheme.spacingS),
             Text(
               label,

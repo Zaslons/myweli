@@ -63,7 +63,7 @@ class NotificationTile extends StatelessWidget {
               ),
               child: Icon(
                 _iconFor(notification.type),
-                size: 20,
+                size: AppTheme.iconS,
                 color: unread ? AppColors.textPrimary : AppColors.textTertiary,
               ),
             ),

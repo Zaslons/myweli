@@ -68,7 +68,7 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.people_outline,
-                        size: 64, color: AppColors.textSecondary),
+                        size: AppTheme.iconXL, color: AppColors.textSecondary),
                     const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun employé',

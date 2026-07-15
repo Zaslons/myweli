@@ -70,7 +70,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.star_outline,
-                      size: 64, color: AppColors.textSecondary),
+                      size: AppTheme.iconXL, color: AppColors.textSecondary),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Aucun avis',
@@ -113,7 +113,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               const Icon(Icons.star,
-                                  size: 32, color: AppColors.starRating),
+                                  size: AppTheme.iconL,
+                                  color: AppColors.starRating),
                               const SizedBox(width: AppTheme.spacingS),
                               Text(
                                 averageRating.toStringAsFixed(1),
@@ -156,7 +157,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                 ),
                                 const SizedBox(width: AppTheme.spacingXS),
                                 const Icon(Icons.star,
-                                    size: 14, color: AppColors.starRating),
+                                    size: AppTheme.iconXS,
+                                    color: AppColors.starRating),
                                 const SizedBox(width: AppTheme.spacingS),
                                 SizedBox(
                                   width: 100,
@@ -253,7 +255,7 @@ class _ReviewCard extends StatelessWidget {
                                 i < review.rating
                                     ? Icons.star
                                     : Icons.star_border,
-                                size: 16,
+                                size: AppTheme.iconXS,
                                 color: AppColors.starRating,
                               )),
                     ],

@@ -134,7 +134,7 @@ class ProviderCard extends StatelessWidget {
                                 color: isFavorite
                                     ? AppColors.favorite
                                     : AppColors.textPrimary,
-                                size: 20,
+                                size: AppTheme.iconS,
                               ),
                             ),
                           ),
@@ -162,7 +162,7 @@ class ProviderCard extends StatelessWidget {
                                 const SizedBox(width: AppTheme.spacingXS),
                                 const Icon(
                                   Icons.verified,
-                                  size: 16,
+                                  size: AppTheme.iconXS,
                                   color: AppColors.info,
                                   semanticLabel: 'Salon vérifié',
                                 ),
@@ -173,7 +173,8 @@ class ProviderCard extends StatelessWidget {
                           Row(
                             children: [
                               const Icon(Icons.star,
-                                  size: 16, color: AppColors.starRating),
+                                  size: AppTheme.iconXS,
+                                  color: AppColors.starRating),
                               const SizedBox(width: AppTheme.spacingXS),
                               Text(
                                 provider.rating.toStringAsFixed(1),
@@ -194,7 +195,8 @@ class ProviderCard extends StatelessWidget {
                           Row(
                             children: [
                               const Icon(Icons.location_on,
-                                  size: 16, color: AppColors.textTertiary),
+                                  size: AppTheme.iconXS,
+                                  color: AppColors.textTertiary),
                               const SizedBox(width: AppTheme.spacingXS),
                               Expanded(
                                 child: Text(
@@ -301,7 +303,7 @@ class ProviderCard extends StatelessWidget {
                             color: isFavorite
                                 ? AppColors.favorite
                                 : AppColors.textPrimary,
-                            size: 16,
+                            size: AppTheme.iconXS,
                           ),
                         ),
                       ),
@@ -326,7 +328,8 @@ class ProviderCard extends StatelessWidget {
                         Row(
                           children: [
                             const Icon(Icons.star,
-                                size: 16, color: AppColors.starRating),
+                                size: AppTheme.iconXS,
+                                color: AppColors.starRating),
                             const SizedBox(width: AppTheme.spacingXS),
                             Text(
                               provider.rating.toStringAsFixed(1),
@@ -347,7 +350,8 @@ class ProviderCard extends StatelessWidget {
                         Row(
                           children: [
                             const Icon(Icons.location_on,
-                                size: 14, color: AppColors.textTertiary),
+                                size: AppTheme.iconXS,
+                                color: AppColors.textTertiary),
                             const SizedBox(width: AppTheme.spacingXS),
                             Expanded(
                               child: Text(

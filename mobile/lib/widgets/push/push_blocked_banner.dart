@@ -39,7 +39,7 @@ class PushBlockedBanner extends StatelessWidget {
             children: [
               const Icon(
                 Icons.notifications_off_outlined,
-                size: 20,
+                size: AppTheme.iconS,
                 color: AppColors.warning,
               ),
               const SizedBox(width: AppTheme.spacingS),

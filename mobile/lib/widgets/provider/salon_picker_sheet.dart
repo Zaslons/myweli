@@ -83,7 +83,7 @@ class _SalonPickerSheet extends StatelessWidget {
             if (auth.isLoading && salons.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(AppTheme.spacingL),
-                child: BrandLoader(size: 28, fast: true),
+                child: BrandLoader(size: AppTheme.iconL, fast: true),
               )
             else
               Flexible(
@@ -159,7 +159,8 @@ class _SalonTile extends StatelessWidget {
           ),
           if (salon.verified) ...[
             const SizedBox(width: AppTheme.spacingXS),
-            const Icon(Icons.verified, size: 16, color: AppColors.info),
+            const Icon(Icons.verified,
+                size: AppTheme.iconXS, color: AppColors.info),
           ],
         ],
       ),

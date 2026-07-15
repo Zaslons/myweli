@@ -126,7 +126,7 @@ class _ActionFilter extends StatelessWidget {
           isDense: true,
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           style: AppTextStyles.bodyMedium,
-          icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+          icon: const Icon(Icons.keyboard_arrow_down, size: AppTheme.iconS),
           items: [
             const DropdownMenuItem(
                 value: null, child: Text('Toutes les actions')),
@@ -156,7 +156,7 @@ class _Pager extends StatelessWidget {
           const Spacer(),
           IconButton(
             tooltip: 'Précédent',
-            icon: const Icon(Icons.chevron_left, size: 20),
+            icon: const Icon(Icons.chevron_left, size: AppTheme.iconS),
             onPressed: provider.hasPrev
                 ? () => context.read<AdminAuditProvider>().prevPage()
                 : null,
@@ -164,7 +164,7 @@ class _Pager extends StatelessWidget {
           Text('Page ${provider.page}', style: AppTextStyles.bodyMedium),
           IconButton(
             tooltip: 'Suivant',
-            icon: const Icon(Icons.chevron_right, size: 20),
+            icon: const Icon(Icons.chevron_right, size: AppTheme.iconS),
             onPressed: provider.hasNext
                 ? () => context.read<AdminAuditProvider>().nextPage()
                 : null,

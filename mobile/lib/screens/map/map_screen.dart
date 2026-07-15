@@ -213,7 +213,8 @@ class _MapScreenState extends State<MapScreen> {
                             Row(
                               children: [
                                 const Icon(Icons.star,
-                                    size: 16, color: AppColors.starRating),
+                                    size: AppTheme.iconXS,
+                                    color: AppColors.starRating),
                                 const SizedBox(width: AppTheme.spacingXS),
                                 Text(
                                   p.rating.toStringAsFixed(1),
@@ -456,8 +457,8 @@ class _MapScreenState extends State<MapScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child:
-                              BrandLoader(size: 20, fast: true, onDark: true),
+                          child: BrandLoader(
+                              size: AppTheme.iconS, fast: true, onDark: true),
                         )
                       : const Icon(Icons.my_location),
                 ),
@@ -520,7 +521,7 @@ class _SalonMarker extends StatelessWidget {
             boxShadow: AppTheme.elevation2,
           ),
           child: Center(
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: AppTheme.iconS),
           ),
         ),
         if (isFavorite)
@@ -535,7 +536,8 @@ class _SalonMarker extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: const Icon(Icons.favorite, size: 9, color: Colors.white),
+              child: const Icon(Icons.favorite,
+                  size: AppTheme.iconXS, color: Colors.white),
             ),
           ),
       ],

@@ -229,7 +229,8 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.add, size: 16, color: AppColors.textTertiary),
+              const Icon(Icons.add,
+                  size: AppTheme.iconXS, color: AppColors.textTertiary),
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
@@ -239,7 +240,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
               ),
               const Spacer(),
               const Icon(Icons.chevron_right,
-                  size: 16, color: AppColors.textTertiary),
+                  size: AppTheme.iconXS, color: AppColors.textTertiary),
             ],
           ),
         ),
@@ -547,9 +548,8 @@ class _WeekStrip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: AppTextStyles.bodySmall.copyWith(
+            style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.textTertiary,
-              fontSize: 10,
             ),
           ),
           const SizedBox(height: AppTheme.spacingXS),
@@ -708,7 +708,7 @@ class _TimelineCard extends StatelessWidget {
                     if (appt.depositAmount > 0) ...[
                       const SizedBox(width: AppTheme.spacingXS),
                       const Icon(Icons.savings_outlined,
-                          size: 14, color: AppColors.textTertiary),
+                          size: AppTheme.iconXS, color: AppColors.textTertiary),
                     ],
                   ],
                 ),
@@ -737,7 +737,7 @@ class _TimelineCard extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppTextStyles.bodySmall.copyWith(color: color, fontSize: 10),
+        style: AppTextStyles.labelSmall.copyWith(color: color),
       ),
     );
   }

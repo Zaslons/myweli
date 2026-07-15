@@ -1014,7 +1014,8 @@ class _SelectableRow extends StatelessWidget {
                     : Colors.transparent,
               ),
               child: selected
-                  ? const Icon(Icons.check, size: 18, color: AppColors.primary)
+                  ? const Icon(Icons.check,
+                      size: AppTheme.iconS, color: AppColors.primary)
                   : null,
             ),
             const SizedBox(width: AppTheme.spacingSM),
@@ -1072,7 +1073,8 @@ class _DatePickerRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.event, color: AppColors.textSecondary, size: 18),
+            const Icon(Icons.event,
+                color: AppColors.textSecondary, size: AppTheme.iconS),
             const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Text(

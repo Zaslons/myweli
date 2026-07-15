@@ -191,7 +191,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                   children: [
                     const Icon(
                       Icons.person_off,
-                      size: 64,
+                      size: AppTheme.iconXL,
                       color: AppColors.textTertiary,
                     ),
                     const SizedBox(height: AppTheme.spacingM),
@@ -240,7 +240,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                           const Icon(
                             Icons.info_outline,
                             color: AppColors.primary,
-                            size: 20,
+                            size: AppTheme.iconS,
                           ),
                           const SizedBox(width: AppTheme.spacingSM),
                           Expanded(
@@ -264,7 +264,8 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                             const SizedBox(
                               width: 18,
                               height: 18,
-                              child: BrandLoader(size: 20, fast: true),
+                              child:
+                                  BrandLoader(size: AppTheme.iconS, fast: true),
                             ),
                             const SizedBox(width: AppTheme.spacingSM),
                             Expanded(
@@ -363,7 +364,7 @@ class _ArtistCard extends StatelessWidget {
                       height: 60,
                       color: AppColors.surface,
                       child: const Icon(Icons.shuffle,
-                          size: 26, color: AppColors.textTertiary),
+                          size: AppTheme.iconM, color: AppColors.textTertiary),
                     )
                   : artist.imageUrl != null && artist.imageUrl!.isNotEmpty
                       ? CachedNetworkImage(
@@ -381,14 +382,15 @@ class _ArtistCard extends StatelessWidget {
                             width: 60,
                             height: 60,
                             color: AppColors.surface,
-                            child: const Icon(Icons.person, size: 30),
+                            child:
+                                const Icon(Icons.person, size: AppTheme.iconL),
                           ),
                         )
                       : Container(
                           width: 60,
                           height: 60,
                           color: AppColors.surface,
-                          child: const Icon(Icons.person, size: 30),
+                          child: const Icon(Icons.person, size: AppTheme.iconL),
                         ),
             ),
             const SizedBox(width: AppTheme.spacingSM),
@@ -414,7 +416,7 @@ class _ArtistCard extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(Icons.star,
-                            size: 14, color: AppColors.starRating),
+                            size: AppTheme.iconXS, color: AppColors.starRating),
                         const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           artist.rating!.toStringAsFixed(1),

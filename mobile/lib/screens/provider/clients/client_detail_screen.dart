@@ -185,9 +185,8 @@ class _Header extends StatelessWidget {
                             ),
                             child: Text(
                               'MyWeli',
-                              style: AppTextStyles.bodySmall.copyWith(
+                              style: AppTextStyles.labelSmall.copyWith(
                                 color: AppColors.textTertiary,
-                                fontSize: 10,
                               ),
                             ),
                           ),
@@ -272,9 +271,8 @@ class _StatsStrip extends StatelessWidget {
                 const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   label,
-                  style: AppTextStyles.bodySmall.copyWith(
+                  style: AppTextStyles.labelSmall.copyWith(
                     color: AppColors.textSecondary,
-                    fontSize: 10,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -336,9 +334,8 @@ class _UpcomingCard extends StatelessWidget {
           children: [
             Text(
               'PROCHAIN RENDEZ-VOUS',
-              style: AppTextStyles.bodySmall.copyWith(
+              style: AppTextStyles.labelSmall.copyWith(
                 color: AppColors.textTertiary,
-                fontSize: 10,
               ),
             ),
             const SizedBox(height: AppTheme.spacingXS),

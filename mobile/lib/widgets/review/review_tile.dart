@@ -93,7 +93,7 @@ class ReviewTile extends StatelessWidget {
                     5,
                     (i) => Icon(
                       i < review.rating ? Icons.star : Icons.star_border,
-                      size: 14,
+                      size: AppTheme.iconXS,
                       color: AppColors.starRating,
                     ),
                   ),
@@ -198,7 +198,8 @@ class _VerifiedBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified, size: 12, color: AppColors.success),
+          const Icon(Icons.verified,
+              size: AppTheme.iconXS, color: AppColors.success),
           const SizedBox(width: AppTheme.spacingXS),
           Text(
             'Réservation vérifiée',

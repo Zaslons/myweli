@@ -227,7 +227,7 @@ class _Body extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.info_outline,
-                size: 18, color: AppColors.textTertiary),
+                size: AppTheme.iconS, color: AppColors.textTertiary),
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
@@ -373,7 +373,7 @@ class _SeatsBar extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.group_outlined,
-                  size: 18, color: AppColors.textSecondary),
+                  size: AppTheme.iconS, color: AppColors.textSecondary),
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 '${seats.used} / ${seats.cap} places',
@@ -545,7 +545,7 @@ class _OfferCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.group_outlined,
-                  size: 16, color: AppColors.textSecondary),
+                  size: AppTheme.iconXS, color: AppColors.textSecondary),
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 seatsLine,
@@ -562,7 +562,8 @@ class _OfferCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.check, size: 16, color: AppColors.success),
+                  const Icon(Icons.check,
+                      size: AppTheme.iconXS, color: AppColors.success),
                   const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(

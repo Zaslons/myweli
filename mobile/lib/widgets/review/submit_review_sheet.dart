@@ -172,7 +172,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                 },
                 icon: Icon(
                   starIndex <= _selectedRating ? Icons.star : Icons.star_border,
-                  size: 40,
+                  size: AppTheme.iconL,
                   color: AppColors.starRating,
                 ),
                 padding:
@@ -253,7 +253,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                       child: SizedBox(
                         width: 18,
                         height: 18,
-                        child: BrandLoader(size: 20, fast: true),
+                        child: BrandLoader(size: AppTheme.iconS, fast: true),
                       ),
                     ),
                   ),
@@ -272,7 +272,8 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.camera_alt_outlined,
-                              size: 18, color: AppColors.textSecondary),
+                              size: AppTheme.iconS,
+                              color: AppColors.textSecondary),
                           Text(
                             '${_photoUrls.length}/$_maxReviewPhotos',
                             style: AppTextStyles.labelSmall
@@ -339,7 +340,8 @@ class _PhotoThumb extends StatelessWidget {
                   color: Colors.black54,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close, size: 12, color: Colors.white),
+                child: const Icon(Icons.close,
+                    size: AppTheme.iconXS, color: Colors.white),
               ),
             ),
           ),

@@ -274,7 +274,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
                           _artistId == artist.id
                               ? Icons.radio_button_checked
                               : Icons.radio_button_unchecked,
-                          size: 20,
+                          size: AppTheme.iconS,
                           color: _artistId == artist.id
                               ? AppColors.primary
                               : AppColors.textTertiary,

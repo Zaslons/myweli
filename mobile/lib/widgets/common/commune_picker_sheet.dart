@@ -186,7 +186,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
     if (!locality.isLoaded && locality.isLoading) {
       return const Padding(
         padding: EdgeInsets.all(AppTheme.spacingXL),
-        child: Center(child: BrandLoader(size: 32)),
+        child: Center(child: BrandLoader(size: AppTheme.iconL)),
       );
     }
     if (!locality.isLoaded && locality.error != null) {
@@ -219,7 +219,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: BrandLoader(size: 20, fast: true),
+                  child: BrandLoader(size: AppTheme.iconS, fast: true),
                 )
               : const Icon(
                   Icons.my_location,

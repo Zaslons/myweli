@@ -29,7 +29,7 @@ class AdminSearchField extends StatelessWidget {
           hintText: hint,
           hintStyle:
               AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
-          prefixIcon: const Icon(Icons.search, size: 18),
+          prefixIcon: const Icon(Icons.search, size: AppTheme.iconS),
           isDense: true,
           contentPadding:
               const EdgeInsets.symmetric(vertical: AppTheme.spacingS),

@@ -143,7 +143,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       outcome.depositForfeited
                           ? Icons.warning_amber_rounded
                           : Icons.info_outline,
-                      size: 18,
+                      size: AppTheme.iconS,
                       color: outcome.depositForfeited
                           ? AppColors.error
                           : AppColors.success,
@@ -449,7 +449,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error_outline,
-                      size: 64, color: AppColors.error),
+                      size: AppTheme.iconXL, color: AppColors.error),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     provider.error ?? 'Rendez-vous non trouvé',
@@ -621,7 +621,7 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: AppColors.textSecondary),
+        Icon(icon, size: AppTheme.iconS, color: AppColors.textSecondary),
         const SizedBox(width: AppTheme.spacingSM),
         Expanded(
           child: Column(

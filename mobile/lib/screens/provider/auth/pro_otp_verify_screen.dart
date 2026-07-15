@@ -145,7 +145,7 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
               const SizedBox(height: AppTheme.spacingXL),
               const Icon(
                 Icons.lock_outline,
-                size: 80,
+                size: AppTheme.iconXL,
                 color: AppColors.primary,
               ),
               const SizedBox(height: AppTheme.spacingL),
@@ -185,7 +185,6 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                       obscureText: false,
                       style: AppTextStyles.headlineMedium.copyWith(
                         color: AppColors.textPrimary,
-                        fontSize: 26,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0,
                         height: 1.2,

@@ -207,7 +207,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                               backgroundColor: AppColors.surface,
                               child: _avatarUrl == null
                                   ? const Icon(Icons.person_outline,
-                                      size: 36, color: AppColors.textSecondary)
+                                      size: AppTheme.iconL,
+                                      color: AppColors.textSecondary)
                                   : ClipOval(
                                       child: TimedCachedImage(
                                         imageUrl: _avatarUrl!,
@@ -226,7 +227,9 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                                     width: 24,
                                     height: 24,
                                     child: BrandLoader(
-                                        size: 20, fast: true, onDark: true),
+                                        size: AppTheme.iconS,
+                                        fast: true,
+                                        onDark: true),
                                   ),
                                 ),
                               ),

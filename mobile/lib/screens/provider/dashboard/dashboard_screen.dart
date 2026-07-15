@@ -134,7 +134,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.lock_outline,
-                      size: 64, color: AppColors.textSecondary),
+                      size: AppTheme.iconXL, color: AppColors.textSecondary),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Veuillez vous connecter',
@@ -404,7 +404,7 @@ class _StatCard extends StatelessWidget {
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.textSecondary),
               ),
-              Icon(icon, color: color, size: 20),
+              Icon(icon, color: color, size: AppTheme.iconS),
             ],
           ),
           const SizedBox(height: AppTheme.spacingS),
@@ -448,7 +448,7 @@ class _ActionCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 32, color: AppColors.primary),
+            Icon(icon, size: AppTheme.iconL, color: AppColors.primary),
             const SizedBox(height: AppTheme.spacingS),
             Text(
               title,

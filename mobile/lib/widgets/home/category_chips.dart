@@ -41,7 +41,7 @@ class CategoryChips extends StatelessWidget {
                 children: [
                   Icon(
                     category['icon'] as IconData,
-                    size: 18,
+                    size: AppTheme.iconS,
                     color: isSelected
                         ? AppColors.secondary
                         : AppColors.textPrimary,

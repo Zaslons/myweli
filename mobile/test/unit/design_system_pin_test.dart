@@ -21,8 +21,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// which §5 does not govern (it governs grid gaps, not overlay sizing). Use it
 /// rarely, and say why on the line above.
 ///
-/// Rows 6 (`fontSize:`) and 7 (icon `size:`) get their pins in **A2b**, as those
-/// rows close — the firewall grows one check per burn-down PR.
+/// Spacing/radius (§5/§6) closed in A2; type/icon-size (§4/§7) in A2b — so the
+/// firewall is now complete: no raw colour / spacing / radius / type / icon literal
+/// survives in `lib` outside `core/theme/`.
 void main() {
   final dartFiles = Directory('lib')
       .listSync(recursive: true)
@@ -78,6 +79,25 @@ void main() {
         offenders(RegExp(r'BorderRadius\.circular\(\d')),
         isEmpty,
         reason: 'use AppTheme.radius* (Small/Medium/Large/XL/XXL/Pill)',
+      );
+    });
+
+    test('type is a token — no raw fontSize: in a screen (§4)', () {
+      expect(
+        offenders(RegExp(r'fontSize:')),
+        isEmpty,
+        reason: 'pick a scale entry (AppTextStyles.*) and .copyWith(color:) — '
+            'never TextStyle(fontSize:). 11 (labelSmall) is the floor.',
+      );
+    });
+
+    test('icon size is a token — no raw size: N (§7)', () {
+      // `\b` keeps this off `fontSize:`/`iconSize:` (capital S). Every in-scope
+      // `size:` value is icon-scale, so all of them are AppTheme.icon*.
+      expect(
+        offenders(RegExp(r'\bsize: \d')),
+        isEmpty,
+        reason: 'use AppTheme.icon* (XS/S/M/L/XL = 16/20/24/32/64)',
       );
     });
   });

@@ -339,7 +339,7 @@ class _PickerField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: AppColors.textSecondary),
+            Icon(icon, size: AppTheme.iconS, color: AppColors.textSecondary),
             const SizedBox(width: AppTheme.spacingS),
             Text(label, style: AppTextStyles.bodyMedium),
           ],

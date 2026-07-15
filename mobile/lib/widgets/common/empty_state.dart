@@ -30,7 +30,7 @@ class EmptyState extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 64,
+              size: AppTheme.iconXL,
               color: AppColors.textTertiary,
             ),
             const SizedBox(height: AppTheme.spacingL),
