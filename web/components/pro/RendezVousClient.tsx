@@ -119,7 +119,7 @@ export function RendezVousClient() {
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="rounded-lg bg-primary px-m py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+            className="rounded-lg bg-primary px-m py-s text-sm font-medium text-secondary hover:bg-primaryHover"
           >
             + Nouveau rendez-vous
           </button>

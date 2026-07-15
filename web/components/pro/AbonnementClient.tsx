@@ -128,7 +128,7 @@ export function AbonnementClient() {
               href={contactWhatsAppUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+              className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
             >
               Nous contacter sur WhatsApp
             </a>
@@ -168,7 +168,7 @@ export function AbonnementClient() {
           </p>
           <Link
             href="/pro/salons/nouveau"
-            className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+            className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
           >
             Ajouter un salon
           </Link>

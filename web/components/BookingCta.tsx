@@ -29,7 +29,7 @@ export function BookingCta({
       href={`/${slug}/reserver`}
       className={
         'inline-flex items-center justify-center rounded-lg bg-primary px-l py-s ' +
-        `text-sm font-medium text-secondary hover:bg-primaryLight ${className}`
+        `text-sm font-medium text-secondary hover:bg-primaryHover ${className}`
       }
     >
       Réserver

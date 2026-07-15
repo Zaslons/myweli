@@ -399,7 +399,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <div className="mt-l">
             <Link
               href={rebookHref(appt)!}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
             >
               Réserver à nouveau
             </Link>

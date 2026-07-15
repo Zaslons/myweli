@@ -78,7 +78,7 @@ export function SalonVisitsCard({ providerId }: { providerId: string }) {
           <div className="mt-s">
             <Link
               href={`/mon-compte/${reviewable.id}`}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
             >
               Donner votre avis
             </Link>

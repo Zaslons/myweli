@@ -315,10 +315,10 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | # | Rule | Violations | Worst instance | Slice |
 |---|---|---|---|---|
 | 1 | Layout works at every width (§9) | ~~1~~ → **0** | the pro sidebar ate 240px of a 375px phone on every `/pro` route; now an off-canvas drawer below `lg`, persistent at `lg+` ([web-pro-mobile-nav.md](web-pro-mobile-nav.md)) | ✅ **B0** |
-| 2 | `textTertiary` ≥ 4.5:1 | **170** | 3.22:1 | **B1** |
-| 3 | Control borders ≥ 3:1 | **186** `border` uses | 1.44:1 | **B1** |
-| 4 | Token exists ⇒ no substitution | 1 | `gold` missing from `tokens.ts` → **`TeamRoleChip` silently uses `starRating`** | **B1** |
-| 5 | Splash matches the app | 1 | `manifest.ts` `background_color: '#000000'` → **the PWA flashes black** before revealing a near-white app. → `#F6F7F9` | **B1** |
+| 2 | `textTertiary` ≥ 4.5:1 | ~~170~~ → **0** | was 3.22:1; the token is now **4.76:1** (the value alone healed all 170) — and the ink softened to `#1A1A1A` | ✅ **B1** |
+| 3 | Control borders ≥ 3:1 | ~~186~~ → the shared Button + the salon-switcher **done**; the ~20 hand-classed form inputs pending | `borderStrong` (3.22:1) is now the token; the central controls use it. The web has **no shared input theme**, so the ad-hoc inputs' outlines land with **B4**'s `<TextField>` (which bakes in `borderStrong`) rather than being hand-edited then rebuilt | **B1 → B4** |
+| 4 | Token exists ⇒ no substitution | ~~1~~ → **0** | `gold #B8860B` is exported; `TeamRoleChip` uses it. A test grep-pin fails if any `bg-/border-starRating` returns | ✅ **B1** |
+| 5 | Splash matches the app | ~~1~~ → **0** | `manifest.ts` `background_color` → `#F6F7F9` (no more black flash); `theme_color` stays brand black | ✅ **B1** |
 | 6 | Closed theme (§2) | open | `rounded-xl` ≡ `rounded-2xl` (both alias `radius`); the whole default palette is reachable | **B2** |
 | 7 | No arbitrary values (§2) | `z-[5]` `z-[6]` `z-[7]` `z-[1100]` `py-[2px]` | | **B2** |
 | 8 | **Visible focus (§5)** | **`focus-visible:` = 0** across **178 buttons + 93 controls** | | **B4** |

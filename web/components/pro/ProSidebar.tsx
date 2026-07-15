@@ -126,7 +126,7 @@ export function ProSidebar({
                     setMenuOpen((o) => !o);
                     setSwitchError(false);
                   }}
-                  className="flex w-full items-center justify-between gap-xs rounded-lg border border-border bg-surface px-s py-xs text-left text-sm text-textPrimary hover:bg-surfaceVariant"
+                  className="flex w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s py-xs text-left text-sm text-textPrimary hover:bg-surfaceVariant"
                 >
                   <span className="truncate">{salonName}</span>
                   <span aria-hidden="true" className="text-textTertiary">
