@@ -9,6 +9,8 @@ import 'package:myweli/widgets/common/google_g_logo.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Auth overhaul P3 (docs/design/app-auth-social.md): the LoginScreen flow —
 /// options → email code → MANDATORY contact phone → returnTo.
 void main() {
@@ -30,9 +32,9 @@ void main() {
         ),
       ],
     );
-    return ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
-      child: MaterialApp.router(routerConfig: router),
+    return wrapApp(
+      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+      routerConfig: router,
     );
   }
 

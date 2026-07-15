@@ -19,6 +19,8 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// serviceLocator fields are late-final — swap scenarios via a delegate.
 class _SwitchableTeam implements ProTeamServiceInterface {
   ProTeamServiceInterface inner = MockProTeamService();
@@ -113,12 +115,12 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProTeamProvider()),
         ChangeNotifierProvider(create: (_) => ProArtistProvider()),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 

@@ -14,6 +14,8 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Module `journal` J1b (docs/design/journal-j1b-app.md §4): « Ma journée » —
 /// timeline cards, badges, gap slots, empty state.
 class _StubProService extends MockProService {
@@ -102,12 +104,12 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProAuthProvider()),
         ChangeNotifierProvider(create: (_) => ProJournalProvider()),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 

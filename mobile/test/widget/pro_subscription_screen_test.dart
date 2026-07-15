@@ -15,6 +15,8 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 class _SwitchableAuth extends MockAuthService {
   ProviderUser? current;
 
@@ -73,12 +75,12 @@ void main() {
     subs.inner = MockSubscriptionService(); // setup state
   });
 
-  Widget app() => MultiProvider(
+  Widget app() => wrapApp(
         providers: [
           ChangeNotifierProvider(create: (_) => ProAuthProvider()),
           ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
         ],
-        child: const MaterialApp(home: ProSubscriptionScreen()),
+        home: const ProSubscriptionScreen(),
       );
 
   Future<void> settle(WidgetTester tester) async {

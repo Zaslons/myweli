@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   testWidgets('shows "Toutes les communes" when none is selected',
       (tester) async {

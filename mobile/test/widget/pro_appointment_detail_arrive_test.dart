@@ -13,6 +13,8 @@ import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 class _MockProService extends Mock implements ProServiceInterface {}
 
 /// Parity 1.10 (J1b §4.2 debt): « Client arrivé » on the pro DETAIL page —
@@ -50,15 +52,13 @@ void main() {
     // Pre-load: the screen reads the provider's list (auth-gated reload only).
     final appointments = ProAppointmentProvider();
     await appointments.loadAppointments('p1');
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProAuthProvider()),
         ChangeNotifierProvider.value(value: appointments),
         ChangeNotifierProvider(create: (_) => ProJournalProvider()),
       ],
-      child: const MaterialApp(
-        home: ProAppointmentDetailScreen(appointmentId: 'a1'),
-      ),
+      home: const ProAppointmentDetailScreen(appointmentId: 'a1'),
     );
   }
 

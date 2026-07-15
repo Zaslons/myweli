@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/common/salon_time_hint.dart';
 
+import '../support/pump_app.dart';
+
 /// The « heure du salon » viewer hint (docs/design/timezone-salon-time.md §2):
 /// visible ONLY when the device offset differs from the salon's (UTC+0) —
 /// users in Côte d'Ivoire never see it. Offsets are injected so the test is
 /// deterministic on any machine.
 void main() {
-  Widget host(Duration offset) => MaterialApp(
+  Widget host(Duration offset) => wrapApp(
         home: Scaffold(
           body: SalonTimeHint(deviceOffsetOverride: offset),
         ),

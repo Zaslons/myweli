@@ -720,7 +720,7 @@ own design system?" — today, mostly not.
 | 18 | One `ConfirmDialog` (§15) | **11** copy-pasted | | *A6* |
 | 19 | Field-anchored errors (§14) | **1** caller passes `errorText` | validation = "throw a red toast" | *A8* |
 | 20 | Reduced motion (§9) | **0** | | *A9* |
-| 21 | Tests wrap the real theme | **0 of 34** widget tests → **19 goldens do** | a restyle can't fail a test that never loads the theme | **A3b** (the `pumpApp()` migration; the goldens are the interim net) |
+| 21 | Tests wrap the real theme | ~~0 of 34~~ → **34 of 34** | all 34 widget tests migrated to `wrapApp`/`pumpApp` (`test/support/pump_app.dart`) — they render `AppTheme.lightTheme`, so a restyle that breaks a screen's layout now fails a test. `pump_app_test.dart` asserts the harness injects the real theme. | ✅ **A3b** |
 | 22 | Deferred V2/V3 `Colors.*` | ~52 | flag-hidden `ComingSoon` screens | *allowlisted — fix if un-shelved* |
 | 23 | **No clock seam** (§20.1) | pro dashboard + journal | `ProJournalProvider._selectedDate = salonToday()`; `MockProService.getDashboard()` buckets by `DateTime.now().weekday` — so those screens **cannot be golden-tested**: the image would change value with the day of the week, failing CI every morning. `package:clock` is unused. | *new — needs its own slice* |
 | 24 | Disabled labels legible | ~~all~~ → **0** | was `#5C5C5C` on `#949495` (2.21:1). Now a legible-inert pair (`surfaceVariant` / `textDisabled`) in the button themes + `AppButton`. WCAG exempts disabled, but it now reads as *disabled*, not blank. | ✅ **A3** |

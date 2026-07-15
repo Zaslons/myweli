@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/common/phone_number_field.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
   testWidgets('renders a phone input defaulting to Côte d\'Ivoire (+225)',
       (tester) async {
     var lastE164 = '';
     await tester.pumpWidget(
-      MaterialApp(
+      wrapApp(
         home: Scaffold(
           body: PhoneNumberField(onChanged: (e164) => lastE164 = e164),
         ),

@@ -16,6 +16,8 @@ import 'package:myweli/services/interfaces/provider_service_interface.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 class _MockAppointments extends Mock implements AppointmentServiceInterface {}
 
 class _MockProviders extends Mock implements ProviderServiceInterface {}
@@ -46,14 +48,12 @@ void main() {
         createdAt: DateTime.now(),
       );
 
-  Widget host() => MultiProvider(
+  Widget host() => wrapApp(
         providers: [
           ChangeNotifierProvider(create: (_) => AppointmentProvider()),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        child: const MaterialApp(
-          home: AppointmentDetailScreen(appointmentId: 'a1'),
-        ),
+        home: const AppointmentDetailScreen(appointmentId: 'a1'),
       );
 
   testWidgets('shows « Spécialiste » resolved from the salon team',
