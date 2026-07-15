@@ -214,38 +214,44 @@ class _NavTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: active ? AppColors.surfaceVariant : Colors.transparent,
-      child: InkWell(
-        onTap: () => context.go(item.path),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingM, vertical: AppTheme.spacingSM),
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: active ? AppColors.primary : Colors.transparent,
-                width: 3,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+        child: InkWell(
+          onTap: () => context.go(item.path),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingM, vertical: AppTheme.spacingSM),
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: active ? AppColors.primary : Colors.transparent,
+                  width: 3,
+                ),
               ),
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                item.icon,
-                size: AppTheme.iconS,
-                color: active ? AppColors.textPrimary : AppColors.textSecondary,
-              ),
-              const SizedBox(width: AppTheme.spacingSM),
-              Text(
-                item.label,
-                style: (active
-                        ? AppTextStyles.titleSmall
-                        : AppTextStyles.bodyMedium)
-                    .copyWith(
+            child: Row(
+              children: [
+                Icon(
+                  item.icon,
+                  size: AppTheme.iconS,
                   color:
                       active ? AppColors.textPrimary : AppColors.textSecondary,
                 ),
-              ),
-            ],
+                const SizedBox(width: AppTheme.spacingSM),
+                Text(
+                  item.label,
+                  style: (active
+                          ? AppTextStyles.titleSmall
+                          : AppTextStyles.bodyMedium)
+                      .copyWith(
+                    color: active
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

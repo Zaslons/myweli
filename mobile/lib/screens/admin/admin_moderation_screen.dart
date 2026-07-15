@@ -266,23 +266,27 @@ class _Segments extends StatelessWidget {
   Widget _seg(String label, int index) {
     final active = selected == index;
     return Builder(
-      builder: (context) => InkWell(
-        onTap: () => onSelect(index),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
-          decoration: BoxDecoration(
-            color: active ? AppColors.secondary : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-            border: active ? Border.all(color: AppColors.borderStrong) : null,
-          ),
-          child: Text(
-            label,
-            style:
-                (active ? AppTextStyles.titleSmall : AppTextStyles.bodyMedium)
-                    .copyWith(
-              color: active ? AppColors.textPrimary : AppColors.textSecondary,
+      builder: (context) => ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+        child: InkWell(
+          onTap: () => onSelect(index),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
+            decoration: BoxDecoration(
+              color: active ? AppColors.secondary : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              border: active ? Border.all(color: AppColors.borderStrong) : null,
+            ),
+            child: Text(
+              label,
+              style:
+                  (active ? AppTextStyles.titleSmall : AppTextStyles.bodyMedium)
+                      .copyWith(
+                color: active ? AppColors.textPrimary : AppColors.textSecondary,
+              ),
             ),
           ),
         ),

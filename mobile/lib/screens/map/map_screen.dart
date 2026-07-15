@@ -327,8 +327,8 @@ class _MapScreenState extends State<MapScreen> {
 
       return Marker(
         point: LatLng(lat, lng),
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
         child: GestureDetector(
           onTap: () {
             // Subtle “smooth” behavior: center the tapped salon and show details.

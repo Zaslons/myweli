@@ -164,8 +164,10 @@ class ReviewTile extends StatelessWidget {
                     onPressed: onReport,
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
+                      // §13.2: the default (padded) tap target keeps the compact
+                      // visual but guarantees a ≥48 hit area — shrinkWrap opted
+                      // out of exactly that.
                       minimumSize: const Size(0, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
                       'Signaler',

@@ -472,13 +472,22 @@ class _NotesSectionState extends State<_NotesSection> {
                               color: AppColors.textTertiary,
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () => widget.onDelete(n.id),
-                            child: Text(
-                              'Supprimer',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textTertiary,
-                                decoration: TextDecoration.underline,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minHeight: 48,
+                            ), // §13.2 touch target
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => widget.onDelete(n.id),
+                              child: Center(
+                                widthFactor: 1,
+                                child: Text(
+                                  'Supprimer',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
                               ),
                             ),
                           ),

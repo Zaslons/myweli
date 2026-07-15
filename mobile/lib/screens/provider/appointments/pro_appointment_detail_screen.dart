@@ -148,18 +148,25 @@ class _ProAppointmentDetailScreenState
                           ],
                         ),
                         if (appointment.salonClientId != null && !ownMode)
-                          GestureDetector(
-                            onTap: () => context.push(
-                              '/pro/clients/${appointment.salonClientId}',
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                  top: AppTheme.spacingXS),
-                              child: Text(
-                                'Voir la fiche client',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                  decoration: TextDecoration.underline,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minHeight: 48,
+                            ), // §13.2 touch target
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => context.push(
+                                '/pro/clients/${appointment.salonClientId}',
+                              ),
+                              child: Container(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.only(
+                                    top: AppTheme.spacingXS),
+                                child: Text(
+                                  'Voir la fiche client',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                    decoration: TextDecoration.underline,
+                                  ),
                                 ),
                               ),
                             ),

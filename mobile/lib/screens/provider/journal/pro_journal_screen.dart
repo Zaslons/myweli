@@ -202,46 +202,50 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final artistFilter = context.read<ProJournalProvider>().artistFilter;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
-      child: InkWell(
-        // Own-mode: gaps are informational only (booking = manage.all).
-        onTap: _ownMode
-            ? null
-            : () => context.push(
-                  '/pro/appointment/new',
-                  extra: {
-                    'dateTime': start.toIso8601String(),
-                    if (artistFilter != null && artistFilter.isNotEmpty)
-                      'artistId': artistFilter,
-                  },
-                ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingM,
-            vertical: AppTheme.spacingS,
-          ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: AppColors.borderStrong,
-              style: BorderStyle.solid,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+        child: InkWell(
+          // Own-mode: gaps are informational only (booking = manage.all).
+          onTap: _ownMode
+              ? null
+              : () => context.push(
+                    '/pro/appointment/new',
+                    extra: {
+                      'dateTime': start.toIso8601String(),
+                      if (artistFilter != null && artistFilter.isNotEmpty)
+                        'artistId': artistFilter,
+                    },
+                  ),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM,
+              vertical: AppTheme.spacingS,
             ),
-            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.add,
-                  size: AppTheme.iconXS, color: AppColors.textTertiary),
-              const SizedBox(width: AppTheme.spacingS),
-              Text(
-                'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: AppColors.borderStrong,
+                style: BorderStyle.solid,
               ),
-              const Spacer(),
-              const Icon(Icons.chevron_right,
-                  size: AppTheme.iconXS, color: AppColors.textTertiary),
-            ],
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.add,
+                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+                const SizedBox(width: AppTheme.spacingS),
+                Text(
+                  'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.chevron_right,
+                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+              ],
+            ),
           ),
         ),
       ),
@@ -482,18 +486,27 @@ class _Header extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: GestureDetector(
-                  onTap: onPick,
-                  child: Text(
-                    isToday
-                        ? "Aujourd'hui"
-                        : Formatters.formatDate(toSalonTime(
-                            date,
-                            tz: context.read<ProAuthProvider>().salonTimezone,
-                          )),
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: AppColors.textPrimary,
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(minHeight: 48), // §13.2 touch target
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onPick,
+                    child: Center(
+                      child: Text(
+                        isToday
+                            ? "Aujourd'hui"
+                            : Formatters.formatDate(toSalonTime(
+                                date,
+                                tz: context
+                                    .read<ProAuthProvider>()
+                                    .salonTimezone,
+                              )),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -529,10 +542,12 @@ class _WeekStrip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingS),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           for (var i = 0; i < 7; i++)
-            _dayPill(context, monday.add(Duration(days: i)), _labels[i]),
+            Expanded(
+              child:
+                  _dayPill(context, monday.add(Duration(days: i)), _labels[i]),
+            ),
         ],
       ),
     );
@@ -542,7 +557,10 @@ class _WeekStrip extends StatelessWidget {
     final key = journal.keyOf(d);
     final isSel = key == journal.keyOf(journal.selectedDate);
     final count = journal.weekCounts[key] ?? 0;
+    // §13.2: fills its Expanded 1/7 slot (≥48 on normal widths; opaque makes the
+    // whole slot tappable). A fixed minWidth:48 × 7 overflowed narrow phones.
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => journal.setDate(d),
       child: Column(
         children: [
@@ -592,7 +610,7 @@ class _ArtistChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final artists = journal.day!.artists;
     return SizedBox(
-      height: 44,
+      height: 48, // §13.2: the strip must clear the FilterChips' 48 tap target
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),

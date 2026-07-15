@@ -181,38 +181,56 @@ class _PhotoTile extends StatelessWidget {
           top: 4,
           right: 4,
           child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: onRemove,
-            child: Container(
-              padding: const EdgeInsets.all(AppTheme.spacingXS),
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
+            child: SizedBox(
+              // §13.2 48 hit area; Align keeps the × at the (4,4) corner, the
+              // transparent box leaves the photo visible.
+              width: 48,
+              height: 48,
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Container(
+                  padding: const EdgeInsets.all(AppTheme.spacingXS),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close,
+                      size: AppTheme.iconXS, color: Colors.white),
+                ),
               ),
-              child: const Icon(Icons.close,
-                  size: AppTheme.iconXS, color: Colors.white),
             ),
           ),
         ),
+        // Reorder arrows as a full-width bottom bar split into two ≥48 halves
+        // (§13.2): two 48px targets can't sit side-by-side in a ~90-112px grid
+        // tile, and a bottom-left/bottom-right split reads more clearly than a
+        // clustered pair. Each half fills its side; the visible circle centres.
         Positioned(
-          bottom: 4,
-          right: 4,
+          bottom: 0,
+          left: 0,
+          right: 0,
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              if (onMoveLeft != null)
-                _ArrowButton(
-                  icon: Icons.chevron_left,
-                  semanticLabel: 'Déplacer vers la gauche',
-                  onTap: onMoveLeft!,
-                ),
-              if (onMoveLeft != null && onMoveRight != null)
-                const SizedBox(width: AppTheme.spacingXS),
-              if (onMoveRight != null)
-                _ArrowButton(
-                  icon: Icons.chevron_right,
-                  semanticLabel: 'Déplacer vers la droite',
-                  onTap: onMoveRight!,
-                ),
+              Expanded(
+                child: onMoveLeft != null
+                    ? _ArrowButton(
+                        icon: Icons.chevron_left,
+                        semanticLabel: 'Déplacer vers la gauche',
+                        onTap: onMoveLeft!,
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              Expanded(
+                child: onMoveRight != null
+                    ? _ArrowButton(
+                        icon: Icons.chevron_right,
+                        semanticLabel: 'Déplacer vers la droite',
+                        onTap: onMoveRight!,
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),
@@ -330,18 +348,26 @@ class _ArrowButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.spacingXS),
-        decoration: const BoxDecoration(
-          color: Colors.black54,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: AppTheme.iconXS,
-          color: Colors.white,
-          semanticLabel: semanticLabel,
+      child: SizedBox(
+        // §13.2 touch target ≥48 tall; width comes from the Expanded half. The
+        // box is transparent — only the 24px circle paints.
+        height: 48,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.spacingXS),
+            decoration: const BoxDecoration(
+              color: Colors.black54,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: AppTheme.iconXS,
+              color: Colors.white,
+              semanticLabel: semanticLabel,
+            ),
+          ),
         ),
       ),
     );

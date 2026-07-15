@@ -333,15 +333,24 @@ class _PhotoThumb extends StatelessWidget {
             top: 2,
             right: 2,
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: onRemove,
-              child: Container(
-                padding: const EdgeInsets.all(AppTheme.spacingXS),
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
+              child: SizedBox(
+                // §13.2 48 hit area; Align keeps the badge at the (2,2) corner.
+                width: 48,
+                height: 48,
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppTheme.spacingXS),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close,
+                        size: AppTheme.iconXS, color: Colors.white),
+                  ),
                 ),
-                child: const Icon(Icons.close,
-                    size: AppTheme.iconXS, color: Colors.white),
               ),
             ),
           ),

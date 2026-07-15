@@ -89,6 +89,7 @@ class ProviderCard extends StatelessWidget {
                           top: 8,
                           right: 8,
                           child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
                             onTap: () async {
                               if (!authProvider.isAuthenticated) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -120,21 +121,31 @@ class ProviderCard extends StatelessWidget {
                                 );
                               }
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(AppTheme.spacingS),
-                              decoration: BoxDecoration(
-                                color:
-                                    AppColors.secondary.withValues(alpha: 0.9),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                isFavorite
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isFavorite
-                                    ? AppColors.favorite
-                                    : AppColors.textPrimary,
-                                size: AppTheme.iconS,
+                            child: SizedBox(
+                              // §13.2 48 hit area; Align keeps the visible 36px
+                              // circle at the original top-right corner (8,8).
+                              width: 48,
+                              height: 48,
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.all(AppTheme.spacingS),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary
+                                        .withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isFavorite
+                                        ? AppColors.favorite
+                                        : AppColors.textPrimary,
+                                    size: AppTheme.iconS,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -261,6 +272,7 @@ class ProviderCard extends StatelessWidget {
                       top: 4,
                       right: 4,
                       child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () async {
                           if (!authProvider.isAuthenticated) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -292,18 +304,30 @@ class ProviderCard extends StatelessWidget {
                             );
                           }
                         },
-                        child: Container(
-                          padding: const EdgeInsets.all(AppTheme.spacingXS),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary.withValues(alpha: 0.9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite
-                                ? AppColors.favorite
-                                : AppColors.textPrimary,
-                            size: AppTheme.iconXS,
+                        child: SizedBox(
+                          // §13.2 48 hit area; Align keeps the 24px circle at the
+                          // original (4,4) corner on the 80px thumbnail.
+                          width: 48,
+                          height: 48,
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: Container(
+                              padding: const EdgeInsets.all(AppTheme.spacingXS),
+                              decoration: BoxDecoration(
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isFavorite
+                                    ? AppColors.favorite
+                                    : AppColors.textPrimary,
+                                size: AppTheme.iconXS,
+                              ),
+                            ),
                           ),
                         ),
                       ),

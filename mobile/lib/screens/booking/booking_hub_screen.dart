@@ -918,46 +918,53 @@ class _HubSectionCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          InkWell(
-            onTap: onHeaderTap,
-            borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(icon, color: AppColors.textPrimary),
-                ),
-                const SizedBox(width: AppTheme.spacingM),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: AppTextStyles.titleSmall),
-                      const SizedBox(height: AppTheme.spacingXS),
-                      Text(
-                        value,
-                        style: AppTextStyles.bodyMedium
-                            .copyWith(color: AppColors.textPrimary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+          ConstrainedBox(
+            constraints:
+                const BoxConstraints(minHeight: 48), // §13.2 touch target
+            child: InkWell(
+              onTap: onHeaderTap,
+              borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+              child: Center(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusPill),
+                        border: Border.all(color: AppColors.border),
                       ),
-                    ],
-                  ),
+                      child: Icon(icon, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(width: AppTheme.spacingM),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: AppTextStyles.titleSmall),
+                          const SizedBox(height: AppTheme.spacingXS),
+                          Text(
+                            value,
+                            style: AppTextStyles.bodyMedium
+                                .copyWith(color: AppColors.textPrimary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: expanded ? 0.25 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: const Icon(Icons.chevron_right,
+                          color: AppColors.textTertiary),
+                    ),
+                  ],
                 ),
-                AnimatedRotation(
-                  turns: expanded ? 0.25 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: const Icon(Icons.chevron_right,
-                      color: AppColors.textTertiary),
-                ),
-              ],
+              ),
             ),
           ),
           AnimatedSize(
@@ -1060,32 +1067,36 @@ class _DatePickerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingSM),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(color: AppColors.borderStrong),
-          color: AppColors.secondary,
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.event,
-                color: AppColors.textSecondary, size: AppTheme.iconS),
-            const SizedBox(width: AppTheme.spacingSM),
-            Expanded(
-              child: Text(
-                Formatters.formatDate(date),
-                style: AppTextStyles.bodyMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingSM),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(color: AppColors.borderStrong),
+            color: AppColors.secondary,
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.event,
+                  color: AppColors.textSecondary, size: AppTheme.iconS),
+              const SizedBox(width: AppTheme.spacingSM),
+              Expanded(
+                child: Text(
+                  Formatters.formatDate(date),
+                  style: AppTextStyles.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right, color: AppColors.textTertiary),
-          ],
+              const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+            ],
+          ),
         ),
       ),
     );
