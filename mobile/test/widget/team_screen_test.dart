@@ -18,6 +18,8 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// The current mock session — owner by default, switchable to a bare
 /// member account for the guard test.
 class _SwitchableAuth extends MockAuthService {
@@ -67,14 +69,14 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProAuthProvider()),
         ChangeNotifierProvider(create: (_) => ProTeamProvider()),
         ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
         ChangeNotifierProvider(create: (_) => ProArtistProvider()),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 

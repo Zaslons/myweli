@@ -16,6 +16,8 @@ import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/notifications/notifications_list.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 class _MockNotificationService extends Mock
     implements NotificationServiceInterface {}
 
@@ -44,12 +46,10 @@ void main() {
     Widget? child,
     void Function(BuildContext, String)? onOpenRoute,
   }) =>
-      ChangeNotifierProvider.value(
-        value: provider,
-        child: MaterialApp(
-          home: child ??
-              Scaffold(body: NotificationsList(onOpenRoute: onOpenRoute)),
-        ),
+      wrapApp(
+        providers: [ChangeNotifierProvider.value(value: provider)],
+        home: child ??
+            Scaffold(body: NotificationsList(onOpenRoute: onOpenRoute)),
       );
 
   testWidgets(

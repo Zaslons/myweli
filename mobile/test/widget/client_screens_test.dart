@@ -14,6 +14,8 @@ import 'package:myweli/services/mock/mock_pro_clients_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Toggleable mock: the educational empty state needs a salon with no
 /// clients, the rest uses the seeded base.
 class _SwitchableClients extends MockProClientsService {
@@ -69,12 +71,12 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProAuthProvider()),
         ChangeNotifierProvider(create: (_) => ProClientsProvider()),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 

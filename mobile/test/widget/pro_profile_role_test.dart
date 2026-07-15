@@ -17,6 +17,8 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Team access R4b §5.3 — the role-shaped Profil: owner keeps every row;
 /// manager loses money/team/owner rows; staff is the slim personal profile
 /// with the member header card (« Salon » + role chip).
@@ -61,12 +63,12 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ProTeamProvider()),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 

@@ -11,6 +11,8 @@ import 'package:myweli/services/interfaces/push_notification_service_interface.d
 import 'package:myweli/widgets/push/push_blocked_banner.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 class _MockNotificationService extends Mock
     implements NotificationServiceInterface {}
 
@@ -37,13 +39,14 @@ void main() {
     required PushPermissionStatus status,
     Future<void> Function()? onOpen,
   }) =>
-      ChangeNotifierProvider(
-        create: (_) => NotificationPreferencesProvider(),
-        child: MaterialApp(
-          home: NotificationPreferencesScreen(
-            permissionStatus: () async => status,
-            openSettings: onOpen ?? () async {},
-          ),
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider(
+              create: (_) => NotificationPreferencesProvider())
+        ],
+        home: NotificationPreferencesScreen(
+          permissionStatus: () async => status,
+          openSettings: onOpen ?? () async {},
         ),
       );
 

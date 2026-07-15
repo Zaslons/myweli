@@ -19,6 +19,8 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 class _MockNotificationService extends Mock
     implements NotificationServiceInterface {}
 
@@ -100,7 +102,7 @@ void main() {
       ],
     );
     await tester.pumpWidget(
-      MultiProvider(
+      wrapApp(
         providers: [
           ChangeNotifierProvider.value(value: authProvider),
           ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
@@ -108,7 +110,7 @@ void main() {
             create: (_) => NotificationsProvider(service: notifications),
           ),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        routerConfig: router,
       ),
     );
     await tester.pumpAndSettle();

@@ -18,6 +18,8 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Team access R4b §5.3 — the Collaborateur 3-tab shell: Journée (locked
 /// own journal, « {Salon} — votre planning », no chips/FAB, reduced sheet)
 /// · Calendrier · Profil.
@@ -60,14 +62,14 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ProJournalProvider()),
         ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
         ChangeNotifierProvider(create: (_) => ProTeamProvider()),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 

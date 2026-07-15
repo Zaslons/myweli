@@ -13,6 +13,8 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 class _MockProService extends Mock implements ProServiceInterface {}
 
 void main() {
@@ -31,7 +33,7 @@ void main() {
 
   setUp(() => reset(service));
 
-  Widget host() => MultiProvider(
+  Widget host() => wrapApp(
         providers: [
           ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
           // T52 lock reads the session's verification status.
@@ -39,9 +41,7 @@ void main() {
           // Multi-pays MP2: the operator-catalog chips.
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        child: const MaterialApp(
-          home: DepositSettingsScreen(providerId: 'p1'),
-        ),
+        home: const DepositSettingsScreen(providerId: 'p1'),
       );
 
   testWidgets('shows the loaded policy', (tester) async {

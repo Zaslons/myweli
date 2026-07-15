@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/screens/auth/otp_verify_screen.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
   testWidgets(
       'OTP entry is an AutofillGroup whose first box requests the '
       'one-time code', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      wrapApp(
         home: OtpVerifyScreen(phoneNumber: '+2250700000000'),
       ),
     );

@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/common/app_button.dart';
 import 'package:myweli/widgets/common/empty_state.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   testWidgets('renders the title, description and icon', (tester) async {
     await tester.pumpWidget(wrap(const EmptyState(

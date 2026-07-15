@@ -4,10 +4,12 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/widgets/booking/compact_appointment_tile.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
   setUpAll(() => initializeDateFormatting('fr_FR', null));
 
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   Appointment appointment() => Appointment(
         id: 'a1',

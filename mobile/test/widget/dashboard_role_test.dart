@@ -18,6 +18,8 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Team access R4b §5.3 — the role-shaped dashboard: owner full, manager
 /// without money/Configurer, réception down to Rendez-vous + Clients, and
 /// the « Bienvenue, {salon} » header for members.
@@ -62,7 +64,7 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
@@ -73,7 +75,7 @@ void main() {
               NotificationsProvider(service: MockNotificationService()),
         ),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 
