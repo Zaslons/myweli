@@ -47,6 +47,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
         title: const Text('Services'),
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Ajouter un service',
         onPressed: () => context.push('/pro/service/new'),
         child: const Icon(Icons.add),
       ),

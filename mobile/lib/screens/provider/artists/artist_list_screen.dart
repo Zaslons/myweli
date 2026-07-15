@@ -46,6 +46,7 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
         title: const Text('Employés'),
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Ajouter un employé',
         onPressed: () => context.push('/pro/artist/new'),
         child: const Icon(Icons.add),
       ),

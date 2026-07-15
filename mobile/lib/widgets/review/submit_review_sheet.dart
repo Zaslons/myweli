@@ -166,17 +166,23 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(5, (index) {
               final starIndex = index + 1;
-              return IconButton(
-                onPressed: () {
-                  setState(() => _selectedRating = starIndex);
-                },
-                icon: Icon(
-                  starIndex <= _selectedRating ? Icons.star : Icons.star_border,
-                  size: AppTheme.iconL,
-                  color: AppColors.starRating,
+              return Semantics(
+                selected: starIndex <= _selectedRating,
+                child: IconButton(
+                  tooltip: 'Noter $starIndex étoile${starIndex > 1 ? 's' : ''}',
+                  onPressed: () {
+                    setState(() => _selectedRating = starIndex);
+                  },
+                  icon: Icon(
+                    starIndex <= _selectedRating
+                        ? Icons.star
+                        : Icons.star_border,
+                    size: AppTheme.iconL,
+                    color: AppColors.starRating,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingXS),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppTheme.spacingXS),
               );
             }),
           ),
@@ -258,28 +264,32 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                     ),
                   ),
                 if (_photoUrls.length < _maxReviewPhotos && !_uploadingPhoto)
-                  GestureDetector(
-                    onTap: _addPhoto,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusMedium),
-                        border: Border.all(color: AppColors.borderStrong),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.camera_alt_outlined,
-                              size: AppTheme.iconS,
-                              color: AppColors.textSecondary),
-                          Text(
-                            '${_photoUrls.length}/$_maxReviewPhotos',
-                            style: AppTextStyles.labelSmall
-                                .copyWith(color: AppColors.textTertiary),
-                          ),
-                        ],
+                  Semantics(
+                    button: true,
+                    label: 'Ajouter une photo',
+                    child: GestureDetector(
+                      onTap: _addPhoto,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusMedium),
+                          border: Border.all(color: AppColors.borderStrong),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.camera_alt_outlined,
+                                size: AppTheme.iconS,
+                                color: AppColors.textSecondary),
+                            Text(
+                              '${_photoUrls.length}/$_maxReviewPhotos',
+                              style: AppTextStyles.labelSmall
+                                  .copyWith(color: AppColors.textTertiary),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -332,23 +342,27 @@ class _PhotoThumb extends StatelessWidget {
           Positioned(
             top: 2,
             right: 2,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onRemove,
-              child: SizedBox(
-                // §13.2 48 hit area; Align keeps the badge at the (2,2) corner.
-                width: 48,
-                height: 48,
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppTheme.spacingXS),
-                    decoration: const BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
+            child: Semantics(
+              button: true,
+              label: 'Supprimer la photo',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onRemove,
+                child: SizedBox(
+                  // §13.2 48 hit area; Align keeps the badge at the (2,2) corner.
+                  width: 48,
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppTheme.spacingXS),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close,
+                          size: AppTheme.iconXS, color: Colors.white),
                     ),
-                    child: const Icon(Icons.close,
-                        size: AppTheme.iconXS, color: Colors.white),
                   ),
                 ),
               ),

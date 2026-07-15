@@ -630,7 +630,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 |---|---|
 | Contrast (§3, §13.1) | **`test/unit/design_contrast_test.dart`** — real WCAG math per token pair, + grep-pins on the ink/brand split and gold-as-state |
 | No literals (§4, §5, §6, §7) | **`test/unit/design_system_pin_test.dart`** — sweep-as-test, **complete**: no raw spacing (§5), radius (§6), type (§4), or icon-size (§7) literal survives. Excludes `core/theme/` (token defs) + the flag-hidden `features/` (§22); a `// ds-ignore` line is a declared fixed-dimension exception |
-| Tap targets + labels (§13.2, §13.4) | **`test/a11y/`** — `meetsGuideline(androidTapTargetGuideline)` live (A4a); `labeledTapTargetGuideline` + `textContrastGuideline` join in A4b |
+| Tap targets + labels (§13.2, §13.4) | **`test/a11y/`** — `meetsGuideline(androidTapTargetGuideline)` (A4a) + `labeledTapTargetGuideline` (A4b) live; `textContrastGuideline` joins in A4c |
 | Text scale (§13.3) | Key screens pumped at `TextScaler.linear(2.0)`, asserted not to overflow |
 | Visual regression | **Goldens** — `test/golden/`, see below |
 | Market data (§18) | `salon_time_pin_test.dart` |
@@ -714,8 +714,8 @@ own design system?" — today, mostly not.
 | 10 | Button min-height 48 (§13.2) | ~~all~~ → **0** | `textButtonTheme.minimumSize` `Size(0, 40)` → `Size(0, 48)` — raw TextButtons and `AppButton.text` alike | ✅ **A3** |
 | 11 | Buttons sized by container (§10) | ~~all~~ → **0** | `elevated`/`outlinedButtonTheme` `Size(double.infinity, 48)` → `Size(0, 48)` — width comes from the container, not a forced full-width bar | ✅ **A3** |
 | 12 | Tap targets ≥ 48 (§13.2) | ~~67~~ → **0** | **26** of the 67 rendered <48 (favourite hearts, photo arrows, close/remove ×, contact + text-link rows, pills, segments) + 3 adjacency (<8px) + `review_tile`'s `shrinkWrap` 32px button. Icon-glyphs → 48 transparent hit area (glyph unmoved, anchor compensated); rows/pills → `ConstrainedBox(minHeight: 48)` (grows with text scale). New **`test/a11y/`** gate — `meetsGuideline(androidTapTargetGuideline)` on 5 components — went **red** before the fixes | ✅ **A4a** |
-| 13 | Icon-only controls labelled (§13.4) | **26 of 40** IconButtons | the **consumer app has 0 tooltips** | **A4** |
-| 14 | `Semantics` on custom controls (§13.4) | **0** in three apps | | **A4** |
+| 13 | Icon-only controls labelled (§13.4) | ~~26 of 40~~ → **0** | `tooltip:` (= the SR label on IconButton) on the 21 unlabelled buttons + the 3 FABs, state-dependent for toggles ("Ajouter/Retirer des favoris", "Noter N étoiles"); `Semantics(label:)` on the gesture-icons (hearts, remove-×). Pinned by `labeledTapTargetGuideline` | ✅ **A4b** |
+| 14 | `Semantics` on custom controls (§13.4) | ~~0~~ → **roles + states done** | `Semantics(button/checked/selected/expanded/slider+value)` on the hand-rolled controls (services checkbox / artist radio rows, accordion header, date row, before/after slider + thumbnails, segments, commune pill, hearts). `MergeSemantics` on the display-only `ReviewTile`. **Tappable cards already announce as one node via tap-aggregation** — explicit `MergeSemantics` there *de-aggregates* the tap label, so card-grouping/unread + images + `SemanticsService.announce` → **A4c.** | 🟡 **A4b → A4c** |
 | 15 | 200% text scale (§13.3) | **3 confirmed breaks** + 24 at risk | `widgets/home/category_chips.dart:25` — **the home screen** | **A5** |
 | 16 | Overflow discipline (§13.3) | 46 of 963 `Text` (4.8%) | | **A5** |
 | 17 | One snackbar entry point (§15) | 118 calls; 73 raw; **1** with an action | shared helper hardcodes `Colors.black87` | *A6* |
@@ -726,7 +726,7 @@ own design system?" — today, mostly not.
 | 22 | Deferred V2/V3 `Colors.*` | ~52 | flag-hidden `ComingSoon` screens | *allowlisted — fix if un-shelved* |
 | 23 | **No clock seam** (§20.1) | pro dashboard + journal | `ProJournalProvider._selectedDate = salonToday()`; `MockProService.getDashboard()` buckets by `DateTime.now().weekday` — so those screens **cannot be golden-tested**: the image would change value with the day of the week, failing CI every morning. `package:clock` is unused. | *new — needs its own slice* |
 | 24 | Disabled labels legible | ~~all~~ → **0** | was `#5C5C5C` on `#949495` (2.21:1). Now a legible-inert pair (`surfaceVariant` / `textDisabled`) in the button themes + `AppButton`. WCAG exempts disabled, but it now reads as *disabled*, not blank. | ✅ **A3** |
-| 25 | No meaning by colour alone (§13.6) | 1 | the story ring says seen/unseen with **hue and nothing else**. A1 made it legible (`gold`, 3.04:1); it still doesn't survive greyscale. Needs a second cue — weight, or a dot. | *A4* |
+| 25 | No meaning by colour alone (§13.6) | ~~1~~ → **0** | the story ring now carries **two greyscale-surviving cues**: unseen = a thick (3px) gold ring + a bold title; seen = a thin (1px) neutral ring + regular title — width and weight, not just hue. Folded into the ring's `Semantics` label ("nouvelle"/"déjà vue"). | ✅ **A4b** |
 | 26 | Unselected segments have no boundary | 2 | both **hand-rolled** segmented controls (not Material `SegmentedButton`) draw a border on the active segment only — so `segmentedButtonTheme` can't fix them; it's a widget change, not a ThemeData one. | *a widget cleanup, not A3* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and

@@ -268,24 +268,33 @@ class _Segments extends StatelessWidget {
     return Builder(
       builder: (context) => ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
-        child: InkWell(
-          onTap: () => onSelect(index),
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
-            decoration: BoxDecoration(
-              color: active ? AppColors.secondary : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              border: active ? Border.all(color: AppColors.borderStrong) : null,
-            ),
-            child: Text(
-              label,
-              style:
-                  (active ? AppTextStyles.titleSmall : AppTextStyles.bodyMedium)
-                      .copyWith(
-                color: active ? AppColors.textPrimary : AppColors.textSecondary,
+        child: Semantics(
+          button: true,
+          selected: active,
+          inMutuallyExclusiveGroup: true,
+          label: label,
+          child: InkWell(
+            onTap: () => onSelect(index),
+            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
+              decoration: BoxDecoration(
+                color: active ? AppColors.secondary : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border:
+                    active ? Border.all(color: AppColors.borderStrong) : null,
+              ),
+              child: Text(
+                label,
+                style: (active
+                        ? AppTextStyles.titleSmall
+                        : AppTextStyles.bodyMedium)
+                    .copyWith(
+                  color:
+                      active ? AppColors.textPrimary : AppColors.textSecondary,
+                ),
               ),
             ),
           ),

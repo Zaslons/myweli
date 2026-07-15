@@ -227,6 +227,7 @@ class _StoryViewerState extends State<StoryViewer>
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Fermer',
                     onPressed: () => Navigator.of(context).maybePop(),
                     icon: const Icon(Icons.close, color: Colors.white),
                   ),

@@ -246,6 +246,9 @@ class _MapScreenState extends State<MapScreen> {
                               ? favorites.isFavorite(p.id)
                               : false;
                           return IconButton(
+                            tooltip: isFav
+                                ? 'Retirer des favoris'
+                                : 'Ajouter aux favoris',
                             onPressed: () async {
                               if (!auth.isAuthenticated || auth.user == null) {
                                 Navigator.of(sheetCtx).pop();
@@ -329,16 +332,20 @@ class _MapScreenState extends State<MapScreen> {
         point: LatLng(lat, lng),
         width: 48,
         height: 48,
-        child: GestureDetector(
-          onTap: () {
-            // Subtle “smooth” behavior: center the tapped salon and show details.
-            _mapController.move(LatLng(lat, lng), 14);
-            _openProviderSheet(p);
-          },
-          child: _SalonMarker(
-            icon: icon,
-            color: color,
-            isFavorite: isFav,
+        child: Semantics(
+          button: true,
+          label: p.name, // §13.4: each pin names its salon, not a bare icon
+          child: GestureDetector(
+            onTap: () {
+              // Subtle “smooth” behavior: center the tapped salon, show details.
+              _mapController.move(LatLng(lat, lng), 14);
+              _openProviderSheet(p);
+            },
+            child: _SalonMarker(
+              icon: icon,
+              color: color,
+              isFavorite: isFav,
+            ),
           ),
         ),
       );
@@ -449,6 +456,7 @@ class _MapScreenState extends State<MapScreen> {
               children: [
                 FloatingActionButton(
                   heroTag: 'center_me',
+                  tooltip: 'Me localiser',
                   onPressed:
                       (_position != null) ? _centerOnUser : _initLocation,
                   backgroundColor: AppColors.primary,

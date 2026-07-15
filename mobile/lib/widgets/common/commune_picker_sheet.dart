@@ -156,6 +156,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Fermer',
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
