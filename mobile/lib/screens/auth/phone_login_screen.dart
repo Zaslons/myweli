@@ -71,14 +71,14 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 32),
+                const SizedBox(height: AppTheme.spacingXL),
                 // Brand lockup (mark + MyWeli wordmark) — black on the light bg.
                 SvgPicture.asset(
                   'assets/brand/myweli_lockup_vertical_black.svg',
                   height: 120,
                   semanticsLabel: 'MyWeli',
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppTheme.spacingXL),
                 Text(
                   'Bienvenue',
                   style: AppTextStyles.headlineLarge.copyWith(
@@ -86,7 +86,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 Text(
                   'Connectez-vous avec votre numéro',
                   style: AppTextStyles.bodyLarge.copyWith(
@@ -94,17 +94,17 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppTheme.spacingXL),
                 PhoneNumberField(
                   onChanged: (e164) => _phoneNumber = e164,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 AppButton(
                   text: 'Continuer',
                   onPressed: _isLoading ? null : _handleContinue,
                   isLoading: _isLoading,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 Text(
                   'En continuant, vous acceptez nos conditions d\'utilisation',
                   style: AppTextStyles.bodySmall.copyWith(

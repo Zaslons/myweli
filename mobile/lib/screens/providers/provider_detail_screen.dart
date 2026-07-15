@@ -169,14 +169,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 children: [
                   const Icon(Icons.error_outline,
                       size: 64, color: AppColors.error),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   Text(
                     provider.error ?? 'Salon introuvable',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   AppButton(
                     text: 'Retour',
                     onPressed: () => context.pop(),
@@ -258,7 +258,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SalonLogo(logoUrl: p.logoUrl),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: AppTheme.spacingM),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,9 +280,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                         ),
                                       ),
                                       if (p.verified) ...[
-                                        const SizedBox(width: 6),
+                                        const SizedBox(
+                                            width: AppTheme.spacingS),
                                         const Padding(
-                                          padding: EdgeInsets.only(top: 4),
+                                          padding: EdgeInsets.only(
+                                              top: AppTheme.spacingXS),
                                           child: Icon(
                                             Icons.verified,
                                             size: 20,
@@ -293,13 +295,13 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                       ],
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: AppTheme.spacingS),
                                   Row(
                                     children: [
                                       const Icon(Icons.location_on_outlined,
                                           size: 14,
                                           color: AppColors.textTertiary),
-                                      const SizedBox(width: 4),
+                                      const SizedBox(width: AppTheme.spacingXS),
                                       Expanded(
                                         child: Text(
                                           p.city ?? p.address,
@@ -313,20 +315,20 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: AppTheme.spacingXS),
                                   Row(
                                     children: [
                                       const Icon(Icons.star,
                                           size: 16,
                                           color: AppColors.starRating),
-                                      const SizedBox(width: 4),
+                                      const SizedBox(width: AppTheme.spacingXS),
                                       Text(
                                         p.rating.toStringAsFixed(1),
                                         style: AppTextStyles.bodySmall.copyWith(
                                           color: AppColors.textSecondary,
                                         ),
                                       ),
-                                      const SizedBox(width: 6),
+                                      const SizedBox(width: AppTheme.spacingS),
                                       Text(
                                         '${p.reviewCount} avis',
                                         style: AppTextStyles.bodySmall.copyWith(
@@ -551,14 +553,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               borderRadius:
                                   BorderRadius.circular(AppTheme.radiusLarge),
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS),
                                 child: Row(
                                   children: [
                                     const Icon(Icons.map_outlined,
                                         size: 20,
                                         color: AppColors.textTertiary),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: AppTheme.spacingSM),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -612,14 +614,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               borderRadius:
                                   BorderRadius.circular(AppTheme.radiusLarge),
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS),
                                 child: Row(
                                   children: [
                                     const Icon(Icons.phone_outlined,
                                         size: 20,
                                         color: AppColors.textTertiary),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: AppTheme.spacingSM),
                                     Text(
                                       Formatters.formatPhoneNumber(
                                           p.phoneNumber),
@@ -648,14 +650,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 borderRadius:
                                     BorderRadius.circular(AppTheme.radiusLarge),
                                 child: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: AppTheme.spacingS),
                                   child: Row(
                                     children: [
                                       const Icon(Icons.chat_outlined,
                                           size: 20,
                                           color: AppColors.textTertiary),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: AppTheme.spacingSM),
                                       Text(
                                         'WhatsApp',
                                         style:
@@ -671,34 +673,33 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             // Working hours
                             const _Divider(),
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppTheme.spacingXS),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Icon(Icons.schedule_outlined,
                                       size: 20, color: AppColors.textTertiary),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: AppTheme.spacingSM),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
-                                      children:
-                                          _formatWorkingHours(p.availability)
-                                              .map((line) => Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            bottom: 2),
-                                                    child: Text(
-                                                      line,
-                                                      style: AppTextStyles
-                                                          .bodySmall
-                                                          .copyWith(
-                                                        color: AppColors
-                                                            .textSecondary,
-                                                      ),
-                                                    ),
-                                                  ))
-                                              .toList(),
+                                      children: _formatWorkingHours(
+                                              p.availability)
+                                          .map((line) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: AppTheme.spacingXS),
+                                                child: Text(
+                                                  line,
+                                                  style: AppTextStyles.bodySmall
+                                                      .copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                              ))
+                                          .toList(),
                                     ),
                                   ),
                                 ],
@@ -773,7 +774,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               children: [
                                 const Icon(Icons.star,
                                     size: 28, color: AppColors.starRating),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: AppTheme.spacingSM),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -866,7 +867,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                               size: 28,
                                               color: AppColors.textTertiary,
                                             ),
-                                            const SizedBox(width: 12),
+                                            const SizedBox(
+                                                width: AppTheme.spacingSM),
                                             Text(
                                               'Donner mon avis',
                                               style: AppTextStyles.titleSmall
@@ -897,7 +899,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           ),
                         ),
 
-                      const SizedBox(height: 100),
+                      // Fixed scroll-bottom clearance for the sticky reserve CTA
+                      // — §5 governs grid gaps, not overlay clearance.
+                      const SizedBox(height: 100), // ds-ignore
                     ],
                   ),
                 ),
@@ -940,7 +944,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               'Réserver (après la mise en ligne)',
                             ),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppTheme.spacingM),
                             ),
                           ),
                         ),
@@ -963,11 +968,12 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               foregroundColor: AppColors.textPrimary,
                               side: const BorderSide(
                                   color: AppColors.borderStrong),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppTheme.spacingM),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AppTheme.spacingSM),
                         Expanded(
                           flex: 2,
                           child: ElevatedButton.icon(
@@ -978,7 +984,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: AppColors.secondary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppTheme.spacingM),
                             ),
                           ),
                         ),
@@ -1146,7 +1153,8 @@ class _SectionCard extends StatelessWidget {
               onTap: onHeaderTap,
               borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
                 child: Row(
                   children: [
                     Text(
@@ -1245,7 +1253,7 @@ class _ServiceTile extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   Formatters.formatDuration(service.durationMinutes),
                   style: AppTextStyles.bodySmall.copyWith(
@@ -1253,7 +1261,7 @@ class _ServiceTile extends StatelessWidget {
                   ),
                 ),
                 if (service.durationVariants.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     [
                       if (service.durationVariants.court != null)
@@ -1271,7 +1279,7 @@ class _ServiceTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppTheme.spacingS),
           Flexible(
             child: Text(
               Formatters.formatPriceRange(service.price, service.priceMax,

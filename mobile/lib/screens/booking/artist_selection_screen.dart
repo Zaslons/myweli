@@ -194,7 +194,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       size: 64,
                       color: AppColors.textTertiary,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun artiste disponible',
                       style: AppTextStyles.titleLarge.copyWith(
@@ -202,7 +202,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     Text(
                       'Aucun artiste ne peut effectuer tous les services sélectionnés. Veuillez modifier votre sélection.',
                       style: AppTextStyles.bodyMedium.copyWith(
@@ -210,7 +210,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppTheme.spacingL),
                     AppButton(
                       text: 'Retour',
                       onPressed: () => context.pop(),
@@ -242,7 +242,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                             color: AppColors.primary,
                             size: 20,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppTheme.spacingSM),
                           Expanded(
                             child: Text(
                               'Sélectionnez l\'artiste qui effectuera vos services',
@@ -254,7 +254,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     if (_loadingTimeFilter)
                       Padding(
                         padding:
@@ -266,7 +266,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                               height: 18,
                               child: BrandLoader(size: 20, fast: true),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: AppTheme.spacingSM),
                             Expanded(
                               child: Text(
                                 'Vérification des disponibilités…',
@@ -391,7 +391,7 @@ class _ArtistCard extends StatelessWidget {
                           child: const Icon(Icons.person, size: 30),
                         ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +401,7 @@ class _ArtistCard extends StatelessWidget {
                     style: AppTextStyles.titleMedium,
                   ),
                   if (!isNoPreference && artist.specialization != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.spacingXS),
                     Text(
                       artist.specialization!,
                       style: AppTextStyles.bodySmall.copyWith(
@@ -410,12 +410,12 @@ class _ArtistCard extends StatelessWidget {
                     ),
                   ],
                   if (!isNoPreference && artist.rating != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.spacingXS),
                     Row(
                       children: [
                         const Icon(Icons.star,
                             size: 14, color: AppColors.starRating),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           artist.rating!.toStringAsFixed(1),
                           style: AppTextStyles.bodySmall.copyWith(
@@ -423,7 +423,7 @@ class _ArtistCard extends StatelessWidget {
                           ),
                         ),
                         if (artist.reviewCount != null) ...[
-                          const SizedBox(width: 4),
+                          const SizedBox(width: AppTheme.spacingXS),
                           Text(
                             '(${artist.reviewCount})',
                             style: AppTextStyles.bodySmall.copyWith(

@@ -44,7 +44,7 @@ class StatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(value, style: AppTextStyles.headlineMedium),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   label,
                   style: AppTextStyles.bodySmall

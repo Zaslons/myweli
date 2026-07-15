@@ -47,7 +47,7 @@ class LengthVariantSelector extends StatelessWidget {
             );
           }).toList(),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppTheme.spacingXS),
         Text(
           'Les créneaux sont calculés selon cette durée. '
           'Le prix final est confirmé par le salon.',

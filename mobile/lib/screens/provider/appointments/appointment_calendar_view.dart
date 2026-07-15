@@ -161,14 +161,14 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
                     children: [
                       const Icon(Icons.event_busy,
                           size: 64, color: AppColors.textSecondary),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppTheme.spacingM),
                       Text(
                         'Aucun rendez-vous',
                         style: AppTextStyles.titleLarge.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppTheme.spacingS),
                       Text(
                         _selectedDay != null
                             ? 'pour ${Formatters.formatDate(_selectedDay!)}'
@@ -254,7 +254,7 @@ class _AppointmentCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.spacingXS),
             Text('${appointment.serviceIds.length} service(s)'),
             Text(Formatters.formatCurrency(
               appointment.totalPrice,

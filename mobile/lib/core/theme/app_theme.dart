@@ -4,21 +4,40 @@ import 'colors.dart';
 import 'text_styles.dart';
 
 class AppTheme {
-  // Spacing System (8px grid)
+  // Spacing System — an 8pt grid with one sanctioned half-step (SYSTEM.md §5).
+  // Nothing else is legal: 10, 14, 18, 20 are not spacing values.
   static const double spacingXS = 4.0;
   static const double spacingS = 8.0;
+
+  /// The half-step. 12px appeared 76× as a raw literal because 8 was too tight
+  /// and 16 too loose for dense UI — naming it makes that a legal choice instead
+  /// of a violation (SYSTEM.md §5). Chip padding, dense list gaps, title↔subtitle.
+  static const double spacingSM = 12.0;
   static const double spacingM = 16.0;
   static const double spacingL = 24.0;
   static const double spacingXL = 32.0;
   static const double spacingXXL = 48.0;
   static const double spacingXXXL = 64.0;
 
-  // Border Radius
+  // Border Radius (SYSTEM.md §6)
   static const double radiusSmall = 4.0;
   static const double radiusMedium = 8.0;
   static const double radiusLarge = 12.0;
   static const double radiusXL = 16.0;
   static const double radiusXXL = 24.0;
+
+  /// Fully-rounded. `999` is a *shape* (a pill), not a number — chips, avatars,
+  /// badges, FABs, segmented controls (SYSTEM.md §6). It was hand-written 21×.
+  static const double radiusPill = 999.0;
+
+  // Icon size — five is enough (SYSTEM.md §7). An icon's *size* and its *tap
+  // target* are different things: `iconM` is 24px of glyph inside a ≥48px touch
+  // target (§13.2) — never grow the glyph to enlarge the target, grow the target.
+  static const double iconXS = 16.0; // inline w/ bodySmall/labelMedium; chips
+  static const double iconS = 20.0; // inline with text — the common case
+  static const double iconM = 24.0; // default action icon (AppBar, IconButton)
+  static const double iconL = 32.0; // feature / avatar-scale glyphs
+  static const double iconXL = 64.0; // the empty-state illustration glyph
 
   // Elevation/Shadows
   static List<BoxShadow> get elevation1 => [

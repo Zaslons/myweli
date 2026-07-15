@@ -104,7 +104,7 @@ class _NotificationPreferencesScreenState
                   children: [
                     const Icon(Icons.error_outline,
                         size: 64, color: AppColors.error),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     Text(
                       provider.error ?? 'Erreur lors du chargement',
                       textAlign: TextAlign.center,
@@ -112,7 +112,7 @@ class _NotificationPreferencesScreenState
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     AppButton(
                       text: 'Réessayer',
                       type: AppButtonType.secondary,
@@ -167,7 +167,7 @@ class _NotificationPreferencesScreenState
                 children: [
                   const Icon(Icons.info_outline,
                       size: 18, color: AppColors.textTertiary),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(
                       'Les confirmations et changements de rendez-vous sont '

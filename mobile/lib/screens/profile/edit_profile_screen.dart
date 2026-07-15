@@ -116,7 +116,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   AppButton(
                     text: 'Se connecter',
                     onPressed: () => context.go(
@@ -135,7 +135,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   Center(
                     child: Column(
                       children: [
@@ -182,7 +182,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                   AppTextField(
                     label: 'Nom',
                     hint: 'Votre nom',
@@ -220,7 +220,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppTheme.spacingXL),
                   AppButton(
                     text: 'Enregistrer',
                     onPressed: authProvider.isLoading ? null : _submit,

@@ -253,12 +253,12 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'Nom du client (optionnel)',
                 controller: _name,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               SwitchListTile(
                 value: _sendSms && !_anonymous && _phone.text.trim().isNotEmpty,
                 onChanged: (_anonymous || _phone.text.trim().isEmpty)
@@ -270,7 +270,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'Note (optionnel)',
                 controller: _note,
@@ -307,7 +307,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   }
 
   Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
         child: Text(
           text,
           style: AppTextStyles.labelSmall
@@ -330,7 +330,8 @@ class _PickerField extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingM),
         decoration: BoxDecoration(
           color: AppColors.secondary,
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -339,7 +340,7 @@ class _PickerField extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTheme.spacingS),
             Text(label, style: AppTextStyles.bodyMedium),
           ],
         ),

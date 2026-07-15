@@ -238,7 +238,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       visit.copyWith(status: AppointmentStatus.completed),
                   onTap: () => context.push('/appointment/${visit.id}'),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 SizedBox(
                   width: double.infinity,
                   child: AppButton(
@@ -289,7 +289,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(value, style: AppTextStyles.titleLarge),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             label,
             style: AppTextStyles.bodySmall.copyWith(

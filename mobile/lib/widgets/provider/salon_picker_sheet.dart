@@ -57,7 +57,7 @@ class _SalonPickerSheet extends StatelessWidget {
                 height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                 ),
               ),
             ),

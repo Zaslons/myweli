@@ -111,7 +111,7 @@ class AppointmentCard extends StatelessWidget {
                                   size: 40, color: AppColors.textTertiary),
                             ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: AppTheme.spacingM),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,8 +131,8 @@ class AppointmentCard extends StatelessWidget {
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                                  horizontal: AppTheme.spacingS,
+                                  vertical: AppTheme.spacingXS,
                                 ),
                                 decoration: BoxDecoration(
                                   color: _getStatusColor(appointment.status)
@@ -150,7 +150,7 @@ class AppointmentCard extends StatelessWidget {
                             ],
                           ),
                           if (provider != null && provider.city != null) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppTheme.spacingXS),
                             GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () {
@@ -173,7 +173,7 @@ class AppointmentCard extends StatelessWidget {
                                 children: [
                                   const Icon(Icons.location_on,
                                       size: 14, color: AppColors.textTertiary),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(width: AppTheme.spacingXS),
                                   Expanded(
                                     child: Text(
                                       provider.city ?? provider.address,
@@ -191,7 +191,7 @@ class AppointmentCard extends StatelessWidget {
                             ),
                             if (provider.latitude != null &&
                                 provider.longitude != null) ...[
-                              const SizedBox(height: 2),
+                              const SizedBox(height: AppTheme.spacingXS),
                               GestureDetector(
                                 onTap: () {
                                   Helpers.launchNavigation(
@@ -205,7 +205,7 @@ class AppointmentCard extends StatelessWidget {
                                   children: [
                                     const Icon(Icons.directions,
                                         size: 14, color: AppColors.primary),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: AppTheme.spacingXS),
                                     Text(
                                       'Itinéraire',
                                       style: AppTextStyles.bodySmall.copyWith(
@@ -222,14 +222,14 @@ class AppointmentCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppTheme.spacingSM),
                 // Auto-synced from the salon's manual booking (FR-APPT-008):
                 // surfaced because it was made to this account's verified phone.
                 if (appointment.clientName != null) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: AppTheme.spacingS,
+                      vertical: AppTheme.spacingXS,
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.info.withValues(alpha: 0.1),
@@ -240,7 +240,7 @@ class AppointmentCard extends StatelessWidget {
                       children: [
                         const Icon(Icons.store_mall_directory_outlined,
                             size: 14, color: AppColors.info),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           'Réservé par votre salon',
                           style: AppTextStyles.labelSmall.copyWith(
@@ -250,7 +250,7 @@ class AppointmentCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                 ],
                 // Services
                 if (services.isNotEmpty) ...[
@@ -260,15 +260,15 @@ class AppointmentCard extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
                     children: services.take(3).map((service) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: AppTheme.spacingS,
+                          vertical: AppTheme.spacingXS,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
@@ -286,7 +286,7 @@ class AppointmentCard extends StatelessWidget {
                   ),
                   if (services.length > 3)
                     Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       child: Text(
                         '+ ${services.length - 3} autre(s)',
                         style: AppTextStyles.bodySmall.copyWith(
@@ -294,7 +294,7 @@ class AppointmentCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                 ],
                 // Artist
                 if (appointment.artistId != null && provider != null) ...[
@@ -314,7 +314,7 @@ class AppointmentCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.person,
                               size: 16, color: AppColors.textTertiary),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: AppTheme.spacingS),
                           Expanded(
                             child: Text(
                               artist.name,
@@ -327,7 +327,7 @@ class AppointmentCard extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                 ],
                 // Date, Time, and Price
                 Row(
@@ -337,7 +337,7 @@ class AppointmentCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.calendar_today,
                               size: 16, color: AppColors.textTertiary),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: AppTheme.spacingS),
                           Flexible(
                             child: Text(
                               Formatters.formatDateShort(toSalonTime(
@@ -356,7 +356,7 @@ class AppointmentCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.access_time,
                               size: 16, color: AppColors.textTertiary),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: AppTheme.spacingS),
                           Flexible(
                             child: Text(
                               Formatters.formatTime(toSalonTime(
@@ -372,7 +372,7 @@ class AppointmentCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

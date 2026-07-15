@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import 'brand_loader.dart';
 
@@ -42,10 +43,10 @@ class AppButton extends StatelessWidget {
                 children: [
                   if (leading != null) ...[
                     leading!,
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.spacingS),
                   ] else if (icon != null) ...[
                     Icon(icon, size: 20),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.spacingS),
                   ],
                   Text(text),
                 ],
@@ -68,10 +69,10 @@ class AppButton extends StatelessWidget {
                 children: [
                   if (leading != null) ...[
                     leading!,
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.spacingS),
                   ] else if (icon != null) ...[
                     Icon(icon, size: 20),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.spacingS),
                   ],
                   Text(text),
                 ],
@@ -99,10 +100,10 @@ class AppButton extends StatelessWidget {
               children: [
                 if (leading != null) ...[
                   leading!,
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppTheme.spacingS),
                 ] else if (icon != null) ...[
                   Icon(icon, size: 20),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppTheme.spacingS),
                 ],
                 Text(text),
               ],

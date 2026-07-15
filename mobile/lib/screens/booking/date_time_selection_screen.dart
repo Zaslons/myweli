@@ -236,7 +236,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                       titleCentered: true,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   // Time Slots
                   const Text(
                     'Heures disponibles',
@@ -252,7 +252,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                         ),
                     padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                   if (_loadingSlots)
                     const Center(child: LoadingIndicator())
                   else if (_availableSlots.isEmpty)

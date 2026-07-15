@@ -175,7 +175,8 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                   size: 40,
                   color: AppColors.starRating,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppTheme.spacingXS),
               );
             }),
           ),
@@ -233,7 +234,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
               children: [
                 for (var i = 0; i < _photoUrls.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: AppTheme.spacingS),
                     child: _PhotoThumb(
                       url: _photoUrls[i],
                       onRemove: () => _removePhoto(i),
@@ -333,7 +334,7 @@ class _PhotoThumb extends StatelessWidget {
             child: GestureDetector(
               onTap: onRemove,
               child: Container(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(AppTheme.spacingXS),
                 decoration: const BoxDecoration(
                   color: Colors.black54,
                   shape: BoxShape.circle,

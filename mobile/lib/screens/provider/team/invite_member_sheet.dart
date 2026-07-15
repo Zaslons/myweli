@@ -242,7 +242,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
         'Associer à un membre de l\'équipe',
         style: AppTextStyles.titleSmall,
       ),
-      const SizedBox(height: 4),
+      const SizedBox(height: AppTheme.spacingXS),
       Text(
         'Le collaborateur verra le planning de cette fiche employé.',
         style: AppTextStyles.bodySmall.copyWith(
@@ -376,7 +376,7 @@ class _RoleCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(teamRoleLabel(role), style: AppTextStyles.titleSmall),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     roleSummary(role),
                     style: AppTextStyles.bodySmall.copyWith(

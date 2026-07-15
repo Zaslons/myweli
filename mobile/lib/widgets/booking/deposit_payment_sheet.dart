@@ -281,7 +281,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 widget.isSubmitMode ? "Envoyer l'acompte" : "Payer l'acompte",
                 style: AppTextStyles.titleMedium,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppTheme.spacingXS),
               Text(
                 'Versé directement au salon. Myweli ne prélève rien.',
                 style: AppTextStyles.bodySmall
@@ -380,7 +380,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                     ? null
                     : _markPaid,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Text(
                 widget.isSubmitMode
                     ? 'Le salon confirmera après réception de l’acompte.'

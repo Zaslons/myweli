@@ -287,7 +287,8 @@ class _MiniBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
       decoration: BoxDecoration(
         border: Border.all(color: color.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

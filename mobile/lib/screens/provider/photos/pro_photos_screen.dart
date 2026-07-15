@@ -183,7 +183,7 @@ class _PhotoTile extends StatelessWidget {
           child: GestureDetector(
             onTap: onRemove,
             child: Container(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppTheme.spacingXS),
               decoration: const BoxDecoration(
                 color: Colors.black54,
                 shape: BoxShape.circle,
@@ -205,7 +205,7 @@ class _PhotoTile extends StatelessWidget {
                   onTap: onMoveLeft!,
                 ),
               if (onMoveLeft != null && onMoveRight != null)
-                const SizedBox(width: 4),
+                const SizedBox(width: AppTheme.spacingXS),
               if (onMoveRight != null)
                 _ArrowButton(
                   icon: Icons.chevron_right,
@@ -220,10 +220,11 @@ class _PhotoTile extends StatelessWidget {
             bottom: 4,
             left: 4,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
               decoration: BoxDecoration(
                 color: Colors.black54,
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(AppTheme.radiusPill),
               ),
               child: Text(
                 'Couverture',
@@ -259,7 +260,7 @@ class _UploadingTile extends StatelessWidget {
               value: progress == 0 ? null : progress,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppTheme.spacingS),
           Text(
             'Envoi… ${(progress * 100).round()}%',
             style: AppTextStyles.labelSmall
@@ -286,7 +287,7 @@ class _AddTile extends StatelessWidget {
           children: [
             Icon(Icons.add_a_photo_outlined,
                 color: AppColors.textSecondary, size: 24),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.spacingXS),
             Text('Ajouter',
                 style: AppTextStyles.labelSmall
                     .copyWith(color: AppColors.textSecondary)),
@@ -330,7 +331,7 @@ class _ArrowButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(AppTheme.spacingXS),
         decoration: const BoxDecoration(
           color: Colors.black54,
           shape: BoxShape.circle,

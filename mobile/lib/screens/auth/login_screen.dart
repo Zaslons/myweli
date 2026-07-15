@@ -142,16 +142,16 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingL),
               // Brand lockup (mark + MyWeli wordmark) — black on the light bg.
               SvgPicture.asset(
                 'assets/brand/myweli_lockup_vertical_black.svg',
                 height: 110,
                 semanticsLabel: 'MyWeli',
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingL),
               ..._buildStep(auth),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingL),
               if (_step != _LoginStep.phone)
                 Text(
                   'En continuant, vous acceptez nos conditions d\'utilisation',
@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         Text(
           'Connectez-vous pour réserver en quelques secondes.',
           style: AppTextStyles.bodyLarge.copyWith(
@@ -194,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: AppTheme.spacingXL),
         AppButton(
           text: 'Continuer avec Google',
           type: AppButtonType.secondary,
@@ -202,13 +202,13 @@ class _LoginScreenState extends State<LoginScreen> {
           onPressed: auth.isLoading ? null : _handleGoogle,
         ),
         if (_showApple) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppTheme.spacingSM),
           AppButton(
             text: 'Continuer avec Apple',
             onPressed: auth.isLoading ? null : _handleApple,
           ),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: AppTheme.spacingL),
         Row(
           children: [
             const Expanded(child: Divider(color: AppColors.divider)),
@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const Expanded(child: Divider(color: AppColors.divider)),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppTheme.spacingL),
         AppTextField(
           controller: _emailController,
           label: 'Votre e-mail',
@@ -234,14 +234,14 @@ class _LoginScreenState extends State<LoginScreen> {
           keyboardType: TextInputType.emailAddress,
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppTheme.spacingM),
         AppButton(
           text: 'Continuer avec e-mail',
           onPressed: (auth.isLoading || !_emailValid) ? null : _sendEmailCode,
           isLoading: auth.isLoading,
         ),
         if (auth.error != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppTheme.spacingSM),
           Text(
             auth.error!,
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
@@ -258,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppTheme.spacingL),
         AppTextField(
           controller: _codeController,
           label: 'Code à 6 chiffres',
@@ -267,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
           onChanged: (_) => setState(() {}),
         ),
         if (auth.emailDevCode != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             'Code (dev) : ${auth.emailDevCode}',
             style: AppTextStyles.bodySmall.copyWith(
@@ -276,7 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
             textAlign: TextAlign.center,
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: AppTheme.spacingM),
         AppButton(
           text: 'Se connecter',
           onPressed: (auth.isLoading || _codeController.text.trim().length < 4)
@@ -284,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
               : _verifyEmailCode,
           isLoading: auth.isLoading,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppTheme.spacingSM),
         AppButton(
           text: _resendCooldown > 0
               ? 'Renvoyer le code (${_resendCooldown}s)'
@@ -293,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
           onPressed:
               (auth.isLoading || _resendCooldown > 0) ? null : _sendEmailCode,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppTheme.spacingXS),
         AppButton(
           text: 'Changer d\'e-mail',
           type: AppButtonType.text,
@@ -302,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
               : () => setState(() => _step = _LoginStep.options),
         ),
         if (auth.error != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppTheme.spacingSM),
           Text(
             auth.error!,
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
@@ -319,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         Text(
           'Le salon l\'utilise pour vous contacter au sujet de vos rendez-vous.',
           style: AppTextStyles.bodyLarge.copyWith(
@@ -327,11 +327,11 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppTheme.spacingL),
         PhoneNumberField(
           onChanged: (e164) => setState(() => _phoneNumber = e164),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppTheme.spacingM),
         AppButton(
           text: 'Continuer',
           onPressed:
@@ -339,7 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
           isLoading: auth.isLoading,
         ),
         if (auth.error != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppTheme.spacingSM),
           Text(
             auth.error!,
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),

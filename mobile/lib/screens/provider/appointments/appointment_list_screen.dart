@@ -159,7 +159,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                           children: [
                             const Icon(Icons.event_busy,
                                 size: 64, color: AppColors.textSecondary),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: AppTheme.spacingM),
                             Text(
                               'Aucun rendez-vous',
                               style: AppTextStyles.titleLarge.copyWith(
@@ -196,7 +196,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                                 children: [
                                   const Icon(Icons.event_busy,
                                       size: 64, color: AppColors.textSecondary),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: AppTheme.spacingM),
                                   Text(
                                     'Aucun rendez-vous',
                                     style: AppTextStyles.titleLarge.copyWith(

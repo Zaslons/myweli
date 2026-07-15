@@ -177,9 +177,11 @@ class _StoryViewerState extends State<StoryViewer>
                   final isCurrent = i == _index;
                   return Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingXS),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusPill),
                         child: Container(
                           height: 3,
                           color: Colors.white.withValues(alpha: 0.25),

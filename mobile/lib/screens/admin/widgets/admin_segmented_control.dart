@@ -25,7 +25,7 @@ class AdminSegmentedControl extends StatelessWidget {
         color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
       ),
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(AppTheme.spacingXS),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -41,7 +41,8 @@ class AdminSegmentedControl extends StatelessWidget {
       onTap: () => onSelect(index),
       borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
         decoration: BoxDecoration(
           color: active ? AppColors.secondary : Colors.transparent,
           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

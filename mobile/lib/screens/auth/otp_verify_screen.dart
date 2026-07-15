@@ -212,13 +212,13 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: AppTheme.spacingXL),
               const Icon(
                 Icons.lock_outline,
                 size: 80,
                 color: AppColors.primary,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingL),
               Text(
                 'Code de vérification',
                 style: AppTextStyles.headlineMedium.copyWith(
@@ -226,7 +226,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Text(
                 'Entrez le code envoyé au\n${Helpers.maskPhoneNumber(widget.phoneNumber)}',
                 style: AppTextStyles.bodyMedium.copyWith(
@@ -234,7 +234,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppTheme.spacingXL),
               AutofillGroup(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -242,7 +242,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 ),
               ),
               if (_inlineError != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +254,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       size: 16,
                       color: AppColors.error,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppTheme.spacingS),
                     Flexible(
                       child: Text(
                         _inlineError!,
@@ -266,7 +266,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                   ],
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingL),
               TextButton(
                 onPressed: _resendCooldown > 0 ? null : _handleResend,
                 child: Text(
@@ -278,10 +278,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 ),
               ),
               if (kDebugMode) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.spacingXS),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: AppTheme.spacingS,
+                      horizontal: AppTheme.spacingSM),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -295,7 +296,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 32),
+              const SizedBox(height: AppTheme.spacingXL),
               AppButton(
                 text: 'Vérifier',
                 onPressed: _canVerify ? _handleVerify : null,
@@ -314,8 +315,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
       width: 50,
       height: 64,
       margin: EdgeInsets.only(
-        left: index == 0 ? 0 : 4,
-        right: index == 5 ? 0 : 4,
+        left: index == 0 ? 0 : AppTheme.spacingXS,
+        right: index == 5 ? 0 : AppTheme.spacingXS,
       ),
       child: Focus(
         onKeyEvent: (node, event) => _onBoxKey(index, event),
@@ -342,7 +343,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
           ],
           decoration: InputDecoration(
             counterText: '',
-            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
             isDense: false,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusLarge),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import 'app_button.dart';
@@ -23,7 +24,7 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(AppTheme.spacingXL),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -32,7 +33,7 @@ class EmptyState extends StatelessWidget {
               size: 64,
               color: AppColors.textTertiary,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppTheme.spacingL),
             Text(
               title,
               style: AppTextStyles.titleLarge.copyWith(
@@ -41,7 +42,7 @@ class EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             if (description != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Text(
                 description!,
                 style: AppTextStyles.bodyMedium.copyWith(
@@ -51,7 +52,7 @@ class EmptyState extends StatelessWidget {
               ),
             ],
             if (actionText != null && onAction != null) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingL),
               AppButton(
                 text: actionText!,
                 onPressed: onAction,

@@ -86,7 +86,7 @@ class NotificationTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppTheme.spacingS),
                       Text(
                         Formatters.formatRelative(notification.createdAt),
                         style: AppTextStyles.bodySmall.copyWith(
@@ -94,7 +94,7 @@ class NotificationTile extends StatelessWidget {
                         ),
                       ),
                       if (unread) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppTheme.spacingS),
                         Container(
                           width: 8,
                           height: 8,
@@ -106,7 +106,7 @@ class NotificationTile extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     notification.body,
                     style: AppTextStyles.bodySmall.copyWith(

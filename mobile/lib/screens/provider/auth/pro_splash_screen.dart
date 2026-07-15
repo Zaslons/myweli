@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -86,7 +87,7 @@ class _ProSplashScreenState extends State<ProSplashScreen>
                   height: 120,
                   decoration: BoxDecoration(
                     color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusXXL),
                   ),
                   child: const Icon(
                     Icons.business,
@@ -94,21 +95,21 @@ class _ProSplashScreenState extends State<ProSplashScreen>
                     color: AppColors.secondary,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 Text(
                   'Myweli Pro',
                   style: AppTextStyles.displaySmall.copyWith(
                     color: AppColors.primary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 Text(
                   'Pour les professionnels',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppTheme.spacingXL),
                 const LoadingIndicator(),
               ],
             ),

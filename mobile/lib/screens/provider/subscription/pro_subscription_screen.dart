@@ -228,7 +228,7 @@ class _Body extends StatelessWidget {
           children: [
             const Icon(Icons.info_outline,
                 size: 18, color: AppColors.textTertiary),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
                 'Le paiement se fait manuellement — contactez-nous à la fin '
@@ -495,7 +495,7 @@ class _OfferCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppTheme.spacingS,
-                    vertical: 4,
+                    vertical: AppTheme.spacingXS,
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
@@ -546,7 +546,7 @@ class _OfferCard extends StatelessWidget {
             children: [
               const Icon(Icons.group_outlined,
                   size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.spacingS),
               Text(
                 seatsLine,
                 style: AppTextStyles.bodyMedium.copyWith(
@@ -558,7 +558,7 @@ class _OfferCard extends StatelessWidget {
           const SizedBox(height: AppTheme.spacingM),
           for (final line in SubscriptionPlans.entitlementsFor(tier))
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

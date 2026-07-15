@@ -31,7 +31,8 @@ class AdminSearchField extends StatelessWidget {
               AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
           prefixIcon: const Icon(Icons.search, size: 18),
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
           filled: true,
           fillColor: AppColors.secondary,
           enabledBorder: OutlineInputBorder(

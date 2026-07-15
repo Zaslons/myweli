@@ -142,7 +142,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     final fg = active ? AppColors.secondary : AppColors.textPrimary;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppTheme.spacingM,
@@ -150,7 +150,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         ),
         decoration: BoxDecoration(
           color: active ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
           border: Border.all(
               color: active ? AppColors.primary : AppColors.borderStrong),
         ),
@@ -158,7 +158,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 16, color: fg),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppTheme.spacingS),
             Text(
               label,
               style: AppTextStyles.bodyMedium

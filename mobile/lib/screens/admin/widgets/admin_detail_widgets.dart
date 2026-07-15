@@ -45,7 +45,7 @@ class AdminProfileCard extends StatelessWidget {
           const SizedBox(height: AppTheme.spacingM),
           for (final (label, value) in rows)
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: AppTheme.spacingSM),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -107,7 +107,7 @@ class AdminBookingsCard extends StatelessWidget {
     final price = a['totalPrice'] as num?;
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM, vertical: 12),
+          horizontal: AppTheme.spacingM, vertical: AppTheme.spacingSM),
       decoration: BoxDecoration(
         border: last
             ? null

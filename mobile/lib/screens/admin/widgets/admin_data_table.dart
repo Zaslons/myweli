@@ -65,7 +65,8 @@ class AdminDataTable extends StatelessWidget {
 
   Widget _headerRow() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingM, vertical: 11),
       child: Row(
         children: [
           for (final c in columns)
@@ -132,7 +133,8 @@ class AdminDataTable extends StatelessWidget {
         onTap: row.onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 52),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
           child: Row(
             children: [
               for (var c = 0; c < columns.length; c++)
@@ -152,7 +154,8 @@ class AdminDataTable extends StatelessWidget {
   Widget _skeletonRow() {
     return Container(
       height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingM, vertical: AppTheme.spacingM),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),

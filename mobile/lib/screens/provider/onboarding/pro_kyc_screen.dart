@@ -91,7 +91,7 @@ class _ProKycScreenState extends State<ProKycScreen> {
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         for (final type in KycDocumentType.values) ...[
           _DocumentTile(
             type: type,
@@ -102,15 +102,15 @@ class _ProKycScreenState extends State<ProKycScreen> {
             onAdd: () => _provideDoc(context, kyc, type),
             onRemove: () => kyc.removeDocument(type),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacingS),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.lock_outline,
                 size: 16, color: AppColors.textTertiary),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
                 'Les acomptes sont activés une fois votre compte vérifié. '
@@ -132,7 +132,7 @@ class _ProKycScreenState extends State<ProKycScreen> {
                 : null,
           ),
           if (!kyc.hasRequiredDocuments(pro.businessType)) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.spacingS),
             Text(
               'Ajoutez les documents requis pour soumettre.',
               textAlign: TextAlign.center,
@@ -252,7 +252,7 @@ class _StatusBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 22),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppTheme.spacingSM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +261,7 @@ class _StatusBanner extends StatelessWidget {
                   title,
                   style: AppTextStyles.titleSmall.copyWith(color: color),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   subtitle,
                   style: AppTextStyles.bodySmall.copyWith(color: color),
@@ -307,7 +307,7 @@ class _DocumentTile extends StatelessWidget {
       child: Row(
         children: [
           Icon(_icon(type), size: 22, color: AppColors.textSecondary),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppTheme.spacingSM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +316,7 @@ class _DocumentTile extends StatelessWidget {
                   _label(type) + (required ? '' : ' (optionnel)'),
                   style: AppTextStyles.bodyMedium,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   provided ? 'Fourni · ${document!.fileName}' : 'À fournir',
                   style: AppTextStyles.bodySmall.copyWith(
@@ -329,7 +329,7 @@ class _DocumentTile extends StatelessWidget {
           ),
           if (uploading)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingSM),
               child: SizedBox(
                 width: 18,
                 height: 18,
