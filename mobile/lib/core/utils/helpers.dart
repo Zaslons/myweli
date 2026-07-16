@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -191,6 +193,23 @@ class Helpers {
         content: Text(message),
         backgroundColor: isError ? AppColors.error : null,
         margin: const EdgeInsets.all(AppTheme.spacingM),
+      ),
+    );
+    // A SnackBar is off-focus, so TalkBack/VoiceOver won't read it on its own —
+    // announce the same French message to screen readers explicitly.
+    announce(context, message);
+  }
+
+  /// Speak an off-focus change (a SnackBar, a list reload — things a screen
+  /// reader doesn't read on its own) to TalkBack/VoiceOver. Fire-and-forget.
+  /// Wraps the post-3.35 `sendAnnouncement` so call sites don't repeat the
+  /// `View.of` + `Directionality.of` + `unawaited` boilerplate.
+  static void announce(BuildContext context, String message) {
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        message,
+        Directionality.of(context),
       ),
     );
   }

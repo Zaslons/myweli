@@ -36,43 +36,50 @@ class InvitationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const CircleAvatar(
-                backgroundColor: AppColors.surfaceVariant,
-                child: Icon(Icons.storefront_outlined,
-                    color: AppColors.textSecondary),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    style: AppTextStyles.bodyLarge,
-                    children: [
-                      TextSpan(
-                        text: invitation.salonName,
-                        style: AppTextStyles.titleMedium,
+          MergeSemantics(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: AppColors.surfaceVariant,
+                      child: Icon(Icons.storefront_outlined,
+                          color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(width: AppTheme.spacingM),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          style: AppTextStyles.bodyLarge,
+                          children: [
+                            TextSpan(
+                              text: invitation.salonName,
+                              style: AppTextStyles.titleMedium,
+                            ),
+                            const TextSpan(text: ' vous invite comme '),
+                            TextSpan(
+                              text: invitation.roleLabel,
+                              style: AppTextStyles.titleSmall,
+                            ),
+                          ],
+                        ),
                       ),
-                      const TextSpan(text: ' vous invite comme '),
-                      TextSpan(
-                        text: invitation.roleLabel,
-                        style: AppTextStyles.titleSmall,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          if (invitation.expiresAt != null) ...[
-            const SizedBox(height: AppTheme.spacingS),
-            Text(
-              'Expire le ${Formatters.formatDate(invitation.expiresAt!)}',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textTertiary,
-              ),
+                if (invitation.expiresAt != null) ...[
+                  const SizedBox(height: AppTheme.spacingS),
+                  Text(
+                    'Expire le ${Formatters.formatDate(invitation.expiresAt!)}',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
           const SizedBox(height: AppTheme.spacingM),
           Row(
             children: [

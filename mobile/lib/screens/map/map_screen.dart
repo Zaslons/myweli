@@ -258,6 +258,14 @@ class _MapScreenState extends State<MapScreen> {
                               }
                               await favorites.toggleFavorite(
                                   auth.user!.id, p.id);
+                              if (sheetCtx.mounted) {
+                                Helpers.announce(
+                                  sheetCtx,
+                                  isFav
+                                      ? 'Retiré des favoris'
+                                      : 'Ajouté aux favoris',
+                                );
+                              }
                             },
                             icon: Icon(
                               isFav ? Icons.favorite : Icons.favorite_border,
