@@ -20,7 +20,11 @@ class AdminSearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 240,
-      height: 38,
+      // No height: the constant 38 clipped the input at 200% (it measured 38 at
+      // both 1× and 2× while the text grew inside it — §13.3). Unbounded, the
+      // field takes its intrinsic height: 48 at 1×, 56 at 200%. A `minHeight: 38`
+      // floor would be dead code — Flutter already floors a decorated field with
+      // a prefixIcon at kMinInteractiveDimension (48).
       child: TextField(
         onSubmitted: onSubmitted,
         textInputAction: TextInputAction.search,

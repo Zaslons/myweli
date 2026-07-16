@@ -23,6 +23,30 @@ class ProviderCard extends StatelessWidget {
     required this.onTap,
   });
 
+  /// The image's share of a grid card — constant chrome; it must NOT track the
+  /// font (SYSTEM.md §13.3).
+  static const double _imageHeight = 180.0;
+
+  /// The text block's own height at 1×: title row 24 (`titleMedium`, or the
+  /// 16px verified glyph — whichever is taller) + 4 + rating row 16 + 4 +
+  /// location row 16. Measured, and pinned by `test/a11y/text_scale_test.dart`
+  /// so it can't rot silently when a row is added.
+  static const double _textBlockHeight = 68.0;
+
+  /// The height a horizontal carousel must give a grid card at the current OS
+  /// text scale. Callers used to hard-code `280`, which clipped the card's text
+  /// at 200% — and which no caller could fix without knowing this file's image
+  /// height, so the decomposition lives here (SYSTEM.md §13.3).
+  ///
+  /// 280 at 1× and at every scale below it (the floor — see
+  /// [AppTheme.textScaledBound]); 348 at 200%.
+  static double carouselHeight(BuildContext context) =>
+      AppTheme.textScaledBound(
+        context,
+        constant: _imageHeight + AppTheme.spacingM * 2,
+        text: _textBlockHeight,
+      );
+
   @override
   Widget build(BuildContext context) {
     if (isGrid) {
@@ -51,7 +75,7 @@ class ProviderCard extends StatelessWidget {
               // which can overflow the card content vertically.
               final compact = maxH < 260;
               final imageHeight =
-                  compact ? (maxH * 0.56).clamp(110.0, 150.0) : 180.0;
+                  compact ? (maxH * 0.56).clamp(110.0, 150.0) : _imageHeight;
               final contentPadding =
                   compact ? AppTheme.spacingS : AppTheme.spacingM;
 

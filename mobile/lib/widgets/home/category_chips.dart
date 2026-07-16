@@ -22,54 +22,58 @@ class CategoryChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = selectedCategory == category['id'] ||
-              (selectedCategory == null && category['id'] == 'all');
+    // A horizontal ListView demands a BOUNDED height, and that bound was the
+    // constant 50 — so the chips clipped the moment the OS text scale grew
+    // (§13.3, register row 15): the strip measured 50 at 1× and still 50 at 2×.
+    // With only four categories there is nothing to virtualise, so a scroll view
+    // over a Row lets the strip take its INTRINSIC height and grow with the text.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+      child: Row(
+        children: [
+          for (final category in categories) _chip(context, category),
+        ],
+      ),
+    );
+  }
 
-          return Padding(
-            padding: const EdgeInsets.only(right: AppTheme.spacingS),
-            child: FilterChip(
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    category['icon'] as IconData,
-                    size: AppTheme.iconS,
-                    color: isSelected
-                        ? AppColors.secondary
-                        : AppColors.textPrimary,
-                  ),
-                  const SizedBox(width: AppTheme.spacingS),
-                  Text(category['name'] as String),
-                ],
-              ),
-              selected: isSelected,
-              onSelected: (selected) {
-                if (category['id'] == 'all') {
-                  context.push('/providers');
-                } else {
-                  context.push('/providers?category=${category['id']}');
-                }
-              },
-              selectedColor: AppColors.primary,
-              checkmarkColor: AppColors.secondary,
-              labelStyle: AppTextStyles.bodyMedium.copyWith(
-                color: isSelected ? AppColors.secondary : AppColors.textPrimary,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
-                vertical: AppTheme.spacingS,
-              ),
+  Widget _chip(BuildContext context, Map<String, Object> category) {
+    final isSelected = selectedCategory == category['id'] ||
+        (selectedCategory == null && category['id'] == 'all');
+
+    return Padding(
+      padding: const EdgeInsets.only(right: AppTheme.spacingS),
+      child: FilterChip(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              category['icon'] as IconData,
+              size: AppTheme.iconS,
+              color: isSelected ? AppColors.secondary : AppColors.textPrimary,
             ),
-          );
+            const SizedBox(width: AppTheme.spacingS),
+            Text(category['name'] as String),
+          ],
+        ),
+        selected: isSelected,
+        onSelected: (selected) {
+          if (category['id'] == 'all') {
+            context.push('/providers');
+          } else {
+            context.push('/providers?category=${category['id']}');
+          }
         },
+        selectedColor: AppColors.primary,
+        checkmarkColor: AppColors.secondary,
+        labelStyle: AppTextStyles.bodyMedium.copyWith(
+          color: isSelected ? AppColors.secondary : AppColors.textPrimary,
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingM,
+          vertical: AppTheme.spacingS,
+        ),
       ),
     );
   }

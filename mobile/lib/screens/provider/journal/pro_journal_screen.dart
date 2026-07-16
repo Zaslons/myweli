@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
@@ -573,21 +575,33 @@ class _WeekStrip extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppTheme.spacingXS),
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isSel ? AppColors.primary : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '${d.day}',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: isSel ? AppColors.secondary : AppColors.textPrimary,
+          Builder(builder: (context) {
+            // A tight 32×32 around the day number clipped it at 200% (the
+            // bodyMedium line is 20 at 1× but 40 at 2×). The pill is a CIRCLE,
+            // so it has to stay square: diameter = the scaled line + breathing
+            // room, floored at the 32 the design draws at 1× (§13.3).
+            const style = AppTextStyles.bodyMedium;
+            final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
+            final d0 = math.max(
+              32.0,
+              MediaQuery.textScalerOf(context).scale(line) + AppTheme.spacingS,
+            );
+            return Container(
+              width: d0,
+              height: d0,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSel ? AppColors.primary : Colors.transparent,
+                shape: BoxShape.circle,
               ),
-            ),
-          ),
+              child: Text(
+                '${d.day}',
+                style: style.copyWith(
+                  color: isSel ? AppColors.secondary : AppColors.textPrimary,
+                ),
+              ),
+            );
+          }),
           const SizedBox(height: AppTheme.spacingXS),
           Container(
             width: count == 0 ? 0 : (3 + count.clamp(0, 5)).toDouble(),
@@ -611,11 +625,16 @@ class _ArtistChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artists = journal.day!.artists;
-    return SizedBox(
-      height: 48, // §13.2: the strip must clear the FilterChips' 48 tap target
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+    // A horizontal ListView demands a BOUNDED height, and that bound was the
+    // constant 48 — so the chips clipped the moment the OS text scale grew
+    // (§13.3): the strip measured 48 at 1× and still 48 at 2×. The children were
+    // already built eagerly, so there is nothing to virtualise; a scroll view
+    // over a Row lets the strip take its INTRINSIC height and grow with the
+    // text, while the FilterChips keep their own 48 tap target (§13.2).
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+      child: Row(
         children: [
           _chip(context, 'Tous', journal.artistFilter == null, null),
           for (final a in artists)

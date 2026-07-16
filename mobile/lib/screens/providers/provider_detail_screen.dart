@@ -418,63 +418,83 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     );
                                   }
                                   final top = atThisSalon.take(5).toList();
-                                  return SizedBox(
-                                    height: 100,
-                                    child: ListView.separated(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: top.length,
-                                      separatorBuilder: (_, __) =>
-                                          const SizedBox(
-                                              width: AppTheme.spacingS),
-                                      itemBuilder: (context, i) {
-                                        final a = top[i];
-                                        final w =
-                                            MediaQuery.of(context).size.width;
-                                        final cardWidth =
-                                            (w * 0.75).clamp(260.0, 340.0);
-                                        final isPast = a.status ==
-                                                AppointmentStatus.completed ||
-                                            a.status ==
-                                                AppointmentStatus.cancelled ||
-                                            a.appointmentDate
-                                                .isBefore(DateTime.now());
-                                        return SizedBox(
-                                          width: cardWidth,
-                                          child: CompactAppointmentTile(
-                                            appointment: a,
-                                            providerName: p.name,
-                                            providerImageUrl:
-                                                p.imageUrls.isNotEmpty
-                                                    ? p.imageUrls.first
-                                                    : null,
-                                            hint: isPast
-                                                ? 'Réserver à nouveau'
-                                                : null,
-                                            onTap: () {
-                                              if (isPast) {
-                                                // Past appointment → rebook the same
-                                                // services/stylist.
-                                                final uri = Uri(
-                                                  path: '/booking',
-                                                  queryParameters: {
-                                                    'providerId':
-                                                        widget.providerId,
-                                                    if (a.serviceIds.isNotEmpty)
-                                                      'serviceIds': a.serviceIds
-                                                          .join(','),
-                                                    if (a.artistId != null)
-                                                      'artistId': a.artistId!,
+                                  // At most 5 tiles — nothing to virtualise. The
+                                  // bound was the constant 100, and the tile with
+                                  // a hint measures 120 at 1× and 216 at 200%: it
+                                  // was clipping ALREADY, at the default scale.
+                                  // Growth is super-linear (the title wraps), so
+                                  // no computed bound is safe — an intrinsic strip
+                                  // needs none (§13.3).
+                                  return SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: IntrinsicHeight(
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          for (final (i, a) in top.indexed) ...[
+                                            if (i > 0)
+                                              const SizedBox(
+                                                  width: AppTheme.spacingS),
+                                            Builder(builder: (context) {
+                                              final w = MediaQuery.of(context)
+                                                  .size
+                                                  .width;
+                                              final cardWidth = (w * 0.75)
+                                                  .clamp(260.0, 340.0);
+                                              final isPast = a.status ==
+                                                      AppointmentStatus
+                                                          .completed ||
+                                                  a.status ==
+                                                      AppointmentStatus
+                                                          .cancelled ||
+                                                  a.appointmentDate
+                                                      .isBefore(DateTime.now());
+                                              return SizedBox(
+                                                width: cardWidth,
+                                                child: CompactAppointmentTile(
+                                                  appointment: a,
+                                                  providerName: p.name,
+                                                  providerImageUrl:
+                                                      p.imageUrls.isNotEmpty
+                                                          ? p.imageUrls.first
+                                                          : null,
+                                                  hint: isPast
+                                                      ? 'Réserver à nouveau'
+                                                      : null,
+                                                  onTap: () {
+                                                    if (isPast) {
+                                                      // Past appointment → rebook the same
+                                                      // services/stylist.
+                                                      final uri = Uri(
+                                                        path: '/booking',
+                                                        queryParameters: {
+                                                          'providerId':
+                                                              widget.providerId,
+                                                          if (a.serviceIds
+                                                              .isNotEmpty)
+                                                            'serviceIds': a
+                                                                .serviceIds
+                                                                .join(','),
+                                                          if (a.artistId !=
+                                                              null)
+                                                            'artistId':
+                                                                a.artistId!,
+                                                        },
+                                                      );
+                                                      context
+                                                          .push(uri.toString());
+                                                    } else {
+                                                      context.push(
+                                                          '/appointment/${a.id}');
+                                                    }
                                                   },
-                                                );
-                                                context.push(uri.toString());
-                                              } else {
-                                                context.push(
-                                                    '/appointment/${a.id}');
-                                              }
-                                            },
-                                          ),
-                                        );
-                                      },
+                                                ),
+                                              );
+                                            }),
+                                          ],
+                                        ],
+                                      ),
                                     ),
                                   );
                                 },
