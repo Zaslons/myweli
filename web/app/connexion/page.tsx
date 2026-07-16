@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 export default function ConnexionPage() {
   return (
     <main className="mx-auto max-w-md px-m py-l">
-      <h1 className="text-2xl font-semibold text-textPrimary">
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">
         Se connecter ou créer un compte
       </h1>
-      <p className="mt-xs text-sm text-textTertiary">
+      <p className="mt-xs text-bodyMedium text-textTertiary">
         Votre compte est créé automatiquement à votre première connexion.
       </p>
       <div className="mt-l">

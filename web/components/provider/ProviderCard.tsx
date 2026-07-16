@@ -33,16 +33,16 @@ export function ProviderCard({
           ) : null}
         </h3>
         {provider.reviewCount > 0 ? (
-          <span className="whitespace-nowrap text-sm text-textTertiary">
+          <span className="whitespace-nowrap text-bodyMedium text-textTertiary">
             ★ {provider.rating.toFixed(1)}
           </span>
         ) : null}
       </div>
       {provider.commune ? (
-        <p className="mt-xs text-sm text-textSecondary">{provider.commune}</p>
+        <p className="mt-xs text-bodyMedium text-textSecondary">{provider.commune}</p>
       ) : null}
       {min != null ? (
-        <p className="mt-xs text-sm text-textTertiary">
+        <p className="mt-xs text-bodyMedium text-textTertiary">
           à partir de {formatFcfa(min, provider.currency ?? undefined)}
         </p>
       ) : null}
@@ -63,7 +63,7 @@ export function ProviderCard({
         onClick={onToggleFavorite}
         // ds-ignore: 2px badge padding; below the 4px grid floor.
         // eslint-disable-next-line tailwindcss/no-arbitrary-value
-        className={`absolute bottom-2 right-2 rounded-pill px-s py-[2px] text-lg leading-none ${
+        className={`absolute bottom-2 right-2 rounded-pill px-s py-[2px] text-titleLarge leading-none ${
           favorite ? 'text-error' : 'text-textTertiary'
         } hover:bg-surfaceVariant`}
       >

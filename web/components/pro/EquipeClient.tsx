@@ -145,13 +145,13 @@ export function EquipeClient() {
   return (
     <div>
       <div className="flex items-center justify-between gap-m">
-        <h1 className="text-2xl font-semibold text-textPrimary">Équipe</h1>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">Équipe</h1>
         <Button onClick={() => setInviteOpen(true)}>+ Inviter un membre</Button>
       </div>
 
       {offer ? (
         <div className="mt-m max-w-sm">
-          <p className="text-sm text-textSecondary">
+          <p className="text-bodyMedium text-textSecondary">
             {seatsLabel(offer.seats)}
           </p>
           <div className="mt-xs h-2 overflow-hidden rounded-pill bg-surfaceVariant">
@@ -169,7 +169,7 @@ export function EquipeClient() {
           </div>
         </div>
       ) : (
-        <p className="mt-m text-sm text-textSecondary">
+        <p className="mt-m text-bodyMedium text-textSecondary">
           Choisissez votre offre pour inviter votre équipe.{' '}
           <a href="/pro/abonnement" className="underline">
             Choisir mon offre
@@ -179,10 +179,10 @@ export function EquipeClient() {
 
       {nonOwner.length === 0 ? (
         <div className="mt-l rounded-xl border border-border bg-secondary p-l">
-          <p className="text-base font-medium text-textPrimary">
+          <p className="text-titleMedium font-medium text-textPrimary">
             Invitez votre équipe
           </p>
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Chaque membre a son propre accès. Les collaborateurs ne voient que
             leur propre planning.
           </p>
@@ -195,7 +195,7 @@ export function EquipeClient() {
           // ds-ignore: the roster's minimum column budget before the wrapper scrolls — a
           // table-specific measure, not a shared size.
           // eslint-disable-next-line tailwindcss/no-arbitrary-value
-          className="w-full min-w-[640px] border-collapse text-sm"
+          className="w-full min-w-[640px] border-collapse text-bodyMedium"
         >
             <thead>
               <tr className="border-b border-divider text-left text-textTertiary">
@@ -219,7 +219,7 @@ export function EquipeClient() {
                   >
                     <td className="px-m py-s">
                       <div className="flex items-center gap-s">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-pill bg-surfaceVariant text-xs font-medium text-textSecondary">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-pill bg-surfaceVariant text-labelMedium font-medium text-textSecondary">
                           {initials(m.email)}
                         </span>
                         <span className="text-textPrimary">{m.email}</span>
@@ -248,7 +248,7 @@ export function EquipeClient() {
                     </td>
                     <td className="px-m py-s text-right">
                       {isOwner || isRevoked ? (
-                        <span className="text-xs text-textDisabled">—</span>
+                        <span className="text-bodySmall text-textDisabled">—</span>
                       ) : (
                         <div className="relative inline-block">
                           <button
@@ -270,7 +270,7 @@ export function EquipeClient() {
                                   setMenuFor(null);
                                   setRoleTarget(m);
                                 }}
-                                className="block w-full px-m py-s text-left text-sm text-textPrimary hover:bg-surfaceVariant"
+                                className="block w-full px-m py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                               >
                                 Changer le rôle
                               </button>
@@ -278,7 +278,7 @@ export function EquipeClient() {
                                 <button
                                   type="button"
                                   onClick={() => doResend(m)}
-                                  className="block w-full px-m py-s text-left text-sm text-textPrimary hover:bg-surfaceVariant"
+                                  className="block w-full px-m py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                                 >
                                   Renvoyer l’invitation
                                   {typeof m.resendsLeft === 'number'
@@ -292,7 +292,7 @@ export function EquipeClient() {
                                   setMenuFor(null);
                                   setRevokeTarget(m);
                                 }}
-                                className="block w-full px-m py-s text-left text-sm text-error hover:bg-surfaceVariant"
+                                className="block w-full px-m py-s text-left text-bodyMedium text-error hover:bg-surfaceVariant"
                               >
                                 Révoquer l’accès
                               </button>
@@ -311,7 +311,7 @@ export function EquipeClient() {
       {toast ? (
         <div
           role="status"
-          className="fixed bottom-l left-1/2 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg"
+          className="fixed bottom-l left-1/2 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg"
         >
           {toast}
         </div>
@@ -354,10 +354,10 @@ export function EquipeClient() {
           className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
         >
           <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-            <h2 className="text-lg font-semibold text-textPrimary">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">
               Révoquer l’accès
             </h2>
-            <p className="mt-m text-sm text-textSecondary">
+            <p className="mt-m text-bodyMedium text-textSecondary">
               {revokeTarget.email} perdra immédiatement l’accès à {salonName}.
               Son compte MyWeli n’est pas supprimé.
             </p>

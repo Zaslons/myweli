@@ -28,7 +28,7 @@ export function Lightbox({
         type="button"
         aria-label="Fermer"
         onClick={onClose}
-        className="absolute right-4 top-4 rounded-pill bg-primary/60 px-sm py-xs text-lg text-secondary"
+        className="absolute right-4 top-4 rounded-pill bg-primary/60 px-sm py-xs text-titleLarge text-secondary"
       >
         ✕
       </button>

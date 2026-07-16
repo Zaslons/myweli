@@ -114,7 +114,7 @@ export function ResultsMap({
       />
       {items.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 z-sticky flex items-center justify-center">
-          <p className="rounded-lg bg-secondary px-m py-s text-sm text-textSecondary shadow">
+          <p className="rounded-lg bg-secondary px-m py-s text-bodyMedium text-textSecondary shadow">
             Aucun salon à afficher sur la carte
           </p>
         </div>
@@ -129,16 +129,16 @@ function MiniCard({ provider: p }: { provider: MappableProvider }) {
   return (
     <div className="min-w-44">
       <p className="font-medium text-textPrimary">{p.name}</p>
-      <p className="mt-xs text-xs text-textSecondary">
+      <p className="mt-xs text-bodySmall text-textSecondary">
         {p.reviewCount > 0 ? `★ ${p.rating.toFixed(1)} · ` : ''}
         {p.commune ?? ''}
       </p>
       {min != null ? (
-        <p className="mt-xs text-xs text-textTertiary">
+        <p className="mt-xs text-bodySmall text-textTertiary">
           à partir de {formatFcfa(min, p.currency ?? undefined)}
         </p>
       ) : null}
-      <p className="mt-s flex gap-m text-sm">
+      <p className="mt-s flex gap-m text-bodyMedium">
         <Link href={`/${p.slug}`} className="underline">
           Voir le salon
         </Link>
@@ -181,12 +181,12 @@ function LocateButton({
       <button
         type="button"
         onClick={locate}
-        className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary shadow hover:bg-surfaceVariant"
+        className="rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
       >
         Autour de moi
       </button>
       {note ? (
-        <p className="rounded-lg bg-secondary px-s py-xs text-xs text-textSecondary shadow">
+        <p className="rounded-lg bg-secondary px-s py-xs text-bodySmall text-textSecondary shadow">
           {note}
         </p>
       ) : null}

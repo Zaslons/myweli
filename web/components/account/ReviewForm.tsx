@@ -58,7 +58,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
 
   if (done) {
     return (
-      <p className="text-sm text-textSecondary">Merci pour votre avis&nbsp;!</p>
+      <p className="text-bodyMedium text-textSecondary">Merci pour votre avis&nbsp;!</p>
     );
   }
 
@@ -73,7 +73,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
             aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
             aria-pressed={rating >= n}
             onClick={() => setRating(n)}
-            className={`text-2xl ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
+            className={`text-headlineSmall ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
           >
             ★
           </button>
@@ -102,7 +102,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
                   type="button"
                   aria-label={`Retirer la photo ${i + 1}`}
                   onClick={() => setPhotos((cur) => removePhoto(cur, i))}
-                  className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-xs text-secondary"
+                  className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-bodySmall text-secondary"
                 >
                   ✕
                 </button>
@@ -133,7 +133,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
           </div>
         ) : null}
       </div>
-      {error ? <p className="mt-xs text-sm text-error">{error}</p> : null}
+      {error ? <p className="mt-xs text-bodyMedium text-error">{error}</p> : null}
       <div className="mt-s">
         <Button disabled={busy || uploading} onClick={submit}>
           Envoyer l’avis

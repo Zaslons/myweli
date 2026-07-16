@@ -6,6 +6,7 @@ import {
   radius,
   screens,
   spacing,
+  type,
   zIndex,
 } from './styles/tokens';
 
@@ -31,6 +32,13 @@ const config: Config = {
     zIndex,
     screens,
     transitionDuration: motion,
+    // B2b. `text-sm` and friends no longer exist — a class now says what the text
+    // IS (`text-bodyMedium`), not how big it happens to be. Tailwind's 18/20/30px
+    // steps have no counterpart in a Material 11/12/14/16/22/24/28/32 scale, which
+    // is exactly how the same role ended up at three: of 42 `<h2>` on main, 23 were
+    // 18px, 15 were 20px and 4 carried no size at all — the drift a closed scale
+    // exists to kill. (Those 4 still carry no type token; see §15.)
+    fontSize: type,
 
     // These derive from `colors`, whose palette we just replaced. Tailwind's own
     // defaults use the *fallback* form — `theme('colors.gray.200', 'currentColor')`,

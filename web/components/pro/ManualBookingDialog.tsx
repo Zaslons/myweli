@@ -143,21 +143,21 @@ export function ManualBookingDialog({
         className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Nouveau rendez-vous
         </h2>
         {fixed ? (
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             {formatDateTimeFr(dateTimeIso!, tz)}
           </p>
         ) : null}
 
         {/* Prestations (multi-select, the app's checkbox list) */}
-        <p className="mt-m text-xs font-medium uppercase tracking-wide text-textTertiary">
+        <p className="mt-m text-labelMedium font-medium uppercase text-textTertiary">
           Prestations
         </p>
         {services.length === 0 ? (
-          <p className="mt-xs text-sm text-textTertiary">
+          <p className="mt-xs text-bodyMedium text-textTertiary">
             Ajoutez des services à votre profil pour pouvoir créer un
             rendez-vous.
           </p>
@@ -165,7 +165,7 @@ export function ManualBookingDialog({
           <ul className="mt-xs divide-y divide-divider">
             {services.map((s) => (
               <li key={s.id}>
-                <label className="flex cursor-pointer items-center gap-s py-xs text-sm">
+                <label className="flex cursor-pointer items-center gap-s py-xs text-bodyMedium">
                   <input
                     type="checkbox"
                     checked={selected.includes(s.id)}
@@ -185,7 +185,7 @@ export function ManualBookingDialog({
         {/* Date & heure (standalone entry points only) */}
         {!fixed ? (
           <div className="mt-m">
-            <p className="text-xs font-medium uppercase tracking-wide text-textTertiary">
+            <p className="text-labelMedium font-medium uppercase text-textTertiary">
               Date &amp; heure
             </p>
             <div className="mt-xs flex gap-s">
@@ -195,7 +195,7 @@ export function ManualBookingDialog({
                 min={todayYmd(tz)}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
               />
               <input
                 type="time"
@@ -203,18 +203,18 @@ export function ManualBookingDialog({
                 step={900}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
               />
             </div>
           </div>
         ) : null}
 
         {/* Client search-or-create (J1 §3.4 — kept) */}
-        <p className="mt-m text-xs font-medium uppercase tracking-wide text-textTertiary">
+        <p className="mt-m text-labelMedium font-medium uppercase text-textTertiary">
           Client
         </p>
         {picked ? (
-          <div className="mt-xs flex items-center justify-between rounded-lg bg-surface p-s text-sm">
+          <div className="mt-xs flex items-center justify-between rounded-lg bg-surface p-s text-bodyMedium">
             <span className="text-textPrimary">
               {picked.name}
               {picked.phone ? ` · ${picked.phone}` : ''}
@@ -235,7 +235,7 @@ export function ManualBookingDialog({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Client (nom ou téléphone)…"
               aria-label="Rechercher ou nommer le client"
-              className="w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+              className="w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
             />
             {matches.length > 0 ? (
               <ul className="mt-xs divide-y divide-border rounded-lg border border-border">
@@ -243,7 +243,7 @@ export function ManualBookingDialog({
                   <li key={c.id}>
                     <button
                       type="button"
-                      className="flex w-full justify-between px-s py-xs text-left text-sm hover:bg-surface"
+                      className="flex w-full justify-between px-s py-xs text-left text-bodyMedium hover:bg-surface"
                       onClick={() =>
                         setPicked({
                           name: c.displayName,
@@ -264,7 +264,7 @@ export function ManualBookingDialog({
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="Téléphone (pour retrouver ce client)"
                 aria-label="Téléphone du nouveau client"
-                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
               />
             ) : null}
           </div>
@@ -272,7 +272,7 @@ export function ManualBookingDialog({
 
         {/* SMS switch (backend no-op until the notifications slice) */}
         <label
-          className={`mt-m flex items-start gap-s text-sm ${
+          className={`mt-m flex items-start gap-s text-bodyMedium ${
             phone ? '' : 'opacity-45'
           }`}
         >
@@ -286,7 +286,7 @@ export function ManualBookingDialog({
             <span className="text-textPrimary">
               Envoyer la confirmation par SMS
             </span>
-            <span className="block text-xs text-textTertiary">
+            <span className="block text-bodySmall text-textTertiary">
               Le client reçoit un lien vers l’app (bientôt disponible)
             </span>
           </span>
@@ -300,11 +300,11 @@ export function ManualBookingDialog({
           maxLength={500}
           placeholder="Note (optionnel)"
           aria-label="Note"
-          className="mt-m w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-m w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
 
         {/* Total (the app's running sum; server re-prices) */}
-        <div className="mt-m flex items-center justify-between text-sm">
+        <div className="mt-m flex items-center justify-between text-bodyMedium">
           <span className="text-textSecondary">Total</span>
           <span className="font-semibold text-primary">
             {formatFcfa(total, currency)}

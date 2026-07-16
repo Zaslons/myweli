@@ -43,7 +43,7 @@ export function MonthCalendar({
         <Button variant="secondary" onClick={() => onFocus(addMonths(focused, -1))}>
           ‹
         </Button>
-        <p className="text-sm font-medium capitalize text-textPrimary">
+        <p className="text-labelLarge font-medium capitalize text-textPrimary">
           {monthLabelFr(focused)}
         </p>
         <Button variant="secondary" onClick={() => onFocus(addMonths(focused, 1))}>
@@ -51,7 +51,7 @@ export function MonthCalendar({
         </Button>
       </div>
 
-      <div className="mt-m grid grid-cols-7 gap-xs text-center text-xs text-textTertiary">
+      <div className="mt-m grid grid-cols-7 gap-xs text-center text-bodySmall text-textTertiary">
         {WEEKDAYS.map((d) => (
           <div key={d}>{d}</div>
         ))}
@@ -68,7 +68,7 @@ export function MonthCalendar({
               key={k}
               type="button"
               onClick={() => onSelect(k)}
-              className={`flex aspect-square flex-col items-center justify-center rounded-lg text-sm ${
+              className={`flex aspect-square flex-col items-center justify-center rounded-lg text-bodyMedium ${
                 isSel
                   ? 'bg-primary text-secondary'
                   : inMonth

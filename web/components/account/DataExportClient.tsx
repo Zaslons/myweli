@@ -96,18 +96,18 @@ export function DataExportClient() {
 
   return (
     <div className="max-w-2xl">
-      <Link href="/mon-compte" className="text-sm text-textTertiary">
+      <Link href="/mon-compte" className="text-bodyMedium text-textTertiary">
         ← Mon compte
       </Link>
-      <h1 className="mt-s text-2xl font-semibold text-textPrimary">
+      <h1 className="mt-s text-headlineSmall font-semibold text-textPrimary">
         Mes données
       </h1>
-      <p className="mt-xs text-sm text-textSecondary">
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         Une copie de vos données MyWeli : profil, rendez-vous et favoris.
       </p>
 
       <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <dl className="space-y-xs text-sm">
+        <dl className="space-y-xs text-bodyMedium">
           <div className="flex justify-between gap-m">
             <dt className="text-textTertiary">Profil</dt>
             <dd className="text-textPrimary">{me.email ?? me.phoneNumber}</dd>

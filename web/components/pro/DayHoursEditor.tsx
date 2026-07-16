@@ -3,7 +3,7 @@
 import type { DayForm } from '../../lib/pro/availability';
 
 const inputCls =
-  'rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary';
+  'rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textPrimary';
 
 /// One weekly-schedule editor for the three places that edit day ranges:
 /// salon hours, breaks (« Pauses ») and per-artist hours (audit 3.4/3.8).
@@ -24,7 +24,7 @@ export function DayHoursEditor({
       {days.map((d, i) => (
         <div key={d.key} className="flex flex-wrap items-center gap-m">
           <span className="w-28 text-textPrimary">{d.label}</span>
-          <label className="flex items-center gap-s text-sm text-textSecondary">
+          <label className="flex items-center gap-s text-bodyMedium text-textSecondary">
             <input
               type="checkbox"
               checked={d.open}
@@ -51,7 +51,7 @@ export function DayHoursEditor({
               />
             </span>
           ) : (
-            <span className="text-sm text-textTertiary">{offLabel}</span>
+            <span className="text-bodyMedium text-textTertiary">{offLabel}</span>
           )}
         </div>
       ))}

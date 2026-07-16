@@ -13,7 +13,7 @@ export function ServiceList({
   if (active.length === 0) return null;
   return (
     <section className="px-m py-l">
-      <h2 className="text-xl font-semibold text-textPrimary">Services & tarifs</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">Services & tarifs</h2>
       <ul className="mt-m divide-y divide-divider">
         {active.map((s) => (
           <li
@@ -22,7 +22,7 @@ export function ServiceList({
           >
             <div>
               <p className="text-textPrimary">{s.name}</p>
-              <p className="text-sm text-textTertiary">
+              <p className="text-bodyMedium text-textTertiary">
                 {formatDuration(s.durationMinutes)}
               </p>
             </div>

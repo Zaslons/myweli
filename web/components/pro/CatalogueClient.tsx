@@ -90,7 +90,7 @@ export function CatalogueClient() {
   return (
     <div>
       <div className="flex items-center justify-between gap-m">
-        <h1 className="text-2xl font-semibold text-textPrimary">Catalogue</h1>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">Catalogue</h1>
         {open !== 'new' ? (
           <Button onClick={() => setOpen('new')}>{addLabel}</Button>
         ) : null}
@@ -107,7 +107,7 @@ export function CatalogueClient() {
             key={t.key}
             type="button"
             onClick={() => switchTab(t.key)}
-            className={`px-m py-s text-sm ${
+            className={`px-m py-s text-bodyMedium ${
               tab === t.key
                 ? 'border-b-2 border-primary text-textPrimary'
                 : 'text-textTertiary'
@@ -218,12 +218,12 @@ function ServiceRow({
         <p className="font-medium text-textPrimary">
           {service.name}
           {service.active === false ? (
-            <span className="ml-s rounded-pill bg-surface px-s py-xs text-xs text-textTertiary">
+            <span className="ml-s rounded-pill bg-surface px-s py-xs text-bodySmall text-textTertiary">
               Inactif
             </span>
           ) : null}
         </p>
-        <p className="text-sm text-textTertiary">
+        <p className="text-bodyMedium text-textTertiary">
           {service.durationMinutes != null
             ? `${formatDuration(service.durationMinutes)} · `
             : ''}
@@ -245,7 +245,7 @@ function ArtistRow({ artist, onEdit }: { artist: Artist; onEdit: () => void }) {
       <div>
         <p className="font-medium text-textPrimary">{artist.name}</p>
         {artist.specialization ? (
-          <p className="text-sm text-textTertiary">{artist.specialization}</p>
+          <p className="text-bodyMedium text-textTertiary">{artist.specialization}</p>
         ) : null}
       </div>
       <Button variant="secondary" onClick={onEdit}>
@@ -308,7 +308,7 @@ function ServiceFormCard({
   return (
     <div className="rounded-xl border border-border bg-secondary p-l">
       <div className="space-y-s">
-        <label className="block text-sm text-textTertiary">
+        <label className="block text-bodyMedium text-textTertiary">
           Nom du service
           <input
             className={inputCls}
@@ -316,7 +316,7 @@ function ServiceFormCard({
             onChange={(e) => set('name', e.target.value)}
           />
         </label>
-        <label className="block text-sm text-textTertiary">
+        <label className="block text-bodyMedium text-textTertiary">
           Description
           <input
             className={inputCls}
@@ -325,7 +325,7 @@ function ServiceFormCard({
           />
         </label>
         <div className="flex gap-s">
-          <label className="block flex-1 text-sm text-textTertiary">
+          <label className="block flex-1 text-bodyMedium text-textTertiary">
             Prix — à partir de (FCFA)
             <input
               className={inputCls}
@@ -334,7 +334,7 @@ function ServiceFormCard({
               onChange={(e) => set('price', e.target.value)}
             />
           </label>
-          <label className="block flex-1 text-sm text-textTertiary">
+          <label className="block flex-1 text-bodyMedium text-textTertiary">
             Prix maximum (optionnel)
             <input
               className={inputCls}
@@ -344,7 +344,7 @@ function ServiceFormCard({
             />
           </label>
         </div>
-        <label className="block text-sm text-textTertiary">
+        <label className="block text-bodyMedium text-textTertiary">
           Durée (minutes)
           <input
             className={inputCls}
@@ -354,7 +354,7 @@ function ServiceFormCard({
           />
         </label>
         {/* Audit 3.2: the app's per-hair-length duration editor. */}
-        <label className="flex items-center gap-s text-sm text-textPrimary">
+        <label className="flex items-center gap-s text-bodyMedium text-textPrimary">
           <input
             type="checkbox"
             checked={form.hasVariants}
@@ -364,7 +364,7 @@ function ServiceFormCard({
         </label>
         {form.hasVariants ? (
           <div className="flex gap-s">
-            <label className="block flex-1 text-sm text-textTertiary">
+            <label className="block flex-1 text-bodyMedium text-textTertiary">
               Court (min)
               <input
                 className={inputCls}
@@ -373,7 +373,7 @@ function ServiceFormCard({
                 onChange={(e) => set('variantCourt', e.target.value)}
               />
             </label>
-            <label className="block flex-1 text-sm text-textTertiary">
+            <label className="block flex-1 text-bodyMedium text-textTertiary">
               Moyen (min)
               <input
                 className={inputCls}
@@ -382,7 +382,7 @@ function ServiceFormCard({
                 onChange={(e) => set('variantMoyen', e.target.value)}
               />
             </label>
-            <label className="block flex-1 text-sm text-textTertiary">
+            <label className="block flex-1 text-bodyMedium text-textTertiary">
               Long (min)
               <input
                 className={inputCls}
@@ -393,7 +393,7 @@ function ServiceFormCard({
             </label>
           </div>
         ) : null}
-        <label className="flex items-center gap-s text-sm text-textPrimary">
+        <label className="flex items-center gap-s text-bodyMedium text-textPrimary">
           <input
             type="checkbox"
             checked={form.active}
@@ -405,17 +405,17 @@ function ServiceFormCard({
             dimming + the per-artist capacity engine. */}
         {artists.length > 0 ? (
           <div>
-            <p className="text-sm text-textPrimary">
+            <p className="text-bodyMedium text-textPrimary">
               Qui peut réaliser ce service ?
             </p>
-            <p className="text-xs text-textTertiary">
+            <p className="text-bodySmall text-textTertiary">
               Aucune sélection = toute l’équipe.
             </p>
             <div className="mt-xs space-y-xs">
               {artists.map((a) => (
                 <label
                   key={a.id}
-                  className="flex items-center gap-s text-sm text-textPrimary"
+                  className="flex items-center gap-s text-bodyMedium text-textPrimary"
                 >
                   <input
                     type="checkbox"
@@ -442,7 +442,7 @@ function ServiceFormCard({
         ) : null}
       </div>
 
-      {err ? <p className="mt-s text-sm text-error">{err}</p> : null}
+      {err ? <p className="mt-s text-bodyMedium text-error">{err}</p> : null}
 
       <FormActions
         busy={busy}
@@ -510,7 +510,7 @@ function ArtistFormCard({
   return (
     <div className="rounded-xl border border-border bg-secondary p-l">
       <div className="space-y-s">
-        <label className="block text-sm text-textTertiary">
+        <label className="block text-bodyMedium text-textTertiary">
           Nom
           <input
             className={inputCls}
@@ -518,7 +518,7 @@ function ArtistFormCard({
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
         </label>
-        <label className="block text-sm text-textTertiary">
+        <label className="block text-bodyMedium text-textTertiary">
           Spécialisation (optionnel)
           <input
             className={inputCls}
@@ -543,7 +543,7 @@ function ArtistFormCard({
                 type="button"
                 aria-label="Retirer la photo"
                 onClick={() => setForm((f) => ({ ...f, imageUrl: null }))}
-                className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-xs text-secondary"
+                className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-bodySmall text-secondary"
               >
                 ✕
               </button>
@@ -582,7 +582,7 @@ function ArtistFormCard({
 
         {/* Audit 3.4: per-staff hours — the capacity engine reads them
             (empty = inherits the salon's hours). */}
-        <label className="flex items-center gap-s text-sm text-textPrimary">
+        <label className="flex items-center gap-s text-bodyMedium text-textPrimary">
           <input
             type="checkbox"
             checked={customHours}
@@ -616,7 +616,7 @@ function ArtistFormCard({
         ) : null}
       </div>
 
-      {err ? <p className="mt-s text-sm text-error">{err}</p> : null}
+      {err ? <p className="mt-s text-bodyMedium text-error">{err}</p> : null}
 
       <FormActions
         busy={busy}
@@ -662,7 +662,7 @@ function FormActions({
       {canDelete ? (
         confirmDelete ? (
           <span className="flex items-center gap-s">
-            <span className="text-sm text-textSecondary">{deleteLabel}</span>
+            <span className="text-bodyMedium text-textSecondary">{deleteLabel}</span>
             <Button variant="secondary" disabled={busy} onClick={onDelete}>
               Oui, supprimer
             </Button>

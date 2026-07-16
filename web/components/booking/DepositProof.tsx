@@ -62,7 +62,7 @@ export function DepositProof({
         <p className="font-medium text-textPrimary">
           Acompte envoyé · en attente de confirmation du salon
         </p>
-        <p className="mt-xs text-sm text-textSecondary">
+        <p className="mt-xs text-bodyMedium text-textSecondary">
           Le salon confirme votre rendez-vous dès réception.
         </p>
       </div>
@@ -80,7 +80,7 @@ export function DepositProof({
       <p className="font-medium text-textPrimary">
         Acompte à régler : {formatFcfa(amount, currency ?? undefined)}
       </p>
-      <p className="mt-xs text-sm text-textSecondary">
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         Payez directement au salon
         {number ? ` (${opLabel ?? 'Mobile Money'} : ${number})` : ''}, puis
         joignez la capture du paiement. MyWeli ne prélève rien.
@@ -90,7 +90,7 @@ export function DepositProof({
           href={waveHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-s inline-block rounded-lg border border-border bg-secondary px-m py-xs text-sm font-medium text-textPrimary hover:bg-surfaceVariant"
+          className="mt-s inline-block rounded-lg border border-border bg-secondary px-m py-xs text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
         >
           Payer avec Wave
         </a>
@@ -101,18 +101,18 @@ export function DepositProof({
           type="file"
           accept="image/*"
           aria-label="Capture du paiement"
-          className="text-sm text-textSecondary"
+          className="text-bodyMedium text-textSecondary"
         />
         <Button disabled={busy} onClick={send}>
           {busy ? 'Envoi…' : 'Envoyer la preuve'}
         </Button>
       </div>
       {error ? (
-        <p className="mt-s text-sm text-error">
+        <p className="mt-s text-bodyMedium text-error">
           L’envoi a échoué. Vérifiez l’image et réessayez.
         </p>
       ) : null}
-      <p className="mt-s text-xs text-textTertiary">
+      <p className="mt-s text-bodySmall text-textTertiary">
         Vous pouvez aussi la joindre plus tard depuis « Mon compte » ou l’app.
       </p>
     </div>

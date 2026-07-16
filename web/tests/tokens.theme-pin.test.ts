@@ -1,6 +1,11 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import ts from 'typescript';
 import { join, relative } from 'node:path';
+import resolveConfig from 'tailwindcss/resolveConfig';
 import { describe, expect, it } from 'vitest';
+
+import tailwindConfig from '../tailwind.config';
+import { colors, type } from '../styles/tokens';
 
 /// The closed-theme firewall (docs/design/WEB-SYSTEM.md §2, §15 rows 6 + 7).
 ///
@@ -28,52 +33,66 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.(ts|tsx|css)$/.test(name)) out.push(p);
+    else if (/\.tsx?$/.test(name)) out.push(p);
   }
   return out;
 }
 
-/// Blank out comments, keeping line numbers intact.
+/// Every string literal in a .ts/.tsx file, with its line number.
 ///
-/// This is load-bearing, and it was found the hard way: this very file's z-index
-/// rule went red on B2a's own PROSE — `JournalPanel.tsx`'s comment explaining the
-/// z-40 fix contains the text "`z-40`", and a backtick is one of the delimiters
-/// the rule accepts. A pin that flags the documentation OF a fix punishes the
-/// person who explains their work, so it would have been deleted within a month.
-/// Classes in a comment ship nothing; only code counts.
-function stripComments(src: string): string[] {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of src.split('\n')) {
-    let line = raw;
-    if (inBlock) {
-      const end = line.indexOf('*/');
-      if (end === -1) { out.push(''); continue; }
-      line = ' '.repeat(end + 2) + line.slice(end + 2);
-      inBlock = false;
+/// This walks the TypeScript AST rather than regexing the source, and that is
+/// load-bearing twice over:
+///
+/// 1. **Comments are never visited.** The z-index rule once went red on B2a's own
+///    PROSE — a comment explaining the `z-40` fix contains the text "`z-40`", and a
+///    backtick is one of the rule's delimiters. A pin that flags the documentation
+///    OF a fix punishes the person who explains their work, so it gets deleted.
+/// 2. **Strings are not comments.** The regex stripper this replaces treated the
+///    `/*` inside `accept="image/*"` as a block-comment opener with no close — so
+///    the pin went BLIND from that line to end-of-file in MediasClient.tsx (x2) and
+///    DepositProof.tsx. It shipped that way in B2a. Any violation below those lines
+///    was invisible. A parser cannot make that mistake; a regex always can.
+///
+/// It also reaches the places a `className=`-anchored scan cannot: bare `const`
+/// strings (Button.tsx, TaxonomyLandingView.tsx, DayHoursEditor.tsx) and default
+/// parameter values (SalonTimeHint.tsx) — which is exactly ESLint's blind spot and
+/// the reason this file exists.
+function literalsOf(file: string, content: string): { text: string; line: number }[] {
+  const src = ts.createSourceFile(
+    file,
+    content,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const out: { text: string; line: number }[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+      // NOT isJsxText: that re-admits prose. `<p>use text-sm here</p>` is text a
+      // user reads, not a class — and flagging it is the same mistake the regex
+      // stripper made with comments.
+    ) {
+      const { line } = src.getLineAndCharacterOfPosition(node.getStart(src));
+      out.push({ text: node.text, line: line + 1 });
     }
-    // Block comments opening on this line (incl. JSX `{/* … */}`).
-    for (;;) {
-      const start = line.indexOf('/*');
-      if (start === -1) break;
-      const end = line.indexOf('*/', start + 2);
-      if (end === -1) { line = line.slice(0, start); inBlock = true; break; }
-      line = line.slice(0, start) + ' '.repeat(end + 2 - start) + line.slice(end + 2);
-    }
-    // Line comments — but not the `//` of a URL.
-    line = line.replace(/(^|[^:])\/\/.*$/, '$1');
-    out.push(line);
-  }
+    ts.forEachChild(node, visit);
+  };
+  visit(src);
   return out;
 }
 
 const files = DIRS.flatMap((d) => walk(join(ROOT, d))).map((p) => {
   const content = readFileSync(p, 'utf8');
+  const rel = relative(ROOT, p);
   return {
-    rel: relative(ROOT, p),
+    rel,
     content,
-    // Code only — see stripComments.
-    lines: stripComments(content),
+    literals: literalsOf(p, content),
   };
 });
 
@@ -108,6 +127,23 @@ const RULES: { name: string; pattern: RegExp; allow: string[]; hint: string }[] 
       hint: 'use z-base|sticky|dropdown|overlay|modal|toast|auto',
     },
     {
+      name: 'type is a token — no default size, no raw px (§3, §4)',
+      // The mirror of mobile's rule ("never TextStyle(fontSize:) — pick a scale
+      // entry"), and as blunt: any hit fails. A class must say what the text IS
+      // (`text-bodyMedium`), not how big it happens to be (`text-sm`).
+      //
+      // `text-` is heavily overloaded — `text-primary`, `text-textSecondary`,
+      // `text-center`, `text-ellipsis` are all legal and must not match. The
+      // lookbehind/lookahead pin it to exactly the default size scale.
+      //
+      // `text-[Npx]` is banned too: the 11px floor is not negotiable (§4 — "there
+      // is no 10px token and there will not be one"), and an arbitrary size also
+      // emits font-size with NO line-height, silently dropping the baked one.
+      pattern: /(?<![\w-])text-(?:xs|sm|base|lg|xl|[2-9]xl|\[[^\]]*\])(?![\w-])/,
+      allow: [],
+      hint: 'use a scale entry: text-labelSmall|bodySmall|labelMedium|bodyMedium|titleSmall|labelLarge|bodyLarge|titleMedium|titleLarge|headlineSmall|headlineMedium|headlineLarge',
+    },
+    {
       name: 'no default duration',
       pattern: /(?:^|[\s"'`:])duration-\d+\b/,
       allow: [],
@@ -134,10 +170,9 @@ describe('the closed theme holds (WEB-SYSTEM §2)', () => {
       const offenders = files
         .filter((f) => !rule.allow.includes(f.rel))
         .flatMap((f) =>
-          f.lines
-            .map((line, i) => ({ line, n: i + 1 }))
-            .filter(({ line }) => rule.pattern.test(line))
-            .map(({ n }) => `${f.rel}:${n}`),
+          f.literals
+            .filter(({ text }) => rule.pattern.test(text))
+            .map(({ line }) => `${f.rel}:${line}`),
         );
       expect(
         offenders,
@@ -145,6 +180,61 @@ describe('the closed theme holds (WEB-SYSTEM §2)', () => {
       ).toEqual([]);
     });
   }
+});
+
+describe('the tokens are actually WIRED, not just spelled', () => {
+  // Every rule above is a PROHIBITION, and a prohibition cannot see the worst
+  // failure this design system has. It happened during B2b: the call sites were
+  // migrated to `text-bodyMedium` before `fontSize: type` was wired into the
+  // config, so for a window every one of the 555 type classes emitted NOTHING and
+  // the whole site rendered at the browser default — while this file passed 6/6
+  // green, because the old tokens it bans were indeed gone.
+  //
+  // "No forbidden classes" is not the same claim as "the classes we use exist".
+  // This is the second claim.
+  it('every type role in tokens.ts survives into the resolved theme', () => {
+    const resolved = resolveConfig(tailwindConfig as never);
+    expect(Object.keys(resolved.theme!.fontSize!).sort()).toEqual(
+      Object.keys(type).sort(),
+    );
+  });
+
+  // Catches a typo'd token — `text-bodyMedum` — which Tailwind renders as nothing
+  // at all. ESLint catches it on a `className=` attribute; it cannot see the four
+  // bare `const`/default-param strings, and this can.
+  it('every token-shaped `text-*` is a real token, not a typo', () => {
+    // `text-` is overloaded four ways: a TYPE role (`text-bodyMedium`), a COLOUR
+    // (`text-textSecondary`), and Tailwind's own alignment/overflow/wrap
+    // utilities, which are not tokens at all. An offender is one that is none of
+    // those — i.e. a name shaped like a token that does not exist, which Tailwind
+    // renders as nothing.
+    const TAILWIND_TEXT_UTILS = [
+      'left', 'center', 'right', 'justify', 'start', 'end', // text-align
+      'ellipsis', 'clip', // text-overflow
+      'wrap', 'nowrap', 'balance', 'pretty', // text-wrap
+    ];
+    const known = new Set([
+      ...Object.keys(type),
+      ...Object.keys(colors),
+      ...TAILWIND_TEXT_UTILS,
+    ]);
+    const offenders: string[] = [];
+    for (const f of files) {
+      for (const { text, line } of f.literals) {
+        // NOT `[a-z]+[A-Z]…`: requiring a capital let an all-lowercase typo
+        // (`text-bodymedium`) through BOTH gates — the pin skipped it for having
+        // no capital, and ESLint cannot see a bare const at all. Match any
+        // alphabetic suffix and let the known-set decide.
+        for (const m of text.matchAll(/(?<![\w-])text-([A-Za-z]{3,})(?![\w-])/g)) {
+          if (!known.has(m[1])) offenders.push(`${f.rel}:${line} — text-${m[1]}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      `these look like a token but are in neither the type scale nor the palette,\nso Tailwind emits NOTHING for them:\n${offenders.join('\n')}`,
+    ).toEqual([]);
+  });
 });
 
 describe('every arbitrary value is DECLARED (WEB-SYSTEM §2)', () => {

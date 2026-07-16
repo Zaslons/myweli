@@ -85,7 +85,7 @@ export default async function HomePage() {
             top either way, because the backdrop is `pointer-events-none`. So the
             comment IS the guard. Do not remove it, or the class. */}
         <div className="relative mx-auto max-w-5xl px-m py-xxl">
-          <h1 className="max-w-2xl text-4xl font-semibold text-textPrimary">
+          <h1 className="max-w-2xl text-headlineLarge font-semibold text-textPrimary">
             Réservez beauté & bien-être à {cityName}
           </h1>
           <p className="mt-m max-w-xl text-textSecondary">
@@ -100,13 +100,13 @@ export default async function HomePage() {
 
       <main className="mx-auto max-w-5xl px-m py-xl">
         <section>
-          <h2 className="text-xl font-semibold text-textPrimary">Catégories</h2>
+          <h2 className="text-titleLarge font-semibold text-textPrimary">Catégories</h2>
           <div className="mt-m grid grid-cols-2 gap-s sm:grid-cols-3 lg:grid-cols-6">
             {TILES.map((t) => (
               <Link
                 key={t.label}
                 href={t.href}
-                className="rounded-xl border border-border bg-secondary p-m text-center text-sm text-textPrimary hover:bg-surfaceVariant"
+                className="rounded-xl border border-border bg-secondary p-m text-center text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 {t.label}
               </Link>
@@ -116,7 +116,7 @@ export default async function HomePage() {
 
         {featured.length > 0 ? (
           <section className="mt-xl">
-            <h2 className="text-xl font-semibold text-textPrimary">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">
               Salons populaires
             </h2>
             <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-4">
@@ -129,14 +129,14 @@ export default async function HomePage() {
 
         {city && directoryAreas.length > 0 ? (
           <section className="mt-xl">
-            <h2 className="text-xl font-semibold text-textPrimary">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">
               Partout à {cityName}
             </h2>
             <div className="mt-m grid grid-cols-1 gap-l sm:grid-cols-2 lg:grid-cols-4">
               {directoryAreas.map((area) => (
                 <div key={area.slug}>
                   <h3 className="font-medium text-textPrimary">{area.name}</h3>
-                  <ul className="mt-s space-y-xs text-sm">
+                  <ul className="mt-s space-y-xs text-bodyMedium">
                     {categoryList.map((c) => (
                       <li key={c.slug}>
                         <Link
@@ -168,17 +168,17 @@ export default async function HomePage() {
               className="rounded-xl border border-border bg-secondary p-l"
             >
               <p className="font-medium text-textPrimary">{title}</p>
-              <p className="mt-xs text-sm text-textSecondary">{body}</p>
+              <p className="mt-xs text-bodyMedium text-textSecondary">{body}</p>
             </div>
           ))}
         </section>
 
         <section className="mt-xl flex flex-col items-start justify-between gap-m rounded-xl border border-border bg-surfaceVariant p-l sm:flex-row sm:items-center">
           <div>
-            <p className="text-lg font-semibold text-textPrimary">
+            <p className="text-titleLarge font-semibold text-textPrimary">
               L’app MyWeli
             </p>
-            <p className="mt-xs text-sm text-textSecondary">
+            <p className="mt-xs text-bodyMedium text-textSecondary">
               Réservez plus vite et gérez vos rendez-vous depuis votre poche.
             </p>
           </div>
@@ -186,14 +186,14 @@ export default async function HomePage() {
         </section>
 
         <section className="mt-xl">
-          <h2 className="text-xl font-semibold text-textPrimary">
+          <h2 className="text-titleLarge font-semibold text-textPrimary">
             Questions fréquentes
           </h2>
           <dl className="mt-m space-y-m">
             {faq.map((f) => (
               <div key={f.question}>
                 <dt className="font-medium text-textPrimary">{f.question}</dt>
-                <dd className="mt-xs text-sm text-textSecondary">{f.answer}</dd>
+                <dd className="mt-xs text-bodyMedium text-textSecondary">{f.answer}</dd>
               </div>
             ))}
           </dl>

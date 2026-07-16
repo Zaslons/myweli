@@ -93,7 +93,7 @@ export function LocalityPicker({
     if (onFallbackChange === undefined) {
       return (
         <div className="flex items-center gap-s">
-          <p className="flex-1 text-sm text-textSecondary">
+          <p className="flex-1 text-bodyMedium text-textSecondary">
             Liste des communes indisponible — vous pourrez préciser la commune
             plus tard dans votre profil.
           </p>
@@ -117,7 +117,7 @@ export function LocalityPicker({
             Réessayer
           </Button>
         </div>
-        <p className="mt-xs text-xs text-textTertiary">
+        <p className="mt-xs text-bodySmall text-textTertiary">
           Liste des communes indisponible — saisissez le nom, nous le
           rattacherons automatiquement.
         </p>
@@ -130,7 +130,7 @@ export function LocalityPicker({
 
   return (
     <div className="flex gap-s">
-      <label className="block flex-1 text-sm text-textTertiary">
+      <label className="block flex-1 text-bodyMedium text-textTertiary">
         Ville
         <select
           className={input}
@@ -148,7 +148,7 @@ export function LocalityPicker({
           ))}
         </select>
       </label>
-      <label className="block flex-1 text-sm text-textTertiary">
+      <label className="block flex-1 text-bodyMedium text-textTertiary">
         {kindLabel}
         <select
           className={input}

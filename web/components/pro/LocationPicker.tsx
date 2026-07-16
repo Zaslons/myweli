@@ -78,16 +78,16 @@ export function LocationPicker({
         <button
           type="button"
           onClick={locate}
-          className="rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary hover:bg-surfaceVariant"
+          className="rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
         >
           Utiliser ma position
         </button>
-        <p className="text-xs text-textTertiary">
+        <p className="text-bodySmall text-textTertiary">
           {placed
             ? 'Glissez le repère ou touchez la carte pour ajuster.'
             : 'Touchez la carte pour placer votre salon.'}
         </p>
-        {note ? <p className="text-xs text-error">{note}</p> : null}
+        {note ? <p className="text-bodySmall text-error">{note}</p> : null}
       </div>
     </div>
   );

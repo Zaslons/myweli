@@ -101,14 +101,14 @@ export function AujourdhuiClient() {
   if (staffView) {
     return (
       <div>
-        <h1 className="text-2xl font-semibold text-textPrimary">
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
           {salonName} — votre planning
         </h1>
 
         {/* Pending invitations for THIS account (if any). */}
         <ProInvitationsCard />
 
-        <h2 className="mt-l text-lg font-semibold text-textPrimary">
+        <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
           Rendez-vous du jour
         </h2>
         <div className="mt-m space-y-s">
@@ -135,8 +135,8 @@ export function AujourdhuiClient() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Aujourd’hui</h1>
-      <p className="mt-xs text-sm text-textTertiary">{profile?.provider.name}</p>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Aujourd’hui</h1>
+      <p className="mt-xs text-bodyMedium text-textTertiary">{profile?.provider.name}</p>
 
       {/* Team access R5a: pending invitations for THIS account (if any). */}
       <ProInvitationsCard />
@@ -157,7 +157,7 @@ export function AujourdhuiClient() {
         />
       ) : null}
       {live ? (
-        <p className="mt-m rounded-xl border border-success/40 bg-success/10 p-m text-sm text-success">
+        <p className="mt-m rounded-xl border border-success/40 bg-success/10 p-m text-bodyMedium text-success">
           🎉 Votre salon est en ligne ! Il apparaît maintenant dans les
           recherches.
         </p>
@@ -166,7 +166,7 @@ export function AujourdhuiClient() {
       {hasCap(m, 'profile.manage') ? (
         <Link
           href="/pro/profil"
-          className="mt-m flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+          className="mt-m flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
         >
           <span>Configurer mon profil</span>
           <span className="text-textTertiary">›</span>
@@ -176,7 +176,7 @@ export function AujourdhuiClient() {
       {profile?.provider.status === 'active' && profile.provider.slug ? (
         <Link
           href={`/${profile.provider.slug}`}
-          className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+          className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
         >
           <span>Voir ma page publique</span>
           <span className="text-textTertiary">›</span>
@@ -208,7 +208,7 @@ export function AujourdhuiClient() {
         </div>
       ) : null}
 
-      <h2 className="mt-l text-lg font-semibold text-textPrimary">
+      <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
         Rendez-vous du jour
       </h2>
       <div className="mt-m space-y-s">
@@ -242,8 +242,8 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl border border-border bg-secondary p-m text-center">
-      <p className="text-xl font-semibold text-textPrimary">{value}</p>
-      <p className="text-xs text-textTertiary">{label}</p>
+      <p className="text-titleLarge font-semibold text-textPrimary">{value}</p>
+      <p className="text-bodySmall text-textTertiary">{label}</p>
     </div>
   );
 }

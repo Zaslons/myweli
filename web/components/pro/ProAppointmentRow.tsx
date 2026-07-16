@@ -33,7 +33,7 @@ export function ProAppointmentRow({
           {slotTime(appt.appointmentDate, tz ?? undefined)} ·{' '}
           {appt.clientName ?? 'Client'}
         </p>
-        <p className="text-sm text-textTertiary">
+        <p className="text-bodyMedium text-textTertiary">
           {(appt.serviceIds ?? [])
             .map(serviceName)
             .filter(Boolean)
@@ -41,11 +41,11 @@ export function ProAppointmentRow({
         </p>
       </div>
       <div className="text-right">
-        <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
+        <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
           {statusLabelFr(appt.status)}
         </span>
         {typeof appt.totalPrice === 'number' ? (
-          <p className="mt-s text-sm text-textPrimary">
+          <p className="mt-s text-bodyMedium text-textPrimary">
             {formatFcfa(appt.totalPrice, currency ?? undefined)}
           </p>
         ) : null}

@@ -23,7 +23,7 @@ const ResultsMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center bg-surfaceVariant">
-        <p className="text-sm text-textSecondary">Chargement de la carte…</p>
+        <p className="text-bodyMedium text-textSecondary">Chargement de la carte…</p>
       </div>
     ),
   },
@@ -148,7 +148,7 @@ export function RechercheClient({
       <div
         className={`px-m py-l lg:px-l ${mobileView === 'map' ? 'hidden lg:block' : ''}`}
       >
-        <h1 className="text-2xl font-semibold text-textPrimary">{title}</h1>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">{title}</h1>
         <div className="mt-m">
           <HomeSearch tree={tree} defaultService={q} defaultCommune={commune} />
         </div>
@@ -157,7 +157,7 @@ export function RechercheClient({
         <div className="mt-m flex flex-wrap gap-s" aria-label="Catégories">
           <a
             href={chipHref(null)}
-            className={`rounded-pill border px-m py-xs text-sm ${
+            className={`rounded-pill border px-m py-xs text-bodyMedium ${
               !category
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textPrimary'
@@ -169,7 +169,7 @@ export function RechercheClient({
             <a
               key={c.apiKey}
               href={chipHref(c.apiKey)}
-              className={`rounded-pill border px-m py-xs text-sm ${
+              className={`rounded-pill border px-m py-xs text-bodyMedium ${
                 category === c.apiKey
                   ? 'border-primary bg-primary text-secondary'
                   : 'border-border bg-surface text-textPrimary'
@@ -182,14 +182,14 @@ export function RechercheClient({
 
         {/* Trier + « Disponible aujourd'hui » (parity 2.1/2.2 — FR-DISC-007). */}
         <div className="mt-m flex flex-wrap items-center gap-s">
-          <label className="flex items-center gap-s text-sm text-textSecondary">
+          <label className="flex items-center gap-s text-bodyMedium text-textSecondary">
             Trier
             <select
               value={sort}
               onChange={(e) => {
                 window.location.assign(hrefWith({ sort: e.target.value }));
               }}
-              className="rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary"
+              className="rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textPrimary"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -201,7 +201,7 @@ export function RechercheClient({
           <a
             href={hrefWith({ dispo: !dispo })}
             aria-current={dispo ? 'true' : undefined}
-            className={`rounded-pill border px-m py-xs text-sm ${
+            className={`rounded-pill border px-m py-xs text-bodyMedium ${
               dispo
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textPrimary'
@@ -211,7 +211,7 @@ export function RechercheClient({
           </a>
         </div>
 
-        <p className="mt-m text-sm text-textTertiary">
+        <p className="mt-m text-bodyMedium text-textTertiary">
           {results.length} salon{results.length > 1 ? 's' : ''}
         </p>
         <div className="mt-m space-y-m">
@@ -269,7 +269,7 @@ export function RechercheClient({
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
-        className="fixed bottom-6 left-1/2 z-sticky -translate-x-1/2 rounded-pill bg-primary px-l py-s text-sm font-medium text-secondary shadow-lg lg:hidden"
+        className="fixed bottom-6 left-1/2 z-sticky -translate-x-1/2 rounded-pill bg-primary px-l py-s text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>

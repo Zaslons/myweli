@@ -80,8 +80,8 @@ export function RevenusClient() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Revenus</h1>
-      <p className="mt-xs text-sm text-textSecondary">
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Revenus</h1>
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         Vos revenus réalisés (rendez-vous terminés).
       </p>
 
@@ -91,7 +91,7 @@ export function RevenusClient() {
             key={p.key}
             type="button"
             onClick={() => pick(p.key)}
-            className={`rounded-pill border px-m py-xs text-sm ${
+            className={`rounded-pill border px-m py-xs text-bodyMedium ${
               period === p.key
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-secondary text-textPrimary'
@@ -116,8 +116,8 @@ export function RevenusClient() {
       ) : earnings ? (
         <>
           <div className="mt-l rounded-xl border border-border bg-secondary p-l text-center">
-            <p className="text-sm text-textSecondary">Total</p>
-            <p className="mt-xs text-3xl font-semibold text-textPrimary">
+            <p className="text-bodyMedium text-textSecondary">Total</p>
+            <p className="mt-xs text-headlineMedium font-semibold text-textPrimary">
               {formatFcfa(earnings.totalEarnings, currency)}
             </p>
           </div>
@@ -133,10 +133,10 @@ export function RevenusClient() {
                   key={t.id}
                   className="flex items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
                 >
-                  <span className="text-sm text-textPrimary">
+                  <span className="text-bodyMedium text-textPrimary">
                     {formatDateTimeFr(t.date, salonTz)}
                   </span>
-                  <span className="text-sm font-semibold text-textPrimary">
+                  <span className="text-bodyMedium font-semibold text-textPrimary">
                     {formatFcfa(t.amount, t.currency ?? currency)}
                   </span>
                 </li>

@@ -23,7 +23,7 @@ export function Header() {
           <HeaderBell />
           <Link
             href="/mon-compte"
-            className="text-sm font-medium text-textPrimary hover:text-textSecondary"
+            className="text-labelLarge font-medium text-textPrimary hover:text-textSecondary"
           >
             Mon compte
           </Link>

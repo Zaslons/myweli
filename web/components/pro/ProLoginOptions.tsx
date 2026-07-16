@@ -172,8 +172,8 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'invitations') {
     return (
       <div className="flex flex-col gap-s" data-testid="pro-login-invitations">
-        <h2 className="text-lg font-semibold text-textPrimary">Invitations</h2>
-        <p className="text-sm text-textSecondary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Invitations</h2>
+        <p className="text-bodyMedium text-textSecondary">
           Un salon vous a invité à rejoindre son équipe.
         </p>
         <ul className="flex flex-col gap-s">
@@ -182,11 +182,11 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
               key={inv.id}
               className="flex flex-col gap-s rounded-lg border border-border bg-surface p-m"
             >
-              <p className="text-sm text-textPrimary">
+              <p className="text-bodyMedium text-textPrimary">
                 <span className="font-semibold">{inv.salonName}</span> vous
                 invite comme {inv.roleLabel}
               </p>
-              <p className="text-xs text-textTertiary">
+              <p className="text-bodySmall text-textTertiary">
                 Expire le {formatDateFr(inv.expiresAt)}
               </p>
               <div className="flex gap-s">
@@ -197,7 +197,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
                   type="button"
                   disabled={busy}
                   onClick={() => declineInvitation(inv)}
-                  className="text-sm text-textTertiary underline disabled:opacity-60"
+                  className="text-bodyMedium text-textTertiary underline disabled:opacity-60"
                 >
                   Refuser
                 </button>
@@ -205,7 +205,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
             </li>
           ))}
         </ul>
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -213,7 +213,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-sm text-textSecondary">
+        <p className="text-bodyMedium text-textSecondary">
           Entrez le code reçu par e-mail à {email.trim()}.
         </p>
         <input
@@ -225,7 +225,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
           className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
         />
         {devCode ? (
-          <p className="text-xs text-textTertiary">Code (dev) : {devCode}</p>
+          <p className="text-bodySmall text-textTertiary">Code (dev) : {devCode}</p>
         ) : null}
         <Button disabled={busy || code.trim().length < 4} onClick={verifyCode}>
           Se connecter
@@ -234,7 +234,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
           type="button"
           disabled={busy || cooldown > 0}
           onClick={sendCode}
-          className="text-sm text-textTertiary underline disabled:no-underline disabled:opacity-60"
+          className="text-bodyMedium text-textTertiary underline disabled:no-underline disabled:opacity-60"
         >
           {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : 'Renvoyer le code'}
         </button>
@@ -245,13 +245,13 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
             setCode('');
             setError(null);
           }}
-          className="text-sm text-textTertiary underline"
+          className="text-bodyMedium text-textTertiary underline"
         >
           Changer d’e-mail
         </button>
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
         {error === notFoundMessage ? (
-          <Link href="/pro/inscription" className="text-sm underline">
+          <Link href="/pro/inscription" className="text-bodyMedium underline">
             Créer mon compte
           </Link>
         ) : null}
@@ -265,7 +265,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
         <div ref={googleDiv} className="flex justify-center" />
       ) : null}
       {googleClientId ? (
-        <div className="flex items-center gap-s text-xs text-textTertiary">
+        <div className="flex items-center gap-s text-bodySmall text-textTertiary">
           <span className="flex-1 border-t border-divider" />
           ou
           <span className="flex-1 border-t border-divider" />
@@ -284,13 +284,13 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
       <Button disabled={busy || !emailValid} onClick={sendCode}>
         Continuer avec e-mail
       </Button>
-      {error ? <p className="text-sm text-error">{error}</p> : null}
+      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
       {error === notFoundMessage ? (
-        <Link href="/pro/inscription" className="text-sm underline">
+        <Link href="/pro/inscription" className="text-bodyMedium underline">
           Créer mon compte
         </Link>
       ) : null}
-      <p className="text-xs text-textTertiary">
+      <p className="text-bodySmall text-textTertiary">
         Pas encore de compte ?{' '}
         <Link href="/pro/inscription" className="underline">
           Créer mon compte

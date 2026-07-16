@@ -16,7 +16,7 @@ export function SalonTimeHint({
   tz,
   countryLabel,
   deviceOffsetMin,
-  className = 'mt-s text-xs text-textTertiary',
+  className = 'mt-s text-bodySmall text-textTertiary',
 }: {
   /// The displayed instant (defaults to now) — offsets are date-dependent.
   date?: string;

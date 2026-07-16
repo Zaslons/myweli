@@ -96,29 +96,29 @@ export function AddSalonClient() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">
         Ajouter un salon
       </h1>
-      <p className="mt-xs text-sm text-textSecondary">
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         Le nouveau salon démarre en brouillon avec sa propre configuration :
         fiche, catalogue, équipe, offre et période d’essai.
       </p>
 
-      <label className="mt-l block text-sm text-textSecondary">
+      <label className="mt-l block text-bodyMedium text-textSecondary">
         Nom du salon
         <input
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
           placeholder="Ex : Salon Excellence Yopougon"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
       </label>
-      <label className="mt-m block text-sm text-textSecondary">
+      <label className="mt-m block text-bodyMedium text-textSecondary">
         Type d’entreprise
         <select
           value={businessType}
           onChange={(e) => setBusinessType(e.target.value)}
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         >
           {BUSINESS_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -127,23 +127,23 @@ export function AddSalonClient() {
           ))}
         </select>
       </label>
-      <label className="mt-m block text-sm text-textSecondary">
+      <label className="mt-m block text-bodyMedium text-textSecondary">
         Téléphone du salon
         <PhoneInput
           international
           defaultCountry="CI"
           value={phone}
           onChange={setPhone}
-          className="mt-xs rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
       </label>
-      <label className="mt-m block text-sm text-textSecondary">
+      <label className="mt-m block text-bodyMedium text-textSecondary">
         Adresse (optionnelle)
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="Quartier, commune…"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
       </label>
 
@@ -154,15 +154,15 @@ export function AddSalonClient() {
       </div>
 
       {fieldError ? (
-        <p className="mt-s text-sm text-error">{fieldError}</p>
+        <p className="mt-s text-bodyMedium text-error">{fieldError}</p>
       ) : null}
       {errorCode ? (
-        <p className="mt-s text-sm text-error">
+        <p className="mt-s text-bodyMedium text-error">
           {teamErrorMessage(errorCode)}
         </p>
       ) : null}
       {cta ? (
-        <Link href={cta.href} className="mt-xs inline-block text-sm underline">
+        <Link href={cta.href} className="mt-xs inline-block text-bodyMedium underline">
           {cta.label}
         </Link>
       ) : null}
@@ -173,7 +173,7 @@ export function AddSalonClient() {
         </Button>
       </div>
 
-      <p className="mt-m text-xs text-textTertiary">
+      <p className="mt-m text-bodySmall text-textTertiary">
         Réservé à l’offre Réseau. Le badge « Vérifié » de votre compte
         s’applique automatiquement au nouveau salon.
       </p>

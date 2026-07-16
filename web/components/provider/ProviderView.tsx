@@ -154,8 +154,8 @@ export function ProviderView({
 
           {artists.length > 0 ? (
             <section className="px-m py-l">
-              <h2 className="text-xl font-semibold text-textPrimary">Équipe</h2>
-              <ul className="mt-m flex flex-wrap gap-m text-sm">
+              <h2 className="text-titleLarge font-semibold text-textPrimary">Équipe</h2>
+              <ul className="mt-m flex flex-wrap gap-m text-bodyMedium">
                 {artists.map((a) => (
                   <li key={a.id}>
                     <span className="text-textPrimary">{a.name}</span>
@@ -195,11 +195,11 @@ export function ProviderView({
 
           {/* Contact — desktop uses the sticky panel; shown here on mobile. */}
           <section className="px-m py-l lg:hidden">
-            <h2 className="text-xl font-semibold text-textPrimary">Contact</h2>
+            <h2 className="text-titleLarge font-semibold text-textPrimary">Contact</h2>
             <div className="mt-m flex flex-wrap gap-s">
               <a
                 href={`tel:${p.phoneNumber}`}
-                className="rounded-lg border border-border bg-secondary px-l py-s text-sm font-medium text-textPrimary"
+                className="rounded-lg border border-border bg-secondary px-l py-s text-labelLarge font-medium text-textPrimary"
               >
                 Appeler
               </a>
@@ -208,7 +208,7 @@ export function ProviderView({
                   href={`https://wa.me/${p.whatsapp.replace(/[^0-9]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-lg border border-border bg-secondary px-l py-s text-sm font-medium text-textPrimary"
+                  className="rounded-lg border border-border bg-secondary px-l py-s text-labelLarge font-medium text-textPrimary"
                 >
                   WhatsApp
                 </a>
@@ -229,7 +229,7 @@ export function ProviderView({
       {/* Mobile sticky booking bar */}
       <div className="fixed inset-x-0 bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden">
         {min != null ? (
-          <div className="text-sm">
+          <div className="text-bodyMedium">
             <span className="text-textTertiary">À partir de </span>
             <span className="font-semibold text-textPrimary">
               {formatFcfa(min, p.currency ?? undefined)}

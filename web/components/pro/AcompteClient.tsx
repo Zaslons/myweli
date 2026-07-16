@@ -101,12 +101,12 @@ export function AcompteClient() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Acompte</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Acompte</h1>
 
       {/* T52: deposits are verified-only — the server enforces it; this
           mirrors the rule with guidance. */}
       {!verified ? (
-        <div className="mt-l rounded-xl border border-border bg-surface p-m text-sm text-textSecondary">
+        <div className="mt-l rounded-xl border border-border bg-surface p-m text-bodyMedium text-textSecondary">
           Les acomptes sont disponibles après la vérification de votre
           compte.{' '}
           <Link href="/pro/verification" className="underline">
@@ -132,7 +132,7 @@ export function AcompteClient() {
 
         {form.required ? (
           <>
-            <label className="block text-sm text-textTertiary">
+            <label className="block text-bodyMedium text-textTertiary">
               Pourcentage de l’acompte (%)
               <input
                 className={input}
@@ -141,7 +141,7 @@ export function AcompteClient() {
                 onChange={(e) => set('percent', e.target.value)}
               />
             </label>
-            <label className="block text-sm text-textTertiary">
+            <label className="block text-bodyMedium text-textTertiary">
               Opérateur Mobile Money
               {localities.loading ? (
                 <select className={input} disabled>
@@ -149,7 +149,7 @@ export function AcompteClient() {
                 </select>
               ) : localities.error ? (
                 <span className="mt-xs flex items-center gap-s">
-                  <span className="flex-1 text-sm text-error">
+                  <span className="flex-1 text-bodyMedium text-error">
                     Liste des opérateurs indisponible.
                   </span>
                   <Button variant="secondary" onClick={localities.retry}>
@@ -171,7 +171,7 @@ export function AcompteClient() {
                 </select>
               )}
             </label>
-            <label className="block text-sm text-textTertiary">
+            <label className="block text-bodyMedium text-textTertiary">
               Numéro Mobile Money
               <input
                 className={input}
@@ -182,7 +182,7 @@ export function AcompteClient() {
           </>
         ) : null}
 
-        <label className="block text-sm text-textTertiary">
+        <label className="block text-bodyMedium text-textTertiary">
           Fenêtre d’annulation (heures)
           <input
             className={input}
@@ -192,9 +192,9 @@ export function AcompteClient() {
           />
         </label>
 
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
         {saved ? (
-          <p className="text-sm text-textSecondary">Acompte enregistré.</p>
+          <p className="text-bodyMedium text-textSecondary">Acompte enregistré.</p>
         ) : null}
         <Button disabled={busy} onClick={save}>
           Enregistrer

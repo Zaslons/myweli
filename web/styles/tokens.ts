@@ -77,6 +77,75 @@ export const spacing = {
   xxxl: '64px', // mirrors `AppTheme.spacingXXXL` — the second mirror drift (see §15 row 19)
 } as const;
 
+// Type (SYSTEM.md §4) — the web mirror of `AppTextStyles`
+// (mobile/lib/core/theme/text_styles.dart). Tailwind's `fontSize` takes
+// `[size, { lineHeight, letterSpacing }]`, so the style travels with the name and
+// a class says what the text IS, not how big it happens to be.
+//
+// Three things worth knowing before you touch this:
+//
+// * **Mirrored from the CODE, not from §4's table.** §4 documents size/line/weight
+//   but omits `letterSpacing` entirely, while the Dart source sets it NON-ZERO on 9
+//   of these 15. Mirroring the doc would have shipped the web with no tracking against the
+//   app's — the same silent drift that produced `gold` (§15 row 4) and the missing
+//   `sm`/`xxxl` spacing. That would have been the third. §4 now carries the column.
+// * **`lineHeight` is not optional.** Only 2 sites in the whole app carry a
+//   `leading-*`, so 553 of the 555 rely on the value baked in here — a bare size
+//   scale would silently drop line-height everywhere. And note what those 2 do
+//   NOT do: `leading-none`/`leading-tight` are UNITLESS multipliers, so they
+//   scale WITH font-size rather than pinning a px value (see ProviderCard).
+// * **Weight is NOT baked in, deliberately** — and this is the one place the web
+//   mirror diverges from Flutter's atomic `TextStyle`, so B3's generator should
+//   encode it rather than "discover" it. Tailwind emits fontSize (118) before
+//   fontWeight (119), so a baked weight is only a default that any `font-*` beats
+//   — but it would still *silently override inheritance*: the MyWeli badge in
+//   `ClientCardClient` sits inside an `<h1 font-semibold>` and inherits 600, which
+//   a baked 500 would quietly undo. It also buys nothing, because `fontWeight` is
+//   not a closed key (`font-bold` still exists), so it is control in appearance
+//   only. §4's weights live on the elements as explicit `font-*` classes, where
+//   they already are and already match. Omitting weight here means B2b changes
+//   ZERO weights across all 560 sites.
+//
+// Flutter's `height` is a MULTIPLIER; the px line-heights below are its ratios
+// resolved (`64 / 57` → 64px). letterSpacing is in logical px on both sides.
+/// One entry of the scale, in Tailwind's `fontSize` shape.
+///
+/// `satisfies`, not `as const` and not a plain annotation: `as const` makes the
+/// tuples `readonly`, which Tailwind's `Config['theme']['fontSize']` rejects — but
+/// annotating `Record<string, TypeToken>` throws away the literal keys, so a typo
+/// like `type.bodyMedum` would compile in silence. `satisfies` gets both: assignable
+/// to Config, and the keys stay literal.
+type TypeToken = [
+  size: string,
+  style: { lineHeight: string; letterSpacing: string },
+];
+
+export const type = {
+  // Display — marketing & splash only; not used in-product (§4).
+  displayLarge: ['57px', { lineHeight: '64px', letterSpacing: '-0.25px' }],
+  displayMedium: ['45px', { lineHeight: '52px', letterSpacing: '0px' }],
+  displaySmall: ['36px', { lineHeight: '44px', letterSpacing: '0px' }],
+  // Headline
+  headlineLarge: ['32px', { lineHeight: '40px', letterSpacing: '0px' }], // screen title (rare — hero)
+  headlineMedium: ['28px', { lineHeight: '36px', letterSpacing: '0px' }], // screen title
+  headlineSmall: ['24px', { lineHeight: '32px', letterSpacing: '0px' }], // AppBar title, section hero
+  // Title
+  titleLarge: ['22px', { lineHeight: '28px', letterSpacing: '0px' }], // card/section heading
+  titleMedium: ['16px', { lineHeight: '24px', letterSpacing: '0.15px' }], // list-row title, dialog title
+  titleSmall: ['14px', { lineHeight: '20px', letterSpacing: '0.1px' }], // dense row title
+  // Body
+  bodyLarge: ['16px', { lineHeight: '24px', letterSpacing: '0.5px' }], // the default reading text
+  bodyMedium: ['14px', { lineHeight: '20px', letterSpacing: '0.25px' }], // secondary text — the workhorse
+  bodySmall: ['12px', { lineHeight: '16px', letterSpacing: '0.4px' }], // captions, metadata
+  // Label
+  labelLarge: ['14px', { lineHeight: '20px', letterSpacing: '0.1px' }], // button labels
+  labelMedium: ['12px', { lineHeight: '16px', letterSpacing: '0.5px' }], // chips, field labels
+  // THE FLOOR. There is no 10px token and there will not be one (§4): a 10px French
+  // label on a low-end Android at arm's length is not readable, and the token would
+  // legitimise it forever. If 11px doesn't fit, the layout is wrong.
+  labelSmall: ['11px', { lineHeight: '16px', letterSpacing: '0.5px' }],
+} satisfies Record<string, TypeToken>;
+
 // Layering (WEB-SYSTEM.md §9). The scale is the LAYER, named — never a number.
 // Ties are resolved by DOM order, so if two things at the same layer can coexist,
 // one of them is at the wrong layer.

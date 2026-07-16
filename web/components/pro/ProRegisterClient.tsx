@@ -147,29 +147,29 @@ export function ProRegisterClient() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="text-2xl font-semibold text-textPrimary">
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">
         Créez votre compte professionnel
       </h1>
-      <p className="mt-xs text-sm text-textSecondary">
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         Rejoignez MyWeli Pro et gérez votre salon.
       </p>
 
       {/* Business fields */}
-      <label className="mt-l block text-sm text-textSecondary">
+      <label className="mt-l block text-bodyMedium text-textSecondary">
         Nom de l’entreprise
         <input
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
           placeholder="Ex : Salon de Beauté Marie"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
       </label>
-      <label className="mt-m block text-sm text-textSecondary">
+      <label className="mt-m block text-bodyMedium text-textSecondary">
         Type d’entreprise
         <select
           value={businessType}
           onChange={(e) => setBusinessType(e.target.value)}
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         >
           {BUSINESS_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -178,23 +178,23 @@ export function ProRegisterClient() {
           ))}
         </select>
       </label>
-      <label className="mt-m block text-sm text-textSecondary">
+      <label className="mt-m block text-bodyMedium text-textSecondary">
         Téléphone du salon
         <PhoneInput
           international
           defaultCountry="CI"
           value={phone}
           onChange={setPhone}
-          className="mt-xs rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
       </label>
-      <label className="mt-m block text-sm text-textSecondary">
+      <label className="mt-m block text-bodyMedium text-textSecondary">
         Adresse (optionnelle)
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="Adresse de l’entreprise"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
       </label>
 
@@ -208,7 +208,7 @@ export function ProRegisterClient() {
       <h2 className="mt-l font-medium text-textPrimary">
         Votre identité de connexion
       </h2>
-      <p className="mt-xs text-xs text-textTertiary">
+      <p className="mt-xs text-bodySmall text-textTertiary">
         Elle vous servira à vous connecter à votre espace pro.
       </p>
 
@@ -220,18 +220,18 @@ export function ProRegisterClient() {
 
       <div className="mt-m flex items-center gap-s">
         <div className="flex-1 border-t border-border" />
-        <span className="text-xs text-textTertiary">ou par e-mail</span>
+        <span className="text-bodySmall text-textTertiary">ou par e-mail</span>
         <div className="flex-1 border-t border-border" />
       </div>
 
-      <label className="mt-m block text-sm text-textSecondary">
+      <label className="mt-m block text-bodyMedium text-textSecondary">
         Votre e-mail
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="exemple@email.com"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
         />
       </label>
 
@@ -245,18 +245,18 @@ export function ProRegisterClient() {
         </Button>
       ) : (
         <>
-          <label className="mt-m block text-sm text-textSecondary">
+          <label className="mt-m block text-bodyMedium text-textSecondary">
             Code à 6 chiffres
             <input
               inputMode="numeric"
               maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+              className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
             />
           </label>
           {devCode ? (
-            <p className="mt-xs text-xs text-textTertiary">
+            <p className="mt-xs text-bodySmall text-textTertiary">
               Code (dev) : {devCode}
             </p>
           ) : null}
@@ -269,7 +269,7 @@ export function ProRegisterClient() {
           </Button>
           <button
             type="button"
-            className="mt-s w-full text-center text-xs text-textTertiary underline"
+            className="mt-s w-full text-center text-bodySmall text-textTertiary underline"
             onClick={sendCode}
             disabled={busy}
           >
@@ -278,9 +278,9 @@ export function ProRegisterClient() {
         </>
       )}
 
-      {error ? <p className="mt-m text-sm text-error">{error}</p> : null}
+      {error ? <p className="mt-m text-bodyMedium text-error">{error}</p> : null}
 
-      <p className="mt-l text-center text-sm text-textSecondary">
+      <p className="mt-l text-center text-bodyMedium text-textSecondary">
         Déjà un compte ?{' '}
         <Link href="/pro/connexion" className="underline">
           Se connecter
