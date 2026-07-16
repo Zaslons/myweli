@@ -55,7 +55,7 @@ export function MediasClient() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Médias</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Médias</h1>
 
       <div className="mt-l flex gap-s border-b border-divider">
         {(
@@ -68,7 +68,7 @@ export function MediasClient() {
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`px-m py-s text-sm ${
+            className={`px-m py-s text-bodyMedium ${
               tab === t.key
                 ? 'border-b-2 border-primary text-textPrimary'
                 : 'text-textTertiary'
@@ -140,7 +140,7 @@ function PhotosTab({
 
   return (
     <div className="mt-m">
-      <p className="text-sm text-textTertiary">
+      <p className="text-bodyMedium text-textTertiary">
         Ajoutez au moins 3 photos. La première sert de couverture.
       </p>
 
@@ -154,7 +154,7 @@ function PhotosTab({
             <img src={url} alt="" className="h-32 w-full object-cover" />
             <div className="flex items-center justify-between p-s">
               {i === 0 ? (
-                <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
+                <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
                   Couverture
                 </span>
               ) : (
@@ -187,7 +187,7 @@ function PhotosTab({
 
       <div className="mt-m flex flex-wrap items-center gap-s">
         {canAddPhoto(photos) ? (
-          <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary hover:bg-surfaceVariant">
+          <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
             {uploading ? 'Téléversement…' : 'Ajouter une photo'}
             <input
               type="file"
@@ -197,16 +197,16 @@ function PhotosTab({
             />
           </label>
         ) : (
-          <span className="text-sm text-textTertiary">Maximum atteint.</span>
+          <span className="text-bodyMedium text-textTertiary">Maximum atteint.</span>
         )}
         <Button disabled={busy} onClick={save}>
           Enregistrer
         </Button>
       </div>
 
-      {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+      {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
       {saved ? (
-        <p className="mt-s text-sm text-textSecondary">Photos enregistrées.</p>
+        <p className="mt-s text-bodyMedium text-textSecondary">Photos enregistrées.</p>
       ) : null}
     </div>
   );
@@ -280,7 +280,7 @@ function AvantApresTab({
             <img src={p.before} alt="" className="h-16 w-16 rounded-sm object-cover" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={p.after} alt="" className="h-16 w-16 rounded-sm object-cover" />
-            <span className="flex-1 text-sm text-textTertiary">
+            <span className="flex-1 text-bodyMedium text-textTertiary">
               {p.caption ?? ''}
             </span>
             <IconBtn label="Supprimer" onClick={() => setPairs(removeAt(pairs, i))}>
@@ -292,7 +292,7 @@ function AvantApresTab({
 
       {canAddPair(pairs) ? (
         <div className="mt-m rounded-xl border border-border bg-secondary p-m">
-          <p className="text-sm text-textTertiary">Ajouter une paire</p>
+          <p className="text-bodyMedium text-textTertiary">Ajouter une paire</p>
           <div className="mt-s flex flex-wrap items-center gap-m">
             <FilePick label={before ? 'Avant ✓' : 'Avant'} onChange={(e) => pick(e, setBefore)} />
             <FilePick label={after ? 'Après ✓' : 'Après'} onChange={(e) => pick(e, setAfter)} />
@@ -301,7 +301,7 @@ function AvantApresTab({
               placeholder="Légende (optionnel)"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+              className="rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
             />
             <Button
               variant="secondary"
@@ -313,7 +313,7 @@ function AvantApresTab({
           </div>
         </div>
       ) : (
-        <p className="mt-m text-sm text-textTertiary">Maximum atteint (12).</p>
+        <p className="mt-m text-bodyMedium text-textTertiary">Maximum atteint (12).</p>
       )}
 
       <div className="mt-m">
@@ -321,9 +321,9 @@ function AvantApresTab({
           Enregistrer
         </Button>
       </div>
-      {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+      {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
       {saved ? (
-        <p className="mt-s text-sm text-textSecondary">
+        <p className="mt-s text-bodyMedium text-textSecondary">
           Avant/Après enregistré.
         </p>
       ) : null}
@@ -345,7 +345,7 @@ function IconBtn({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="rounded-sm border border-border bg-surface px-s text-sm text-textPrimary hover:bg-surfaceVariant"
+      className="rounded-sm border border-border bg-surface px-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
     >
       {children}
     </button>
@@ -360,7 +360,7 @@ function FilePick({
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary hover:bg-surfaceVariant">
+    <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
       {label}
       <input type="file" accept="image/*" className="hidden" onChange={onChange} />
     </label>

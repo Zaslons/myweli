@@ -113,7 +113,7 @@ export function JournalPanel({
             {appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
               <span
-                className={`rounded-pill px-s py-xs text-xs ${
+                className={`rounded-pill px-s py-xs text-bodySmall ${
                   noShowBadge(appt.clientNoShowCount) === 'red'
                     ? 'bg-error/10 text-error'
                     : 'bg-surface text-textSecondary'
@@ -124,13 +124,13 @@ export function JournalPanel({
             ) : null}
           </p>
           {appt.clientPhone ? (
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               {maskPhone(appt.clientPhone)}
             </p>
           ) : null}
 
           {card ? (
-            <div className="mt-s rounded-lg bg-surface p-s text-xs text-textSecondary">
+            <div className="mt-s rounded-lg bg-surface p-s text-bodySmall text-textSecondary">
               <div className="flex justify-between">
                 <span>{card.stats.visits} visites</span>
                 <span>{formatFcfa(card.stats.spentFcfa, currency)}</span>
@@ -152,7 +152,7 @@ export function JournalPanel({
         </div>
 
         {/* Facts */}
-        <dl className="space-y-xs text-sm">
+        <dl className="space-y-xs text-bodyMedium">
           <Row label="Statut" value={statusLabelFr(key)} />
           <Row
             label="Date"
@@ -237,7 +237,7 @@ export function JournalPanel({
                   aria-label="Nouvelle date"
                   value={reprogDate}
                   onChange={(e) => setReprogDate(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary px-s py-xs text-sm text-textPrimary"
+                  className="rounded-lg border border-border bg-secondary px-s py-xs text-bodyMedium text-textPrimary"
                 />
                 <input
                   type="time"
@@ -245,7 +245,7 @@ export function JournalPanel({
                   step={900}
                   value={reprogTime}
                   onChange={(e) => setReprogTime(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary px-s py-xs text-sm text-textPrimary"
+                  className="rounded-lg border border-border bg-secondary px-s py-xs text-bodyMedium text-textPrimary"
                 />
               </div>
               <div className="mt-s flex gap-s">

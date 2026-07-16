@@ -151,7 +151,7 @@ export function AccountClient() {
                   value={nameDraft}
                   onChange={(e) => setNameDraft(e.target.value)}
                   aria-label="Nom"
-                  className="rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary"
+                  className="rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textPrimary"
                 />
                 <Button
                   disabled={nameBusy || !nameDraft.trim()}
@@ -161,7 +161,7 @@ export function AccountClient() {
                 </Button>
                 <button
                   type="button"
-                  className="text-sm text-textTertiary underline"
+                  className="text-bodyMedium text-textTertiary underline"
                   onClick={() => setEditingName(false)}
                 >
                   Annuler
@@ -173,7 +173,7 @@ export function AccountClient() {
                 <button
                   type="button"
                   aria-label="Modifier le nom"
-                  className="text-sm font-normal text-textTertiary underline"
+                  className="text-bodyMedium font-normal text-textTertiary underline"
                   onClick={() => {
                     setNameDraft(me?.name ?? '');
                     setEditingName(true);
@@ -184,10 +184,10 @@ export function AccountClient() {
               </p>
             )}
             {me?.email ? (
-              <p className="text-sm text-textTertiary">{me.email}</p>
+              <p className="text-bodyMedium text-textTertiary">{me.email}</p>
             ) : null}
             {me?.authProvider && PROVIDER_LABELS[me.authProvider] ? (
-              <p className="text-xs text-textTertiary">
+              <p className="text-bodySmall text-textTertiary">
                 {PROVIDER_LABELS[me.authProvider]}
               </p>
             ) : null}
@@ -199,7 +199,7 @@ export function AccountClient() {
         <div className="mt-m border-t border-divider pt-m">
           {editingPhone ? (
             <div className="flex flex-col gap-s">
-              <p className="text-sm text-textSecondary">
+              <p className="text-bodyMedium text-textSecondary">
                 Numéro pour que le salon vous contacte :
               </p>
               <PhoneField
@@ -225,7 +225,7 @@ export function AccountClient() {
                 </Button>
               </div>
               {phoneError ? (
-                <p className="text-sm text-error">
+                <p className="text-bodyMedium text-error">
                   Numéro invalide. Réessayez.
                 </p>
               ) : null}
@@ -233,11 +233,11 @@ export function AccountClient() {
           ) : (
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-textPrimary">
+                <p className="text-bodyMedium text-textPrimary">
                   {me?.phoneNumber ?? 'Aucun numéro de contact'}
                 </p>
                 {me?.phoneNumber && !me.phoneVerified ? (
-                  <p className="text-xs text-textTertiary">Non vérifié</p>
+                  <p className="text-bodySmall text-textTertiary">Non vérifié</p>
                 ) : null}
               </div>
               <button
@@ -246,7 +246,7 @@ export function AccountClient() {
                   setPhoneDraft(me?.phoneNumber ?? '');
                   setEditingPhone(true);
                 }}
-                className="text-sm text-textPrimary underline"
+                className="text-bodyMedium text-textPrimary underline"
               >
                 Modifier
               </button>
@@ -261,7 +261,7 @@ export function AccountClient() {
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`px-m py-s text-sm ${
+            className={`px-m py-s text-bodyMedium ${
               tab === t.key
                 ? 'border-b-2 border-primary text-textPrimary'
                 : 'text-textTertiary'
@@ -278,7 +278,7 @@ export function AccountClient() {
             <p className="text-textSecondary">Aucun rendez-vous.</p>
             <Link
               href="/"
-              className="mt-s inline-block text-sm text-textPrimary underline"
+              className="mt-s inline-block text-bodyMedium text-textPrimary underline"
             >
               Découvrir des salons
             </Link>
@@ -289,9 +289,9 @@ export function AccountClient() {
       </div>
 
       <section className="mt-l">
-        <h2 className="text-lg font-semibold text-textPrimary">Favoris</h2>
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Favoris</h2>
         {favorites.length === 0 ? (
-          <p className="mt-s text-sm text-textTertiary">
+          <p className="mt-s text-bodyMedium text-textTertiary">
             Aucun favori — explorez les salons.
           </p>
         ) : (
@@ -302,7 +302,7 @@ export function AccountClient() {
                 <button
                   type="button"
                   onClick={() => removeFav(f.id)}
-                  className="mt-xs text-sm text-textTertiary underline"
+                  className="mt-xs text-bodyMedium text-textTertiary underline"
                 >
                   Retirer des favoris
                 </button>
@@ -315,7 +315,7 @@ export function AccountClient() {
       {/* Notifications (parity 5.1/5.2) */}
       <Link
         href="/mon-compte/notifications"
-        className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+        className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
       >
         <span>Notifications</span>
         <span className="text-textTertiary">›</span>
@@ -326,7 +326,7 @@ export function AccountClient() {
         href={supportWhatsAppUrl()}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
+        className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
       >
         <span>Aide & Support</span>
         <span className="text-textTertiary">›</span>
@@ -334,16 +334,16 @@ export function AccountClient() {
 
       {/* Confidentialité (parity 11.1/11.2 — AUTH-004/005 on web) */}
       <section className="mt-l rounded-xl border border-border bg-secondary p-m">
-        <h2 className="text-lg font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Confidentialité
         </h2>
         <div className="mt-s flex items-center justify-between gap-m">
-          <p className="text-sm text-textSecondary">
+          <p className="text-bodyMedium text-textSecondary">
             Recevoir une copie de vos données (profil, rendez-vous, favoris).
           </p>
           <Link
             href="/mon-compte/donnees"
-            className="shrink-0 text-sm text-textPrimary underline"
+            className="shrink-0 text-bodyMedium text-textPrimary underline"
           >
             Exporter mes données
           </Link>
@@ -356,17 +356,17 @@ export function AccountClient() {
                 setConfirmDelete(true);
                 setDeleteText('');
               }}
-              className="text-sm text-error underline"
+              className="text-bodyMedium text-error underline"
             >
               Supprimer mon compte
             </button>
           ) : (
             <div className="rounded-lg bg-surface p-m">
-              <p className="text-sm text-textPrimary">
+              <p className="text-bodyMedium text-textPrimary">
                 Cette action est définitive. Vos rendez-vous, favoris et avis
                 seront supprimés. Pensez à exporter vos données avant.
               </p>
-              <p className="mt-s text-xs text-textTertiary">
+              <p className="mt-s text-bodySmall text-textTertiary">
                 Tapez SUPPRIMER pour confirmer
               </p>
               <div className="mt-xs flex flex-wrap items-center gap-s">
@@ -375,7 +375,7 @@ export function AccountClient() {
                   onChange={(e) => setDeleteText(e.target.value)}
                   placeholder="SUPPRIMER"
                   aria-label="Confirmation de suppression"
-                  className="rounded-lg border border-border bg-secondary px-s py-xs text-sm text-textPrimary"
+                  className="rounded-lg border border-border bg-secondary px-s py-xs text-bodyMedium text-textPrimary"
                 />
                 <Button
                   disabled={
@@ -388,14 +388,14 @@ export function AccountClient() {
                 </Button>
                 <button
                   type="button"
-                  className="text-sm text-textTertiary underline"
+                  className="text-bodyMedium text-textTertiary underline"
                   onClick={() => setConfirmDelete(false)}
                 >
                   Annuler
                 </button>
               </div>
               {deleteError ? (
-                <p className="mt-s text-sm text-error">
+                <p className="mt-s text-bodyMedium text-error">
                   La suppression a échoué. Réessayez.
                 </p>
               ) : null}

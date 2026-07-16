@@ -69,14 +69,14 @@ export function OtpLoginForm({
             className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
           />
           {devCode ? (
-            <p className="text-xs text-textTertiary">Code (dev) : {devCode}</p>
+            <p className="text-bodySmall text-textTertiary">Code (dev) : {devCode}</p>
           ) : null}
           <Button disabled={busy || code.length < 4} onClick={verify}>
             Se connecter
           </Button>
         </>
       )}
-      {error ? <p className="text-sm text-error">{error}</p> : null}
+      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
     </div>
   );
 }

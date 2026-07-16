@@ -92,14 +92,14 @@ export function AbonnementClient() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Mon abonnement</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Mon abonnement</h1>
 
       {setup ? (
         <section className="mt-l rounded-xl border border-primary bg-surface p-l">
-          <p className="text-lg font-semibold text-textPrimary">
+          <p className="text-titleLarge font-semibold text-textPrimary">
             {SETUP_HEADLINE}
           </p>
-          <p className="mt-xs text-sm text-textSecondary">{SETUP_SUBLINE}</p>
+          <p className="mt-xs text-bodyMedium text-textSecondary">{SETUP_SUBLINE}</p>
         </section>
       ) : banner ? (
         <section
@@ -122,13 +122,13 @@ export function AbonnementClient() {
           >
             {banner.title}
           </p>
-          <p className="mt-xs text-sm text-textSecondary">{banner.subtitle}</p>
+          <p className="mt-xs text-bodyMedium text-textSecondary">{banner.subtitle}</p>
           {banner.urgent ? (
             <a
               href={contactWhatsAppUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
+              className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
             >
               Nous contacter sur WhatsApp
             </a>
@@ -138,7 +138,7 @@ export function AbonnementClient() {
 
       {offer ? (
         <section className="mt-l max-w-sm">
-          <p className="text-sm text-textSecondary">{seatsLabel(offer.seats)}</p>
+          <p className="text-bodyMedium text-textSecondary">{seatsLabel(offer.seats)}</p>
           <div className="mt-xs h-2 overflow-hidden rounded-pill bg-surfaceVariant">
             <div
               className="h-full rounded-pill bg-primary"
@@ -163,12 +163,12 @@ export function AbonnementClient() {
         offer.status === 'grace') ? (
         <section className="mt-l rounded-xl border border-border bg-secondary p-l">
           <p className="font-semibold text-textPrimary">Ajouter un salon</p>
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Chaque salon a sa propre offre et son propre essai.
           </p>
           <Link
             href="/pro/salons/nouveau"
-            className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
+            className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
           >
             Ajouter un salon
           </Link>
@@ -196,12 +196,12 @@ export function AbonnementClient() {
       </div>
 
       {notice ? (
-        <p className="mt-m rounded-lg border border-warning/40 bg-warning/10 p-m text-sm text-warning">
+        <p className="mt-m rounded-lg border border-warning/40 bg-warning/10 p-m text-bodyMedium text-warning">
           {notice}
         </p>
       ) : null}
 
-      <p className="mt-m text-sm text-textTertiary">{TRIAL_KEPT_LINE}</p>
+      <p className="mt-m text-bodyMedium text-textTertiary">{TRIAL_KEPT_LINE}</p>
     </div>
   );
 }
@@ -227,32 +227,32 @@ function OfferCardView({
         current ? 'border-primary bg-surface' : 'border-border bg-secondary'
       }`}
     >
-      <h2 className="text-lg font-semibold text-textPrimary">{card.name}</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">{card.name}</h2>
       <p className="mt-s">
-        <span className="text-xl font-semibold text-textPrimary">
+        <span className="text-titleLarge font-semibold text-textPrimary">
           Gratuit {TRIAL_MONTHS} mois
         </span>
         {card.anchorFcfa != null ? (
-          <span className="ml-s text-sm text-textTertiary line-through">
+          <span className="ml-s text-bodyMedium text-textTertiary line-through">
             {/* PLATFORM billing — XOF by design (multi-pays §4), not the
                 salon's own currency. */}
             {formatFcfa(card.anchorFcfa)}/mois
           </span>
         ) : (
-          <span className="ml-s text-sm text-textTertiary">puis sur devis</span>
+          <span className="ml-s text-bodyMedium text-textTertiary">puis sur devis</span>
         )}
       </p>
-      <p className="mt-xs text-sm text-textSecondary">{card.seatsLabel}</p>
-      <ul className="mt-m flex-1 space-y-xs text-sm text-textSecondary">
+      <p className="mt-xs text-bodyMedium text-textSecondary">{card.seatsLabel}</p>
+      <ul className="mt-m flex-1 space-y-xs text-bodyMedium text-textSecondary">
         {card.entitlements.map((e) => (
           <li key={e}>· {e}</li>
         ))}
       </ul>
       {card.roiLine ? (
-        <p className="mt-m text-sm italic text-textTertiary">{card.roiLine}</p>
+        <p className="mt-m text-bodyMedium italic text-textTertiary">{card.roiLine}</p>
       ) : null}
       {card.notes?.length ? (
-        <ul className="mt-s space-y-xs text-xs text-textTertiary">
+        <ul className="mt-s space-y-xs text-bodySmall text-textTertiary">
           {card.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}

@@ -140,11 +140,11 @@ export function NotificationsClient() {
 
   return (
     <div className="max-w-2xl">
-      <Link href="/mon-compte" className="text-sm text-textTertiary">
+      <Link href="/mon-compte" className="text-bodyMedium text-textTertiary">
         ← Mon compte
       </Link>
       <div className="mt-s flex items-center justify-between gap-m">
-        <h1 className="text-2xl font-semibold text-textPrimary">
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
           Notifications
         </h1>
         {unread > 0 ? (
@@ -157,7 +157,7 @@ export function NotificationsClient() {
       {items.length === 0 ? (
         <div className="mt-l rounded-xl border border-border bg-secondary p-l text-center">
           <p className="font-medium text-textPrimary">Aucune notification</p>
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Vos confirmations de rendez-vous et nouveautés apparaîtront ici.
           </p>
         </div>
@@ -183,7 +183,7 @@ export function NotificationsClient() {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-s">
                     <span
-                      className={`text-sm text-textPrimary ${
+                      className={`text-bodyMedium text-textPrimary ${
                         n.read ? '' : 'font-semibold'
                       }`}
                     >
@@ -196,10 +196,10 @@ export function NotificationsClient() {
                       />
                     ) : null}
                   </span>
-                  <span className="mt-xs block text-sm text-textSecondary">
+                  <span className="mt-xs block text-bodyMedium text-textSecondary">
                     {n.body}
                   </span>
-                  <span className="mt-xs block text-xs text-textTertiary">
+                  <span className="mt-xs block text-bodySmall text-textTertiary">
                     {formatDateTimeFr(n.createdAt)}
                   </span>
                 </span>
@@ -210,7 +210,7 @@ export function NotificationsClient() {
       )}
 
       {/* Préférences (parity 5.2) — the app's three opt-out toggles. */}
-      <h2 className="mt-xl text-lg font-semibold text-textPrimary">
+      <h2 className="mt-xl text-titleLarge font-semibold text-textPrimary">
         Préférences
       </h2>
       {prefs ? (
@@ -223,8 +223,8 @@ export function NotificationsClient() {
               }`}
             >
               <div>
-                <p className="text-sm text-textPrimary">{row.title}</p>
-                <p className="mt-xs text-xs text-textTertiary">
+                <p className="text-bodyMedium text-textPrimary">{row.title}</p>
+                <p className="mt-xs text-bodySmall text-textTertiary">
                   {row.subtitle}
                 </p>
               </div>
@@ -252,16 +252,16 @@ export function NotificationsClient() {
           ))}
         </div>
       ) : (
-        <p className="mt-m text-sm text-textSecondary">
+        <p className="mt-m text-bodyMedium text-textSecondary">
           Préférences indisponibles. Rechargez la page.
         </p>
       )}
       {prefError ? (
-        <p className="mt-s text-sm text-error">
+        <p className="mt-s text-bodyMedium text-error">
           Impossible d’enregistrer. Réessayez.
         </p>
       ) : null}
-      <p className="mt-s text-xs text-textTertiary">
+      <p className="mt-s text-bodySmall text-textTertiary">
         Les confirmations et changements de rendez-vous sont toujours envoyés.
       </p>
     </div>

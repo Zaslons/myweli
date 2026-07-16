@@ -112,18 +112,18 @@ export function DisponibilitesClient() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Disponibilités</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Disponibilités</h1>
 
       <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">Horaires</h2>
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Horaires</h2>
         <div className="mt-m space-y-s">
           <DayHoursEditor days={days} onPatch={patchDay} />
         </div>
       </section>
 
       <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">Pauses</h2>
-        <p className="mt-xs text-sm text-textSecondary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Pauses</h2>
+        <p className="mt-xs text-bodyMedium text-textSecondary">
           Une pause récurrente par jour (ex. déjeuner). Elle bloque les
           créneaux et apparaît hachurée dans la journée.
         </p>
@@ -138,7 +138,7 @@ export function DisponibilitesClient() {
       </section>
 
       <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Tampon entre rendez-vous
         </h2>
         <div className="mt-m flex flex-wrap gap-s">
@@ -150,7 +150,7 @@ export function DisponibilitesClient() {
                 setBuffer(m);
                 setSaved(false);
               }}
-              className={`rounded-lg border px-m py-s text-sm ${
+              className={`rounded-lg border px-m py-s text-bodyMedium ${
                 buffer === m
                   ? 'border-primary bg-primary text-secondary'
                   : 'border-border bg-surface text-textPrimary'
@@ -163,7 +163,7 @@ export function DisponibilitesClient() {
       </section>
 
       <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">Dates bloquées</h2>
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Dates bloquées</h2>
         <div className="mt-m flex flex-wrap items-center gap-s">
           <input
             type="date"
@@ -188,7 +188,7 @@ export function DisponibilitesClient() {
             {blocked.map((date) => (
               <li
                 key={date}
-                className="flex items-center justify-between gap-m text-sm"
+                className="flex items-center justify-between gap-m text-bodyMedium"
               >
                 <span className="text-textPrimary">
                   {/* Midday anchor: a blocked DATE is a salon-day identifier,
@@ -209,13 +209,13 @@ export function DisponibilitesClient() {
             ))}
           </ul>
         ) : (
-          <p className="mt-s text-sm text-textTertiary">Aucune date bloquée.</p>
+          <p className="mt-s text-bodyMedium text-textTertiary">Aucune date bloquée.</p>
         )}
       </section>
 
-      {error ? <p className="mt-m text-sm text-error">{error}</p> : null}
+      {error ? <p className="mt-m text-bodyMedium text-error">{error}</p> : null}
       {saved ? (
-        <p className="mt-m text-sm text-textSecondary">
+        <p className="mt-m text-bodyMedium text-textSecondary">
           Disponibilités enregistrées.
         </p>
       ) : null}

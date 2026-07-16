@@ -62,7 +62,7 @@ export function SalonPreviewClient() {
   return (
     <div>
       {/* The preview banner — the only element a client will NOT see. */}
-      <div className="border-b border-border bg-primary px-m py-s text-sm text-secondary">
+      <div className="border-b border-border bg-primary px-m py-s text-bodyMedium text-secondary">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-s">
           <span>
             {draft

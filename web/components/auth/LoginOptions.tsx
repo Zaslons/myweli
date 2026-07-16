@@ -225,10 +225,10 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'phone') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-sm font-medium text-textPrimary">
+        <p className="text-labelLarge font-medium text-textPrimary">
           Votre numéro de téléphone
         </p>
-        <p className="text-sm text-textSecondary">
+        <p className="text-bodyMedium text-textSecondary">
           Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.
         </p>
         <PhoneField onChange={setPhone} disabled={busy} />
@@ -238,7 +238,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         >
           Continuer
         </Button>
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -247,7 +247,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-sm text-textSecondary">
+        <p className="text-bodyMedium text-textSecondary">
           Entrez le code reçu par e-mail à {email.trim()}.
         </p>
         <input
@@ -259,7 +259,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
           className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
         />
         {devCode ? (
-          <p className="text-xs text-textTertiary">Code (dev) : {devCode}</p>
+          <p className="text-bodySmall text-textTertiary">Code (dev) : {devCode}</p>
         ) : null}
         <Button disabled={busy || code.trim().length < 4} onClick={verifyCode}>
           Se connecter
@@ -268,7 +268,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
           type="button"
           disabled={busy || cooldown > 0}
           onClick={sendCode}
-          className="text-sm text-textTertiary underline disabled:no-underline disabled:opacity-60"
+          className="text-bodyMedium text-textTertiary underline disabled:no-underline disabled:opacity-60"
         >
           {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : 'Renvoyer le code'}
         </button>
@@ -279,11 +279,11 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
             setCode('');
             setError(null);
           }}
-          className="text-sm text-textTertiary underline"
+          className="text-bodyMedium text-textTertiary underline"
         >
           Changer d’e-mail
         </button>
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -300,7 +300,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         </Button>
       ) : null}
       {googleClientId || appleClientId ? (
-        <div className="flex items-center gap-s text-xs text-textTertiary">
+        <div className="flex items-center gap-s text-bodySmall text-textTertiary">
           <span className="flex-1 border-t border-divider" />
           ou
           <span className="flex-1 border-t border-divider" />
@@ -319,8 +319,8 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
       <Button disabled={busy || !emailValid} onClick={sendCode}>
         Continuer avec e-mail
       </Button>
-      {error ? <p className="text-sm text-error">{error}</p> : null}
-      <p className="text-xs text-textTertiary">
+      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+      <p className="text-bodySmall text-textTertiary">
         En continuant, vous acceptez nos conditions d’utilisation.
       </p>
     </div>

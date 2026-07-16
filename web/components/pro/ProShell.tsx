@@ -101,7 +101,7 @@ export function ProShell({ children }: { children: ReactNode }) {
         </button>
         <Link
           href="/pro"
-          className="text-lg font-semibold text-textPrimary"
+          className="text-titleLarge font-semibold text-textPrimary"
         >
           MyWeli Pro
         </Link>

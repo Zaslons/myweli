@@ -93,11 +93,11 @@ export function CompteDangerSection({
 
   return (
     <section className="mt-l rounded-xl border border-border bg-secondary p-m">
-      <h2 className="text-lg font-semibold text-textPrimary">Compte</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">Compte</h2>
 
       {exportEnabled ? (
         <div className="mt-s flex items-center justify-between gap-m">
-          <p className="text-sm text-textSecondary">
+          <p className="text-bodyMedium text-textSecondary">
             Recevoir une copie des données de votre salon (compte, fiche,
             catalogue, rendez-vous, fichier clients, revenus).
           </p>
@@ -125,13 +125,13 @@ export function CompteDangerSection({
               setDeleteText('');
               setError(null);
             }}
-            className="text-sm text-error underline"
+            className="text-bodyMedium text-error underline"
           >
             Supprimer mon compte
           </button>
         ) : (
           <div className="rounded-lg bg-surface p-m">
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               {exportEnabled
                 ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
                 : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}
@@ -141,9 +141,9 @@ export function CompteDangerSection({
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder="SUPPRIMER"
               aria-label="Confirmation de suppression"
-              className="mt-s rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+              className="mt-s rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
             />
-            {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+            {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
             <div className="mt-s flex gap-s">
               <Button
                 variant="secondary"

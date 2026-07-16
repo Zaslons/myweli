@@ -212,21 +212,31 @@ Source: `mobile/lib/core/theme/text_styles.dart`. Pick a scale entry and
 `.copyWith(color: …)`; **never write `TextStyle(fontSize: …)` in a screen.**
 Line-heights are baked in — don't override them.
 
-| Style | Size / line | Weight | Use for |
-|---|---|---|---|
-| `displayLarge/Medium/Small` | 57/45/36 | Bold | Marketing & splash only. Not used in-product today. |
-| `headlineLarge` | 32 / 40 | 600 | Screen title (rare — hero) |
-| `headlineMedium` | 28 / 36 | 600 | Screen title |
-| `headlineSmall` | 24 / 32 | 600 | **AppBar title**, section hero |
-| `titleLarge` | 22 / 28 | 600 | Card/section heading |
-| `titleMedium` | 16 / 24 | 500 | List-row title, dialog title |
-| `titleSmall` | 14 / 20 | 500 | Dense row title |
-| `bodyLarge` | 16 / 24 | 400 | **Default reading text** |
-| `bodyMedium` | 14 / 20 | 400 | Secondary text (the workhorse) |
-| `bodySmall` | 12 / 16 | 400 | Captions, metadata |
-| `labelLarge` | 14 / 20 | 500 | Button labels |
-| `labelMedium` | 12 / 16 | 500 | Chips, field labels |
-| `labelSmall` | 11 / 16 | 500 | **The smallest text in the product** — nav labels, badges |
+| Style | Size / line | Weight | Tracking | Use for |
+|---|---|---|---|---|
+| `displayLarge` | 57 / 64 | 700 | −0.25 | Marketing & splash only. Not used in-product today. |
+| `displayMedium` | 45 / 52 | 700 | 0 | ″ |
+| `displaySmall` | 36 / 44 | 700 | 0 | ″ |
+| `headlineLarge` | 32 / 40 | 600 | 0 | Screen title (rare — hero) |
+| `headlineMedium` | 28 / 36 | 600 | 0 | Screen title |
+| `headlineSmall` | 24 / 32 | 600 | 0 | **AppBar title**, section hero |
+| `titleLarge` | 22 / 28 | 600 | 0 | Card/section heading |
+| `titleMedium` | 16 / 24 | 500 | 0.15 | List-row title, dialog title |
+| `titleSmall` | 14 / 20 | 500 | 0.1 | Dense row title |
+| `bodyLarge` | 16 / 24 | 400 | 0.5 | **Default reading text** |
+| `bodyMedium` | 14 / 20 | 400 | 0.25 | Secondary text (the workhorse) |
+| `bodySmall` | 12 / 16 | 400 | 0.4 | Captions, metadata |
+| `labelLarge` | 14 / 20 | 500 | 0.1 | Button labels |
+| `labelMedium` | 12 / 16 | 500 | 0.5 | Chips, field labels |
+| `labelSmall` | 11 / 16 | 500 | 0.5 | **The smallest text in the product** — nav labels, badges |
+
+**The tracking column was missing until B2b**, while `text_styles.dart` had set it on
+**9 of these 15** all along — so this table did not describe the code it claims to be
+sourced from. That is not cosmetic: the web mirror is built *from this table*, and
+building it faithfully would have shipped the web with no tracking at all against the
+app's. It would have been the **third** silent mirror drift after `gold` (WEB-SYSTEM
+§15 row 4) and the missing `sm`/`xxxl` spacing — which is the case for row 19's
+generator, not for more careful reading.
 
 **11px is the floor.** There is no 10px token and there will not be one: a 10px
 French label on a low-end Android at arm's length is not readable, and adding the

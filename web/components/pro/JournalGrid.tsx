@@ -125,7 +125,7 @@ export function JournalGrid({
             {hourTicks(hours).map((t) => (
               <div
                 key={t.label}
-                className="absolute -translate-y-1/2 pl-xs text-xs text-textTertiary"
+                className="absolute -translate-y-1/2 pl-xs text-bodySmall text-textTertiary"
                 style={{ top: t.top }}
               >
                 {t.label}
@@ -290,7 +290,7 @@ function JournalColumn({
 
       {/* header — the column's only IN-FLOW child, so it still starts at y=0
           despite coming after the absolutes above (they take no flow space). */}
-      <div className="sticky top-0 flex h-8 items-center justify-center border-b border-border bg-surface text-xs font-medium text-textPrimary">
+      <div className="sticky top-0 flex h-8 items-center justify-center border-b border-border bg-surface text-labelMedium font-medium text-textPrimary">
         {artist.name}
       </div>
 
@@ -323,10 +323,11 @@ function JournalColumn({
               statusKey(a),
             )}`}
             // ds-ignore: py-[2px] is below the 4px grid floor — a 15-min block
-            // is ~15px tall, so 4px padding would clip the label. text-[11px] is
-            // fontSize and closes in B2b.
+            // is ~15px tall, so 4px padding would clip the label. (The label is
+            // text-labelSmall now; `leading-tight` still overrides the token's
+            // 16px line, so the block keeps the 13.75px it has always had.)
             // eslint-disable-next-line tailwindcss/no-arbitrary-value
-            className={`absolute inset-x-1 overflow-hidden rounded-md border px-xs py-[2px] text-left text-[11px] leading-tight ${
+            className={`absolute inset-x-1 overflow-hidden rounded-md border px-xs py-[2px] text-left text-labelSmall leading-tight ${
               STATUS_STYLE[statusKey(a)] ?? STATUS_STYLE.confirmed
             } ${draggable ? 'cursor-grab' : 'cursor-pointer'}`}
             style={{ top: 32 + box.top, height: box.height }}

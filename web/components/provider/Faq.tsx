@@ -8,7 +8,7 @@ export function Faq({
   if (items.length === 0) return null;
   return (
     <section className="px-m py-l">
-      <h2 className="text-xl font-semibold text-textPrimary">
+      <h2 className="text-titleLarge font-semibold text-textPrimary">
         Questions fréquentes
       </h2>
       <div className="mt-m divide-y divide-divider">
@@ -17,7 +17,7 @@ export function Faq({
             <summary className="cursor-pointer font-medium text-textPrimary">
               {it.question}
             </summary>
-            <p className="mt-xs text-sm text-textSecondary">{it.answer}</p>
+            <p className="mt-xs text-bodyMedium text-textSecondary">{it.answer}</p>
           </details>
         ))}
       </div>

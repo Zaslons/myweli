@@ -93,7 +93,7 @@ export function ProSidebar({
       }`}
     >
       <div className="flex items-center justify-between px-s">
-        <p className="text-lg font-semibold text-textPrimary">MyWeli Pro</p>
+        <p className="text-titleLarge font-semibold text-textPrimary">MyWeli Pro</p>
         {onClose ? (
           <button
             type="button"
@@ -126,7 +126,7 @@ export function ProSidebar({
                     setMenuOpen((o) => !o);
                     setSwitchError(false);
                   }}
-                  className="flex w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s py-xs text-left text-sm text-textPrimary hover:bg-surfaceVariant"
+                  className="flex w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s py-xs text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                 >
                   <span className="truncate">{salonName}</span>
                   <span aria-hidden="true" className="text-textTertiary">
@@ -134,7 +134,7 @@ export function ProSidebar({
                   </span>
                 </button>
               ) : (
-                <p className="truncate rounded-lg border border-border bg-surface px-s py-xs text-sm text-textSecondary">
+                <p className="truncate rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textSecondary">
                   {salonName}
                 </p>
               )}
@@ -148,11 +148,11 @@ export function ProSidebar({
                         type="button"
                         disabled={switching !== null}
                         onClick={() => pick(s.salonId, active)}
-                        className="flex w-full items-center justify-between gap-xs px-s py-s text-left text-sm text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
+                        className="flex w-full items-center justify-between gap-xs px-s py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
                       >
                         <span className="min-w-0">
                           <span className="block truncate">{s.salonName}</span>
-                          <span className="block text-xs text-textTertiary">
+                          <span className="block text-bodySmall text-textTertiary">
                             {ROLE_LABELS[s.role as TeamRole]}
                             {s.salonStatus === 'draft' ? ' · Brouillon' : ''}
                           </span>
@@ -171,7 +171,7 @@ export function ProSidebar({
                       <Link
                         href="/pro/salons/nouveau"
                         onClick={() => setMenuOpen(false)}
-                        className="block px-s py-s text-sm text-textPrimary underline hover:bg-surfaceVariant"
+                        className="block px-s py-s text-bodyMedium text-textPrimary underline hover:bg-surfaceVariant"
                       >
                         Ajouter un salon
                       </Link>
@@ -180,7 +180,7 @@ export function ProSidebar({
                 </div>
               ) : null}
               {switchError ? (
-                <p className="mt-xs text-xs text-error">
+                <p className="mt-xs text-bodySmall text-error">
                   Changement impossible — votre accès à ce salon a peut-être
                   été retiré.
                 </p>
@@ -195,7 +195,7 @@ export function ProSidebar({
                   key={item.label}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`block rounded-lg px-s py-s text-sm hover:bg-surfaceVariant ${
+                  className={`block rounded-lg px-s py-s text-bodyMedium hover:bg-surfaceVariant ${
                     active
                       ? 'bg-surfaceVariant font-medium text-textPrimary'
                       : 'text-textPrimary'
@@ -209,7 +209,7 @@ export function ProSidebar({
           {membership && role && role !== 'owner' ? (
             <div className="mt-l space-y-xs rounded-lg border border-border bg-surface p-s">
               {email ? (
-                <p className="break-all text-xs text-textSecondary">{email}</p>
+                <p className="break-all text-bodySmall text-textSecondary">{email}</p>
               ) : null}
               <TeamRoleChip role={role as TeamRole} />
             </div>

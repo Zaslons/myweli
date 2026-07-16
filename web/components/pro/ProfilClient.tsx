@@ -30,7 +30,7 @@ const LocationPicker = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-surfaceVariant md:h-80">
-        <p className="text-sm text-textSecondary">Chargement de la carte…</p>
+        <p className="text-bodyMedium text-textSecondary">Chargement de la carte…</p>
       </div>
     ),
   },
@@ -94,15 +94,15 @@ export function ProfilClient() {
   if (profile && membership && !hasCap(membership, 'profile.manage')) {
     return (
       <div className="max-w-xl">
-        <h1 className="text-2xl font-semibold text-textPrimary">Profil</h1>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
         <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
           {profile.account.email ? (
-            <p className="break-all text-sm text-textPrimary">
+            <p className="break-all text-bodyMedium text-textPrimary">
               {profile.account.email}
             </p>
           ) : null}
           <TeamRoleChip role={membership.role} />
-          <p className="text-sm text-textSecondary">
+          <p className="text-bodyMedium text-textSecondary">
             Salon : {profile.provider.name}
           </p>
         </section>
@@ -138,7 +138,7 @@ export function ProfilClient() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Profil</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
 
       <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
         <Field label="Nom du salon">
@@ -217,9 +217,9 @@ export function ProfilClient() {
           />
         </Field>
 
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
         {saved ? (
-          <p className="text-sm text-textSecondary">Profil enregistré.</p>
+          <p className="text-bodyMedium text-textSecondary">Profil enregistré.</p>
         ) : null}
         <div className="pt-s">
           <Button disabled={busy} onClick={save}>
@@ -261,7 +261,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className={`block text-sm text-textTertiary ${className}`}>
+    <label className={`block text-bodyMedium text-textTertiary ${className}`}>
       {label}
       {children}
     </label>
@@ -284,7 +284,7 @@ function SectionLink({
     >
       <span>{label}</span>
       <span className="text-textTertiary">
-        {hint ? <span className="mr-s text-sm">{hint}</span> : null}›
+        {hint ? <span className="mr-s text-bodyMedium">{hint}</span> : null}›
       </span>
     </Link>
   );

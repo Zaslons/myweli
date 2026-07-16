@@ -9,8 +9,12 @@ export function Button({
   className = '',
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+  // labelLarge, not bodyMedium: §4 gives labelLarge (14/20, 500) as "Button
+  // labels" — same size and line as bodyMedium, tighter tracking (0.1 vs 0.25).
+  // The `font-medium` below is the role signal, and it is split across the two
+  // concatenated literals, so a line-wise migration reads this as unweighted.
   const base =
-    'inline-flex items-center justify-center rounded-lg px-l py-s text-sm ' +
+    'inline-flex items-center justify-center rounded-lg px-l py-s text-labelLarge ' +
     'font-medium transition-colors disabled:opacity-50';
   const styles =
     variant === 'primary'

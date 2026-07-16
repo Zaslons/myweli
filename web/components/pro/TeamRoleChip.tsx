@@ -15,7 +15,7 @@ export function TeamRoleChip({ role }: { role: TeamRole }) {
       // ds-ignore: 2px chip padding; below the 4px grid floor. Hand to B6's shared <Chip>
       // rather than redesign the chip here.
       // eslint-disable-next-line tailwindcss/no-arbitrary-value
-      className={`inline-flex items-center rounded-pill px-s py-[2px] text-xs font-medium ${styles[role]}`}
+      className={`inline-flex items-center rounded-pill px-s py-[2px] text-labelMedium font-medium ${styles[role]}`}
     >
       {ROLE_LABELS[role]}
     </span>

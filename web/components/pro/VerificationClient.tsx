@@ -144,14 +144,14 @@ export function VerificationClient() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Vérification</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Vérification</h1>
 
       <div className={`mt-l rounded-xl border p-m ${banner.cls}`}>
         <p className="font-medium">{banner.title}</p>
-        <p className="mt-xs text-sm">{banner.subtitle}</p>
+        <p className="mt-xs text-bodyMedium">{banner.subtitle}</p>
       </div>
 
-      <p className="mt-l text-xs font-medium uppercase tracking-wide text-textTertiary">
+      <p className="mt-l text-labelMedium font-medium uppercase text-textTertiary">
         Documents
       </p>
       <ul className="mt-xs space-y-s">
@@ -165,12 +165,12 @@ export function VerificationClient() {
               className="flex items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
             >
               <div className="min-w-0">
-                <p className="text-sm text-textPrimary">
+                <p className="text-bodyMedium text-textPrimary">
                   {label}
                   {required ? '' : ' (optionnel)'}
                 </p>
                 <p
-                  className={`mt-xs truncate text-xs ${
+                  className={`mt-xs truncate text-bodySmall ${
                     doc ? 'text-success' : 'text-textTertiary'
                   }`}
                 >
@@ -183,7 +183,7 @@ export function VerificationClient() {
                     <button
                       type="button"
                       aria-label={`Retirer ${label}`}
-                      className="text-sm text-textTertiary underline"
+                      className="text-bodyMedium text-textTertiary underline"
                       onClick={() =>
                         setDocs((prev) => prev.filter((d) => d.type !== type))
                       }
@@ -215,12 +215,12 @@ export function VerificationClient() {
         })}
       </ul>
       {uploadError ? (
-        <p className="mt-s text-sm text-error">
+        <p className="mt-s text-bodyMedium text-error">
           Échec de l’envoi du document. Réessayez.
         </p>
       ) : null}
 
-      <p className="mt-m text-xs text-textTertiary">
+      <p className="mt-m text-bodySmall text-textTertiary">
         Les acomptes sont activés une fois votre compte vérifié. Vos documents
         sont chiffrés et confidentiels.
       </p>
@@ -231,7 +231,7 @@ export function VerificationClient() {
             {submitting ? 'Envoi…' : 'Soumettre pour vérification'}
           </Button>
           {!canSubmit && !submitting && uploadingType == null ? (
-            <p className="mt-xs text-xs text-textTertiary">
+            <p className="mt-xs text-bodySmall text-textTertiary">
               Ajoutez les documents requis pour soumettre.
             </p>
           ) : null}
@@ -239,7 +239,7 @@ export function VerificationClient() {
       ) : null}
 
       {toast ? (
-        <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
           {toast}
         </div>
       ) : null}

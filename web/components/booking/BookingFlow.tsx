@@ -264,7 +264,7 @@ export function BookingFlow({
     const deposit = created?.depositAmount ?? 0;
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-xl font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Réservation envoyée ✓
         </h2>
         <p className="mt-s text-textSecondary">
@@ -293,8 +293,8 @@ export function BookingFlow({
   if (s.phase === 'confirm') {
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-xl font-semibold text-textPrimary">Confirmation</h2>
-        <dl className="mt-m space-y-xs text-sm">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Confirmation</h2>
+        <dl className="mt-m space-y-xs text-bodyMedium">
           <Recap label="Salon" value={provider.name} />
           <Recap
             label="Prestations"
@@ -322,7 +322,7 @@ export function BookingFlow({
               date={s.slot}
               tz={provider.timezone}
               countryLabel={countryLabel}
-              className="text-xs text-textTertiary"
+              className="text-bodySmall text-textTertiary"
             />
           ) : null}
           <Recap label="Total" value={totalLabel(provider, s.serviceIds)} />
@@ -338,10 +338,10 @@ export function BookingFlow({
         </dl>
 
         {me === undefined ? (
-          <p className="mt-m text-sm text-textSecondary">Chargement…</p>
+          <p className="mt-m text-bodyMedium text-textSecondary">Chargement…</p>
         ) : me === null ? (
           <div className="mt-m">
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               Connectez-vous pour confirmer votre réservation.
             </p>
             <div className="mt-s">
@@ -352,14 +352,14 @@ export function BookingFlow({
           </div>
         ) : (
           <div className="mt-m flex flex-col gap-s">
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               Numéro pour que le salon vous contacte :
             </p>
             <PhoneField
               onChange={setPhone}
               initialValue={me.phoneNumber ?? undefined}
             />
-            <label className="mt-s block text-sm text-textSecondary">
+            <label className="mt-s block text-bodyMedium text-textSecondary">
               Notes (optionnel)
               <textarea
                 value={notes}
@@ -367,7 +367,7 @@ export function BookingFlow({
                 rows={3}
                 maxLength={500}
                 placeholder="Précisions pour le salon (allergies, préférences…)"
-                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
               />
             </label>
             <Button
@@ -378,7 +378,7 @@ export function BookingFlow({
             </Button>
           </div>
         )}
-        {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+        {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
         <div className="mt-l">
           <Button
             variant="secondary"
@@ -418,7 +418,7 @@ export function BookingFlow({
           onHeaderTap={() => onOpenSection('services')}
         >
           {services.length === 0 ? (
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               Aucun service disponible
             </p>
           ) : (
@@ -435,7 +435,7 @@ export function BookingFlow({
                     <label className="flex cursor-pointer items-center justify-between gap-m py-s">
                       <span>
                         <span className="text-textPrimary">{svc.name}</span>
-                        <span className="block text-sm text-textTertiary">
+                        <span className="block text-bodyMedium text-textTertiary">
                           {hasVariants
                             ? `${priceRange(svc.price, svc.priceMax, currency)} · durée selon la longueur`
                             : `${formatDuration(svc.durationMinutes)} · ${priceRange(svc.price, svc.priceMax, currency)}`}
@@ -454,7 +454,7 @@ export function BookingFlow({
           )}
           {bookingHasVariants(selection) ? (
             <div className="mt-m">
-              <p className="text-sm text-textSecondary">Longueur de cheveux :</p>
+              <p className="text-bodyMedium text-textSecondary">Longueur de cheveux :</p>
               <div
                 role="group"
                 aria-label="Longueur de cheveux"
@@ -466,7 +466,7 @@ export function BookingFlow({
                     type="button"
                     onClick={() => onVariant(k)}
                     aria-pressed={s.lengthVariant === k}
-                    className={`rounded-pill border px-m py-xs text-sm ${
+                    className={`rounded-pill border px-m py-xs text-bodyMedium ${
                       s.lengthVariant === k
                         ? 'border-primary bg-primary text-secondary'
                         : 'border-border bg-surface text-textPrimary'
@@ -494,7 +494,7 @@ export function BookingFlow({
           onHeaderTap={() => onOpenSection('artist')}
         >
           {!hasArtists ? (
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               Aucun spécialiste à sélectionner
             </p>
           ) : (
@@ -508,7 +508,7 @@ export function BookingFlow({
                 />
                 <span>
                   <span className="text-textPrimary">Pas de préférence</span>
-                  <span className="block text-sm text-textTertiary">
+                  <span className="block text-bodyMedium text-textTertiary">
                     Le salon choisit pour vous
                   </span>
                 </span>
@@ -533,7 +533,7 @@ export function BookingFlow({
                     />
                     <span>
                       <span className="text-textPrimary">{a.name}</span>
-                      <span className="block text-sm text-textTertiary">
+                      <span className="block text-bodyMedium text-textTertiary">
                         {a.specialization ?? 'Spécialiste'}
                       </span>
                     </span>
@@ -574,7 +574,7 @@ export function BookingFlow({
                   key={iso}
                   type="button"
                   onClick={() => onPickSlot(iso)}
-                  className={`rounded-pill border px-m py-xs text-sm ${
+                  className={`rounded-pill border px-m py-xs text-bodyMedium ${
                     s.slot === iso
                       ? 'border-primary bg-primary text-secondary'
                       : 'border-border bg-surface text-textPrimary'
@@ -589,7 +589,7 @@ export function BookingFlow({
           s.artistChosen &&
           s.serviceIds.length > 0 &&
           s.slot ? (
-            <p className="mt-s text-sm text-textSecondary">
+            <p className="mt-s text-bodyMedium text-textSecondary">
               Prochain créneau : {formatDateFr(s.slot, tz)} ·{' '}
               {slotTime(s.slot, tz)}
             </p>
@@ -607,17 +607,17 @@ export function BookingFlow({
       <aside className="hidden rounded-xl border border-border bg-secondary p-m lg:sticky lg:top-24 lg:block">
         <div className="flex items-center justify-between gap-m">
           <span className="font-semibold text-textPrimary">Total</span>
-          <span className="text-lg font-semibold text-primary">
+          <span className="text-titleLarge font-semibold text-primary">
             {totalLabel(provider, s.serviceIds)}
           </span>
         </div>
         {duration > 0 ? (
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Durée : {formatDuration(duration)}
           </p>
         ) : null}
         {!s.artistChosen && hasArtists ? (
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Spécialiste optionnel (vous pouvez laisser « Pas de préférence »)
           </p>
         ) : null}
@@ -640,7 +640,7 @@ export function BookingFlow({
               {totalLabel(provider, s.serviceIds)}
             </p>
             {duration > 0 ? (
-              <p className="text-xs text-textSecondary">
+              <p className="text-bodySmall text-textSecondary">
                 Durée : {formatDuration(duration)}
               </p>
             ) : null}
@@ -683,7 +683,7 @@ function SectionCard({
         className="flex w-full items-center justify-between gap-m text-left"
       >
         <span className="font-semibold text-textPrimary">{title}</span>
-        <span className="text-sm text-textSecondary">{value}</span>
+        <span className="text-bodyMedium text-textSecondary">{value}</span>
       </button>
       {expanded ? <div className="mt-m">{children}</div> : null}
     </section>

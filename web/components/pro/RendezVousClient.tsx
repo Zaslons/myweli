@@ -110,7 +110,7 @@ export function RendezVousClient() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-s">
-        <h1 className="text-2xl font-semibold text-textPrimary">
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
           {canManageAll
             ? 'Rendez-vous'
             : `${profile?.provider.name ?? ''} — votre planning`}
@@ -119,7 +119,7 @@ export function RendezVousClient() {
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="rounded-lg bg-primary px-m py-s text-sm font-medium text-secondary hover:bg-primaryHover"
+            className="rounded-lg bg-primary px-m py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
           >
             + Nouveau rendez-vous
           </button>
@@ -132,7 +132,7 @@ export function RendezVousClient() {
             key={v}
             type="button"
             onClick={() => setView(v)}
-            className={`px-m py-s text-sm ${
+            className={`px-m py-s text-bodyMedium ${
               view === v
                 ? 'border-b-2 border-primary text-textPrimary'
                 : 'text-textTertiary'
@@ -169,7 +169,7 @@ export function RendezVousClient() {
                 value={journalDate}
                 onChange={(e) => setJournalDate(e.target.value)}
                 aria-label="Date"
-                className="rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary"
+                className="rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textPrimary"
               />
               <button
                 type="button"
@@ -188,13 +188,13 @@ export function RendezVousClient() {
               </button>
               <button
                 type="button"
-                className="text-sm text-textTertiary underline"
+                className="text-bodyMedium text-textTertiary underline"
                 onClick={() => setJournalDate(dateKey(new Date(), tz))}
               >
                 Aujourd’hui
               </button>
             </div>
-            <label className="flex items-center gap-xs text-sm text-textSecondary">
+            <label className="flex items-center gap-xs text-bodyMedium text-textSecondary">
               <input
                 type="checkbox"
                 checked={showCancelled}
@@ -234,7 +234,7 @@ export function RendezVousClient() {
             tz={tz}
           />
           <div>
-            <p className="text-sm text-textTertiary">
+            <p className="text-bodyMedium text-textTertiary">
               pour {dayLabel(selected, tz)}
             </p>
             <div className="mt-s space-y-s">
@@ -265,7 +265,7 @@ export function RendezVousClient() {
                 key={t.key}
                 type="button"
                 onClick={() => setListTab(t.key)}
-                className={`px-m py-s text-sm ${
+                className={`px-m py-s text-bodyMedium ${
                   listTab === t.key
                     ? 'border-b-2 border-primary text-textPrimary'
                     : 'text-textTertiary'
@@ -312,7 +312,7 @@ export function RendezVousClient() {
         />
       ) : null}
       {toast ? (
-        <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
           {toast}
         </div>
       ) : null}

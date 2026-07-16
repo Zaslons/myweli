@@ -107,7 +107,7 @@ export function ClientsClient() {
   return (
     <div>
       <div className="flex items-center justify-between gap-m">
-        <h1 className="text-2xl font-semibold text-textPrimary">Clients</h1>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">Clients</h1>
         <Button onClick={() => setAdding(true)}>+ Ajouter un client</Button>
       </div>
 
@@ -117,7 +117,7 @@ export function ClientsClient() {
         onChange={(e) => search(e.target.value)}
         placeholder="Nom ou téléphone…"
         aria-label="Rechercher un client"
-        className="mt-m w-full max-w-md rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+        className="mt-m w-full max-w-md rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
       />
 
       <div className="mt-s flex flex-wrap gap-xs">
@@ -126,7 +126,7 @@ export function ClientsClient() {
             key={t}
             type="button"
             onClick={() => filterTag(t)}
-            className={`rounded-pill border px-s py-xs text-xs ${
+            className={`rounded-pill border px-s py-xs text-bodySmall ${
               tag === t
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textSecondary'
@@ -143,7 +143,7 @@ export function ClientsClient() {
             Vos clients apparaîtront ici automatiquement après leur première
             réservation.
           </p>
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Vous pouvez aussi les ajouter vous-même, un par un.
           </p>
         </div>
@@ -160,7 +160,7 @@ export function ClientsClient() {
                   href={`/pro/clients/${c.id}`}
                   className="flex items-center gap-m p-m hover:bg-surface"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-surface text-sm font-medium text-textPrimary">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-surface text-labelLarge font-medium text-textPrimary">
                     {c.displayName.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -170,20 +170,14 @@ export function ClientsClient() {
                       </span>
                       {c.linked ? (
                         <span
-                          // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also
-                          // BELOW WEB-SYSTEM §3's 11px floor (§15 row 20).
-                          // eslint-disable-next-line tailwindcss/no-arbitrary-value
-                          className="rounded-pill bg-surface px-xs text-[10px] uppercase text-textTertiary"
+                          className="rounded-pill bg-surface px-xs text-labelSmall uppercase text-textTertiary"
                         >
                           MyWeli
                         </span>
                       ) : null}
                       {noShowBadge(c.noShows) !== 'none' ? (
                         <span
-                          // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also
-                          // BELOW WEB-SYSTEM §3's 11px floor (§15 row 20).
-                          // eslint-disable-next-line tailwindcss/no-arbitrary-value
-                          className={`rounded-pill px-xs text-[10px] ${
+                          className={`rounded-pill px-xs text-labelSmall ${
                             noShowBadge(c.noShows) === 'red'
                               ? 'bg-error/10 text-error'
                               : 'bg-surface text-textSecondary'
@@ -193,7 +187,7 @@ export function ClientsClient() {
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-xs block text-xs text-textSecondary">
+                    <span className="mt-xs block text-bodySmall text-textSecondary">
                       {maskPhone(c.phone)}
                       {c.visits > 0
                         ? ` · ${c.visits} visite${c.visits > 1 ? 's' : ''}`
@@ -207,10 +201,7 @@ export function ClientsClient() {
                     {c.tags.map((t) => (
                       <span
                         key={t}
-                        // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also
-                        // BELOW WEB-SYSTEM §3's 11px floor (§15 row 20).
-                        // eslint-disable-next-line tailwindcss/no-arbitrary-value
-                        className="rounded-pill border border-border px-xs text-[10px] text-textSecondary"
+                        className="rounded-pill border border-border px-xs text-labelSmall text-textSecondary"
                       >
                         {t}
                       </span>
@@ -295,38 +286,38 @@ function AddClientModal({
       className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
     >
       <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Ajouter un client
         </h2>
-        <label className="mt-m block text-sm text-textSecondary">
+        <label className="mt-m block text-bodyMedium text-textSecondary">
           Nom
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
           />
         </label>
-        <label className="mt-m block text-sm text-textSecondary">
+        <label className="mt-m block text-bodyMedium text-textSecondary">
           Téléphone
           <input
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="+225 07 00 00 00 00"
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
           />
         </label>
-        <label className="mt-m block text-sm text-textSecondary">
+        <label className="mt-m block text-bodyMedium text-textSecondary">
           Note (optionnelle)
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}
             rows={2}
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
           />
         </label>
-        {message ? <p className="mt-s text-sm text-error">{message}</p> : null}
+        {message ? <p className="mt-s text-bodyMedium text-error">{message}</p> : null}
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler

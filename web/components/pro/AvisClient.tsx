@@ -84,12 +84,12 @@ export function AvisClient() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Avis</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Avis</h1>
 
       {items.length === 0 ? (
         <div className="mt-l rounded-xl border border-border bg-secondary p-xl text-center">
-          <p className="text-lg font-medium text-textSecondary">Aucun avis</p>
-          <p className="mt-xs text-sm text-textTertiary">
+          <p className="text-titleLarge font-medium text-textSecondary">Aucun avis</p>
+          <p className="mt-xs text-bodyMedium text-textTertiary">
             Les avis de vos clients apparaîtront ici
           </p>
         </div>
@@ -98,17 +98,17 @@ export function AvisClient() {
           {/* Summary card — the app's average + 5→1 distribution */}
           <section className="mt-l flex flex-wrap items-center gap-l rounded-xl border border-border bg-secondary p-l">
             <div>
-              <p className="text-3xl font-semibold text-textPrimary">
+              <p className="text-headlineMedium font-semibold text-textPrimary">
                 ★ {stats.average.toFixed(1)}
               </p>
-              <p className="mt-xs text-sm text-textSecondary">
+              <p className="mt-xs text-bodyMedium text-textSecondary">
                 {total} avis
               </p>
             </div>
             <dl className="min-w-56 flex-1">
               {stats.distribution.map((d) => (
                 <div key={d.rating} className="flex items-center gap-s py-xs">
-                  <dt className="w-8 shrink-0 text-sm text-textSecondary">
+                  <dt className="w-8 shrink-0 text-bodyMedium text-textSecondary">
                     {d.rating} ★
                   </dt>
                   <dd className="flex flex-1 items-center gap-s">
@@ -125,7 +125,7 @@ export function AvisClient() {
                         style={{ width: `${d.pct}%` }}
                       />
                     </div>
-                    <span className="w-6 shrink-0 text-right text-sm text-textSecondary">
+                    <span className="w-6 shrink-0 text-right text-bodyMedium text-textSecondary">
                       {d.count}
                     </span>
                   </dd>
@@ -151,7 +151,7 @@ export function AvisClient() {
                         {r.userName}
                       </p>
                       <p
-                        className="text-sm text-primary"
+                        className="text-bodyMedium text-primary"
                         aria-label={`${r.rating} étoiles sur 5`}
                       >
                         {'★'.repeat(Math.round(r.rating))}
@@ -160,13 +160,13 @@ export function AvisClient() {
                         </span>
                       </p>
                     </div>
-                    <p className="mt-xs text-xs text-textTertiary">
+                    <p className="mt-xs text-bodySmall text-textTertiary">
                       {formatDateFr(r.createdAt, salonTz)}
                       {r.serviceName ? ` · ${r.serviceName}` : ''}
                       {r.artistName ? ` · avec ${r.artistName}` : ''}
                     </p>
                     {r.text ? (
-                      <p className="mt-s text-sm text-textSecondary">{r.text}</p>
+                      <p className="mt-s text-bodyMedium text-textSecondary">{r.text}</p>
                     ) : null}
                     {(r.photoUrls ?? []).length > 0 ? (
                       <div className="mt-s flex flex-wrap gap-s">

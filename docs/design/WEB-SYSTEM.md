@@ -51,7 +51,7 @@ mapping:
 | **`borderFocus`** `#000000` | `outline-borderFocus` | The focus ring (§5) |
 | semantic | `text-success` `bg-error` … | Status only |
 | **`gold`** `#B8860B` | `border-gold` `bg-gold/15` | Non-text accent. **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
-| spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px` | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. |
+| spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px** | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. |
 | radius | `rounded-lg` … + **`rounded-pill`** | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
 | z-index | `z-sticky` `z-modal` … | The layer, **named** — never a number (§9). |
 | motion | `duration-base` … | SYSTEM.md §9's scale. `transitionDuration.DEFAULT` **must** stay defined: every bare `transition`/`transition-colors` reads it, so dropping it makes them all instant — silently. |
@@ -142,20 +142,64 @@ Hence `tests/tokens.theme-pin.test.ts` — a source sweep, the mirror of mobile'
 Same scale as the apps ([SYSTEM.md §4](SYSTEM.md#4-type)), mapped to **semantic**
 Tailwind names so the class says what the text *is*, not how big it happens to be:
 
-| Utility | Size | Maps to |
-|---|---|---|
-| `text-labelSmall` | 11px | The floor. Badges, nav labels. |
-| `text-bodySmall` / `text-labelMedium` | 12px | Captions, chips |
-| `text-bodyMedium` | 14px | Secondary text |
-| `text-bodyLarge` | 16px | **Reading text** |
-| `text-titleLarge` … `text-headlineLarge` | 22 → 32px | Headings |
+The whole scale is live (B2b) — `fontSize` is **closed**, so `text-sm` does not
+exist. Each token carries **size + line-height + tracking**; the *weight* is the one
+thing it does not carry (see below), so it stays on the element as `font-*`.
 
-⚠️ **The web is systematically one step smaller than the app.** `text-sm` (14px) is
-**380 of 554** type usages (69%) and `text-base` (16px) is used **once**. The app's
-reading size is 16px; the web's is 14px. This is a real product inconsistency, but
-fixing it moves nearly every page — so the **rename is zero-pixel** (the semantic
-names above map to today's values) and the 14 → 16 body-text migration is a
-separate, deliberate slice (**B8**, not yet committed).
+| Utility | Size / line | Weight to pair | Was |
+|---|---|---|---|
+| `text-labelSmall` | 11 / 16 | 500 | `text-[10px]` ×4 (**illegal — under the floor**) + `text-[11px]` |
+| `text-bodySmall` | 12 / 16 | 400 | `text-xs` ×82 |
+| `text-labelMedium` | 12 / 16 | 500 | `text-xs font-medium` ×8 |
+| `text-bodyMedium` | 14 / 20 | 400 | `text-sm` ×355 — the workhorse |
+| `text-labelLarge` / `text-titleSmall` | 14 / 20 | 500 | `text-sm font-medium` ×25. Pixel-identical to each other; the name is the role |
+| `text-bodyLarge` / `text-titleMedium` | 16 / 24 | 400 / 500 | `text-base` ×1 |
+| `text-titleLarge` | 22 / 28 | 600 | **`text-lg` ×33 (18px) + `text-xl` ×18 (20px)** |
+| `text-headlineSmall` | 24 / 32 | 600 | `text-2xl` ×27 |
+| `text-headlineMedium` | 28 / 36 | 600 | `text-3xl` ×5 (30px) |
+| `text-headlineLarge` | 32 / 40 | 600 | `text-4xl` ×1 (36px) |
+
+**Not a zero-pixel rename — this is what B2b actually did.** The register said it
+would be; measuring said otherwise, and the difference matters because "zero-pixel"
+is the sentence a reader uses to skip visual review:
+
+- **498 of 555 (90%) are exact** — 12/16, 14/20, 16/24, 24/32 reproduce size *and*
+  line-height.
+- **57 move the glyph.** Tailwind's 18/20/30/36 steps have no counterpart in a
+  Material 11/12/14/16/22/24/28/32 scale, which is precisely *why* the same role had
+  drifted: of 42 `<h2>` on main, **23 were 18px, 15 were 20px and 4 had no size at
+  all** — three outcomes for one role. Snapping by §4's own names (`titleLarge` =
+  "card/section heading") is what makes that impossible again.
+- **Line-heights hold — with exactly 2 carve-outs**, both measured in a browser, both
+  caused by the same subtlety: `leading-*` is a **unitless multiplier**, so it does
+  not pin a px value, it *transmits* the size change.
+  - `ProviderCard`'s ♥ (`leading-none`): 18 → 22px line, +4px box.
+  - `ClientCardClient`'s MyWeli badge: it had no line-height of its own (an
+    arbitrary `text-[10px]` emits font-size only) and **inherited its `<h1>`'s
+    absolute 28px**; `labelSmall` gives it 16px, so the pill shrinks 28 → 16px.
+    That is a fix — it was a huge pill around a 10px word — but it is visible.
+- **Tracking arrives on 476 of the 560.** The other **84 are the headings**
+  (`titleLarge` ×51, `headlineSmall` ×27, `headlineMedium` ×5, `headlineLarge` ×1),
+  whose tracking is **0 by design** in §4. The web had none anywhere; the app has had
+  it all along.
+- **Two sites are a role the scale does not have.** `Lightbox`'s ✕ and
+  `ProviderCard`'s ♥ are interactive **icon glyphs**, and they took `titleLarge`
+  ("card/section heading") purely because 18px has no token. The web has no icon-size
+  scale — SYSTEM.md §7 defines one for the apps, and the web's sizing lands with
+  **B2c** (row 6b). Until then the class names those two elements wrongly.
+
+**Weight is not in the token, deliberately** — the single place the web mirror
+diverges from Flutter's atomic `TextStyle`, so B3's generator must encode it. Tailwind
+emits fontSize (118) before fontWeight (119), so a baked weight is only a default that
+any `font-*` beats — but it would still silently override *inheritance* (the MyWeli
+badge inherits 600 from its `<h1 font-semibold>`; a baked 500 would quietly undo it),
+and it buys nothing while `fontWeight` itself stays an open key. Omitting it means B2b
+changed **zero** weights.
+
+⚠️ **The web is still one step smaller than the app.** `text-bodyMedium` (14px) is
+**356 of 555** usages and `bodyLarge` (16px) is used **once**; the app reads at 16px.
+That inconsistency survives B2b untouched — the 14 → 16 migration is **B8** (row 17),
+still uncommitted.
 
 ## 4. Semantic HTML
 
@@ -389,10 +433,12 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 3 | Control borders ≥ 3:1 | ~~186~~ → the shared Button + the salon-switcher **done**; the ~20 hand-classed form inputs pending | `borderStrong` (3.22:1) is now the token; the central controls use it. The web has **no shared input theme**, so the ad-hoc inputs' outlines land with **B4**'s `<TextField>` (which bakes in `borderStrong`) rather than being hand-edited then rebuilt | **B1 → B4** |
 | 4 | Token exists ⇒ no substitution | ~~1~~ → **0** | `gold #B8860B` is exported; `TeamRoleChip` uses it. A test grep-pin fails if any `bg-/border-starRating` returns | ✅ **B1** |
 | 5 | Splash matches the app | ~~1~~ → **0** | `manifest.ts` `background_color` → `#F6F7F9` (no more black flash); `theme_color` stays brand black | ✅ **B1** |
-| 6 | Closed theme (§2) | open → **closed, except sizing** | `colors` · `borderRadius` · `spacing`(rhythm) · `zIndex` · `screens` · `transitionDuration` are now `theme`, not `theme.extend`: a non-token utility **does not exist**. Held by `no-custom-classname` (**0**) + `tokens.theme-pin.test.ts`, because Tailwind emits *nothing* for an unknown utility — a dead class ships as an unstyled element and no build, typecheck or test can see it. Proven by diffing the emitted CSS: 298 → 287 selectors, every one of the 11 deliberate. **`fontSize` → B2b** (555 of 767 usages; needs §3's scale in `tokens.ts`). **Sizing → B2c** (row 6b) | ✅ **B2a** |
+| 6 | Closed theme (§2) | open → **closed, except sizing** | `colors` · `borderRadius` · `spacing`(rhythm) · `zIndex` · `screens` · `transitionDuration` are now `theme`, not `theme.extend`: a non-token utility **does not exist**. Held by `no-custom-classname` (**0**) + `tokens.theme-pin.test.ts`, because Tailwind emits *nothing* for an unknown utility — a dead class ships as an unstyled element and no build, typecheck or test can see it. Proven by diffing the emitted CSS: 298 → 287 selectors, every one of the 11 deliberate. **`fontSize` closed in B2b** — the 15-style scale now lives in `tokens.ts`, mirrored from `text_styles.dart` (the code) rather than §4's table (the doc, which omitted tracking). **Sizing → B2c** (row 6b) | ✅ **B2a + B2b** |
 | 6b | A sizing scale (§2, §9) | **none** | Tailwind's `spacing` key also feeds `w-`/`h-`/`min-*`/`max-h`/`inset`/`translate`. 23 layout dimensions (96→320px) have no legal token *and shouldn't* — the web has no sizing scale (SYSTEM.md §7 is icons only). Measured set: 20/24/32/40/48/56/64/96/112/128/160/176/224/240/256/320 | *B2c* |
-| 7 | No arbitrary values (§2) | ~~`z-[5]` `z-[6]` `z-[7]` `z-[1100]` `py-[2px]`~~ → **0 undeclared** | `no-arbitrary-value` is an **error**. Every arbitrary `z-` is gone: `z-[5/6/7]` were never isolated (no stacking context in the chain) so the JournalGrid column is now ordered bottom-to-top in the **DOM** and needs no z at all; `z-[1100]` was cargo cult (maplibre's own vocabulary is 1/2) → `z-sticky`. **17 declared exceptions** remain, each with a `ds-ignore:` reason the pin test enforces — 12 genuine one-offs (a `calc()`, two grid templates, a gradient, the switch's exact 44−20−2 travel…) and 5 that clear with **B2b** | ✅ **B2a** |
-| 7b | Type below the §3 floor | **4** | `text-[10px]` (`ClientsClient` ×3, `ClientCardClient`) is **under §3's 11px floor** — a real §3 violation the audit never counted, found by doing B2a | *B2b* |
+| 7 | No arbitrary values (§2) | ~~`z-[5]` `z-[6]` `z-[7]` `z-[1100]` `py-[2px]`~~ → **0 undeclared** | `no-arbitrary-value` is an **error**. Every arbitrary `z-` is gone: `z-[5/6/7]` were never isolated (no stacking context in the chain) so the JournalGrid column is now ordered bottom-to-top in the **DOM** and needs no z at all; `z-[1100]` was cargo cult (maplibre's own vocabulary is 1/2) → `z-sticky`. **14 declared exceptions** remain (B2a left 18; B2b cleared the 4 type ones — `JournalGrid`'s survives for its `py-[2px]`), each with a `ds-ignore:` reason the pin test enforces: a `calc()`, two grid templates, a gradient, the switch's exact 44−20−2 travel, the 2px chip paddings… | ✅ **B2a** |
+| 7b | Type below the §3 floor | ~~4~~ → **0** | the 4 `text-[10px]` are `text-labelSmall` (11px). Not a rename — §4 is explicit ("there is no 10px token and there will not be one"), so this is a redesign: +1px, and the badges gain the line-height an arbitrary size never emitted. `ClientCardClient`'s inherited its `<h1>`'s 28px line and is now a 16px box — smaller, and correct | ✅ **B2b** |
+| 7c | **The pin was blind** | ~~2 files~~ → **0** | B2a's `stripComments` read the `/*` in `accept="image/*"` as a block comment with no close, so the pin saw **nothing** from that line to EOF in `MediasClient` + `DepositProof` — hiding 6 real type usages. It shipped that way. Replaced with a **TypeScript AST walk**: comment-immune by construction rather than by regex, and it reaches the 4 bare-`const`/default-param strings ESLint cannot see | ✅ **B2b** |
+| 7d | **The pin had no positive rule** | ~~1~~ → **0** | every rule was a prohibition, and during B2b's own migration window — classes renamed, config not yet wired — all 555 emitted **nothing**, the site rendered at browser-default 16px, and the pin passed **green**, because the old tokens it bans were gone. "No forbidden classes" ≠ "the classes we use exist". A `resolveConfig` assertion now makes the second claim | ✅ **B2b** |
 | 8 | **Visible focus (§5)** | **`focus-visible:` = 0** across **178 buttons + 93 controls** | | **B4** |
 | 9 | Labelled inputs (§6) | `htmlFor` = **0**, `id` = **0** (93 controls) | ≥6 placeholder-only inputs **in the login funnels** | **B4** |
 | 10 | Errors tied to fields (§6) | `aria-invalid` = **0**, `aria-describedby` = **0** | no error in the app is announced | **B4** |
@@ -402,7 +448,9 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 14 | Heading order (§4) | 1 | `/recherche` **h1 → h3** (`ProviderCard.tsx:23`) | **B5** |
 | 15 | axe on real routes (§14) | none | Lighthouse: 1 URL, `warn`, `continue-on-error` | **B5** |
 | 16 | Shared primitives (§10) | library = **1** | 35 inline "Chargement", 6 modals, 5 toasts, 7 inputs | *B6* |
-| 17 | Reading text = 16px (§3) | 380 × `text-sm` | `text-base` used **once** | *B8* |
+| 7e | Icons borrow a type role | **2** | `Lightbox`'s ✕ and `ProviderCard`'s ♥ are interactive glyphs wearing `titleLarge` ("card/section heading") — they took it because 18px has no token and the web has no icon-size scale (SYSTEM.md §7 has one for the apps). The class names them wrongly, and the ♥ grew 18 → 22px | *B2c* |
+| 7f | `<h2>` with no type token | **4** | `ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient` carry no size class, so they inherit while their 38 peers are `titleLarge`. Pre-existing — B2b had no `text-*` there to migrate — but it widens the gap to 8px | *B5* |
+| 17 | Reading text = 16px (§3) | **356 × `text-bodyMedium`** | `bodyLarge` (16px) used **once**. B2b renamed the workhorse but did not resize it — the web still reads one step smaller than the app | *B8* |
 | 18 | Desktop-grade pro dashboard (§9) | `xl:`/`2xl:` = **0** | a stretched phone column | *B7* |
 | 19 | Token generator (Flutter → `tokens.ts`) | hand-mirrored | already drifted once (row 4) | *B3* |
 

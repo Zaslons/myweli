@@ -29,10 +29,10 @@ export function ReviewList({
   if (reviewCount === 0) return null;
   return (
     <section className="px-m py-l">
-      <h2 className="text-xl font-semibold text-textPrimary">
+      <h2 className="text-titleLarge font-semibold text-textPrimary">
         Avis ({reviewCount})
       </h2>
-      <p className="mt-xs text-sm text-textSecondary">
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         ★ {rating.toFixed(1)} sur 5
       </p>
       <ul className="mt-m space-y-m">
@@ -40,10 +40,10 @@ export function ReviewList({
           <li key={r.id} className="rounded-lg bg-secondary p-m">
             <div className="flex justify-between">
               <span className="font-medium text-textPrimary">{r.userName}</span>
-              <span className="text-sm text-textTertiary">★ {r.rating}</span>
+              <span className="text-bodyMedium text-textTertiary">★ {r.rating}</span>
             </div>
             {r.text ? (
-              <p className="mt-xs text-sm text-textSecondary">{r.text}</p>
+              <p className="mt-xs text-bodyMedium text-textSecondary">{r.text}</p>
             ) : null}
             {r.photoUrls && r.photoUrls.length > 0 ? (
               <div className="mt-s flex gap-s overflow-x-auto">
@@ -68,7 +68,7 @@ export function ReviewList({
               </div>
             ) : null}
             <div className="mt-xs flex items-center justify-between gap-m">
-              <p className="text-xs text-textTertiary">
+              <p className="text-bodySmall text-textTertiary">
                 {formatDateFr(r.createdAt, tz ?? undefined)}
               </p>
               <ReportAction reviewId={r.id} slug={slug} />
@@ -111,7 +111,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
 
   if (state === 'done') {
     return (
-      <p className="text-xs text-textSecondary">
+      <p className="text-bodySmall text-textSecondary">
         Merci. Notre équipe va examiner cet avis.
       </p>
     );
@@ -123,7 +123,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="text-xs text-textTertiary underline"
+          className="text-bodySmall text-textTertiary underline"
         >
           Signaler
         </button>
@@ -135,7 +135,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
             maxLength={500}
             placeholder="Raison (optionnel)"
             aria-label="Raison du signalement"
-            className="w-full rounded-lg border border-border bg-secondary px-s py-xs text-sm text-textPrimary"
+            className="w-full rounded-lg border border-border bg-secondary px-s py-xs text-bodyMedium text-textPrimary"
           />
           <div className="mt-s flex justify-end gap-s">
             <Button variant="secondary" onClick={() => setOpen(false)}>
@@ -148,14 +148,14 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
         </div>
       )}
       {state === 'auth' ? (
-        <p className="mt-xs text-xs text-textSecondary">
+        <p className="mt-xs text-bodySmall text-textSecondary">
           <a href={`/connexion?returnTo=/${slug}`} className="underline">
             Connectez-vous
           </a>{' '}
           pour signaler cet avis.
         </p>
       ) : state === 'error' ? (
-        <p className="mt-xs text-xs text-error">
+        <p className="mt-xs text-bodySmall text-error">
           Le signalement a échoué. Réessayez.
         </p>
       ) : null}

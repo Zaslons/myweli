@@ -201,7 +201,7 @@ export async function taxonomyMetadata(
 // --- the view ----------------------------------------------------------------
 
 const chip =
-  'rounded-pill border border-border bg-secondary px-m py-xs text-sm ' +
+  'rounded-pill border border-border bg-secondary px-m py-xs text-bodyMedium ' +
   'text-textPrimary hover:bg-surfaceVariant';
 
 /// French names for LocalityArea.labelKind (section headings).
@@ -218,7 +218,7 @@ function areaKindOf(city: LocalityCity): string {
 function Crumbs({ input }: { input: TaxonomyInput }) {
   const crumbs = crumbsOf(input);
   return (
-    <nav aria-label="Fil d’Ariane" className="text-sm text-textSecondary">
+    <nav aria-label="Fil d’Ariane" className="text-bodyMedium text-textSecondary">
       <ol className="flex flex-wrap items-center gap-xs">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
@@ -271,7 +271,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
 
       <Crumbs input={input} />
 
-      <h1 className="mt-m text-3xl font-semibold text-textPrimary">
+      <h1 className="mt-m text-headlineMedium font-semibold text-textPrimary">
         {h1Of(input)}
       </h1>
       <p className="mt-m text-textSecondary">
@@ -283,7 +283,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       {/* Root level: pick your city. City level: pick your commune/quartier. */}
       {input.level === 'root' && cities.length > 0 ? (
         <section className="mt-l">
-          <h2 className="text-lg font-semibold text-textPrimary">
+          <h2 className="text-titleLarge font-semibold text-textPrimary">
             Choisissez votre ville
           </h2>
           <div className="mt-s grid grid-cols-1 gap-s sm:grid-cols-2">
@@ -296,7 +296,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
                 <span className="font-medium text-textPrimary">
                   {label} à {city.name}
                 </span>
-                <span className="mt-xs block text-sm text-textSecondary">
+                <span className="mt-xs block text-bodyMedium text-textSecondary">
                   {city.areas.length}{' '}
                   {`${areaKindOf(city)}${city.areas.length > 1 ? 's' : ''}`}
                 </span>
@@ -308,7 +308,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
 
       {input.level === 'city' ? (
         <section className="mt-l">
-          <h2 className="text-lg font-semibold text-textPrimary">
+          <h2 className="text-titleLarge font-semibold text-textPrimary">
             Choisissez votre {areaKindOf(input.city)}
           </h2>
           <div className="mt-s flex flex-wrap gap-s">
@@ -347,7 +347,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       {/* Area level: the same root across the city's other areas. */}
       {input.level === 'area' ? (
         <section className="mt-xl">
-          <h2 className="text-lg font-semibold text-textPrimary">
+          <h2 className="text-titleLarge font-semibold text-textPrimary">
             {label} dans d’autres {areaKindOf(input.city)}s
           </h2>
           <div className="mt-s flex flex-wrap gap-s">
@@ -371,7 +371,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       ) : null}
 
       <section className="mt-l">
-        <h2 className="text-lg font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Autres prestations {place.prefix} {place.name}
         </h2>
         <div className="mt-s flex flex-wrap gap-s">

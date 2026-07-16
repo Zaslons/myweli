@@ -45,10 +45,10 @@ export function SalonVisitsCard({ providerId }: { providerId: string }) {
     <section className="px-m py-l">
       <div className="rounded-xl border border-border bg-secondary p-m">
         <div className="flex items-center justify-between gap-m">
-          <h2 className="text-lg font-semibold text-textPrimary">
+          <h2 className="text-titleLarge font-semibold text-textPrimary">
             Vos rendez-vous ici
           </h2>
-          <Link href="/mon-compte" className="text-sm text-textPrimary underline">
+          <Link href="/mon-compte" className="text-bodyMedium text-textPrimary underline">
             Voir tout
           </Link>
         </div>
@@ -58,7 +58,7 @@ export function SalonVisitsCard({ providerId }: { providerId: string }) {
               <li key={a.id}>
                 <Link
                   href={`/mon-compte/${a.id}`}
-                  className="flex items-center justify-between gap-m rounded-lg bg-surface px-m py-s text-sm hover:bg-surfaceVariant"
+                  className="flex items-center justify-between gap-m rounded-lg bg-surface px-m py-s text-bodyMedium hover:bg-surfaceVariant"
                 >
                   <span className="text-textPrimary">
                     {formatDateTimeFr(
@@ -78,7 +78,7 @@ export function SalonVisitsCard({ providerId }: { providerId: string }) {
           <div className="mt-s">
             <Link
               href={`/mon-compte/${reviewable.id}`}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryHover"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
             >
               Donner votre avis
             </Link>

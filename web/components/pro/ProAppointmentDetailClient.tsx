@@ -134,10 +134,10 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
   return (
     <div>
-      <Link href="/pro/rendez-vous" className="text-sm text-textTertiary">
+      <Link href="/pro/rendez-vous" className="text-bodyMedium text-textTertiary">
         ← Rendez-vous
       </Link>
-      <h1 className="mt-m text-2xl font-semibold text-textPrimary">
+      <h1 className="mt-m text-headlineSmall font-semibold text-textPrimary">
         Détails du rendez-vous
       </h1>
 
@@ -147,7 +147,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             {appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
               <span
-                className={`rounded-pill px-s py-xs text-xs font-normal ${
+                className={`rounded-pill px-s py-xs text-bodySmall font-normal ${
                   noShowBadge(appt.clientNoShowCount) === 'red'
                     ? 'bg-error/10 text-error'
                     : 'bg-surface text-textSecondary'
@@ -159,18 +159,18 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             {appt.salonClientId && canViewClients ? (
               <Link
                 href={`/pro/clients/${appt.salonClientId}`}
-                className="text-xs font-normal text-textTertiary underline"
+                className="text-bodySmall font-normal text-textTertiary underline"
               >
                 Voir la fiche
               </Link>
             ) : null}
           </p>
-          <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
+          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
             {statusLabelFr(appt.status)}
           </span>
         </div>
 
-        <dl className="mt-m space-y-xs text-sm">
+        <dl className="mt-m space-y-xs text-bodyMedium">
           <Row
             label="Date"
             value={formatDateTimeFr(appt.appointmentDate, tz)}
@@ -209,12 +209,12 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             )}
           </div>
         ) : appt.depositAmount ? (
-          <p className="mt-s text-xs text-textTertiary">
+          <p className="mt-s text-bodySmall text-textTertiary">
             Justificatif d’acompte non reçu.
           </p>
         ) : null}
 
-        {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+        {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
         {actions.length > 0 ? (
           <div className="mt-l flex flex-wrap gap-s">
@@ -224,7 +224,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                   key={a.action}
                   className="w-full rounded-lg bg-surface p-m"
                 >
-                  <p className="text-sm text-textSecondary">{a.confirm}</p>
+                  <p className="text-bodyMedium text-textSecondary">{a.confirm}</p>
                   <div className="mt-s flex gap-s">
                     <Button variant="secondary" onClick={() => setConfirm(null)}>
                       Annuler
@@ -252,7 +252,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
         {/* Parity 1.10 (J1b §4.2 debt): arrival from the detail page too. */}
         {appt.arrivedAt ? (
-          <p className="mt-m text-sm text-textSecondary">
+          <p className="mt-m text-bodyMedium text-textSecondary">
             Arrivé à{' '}
             {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
               new Date(appt.arrivedAt),
@@ -302,7 +302,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
               </Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-sm text-textPrimary">
+                <p className="text-bodyMedium text-textPrimary">
                   Nouvelle date et heure
                 </p>
                 <div className="mt-s flex flex-wrap gap-s">
@@ -311,7 +311,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     aria-label="Nouvelle date"
                     value={reprogDate}
                     onChange={(e) => setReprogDate(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+                    className="rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
                   />
                   <input
                     type="time"
@@ -319,11 +319,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     step={900}
                     value={reprogTime}
                     onChange={(e) => setReprogTime(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+                    className="rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
                   />
                 </div>
                 {reprogError ? (
-                  <p className="mt-s text-sm text-error">{reprogError}</p>
+                  <p className="mt-s text-bodyMedium text-error">{reprogError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button variant="secondary" onClick={() => setReprog(false)}>

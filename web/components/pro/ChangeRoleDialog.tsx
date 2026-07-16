@@ -101,10 +101,10 @@ export function ChangeRoleDialog({
       className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
     >
       <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Changer le rôle
         </h2>
-        <p className="mt-xs text-sm text-textTertiary">{member.email}</p>
+        <p className="mt-xs text-bodyMedium text-textTertiary">{member.email}</p>
 
         <div className="mt-m flex flex-col gap-s">
           {ROLE_ORDER.map((r) => (
@@ -121,14 +121,14 @@ export function ChangeRoleDialog({
                   : 'border-border bg-surface'
               }`}
             >
-              <span className="block text-sm font-medium text-textPrimary">
+              <span className="block text-labelLarge font-medium text-textPrimary">
                 {ROLE_LABELS[r]}
               </span>
               <span
                 // ds-ignore: 2px optical nudge; below the 4px grid floor. Hand to B6's shared
                 // <Chip>/role-row rather than redesign here.
                 // eslint-disable-next-line tailwindcss/no-arbitrary-value
-                className="mt-[2px] block text-xs text-textTertiary"
+                className="mt-[2px] block text-bodySmall text-textTertiary"
               >
                 {ROLE_SUMMARIES[r]}
               </span>
@@ -138,14 +138,14 @@ export function ChangeRoleDialog({
 
         {role === 'staff' ? (
           <div className="mt-m">
-            <p className="text-sm text-textSecondary">Fiche employé</p>
+            <p className="text-bodyMedium text-textSecondary">Fiche employé</p>
             {creatingFiche ? (
               <div className="mt-xs flex gap-s">
                 <input
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
                 />
                 <Button
                   onClick={createFiche}
@@ -159,7 +159,7 @@ export function ChangeRoleDialog({
                 <select
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (
@@ -179,7 +179,7 @@ export function ChangeRoleDialog({
           </div>
         ) : null}
 
-        {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+        {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>

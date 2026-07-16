@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function MonComptePage() {
   return (
     <main className="mx-auto max-w-2xl px-m py-l">
-      <h1 className="text-2xl font-semibold text-textPrimary">Mon compte</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Mon compte</h1>
       <div className="mt-l">
         <AccountClient />
       </div>

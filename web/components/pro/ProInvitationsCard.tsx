@@ -68,11 +68,11 @@ export function ProInvitationsCard({
             className="flex flex-wrap items-center justify-between gap-s rounded-lg border border-border bg-surface p-m"
           >
             <div>
-              <p className="text-sm text-textPrimary">
+              <p className="text-bodyMedium text-textPrimary">
                 <span className="font-semibold">{inv.salonName}</span> vous
                 invite comme {inv.roleLabel}
               </p>
-              <p className="text-xs text-textTertiary">
+              <p className="text-bodySmall text-textTertiary">
                 Expire le {formatDateFr(inv.expiresAt)}
               </p>
             </div>
@@ -84,7 +84,7 @@ export function ProInvitationsCard({
                 type="button"
                 disabled={busyId === inv.id}
                 onClick={() => decline(inv)}
-                className="text-sm text-textTertiary underline disabled:opacity-60"
+                className="text-bodyMedium text-textTertiary underline disabled:opacity-60"
               >
                 Refuser
               </button>
@@ -92,7 +92,7 @@ export function ProInvitationsCard({
           </li>
         ))}
       </ul>
-      {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+      {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
     </section>
   );
 }

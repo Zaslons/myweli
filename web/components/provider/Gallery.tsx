@@ -13,7 +13,7 @@ export function Gallery({ images }: { images: string[] }) {
   if (images.length === 0) return null;
   return (
     <section className="px-m py-l">
-      <h2 className="text-xl font-semibold text-textPrimary">Galerie</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">Galerie</h2>
       <div className="mt-m grid grid-cols-2 gap-s sm:grid-cols-3">
         {images.map((src, i) => (
           <button

@@ -100,7 +100,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   if (notFound) {
     return (
       <div>
-        <Link href="/pro/clients" className="text-sm text-textTertiary">
+        <Link href="/pro/clients" className="text-bodyMedium text-textTertiary">
           ← Clients
         </Link>
         <p className="mt-m text-textSecondary">Client introuvable.</p>
@@ -154,7 +154,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
 
   return (
     <div>
-      <Link href="/pro/clients" className="text-sm text-textTertiary">
+      <Link href="/pro/clients" className="text-bodyMedium text-textTertiary">
         ← Clients
       </Link>
 
@@ -163,25 +163,22 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
         <div>
           <div className="rounded-xl border border-border bg-secondary p-l">
             <div className="flex items-center gap-m">
-              <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-surface text-lg font-medium text-textPrimary">
+              <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-surface text-titleLarge font-medium text-textPrimary">
                 {card.displayName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0">
-                <h1 className="flex items-center gap-xs text-xl font-semibold text-textPrimary">
+                <h1 className="flex items-center gap-xs text-titleLarge font-semibold text-textPrimary">
                   <span className="truncate">{card.displayName}</span>
                   {card.linked ? (
                     <span
-                      // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also BELOW §3's
-                      // 11px floor (§15 row 20).
-                      // eslint-disable-next-line tailwindcss/no-arbitrary-value
-                      className="rounded-pill bg-surface px-xs text-[10px] uppercase text-textTertiary"
+                      className="rounded-pill bg-surface px-xs text-labelSmall uppercase text-textTertiary"
                     >
                       MyWeli
                     </span>
                   ) : null}
                 </h1>
                 {card.phone ? (
-                  <p className="mt-xs flex items-center gap-s text-sm text-textSecondary">
+                  <p className="mt-xs flex items-center gap-s text-bodyMedium text-textSecondary">
                     {card.phone}
                     <a
                       href={telHref(card.phone)}
@@ -222,7 +219,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       const next = toggleTag(card.tags, t);
                       if (next) saveTags(next);
                     }}
-                    className={`rounded-pill border px-s py-xs text-xs ${
+                    className={`rounded-pill border px-s py-xs text-bodySmall ${
                       active
                         ? 'border-primary bg-primary text-secondary'
                         : 'border-border bg-surface text-textSecondary'
@@ -233,7 +230,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 ) : (
                   <span
                     key={t}
-                    className="rounded-pill border border-border px-s py-xs text-xs text-textSecondary"
+                    className="rounded-pill border border-border px-s py-xs text-bodySmall text-textSecondary"
                   >
                     {t}
                   </span>
@@ -242,7 +239,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               <button
                 type="button"
                 onClick={() => setEditingTags((v) => !v)}
-                className="text-xs text-textTertiary underline"
+                className="text-bodySmall text-textTertiary underline"
               >
                 {editingTags ? 'Terminé' : 'Modifier les tags'}
               </button>
@@ -265,7 +262,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                   maxLength={30}
                   placeholder="Nouveau tag…"
                   aria-label="Nouveau tag"
-                  className="rounded-lg border border-border bg-surface px-s py-xs text-xs text-textPrimary"
+                  className="rounded-lg border border-border bg-surface px-s py-xs text-bodySmall text-textPrimary"
                 />
                 <Button variant="secondary" disabled={busy || !customTag.trim()}>
                   Ajouter le tag
@@ -276,7 +273,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
 
           <section className="mt-l rounded-xl border border-border bg-secondary p-l">
             <h2 className="font-semibold text-textPrimary">Notes</h2>
-            <p className="mt-xs text-xs text-textTertiary">
+            <p className="mt-xs text-bodySmall text-textTertiary">
               Visible uniquement par votre équipe.
             </p>
             <div className="mt-m flex gap-s">
@@ -287,7 +284,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 rows={2}
                 placeholder="Ajouter une note…"
                 aria-label="Ajouter une note"
-                className="w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                className="w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
               />
               <Button
                 onClick={submitNote}
@@ -297,7 +294,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               </Button>
             </div>
             {card.notes.length === 0 ? (
-              <p className="mt-m text-sm text-textSecondary">
+              <p className="mt-m text-bodyMedium text-textSecondary">
                 Aucune note pour l’instant.
               </p>
             ) : (
@@ -305,10 +302,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 {card.notes.map((n) => (
                   <li
                     key={n.id}
-                    className="rounded-lg bg-surface p-s text-sm text-textPrimary"
+                    className="rounded-lg bg-surface p-s text-bodyMedium text-textPrimary"
                   >
                     <p>{n.body}</p>
-                    <p className="mt-xs flex items-center justify-between text-xs text-textTertiary">
+                    <p className="mt-xs flex items-center justify-between text-bodySmall text-textTertiary">
                       <span>
                         {n.authorName} · {formatDateFr(n.createdAt, tz)}
                       </span>
@@ -354,10 +351,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               href={`/pro/rendez-vous/${card.upcoming.id}`}
               className="mt-l block rounded-xl border border-border bg-secondary p-l hover:bg-surface"
             >
-              <p className="text-xs uppercase text-textTertiary">
+              <p className="text-bodySmall uppercase text-textTertiary">
                 Prochain rendez-vous
               </p>
-              <p className="mt-xs text-sm font-medium text-textPrimary">
+              <p className="mt-xs text-labelLarge font-medium text-textPrimary">
                 {formatDateTimeFr(card.upcoming.appointmentDate, tz)} ·{' '}
                 {statusLabelFr(card.upcoming.status)}
               </p>
@@ -369,7 +366,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               Historique des visites
             </h2>
             {visits.length === 0 ? (
-              <p className="mt-m text-sm text-textSecondary">
+              <p className="mt-m text-bodyMedium text-textSecondary">
                 Aucune visite enregistrée.
               </p>
             ) : (
@@ -377,7 +374,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 {visits.map((v) => (
                   <li
                     key={v.id}
-                    className="flex items-center justify-between py-s text-sm"
+                    className="flex items-center justify-between py-s text-bodyMedium"
                   >
                     <span className="text-textPrimary">
                       {formatDateTimeFr(v.appointmentDate, tz)}
@@ -388,7 +385,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                           {formatFcfa(v.totalPrice, currency)}
                         </span>
                       ) : null}
-                      <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
+                      <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
                         {statusLabelFr(v.status)}
                       </span>
                     </span>
@@ -425,7 +422,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
         />
       ) : null}
       {toast ? (
-        <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
           {toast}
         </div>
       ) : null}
@@ -444,9 +441,9 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl border border-border bg-secondary p-m">
-      <p className="text-xs uppercase text-textTertiary">{label}</p>
+      <p className="text-bodySmall uppercase text-textTertiary">{label}</p>
       <p
-        className={`mt-xs text-lg font-semibold ${
+        className={`mt-xs text-titleLarge font-semibold ${
           alert ? 'text-error' : 'text-textPrimary'
         }`}
       >
