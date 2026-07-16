@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'colors.dart';
@@ -38,6 +40,34 @@ class AppTheme {
   static const double iconM = 24.0; // default action icon (AppBar, IconButton)
   static const double iconL = 32.0; // feature / avatar-scale glyphs
   static const double iconXL = 64.0; // the empty-state illustration glyph
+
+  /// The height bound a **scroller** must hand a box that mixes constant chrome
+  /// with text, when the OS text scale moves (SYSTEM.md §13.3).
+  ///
+  /// A horizontal `ListView` demands a bounded cross-axis, so "let it be
+  /// intrinsic" is not available — the bound has to be computed. Two ways to get
+  /// that wrong, both found in review:
+  ///
+  /// * **Scaling the whole bound.** A 280px provider card is 180 image + 32
+  ///   padding + 68 text; only the 68 tracks the font. `scale(280)` gives 560 at
+  ///   200% for 332 of content — 41% dead space, and it drags the *image's* share
+  ///   up with it. So scale [text] alone and add [constant] back untouched.
+  /// * **Letting it shrink.** Rows are `max(icon, line)` and icons do *not*
+  ///   scale, so a text block that measures 68 at 1× still needs 60.4 at 0.85 —
+  ///   not `68 × 0.85 = 57.8`. A proportional bound under-provisions at *small*
+  ///   scales, which is a real clip and can trip a downstream height threshold.
+  ///   Hence the `max`: the 1× baseline is a **floor**, and this only ever grows.
+  ///
+  /// [constant] is the chrome that must not move (image/avatar height, padding);
+  /// [text] is the text block's own height at 1×. Pin both with a test that
+  /// asserts the bound still covers the real content — a measured constant
+  /// silently rots the day someone adds a row (see `test/a11y/text_scale_test.dart`).
+  static double textScaledBound(
+    BuildContext context, {
+    required double constant,
+    required double text,
+  }) =>
+      constant + math.max(text, MediaQuery.textScalerOf(context).scale(text));
 
   // Elevation/Shadows
   static List<BoxShadow> get elevation1 => [

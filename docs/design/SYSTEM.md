@@ -631,7 +631,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 | Contrast (§3, §13.1) | **`test/unit/design_contrast_test.dart`** — real WCAG math per token pair, + grep-pins on the ink/brand split and gold-as-state |
 | No literals (§4, §5, §6, §7) | **`test/unit/design_system_pin_test.dart`** — sweep-as-test, **complete**: no raw spacing (§5), radius (§6), type (§4), or icon-size (§7) literal survives. Excludes `core/theme/` (token defs) + the flag-hidden `features/` (§22); a `// ds-ignore` line is a declared fixed-dimension exception |
 | Tap targets + labels (§13.2, §13.4) | **`test/a11y/`** — **complete**: `meetsGuideline(androidTapTargetGuideline)` (A4a) + `labeledTapTargetGuideline` (A4b) + `textContrastGuideline` (A4c), all live over the key components |
-| Text scale (§13.3) | Key screens pumped at `TextScaler.linear(2.0)`, asserted not to overflow |
+| Text scale (§13.3) | **`test/a11y/text_scale_test.dart`** — the key components pumped at `TextScaler.linear(2.0)`. **Three** assertions, because each of the first two passed against a real bug: `takeException()` is null (nothing *overflows*); **and** `expectGrowsWithTextScale` (the height actually grew — a fixed bound doesn't overflow, it **clips silently**); **and**, for any *computed* bound, that it still covers the widget's real content at **0.82× → 2×** and doesn't over-provision. Pump the widget **as it ships** — bounded, and in the variant that breaks: unbounded, nothing can overflow and the gate is vacuous |
 | Visual regression | **Goldens** — `test/golden/`, see below |
 | Market data (§18) | `salon_time_pin_test.dart` |
 | Everything | `flutter analyze --fatal-infos` = 0 |
@@ -716,8 +716,8 @@ own design system?" — today, mostly not.
 | 12 | Tap targets ≥ 48 (§13.2) | ~~67~~ → **0** | **26** of the 67 rendered <48 (favourite hearts, photo arrows, close/remove ×, contact + text-link rows, pills, segments) + 3 adjacency (<8px) + `review_tile`'s `shrinkWrap` 32px button. Icon-glyphs → 48 transparent hit area (glyph unmoved, anchor compensated); rows/pills → `ConstrainedBox(minHeight: 48)` (grows with text scale). New **`test/a11y/`** gate — `meetsGuideline(androidTapTargetGuideline)` on 5 components — went **red** before the fixes | ✅ **A4a** |
 | 13 | Icon-only controls labelled (§13.4) | ~~26 of 40~~ → **0** | `tooltip:` (= the SR label on IconButton) on the 21 unlabelled buttons + the 3 FABs, state-dependent for toggles ("Ajouter/Retirer des favoris", "Noter N étoiles"); `Semantics(label:)` on the gesture-icons (hearts, remove-×). Pinned by `labeledTapTargetGuideline` | ✅ **A4b** |
 | 14 | `Semantics` on custom controls (§13.4) | ~~0~~ → **0** | **A4b** — roles + states: `Semantics(button/checked/selected/expanded/slider+value)` on the hand-rolled controls (services checkbox / artist radio rows, accordion, date row, before/after slider + thumbnails, segments, pill, hearts). **A4c** — the reading experience: `TimedCachedImage` gains a `semanticLabel` (decorative by default, so images stop being announced as noise); `MergeSemantics` done right (whole-tile on the sub-button-less tappable tiles, content-only on `InvitationCard`; tappable cards with sub-buttons keep tap-aggregation); `SemanticsService.announce` at the snackbar helper + the off-focus events (favourite, review published, pull-to-refresh). | ✅ **A4b + A4c** |
-| 15 | 200% text scale (§13.3) | **3 confirmed breaks** + 24 at risk | `widgets/home/category_chips.dart:25` — **the home screen** | **A5** |
-| 16 | Overflow discipline (§13.3) | 46 of 963 `Text` (4.8%) | | **A5** |
+| 15 | 200% text scale (§13.3) | ~~3~~ → **0** | the count under-read it (as row 4 did): **9** boxes bounded *text* with a constant and clipped it — `category_chips` (the named worst, 50), the home's two card carousels (280) + its tile strip (92), provider-detail's tile strip (100), the journal's artist chips (48) + day pill (32), the client tag strip (44), admin's search field (38). **Two of them clipped at 1×** — the tile strips were shipping a bug at the *default* font size (the strip gives 92/100; the tile measures 96/120), so this row was never only an a11y row. Three fixes, chosen by what the box actually is: short scroller → `SingleChildScrollView` + `Row`, **intrinsic**, no bound at all (the default — no arithmetic can rot); long/lazy scroller, which *must* have a bound → the widget exposes it (`ProviderCard.carouselHeight`) via `AppTheme.textScaledBound`; plain box → delete the constant. Boxes bounding an image/logo/divider are correctly fixed and were left alone — see the "wrong target" note below | ✅ **A5** |
+| 16 | Overflow discipline (§13.3) | ~~46 of 963~~ → **0** | the "4.8% have `maxLines`" figure was a **proxy** — most `Text` sits in a `Flexible`/`Wrap` and never overflows, so the count measured the wrong thing. The real check is executable: pumped at **2×**, a `Text` that can't fit throws. That found **one** genuine break the proxy never would have ranked: `compact_appointment_tile`'s hint `Row` overflowed by **217px** at 200% — a `Row` hands its children infinite width, so an unflexed `Text` never wraps, it just runs off the tile. `Flexible` fixes it. The rest of the audited `Text` already ellipsises correctly | ✅ **A5** |
 | 17 | One snackbar entry point (§15) | 118 calls; 73 raw; **1** with an action | shared helper hardcodes `Colors.black87` | *A6* |
 | 18 | One `ConfirmDialog` (§15) | **11** copy-pasted | | *A6* |
 | 19 | Field-anchored errors (§14) | **1** caller passes `errorText` | validation = "throw a red toast" | *A8* |
@@ -735,9 +735,46 @@ scheduled for re-evaluation after it.
 Rows **23–26** were not in the original audit. Each was found by *doing the work*:
 23 and 24 by taking the pictures (PR-0.5), 25 and 26 by walking every bordered
 control in A1. Row **4's count was wrong** — the audit said ~128, but migrating it
-found **~488** (it had never counted the pixel-identical on-grid literals). That is
-the register behaving as intended — it gets **more honest** as it shrinks, not just
-shorter. A count is a hypothesis; the burn-down is the measurement.
+found **~488** (it had never counted the pixel-identical on-grid literals). Row **15's
+was wrong too** (3 → **9**), and row **16's counted the wrong thing entirely** — "4.8%
+of `Text` have `maxLines`" measures a *proxy*; the executable check (pump at 2×) found
+the real set. That is the register behaving as intended — it gets **more honest** as it
+shrinks, not just shorter. A count is a hypothesis; the burn-down is the measurement,
+and a rule you can run beats a number you counted once.
+
+### The wrong fix for a fixed bound (A5)
+
+Worth writing down, because it was wrong at **five of five** sites and every one of
+them looked right — and because the failure mode is the burn-down's own: a *plausible*
+fix that no gate contradicts.
+
+The tempting one-liner for a bound that must track the font is
+`height: MediaQuery.textScalerOf(context).scale(N)`. It is almost always wrong:
+
+- **Only the text's share scales.** A 280px provider card is 180 image + 32 padding +
+  68 text. `scale(280)` gives **560** at 200% for 332 of content — 41% dead space, and
+  it drags the *image's* share up too. Scale the text share, add the constant back:
+  `AppTheme.textScaledBound(constant:, text:)`.
+- **It must not shrink.** Rows are `max(icon, line)` and **icons do not scale**, so the
+  card's text block needs 60.4 at 0.85× — not `68 × 0.85 = 57.8`. A proportional bound
+  under-provisions at *small* scales. Worse, `scale(280)` = 238 at Android "Small",
+  under `provider_card`'s own `maxH < 260` compact threshold — so **reducing** your font
+  size silently changed the card design. A fix that reaches across a file boundary into
+  another widget's magic number is a fix you cannot see. Hence the `max`: 1× is a floor.
+- **Growth can be super-linear.** `CompactAppointmentTile` goes 96 → **176** (2.25×) at
+  200%, because the title wraps. *No* linear formula is safe there — which is why an
+  intrinsic strip is the default and a computed bound is the exception, taken only when
+  the list is long enough to need laziness, and always pinned by a test.
+- **Check the box actually bounds text.** Three sites were *wrong targets*: a story tile
+  (an image — scaling its height collapsed the artwork from 92:126 to 92:252), a
+  highlight strip (an `Expanded` gradient already absorbed the growth; the label was
+  never clipped), and a skeleton row (no text at all — the "fix" measured 52 at both 1×
+  and 2×, i.e. a no-op). Row 15's tell — *same height at 1× and 2×* — has a
+  false-positive mode: it also means "bounds no text."
+
+The rule: **prefer intrinsic; compute a bound only under laziness; pin every computed
+bound with a test that measures the real widget at 0.82× → 2×.** A measured constant
+with a gate is fine. A measured constant without one rots the day someone adds a row.
 
 ---
 

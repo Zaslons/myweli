@@ -152,11 +152,17 @@ class CompactAppointmentTile extends StatelessWidget {
                               size: AppTheme.iconXS,
                               color: AppColors.textPrimary),
                           const SizedBox(width: AppTheme.spacingXS),
-                          Text(
-                            hint!,
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
+                          // Unflexed, this Text overflowed the Row by 217px at
+                          // 200% — a Row gives its children infinite width, so
+                          // the label never wraps and simply runs off the tile
+                          // (§13.3). Flexible bounds it so it wraps instead.
+                          Flexible(
+                            child: Text(
+                              hint!,
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],

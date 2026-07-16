@@ -116,14 +116,19 @@ class _ClientListScreenState extends State<ClientListScreen> {
               onChanged: _onSearchChanged,
             ),
           ),
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
-                vertical: AppTheme.spacingS,
-              ),
+          // A horizontal ListView demands a BOUNDED height, and that bound was
+          // the constant 44 — so the tag chips clipped the moment the OS text
+          // scale grew (§13.3): the strip measured 44 at 1x and still 44 at 2x.
+          // The tag list is short and already built eagerly, so there is nothing
+          // to virtualise: a scroll view over a Row lets the strip take its
+          // INTRINSIC height and grow with the text.
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM,
+              vertical: AppTheme.spacingS,
+            ),
+            child: Row(
               children: [
                 for (final t in clients.availableTags)
                   Padding(
