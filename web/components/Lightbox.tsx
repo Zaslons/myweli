@@ -13,22 +13,29 @@ export function Lightbox({
 }) {
   return (
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/80 p-m"
+      className="fixed inset-0 z-modal flex items-center justify-center p-m"
       role="dialog"
       aria-label={label}
-      onClick={onClose}
     >
+      {/* The scrim carries the dismiss click and is decoration to AT —
+          ProShell's own drawer-scrim precedent (jsx-a11y strict would rightly
+          flag a click handler on the dialog wrapper itself). */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-primary/80"
+        onClick={onClose}
+      />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
         alt={label}
-        className="max-h-full max-w-full rounded-lg object-contain"
+        className="relative max-h-full max-w-full rounded-lg object-contain"
       />
       <button
         type="button"
         aria-label="Fermer"
         onClick={onClose}
-        className="absolute right-m top-m rounded-pill bg-primary/60 px-sm py-xs text-iconM text-secondary"
+        className="absolute right-m top-m flex min-h-12 min-w-12 items-center justify-center rounded-pill bg-primary/60 text-iconM text-secondary"
       >
         ✕
       </button>

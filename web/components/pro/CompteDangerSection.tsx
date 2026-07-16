@@ -11,6 +11,7 @@ import {
 } from '../../lib/api/pro';
 import { buildProviderDataExport } from '../../lib/pro/export';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 
 /// « Compte » danger zone on /pro/profil (audit 11.5 — AUTH-004/005 for
 /// pros): the data export (client-side assembly, like the consumer page) and
@@ -136,12 +137,13 @@ export function CompteDangerSection({
                 ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
                 : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}
             </p>
-            <input
+            <TextField
+              className="mt-s"
+              label="Confirmation de suppression"
+              hideLabel
               value={deleteText}
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder="SUPPRIMER"
-              aria-label="Confirmation de suppression"
-              className="mt-s rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
             />
             {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
             <div className="mt-s flex gap-s">

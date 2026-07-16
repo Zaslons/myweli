@@ -24,6 +24,7 @@ import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { salonDayKey, salonFormatter, salonToday } from '../../lib/time';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 import { SalonTimeHint } from '../SalonTimeHint';
 import { DepositProof } from '../booking/DepositProof';
 import { ReviewForm } from './ReviewForm';
@@ -166,7 +167,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               href={googleCalendarUrl(appt)}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-border bg-surface px-m py-xs text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Ajouter au calendrier (Google)
             </a>
@@ -183,7 +184,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 el.click();
                 URL.revokeObjectURL(url);
               }}
-              className="rounded-lg border border-border bg-surface px-m py-xs text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Fichier .ics
             </button>
@@ -196,7 +197,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             {appt.providerPhone ? (
               <a
                 href={`tel:${appt.providerPhone.replace(/\s/g, '')}`}
-                className="rounded-lg border border-border bg-surface px-m py-xs text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 Appeler
               </a>
@@ -206,7 +207,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg border border-border bg-surface px-m py-xs text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 WhatsApp
               </a>
@@ -303,16 +304,17 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 <p className="text-bodyMedium text-textPrimary">
                   Choisissez un nouveau créneau
                 </p>
-                <input
+                <TextField
+                  className="mt-s"
+                  label="Nouvelle date"
+                  hideLabel
                   type="date"
-                  aria-label="Nouvelle date"
                   min={salonToday(new Date(), tz)}
                   value={reschedDate}
                   onChange={(e) => {
                     setReschedDate(e.target.value);
                     if (e.target.value) loadSlots(appt, e.target.value);
                   }}
-                  className="mt-s rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
                 />
                 {slotsLoading ? (
                   <p className="mt-s text-bodyMedium text-textSecondary">
@@ -329,7 +331,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                         key={iso}
                         type="button"
                         onClick={() => setPickedSlot(iso)}
-                        className={`rounded-pill border px-m py-xs text-bodyMedium ${
+                        className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
                           pickedSlot === iso
                             ? 'border-primary bg-primary text-secondary'
                             : 'border-border bg-secondary text-textPrimary'

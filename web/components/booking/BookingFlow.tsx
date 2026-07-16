@@ -50,6 +50,7 @@ import { SalonTimeHint } from '../SalonTimeHint';
 import { LoginOptions } from '../auth/LoginOptions';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
+import { TextField } from '../TextField';
 import { DepositProof } from './DepositProof';
 
 const slotTime = (iso: string, tz?: string) =>
@@ -359,17 +360,16 @@ export function BookingFlow({
               onChange={setPhone}
               initialValue={me.phoneNumber ?? undefined}
             />
-            <label className="mt-s block text-bodyMedium text-textSecondary">
-              Notes (optionnel)
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                maxLength={500}
-                placeholder="Précisions pour le salon (allergies, préférences…)"
-                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-              />
-            </label>
+            <TextField
+              className="mt-s"
+              label="Notes (optionnelles)"
+              multiline
+              rows={3}
+              maxLength={500}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              hint="Précisions pour le salon (allergies, préférences…)"
+            />
             <Button
               disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
               onClick={confirm}
@@ -443,6 +443,7 @@ export function BookingFlow({
                       </span>
                       <input
                         type="checkbox"
+                        className="h-5 w-5 shrink-0 accent-primary"
                         checked={on}
                         onChange={() => onToggleService(svc.id)}
                       />
@@ -466,7 +467,7 @@ export function BookingFlow({
                     type="button"
                     onClick={() => onVariant(k)}
                     aria-pressed={s.lengthVariant === k}
-                    className={`rounded-pill border px-m py-xs text-bodyMedium ${
+                    className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
                       s.lengthVariant === k
                         ? 'border-primary bg-primary text-secondary'
                         : 'border-border bg-surface text-textPrimary'
@@ -499,10 +500,11 @@ export function BookingFlow({
             </p>
           ) : (
             <div className="space-y-s">
-              <label className="flex cursor-pointer items-center gap-s">
+              <label className="flex min-h-12 cursor-pointer items-center gap-s">
                 <input
                   type="radio"
                   name="artist"
+                  className="h-5 w-5 shrink-0 accent-primary"
                   checked={s.artistChosen && s.artistId === null}
                   onChange={() => onChooseArtist(null)}
                 />
@@ -520,13 +522,14 @@ export function BookingFlow({
                 return (
                   <label
                     key={a.id}
-                    className={`flex items-center gap-s ${
+                    className={`flex min-h-12 items-center gap-s ${
                       canDo ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'
                     }`}
                   >
                     <input
                       type="radio"
                       name="artist"
+                      className="h-5 w-5 shrink-0 accent-primary"
                       disabled={!canDo}
                       checked={s.artistChosen && s.artistId === a.id}
                       onChange={() => onChooseArtist(a.id)}
@@ -555,13 +558,13 @@ export function BookingFlow({
           expanded={s.activeSection === 'time'}
           onHeaderTap={() => onOpenSection('time')}
         >
-          <input
+          <TextField
+            label="Date"
+            hideLabel
             type="date"
-            aria-label="Date"
             min={todayYmd(tz)}
             value={s.date}
             onChange={(e) => onDate(e.target.value)}
-            className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
           />
           {slotsLoading ? (
             <p className="mt-m text-textSecondary">Chargement des créneaux…</p>
@@ -574,7 +577,7 @@ export function BookingFlow({
                   key={iso}
                   type="button"
                   onClick={() => onPickSlot(iso)}
-                  className={`rounded-pill border px-m py-xs text-bodyMedium ${
+                  className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
                     s.slot === iso
                       ? 'border-primary bg-primary text-secondary'
                       : 'border-border bg-surface text-textPrimary'

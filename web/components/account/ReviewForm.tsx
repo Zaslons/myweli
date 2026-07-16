@@ -10,6 +10,7 @@ import {
 } from '../../lib/account/review-photos';
 import { submitReview } from '../../lib/api/account';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 
 /// Leave a review on a completed booking (1–5 stars + optional text +
 /// up to 3 photos — the app's submit sheet, parity 2.13).
@@ -65,7 +66,9 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
   return (
     <div>
       <p className="font-medium text-textPrimary">Laisser un avis</p>
-      <div className="mt-s flex gap-xs" role="radiogroup" aria-label="Note">
+      {/* §13.2: each star is a ≥48px target and adjacent targets sit ≥8px
+          apart (they were 24px glyphs 4px apart — both violations measured). */}
+      <div className="mt-s flex gap-s" role="radiogroup" aria-label="Note">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
@@ -73,18 +76,19 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
             aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
             aria-pressed={rating >= n}
             onClick={() => setRating(n)}
-            className={`text-iconM ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
+            className={`flex min-h-12 min-w-12 items-center justify-center text-iconM ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
           >
             ★
           </button>
         ))}
       </div>
-      <textarea
+      <TextField
+        className="mt-s"
+        label="Votre expérience (optionnelle)"
+        multiline
+        rows={3}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={3}
-        placeholder="Votre expérience (optionnel)"
-        className="mt-s w-full rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
       />
       {/* Photos (≤3), like the app's sheet. */}
       <div className="mt-s">
@@ -95,16 +99,20 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={url}
-                  alt={`Photo ${i + 1}`}
+                  alt={`Pièce jointe ${i + 1}`}
                   className="h-16 w-16 rounded-lg object-cover"
                 />
+                {/* §13.2: the 48px TARGET is the button; the visible pill is the
+                    inner span, unmoved at the thumb's corner. */}
                 <button
                   type="button"
                   aria-label={`Retirer la photo ${i + 1}`}
                   onClick={() => setPhotos((cur) => removePhoto(cur, i))}
-                  className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-iconXS text-secondary"
+                  className="absolute -right-s -top-s flex h-12 w-12 items-center justify-center"
                 >
-                  ✕
+                  <span className="rounded-pill bg-primary px-xs text-iconXS text-secondary">
+                    ✕
+                  </span>
                 </button>
               </span>
             ))}

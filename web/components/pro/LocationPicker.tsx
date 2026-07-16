@@ -78,7 +78,7 @@ export function LocationPicker({
         <button
           type="button"
           onClick={locate}
-          className="rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+          className="min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus hover:bg-surfaceVariant"
         >
           Utiliser ma position
         </button>

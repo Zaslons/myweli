@@ -267,7 +267,8 @@ form controls. Nobody broke the focus ring (`outline-none` is never used) — it
 simply never designed, so the browser default is doing all the work, unstyled and
 unbranded, on top of a black-and-white UI where it is barely visible.
 
-The fix is one base-layer rule, not 271 utilities:
+The fix is one base-layer rule, not 271 utilities — **shipped in B4**
+(`styles/globals.css`, and `tests/e2e/focus.spec.ts` pins its computed values):
 
 ```css
 :focus-visible {
@@ -277,11 +278,20 @@ The fix is one base-layer rule, not 271 utilities:
 }
 ```
 
-- `:focus-visible`, **not** `:focus` — a mouse click shouldn't leave a ring.
-- Never `outline: none` without an equally visible replacement.
+- `:focus-visible`, **not** `:focus` — a clicked **button** shows no ring. A
+  clicked **text field** does, and that is platform-correct (a field you clicked
+  is a field you will type in) — don't "fix" it; the e2e asserts on a button.
+- Never `outline: none` without an equally visible replacement. One place cannot
+  use the global ring at all: the phone widget's country `<select>` is an
+  opacity-0 overlay, so its focus is painted on the sibling flag icon in
+  `.myweli-phone` CSS — kept hand-written, deliberately.
 - Tab order follows DOM order; `tabIndex` > 0 is banned.
-- A "Skip to content" link is the first focusable element on public pages.
-- Hover-only affordances (menus, tooltips) must also open on focus.
+- The "Aller au contenu" skip link is the first focusable element on every page
+  (`app/layout.tsx` → the `#contenu` wrapper) — and the ring's most visible
+  proof: the first Tab on any page shows both.
+- Hover-only affordances (menus, tooltips) must also open on focus (the
+  `/recherche` result-card ↔ map-pin highlight sync gained `onFocus`/`onBlur`
+  in B4 for exactly this).
 
 ## 6. Forms & ARIA
 
@@ -308,8 +318,18 @@ tech:
 - Autocomplete/inputmode set (`tel`, `email`, `one-time-code`) — it's a keyboard
   and an autofill win on the phones most of our users hold.
 
-All of this lives in **one shared `<TextField>`** (§10). Seven ad-hoc input copies
-is how we ended up with zero labels.
+All of this lives in **one shared `<TextField>`** (§10) — shipped in B4
+(`components/TextField.tsx`, mirroring the app's `InputDecorationTheme` state
+table: `borderStrong` → `borderFocus`+ring on focus → `error`, soft `border`
+disabled; `min-h-12`; `useId`). `PhoneField` wears the same shell — the library
+forwards `id`/`aria-*` to its inner input. Seven ad-hoc input copies is how we
+ended up with zero labels; the copies are gone.
+
+§14's rule 2 has a hook: `lib/forms/useFieldErrors.ts` (validate on submit,
+re-validate on change once errored, `set()` for server-side field faults — «
+Code incorrect ou expiré » belongs under the code field too). The auth funnels
+are the reference implementation, and their old `disabled={!emailValid}` gates
+— rule 5's dead-end anti-pattern — are gone with it.
 
 ## 7. Announcements (live regions)
 
@@ -390,16 +410,16 @@ strings (17 of them byte-identical), 6 hand-rolled modals, 5 hand-rolled toasts 
 7 ad-hoc inputs. A missing primitive doesn't prevent the UI from being built; it
 just guarantees it's built inconsistently, N times.
 
-Existing: `Button` · `PhoneField` · `AppInstallBanner` · `OpenInAppButton` ·
-`SalonTimeHint` · `LocalityPicker` · `ProviderCard` · `TeamRoleChip` · `JsonLd` ·
-`Lightbox` · `SiteChrome` / `Header`.
+Existing: `Button` (48-floor, `text` variant, `isLoading` — parity complete, B4)
+· **`TextField`** (B4) · `PhoneField` (label/error shell, B4) · `AppInstallBanner`
+· `OpenInAppButton` · `SalonTimeHint` · `LocalityPicker` · `ProviderCard` ·
+`TeamRoleChip` · `JsonLd` · `Lightbox` · `SiteChrome` / `Header`.
 
 To build (specified in [SYSTEM.md §11.3](SYSTEM.md#113-to-build-the-gaps-this-system-creates-work-for)
 where they have an app twin):
 
 | Component | Why |
 |---|---|
-| **`TextField`** | §6 — labels, `aria-invalid`, `aria-describedby`. The single highest-value primitive. |
 | **`Toast`** | §7 — `aria-live`. |
 | **`Modal`** | §8 — focus trap. |
 | `Loading` / `Skeleton` | Kills the 35 inline "Chargement…" strings. 1 skeleton exists; `animate-pulse` = 0. |
@@ -407,8 +427,9 @@ where they have an app twin):
 | `Rating` | Glyph + numeral ([SYSTEM.md §3.5](SYSTEM.md#35-accents)). |
 | `Card` · `StatusChip` · `DataTable` | The pro/admin density work. |
 
-`Button` also needs its missing `text` variant and a loading state (the app's
-`AppButton` has both — this is parity drift).
+(`TextField` and Button's `text`/`isLoading` parity landed in B4. The switch
+remains hand-rolled in NotificationsClient — §10 specs no Switch primitive; its
+48px target and row-label association were fixed in place.)
 
 ## 11. Rendering & performance
 
@@ -457,9 +478,16 @@ web converts, the app deepens:
 
 Two of these are the point:
 
-- **`.eslintrc.json` is currently `{"extends": "next/core-web-vitals"}`** — which
-  enables **none** of the jsx-a11y rules that would have caught the missing labels,
-  the clickable divs or the heading skip. Every defect in §15 was lintable.
+- **`.eslintrc.js`** (not `.json` — stale since B2a) now extends
+  **`plugin:jsx-a11y/strict`** (B4): the four rules named above plus ~20 more, as
+  errors, with one calibration — `label-has-associated-control: {depth: 25}`
+  (the default depth-2 walk false-positived on label text three levels deep).
+  At B4's branch base the strict set measured **16 errors across 5 rules**; all
+  16 were fixed for real — **zero disables** — and the theme-pin now rejects any
+  `eslint-disable jsx-a11y/*` that lacks `ds-ignore:` prose. Trivia with a moral:
+  three of the 16 were `img-redundant-alt` catching the **French** word « Photo »
+  — the rule's banned-word list is language-blind, the alts were reworded to say
+  what the image shows.
 - **Lighthouse is `continue-on-error: true`, a11y is `warn`, and it audits exactly
   one URL — the homepage.** A gate that cannot fail and looks at one page is not a
   gate.
@@ -472,7 +500,7 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 |---|---|---|---|---|
 | 1 | Layout works at every width (§9) | ~~1~~ → **0** | the pro sidebar ate 240px of a 375px phone on every `/pro` route; now an off-canvas drawer below `lg`, persistent at `lg+` ([web-pro-mobile-nav.md](web-pro-mobile-nav.md)) | ✅ **B0** |
 | 2 | `textTertiary` ≥ 4.5:1 | ~~170~~ → **0** | was 3.22:1; the token is now **4.76:1** (the value alone healed all 170) — and the ink softened to `#1A1A1A` | ✅ **B1** |
-| 3 | Control borders ≥ 3:1 | ~~186~~ → the shared Button + the salon-switcher **done**; the ~20 hand-classed form inputs pending | `borderStrong` (3.22:1) is now the token; the central controls use it. The web has **no shared input theme**, so the ad-hoc inputs' outlines land with **B4**'s `<TextField>` (which bakes in `borderStrong`) rather than being hand-edited then rebuilt | **B1 → B4** |
+| 3 | Control borders ≥ 3:1 | ~~186~~ → **0** | `borderStrong` on every control boundary: `<TextField>` bakes it in; the 6 copy-pasted `const input` strings and every remaining hand-classed control were upgraded in place, **including the phone widgets the original count never saw** (react-phone-number-input renders an input + a country select the grep missed — `.myweli-phone` now draws borderStrong too). "~20 hand-classed" was really 93 literal controls + ~12 phone-widget internals | ✅ **B1 → B4** |
 | 4 | Token exists ⇒ no substitution | ~~1~~ → **0** | `gold #B8860B` is exported; `TeamRoleChip` uses it. A test grep-pin fails if any `bg-/border-starRating` returns | ✅ **B1** |
 | 5 | Splash matches the app | ~~1~~ → **0** | `manifest.ts` `background_color` → `#F6F7F9` (no more black flash); `theme_color` stays brand black | ✅ **B1** |
 | 6 | Closed theme (§2) | open → **closed, except sizing** | `colors` · `borderRadius` · `spacing`(rhythm) · `zIndex` · `screens` · `transitionDuration` are now `theme`, not `theme.extend`: a non-token utility **does not exist**. Held by `no-custom-classname` (**0**) + `tokens.theme-pin.test.ts`, because Tailwind emits *nothing* for an unknown utility — a dead class ships as an unstyled element and no build, typecheck or test can see it. Proven by diffing the emitted CSS: 298 → 287 selectors, every one of the 11 deliberate. **`fontSize` closed in B2b** — the 15-style scale now lives in `tokens.ts`, mirrored from `text_styles.dart` (the code) rather than §4's table (the doc, which omitted tracking). **`maxWidth` closed in B2c**, which also fixed a live leak (row 7g). **Sizing is deliberately NOT closed** — it is not a token class (row 6b) | ✅ **B2a + B2b + B2c** |
@@ -481,24 +509,27 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 7b | Type below the §3 floor | ~~4~~ → **0** | the 4 `text-[10px]` are `text-labelSmall` (11px). Not a rename — §4 is explicit ("there is no 10px token and there will not be one"), so this is a redesign: +1px, and the badges gain the line-height an arbitrary size never emitted. `ClientCardClient`'s inherited its `<h1>`'s 28px line and is now a 16px box — smaller, and correct | ✅ **B2b** |
 | 7c | **The pin was blind** | ~~2 files~~ → **0** | B2a's `stripComments` read the `/*` in `accept="image/*"` as a block comment with no close, so the pin saw **nothing** from that line to EOF in `MediasClient` + `DepositProof` — hiding 6 real type usages. It shipped that way. Replaced with a **TypeScript AST walk**: comment-immune by construction rather than by regex, and it reaches the 4 bare-`const`/default-param strings ESLint cannot see | ✅ **B2b** |
 | 7d | **The pin had no positive rule** | ~~1~~ → **0** | every rule was a prohibition, and during B2b's own migration window — classes renamed, config not yet wired — all 555 emitted **nothing**, the site rendered at browser-default 16px, and the pin passed **green**, because the old tokens it bans were gone. "No forbidden classes" ≠ "the classes we use exist". A `resolveConfig` assertion now makes the second claim | ✅ **B2b** |
-| 8 | **Visible focus (§5)** | **`focus-visible:` = 0** across **178 buttons + 93 controls** | | **B4** |
-| 9 | Labelled inputs (§6) | `htmlFor` = **0**, `id` = **0** (93 controls) | ≥6 placeholder-only inputs **in the login funnels** | **B4** |
-| 10 | Errors tied to fields (§6) | `aria-invalid` = **0**, `aria-describedby` = **0** | no error in the app is announced | **B4** |
-| 11 | jsx-a11y strict (§14) | off | `next/core-web-vitals` enables none of it | **B4** |
+| 8 | **Visible focus (§5)** | ~~0~~ → **shipped** | §5's base rule verbatim (2px `borderFocus`, offset 2, radius md) + the "Aller au contenu" skip link as the first focusable on every page. Counts corrected: **180** buttons (109 `<Button>` + 71 raw), not 178. Keyboard-only trigger **measured** in `focus.spec.ts` (proven red first): ring on Tab, none on a clicked button — and a clicked *text field* legitimately shows it (platform behaviour, recorded not fought). The one place the global ring cannot work — the phone country select, an invisible overlay — keeps a hand-written ring on its sibling icon, fixed from its pre-§5 form (`:focus` → `:focus-visible`, `primary` → `borderFocus`, offset 1 → 2) | ✅ **B4** |
+| 9 | Labelled inputs (§6) | ~~0~~ → **every control associated** | `<TextField>` (label + `useId`) across the funnels, account, booking, clients, dialogs; label-*wrapped* forms (ProfilClient's `Field`, the label-wrapped dialogs) kept their working implicit association — the metric that matters is *associated*, not *htmlFor specifically*. The funnels' 8 placeholder-only inputs have real labels ("Votre e-mail" replaced its placeholder; "Code à 6 chiffres" became one; "07 00 00 00 00" survives as a format example, the one legitimate placeholder role). Optional fields say « (optionnelle) » in the label (§14 rule 6) | ✅ **B4** |
+| 10 | Errors tied to fields (§6) | ~~0~~ → **wired** | `<TextField>`/`PhoneField` render `aria-invalid` + `aria-describedby` (error id first, hint id second) + `<p role="alert">`; `useFieldErrors` implements §14 rule 2 (validate on submit, re-validate on change once errored, `set()` for server faults — « Code incorrect ou expiré » now renders under the code field). The funnels' `disabled={!emailValid}` gates — rule 5's dead-end anti-pattern — are gone; an invalid submit answers with a field error. E2e-proven: the describedby chain resolves id-by-id. **The first `validate()` replaced the whole error map** — a step-2 submit wiped a still-unfixed step-1 error and the submit fired with the empty value (the review proved it on ProRegister's businessName); it now **merges**, touching only the keys it validated, and ProRegister validates each path's full field subset | ✅ **B4** |
+| 11 | jsx-a11y strict (§14) | ~~off~~ → **on, 0 errors, 0 disables** | branch-base proof-red = **16 errors / 5 rules** (3 were `label-has-associated-control` depth-2 false positives → `{depth: 25}`; 3 were `img-redundant-alt` catching the **French** « Photo » — reworded to say what the image shows; the rest: the 2 raw PhoneInput labels, the dialog backdrops restructured to ProShell's aria-hidden-scrim precedent, the `/recherche` hover-sync wrapper gaining focus parity). The theme-pin rejects an undocumented `eslint-disable jsx-a11y/*` | ✅ **B4** |
 | 12 | Announcements (§7) | `aria-live` = **0** | 4 of 5 toasts silent | **B5** |
 | 13 | Focus-trapped dialogs (§8) | **0 of 6** | | **B5** |
 | 14 | Heading order (§4) | 1 | `/recherche` **h1 → h3** (`ProviderCard.tsx:23`) | **B5** |
 | 15 | axe on real routes (§14) | none | Lighthouse: 1 URL, `warn`, `continue-on-error` | **B5** |
-| 16 | Shared primitives (§10) | library = **1** | 35 inline "Chargement", 6 modals, 5 toasts, 7 inputs | *B6* |
+| 16 | Shared primitives (§10) | library = **1** → growing | 35 inline "Chargement", 6 modals, 5 toasts, 7 inputs. B4 added `TextField`/`Button`/`PhoneField` — and found `OtpLoginForm` has **zero callers** (both funnels inline their own OTP steps): a "shared" component nothing shares. Keep-or-delete is B6's call | *B6* |
 | 7e | Icons borrow a type role | ~~2~~ → **0** | the count was the *tokenised* ones. Measured, the same `✕` rendered at **12, 14, 22px and three inherited sizes** — the drift was in the 24 nobody counted. §7's scale is ported (`text-iconXS…XL`, **a bare size** — see §3) and 10 standalone glyph controls snapped to it by §7's own method. The inheriting ✕s sat at the 16px body default → `iconXS` is **zero-pixel, box included** (measured: font 16 · line 24 · box 24 on both sides); the rest move by the snap and every one **grows** (♡ 22→24, box 26→28), which is the right direction for row 7h. **The first attempt did not**: baking `lineHeight: 1` shrank 7 boxes by 4–8px, and the review measured it — a font-size token quietly regressing the tap-target metric this very slice added. A glyph *inside a sentence* (`★ 4,8 sur 5`, `← Tableau de bord`) is text, not an icon, and was left alone | ✅ **B2c** |
 | 7g | **The `maxWidth` leak** | ~~5~~ → **0** | `maxWidth` spread `spacing` **first**, so `max-w-s`=8px · `max-w-m`=16px · `max-w-l`=24px · `max-w-xxl`=48px · `max-w-xxxl`=64px — rhythm tokens acting as max-widths — while `max-w-sm`=24rem and `max-w-xl`=36rem, because Tailwind's names win where they collide. `max-w-l` (24px) and `max-w-xl` (576px) sat adjacent in one scheme, **24× apart**. Closed to the named steps; the 7 in use are byte-identical | ✅ **B2c** |
-| 7h | **Tap targets ≥ 48 (§13.2)** | **0 of ~10 controls** | measured **on this branch**: `Button` — *every* button — is **36px**; the notifications switch **24** tall; the hamburger **32** (a 24px SVG + `p-xs`, outside the font-size channel); the glyph buttons **18–32**. The only 48px in the codebase is a **non-interactive avatar**. Mobile burned this down in A4a (67 → 0); the web register never had the row. §7: *"never grow the glyph to make the target bigger — grow the target"* — so B2c's icon scale cannot fix it, and shouldn't try | *B4* |
+| 7h | **Tap targets ≥ 48 (§13.2)** | ~~0 of ~10~~ → **0 remaining** | the count was wrong **three** times over: the glyph floor was **16px** (not 18); the census missed HeaderBell (20×20) and the phone country selects; and the first "0 remaining" claim here was **false** — the adversarial review measured a long tail the sweep never reached (the header logo 70×28 and « MyWeli Pro » 112×28 wordmark links, sidebar nav links 207×36 at a 4px stride, the salon switcher ~30, ManualBookingDialog's checkbox/client rows 28 and « Changer » 57×20, ClientCardClient's tag pills + tel links + « Supprimer », DayHoursEditor's « Travaille » rows) — **and** four adjacency violations the sweep itself had *created* with two-sided negative margins (banner ✕/bell/hamburger abutting neighbours at 0–4px; fixed one-sided), plus MediasClient's 3×48 IconBtn row overflowing its 155px grid-cols-2 card at 375 (fixed: 1-col base / `sm:2` / `lg:3` + a wrapping footer). Fixed by A4a's two patterns, ported: bordered boxes/pills grow visibly (`Button` 36→48 = mobile A3's `Size(0, 48)`; chips 28→48; IconBtn; the Lightbox ✕ pill; ReviewForm's stars 24→48 each **+ `gap-s` fixing their 4px adjacency violation**); tight-layout glyphs grow invisibly (padding + **one-sided** negative margin where a neighbour exists, glyph unmoved); the switch keeps its 44×24 track inside a 48 target, labelled by its row title; the photo-✕ badges got 48 wrappers at compensated offsets; text-links became `<Button variant="text">` or floored in place. MonthCalendar cells: **height floored at 48, width grid-bound (~43 at 375px)** — recorded, not hidden. Pinned by `tap-targets.spec.ts` (boundingBox ≥ 48 over the control table, incl. the review's finds; EquipeClient's ⋯ is floored in code but **not pinnable** — the stub seeds no second member, and the first draft's guard passed vacuously) | ✅ **B4** |
 | 7i | No `<Icon>` component | **4 channels** | icon size lives in Tailwind classes (2 of 5 svgs), raw SVG `width`/`height` attrs (3), `globals.css` (the 44px map pin, a 22px dot), and font-size (10 glyphs). B2c governs the last; a real `<Icon>` would govern all four | *B6* |
 | 7j | `contentMaxWidth` unapplied | **1** | §10's `contentMaxWidth = 720` is the only non-icon dimension the system names, and it had never existed in code on either surface. B2c makes it a token (`max-w-content`); **applying** it to the pages that need it is a layout decision | *B7* |
 | 7f | `<h2>` with no type token | **4** | `ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient` carry no size class, so they inherit while their 38 peers are `titleLarge`. Pre-existing — B2b had no `text-*` there to migrate — but it widens the gap to 8px | *B5* |
 | 17 | Reading text = 16px (§3) | **356 × `text-bodyMedium`** | `bodyLarge` (16px) used **once**. B2b renamed the workhorse but did not resize it — the web still reads one step smaller than the app | *B8* |
 | 18 | Desktop-grade pro dashboard (§9) | `xl:`/`2xl:` = **0** | a stretched phone column | *B7* |
-| 19 | Token generator (Flutter → `tokens.ts`) | hand-mirrored | already drifted once (row 4) | *B3* |
+| 19 | Token generator (Flutter → `tokens.ts`) | hand-mirrored | drifted **six times** now (row 4; B4 found `borderFocus` missing — §5's own snippet would not have built — and `warningLight`/`infoLight` still exist on mobile only) | *B3* |
+| 20 | Role pickers announce selection | ~~visual-only~~ → **`aria-pressed`** | ChangeRoleDialog/InviteMemberDialog's role rows showed the chosen role by border colour alone — a screen reader heard four identical buttons. Two lines each | ✅ **B4** |
+| 21 | ReviewForm stars: toggle semantics | 5 × `aria-pressed` | the stars are five independent toggles where "pick one of five" wants a radiogroup; functional but semantically loose. B5's axe run owns the re-shape | *B5* |
+| 22 | FilePick is keyboard-inaccessible | **3 pickers** | the `<input type="file">` is `hidden` (display:none) — unfocusable, so keyboard users cannot upload in MediasClient at all. B4 removed the dead `focus:` classes that *implied* it worked; the fix is `sr-only` + `focus-within` styling on the label | *B5* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.

@@ -12,6 +12,7 @@ import {
 } from '../../lib/pro/medias';
 import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 
 type Tab = 'photos' | 'avant-apres';
 
@@ -144,15 +145,15 @@ function PhotosTab({
         Ajoutez au moins 3 photos. La première sert de couverture.
       </p>
 
-      <div className="mt-m grid grid-cols-2 gap-m sm:grid-cols-3">
+      <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3">
         {photos.map((url, i) => (
           <div
             key={`${url}-${i}`}
             className="overflow-hidden rounded-xl border border-border bg-secondary"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="h-32 w-full object-cover" />
-            <div className="flex items-center justify-between p-s">
+            <img src={url} alt="" className="h-40 w-full object-cover sm:h-32" />
+            <div className="flex flex-wrap items-center justify-between gap-s p-s">
               {i === 0 ? (
                 <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
                   Couverture
@@ -160,7 +161,7 @@ function PhotosTab({
               ) : (
                 <span />
               )}
-              <span className="flex gap-xs">
+              <span className="flex gap-s">
                 <IconBtn
                   label="Monter"
                   onClick={() => setPhotos(moveItem(photos, i, -1))}
@@ -187,7 +188,7 @@ function PhotosTab({
 
       <div className="mt-m flex flex-wrap items-center gap-s">
         {canAddPhoto(photos) ? (
-          <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
+          <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
             {uploading ? 'Téléversement…' : 'Ajouter une photo'}
             <input
               type="file"
@@ -296,12 +297,13 @@ function AvantApresTab({
           <div className="mt-s flex flex-wrap items-center gap-m">
             <FilePick label={before ? 'Avant ✓' : 'Avant'} onChange={(e) => pick(e, setBefore)} />
             <FilePick label={after ? 'Après ✓' : 'Après'} onChange={(e) => pick(e, setAfter)} />
-            <input
+            <TextField
+              label="Légende (optionnelle)"
+              hideLabel
               type="text"
-              placeholder="Légende (optionnel)"
+              placeholder="Légende (optionnelle)"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
             />
             <Button
               variant="secondary"
@@ -347,7 +349,7 @@ function IconBtn({
       onClick={onClick}
       // Its children are always a glyph (↑ ↓ ✕) — an icon, not body text.
       // 14 → 16 by §7 (nearest; ties round up).
-      className="rounded-sm border border-border bg-surface px-s text-iconXS text-textPrimary hover:bg-surfaceVariant"
+      className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-borderStrong bg-surface text-iconXS text-textPrimary hover:bg-surfaceVariant"
     >
       {children}
     </button>
@@ -362,7 +364,7 @@ function FilePick({
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
+    <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
       {label}
       <input type="file" accept="image/*" className="hidden" onChange={onChange} />
     </label>

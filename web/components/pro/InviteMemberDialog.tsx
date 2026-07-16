@@ -122,7 +122,7 @@ export function InviteMemberDialog({
             value={stepEmail}
             onChange={(e) => setStepEmail(e.target.value)}
             placeholder="collaborateur@exemple.com"
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+            className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
         </label>
 
@@ -133,6 +133,7 @@ export function InviteMemberDialog({
               <button
                 key={r}
                 type="button"
+                aria-pressed={role === r}
                 onClick={() => {
                   setRole(r);
                   setErrorCode(undefined);
@@ -161,14 +162,20 @@ export function InviteMemberDialog({
 
         {role === 'staff' ? (
           <div className="mt-m">
-            <p className="text-bodyMedium text-textSecondary">Fiche employé</p>
+            <label
+              htmlFor="invite-fiche"
+              className="text-bodyMedium text-textSecondary"
+            >
+              Fiche employé
+            </label>
             {creatingFiche ? (
               <div className="mt-xs flex gap-s">
                 <input
+                  id="invite-fiche"
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <Button
                   onClick={createFiche}
@@ -180,9 +187,10 @@ export function InviteMemberDialog({
             ) : (
               <div className="mt-xs flex gap-s">
                 <select
+                  id="invite-fiche"
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (

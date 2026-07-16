@@ -108,7 +108,7 @@ export function DisponibilitesClient() {
   }
 
   const inputCls =
-    'rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
+    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
   return (
     <div>
@@ -167,6 +167,7 @@ export function DisponibilitesClient() {
         <div className="mt-m flex flex-wrap items-center gap-s">
           <input
             type="date"
+            aria-label="Date à bloquer"
             className={inputCls}
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}

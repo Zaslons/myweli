@@ -15,10 +15,12 @@ export function AppInstallBanner() {
 
   if (!visible) return null;
 
+  // No '#' fallback: an <a href="#"> is a dead link wearing a CTA — render the
+  // button only when a store URL actually exists (env-gated, like the SSO ids).
   const href =
     process.env.NEXT_PUBLIC_ANDROID_APP_URL ??
     process.env.NEXT_PUBLIC_IOS_APP_URL ??
-    '#';
+    null;
 
   function dismiss() {
     window.localStorage.setItem(dismissKey, '1');
@@ -29,17 +31,19 @@ export function AppInstallBanner() {
     <div className="flex items-center justify-between gap-m bg-primary px-m py-s text-secondary">
       <p className="text-bodyMedium">Réservez plus vite — téléchargez l’app MyWeli.</p>
       <div className="flex items-center gap-s">
-        <a
-          href={href}
-          className="rounded-md bg-secondary px-m py-xs text-labelLarge font-medium text-primary"
-        >
-          Télécharger
-        </a>
+        {href ? (
+          <a
+            href={href}
+            className="inline-flex min-h-12 items-center rounded-md bg-secondary px-m text-labelLarge font-medium text-primary"
+          >
+            Télécharger
+          </a>
+        ) : null}
         <button
           type="button"
           aria-label="Fermer"
           onClick={dismiss}
-          className="px-xs text-iconXS text-secondary"
+          className="-my-sm -mr-sm flex min-h-12 min-w-12 items-center justify-center text-iconXS text-secondary"
         >
           ✕
         </button>

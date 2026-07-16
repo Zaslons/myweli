@@ -34,14 +34,16 @@ export function HeaderBell() {
           ? `Notifications (${state.unread} non lues)`
           : 'Notifications'
       }
-      className="relative text-textPrimary hover:text-textSecondary"
+      className="-my-sm -ml-sm flex min-h-12 min-w-12 items-center justify-center text-textPrimary hover:text-textSecondary"
     >
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-        <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-4.5-5.8V4.5a1.5 1.5 0 0 0-3 0v.7A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z" />
-      </svg>
-      {state.unread > 0 ? (
-        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-pill border-2 border-secondary bg-error" />
-      ) : null}
+      <span className="relative">
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+          <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-4.5-5.8V4.5a1.5 1.5 0 0 0-3 0v.7A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z" />
+        </svg>
+        {state.unread > 0 ? (
+          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-pill border-2 border-secondary bg-error" />
+        ) : null}
+      </span>
     </Link>
   );
 }

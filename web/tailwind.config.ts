@@ -27,7 +27,11 @@ const config: Config = {
     // (.eslintrc.js) is what actually holds this, and
     // `tests/tokens.theme-pin.test.ts` covers what lint cannot see (classes in
     // bare `const` strings).
-    colors: { transparent: 'transparent', ...colors },
+    // `transparent` and `current` are CSS KEYWORDS, not colours — they cannot
+    // drift from mobile because there is nothing to drift. `current` exists for
+    // exactly one pattern: chrome that inherits its context's colour (Button's
+    // isLoading spinner is white on primary and ink on secondary, from ONE class).
+    colors: { transparent: 'transparent', current: 'currentColor', ...colors },
     borderRadius: radius, // no DEFAULT: bare `rounded` is dead on purpose (§15 row 6)
     spacing,
     zIndex,

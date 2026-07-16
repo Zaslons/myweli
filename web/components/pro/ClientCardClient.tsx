@@ -24,6 +24,7 @@ import {
   waHref,
 } from '../../lib/pro/clients';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 import { ManualBookingDialog } from './ManualBookingDialog';
 
 /// Module `clients` C1b — the client card at /pro/clients/[id]
@@ -182,7 +183,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                     {card.phone}
                     <a
                       href={telHref(card.phone)}
-                      className="underline"
+                      className="-my-sm inline-flex min-h-12 items-center underline"
                       aria-label="Appeler"
                     >
                       Appeler
@@ -191,7 +192,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       href={waHref(card.phone)}
                       target="_blank"
                       rel="noreferrer"
-                      className="underline"
+                      className="-my-sm inline-flex min-h-12 items-center underline"
                       aria-label="WhatsApp"
                     >
                       WhatsApp
@@ -207,7 +208,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               </Button>
             </div>
 
-            <div className="mt-m flex flex-wrap items-center gap-xs">
+            <div className="mt-m flex flex-wrap items-center gap-s">
               {(editingTags ? tagChoices : card.tags).map((t) => {
                 const active = card.tags.includes(t);
                 return editingTags ? (
@@ -219,7 +220,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       const next = toggleTag(card.tags, t);
                       if (next) saveTags(next);
                     }}
-                    className={`rounded-pill border px-s py-xs text-bodySmall ${
+                    className={`inline-flex min-h-12 items-center rounded-pill border px-s text-bodySmall ${
                       active
                         ? 'border-primary bg-primary text-secondary'
                         : 'border-border bg-surface text-textSecondary'
@@ -239,7 +240,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               <button
                 type="button"
                 onClick={() => setEditingTags((v) => !v)}
-                className="text-bodySmall text-textTertiary underline"
+                className="inline-flex min-h-12 items-center text-bodySmall text-textTertiary underline"
               >
                 {editingTags ? 'Terminé' : 'Modifier les tags'}
               </button>
@@ -256,13 +257,13 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                   setCustomTag('');
                 }}
               >
-                <input
+                <TextField
+                  label="Nouveau tag"
+                  hideLabel
                   value={customTag}
                   onChange={(e) => setCustomTag(e.target.value)}
                   maxLength={30}
                   placeholder="Nouveau tag…"
-                  aria-label="Nouveau tag"
-                  className="rounded-lg border border-border bg-surface px-s py-xs text-bodySmall text-textPrimary"
                 />
                 <Button variant="secondary" disabled={busy || !customTag.trim()}>
                   Ajouter le tag
@@ -277,14 +278,16 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               Visible uniquement par votre équipe.
             </p>
             <div className="mt-m flex gap-s">
-              <textarea
+              <TextField
+                className="flex-1"
+                label="Ajouter une note"
+                hideLabel
+                multiline
                 value={noteDraft}
                 onChange={(e) => setNoteDraft(e.target.value)}
                 maxLength={MAX_NOTE_LENGTH}
                 rows={2}
                 placeholder="Ajouter une note…"
-                aria-label="Ajouter une note"
-                className="w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
               />
               <Button
                 onClick={submitNote}
@@ -313,7 +316,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                         type="button"
                         onClick={() => removeNote(n.id)}
                         disabled={busy}
-                        className="underline"
+                        className="-my-m inline-flex min-h-12 items-center underline"
                       >
                         Supprimer
                       </button>

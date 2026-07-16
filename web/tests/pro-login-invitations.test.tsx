@@ -64,12 +64,12 @@ afterEach(() => {
 });
 
 async function loginByEmail() {
-  fireEvent.change(screen.getByPlaceholderText('Votre e-mail'), {
+  fireEvent.change(screen.getByLabelText('Votre e-mail'), {
     target: { value: 'invitee@equipe.test' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continuer avec e-mail' }));
-  await screen.findByPlaceholderText('Code à 6 chiffres');
-  fireEvent.change(screen.getByPlaceholderText('Code à 6 chiffres'), {
+  await screen.findByLabelText('Code à 6 chiffres');
+  fireEvent.change(screen.getByLabelText('Code à 6 chiffres'), {
     target: { value: '123456' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
@@ -117,6 +117,6 @@ describe('ProLoginOptions — invitation bridge', () => {
     await screen.findByTestId('pro-login-invitations');
 
     fireEvent.click(screen.getByRole('button', { name: 'Refuser' }));
-    await screen.findByPlaceholderText('Votre e-mail');
+    await screen.findByLabelText('Votre e-mail');
   });
 });

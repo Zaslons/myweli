@@ -99,7 +99,7 @@ export function ProSidebar({
             type="button"
             onClick={onClose}
             aria-label="Fermer le menu"
-            className="rounded-lg p-xs text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
+            className="-m-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
           >
             <span aria-hidden="true">✕</span>
           </button>
@@ -126,7 +126,7 @@ export function ProSidebar({
                     setMenuOpen((o) => !o);
                     setSwitchError(false);
                   }}
-                  className="flex w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s py-xs text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                  className="flex min-h-12 w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                 >
                   <span className="truncate">{salonName}</span>
                   <span aria-hidden="true" className="text-textTertiary">
@@ -148,7 +148,7 @@ export function ProSidebar({
                         type="button"
                         disabled={switching !== null}
                         onClick={() => pick(s.salonId, active)}
-                        className="flex w-full items-center justify-between gap-xs px-s py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
+                        className="flex min-h-12 w-full items-center justify-between gap-xs px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
                       >
                         <span className="min-w-0">
                           <span className="block truncate">{s.salonName}</span>
@@ -195,7 +195,7 @@ export function ProSidebar({
                   key={item.label}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`block rounded-lg px-s py-s text-bodyMedium hover:bg-surfaceVariant ${
+                  className={`flex min-h-12 items-center rounded-lg px-s text-bodyMedium hover:bg-surfaceVariant ${
                     active
                       ? 'bg-surfaceVariant font-medium text-textPrimary'
                       : 'text-textPrimary'

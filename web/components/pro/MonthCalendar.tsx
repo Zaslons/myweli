@@ -68,7 +68,7 @@ export function MonthCalendar({
               key={k}
               type="button"
               onClick={() => onSelect(k)}
-              className={`flex aspect-square flex-col items-center justify-center rounded-lg text-bodyMedium ${
+              className={`min-h-12 flex aspect-square flex-col items-center justify-center rounded-lg text-bodyMedium ${
                 isSel
                   ? 'bg-primary text-secondary'
                   : inMonth

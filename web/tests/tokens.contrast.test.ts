@@ -50,6 +50,11 @@ describe('text — WCAG 1.4.3, 4.5:1', () => {
 describe('non-text — WCAG 1.4.11, 3:1', () => {
   it('borderStrong — the boundary of an interactive control', () =>
     expectFloor('borderStrong', colors.borderStrong, FLOOR_NON_TEXT));
+  // 19.59:1 — trivially passes. The row exists because the TOKEN once didn't:
+  // borderFocus was promised by WEB-SYSTEM §1/§5 from B1 and only landed in B4
+  // (the sixth mirror drift). With the row here, deleting the token goes red.
+  it('borderFocus — the focus ring (§5)', () =>
+    expectFloor('borderFocus', colors.borderFocus, FLOOR_NON_TEXT));
   it('gold — gold-as-state (the owner chip)', () =>
     expectFloor('gold', colors.gold, FLOOR_NON_TEXT));
   it('favorite — the heart glyph', () =>

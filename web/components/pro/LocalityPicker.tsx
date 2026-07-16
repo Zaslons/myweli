@@ -7,7 +7,7 @@ import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 
 const input =
-  'w-full rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
+  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 /// French names for LocalityArea.labelKind (the second select's label).
 const AREA_KIND_LABEL: Record<string, string> = {

@@ -90,7 +90,7 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
       mimeType: 'image/jpeg',
       buffer: Buffer.from('fake-jpeg-bytes'),
     });
-  await expect(page.getByAltText('Photo 1')).toBeVisible();
+  await expect(page.getByAltText('Pièce jointe 1')).toBeVisible();
   await page.getByRole('button', { name: 'Envoyer l’avis' }).click();
   await expect(page.getByText(/Merci pour votre avis/)).toBeVisible();
 

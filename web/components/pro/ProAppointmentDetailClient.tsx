@@ -311,7 +311,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     aria-label="Nouvelle date"
                     value={reprogDate}
                     onChange={(e) => setReprogDate(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
+                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                   <input
                     type="time"
@@ -319,7 +319,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     step={900}
                     value={reprogTime}
                     onChange={(e) => setReprogTime(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
+                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                 </div>
                 {reprogError ? (

@@ -24,6 +24,7 @@ import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
 import { supportWhatsAppUrl } from '../../lib/support';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
 import { ProviderCard } from '../provider/ProviderCard';
@@ -147,11 +148,11 @@ export function AccountClient() {
           <div>
             {editingName ? (
               <div className="flex flex-wrap items-center gap-s">
-                <input
+                <TextField
+                  label="Nom"
+                  hideLabel
                   value={nameDraft}
                   onChange={(e) => setNameDraft(e.target.value)}
-                  aria-label="Nom"
-                  className="rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textPrimary"
                 />
                 <Button
                   disabled={nameBusy || !nameDraft.trim()}
@@ -370,12 +371,12 @@ export function AccountClient() {
                 Tapez SUPPRIMER pour confirmer
               </p>
               <div className="mt-xs flex flex-wrap items-center gap-s">
-                <input
+                <TextField
+                  label="Confirmation de suppression"
+                  hideLabel
                   value={deleteText}
                   onChange={(e) => setDeleteText(e.target.value)}
                   placeholder="SUPPRIMER"
-                  aria-label="Confirmation de suppression"
-                  className="rounded-lg border border-border bg-secondary px-s py-xs text-bodyMedium text-textPrimary"
                 />
                 <Button
                   disabled={

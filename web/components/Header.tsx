@@ -8,7 +8,7 @@ export function Header() {
   return (
     <header className="border-b border-divider bg-secondary">
       <nav className="mx-auto flex max-w-5xl items-center justify-between px-m py-s">
-        <Link href="/" aria-label="MyWeli — accueil" className="flex items-center">
+        <Link href="/" aria-label="MyWeli — accueil" className="-my-s flex min-h-12 items-center">
           <Image
             src="/brand/myweli_lockup_horizontal_black.svg"
             alt="MyWeli"
@@ -23,7 +23,7 @@ export function Header() {
           <HeaderBell />
           <Link
             href="/mon-compte"
-            className="text-labelLarge font-medium text-textPrimary hover:text-textSecondary"
+            className="-my-s inline-flex min-h-12 items-center text-labelLarge font-medium text-textPrimary hover:text-textSecondary"
           >
             Mon compte
           </Link>

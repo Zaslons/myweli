@@ -26,6 +26,12 @@ export const colors = {
   divider: '#E0E0E0', // decorative rules
   border: '#D0D0D0', // container hairlines
   borderStrong: '#8A8A8A', // 3.22:1 — interactive control boundaries (WCAG 1.4.11)
+  // The focus ring — 2px, 2px offset, so it never merges with the control's edge
+  // (mirrors colors.dart:68). The SIXTH mirror drift, and the only load-bearing
+  // one: WEB-SYSTEM §5's own base-rule snippet consumes theme('colors.borderFocus')
+  // and would have FAILED THE BUILD — the doc promised a token the code didn't have,
+  // from B1 until B4.
+  borderFocus: '#000000',
   // Semantic (status only)
   success: '#2D5016',
   successLight: '#4A7C2A',
