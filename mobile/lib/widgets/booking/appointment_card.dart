@@ -155,46 +155,52 @@ class AppointmentCard extends StatelessWidget {
                             ConstrainedBox(
                               constraints: const BoxConstraints(
                                   minHeight: 48), // §13.2 touch target
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  if (provider == null ||
-                                      provider.latitude == null ||
-                                      provider.longitude == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'Localisation non disponible pour ce salon'),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  context.push(
-                                      '/favorites?providerId=${provider.id}');
-                                },
-                                child: Center(
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.location_on,
-                                          size: AppTheme.iconXS,
-                                          color: AppColors.textTertiary),
-                                      const SizedBox(width: AppTheme.spacingXS),
-                                      Expanded(
-                                        child: Text(
-                                          provider.city ?? provider.address,
-                                          style:
-                                              AppTextStyles.bodySmall.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                              child: Semantics(
+                                button: true,
+                                label: 'Voir sur la carte',
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    if (provider == null ||
+                                        provider.latitude == null ||
+                                        provider.longitude == null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Localisation non disponible pour ce salon'),
+                                          duration: Duration(seconds: 2),
                                         ),
-                                      ),
-                                      const Icon(Icons.map,
-                                          size: AppTheme.iconXS,
-                                          color: AppColors.textTertiary),
-                                    ],
+                                      );
+                                      return;
+                                    }
+                                    context.push(
+                                        '/favorites?providerId=${provider.id}');
+                                  },
+                                  child: Center(
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.location_on,
+                                            size: AppTheme.iconXS,
+                                            color: AppColors.textTertiary),
+                                        const SizedBox(
+                                            width: AppTheme.spacingXS),
+                                        Expanded(
+                                          child: Text(
+                                            provider.city ?? provider.address,
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const Icon(Icons.map,
+                                            size: AppTheme.iconXS,
+                                            color: AppColors.textTertiary),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -205,32 +211,36 @@ class AppointmentCard extends StatelessWidget {
                               ConstrainedBox(
                                 constraints: const BoxConstraints(
                                     minHeight: 48), // §13.2 touch target
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: () {
-                                    Helpers.launchNavigation(
-                                      latitude: provider!.latitude!,
-                                      longitude: provider.longitude!,
-                                      label: provider.name,
-                                      context: context,
-                                    );
-                                  },
-                                  child: Center(
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.directions,
-                                            size: AppTheme.iconXS,
-                                            color: AppColors.primary),
-                                        const SizedBox(
-                                            width: AppTheme.spacingXS),
-                                        Text(
-                                          'Itinéraire',
-                                          style:
-                                              AppTextStyles.bodySmall.copyWith(
-                                            color: AppColors.primary,
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Itinéraire',
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      Helpers.launchNavigation(
+                                        latitude: provider!.latitude!,
+                                        longitude: provider.longitude!,
+                                        label: provider.name,
+                                        context: context,
+                                      );
+                                    },
+                                    child: Center(
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.directions,
+                                              size: AppTheme.iconXS,
+                                              color: AppColors.primary),
+                                          const SizedBox(
+                                              width: AppTheme.spacingXS),
+                                          Text(
+                                            'Itinéraire',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                              color: AppColors.primary,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),

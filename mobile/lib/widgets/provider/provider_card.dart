@@ -5,6 +5,7 @@ import 'package:provider/provider.dart' as provider_package;
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/helpers.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
@@ -115,6 +116,12 @@ class ProviderCard extends StatelessWidget {
                                 await favoritesProvider.toggleFavorite(
                                     userId, provider.id);
                                 if (context.mounted) {
+                                  Helpers.announce(
+                                    context,
+                                    isFavorite
+                                        ? 'Retiré des favoris'
+                                        : 'Ajouté aux favoris',
+                                  );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -305,6 +312,12 @@ class ProviderCard extends StatelessWidget {
                             await favoritesProvider.toggleFavorite(
                                 userId, provider.id);
                             if (context.mounted) {
+                              Helpers.announce(
+                                context,
+                                isFavorite
+                                    ? 'Retiré des favoris'
+                                    : 'Ajouté aux favoris',
+                              );
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(

@@ -17,6 +17,13 @@ class TimedCachedImage extends StatefulWidget {
   final BorderRadius? borderRadius;
   final Duration timeout;
 
+  /// The screen-reader name for a MEANINGFUL image (a salon photo the user is
+  /// meant to perceive). Left null, the image is treated as **decorative** and
+  /// hidden from the semantics tree (`excludeFromSemantics`) — the WCAG-correct
+  /// default, since most images sit inside a card that already announces its
+  /// name (§13.4).
+  final String? semanticLabel;
+
   const TimedCachedImage({
     super.key,
     required this.imageUrl,
@@ -25,6 +32,7 @@ class TimedCachedImage extends StatefulWidget {
     this.height,
     this.borderRadius,
     this.timeout = const Duration(seconds: 12),
+    this.semanticLabel,
   });
 
   @override
@@ -92,18 +100,23 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
   Widget build(BuildContext context) {
     if (widget.imageUrl.startsWith('asset:')) {
       final assetPath = widget.imageUrl.substring('asset:'.length);
+      final bool decorative = widget.semanticLabel == null;
       final Widget assetWidget = assetPath.toLowerCase().endsWith('.svg')
           ? SvgPicture.asset(
               assetPath,
               width: widget.width,
               height: widget.height,
               fit: widget.fit,
+              semanticsLabel: widget.semanticLabel,
+              excludeFromSemantics: decorative,
             )
           : Image.asset(
               assetPath,
               width: widget.width,
               height: widget.height,
               fit: widget.fit,
+              semanticLabel: widget.semanticLabel,
+              excludeFromSemantics: decorative,
             );
 
       if (widget.borderRadius != null) {
@@ -128,6 +141,8 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
           fit: widget.fit,
           width: widget.width,
           height: widget.height,
+          semanticLabel: widget.semanticLabel,
+          excludeFromSemantics: widget.semanticLabel == null,
         );
       },
       placeholder: (context, url) => Container(
