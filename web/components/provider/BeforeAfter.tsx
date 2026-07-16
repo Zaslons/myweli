@@ -18,7 +18,7 @@ export function BeforeAfter({ pairs }: { pairs: Pair[] }) {
           >
             <div className="grid grid-cols-2 gap-xs">
               <div>
-                <div className="relative h-32 w-full overflow-hidden rounded">
+                <div className="relative h-32 w-full overflow-hidden rounded-sm">
                   <Image
                     src={p.before}
                     alt="Avant"
@@ -33,7 +33,7 @@ export function BeforeAfter({ pairs }: { pairs: Pair[] }) {
                 </figcaption>
               </div>
               <div>
-                <div className="relative h-32 w-full overflow-hidden rounded">
+                <div className="relative h-32 w-full overflow-hidden rounded-sm">
                   <Image
                     src={p.after}
                     alt="Après"

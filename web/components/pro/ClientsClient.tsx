@@ -126,7 +126,7 @@ export function ClientsClient() {
             key={t}
             type="button"
             onClick={() => filterTag(t)}
-            className={`rounded-full border px-s py-xs text-xs ${
+            className={`rounded-pill border px-s py-xs text-xs ${
               tag === t
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textSecondary'
@@ -160,7 +160,7 @@ export function ClientsClient() {
                   href={`/pro/clients/${c.id}`}
                   className="flex items-center gap-m p-m hover:bg-surface"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-sm font-medium text-textPrimary">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-surface text-sm font-medium text-textPrimary">
                     {c.displayName.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -169,13 +169,21 @@ export function ClientsClient() {
                         {c.displayName}
                       </span>
                       {c.linked ? (
-                        <span className="rounded-full bg-surface px-xs text-[10px] uppercase text-textTertiary">
+                        <span
+                          // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also
+                          // BELOW WEB-SYSTEM §3's 11px floor (§15 row 20).
+                          // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                          className="rounded-pill bg-surface px-xs text-[10px] uppercase text-textTertiary"
+                        >
                           MyWeli
                         </span>
                       ) : null}
                       {noShowBadge(c.noShows) !== 'none' ? (
                         <span
-                          className={`rounded-full px-xs text-[10px] ${
+                          // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also
+                          // BELOW WEB-SYSTEM §3's 11px floor (§15 row 20).
+                          // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                          className={`rounded-pill px-xs text-[10px] ${
                             noShowBadge(c.noShows) === 'red'
                               ? 'bg-error/10 text-error'
                               : 'bg-surface text-textSecondary'
@@ -199,7 +207,10 @@ export function ClientsClient() {
                     {c.tags.map((t) => (
                       <span
                         key={t}
-                        className="rounded-full border border-border px-xs text-[10px] text-textSecondary"
+                        // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also
+                        // BELOW WEB-SYSTEM §3's 11px floor (§15 row 20).
+                        // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                        className="rounded-pill border border-border px-xs text-[10px] text-textSecondary"
                       >
                         {t}
                       </span>
@@ -281,7 +292,7 @@ function AddClientModal({
       role="dialog"
       aria-modal="true"
       aria-label="Ajouter un client"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-m"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
     >
       <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
         <h2 className="text-lg font-semibold text-textPrimary">

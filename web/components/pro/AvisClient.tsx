@@ -113,7 +113,7 @@ export function AvisClient() {
                   </dt>
                   <dd className="flex flex-1 items-center gap-s">
                     <div
-                      className="h-2 flex-1 overflow-hidden rounded-full bg-surface"
+                      className="h-2 flex-1 overflow-hidden rounded-pill bg-surface"
                       role="progressbar"
                       aria-label={`${d.rating} étoiles`}
                       aria-valuenow={d.count}
@@ -121,7 +121,7 @@ export function AvisClient() {
                       aria-valuemax={stats.count}
                     >
                       <div
-                        className="h-full rounded-full bg-primary"
+                        className="h-full rounded-pill bg-primary"
                         style={{ width: `${d.pct}%` }}
                       />
                     </div>
@@ -142,7 +142,7 @@ export function AvisClient() {
                 className="rounded-xl border border-border bg-secondary p-m"
               >
                 <div className="flex items-start gap-m">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface font-medium text-textPrimary">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-surface font-medium text-textPrimary">
                     {(r.userName || '?').slice(0, 1).toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">

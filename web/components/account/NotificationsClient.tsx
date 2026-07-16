@@ -191,7 +191,7 @@ export function NotificationsClient() {
                     </span>
                     {!n.read ? (
                       <span
-                        className="h-2 w-2 shrink-0 rounded-full bg-primary"
+                        className="h-2 w-2 shrink-0 rounded-pill bg-primary"
                         aria-label="Non lu"
                       />
                     ) : null}
@@ -234,12 +234,16 @@ export function NotificationsClient() {
                 aria-checked={prefs[row.key]}
                 aria-label={row.title}
                 onClick={() => toggle(row.key)}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                className={`relative h-6 w-11 shrink-0 rounded-pill transition-colors ${
                   prefs[row.key] ? 'bg-primary' : 'bg-border'
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-secondary shadow transition-all ${
+                  // ds-ignore: the knob's travel is exact geometry, not spacing: track w-11 (44) − knob
+                  // w-5 (20) − left-0.5 (2) = 22. Any token snap misplaces it. B4's shared
+                  // control absorbs this.
+                  // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                  className={`absolute top-0.5 h-5 w-5 rounded-pill bg-secondary shadow transition-all ${
                     prefs[row.key] ? 'left-[22px]' : 'left-0.5'
                   }`}
                 />

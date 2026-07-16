@@ -266,9 +266,9 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
       ) : null}
       {googleClientId ? (
         <div className="flex items-center gap-s text-xs text-textTertiary">
-          <span className="h-px flex-1 bg-divider" />
+          <span className="flex-1 border-t border-divider" />
           ou
-          <span className="h-px flex-1 bg-divider" />
+          <span className="flex-1 border-t border-divider" />
         </div>
       ) : null}
       <input

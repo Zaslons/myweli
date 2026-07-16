@@ -91,7 +91,7 @@ export function RevenusClient() {
             key={p.key}
             type="button"
             onClick={() => pick(p.key)}
-            className={`rounded-full border px-m py-xs text-sm ${
+            className={`rounded-pill border px-m py-xs text-sm ${
               period === p.key
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-secondary text-textPrimary'

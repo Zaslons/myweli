@@ -146,7 +146,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <h2 className="text-lg font-semibold text-textPrimary">
             {appt.providerName ?? 'Salon'}
           </h2>
-          <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
+          <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
             {statusLabelFr(appt.status)}
           </span>
         </div>
@@ -329,7 +329,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                         key={iso}
                         type="button"
                         onClick={() => setPickedSlot(iso)}
-                        className={`rounded-full border px-m py-xs text-sm ${
+                        className={`rounded-pill border px-m py-xs text-sm ${
                           pickedSlot === iso
                             ? 'border-primary bg-primary text-secondary'
                             : 'border-border bg-secondary text-textPrimary'

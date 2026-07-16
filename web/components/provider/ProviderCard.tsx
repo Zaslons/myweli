@@ -61,7 +61,9 @@ export function ProviderCard({
             : `Ajouter ${provider.name} aux favoris`
         }
         onClick={onToggleFavorite}
-        className={`absolute bottom-2 right-2 rounded-full px-2 py-0.5 text-lg leading-none ${
+        // ds-ignore: 2px badge padding; below the 4px grid floor.
+        // eslint-disable-next-line tailwindcss/no-arbitrary-value
+        className={`absolute bottom-2 right-2 rounded-pill px-s py-[2px] text-lg leading-none ${
           favorite ? 'text-error' : 'text-textTertiary'
         } hover:bg-surfaceVariant`}
       >

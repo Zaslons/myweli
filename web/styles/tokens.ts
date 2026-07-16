@@ -51,13 +51,76 @@ export const radius = {
   lg: '12px',
   xl: '16px',
   xxl: '24px',
+  // Fully-rounded. `pill` is a *shape*, not a number — chips, avatars, badges
+  // (SYSTEM.md §6, mirroring `AppTheme.radiusPill`). It replaces `rounded-full`,
+  // which was Tailwind's default key and dies with the closed theme (§2).
+  pill: '999px',
 } as const;
 
+// The RHYTHM scale — padding, margin, gap (SYSTEM.md §5's 8pt grid).
+//
+// Tailwind's `spacing` key also feeds `w-`/`h-`/`size-`/`min-*`/`max-h-`/`inset-`/
+// `translate-`, which are SIZES, not rhythm — and the web has no sizing scale yet
+// (docs/design/ covers icons only, SYSTEM.md §7). So `tailwind.config.ts` closes
+// this scale for rhythm and carves the sizing keys out until B2c. See §2.
 export const spacing = {
+  0: '0px', // inset-0 / top-0 / min-w-0 — 38 uses, and not a "spacing value"
   xs: '4px',
   s: '8px',
+  // The sanctioned half-step (SYSTEM.md §5): 8 too tight, 16 too loose for dense
+  // UI. Mobile named it `spacingSM`; the web mirror had silently dropped it.
+  sm: '12px',
   m: '16px',
   l: '24px',
   xl: '32px',
   xxl: '48px',
+  xxxl: '64px', // mirrors `AppTheme.spacingXXXL` — the second mirror drift (see §15 row 19)
+} as const;
+
+// Layering (WEB-SYSTEM.md §9). The scale is the LAYER, named — never a number.
+// Ties are resolved by DOM order, so if two things at the same layer can coexist,
+// one of them is at the wrong layer.
+export const zIndex = {
+  base: '0', // content
+  sticky: '10', // sticky headers, the map's floating controls
+  dropdown: '20', // menus, popovers, in-page panels
+  overlay: '30', // scrims
+  modal: '40', // dialogs, sheets, the mobile drawer
+  toast: '50', // feedback — always on top
+  // Load-bearing, not redundant: at `lg:` the pro sidebar is a FLEX ITEM, and
+  // z-index applies to flex items whatever their `position`. `base` (0) is NOT a
+  // substitute — 0 creates a stacking context and would trap the salon-switcher
+  // dropdown inside the aside; `auto` does not.
+  auto: 'auto',
+} as const;
+
+// Motion (SYSTEM.md §9). Durations only — the easing curves have no Tailwind
+// equivalent and land with the motion slice (A9).
+export const motion = {
+  // Load-bearing: every bare `transition`/`transition-colors` reads
+  // `transitionDuration.DEFAULT`. Drop it and they all become INSTANT — silently.
+  //
+  // It is also the slice's one deliberate rendering change: Tailwind's stock
+  // DEFAULT is 150ms, SYSTEM.md §9's `motionBase` is 200. The three sites with a
+  // bare `transition*` and no `duration-` sibling get 33% slower: `Button.tsx`
+  // (its shared `base` string — i.e. EVERY button hover) and the two
+  // notifications toggles. Imperceptible, but real, and now on the record.
+  DEFAULT: '200ms', // = base, SYSTEM.md §9's "the default"
+  stagger: '50ms',
+  fast: '100ms', // immediate state feedback
+  base: '200ms', // most transitions
+  emphasis: '300ms', // entering surfaces
+  slow: '400ms', // large surfaces
+} as const;
+
+// Breakpoints (WEB-SYSTEM.md §9) — Tailwind's own values, pinned so a sixth
+// cannot appear. `xl`/`2xl` are unused today and stay anyway: §9 says their
+// ABSENCE is the bug (the pro dashboard is a stretched phone column), so the
+// desktop work needs them.
+export const screens = {
+  sm: '640px',
+  md: '768px',
+  lg: '1024px',
+  xl: '1280px',
+  '2xl': '1536px',
 } as const;

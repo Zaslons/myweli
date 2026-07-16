@@ -13,7 +13,7 @@ export function Lightbox({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-m"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/80 p-m"
       role="dialog"
       aria-label={label}
       onClick={onClose}
@@ -28,7 +28,7 @@ export function Lightbox({
         type="button"
         aria-label="Fermer"
         onClick={onClose}
-        className="absolute right-4 top-4 z-10 rounded-full bg-black/60 px-3 py-1 text-lg text-white"
+        className="absolute right-4 top-4 rounded-pill bg-primary/60 px-sm py-xs text-lg text-secondary"
       >
         ✕
       </button>

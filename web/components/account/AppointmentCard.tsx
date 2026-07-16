@@ -35,7 +35,7 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           ) : null}
         </div>
         <div className="text-right">
-          <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
+          <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
             {statusLabelFr(appt.status)}
           </span>
           {typeof appt.totalPrice === 'number' ? (

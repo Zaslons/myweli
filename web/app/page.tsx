@@ -77,7 +77,14 @@ export default async function HomePage() {
 
       <section className="relative overflow-hidden border-b border-divider">
         <HeroBackground />
-        <div className="mx-auto max-w-5xl px-m py-xxl">
+        {/* `relative` is load-bearing: the backdrop is absolutely positioned, so
+            it paints in the positioned step. Without `relative` here this content
+            is a static block and paints UNDER it. Both positioned + DOM order
+            (backdrop first) is what keeps the text on top — no z-index needed.
+            Nothing guards this: an elementFromPoint hit-test reports the text on
+            top either way, because the backdrop is `pointer-events-none`. So the
+            comment IS the guard. Do not remove it, or the class. */}
+        <div className="relative mx-auto max-w-5xl px-m py-xxl">
           <h1 className="max-w-2xl text-4xl font-semibold text-textPrimary">
             Réservez beauté & bien-être à {cityName}
           </h1>

@@ -134,10 +134,12 @@ export function ManualBookingDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Nouveau rendez-vous"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-m"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
       onClick={onClose}
     >
       <div
+        // ds-ignore: viewport-relative dialog scroll box.
+        // eslint-disable-next-line tailwindcss/no-arbitrary-value
         className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l"
         onClick={(e) => e.stopPropagation()}
       >

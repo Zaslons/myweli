@@ -147,7 +147,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             {appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
               <span
-                className={`rounded-full px-s py-xs text-xs font-normal ${
+                className={`rounded-pill px-s py-xs text-xs font-normal ${
                   noShowBadge(appt.clientNoShowCount) === 'red'
                     ? 'bg-error/10 text-error'
                     : 'bg-surface text-textSecondary'
@@ -165,7 +165,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
               </Link>
             ) : null}
           </p>
-          <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
+          <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
             {statusLabelFr(appt.status)}
           </span>
         </div>

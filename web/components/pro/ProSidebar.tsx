@@ -88,7 +88,7 @@ export function ProSidebar({
       ref={asideRef}
       id="pro-sidebar-nav"
       aria-label="Navigation du salon"
-      className={`fixed inset-y-0 left-0 z-40 w-60 overflow-y-auto border-r border-divider bg-secondary p-m transition-transform duration-200 motion-reduce:transition-none lg:static lg:z-auto lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:transition-none ${
+      className={`fixed inset-y-0 left-0 z-modal w-60 overflow-y-auto border-r border-divider bg-secondary p-m transition-transform duration-base motion-reduce:transition-none lg:static lg:z-auto lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:transition-none ${
         open ? 'translate-x-0 shadow-xl lg:shadow-none' : '-translate-x-full'
       }`}
     >
@@ -139,7 +139,7 @@ export function ProSidebar({
                 </p>
               )}
               {menuOpen ? (
-                <div className="absolute inset-x-s z-20 mt-xs rounded-lg border border-border bg-secondary py-xs shadow-lg">
+                <div className="absolute inset-x-s z-dropdown mt-xs rounded-lg border border-border bg-secondary py-xs shadow-lg">
                   {salons.map((s) => {
                     const active = s.salonId === providerId;
                     return (

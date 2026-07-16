@@ -201,7 +201,7 @@ export async function taxonomyMetadata(
 // --- the view ----------------------------------------------------------------
 
 const chip =
-  'rounded-full border border-border bg-secondary px-m py-xs text-sm ' +
+  'rounded-pill border border-border bg-secondary px-m py-xs text-sm ' +
   'text-textPrimary hover:bg-surfaceVariant';
 
 /// French names for LocalityArea.labelKind (section headings).

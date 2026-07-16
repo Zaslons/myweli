@@ -139,9 +139,9 @@ export function AbonnementClient() {
       {offer ? (
         <section className="mt-l max-w-sm">
           <p className="text-sm text-textSecondary">{seatsLabel(offer.seats)}</p>
-          <div className="mt-xs h-2 overflow-hidden rounded-full bg-surfaceVariant">
+          <div className="mt-xs h-2 overflow-hidden rounded-pill bg-surfaceVariant">
             <div
-              className="h-full rounded-full bg-primary"
+              className="h-full rounded-pill bg-primary"
               style={{
                 width: `${Math.min(
                   100,

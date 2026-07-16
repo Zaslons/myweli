@@ -393,7 +393,16 @@ export function BookingFlow({
 
   // ---- HUB ---------------------------------------------------------------
   return (
-    <div className="pb-24 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-l lg:pb-0">
+    <div
+      // ds-ignore: clears the pinned bottom bar. 6rem, NOT 96px — `pb-24` was
+      // 6rem, and the bar it clears is TEXT-driven, so a px clearance stops
+      // tracking the root font size: raise it and the bar grows while the gap
+      // does not, and the bar covers the content (SYSTEM.md §13.3 — A5's lesson,
+      // on the web). 96 is off the rhythm scale, hence the exception. The grid
+      // template is a layout ratio + a fixed side panel — not a token either.
+      // eslint-disable-next-line tailwindcss/no-arbitrary-value
+      className="pb-[6rem] lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-l lg:pb-0"
+    >
       <div className="space-y-s">
         {/* PRESTATIONS */}
         <SectionCard
@@ -457,7 +466,7 @@ export function BookingFlow({
                     type="button"
                     onClick={() => onVariant(k)}
                     aria-pressed={s.lengthVariant === k}
-                    className={`rounded-full border px-m py-xs text-sm ${
+                    className={`rounded-pill border px-m py-xs text-sm ${
                       s.lengthVariant === k
                         ? 'border-primary bg-primary text-secondary'
                         : 'border-border bg-surface text-textPrimary'
@@ -565,7 +574,7 @@ export function BookingFlow({
                   key={iso}
                   type="button"
                   onClick={() => onPickSlot(iso)}
-                  className={`rounded-full border px-m py-xs text-sm ${
+                  className={`rounded-pill border px-m py-xs text-sm ${
                     s.slot === iso
                       ? 'border-primary bg-primary text-secondary'
                       : 'border-border bg-surface text-textPrimary'
@@ -624,7 +633,7 @@ export function BookingFlow({
 
       {/* Mobile-web pinned bottom bar (parity 2.11 — the app's fixed
           Total + « Confirmer »). */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-divider bg-secondary px-m py-s lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-sticky border-t border-divider bg-secondary px-m py-s lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-m">
           <div>
             <p className="font-semibold text-textPrimary">
