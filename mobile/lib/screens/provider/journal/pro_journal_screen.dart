@@ -480,6 +480,7 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               IconButton(
+                tooltip: 'Jour précédent',
                 icon: const Icon(Icons.chevron_left),
                 onPressed: () => journal.setDate(
                   date.subtract(const Duration(days: 1)),
@@ -512,6 +513,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
               IconButton(
+                tooltip: 'Jour suivant',
                 icon: const Icon(Icons.chevron_right),
                 onPressed: () => journal.setDate(
                   date.add(const Duration(days: 1)),

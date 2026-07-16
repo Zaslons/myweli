@@ -129,6 +129,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
             children: [
               if (_step != _InviteStep.email)
                 IconButton(
+                  tooltip: 'Retour',
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () => setState(() {
                     _step = _step == _InviteStep.artist

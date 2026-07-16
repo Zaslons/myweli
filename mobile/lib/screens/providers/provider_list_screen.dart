@@ -62,6 +62,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         title: const Text('Salons & Barbiers'),
         actions: [
           IconButton(
+            tooltip: _isGrid ? 'Afficher en liste' : 'Afficher en grille',
             icon: Icon(_isGrid ? Icons.view_list : Icons.grid_view),
             onPressed: () => setState(() => _isGrid = !_isGrid),
           ),

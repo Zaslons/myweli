@@ -591,6 +591,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           children: [
                             _SelectableRow(
                               title: 'Pas de préférence',
+                              mutuallyExclusive: true,
                               subtitle: 'Le salon choisit pour vous',
                               selected:
                                   _artistChosen && _draft.artistId == null,
@@ -626,6 +627,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 opacity: canDoSelectedServices ? 1.0 : 0.45,
                                 child: _SelectableRow(
                                   title: a.name,
+                                  mutuallyExclusive: true,
                                   subtitle: a.specialization ?? 'Spécialiste',
                                   selected: selected,
                                   enabled: canDoSelectedServices,
@@ -921,48 +923,53 @@ class _HubSectionCard extends StatelessWidget {
           ConstrainedBox(
             constraints:
                 const BoxConstraints(minHeight: 48), // §13.2 touch target
-            child: InkWell(
-              onTap: onHeaderTap,
-              borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-              child: Center(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusPill),
-                        border: Border.all(color: AppColors.border),
+            child: Semantics(
+              button: true,
+              expanded: expanded,
+              label: title,
+              child: InkWell(
+                onTap: onHeaderTap,
+                borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+                child: Center(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusPill),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Icon(icon, color: AppColors.textPrimary),
                       ),
-                      child: Icon(icon, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(width: AppTheme.spacingM),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title, style: AppTextStyles.titleSmall),
-                          const SizedBox(height: AppTheme.spacingXS),
-                          Text(
-                            value,
-                            style: AppTextStyles.bodyMedium
-                                .copyWith(color: AppColors.textPrimary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                      const SizedBox(width: AppTheme.spacingM),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title, style: AppTextStyles.titleSmall),
+                            const SizedBox(height: AppTheme.spacingXS),
+                            Text(
+                              value,
+                              style: AppTextStyles.bodyMedium
+                                  .copyWith(color: AppColors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    AnimatedRotation(
-                      turns: expanded ? 0.25 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      child: const Icon(Icons.chevron_right,
-                          color: AppColors.textTertiary),
-                    ),
-                  ],
+                      AnimatedRotation(
+                        turns: expanded ? 0.25 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: const Icon(Icons.chevron_right,
+                            color: AppColors.textTertiary),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -988,6 +995,7 @@ class _SelectableRow extends StatelessWidget {
   final String? subtitle;
   final bool selected;
   final bool enabled;
+  final bool mutuallyExclusive;
   final VoidCallback onTap;
 
   const _SelectableRow({
@@ -995,61 +1003,70 @@ class _SelectableRow extends StatelessWidget {
     this.subtitle,
     required this.selected,
     this.enabled = true,
+    this.mutuallyExclusive = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = enabled ? AppColors.textPrimary : AppColors.textTertiary;
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSM),
-        child: Row(
-          children: [
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(
-                    color:
-                        selected ? AppColors.primary : AppColors.borderStrong),
-                color: selected
-                    ? AppColors.primary.withValues(alpha: 0.12)
-                    : Colors.transparent,
+    return Semantics(
+      label: title,
+      enabled: enabled ? null : false,
+      checked: mutuallyExclusive ? null : selected,
+      selected: mutuallyExclusive ? selected : null,
+      inMutuallyExclusiveGroup: mutuallyExclusive ? true : null,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSM),
+          child: Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  border: Border.all(
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.borderStrong),
+                  color: selected
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                ),
+                child: selected
+                    ? const Icon(Icons.check,
+                        size: AppTheme.iconS, color: AppColors.primary)
+                    : null,
               ),
-              child: selected
-                  ? const Icon(Icons.check,
-                      size: AppTheme.iconS, color: AppColors.primary)
-                  : null,
-            ),
-            const SizedBox(width: AppTheme.spacingSM),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.bodyMedium.copyWith(color: color),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: AppTheme.spacingXS),
+              const SizedBox(width: AppTheme.spacingSM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle!,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textSecondary),
-                      maxLines: 2,
+                      title,
+                      style: AppTextStyles.bodyMedium.copyWith(color: color),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: AppTheme.spacingXS),
+                      Text(
+                        subtitle!,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textSecondary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1069,33 +1086,37 @@ class _DatePickerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingSM),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: AppColors.borderStrong),
-            color: AppColors.secondary,
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.event,
-                  color: AppColors.textSecondary, size: AppTheme.iconS),
-              const SizedBox(width: AppTheme.spacingSM),
-              Expanded(
-                child: Text(
-                  Formatters.formatDate(date),
-                  style: AppTextStyles.bodyMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+      child: Semantics(
+        button: true,
+        label: Formatters.formatDate(date),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingSM),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              border: Border.all(color: AppColors.borderStrong),
+              color: AppColors.secondary,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.event,
+                    color: AppColors.textSecondary, size: AppTheme.iconS),
+                const SizedBox(width: AppTheme.spacingSM),
+                Expanded(
+                  child: Text(
+                    Formatters.formatDate(date),
+                    style: AppTextStyles.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.textTertiary),
-            ],
+                const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+              ],
+            ),
           ),
         ),
       ),

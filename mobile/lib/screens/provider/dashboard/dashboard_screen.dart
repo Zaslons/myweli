@@ -108,6 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.account_circle),
+            tooltip: 'Profil',
             onPressed: () => context.push('/pro/profile'),
           ),
         ],

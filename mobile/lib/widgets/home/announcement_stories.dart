@@ -22,7 +22,12 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
   // floor); seen → the neutral `border`. It used to borrow `starRating`, which at
   // 1.62:1 made the ring all but invisible — and `starRating` is the fill of a
   // rating star and nothing else (docs/design/SYSTEM.md §3.5, §19).
-  static const double _ringWidth = 2.5;
+  //
+  // §13.6 (register row 25): the ring must not lean on HUE alone. So unseen is a
+  // THICK gold ring, seen a THIN neutral one — a difference of width (and the
+  // title weight below) that survives greyscale, not just colour.
+  static const double _unseenRingWidth = 3;
+  static const double _seenRingWidth = 1;
 
   @override
   void initState() {
@@ -120,65 +125,74 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
             itemBuilder: (context, index) {
               final s = stories[index];
               final isSeen = _seenIds.contains(s.id);
+              final ringWidth = isSeen ? _seenRingWidth : _unseenRingWidth;
               final outerRadius = BorderRadius.circular(AppTheme.radiusXL);
               final innerRadius =
-                  BorderRadius.circular(AppTheme.radiusXL - _ringWidth);
-              return InkWell(
-                onTap: () => _open(context, stories, index),
-                borderRadius: outerRadius,
-                child: Container(
-                  width: 92,
-                  decoration: BoxDecoration(
-                    borderRadius: outerRadius,
-                    boxShadow: AppTheme.elevation1,
-                    // Unseen: gold ring. Seen: neutral “empty” ring.
-                    border: Border.all(
-                      color: isSeen ? AppColors.border : AppColors.gold,
-                      width: _ringWidth,
+                  BorderRadius.circular(AppTheme.radiusXL - ringWidth);
+              return Semantics(
+                button: true,
+                label: '${s.title}, ${isSeen ? 'déjà vue' : 'nouvelle'}',
+                child: InkWell(
+                  onTap: () => _open(context, stories, index),
+                  borderRadius: outerRadius,
+                  child: Container(
+                    width: 92,
+                    decoration: BoxDecoration(
+                      borderRadius: outerRadius,
+                      boxShadow: AppTheme.elevation1,
+                      // Unseen: gold ring. Seen: neutral “empty” ring.
+                      border: Border.all(
+                        color: isSeen ? AppColors.border : AppColors.gold,
+                        width: ringWidth,
+                      ),
                     ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(_ringWidth),
-                    child: ClipRRect(
-                      borderRadius: innerRadius,
-                      child: Stack(
-                        children: [
-                          // Thumbnail (fills the whole rectangle)
-                          Positioned.fill(
-                            child: SvgPicture.asset(
-                              s.assetPath,
-                              fit: BoxFit.cover,
+                    child: Padding(
+                      padding: EdgeInsets.all(ringWidth),
+                      child: ClipRRect(
+                        borderRadius: innerRadius,
+                        child: Stack(
+                          children: [
+                            // Thumbnail (fills the whole rectangle)
+                            Positioned.fill(
+                              child: SvgPicture.asset(
+                                s.assetPath,
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                          ),
-                          // Bottom fade + label (keeps title readable)
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withValues(alpha: 0.55),
-                                  ],
+                            // Bottom fade + label (keeps title readable)
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.55),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          Positioned(
-                            left: 8,
-                            right: 8,
-                            bottom: 8,
-                            child: Text(
-                              s.title,
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white,
+                            Positioned(
+                              left: 8,
+                              right: 8,
+                              bottom: 8,
+                              child: Text(
+                                s.title,
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: Colors.white,
+                                  // §13.6 second cue: unseen reads bold, seen regular.
+                                  fontWeight: isSeen
+                                      ? FontWeight.w500
+                                      : FontWeight.w700,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),

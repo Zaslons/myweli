@@ -74,6 +74,7 @@ class _SalonPickerSheet extends StatelessWidget {
                     child: Text('Mes salons', style: AppTextStyles.titleMedium),
                   ),
                   IconButton(
+                    tooltip: 'Fermer',
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),

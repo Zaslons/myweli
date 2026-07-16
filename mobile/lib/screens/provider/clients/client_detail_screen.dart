@@ -676,6 +676,7 @@ class _TagSheetState extends State<_TagSheet> {
             hint: 'Ex : Mariée juin',
             maxLength: 24,
             suffixIcon: IconButton(
+              tooltip: 'Ajouter le tag',
               icon: const Icon(Icons.add),
               onPressed: () {
                 final t = _customController.text.trim();

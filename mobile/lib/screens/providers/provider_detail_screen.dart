@@ -202,6 +202,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         final userId = authProvider.user?.id ?? '';
 
                         return IconButton(
+                          tooltip: isFavorite
+                              ? 'Retirer des favoris'
+                              : 'Ajouter aux favoris',
                           icon: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
                             color: isFavorite
@@ -586,6 +589,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     if (p.latitude != null &&
                                         p.longitude != null)
                                       IconButton(
+                                        tooltip: 'Itinéraire',
                                         icon: const Icon(Icons.directions,
                                             color: AppColors.primary),
                                         onPressed: () {
@@ -1080,6 +1084,7 @@ class _FullScreenPhotoGalleryState extends State<_FullScreenPhotoGallery> {
             top: MediaQuery.of(context).padding.top + 8,
             right: 16,
             child: IconButton(
+              tooltip: 'Fermer',
               onPressed: widget.onClose,
               icon: const Icon(Icons.close,
                   color: Colors.white, size: AppTheme.iconL),

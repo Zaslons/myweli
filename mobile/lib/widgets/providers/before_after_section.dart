@@ -27,6 +27,10 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // The slider (below) is the semantic control — it carries its own
+        // Semantics(slider, value). Wrapping it in a second Semantics(button)
+        // fuses into one contradictory button+slider node, so the tap-to-enlarge
+        // stays a plain gesture on top of the slider.
         GestureDetector(
           onTap: () => _openFullscreen(context, pair),
           child: BeforeAfterSlider(before: pair.before, after: pair.after),
@@ -48,25 +52,30 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
                   const SizedBox(width: AppTheme.spacingS),
               itemBuilder: (context, i) {
                 final active = i == _index;
-                return GestureDetector(
-                  onTap: () => setState(() => _index = i),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                    child: Container(
-                      width: 72,
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusSmall),
-                        border: Border.all(
-                          color: active
-                              ? AppColors.primary
-                              : AppColors.borderStrong,
-                          width: active ? 2 : 1,
+                return Semantics(
+                  button: true,
+                  selected: active,
+                  label: 'Comparaison ${i + 1}',
+                  child: GestureDetector(
+                    onTap: () => setState(() => _index = i),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                      child: Container(
+                        width: 72,
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusSmall),
+                          border: Border.all(
+                            color: active
+                                ? AppColors.primary
+                                : AppColors.borderStrong,
+                            width: active ? 2 : 1,
+                          ),
                         ),
-                      ),
-                      child: TimedCachedImage(
-                        imageUrl: widget.pairs[i].after,
-                        fit: BoxFit.cover,
+                        child: TimedCachedImage(
+                          imageUrl: widget.pairs[i].after,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
@@ -106,6 +115,7 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
             ],
             const SizedBox(height: AppTheme.spacingS),
             IconButton(
+              tooltip: 'Fermer',
               onPressed: () => Navigator.pop(ctx),
               icon: const Icon(Icons.close, color: Colors.white),
             ),
@@ -146,43 +156,48 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
         child: LayoutBuilder(
           builder: (context, c) {
             final w = c.maxWidth;
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onHorizontalDragUpdate: (d) => setState(
-                () => _pos = (d.localPosition.dx / w).clamp(0.0, 1.0),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  TimedCachedImage(imageUrl: widget.after, fit: BoxFit.cover),
-                  ClipRect(
-                    clipper: _LeftClipper(_pos),
-                    child: TimedCachedImage(
-                        imageUrl: widget.before, fit: BoxFit.cover),
-                  ),
-                  const Positioned(bottom: 8, left: 8, child: _Tag('Avant')),
-                  const Positioned(bottom: 8, right: 8, child: _Tag('Après')),
-                  Positioned(
-                    left: (_pos * w) - 1,
-                    top: 0,
-                    bottom: 0,
-                    child: Container(width: 2, color: Colors.white),
-                  ),
-                  Positioned(
-                    left: (_pos * w) - 17,
-                    top: widget.height / 2 - 17,
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ).copyWith(boxShadow: AppTheme.elevation2),
-                      child: const Icon(Icons.compare_arrows,
-                          size: AppTheme.iconS, color: AppColors.primary),
+            return Semantics(
+              slider: true,
+              label: 'Comparateur avant/après',
+              value: '${(_pos * 100).round()} %',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragUpdate: (d) => setState(
+                  () => _pos = (d.localPosition.dx / w).clamp(0.0, 1.0),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    TimedCachedImage(imageUrl: widget.after, fit: BoxFit.cover),
+                    ClipRect(
+                      clipper: _LeftClipper(_pos),
+                      child: TimedCachedImage(
+                          imageUrl: widget.before, fit: BoxFit.cover),
                     ),
-                  ),
-                ],
+                    const Positioned(bottom: 8, left: 8, child: _Tag('Avant')),
+                    const Positioned(bottom: 8, right: 8, child: _Tag('Après')),
+                    Positioned(
+                      left: (_pos * w) - 1,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(width: 2, color: Colors.white),
+                    ),
+                    Positioned(
+                      left: (_pos * w) - 17,
+                      top: widget.height / 2 - 17,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ).copyWith(boxShadow: AppTheme.elevation2),
+                        child: const Icon(Icons.compare_arrows,
+                            size: AppTheme.iconS, color: AppColors.primary),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -198,15 +213,19 @@ class _Tag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
-      decoration: BoxDecoration(
-        color: Colors.black54,
-        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+    // Decorative overlay caption — the slider's own label already says
+    // "avant/après", so exclude these so they don't leak into its spoken name.
+    return ExcludeSemantics(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+        ),
+        child: Text(label,
+            style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
       ),
-      child: Text(label,
-          style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
     );
   }
 }

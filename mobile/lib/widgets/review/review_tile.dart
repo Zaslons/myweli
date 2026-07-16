@@ -35,6 +35,7 @@ class ReviewTile extends StatelessWidget {
               top: 4,
               right: 4,
               child: IconButton(
+                tooltip: 'Fermer',
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -67,68 +68,90 @@ class ReviewTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      review.userName,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (review.verified) ...[
-                    const SizedBox(width: AppTheme.spacingS),
-                    const _VerifiedBadge(),
-                  ],
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingXS),
-              Row(
-                children: [
-                  ...List.generate(
-                    5,
-                    (i) => Icon(
-                      i < review.rating ? Icons.star : Icons.star_border,
-                      size: AppTheme.iconXS,
-                      color: AppColors.starRating,
-                    ),
-                  ),
-                  if (review.artistName != null &&
-                      review.artistName!.isNotEmpty) ...[
-                    const SizedBox(width: AppTheme.spacingS),
-                    Flexible(
-                      child: Text(
-                        'avec ${review.artistName}',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
+              // §13.5 — the review's informational block (name, verified badge,
+              // stars, date, text) announces as one sentence; the photo
+              // thumbnails and « Signaler » below stay OUTSIDE the merge, as
+              // their own tap nodes.
+              MergeSemantics(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            review.userName,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        if (review.verified) ...[
+                          const SizedBox(width: AppTheme.spacingS),
+                          const _VerifiedBadge(),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Row(
+                      children: [
+                        // The rating lives only in the star fill — give it a
+                        // spoken value so it isn't inaudible to a screen reader.
+                        Semantics(
+                          label: 'Note : ${review.rating} sur 5',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              5,
+                              (i) => Icon(
+                                i < review.rating
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                size: AppTheme.iconXS,
+                                color: AppColors.starRating,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (review.artistName != null &&
+                            review.artistName!.isNotEmpty) ...[
+                          const SizedBox(width: AppTheme.spacingS),
+                          Flexible(
+                            child: Text(
+                              'avec ${review.artistName}',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Text(
+                      Formatters.formatDateShort(review.createdAt),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
                       ),
                     ),
+                    if (review.text.isNotEmpty) ...[
+                      const SizedBox(height: AppTheme.spacingXS),
+                      Text(
+                        review.text,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingXS),
-              Text(
-                Formatters.formatDateShort(review.createdAt),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
                 ),
               ),
-              if (review.text.isNotEmpty) ...[
-                const SizedBox(height: AppTheme.spacingXS),
-                Text(
-                  review.text,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
               if (review.photoUrls.isNotEmpty) ...[
                 const SizedBox(height: AppTheme.spacingS),
                 SizedBox(

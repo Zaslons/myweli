@@ -440,6 +440,7 @@ class _DayScheduleCard extends StatelessWidget {
                 }).toList(),
               ),
         trailing: IconButton(
+          tooltip: 'Modifier',
           icon: const Icon(Icons.edit),
           onPressed: onEdit,
         ),
@@ -469,6 +470,7 @@ class _BlockedDateCard extends StatelessWidget {
               AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
         ),
         trailing: IconButton(
+          tooltip: 'Supprimer',
           icon: const Icon(Icons.delete, color: AppColors.error),
           onPressed: onRemove,
         ),
@@ -513,6 +515,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
         title: Text('Horaires - ${widget.dayName}'),
         actions: [
           IconButton(
+            tooltip: 'Ajouter un créneau',
             icon: const Icon(Icons.add),
             onPressed: _addTimeSlot,
           ),
@@ -740,10 +743,12 @@ class _TimeSlotCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
+              tooltip: 'Modifier',
               icon: const Icon(Icons.edit),
               onPressed: onEdit,
             ),
             IconButton(
+              tooltip: 'Supprimer',
               icon: const Icon(Icons.delete, color: AppColors.error),
               onPressed: onRemove,
             ),
