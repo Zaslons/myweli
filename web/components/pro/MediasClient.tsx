@@ -345,7 +345,9 @@ function IconBtn({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="rounded-sm border border-border bg-surface px-s text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+      // Its children are always a glyph (↑ ↓ ✕) — an icon, not body text.
+      // 14 → 16 by §7 (nearest; ties round up).
+      className="rounded-sm border border-border bg-surface px-s text-iconXS text-textPrimary hover:bg-surfaceVariant"
     >
       {children}
     </button>

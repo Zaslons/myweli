@@ -100,7 +100,7 @@ export function JournalPanel({
           type="button"
           onClick={onClose}
           aria-label="Fermer"
-          className="text-textTertiary"
+          className="text-iconXS text-textTertiary"
         >
           ✕
         </button>

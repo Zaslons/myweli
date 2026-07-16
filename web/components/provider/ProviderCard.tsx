@@ -63,7 +63,7 @@ export function ProviderCard({
         onClick={onToggleFavorite}
         // ds-ignore: 2px badge padding; below the 4px grid floor.
         // eslint-disable-next-line tailwindcss/no-arbitrary-value
-        className={`absolute bottom-2 right-2 rounded-pill px-s py-[2px] text-titleLarge leading-none ${
+        className={`absolute bottom-2 right-2 rounded-pill px-s py-[2px] text-iconM leading-none ${
           favorite ? 'text-error' : 'text-textTertiary'
         } hover:bg-surfaceVariant`}
       >

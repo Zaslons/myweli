@@ -39,7 +39,7 @@ export function AppInstallBanner() {
           type="button"
           aria-label="Fermer"
           onClick={dismiss}
-          className="px-xs text-secondary"
+          className="px-xs text-iconXS text-secondary"
         >
           ✕
         </button>

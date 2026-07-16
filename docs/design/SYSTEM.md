@@ -270,6 +270,32 @@ usages and gives the next developer a legal choice instead of a literal.
 
 Nothing else is legal. `10`, `14`, `18`, `20` are not spacing values.
 
+### What §5 does not govern
+
+**Rhythm, not sizing.** This scale governs the gaps *between* things — padding,
+margin, the space in a column. It does **not** govern how big a thing *is*: an
+image's height, a sidebar's width, a map box, an avatar. `20` is not a legal
+*spacing* value and is a perfectly ordinary *size*, and both are true at once.
+
+That distinction was load-bearing and, until B2c, written down **nowhere a reader
+would look** — it lived only in `design_system_pin_test.dart`'s doc comment and a
+Tailwind config comment, while this section said "nothing else is legal" without
+qualification.
+
+**There is no sizing scale, and that is a decision.** `AppTheme` has 19 constants —
+8 spacing, 6 radius, 5 icon — and nothing else. A layout dimension is a **named
+constant at the call site** (`ProviderCard._imageHeight = 180`, `JournalGrid.AXIS_W
+= 56`), because a map's height is not a design token: naming it `size-xl` would tell
+the next reader nothing that `180` doesn't. The pin agrees by construction — its
+spacing regex requires `)` immediately after the number, so a *sized container*
+(`SizedBox(height: 48, width: 48, child: …)`) never matches, and the pin still calls
+the firewall complete. The escape hatch (`// ds-ignore`) exists for the rare fixed
+dimension that trips it anyway.
+
+And for anything **bounding text**, the answer isn't a scale at all — it's
+`AppTheme.textScaledBound` and §21/A5's rule: *prefer intrinsic; compute a bound only
+under laziness; pin every computed bound with a test.*
+
 ---
 
 ## 6. Radius

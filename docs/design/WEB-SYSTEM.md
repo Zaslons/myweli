@@ -104,19 +104,25 @@ a silencer. B2a left **17**.
 ### What is closed, and what is not
 
 `colors` · `borderRadius` · `spacing` · `zIndex` · `screens` · `transitionDuration`
-(B2a). **`fontSize` is not** — it is 555 of the 767 affected usages and needs the
-type scale of §3 to exist in `tokens.ts` first (**B2b**). Until then `text-[10px]`
-and `text-[11px]` carry a `ds-ignore` pointing at B2b.
+(B2a) · **`fontSize`** — the 15 type roles + §7's 5 icon sizes (B2b, B2c) ·
+**`maxWidth`** (B2c). Everything a token *should* govern is closed.
 
-**Sizing is carved out, deliberately (B2c).** §2 used to say "spacing" moves into
-`theme` as though that were one decision. It is not: Tailwind's `spacing` key also
-feeds `w-`/`h-`/`size-`/`min-*`/`max-h-`/`inset-`/`translate-`, which are **sizes,
-not rhythm**. Closing it outright deletes 23 layout dimensions (96→320px — map
-heights, the sidebar, avatars) that have no legal token *and shouldn't*, because the
-web has no sizing scale at all (SYSTEM.md §7 covers icons only), and moves pixels on
-24 more. So `spacing` is closed as the **rhythm** scale — `p-4` is dead — and the
-sizing keys keep the numeric scale via `extend` until §9 gains a Sizing subsection.
-`w-60` is not a violation today; `p-4` is.
+**Sizing stays open — and that is the answer, not a deferral (B2c).** B2a carved the
+sizing keys out "until the web gets a sizing scale". B2c checked that premise and it
+does not hold: **sizing is not a token class in this design system**
+([SYSTEM.md §5](SYSTEM.md#what-§5-does-not-govern)). `AppTheme` has 19 constants — 8
+spacing, 6 radius, 5 icon. Mobile sizes every box with a raw number, its pin cannot
+see them *by construction*, and it calls the firewall complete anyway. A web-only
+sizing scale would be the **fourth** mirror divergence after `gold`, `sm`/`xxxl` and
+§4's tracking — and the first with no upstream for B3's generator to track. So
+`w-60` is not a violation; `p-4` is. Row 6b is closed as **won't do**.
+
+> ⚠️ **If you ever do close them, read this.** Each key's literals — `w-full` (**58
+> uses**), `h-auto`, `w-1/2`, `left-1/2`, `-translate-x-1/2`, `h-screen`,
+> `min-h-screen` — do **not** come from `spacing`; they live in the key's *own*
+> default block. Writing `theme.width = {…}` deletes all of them, silently: **112 of
+> the 250 sizing usages (45%)**. Preserve the function form and re-include the
+> literals, or watch half the layout vanish with a green build.
 
 > Measuring beats auditing here: padding/margin/gap turned out to be **already 100%
 > tokenised** — `p-3` and `gap-2` do not appear anywhere. The debt was never rhythm.
@@ -187,6 +193,42 @@ is the sentence a reader uses to skip visual review:
   ("card/section heading") purely because 18px has no token. The web has no icon-size
   scale — SYSTEM.md §7 defines one for the apps, and the web's sizing lands with
   **B2c** (row 6b). Until then the class names those two elements wrongly.
+
+### Icons are text, so their size is a font-size (B2c)
+
+§7's scale ported verbatim from `AppTheme.iconXS…iconXL`, and it lives in `fontSize`
+beside the type roles — because **every icon on the web is a text character**
+(✕ ♥ ★ ✓ ⋯), so its size *is* a font-size.
+
+| Utility | Size | Use for |
+|---|---|---|
+| `text-iconXS` | 16 | Inline with `bodySmall`/`labelMedium`; dense chips |
+| `text-iconS` | 20 | Inline with text — the leading icon in a button, a row |
+| `text-iconM` | 24 | **The default action icon** |
+| `text-iconL` | 32 | Feature / avatar-scale glyphs |
+| `text-iconXL` | 64 | The empty-state illustration |
+
+**A size, and only a size** — a bare value, not a `[size, {lineHeight}]` tuple like
+the type roles. That is what makes it a *port*: `AppTheme.iconXS` is `16.0`, and
+Flutter's `Icon(size:)` has no line-height, so baking one would invent a concept the
+upstream doesn't have. It is also load-bearing — B2c first shipped `lineHeight: 1`
+and the review measured it **shrinking seven controls' boxes by 4–8px**, because
+preflight's `html { line-height: 1.5 }` is what gives an inheriting button its height.
+§7 says *never grow the glyph to make the target bigger — grow the target*; that cuts
+both ways, and a font-size token has no business shrinking one (§15 row 7h).
+
+Before B2c the same `✕` rendered at **12, 14, 22px and three different inherited
+sizes**, and two wore `titleLarge` — a class reading "card/section heading" on a close
+button. Snapped by §7's own method (nearest; ties round up).
+
+**A glyph *inside a text run* is not an icon.** `★ 4,8 sur 5` and `← Tableau de bord`
+are sentences; they track the type scale and were left alone. Only a control whose
+entire content is the glyph takes an icon token.
+
+⚠️ **An icon's size and its tap target are different things** ([SYSTEM.md §7](SYSTEM.md#7-icon-size)):
+`iconM` is 24px of glyph inside a **≥48px** target (§13.2). Never grow the glyph to
+make the target bigger — grow the target. **No web control reaches 48 today** (§15) —
+that is not fixable with a font-size.
 
 **Weight is not in the token, deliberately** — the single place the web mirror
 diverges from Flutter's atomic `TextStyle`, so B3's generator must encode it. Tailwind
@@ -433,8 +475,8 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 3 | Control borders ≥ 3:1 | ~~186~~ → the shared Button + the salon-switcher **done**; the ~20 hand-classed form inputs pending | `borderStrong` (3.22:1) is now the token; the central controls use it. The web has **no shared input theme**, so the ad-hoc inputs' outlines land with **B4**'s `<TextField>` (which bakes in `borderStrong`) rather than being hand-edited then rebuilt | **B1 → B4** |
 | 4 | Token exists ⇒ no substitution | ~~1~~ → **0** | `gold #B8860B` is exported; `TeamRoleChip` uses it. A test grep-pin fails if any `bg-/border-starRating` returns | ✅ **B1** |
 | 5 | Splash matches the app | ~~1~~ → **0** | `manifest.ts` `background_color` → `#F6F7F9` (no more black flash); `theme_color` stays brand black | ✅ **B1** |
-| 6 | Closed theme (§2) | open → **closed, except sizing** | `colors` · `borderRadius` · `spacing`(rhythm) · `zIndex` · `screens` · `transitionDuration` are now `theme`, not `theme.extend`: a non-token utility **does not exist**. Held by `no-custom-classname` (**0**) + `tokens.theme-pin.test.ts`, because Tailwind emits *nothing* for an unknown utility — a dead class ships as an unstyled element and no build, typecheck or test can see it. Proven by diffing the emitted CSS: 298 → 287 selectors, every one of the 11 deliberate. **`fontSize` closed in B2b** — the 15-style scale now lives in `tokens.ts`, mirrored from `text_styles.dart` (the code) rather than §4's table (the doc, which omitted tracking). **Sizing → B2c** (row 6b) | ✅ **B2a + B2b** |
-| 6b | A sizing scale (§2, §9) | **none** | Tailwind's `spacing` key also feeds `w-`/`h-`/`min-*`/`max-h`/`inset`/`translate`. 23 layout dimensions (96→320px) have no legal token *and shouldn't* — the web has no sizing scale (SYSTEM.md §7 is icons only). Measured set: 20/24/32/40/48/56/64/96/112/128/160/176/224/240/256/320 | *B2c* |
+| 6 | Closed theme (§2) | open → **closed, except sizing** | `colors` · `borderRadius` · `spacing`(rhythm) · `zIndex` · `screens` · `transitionDuration` are now `theme`, not `theme.extend`: a non-token utility **does not exist**. Held by `no-custom-classname` (**0**) + `tokens.theme-pin.test.ts`, because Tailwind emits *nothing* for an unknown utility — a dead class ships as an unstyled element and no build, typecheck or test can see it. Proven by diffing the emitted CSS: 298 → 287 selectors, every one of the 11 deliberate. **`fontSize` closed in B2b** — the 15-style scale now lives in `tokens.ts`, mirrored from `text_styles.dart` (the code) rather than §4's table (the doc, which omitted tracking). **`maxWidth` closed in B2c**, which also fixed a live leak (row 7g). **Sizing is deliberately NOT closed** — it is not a token class (row 6b) | ✅ **B2a + B2b + B2c** |
+| 6b | A sizing scale (§2, §9) | **won't do** | B2c checked the premise and it is wrong: **sizing is not a token class** ([§5](SYSTEM.md#what-§5-does-not-govern)). `AppTheme` has 19 constants (8 spacing · 6 radius · 5 icon); mobile sizes every box with a raw number; its pin cannot see them *by construction* (the regex needs `)` right after the number, so a sized container never matches) and calls the firewall **complete** anyway. A web-only scale would be the **fourth** mirror divergence — and the first with no upstream for B3. What B2c did instead: ported §7's icons, closed `maxWidth`, and put the doctrine in §5 where a reader will find it. ⚠️ And recorded the trap: closing these keys would silently delete `w-full` (**58 uses**) and 111 other literals — they come from each key's own block, not from `spacing` | ✅ **B2c** |
 | 7 | No arbitrary values (§2) | ~~`z-[5]` `z-[6]` `z-[7]` `z-[1100]` `py-[2px]`~~ → **0 undeclared** | `no-arbitrary-value` is an **error**. Every arbitrary `z-` is gone: `z-[5/6/7]` were never isolated (no stacking context in the chain) so the JournalGrid column is now ordered bottom-to-top in the **DOM** and needs no z at all; `z-[1100]` was cargo cult (maplibre's own vocabulary is 1/2) → `z-sticky`. **14 declared exceptions** remain (B2a left 18; B2b cleared the 4 type ones — `JournalGrid`'s survives for its `py-[2px]`), each with a `ds-ignore:` reason the pin test enforces: a `calc()`, two grid templates, a gradient, the switch's exact 44−20−2 travel, the 2px chip paddings… | ✅ **B2a** |
 | 7b | Type below the §3 floor | ~~4~~ → **0** | the 4 `text-[10px]` are `text-labelSmall` (11px). Not a rename — §4 is explicit ("there is no 10px token and there will not be one"), so this is a redesign: +1px, and the badges gain the line-height an arbitrary size never emitted. `ClientCardClient`'s inherited its `<h1>`'s 28px line and is now a 16px box — smaller, and correct | ✅ **B2b** |
 | 7c | **The pin was blind** | ~~2 files~~ → **0** | B2a's `stripComments` read the `/*` in `accept="image/*"` as a block comment with no close, so the pin saw **nothing** from that line to EOF in `MediasClient` + `DepositProof` — hiding 6 real type usages. It shipped that way. Replaced with a **TypeScript AST walk**: comment-immune by construction rather than by regex, and it reaches the 4 bare-`const`/default-param strings ESLint cannot see | ✅ **B2b** |
@@ -448,7 +490,11 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 14 | Heading order (§4) | 1 | `/recherche` **h1 → h3** (`ProviderCard.tsx:23`) | **B5** |
 | 15 | axe on real routes (§14) | none | Lighthouse: 1 URL, `warn`, `continue-on-error` | **B5** |
 | 16 | Shared primitives (§10) | library = **1** | 35 inline "Chargement", 6 modals, 5 toasts, 7 inputs | *B6* |
-| 7e | Icons borrow a type role | **2** | `Lightbox`'s ✕ and `ProviderCard`'s ♥ are interactive glyphs wearing `titleLarge` ("card/section heading") — they took it because 18px has no token and the web has no icon-size scale (SYSTEM.md §7 has one for the apps). The class names them wrongly, and the ♥ grew 18 → 22px | *B2c* |
+| 7e | Icons borrow a type role | ~~2~~ → **0** | the count was the *tokenised* ones. Measured, the same `✕` rendered at **12, 14, 22px and three inherited sizes** — the drift was in the 24 nobody counted. §7's scale is ported (`text-iconXS…XL`, **a bare size** — see §3) and 10 standalone glyph controls snapped to it by §7's own method. The inheriting ✕s sat at the 16px body default → `iconXS` is **zero-pixel, box included** (measured: font 16 · line 24 · box 24 on both sides); the rest move by the snap and every one **grows** (♡ 22→24, box 26→28), which is the right direction for row 7h. **The first attempt did not**: baking `lineHeight: 1` shrank 7 boxes by 4–8px, and the review measured it — a font-size token quietly regressing the tap-target metric this very slice added. A glyph *inside a sentence* (`★ 4,8 sur 5`, `← Tableau de bord`) is text, not an icon, and was left alone | ✅ **B2c** |
+| 7g | **The `maxWidth` leak** | ~~5~~ → **0** | `maxWidth` spread `spacing` **first**, so `max-w-s`=8px · `max-w-m`=16px · `max-w-l`=24px · `max-w-xxl`=48px · `max-w-xxxl`=64px — rhythm tokens acting as max-widths — while `max-w-sm`=24rem and `max-w-xl`=36rem, because Tailwind's names win where they collide. `max-w-l` (24px) and `max-w-xl` (576px) sat adjacent in one scheme, **24× apart**. Closed to the named steps; the 7 in use are byte-identical | ✅ **B2c** |
+| 7h | **Tap targets ≥ 48 (§13.2)** | **0 of ~10 controls** | measured **on this branch**: `Button` — *every* button — is **36px**; the notifications switch **24** tall; the hamburger **32** (a 24px SVG + `p-xs`, outside the font-size channel); the glyph buttons **18–32**. The only 48px in the codebase is a **non-interactive avatar**. Mobile burned this down in A4a (67 → 0); the web register never had the row. §7: *"never grow the glyph to make the target bigger — grow the target"* — so B2c's icon scale cannot fix it, and shouldn't try | *B4* |
+| 7i | No `<Icon>` component | **4 channels** | icon size lives in Tailwind classes (2 of 5 svgs), raw SVG `width`/`height` attrs (3), `globals.css` (the 44px map pin, a 22px dot), and font-size (10 glyphs). B2c governs the last; a real `<Icon>` would govern all four | *B6* |
+| 7j | `contentMaxWidth` unapplied | **1** | §10's `contentMaxWidth = 720` is the only non-icon dimension the system names, and it had never existed in code on either surface. B2c makes it a token (`max-w-content`); **applying** it to the pages that need it is a layout decision | *B7* |
 | 7f | `<h2>` with no type token | **4** | `ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient` carry no size class, so they inherit while their 38 peers are `titleLarge`. Pre-existing — B2b had no `text-*` there to migrate — but it widens the gap to 8px | *B5* |
 | 17 | Reading text = 16px (§3) | **356 × `text-bodyMedium`** | `bodyLarge` (16px) used **once**. B2b renamed the workhorse but did not resize it — the web still reads one step smaller than the app | *B8* |
 | 18 | Desktop-grade pro dashboard (§9) | `xl:`/`2xl:` = **0** | a stretched phone column | *B7* |

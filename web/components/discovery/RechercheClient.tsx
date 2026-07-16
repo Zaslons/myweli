@@ -269,7 +269,7 @@ export function RechercheClient({
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
-        className="fixed bottom-6 left-1/2 z-sticky -translate-x-1/2 rounded-pill bg-primary px-l py-s text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
+        className="fixed bottom-l left-1/2 z-sticky -translate-x-1/2 rounded-pill bg-primary px-l py-s text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>
