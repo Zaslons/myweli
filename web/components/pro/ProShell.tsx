@@ -82,7 +82,7 @@ export function ProShell({ children }: { children: ReactNode }) {
           aria-label="Ouvrir le menu"
           aria-controls="pro-sidebar-nav"
           aria-expanded={open}
-          className="rounded-lg p-xs text-textPrimary hover:bg-surfaceVariant"
+          className="-my-s -ml-s flex min-h-12 min-w-12 items-center justify-center rounded-lg text-textPrimary hover:bg-surfaceVariant"
         >
           <svg
             width="24"
@@ -101,7 +101,7 @@ export function ProShell({ children }: { children: ReactNode }) {
         </button>
         <Link
           href="/pro"
-          className="text-titleLarge font-semibold text-textPrimary"
+          className="-my-s inline-flex min-h-12 items-center text-titleLarge font-semibold text-textPrimary"
         >
           MyWeli Pro
         </Link>

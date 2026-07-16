@@ -6,7 +6,15 @@ const path = require('path');
 // and the plugin throws "Could not resolve tailwindcss". JSON cannot compute an
 // absolute path; this can.
 module.exports = {
-  extends: ['next/core-web-vitals', 'plugin:tailwindcss/recommended'],
+  // jsx-a11y STRICT (B4, WEB-SYSTEM §14): the four rules §14 names + ~20 more,
+  // as errors. At B4's branch base this measured 16 errors across 5 rules — all
+  // fixed for real, zero disables (the theme-pin rejects an undocumented
+  // jsx-a11y disable the same way it rejects a tailwindcss one).
+  extends: [
+    'next/core-web-vitals',
+    'plugin:tailwindcss/recommended',
+    'plugin:jsx-a11y/strict',
+  ],
   settings: {
     tailwindcss: {
       config: path.join(__dirname, 'tailwind.config.ts'),
@@ -20,6 +28,9 @@ module.exports = {
     },
   },
   rules: {
+    // The default depth-2 walk false-positives on label text three levels deep
+    // (BookingFlow's service rows) — 25 is the airbnb calibration.
+    'jsx-a11y/label-has-associated-control': ['error', { depth: 25 }],
     // The two that matter (WEB-SYSTEM.md §2, §14). The theme is CLOSED, and
     // Tailwind emits NOTHING for an unknown utility rather than erroring — so a
     // typo'd or dead class ships as an unstyled element and no build, type check

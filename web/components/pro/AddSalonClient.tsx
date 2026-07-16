@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import PhoneInput, { isPossiblePhoneNumber } from 'react-phone-number-input';
+import { isPossiblePhoneNumber } from 'react-phone-number-input';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import { PhoneField } from '../PhoneField';
+import { TextField } from '../TextField';
 import {
   addSalon,
   getMyProvider,
@@ -40,7 +43,14 @@ export function AddSalonClient() {
   const [areaId, setAreaId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorCode, setErrorCode] = useState<string | undefined>();
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  // §14 rules 1/2/5 (web-b4-controls.md): the old fieldError <p> named the
+  // failing field in a form-level message — it now renders under the field.
+  const fields = useFieldErrors({
+    businessName: (v: string) =>
+      v.trim() !== '' ? null : 'Saisissez le nom du salon.',
+    phone: (v: string) =>
+      !v || isPossiblePhoneNumber(v) ? null : 'Saisissez un numéro de téléphone valide.',
+  });
 
   useEffect(() => {
     let active = true;
@@ -62,21 +72,13 @@ export function AddSalonClient() {
   }, [router]);
 
   async function submit() {
-    if (businessName.trim() === '') {
-      setFieldError('Le nom du salon est requis.');
-      return;
-    }
-    if (phone && !isPossiblePhoneNumber(phone)) {
-      setFieldError('Numéro de téléphone invalide.');
-      return;
-    }
-    setFieldError(null);
+    if (!fields.validate({ businessName, phone })) return;
     setErrorCode(undefined);
     setBusy(true);
     const r = await addSalon({
       businessName: businessName.trim(),
       businessType,
-      phoneNumber: phone,
+      phoneNumber: phone || undefined,
       address: address.trim() === '' ? undefined : address.trim(),
       areaId: areaId ?? undefined,
     });
@@ -104,21 +106,23 @@ export function AddSalonClient() {
         fiche, catalogue, équipe, offre et période d’essai.
       </p>
 
-      <label className="mt-l block text-bodyMedium text-textSecondary">
-        Nom du salon
-        <input
-          value={businessName}
-          onChange={(e) => setBusinessName(e.target.value)}
-          placeholder="Ex : Salon Excellence Yopougon"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-        />
-      </label>
-      <label className="mt-m block text-bodyMedium text-textSecondary">
+      <TextField
+        className="mt-l"
+        label="Nom du salon"
+        value={businessName}
+        onChange={(e) => {
+          setBusinessName(e.target.value);
+          fields.revalidate('businessName', e.target.value);
+        }}
+        placeholder="Ex : Salon Excellence Yopougon"
+        error={fields.errors.businessName}
+      />
+      <label className="mt-m block text-labelMedium text-textSecondary">
         Type d’entreprise
         <select
           value={businessType}
           onChange={(e) => setBusinessType(e.target.value)}
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+          className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary"
         >
           {BUSINESS_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -127,25 +131,24 @@ export function AddSalonClient() {
           ))}
         </select>
       </label>
-      <label className="mt-m block text-bodyMedium text-textSecondary">
-        Téléphone du salon
-        <PhoneInput
-          international
-          defaultCountry="CI"
-          value={phone}
-          onChange={setPhone}
-          className="mt-xs rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+      <div className="mt-m">
+        <PhoneField
+          label="Téléphone du salon"
+          initialValue={phone}
+          onChange={(v) => {
+            setPhone(v);
+            fields.revalidate('phone', v);
+          }}
+          error={fields.errors.phone}
         />
-      </label>
-      <label className="mt-m block text-bodyMedium text-textSecondary">
-        Adresse (optionnelle)
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Quartier, commune…"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-        />
-      </label>
+      </div>
+      <TextField
+        className="mt-m"
+        label="Adresse (optionnelle)"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        placeholder="Quartier, commune…"
+      />
 
       {/* Multi-pays MP3: où se trouve le salon (recommandé — requis pour la
           mise en ligne). */}
@@ -153,9 +156,6 @@ export function AddSalonClient() {
         <LocalityPicker areaId={areaId} onChange={setAreaId} />
       </div>
 
-      {fieldError ? (
-        <p className="mt-s text-bodyMedium text-error">{fieldError}</p>
-      ) : null}
       {errorCode ? (
         <p className="mt-s text-bodyMedium text-error">
           {teamErrorMessage(errorCode)}

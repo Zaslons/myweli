@@ -32,7 +32,7 @@ test('services-first: prestations → spécialiste → heure → confirmée', as
   await loginInline(page);
   // Parity 2.10 — the app's booking note rides along.
   await page
-    .getByLabel('Notes (optionnel)')
+    .getByLabel('Notes (optionnelles)')
     .fill('Cheveux fragiles, produits doux svp');
   await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
   await expect(page.getByText('Réservation envoyée ✓')).toBeVisible();

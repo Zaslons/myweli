@@ -134,14 +134,20 @@ export function ManualBookingDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Nouveau rendez-vous"
-      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
-      onClick={onClose}
+      className="fixed inset-0 z-modal flex items-center justify-center p-m"
     >
+      {/* The scrim carries the dismiss click and is decoration to AT —
+          ProShell's own drawer-scrim precedent. The panel is a SIBLING
+          above it, so it needs no stopPropagation. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-primary/40"
+        onClick={onClose}
+      />
       <div
         // ds-ignore: viewport-relative dialog scroll box.
         // eslint-disable-next-line tailwindcss/no-arbitrary-value
-        className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l"
-        onClick={(e) => e.stopPropagation()}
+        className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l"
       >
         <h2 className="text-titleLarge font-semibold text-textPrimary">
           Nouveau rendez-vous
@@ -165,9 +171,10 @@ export function ManualBookingDialog({
           <ul className="mt-xs divide-y divide-divider">
             {services.map((s) => (
               <li key={s.id}>
-                <label className="flex cursor-pointer items-center gap-s py-xs text-bodyMedium">
+                <label className="flex min-h-12 cursor-pointer items-center gap-s text-bodyMedium">
                   <input
                     type="checkbox"
+                    className="h-5 w-5 shrink-0 accent-primary"
                     checked={selected.includes(s.id)}
                     onChange={() => toggle(s.id)}
                   />
@@ -195,7 +202,7 @@ export function ManualBookingDialog({
                 min={todayYmd(tz)}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
               <input
                 type="time"
@@ -203,7 +210,7 @@ export function ManualBookingDialog({
                 step={900}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
             </div>
           </div>
@@ -221,7 +228,7 @@ export function ManualBookingDialog({
             </span>
             <button
               type="button"
-              className="text-textTertiary underline"
+              className="-my-sm inline-flex min-h-12 items-center text-textTertiary underline"
               onClick={() => setPicked(null)}
             >
               Changer
@@ -235,7 +242,7 @@ export function ManualBookingDialog({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Client (nom ou téléphone)…"
               aria-label="Rechercher ou nommer le client"
-              className="w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+              className="w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
             {matches.length > 0 ? (
               <ul className="mt-xs divide-y divide-border rounded-lg border border-border">
@@ -243,7 +250,7 @@ export function ManualBookingDialog({
                   <li key={c.id}>
                     <button
                       type="button"
-                      className="flex w-full justify-between px-s py-xs text-left text-bodyMedium hover:bg-surface"
+                      className="flex min-h-12 w-full items-center justify-between px-s text-left text-bodyMedium hover:bg-surface"
                       onClick={() =>
                         setPicked({
                           name: c.displayName,
@@ -264,7 +271,7 @@ export function ManualBookingDialog({
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="Téléphone (pour retrouver ce client)"
                 aria-label="Téléphone du nouveau client"
-                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+                className="mt-xs w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
             ) : null}
           </div>
@@ -300,7 +307,7 @@ export function ManualBookingDialog({
           maxLength={500}
           placeholder="Note (optionnel)"
           aria-label="Note"
-          className="mt-m w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+          className="mt-m w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
         />
 
         {/* Total (the app's running sum; server re-prices) */}

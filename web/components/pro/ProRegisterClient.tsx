@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import PhoneInput, {
-  isPossiblePhoneNumber,
-} from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
+import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import { registerPro, requestEmailOtpPro } from '../../lib/api/pro';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
+import { PhoneField } from '../PhoneField';
+import { TextField } from '../TextField';
 import { LocalityPicker } from './LocalityPicker';
 
 const BUSINESS_TYPES = [
@@ -46,20 +46,28 @@ export function ProRegisterClient() {
   const [error, setError] = useState<string | null>(null);
   const googleDiv = useRef<HTMLDivElement>(null);
 
-  const fieldsValid =
-    businessName.trim().length > 0 &&
-    !!phone &&
-    isPossiblePhoneNumber(phone ?? '');
-  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  // §14 rules 1/2/5 (web-b4-controls.md): the old fieldsOrError() named the
+  // failing field IN A FORM-LEVEL message — the message now lives UNDER the
+  // field it belongs to.
+  const fields = useFieldErrors({
+    businessName: (v: string) =>
+      v.trim().length > 0 ? null : 'Saisissez le nom de l’entreprise.',
+    phone: (v: string) =>
+      v && isPossiblePhoneNumber(v)
+        ? null
+        : 'Saisissez le numéro de téléphone du salon.',
+    email: (v: string) =>
+      /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)
+        ? null
+        : 'Saisissez une adresse e-mail valide.',
+    code: (v: string) => (v.length >= 4 ? null : 'Saisissez le code reçu par e-mail.'),
+  });
 
   function fieldsOrError(): boolean {
-    if (fieldsValid) return true;
-    setError(
-      businessName.trim().length === 0
-        ? 'Le nom de l’entreprise est requis.'
-        : 'Le numéro de téléphone du salon est requis.',
-    );
-    return false;
+    return fields.validate({
+      businessName: businessName.trim(),
+      phone: phone ?? '',
+    });
   }
 
   async function submit(identity: {
@@ -132,7 +140,15 @@ export function ProRegisterClient() {
   }, [googleClientId, businessName, businessType, phone, address, areaId]);
 
   async function sendCode() {
-    if (!fieldsOrError()) return;
+    if (
+      !fields.validate({
+        businessName: businessName.trim(),
+        phone: phone ?? '',
+        email: email.trim(),
+      })
+    ) {
+      return;
+    }
     setBusy(true);
     setError(null);
     const r = await requestEmailOtpPro(email.trim());
@@ -155,21 +171,23 @@ export function ProRegisterClient() {
       </p>
 
       {/* Business fields */}
-      <label className="mt-l block text-bodyMedium text-textSecondary">
-        Nom de l’entreprise
-        <input
-          value={businessName}
-          onChange={(e) => setBusinessName(e.target.value)}
-          placeholder="Ex : Salon de Beauté Marie"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-        />
-      </label>
-      <label className="mt-m block text-bodyMedium text-textSecondary">
+      <TextField
+        className="mt-l"
+        label="Nom de l’entreprise"
+        value={businessName}
+        onChange={(e) => {
+          setBusinessName(e.target.value);
+          fields.revalidate('businessName', e.target.value);
+        }}
+        placeholder="Ex : Salon de Beauté Marie"
+        error={fields.errors.businessName}
+      />
+      <label className="mt-m block text-labelMedium text-textSecondary">
         Type d’entreprise
         <select
           value={businessType}
           onChange={(e) => setBusinessType(e.target.value)}
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+          className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary"
         >
           {BUSINESS_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -178,25 +196,23 @@ export function ProRegisterClient() {
           ))}
         </select>
       </label>
-      <label className="mt-m block text-bodyMedium text-textSecondary">
-        Téléphone du salon
-        <PhoneInput
-          international
-          defaultCountry="CI"
-          value={phone}
-          onChange={setPhone}
-          className="mt-xs rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
+      <div className="mt-m">
+        <PhoneField
+          label="Téléphone du salon"
+          initialValue={phone}
+          onChange={(v) => {
+            setPhone(v);
+            fields.revalidate('phone', v);
+          }}
+          error={fields.errors.phone}
         />
-      </label>
-      <label className="mt-m block text-bodyMedium text-textSecondary">
-        Adresse (optionnelle)
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Adresse de l’entreprise"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-        />
-      </label>
+      </div>
+      <TextField
+        className="mt-m"
+        label="Adresse (optionnelle)"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+      />
 
       {/* Multi-pays MP3: où se trouve le salon (recommandé — requis pour la
           mise en ligne). */}
@@ -224,37 +240,45 @@ export function ProRegisterClient() {
         <div className="flex-1 border-t border-border" />
       </div>
 
-      <label className="mt-m block text-bodyMedium text-textSecondary">
-        Votre e-mail
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="exemple@email.com"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-        />
-      </label>
+      <TextField
+        className="mt-m"
+        label="Votre e-mail"
+        type="email"
+        inputMode="email"
+        autoComplete="email"
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          fields.revalidate('email', e.target.value);
+        }}
+        placeholder="exemple@email.com"
+        error={fields.errors.email}
+      />
 
       {!codeSent ? (
         <Button
           className="mt-m w-full"
           onClick={sendCode}
-          disabled={busy || !emailValid}
+          disabled={busy}
+          isLoading={busy}
         >
           Recevoir un code
         </Button>
       ) : (
         <>
-          <label className="mt-m block text-bodyMedium text-textSecondary">
-            Code à 6 chiffres
-            <input
-              inputMode="numeric"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-            />
-          </label>
+          <TextField
+            className="mt-m"
+            label="Code à 6 chiffres"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value);
+              fields.revalidate('code', e.target.value);
+            }}
+            error={fields.errors.code}
+          />
           {devCode ? (
             <p className="mt-xs text-bodySmall text-textTertiary">
               Code (dev) : {devCode}
@@ -262,19 +286,33 @@ export function ProRegisterClient() {
           ) : null}
           <Button
             className="mt-m w-full"
-            onClick={() => submit({ email: email.trim(), code: code.trim() })}
-            disabled={busy || code.trim().length < 4}
+            onClick={() => {
+              // The FULL subset this submit depends on — not just the code
+              // (validating one field must not imply the others are fine).
+              if (
+                !fields.validate({
+                  businessName: businessName.trim(),
+                  phone: phone ?? '',
+                  code: code.trim(),
+                })
+              ) {
+                return;
+              }
+              submit({ email: email.trim(), code: code.trim() });
+            }}
+            disabled={busy}
+            isLoading={busy}
           >
             S’inscrire
           </Button>
-          <button
-            type="button"
-            className="mt-s w-full text-center text-bodySmall text-textTertiary underline"
+          <Button
+            variant="text"
+            className="mt-s w-full"
             onClick={sendCode}
             disabled={busy}
           >
             Renvoyer le code
-          </button>
+          </Button>
         </>
       )}
 

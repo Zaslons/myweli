@@ -258,7 +258,7 @@ export function EquipeClient() {
                             onClick={() =>
                               setMenuFor(menuFor === m.id ? null : m.id)
                             }
-                            className="rounded-lg px-s py-xs text-iconXS text-textSecondary hover:bg-surfaceVariant"
+                            className="-mx-s -my-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textSecondary hover:bg-surfaceVariant"
                           >
                             ⋯
                           </button>

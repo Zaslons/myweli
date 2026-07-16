@@ -157,7 +157,7 @@ export function RechercheClient({
         <div className="mt-m flex flex-wrap gap-s" aria-label="Catégories">
           <a
             href={chipHref(null)}
-            className={`rounded-pill border px-m py-xs text-bodyMedium ${
+            className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
               !category
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textPrimary'
@@ -169,7 +169,7 @@ export function RechercheClient({
             <a
               key={c.apiKey}
               href={chipHref(c.apiKey)}
-              className={`rounded-pill border px-m py-xs text-bodyMedium ${
+              className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
                 category === c.apiKey
                   ? 'border-primary bg-primary text-secondary'
                   : 'border-border bg-surface text-textPrimary'
@@ -189,7 +189,7 @@ export function RechercheClient({
               onChange={(e) => {
                 window.location.assign(hrefWith({ sort: e.target.value }));
               }}
-              className="rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textPrimary"
+              className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -201,7 +201,7 @@ export function RechercheClient({
           <a
             href={hrefWith({ dispo: !dispo })}
             aria-current={dispo ? 'true' : undefined}
-            className={`rounded-pill border px-m py-xs text-bodyMedium ${
+            className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
               dispo
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textPrimary'
@@ -227,8 +227,13 @@ export function RechercheClient({
                 ref={(el) => {
                   cardRefs.current[p.id] = el;
                 }}
+                role="presentation"
                 onMouseEnter={() => setHoveredId(p.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                // §5: hover-only affordances must also work on focus — the card
+                // contains focusable children, so capture their focus/blur.
+                onFocus={() => setHoveredId(p.id)}
+                onBlur={() => setHoveredId(null)}
                 className={
                   selectedId === p.id
                     ? 'rounded-xl ring-2 ring-primary'
@@ -269,7 +274,7 @@ export function RechercheClient({
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
-        className="fixed bottom-l left-1/2 z-sticky -translate-x-1/2 rounded-pill bg-primary px-l py-s text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
+        className="fixed bottom-l left-1/2 z-sticky inline-flex min-h-12 -translate-x-1/2 items-center rounded-pill bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>

@@ -12,6 +12,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* The focus ring (WEB-SYSTEM §5, register row 8) — ONE base rule, not 271
+   utilities. Before B4, `focus-visible:` appeared zero times across 180 buttons
+   and ~105 controls: nobody broke the ring (`outline-none` is never used), it was
+   simply never designed, and the browser default is barely visible on a
+   black-and-white UI.
+
+   `:focus-visible`, not `:focus` — a clicked BUTTON leaves no ring. (A clicked
+   TEXT FIELD does show it; that is platform-correct — a field you clicked is a
+   field you will type in — and pinned as such in tests/e2e/focus.spec.ts.)
+   The 2px offset is §3.3's own design: the ring never merges with a control's
+   edge, so it composes with the TextField's borderFocus border instead of
+   fighting it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid theme('colors.borderFocus');
+    outline-offset: 2px;
+    border-radius: theme('borderRadius.md');
+  }
+}
+
 /* Phone field — react-phone-number-input themed to the app tokens.
    The country flag/dropdown sits in its own bordered box; the number input
    matches the app's other text inputs. */
@@ -25,15 +45,19 @@ body {
   align-items: center;
   gap: theme('spacing.xs');
   padding: 0 theme('spacing.s');
-  border: 1px solid theme('colors.border');
+  /* borderStrong, not border: the boundary IS the control (SYSTEM §3.3). The
+     phone widgets were invisible to the row-3 count — the grep never sees the
+     input/select that react-phone-number-input renders. */
+  border: 1px solid theme('colors.borderStrong');
   border-radius: theme('borderRadius.lg');
   background-color: theme('colors.surface');
 }
 .myweli-phone .PhoneInputInput {
   flex: 1;
   min-width: 0;
-  padding: theme('spacing.s') theme('spacing.m');
-  border: 1px solid theme('colors.border');
+  min-height: 48px; /* §13.2 — the same floor as TextField's min-h-12 */
+  padding: theme('spacing.m');
+  border: 1px solid theme('colors.borderStrong');
   border-radius: theme('borderRadius.lg');
   background-color: theme('colors.surface');
   color: theme('colors.textPrimary');
@@ -41,10 +65,21 @@ body {
 .myweli-phone .PhoneInputInput::placeholder {
   color: theme('colors.textTertiary');
 }
-.myweli-phone .PhoneInputInput:focus,
-.myweli-phone .PhoneInputCountrySelect:focus + .PhoneInputCountryIcon {
-  outline: 2px solid theme('colors.primary');
-  outline-offset: 1px;
+/* The field's own focus state — the TextField pair, in CSS: border swaps to
+   borderFocus and a 1px spread fakes mobile's 2nd border pixel (zero layout
+   shift). The global :focus-visible ring composes on top for keyboard focus. */
+.myweli-phone .PhoneInputInput:focus {
+  border-color: theme('colors.borderFocus');
+  box-shadow: 0 0 0 1px theme('colors.borderFocus');
+}
+/* The country <select> is an opacity-0 overlay, so the GLOBAL ring is invisible
+   on it — the visible focus must be painted on the sibling icon. This is the one
+   place the ring stays hand-written CSS, fixed three ways from its pre-§5 form:
+   :focus-visible (was :focus — mouse rings), borderFocus (was primary), offset
+   2px (was 1). */
+.myweli-phone .PhoneInputCountrySelect:focus-visible + .PhoneInputCountryIcon {
+  outline: 2px solid theme('colors.borderFocus');
+  outline-offset: 2px;
 }
 .myweli-phone .PhoneInputCountrySelectArrow {
   color: theme('colors.textSecondary');

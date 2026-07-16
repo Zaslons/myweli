@@ -223,30 +223,42 @@ export function NotificationsClient() {
               }`}
             >
               <div>
-                <p className="text-bodyMedium text-textPrimary">{row.title}</p>
+                <p
+                  id={`pref-${row.key}-title`}
+                  className="text-bodyMedium text-textPrimary"
+                >
+                  {row.title}
+                </p>
                 <p className="mt-xs text-bodySmall text-textTertiary">
                   {row.subtitle}
                 </p>
               </div>
+              {/* §13.2: the BUTTON is the ≥48px target; the 44×24 track is the
+                  visible inner span, unmoved. Named by the row title (a real
+                  element, not a duplicated string). */}
               <button
                 type="button"
                 role="switch"
                 aria-checked={prefs[row.key]}
-                aria-label={row.title}
+                aria-labelledby={`pref-${row.key}-title`}
                 onClick={() => toggle(row.key)}
-                className={`relative h-6 w-11 shrink-0 rounded-pill transition-colors ${
-                  prefs[row.key] ? 'bg-primary' : 'bg-border'
-                }`}
+                className="flex min-h-12 min-w-12 shrink-0 items-center justify-center"
               >
                 <span
-                  // ds-ignore: the knob's travel is exact geometry, not spacing: track w-11 (44) − knob
-                  // w-5 (20) − left-0.5 (2) = 22. Any token snap misplaces it. B4's shared
-                  // control absorbs this.
-                  // eslint-disable-next-line tailwindcss/no-arbitrary-value
-                  className={`absolute top-0.5 h-5 w-5 rounded-pill bg-secondary shadow transition-all ${
-                    prefs[row.key] ? 'left-[22px]' : 'left-0.5'
+                  className={`relative block h-6 w-11 rounded-pill transition-colors ${
+                    prefs[row.key] ? 'bg-primary' : 'bg-border'
                   }`}
-                />
+                >
+                  <span
+                    // ds-ignore: the knob's travel is exact geometry, not spacing: track w-11 (44) − knob
+                    // w-5 (20) − left-0.5 (2) = 22. Any token snap misplaces it. (The switch stays
+                    // hand-rolled — §10 specs no Switch primitive; B4 fixed its target + label in place.)
+                    // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                    className={`absolute top-0.5 h-5 w-5 rounded-pill bg-secondary shadow transition-all ${
+                      prefs[row.key] ? 'left-[22px]' : 'left-0.5'
+                    }`}
+                  />
+                </span>
               </button>
             </div>
           ))}

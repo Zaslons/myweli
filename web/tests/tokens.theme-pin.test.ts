@@ -221,6 +221,12 @@ describe('the tokens are actually WIRED, not just spelled', () => {
       ...Object.keys(type),
       ...Object.keys(icon),
       ...Object.keys(colors),
+      // CSS keywords added at the CONFIG level ({transparent, current, ...colors}
+      // in tailwind.config.ts), not in tokens.ts — they are not colours and
+      // cannot drift, but they are real classes (Button's isLoading spinner uses
+      // text-transparent to keep its accessible name while hiding the label).
+      'transparent',
+      'current',
       ...TAILWIND_TEXT_UTILS,
     ]);
     const offenders: string[] = [];
@@ -246,12 +252,15 @@ describe('every arbitrary value is DECLARED (WEB-SYSTEM §2)', () => {
   // The escape hatch has to stay visible or it stops being an exception and
   // becomes the norm. Mirrors SYSTEM.md §20's `// ds-ignore` for the Flutter pin:
   // a disable without a written reason is not a decision, it is a silencer.
-  it('a tailwindcss eslint-disable carries a ds-ignore reason', () => {
+  it('a tailwindcss OR jsx-a11y eslint-disable carries a ds-ignore reason', () => {
+    // Extended in B4 when jsx-a11y strict landed: an a11y disable without prose
+    // is the exact silencer-not-decision failure this rule exists for. B4 itself
+    // shipped with ZERO of either (the 16 strict errors were all fixed for real).
     const offenders: string[] = [];
     for (const f of files) {
       const lines = f.content.split('\n');
       lines.forEach((line, i) => {
-        if (!/eslint-disable(?:-next-line)?\s+tailwindcss\//.test(line)) return;
+        if (!/eslint-disable(?:-next-line)?\s+(?:tailwindcss\/|jsx-a11y\/)/.test(line)) return;
         // The reason sits ABOVE the directive, because `-next-line` binds to the
         // line that follows it — a reason on the same line would push the
         // directive away from the class it exempts.

@@ -13,6 +13,7 @@ import {
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 
 /// Module `clients` C1b — the salon client base at /pro/clients
 /// (docs/design/clients-c1.md §6). Derived from bookings; search + tag
@@ -111,13 +112,14 @@ export function ClientsClient() {
         <Button onClick={() => setAdding(true)}>+ Ajouter un client</Button>
       </div>
 
-      <input
+      <TextField
+        className="mt-m max-w-md"
+        label="Rechercher un client"
+        hideLabel
         type="search"
         value={query}
         onChange={(e) => search(e.target.value)}
         placeholder="Nom ou téléphone…"
-        aria-label="Rechercher un client"
-        className="mt-m w-full max-w-md rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary"
       />
 
       <div className="mt-s flex flex-wrap gap-xs">
@@ -126,7 +128,7 @@ export function ClientsClient() {
             key={t}
             type="button"
             onClick={() => filterTag(t)}
-            className={`rounded-pill border px-s py-xs text-bodySmall ${
+            className={`inline-flex min-h-12 items-center rounded-pill border px-s text-bodySmall ${
               tag === t
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textSecondary'
@@ -289,34 +291,31 @@ function AddClientModal({
         <h2 className="text-titleLarge font-semibold text-textPrimary">
           Ajouter un client
         </h2>
-        <label className="mt-m block text-bodyMedium text-textSecondary">
-          Nom
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-          />
-        </label>
-        <label className="mt-m block text-bodyMedium text-textSecondary">
-          Téléphone
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+225 07 00 00 00 00"
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-          />
-        </label>
-        <label className="mt-m block text-bodyMedium text-textSecondary">
-          Note (optionnelle)
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={500}
-            rows={2}
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-bodyMedium text-textPrimary"
-          />
-        </label>
+        <TextField
+          className="mt-m"
+          label="Nom"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <TextField
+          className="mt-m"
+          label="Téléphone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+225 07 00 00 00 00"
+        />
+        <TextField
+          className="mt-m"
+          label="Note (optionnelle)"
+          multiline
+          maxLength={500}
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
         {message ? <p className="mt-s text-bodyMedium text-error">{message}</p> : null}
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>

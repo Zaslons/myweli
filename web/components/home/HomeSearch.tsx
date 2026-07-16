@@ -29,7 +29,7 @@ export function HomeSearch({
   }
 
   const field =
-    'rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
+    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus';
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-s sm:flex-row">
@@ -55,7 +55,7 @@ export function HomeSearch({
       </datalist>
       <button
         type="submit"
-        className="rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
+        className="inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-l text-labelLarge font-medium text-secondary hover:bg-primaryHover"
       >
         Rechercher
       </button>

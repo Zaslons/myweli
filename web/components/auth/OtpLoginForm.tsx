@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { isPossiblePhoneNumber } from 'react-phone-number-input';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
+import { TextField } from '../TextField';
 
 type OtpResult = { ok: boolean; devCode?: string; error?: string };
 type VerifyResult = { ok: boolean; error?: string };
@@ -27,56 +29,70 @@ export function OtpLoginForm({
   const [otpSent, setOtpSent] = useState(false);
   const [devCode, setDevCode] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // §14 rules 1/2/5 — mirrors the LoginOptions reference (web-b4-controls.md).
+  const fields = useFieldErrors({
+    phone: (v: string) =>
+      v && isPossiblePhoneNumber(v)
+        ? null
+        : 'Saisissez un numéro de téléphone valide.',
+    code: (v: string) => (v.length >= 4 ? null : 'Saisissez le code reçu par SMS.'),
+  });
 
   async function send() {
+    if (!fields.validate({ phone })) return;
     setBusy(true);
-    setError(null);
     const r = await requestCode(phone);
     setBusy(false);
-    if (!r.ok) return setError('Numéro invalide ou envoi impossible.');
+    if (!r.ok) return fields.set('phone', 'Numéro invalide ou envoi impossible.');
     setOtpSent(true);
     setDevCode(r.devCode);
   }
 
   async function verify() {
+    if (!fields.validate({ code })) return;
     setBusy(true);
-    setError(null);
     const r = await verifyCode(phone, code);
     setBusy(false);
-    if (!r.ok) return setError(verifyErrorMessage(r.error));
+    if (!r.ok) return fields.set('code', verifyErrorMessage(r.error));
     onSuccess();
   }
 
   return (
     <div className="flex flex-col gap-s">
-      <PhoneField onChange={setPhone} disabled={otpSent} />
+      <PhoneField
+        onChange={(v) => {
+          setPhone(v);
+          fields.revalidate('phone', v);
+        }}
+        disabled={otpSent}
+        error={fields.errors.phone}
+      />
       {!otpSent ? (
-        <Button
-          disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
-          onClick={send}
-        >
+        <Button disabled={busy} isLoading={busy} onClick={send}>
           Envoyer le code
         </Button>
       ) : (
         <>
-          <input
+          <TextField
+            label="Code à 6 chiffres"
             type="text"
             inputMode="numeric"
-            placeholder="Code à 6 chiffres"
+            autoComplete="one-time-code"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
+            onChange={(e) => {
+              setCode(e.target.value);
+              fields.revalidate('code', e.target.value);
+            }}
+            error={fields.errors.code}
           />
           {devCode ? (
             <p className="text-bodySmall text-textTertiary">Code (dev) : {devCode}</p>
           ) : null}
-          <Button disabled={busy || code.length < 4} onClick={verify}>
+          <Button disabled={busy} isLoading={busy} onClick={verify}>
             Se connecter
           </Button>
         </>
       )}
-      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
     </div>
   );
 }

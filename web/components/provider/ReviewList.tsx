@@ -59,7 +59,7 @@ export function ReviewList({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={url}
-                      alt="Photo de l’avis"
+                      alt="Pièce jointe de l’avis"
                       className="h-16 w-16 rounded-lg object-cover"
                       loading="lazy"
                     />
@@ -123,7 +123,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="text-bodySmall text-textTertiary underline"
+          className="-my-sm inline-flex min-h-12 items-center text-bodySmall text-textTertiary underline"
         >
           Signaler
         </button>
@@ -135,7 +135,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
             maxLength={500}
             placeholder="Raison (optionnel)"
             aria-label="Raison du signalement"
-            className="w-full rounded-lg border border-border bg-secondary px-s py-xs text-bodyMedium text-textPrimary"
+            className="min-h-12 w-full rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
           <div className="mt-s flex justify-end gap-s">
             <Button variant="secondary" onClick={() => setOpen(false)}>

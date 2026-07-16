@@ -256,7 +256,7 @@ function ArtistRow({ artist, onEdit }: { artist: Artist; onEdit: () => void }) {
 }
 
 const inputCls =
-  'w-full rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
+  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 function ServiceFormCard({
   providerId,
@@ -354,9 +354,10 @@ function ServiceFormCard({
           />
         </label>
         {/* Audit 3.2: the app's per-hair-length duration editor. */}
-        <label className="flex items-center gap-s text-bodyMedium text-textPrimary">
+        <label className="flex min-h-12 items-center gap-s text-bodyMedium text-textPrimary">
           <input
             type="checkbox"
+            className="h-5 w-5 shrink-0 accent-primary"
             checked={form.hasVariants}
             onChange={(e) => set('hasVariants', e.target.checked)}
           />
@@ -393,9 +394,10 @@ function ServiceFormCard({
             </label>
           </div>
         ) : null}
-        <label className="flex items-center gap-s text-bodyMedium text-textPrimary">
+        <label className="flex min-h-12 items-center gap-s text-bodyMedium text-textPrimary">
           <input
             type="checkbox"
+            className="h-5 w-5 shrink-0 accent-primary"
             checked={form.active}
             onChange={(e) => set('active', e.target.checked)}
           />
@@ -415,10 +417,11 @@ function ServiceFormCard({
               {artists.map((a) => (
                 <label
                   key={a.id}
-                  className="flex items-center gap-s text-bodyMedium text-textPrimary"
+                  className="flex min-h-12 items-center gap-s text-bodyMedium text-textPrimary"
                 >
                   <input
                     type="checkbox"
+                    className="h-5 w-5 shrink-0 accent-primary"
                     checked={form.artistIds.includes(a.id)}
                     onChange={(e) =>
                       set(
@@ -536,16 +539,20 @@ function ArtistFormCard({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={form.imageUrl}
-                alt="Photo de l’employé"
+                alt="Portrait de l’employé"
                 className="h-14 w-14 rounded-pill object-cover"
               />
+              {/* §13.2: the 48px TARGET is the button; the visible pill is the
+                  inner span, unmoved at the thumbnail's corner. */}
               <button
                 type="button"
                 aria-label="Retirer la photo"
                 onClick={() => setForm((f) => ({ ...f, imageUrl: null }))}
-                className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-iconXS text-secondary"
+                className="absolute -right-s -top-s flex h-12 w-12 items-center justify-center"
               >
-                ✕
+                <span className="rounded-pill bg-primary px-xs text-iconXS text-secondary">
+                  ✕
+                </span>
               </button>
             </span>
           ) : null}
@@ -582,9 +589,10 @@ function ArtistFormCard({
 
         {/* Audit 3.4: per-staff hours — the capacity engine reads them
             (empty = inherits the salon's hours). */}
-        <label className="flex items-center gap-s text-bodyMedium text-textPrimary">
+        <label className="flex min-h-12 items-center gap-s text-bodyMedium text-textPrimary">
           <input
             type="checkbox"
+            className="h-5 w-5 shrink-0 accent-primary"
             checked={customHours}
             onChange={(e) => {
               setCustomHours(e.target.checked);
