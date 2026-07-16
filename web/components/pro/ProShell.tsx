@@ -74,7 +74,7 @@ export function ProShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:flex">
       {/* Mobile top bar — the only place the hamburger lives; gone at `lg+`. */}
-      <header className="sticky top-0 z-10 flex items-center gap-s border-b border-divider bg-secondary px-m py-s lg:hidden">
+      <header className="sticky top-0 z-sticky flex items-center gap-s border-b border-divider bg-secondary px-m py-s lg:hidden">
         <button
           ref={hamburgerRef}
           type="button"
@@ -112,7 +112,7 @@ export function ProShell({ children }: { children: ReactNode }) {
           off the desktop layout even if `open` is momentarily stale. */}
       {open ? (
         <div
-          className="fixed inset-0 z-30 bg-primary/40 lg:hidden"
+          className="fixed inset-0 z-overlay bg-primary/40 lg:hidden"
           aria-hidden="true"
           onClick={() => setOpen(false)}
         />

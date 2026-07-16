@@ -27,7 +27,7 @@ export function ProviderHero({ provider }: { provider: Provider }) {
         <h1 className="mt-xs flex items-center gap-s text-3xl font-semibold text-textPrimary">
           {provider.name}
           {provider.verified ? (
-            <span className="rounded-full bg-info/10 px-s py-xs text-xs font-medium text-info">
+            <span className="rounded-pill bg-info/10 px-s py-xs text-xs font-medium text-info">
               ✔ Vérifié
             </span>
           ) : null}

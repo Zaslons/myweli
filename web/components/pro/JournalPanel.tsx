@@ -84,7 +84,14 @@ export function JournalPanel({
     .join(', ');
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 flex w-full max-w-sm flex-col border-l border-border bg-secondary shadow-xl">
+    <div
+      id="pro-journal-panel"
+      // The panel is NOT modal — no scrim, doesn't block the page — so it sits
+      // at `dropdown`, under the drawer's scrim (`overlay`) and the drawer
+      // itself (`modal`). It used to be `z-40`, tying with the drawer and
+      // painting over it on a phone (see tests/e2e/z-layers.spec.ts).
+      className="fixed inset-y-0 right-0 z-dropdown flex w-full max-w-sm flex-col border-l border-border bg-secondary shadow-xl"
+    >
       <div className="flex items-center justify-between border-b border-border p-m">
         <h2 className="font-semibold text-textPrimary">
           Détails du rendez-vous
@@ -106,7 +113,7 @@ export function JournalPanel({
             {appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
               <span
-                className={`rounded-full px-s py-xs text-xs ${
+                className={`rounded-pill px-s py-xs text-xs ${
                   noShowBadge(appt.clientNoShowCount) === 'red'
                     ? 'bg-error/10 text-error'
                     : 'bg-surface text-textSecondary'

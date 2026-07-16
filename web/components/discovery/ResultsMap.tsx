@@ -113,7 +113,7 @@ export function ResultsMap({
         }}
       />
       {items.length === 0 ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-sticky flex items-center justify-center">
           <p className="rounded-lg bg-secondary px-m py-s text-sm text-textSecondary shadow">
             Aucun salon à afficher sur la carte
           </p>
@@ -177,7 +177,7 @@ function LocateButton({
   }
 
   return (
-    <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-xs">
+    <div className="absolute right-3 top-3 z-sticky flex flex-col items-end gap-xs">
       <button
         type="button"
         onClick={locate}

@@ -112,12 +112,14 @@ export function JournalGrid({
     <div className="relative">
       <div
         ref={scrollRef}
+        // ds-ignore: viewport-relative scroll box.
+        // eslint-disable-next-line tailwindcss/no-arbitrary-value
         className="max-h-[70vh] overflow-auto rounded-xl border border-border bg-secondary"
       >
         <div className="flex min-w-fit">
           {/* Time axis */}
           <div
-            className="sticky left-0 z-10 shrink-0 border-r border-border bg-secondary"
+            className="sticky left-0 z-sticky shrink-0 border-r border-border bg-secondary"
             style={{ width: AXIS_W, height: height + 8 }}
           >
             {hourTicks(hours).map((t) => (
@@ -235,10 +237,13 @@ function JournalColumn({
       className="relative shrink-0 border-r border-border"
       style={{ minWidth: colMinW, height: height + 8 }}
     >
-      {/* header */}
-      <div className="sticky top-0 z-[5] flex h-8 items-center justify-center border-b border-border bg-surface text-xs font-medium text-textPrimary">
-        {artist.name}
-      </div>
+      {/* The children are ordered bottom-to-top ON PURPOSE: surface → header →
+          now-line → blocks. They used to say z-[5]/[6]/[7], but no ancestor here
+          creates a stacking context (`relative` with z-auto doesn't, and neither
+          does `overflow-auto`), so those were GLOBAL layers that merely happened
+          to sit under the page's own scale. All four are positioned with z-auto
+          now, so paint order = DOM order — the same result, and immune to the
+          global scale (WEB-SYSTEM §9). Do not reorder without reading this. */}
 
       {/* click-to-create surface + break bands (inert when readOnly) */}
       {readOnly ? (
@@ -246,6 +251,9 @@ function JournalColumn({
           {breakBands(hours).map((b, i) => (
             <div
               key={i}
+              // ds-ignore: the break-band hatch is a GRADIENT, not a colour —
+              // there is no token shape that can hold it.
+              // eslint-disable-next-line tailwindcss/no-arbitrary-value
               className="absolute inset-x-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(0,0,0,0.04)_6px,rgba(0,0,0,0.04)_12px)]"
               style={{ top: b.top, height: b.height }}
             />
@@ -270,6 +278,9 @@ function JournalColumn({
           {breakBands(hours).map((b, i) => (
             <div
               key={i}
+              // ds-ignore: the break-band hatch is a GRADIENT, not a colour —
+              // there is no token shape that can hold it.
+              // eslint-disable-next-line tailwindcss/no-arbitrary-value
               className="absolute inset-x-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(0,0,0,0.04)_6px,rgba(0,0,0,0.04)_12px)]"
               style={{ top: b.top, height: b.height }}
             />
@@ -277,10 +288,16 @@ function JournalColumn({
         </button>
       )}
 
+      {/* header — the column's only IN-FLOW child, so it still starts at y=0
+          despite coming after the absolutes above (they take no flow space). */}
+      <div className="sticky top-0 flex h-8 items-center justify-center border-b border-border bg-surface text-xs font-medium text-textPrimary">
+        {artist.name}
+      </div>
+
       {/* now line */}
       {nowTop !== null ? (
         <div
-          className="pointer-events-none absolute inset-x-0 z-[6] border-t border-error"
+          className="pointer-events-none absolute inset-x-0 border-t border-error"
           style={{ top: 32 + nowTop }}
         />
       ) : null}
@@ -305,7 +322,11 @@ function JournalColumn({
             aria-label={`${a.clientName ?? 'Client'}, ${statusLabelFr(
               statusKey(a),
             )}`}
-            className={`absolute inset-x-1 z-[7] overflow-hidden rounded-md border px-1 py-0.5 text-left text-[11px] leading-tight ${
+            // ds-ignore: py-[2px] is below the 4px grid floor — a 15-min block
+            // is ~15px tall, so 4px padding would clip the label. text-[11px] is
+            // fontSize and closes in B2b.
+            // eslint-disable-next-line tailwindcss/no-arbitrary-value
+            className={`absolute inset-x-1 overflow-hidden rounded-md border px-xs py-[2px] text-left text-[11px] leading-tight ${
               STATUS_STYLE[statusKey(a)] ?? STATUS_STYLE.confirmed
             } ${draggable ? 'cursor-grab' : 'cursor-pointer'}`}
             style={{ top: 32 + box.top, height: box.height }}

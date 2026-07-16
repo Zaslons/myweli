@@ -154,7 +154,7 @@ function PhotosTab({
             <img src={url} alt="" className="h-32 w-full object-cover" />
             <div className="flex items-center justify-between p-s">
               {i === 0 ? (
-                <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
+                <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
                   Couverture
                 </span>
               ) : (
@@ -277,9 +277,9 @@ function AvantApresTab({
             className="flex items-center gap-m rounded-xl border border-border bg-secondary p-s"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.before} alt="" className="h-16 w-16 rounded object-cover" />
+            <img src={p.before} alt="" className="h-16 w-16 rounded-sm object-cover" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.after} alt="" className="h-16 w-16 rounded object-cover" />
+            <img src={p.after} alt="" className="h-16 w-16 rounded-sm object-cover" />
             <span className="flex-1 text-sm text-textTertiary">
               {p.caption ?? ''}
             </span>
@@ -345,7 +345,7 @@ function IconBtn({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="rounded border border-border bg-surface px-s text-sm text-textPrimary hover:bg-surfaceVariant"
+      className="rounded-sm border border-border bg-surface px-s text-sm text-textPrimary hover:bg-surfaceVariant"
     >
       {children}
     </button>

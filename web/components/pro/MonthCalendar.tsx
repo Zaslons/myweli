@@ -79,7 +79,7 @@ export function MonthCalendar({
               <span>{d.getUTCDate()}</span>
               {hasBooking ? (
                 <span
-                  className={`mt-xs h-xs w-xs rounded-full ${
+                  className={`mt-xs h-xs w-xs rounded-pill ${
                     isSel ? 'bg-secondary' : 'bg-primary'
                   }`}
                 />

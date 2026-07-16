@@ -106,7 +106,7 @@ export function InviteMemberDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Inviter un membre"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-m"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
     >
       <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
         <h2 className="text-lg font-semibold text-textPrimary">
@@ -146,7 +146,12 @@ export function InviteMemberDialog({
                 <span className="block text-sm font-medium text-textPrimary">
                   {ROLE_LABELS[r]}
                 </span>
-                <span className="mt-[2px] block text-xs text-textTertiary">
+                <span
+                  // ds-ignore: 2px optical nudge; below the 4px grid floor (see ChangeRoleDialog — the
+                  // same role-row).
+                  // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                  className="mt-[2px] block text-xs text-textTertiary"
+                >
                   {ROLE_SUMMARIES[r]}
                 </span>
               </button>

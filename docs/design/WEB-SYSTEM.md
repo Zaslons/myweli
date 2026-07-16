@@ -51,11 +51,16 @@ mapping:
 | **`borderFocus`** `#000000` | `outline-borderFocus` | The focus ring (§5) |
 | semantic | `text-success` `bg-error` … | Status only |
 | **`gold`** `#B8860B` | `border-gold` `bg-gold/15` | Non-text accent. **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
-| spacing | `p-m` `gap-s` … + **`sm` = 12px** | |
-| radius | `rounded-lg` … + **`rounded-pill`** | |
+| spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px` | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. |
+| radius | `rounded-lg` … + **`rounded-pill`** | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
+| z-index | `z-sticky` `z-modal` … | The layer, **named** — never a number (§9). |
+| motion | `duration-base` … | SYSTEM.md §9's scale. `transitionDuration.DEFAULT` **must** stay defined: every bare `transition`/`transition-colors` reads it, so dropping it makes them all instant — silently. |
 
-**A raw hex in `app/` or `components/` is a review failure.** The only literals
-allowed are `transparent` and the alpha-black scrims (3 sanctioned uses).
+**A raw hex in `app/` or `components/` is a review failure.** The only literal
+allowed is `transparent`. The "3 sanctioned alpha-black scrims" carve-out is gone:
+`black` *is* `primary` (both `#000000`), so `bg-black/80` → `bg-primary/80` is
+pixel-identical and the Lightbox scrim now matches the dialog scrim family. A
+carve-out that was never needed is a carve-out someone else will widen.
 
 ## 2. The closed theme
 
@@ -77,7 +82,60 @@ actual gate is lint:
   `no-arbitrary-value` as **errors**.
 
 Arbitrary values (`z-[1100]`, `py-[2px]`, `w-[380px]`) are banned by the same
-rule. Each one is a token that should exist — add it to the theme instead.
+rule. Most are a token that should exist — add it to the theme instead.
+
+**But not all of them are**, and the rule has to say so or it gets ignored. There is
+no token that can hold `h-[calc(100dvh-6.5rem)]`, `grid-cols-[minmax(0,55%)_minmax(0,1fr)]`
+or a `repeating-linear-gradient`, and a switch knob's travel is exact geometry
+(track 44 − knob 20 − inset 2 = **22**), not spacing. So the escape hatch is a
+**declared exception**, mirroring SYSTEM.md §20's `// ds-ignore`:
+
+```tsx
+// ds-ignore: <why no token can express this>
+// eslint-disable-next-line tailwindcss/no-arbitrary-value
+className="h-[calc(100dvh-6.5rem)]"
+```
+
+The reason goes **above** the directive (`-next-line` binds to the line that
+follows), and `tokens.theme-pin.test.ts` fails an `eslint-disable` that has no
+`ds-ignore:` reason within 6 lines. An undocumented disable is not a decision, it is
+a silencer. B2a left **17**.
+
+### What is closed, and what is not
+
+`colors` · `borderRadius` · `spacing` · `zIndex` · `screens` · `transitionDuration`
+(B2a). **`fontSize` is not** — it is 555 of the 767 affected usages and needs the
+type scale of §3 to exist in `tokens.ts` first (**B2b**). Until then `text-[10px]`
+and `text-[11px]` carry a `ds-ignore` pointing at B2b.
+
+**Sizing is carved out, deliberately (B2c).** §2 used to say "spacing" moves into
+`theme` as though that were one decision. It is not: Tailwind's `spacing` key also
+feeds `w-`/`h-`/`size-`/`min-*`/`max-h-`/`inset-`/`translate-`, which are **sizes,
+not rhythm**. Closing it outright deletes 23 layout dimensions (96→320px — map
+heights, the sidebar, avatars) that have no legal token *and shouldn't*, because the
+web has no sizing scale at all (SYSTEM.md §7 covers icons only), and moves pixels on
+24 more. So `spacing` is closed as the **rhythm** scale — `p-4` is dead — and the
+sizing keys keep the numeric scale via `extend` until §9 gains a Sizing subsection.
+`w-60` is not a violation today; `p-4` is.
+
+> Measuring beats auditing here: padding/margin/gap turned out to be **already 100%
+> tokenised** — `p-3` and `gap-2` do not appear anywhere. The debt was never rhythm.
+
+### Two blind spots the lint has, and why the pin test exists
+
+`eslint-plugin-tailwindcss` is the ergonomic gate (it fires in the editor). It is not
+the net, because it cannot see:
+
+1. **A bare `const s = 'rounded-full px-l …'`** — it only reads JSX `className`/`class`
+   and configured callees. Three such strings exist. B2a's `rounded-full` sweep had to
+   be a **text** replace, not an AST codemod, for exactly this reason: a codemod would
+   have left `TaxonomyLandingView`'s chip un-pilled and lint would have said green.
+2. **A bare `rounded`.** `borderRadius` has no `DEFAULT`, so Tailwind emits **nothing**
+   for it — but the plugin recognises `rounded` as a known class name and passes it
+   clean. *Verified.* Lint alone would ship it as an unstyled element.
+
+Hence `tests/tokens.theme-pin.test.ts` — a source sweep, the mirror of mobile's
+`design_system_pin_test.dart`.
 
 ## 3. Type on the web
 
@@ -226,6 +284,17 @@ the layer, named:
 | `z-overlay` | 30 | Scrims |
 | `z-modal` | 40 | Dialogs, sheets |
 | `z-toast` | 50 | Feedback — always on top |
+| `z-auto` | `auto` | The escape from the scale. Load-bearing at one site: at `lg:` the pro sidebar is a **flex item**, and z-index applies to flex items whatever their `position` — `z-base` (0) is *not* a substitute, because `0` creates a stacking context on a flex item and would trap the salon-switcher dropdown inside the aside; `auto` does not. |
+
+**Ties are resolved by DOM order — so if two things at the same layer can coexist,
+one of them is at the wrong layer.** That is not pedantry: `JournalPanel` and the
+mobile drawer were both `z-40`, and the panel renders later, so it painted above the
+drawer's `z-30` scrim and stayed **bright while the whole page dimmed** (B2a). A
+number carries no intent, so nobody could see the collision; `dropdown` vs `modal`
+states it. Note what could *not* catch it — the two sit on opposite edges and never
+overlap, and `<main>` is `inert` while the drawer is open, so a hit-test returns the
+scrim regardless. Only comparing the computed layers sees it
+(`tests/e2e/z-layers.spec.ts`).
 
 ## 10. Components
 
@@ -293,7 +362,8 @@ web converts, the app deepens:
 | Rule | Gate |
 |---|---|
 | Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps |
-| Tokens only (§2) | **Closed Tailwind theme** + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** |
+| Tokens only (§2) | **Closed Tailwind theme** (B2a) + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** — **and** `tokens.theme-pin.test.ts`, because the lint has two blind spots (bare `const` class strings; a bare `rounded`, which it passes clean while Tailwind emits nothing). Config lives in **`.eslintrc.js`**, not `.json`: the plugin resolves `tailwindcss` relative to `dirname(settings.tailwindcss.config)`, so a *relative* config path makes it look in `.` and throw — JSON cannot compute an absolute path |
+| Layering (§9) | `tests/e2e/z-layers.spec.ts` — the drawer/scrim/panel stack and the map control, asserted on **computed layers** (a hit-test can't see it: `<main>` is `inert` while the drawer is open, and inert content isn't hit-tested) |
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |
 | The whole of §4–§8, on real pages | **`@axe-core/playwright`** over ~10 routes, inside the **already-blocking** e2e job |
 | Regression | Lighthouse a11y ≥ **0.95**, as an **error** |
@@ -319,8 +389,10 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 3 | Control borders ≥ 3:1 | ~~186~~ → the shared Button + the salon-switcher **done**; the ~20 hand-classed form inputs pending | `borderStrong` (3.22:1) is now the token; the central controls use it. The web has **no shared input theme**, so the ad-hoc inputs' outlines land with **B4**'s `<TextField>` (which bakes in `borderStrong`) rather than being hand-edited then rebuilt | **B1 → B4** |
 | 4 | Token exists ⇒ no substitution | ~~1~~ → **0** | `gold #B8860B` is exported; `TeamRoleChip` uses it. A test grep-pin fails if any `bg-/border-starRating` returns | ✅ **B1** |
 | 5 | Splash matches the app | ~~1~~ → **0** | `manifest.ts` `background_color` → `#F6F7F9` (no more black flash); `theme_color` stays brand black | ✅ **B1** |
-| 6 | Closed theme (§2) | open | `rounded-xl` ≡ `rounded-2xl` (both alias `radius`); the whole default palette is reachable | **B2** |
-| 7 | No arbitrary values (§2) | `z-[5]` `z-[6]` `z-[7]` `z-[1100]` `py-[2px]` | | **B2** |
+| 6 | Closed theme (§2) | open → **closed, except sizing** | `colors` · `borderRadius` · `spacing`(rhythm) · `zIndex` · `screens` · `transitionDuration` are now `theme`, not `theme.extend`: a non-token utility **does not exist**. Held by `no-custom-classname` (**0**) + `tokens.theme-pin.test.ts`, because Tailwind emits *nothing* for an unknown utility — a dead class ships as an unstyled element and no build, typecheck or test can see it. Proven by diffing the emitted CSS: 298 → 287 selectors, every one of the 11 deliberate. **`fontSize` → B2b** (555 of 767 usages; needs §3's scale in `tokens.ts`). **Sizing → B2c** (row 6b) | ✅ **B2a** |
+| 6b | A sizing scale (§2, §9) | **none** | Tailwind's `spacing` key also feeds `w-`/`h-`/`min-*`/`max-h`/`inset`/`translate`. 23 layout dimensions (96→320px) have no legal token *and shouldn't* — the web has no sizing scale (SYSTEM.md §7 is icons only). Measured set: 20/24/32/40/48/56/64/96/112/128/160/176/224/240/256/320 | *B2c* |
+| 7 | No arbitrary values (§2) | ~~`z-[5]` `z-[6]` `z-[7]` `z-[1100]` `py-[2px]`~~ → **0 undeclared** | `no-arbitrary-value` is an **error**. Every arbitrary `z-` is gone: `z-[5/6/7]` were never isolated (no stacking context in the chain) so the JournalGrid column is now ordered bottom-to-top in the **DOM** and needs no z at all; `z-[1100]` was cargo cult (maplibre's own vocabulary is 1/2) → `z-sticky`. **17 declared exceptions** remain, each with a `ds-ignore:` reason the pin test enforces — 12 genuine one-offs (a `calc()`, two grid templates, a gradient, the switch's exact 44−20−2 travel…) and 5 that clear with **B2b** | ✅ **B2a** |
+| 7b | Type below the §3 floor | **4** | `text-[10px]` (`ClientsClient` ×3, `ClientCardClient`) is **under §3's 11px floor** — a real §3 violation the audit never counted, found by doing B2a | *B2b* |
 | 8 | **Visible focus (§5)** | **`focus-visible:` = 0** across **178 buttons + 93 controls** | | **B4** |
 | 9 | Labelled inputs (§6) | `htmlFor` = **0**, `id` = **0** (93 controls) | ≥6 placeholder-only inputs **in the login funnels** | **B4** |
 | 10 | Errors tied to fields (§6) | `aria-invalid` = **0**, `aria-describedby` = **0** | no error in the app is announced | **B4** |

@@ -139,7 +139,11 @@ export function RechercheClient({
   const chipHref = (apiKey: string | null) => hrefWith({ category: apiKey });
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,55%)_minmax(0,1fr)]">
+    <div
+      // ds-ignore: the list/map split ratio — a layout template, not a reusable token.
+      // eslint-disable-next-line tailwindcss/no-arbitrary-value
+      className="lg:grid lg:grid-cols-[minmax(0,55%)_minmax(0,1fr)]"
+    >
       {/* LEFT — search header + chips + the results list (scrolls with the page). */}
       <div
         className={`px-m py-l lg:px-l ${mobileView === 'map' ? 'hidden lg:block' : ''}`}
@@ -153,7 +157,7 @@ export function RechercheClient({
         <div className="mt-m flex flex-wrap gap-s" aria-label="Catégories">
           <a
             href={chipHref(null)}
-            className={`rounded-full border px-m py-xs text-sm ${
+            className={`rounded-pill border px-m py-xs text-sm ${
               !category
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textPrimary'
@@ -165,7 +169,7 @@ export function RechercheClient({
             <a
               key={c.apiKey}
               href={chipHref(c.apiKey)}
-              className={`rounded-full border px-m py-xs text-sm ${
+              className={`rounded-pill border px-m py-xs text-sm ${
                 category === c.apiKey
                   ? 'border-primary bg-primary text-secondary'
                   : 'border-border bg-surface text-textPrimary'
@@ -197,7 +201,7 @@ export function RechercheClient({
           <a
             href={hrefWith({ dispo: !dispo })}
             aria-current={dispo ? 'true' : undefined}
-            className={`rounded-full border px-m py-xs text-sm ${
+            className={`rounded-pill border px-m py-xs text-sm ${
               dispo
                 ? 'border-primary bg-primary text-secondary'
                 : 'border-border bg-surface text-textPrimary'
@@ -245,7 +249,12 @@ export function RechercheClient({
       {/* RIGHT — the map, part of the screen: no frame, flush to the right
           edge, full viewport height once the (non-sticky) header scrolls by. */}
       <div className={mobileView === 'map' ? 'block' : 'hidden lg:block'}>
-        <div className="h-[calc(100dvh-6.5rem)] lg:sticky lg:top-0 lg:h-screen">
+        <div
+          // ds-ignore: viewport arithmetic (full height minus the header) — no token can express
+          // a calc().
+          // eslint-disable-next-line tailwindcss/no-arbitrary-value
+          className="h-[calc(100dvh-6.5rem)] lg:sticky lg:top-0 lg:h-screen"
+        >
           <ResultsMap
             items={mappable}
             hoveredId={hoveredId}
@@ -260,7 +269,7 @@ export function RechercheClient({
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
-        className="fixed bottom-6 left-1/2 z-[1100] -translate-x-1/2 rounded-full bg-primary px-l py-s text-sm font-medium text-secondary shadow-lg lg:hidden"
+        className="fixed bottom-6 left-1/2 z-sticky -translate-x-1/2 rounded-pill bg-primary px-l py-s text-sm font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>

@@ -154,9 +154,9 @@ export function EquipeClient() {
           <p className="text-sm text-textSecondary">
             {seatsLabel(offer.seats)}
           </p>
-          <div className="mt-xs h-2 overflow-hidden rounded-full bg-surfaceVariant">
+          <div className="mt-xs h-2 overflow-hidden rounded-pill bg-surfaceVariant">
             <div
-              className="h-full rounded-full bg-primary"
+              className="h-full rounded-pill bg-primary"
               style={{
                 width: `${Math.min(
                   100,
@@ -191,7 +191,12 @@ export function EquipeClient() {
 
       {/* The owner is always pinned at the top of the roster, even alone. */}
       <div className="mt-l overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
+        <table
+          // ds-ignore: the roster's minimum column budget before the wrapper scrolls — a
+          // table-specific measure, not a shared size.
+          // eslint-disable-next-line tailwindcss/no-arbitrary-value
+          className="w-full min-w-[640px] border-collapse text-sm"
+        >
             <thead>
               <tr className="border-b border-divider text-left text-textTertiary">
                 <th className="px-m py-s font-medium">Membre</th>
@@ -214,7 +219,7 @@ export function EquipeClient() {
                   >
                     <td className="px-m py-s">
                       <div className="flex items-center gap-s">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surfaceVariant text-xs font-medium text-textSecondary">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-pill bg-surfaceVariant text-xs font-medium text-textSecondary">
                           {initials(m.email)}
                         </span>
                         <span className="text-textPrimary">{m.email}</span>
@@ -258,7 +263,7 @@ export function EquipeClient() {
                             ⋯
                           </button>
                           {menuFor === m.id ? (
-                            <div className="absolute right-0 z-10 mt-xs w-56 rounded-lg border border-border bg-secondary py-xs shadow-lg">
+                            <div className="absolute right-0 z-dropdown mt-xs w-56 rounded-lg border border-border bg-secondary py-xs shadow-lg">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -346,7 +351,7 @@ export function EquipeClient() {
           role="dialog"
           aria-modal="true"
           aria-label="Révoquer l’accès"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-m"
+          className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
         >
           <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
             <h2 className="text-lg font-semibold text-textPrimary">

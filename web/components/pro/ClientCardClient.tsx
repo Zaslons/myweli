@@ -163,14 +163,19 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
         <div>
           <div className="rounded-xl border border-border bg-secondary p-l">
             <div className="flex items-center gap-m">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-lg font-medium text-textPrimary">
+              <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-surface text-lg font-medium text-textPrimary">
                 {card.displayName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0">
                 <h1 className="flex items-center gap-xs text-xl font-semibold text-textPrimary">
                   <span className="truncate">{card.displayName}</span>
                   {card.linked ? (
-                    <span className="rounded-full bg-surface px-xs text-[10px] uppercase text-textTertiary">
+                    <span
+                      // ds-ignore: text-[10px] is fontSize — it closes in B2b. NOTE it is also BELOW §3's
+                      // 11px floor (§15 row 20).
+                      // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                      className="rounded-pill bg-surface px-xs text-[10px] uppercase text-textTertiary"
+                    >
                       MyWeli
                     </span>
                   ) : null}
@@ -217,7 +222,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       const next = toggleTag(card.tags, t);
                       if (next) saveTags(next);
                     }}
-                    className={`rounded-full border px-s py-xs text-xs ${
+                    className={`rounded-pill border px-s py-xs text-xs ${
                       active
                         ? 'border-primary bg-primary text-secondary'
                         : 'border-border bg-surface text-textSecondary'
@@ -228,7 +233,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 ) : (
                   <span
                     key={t}
-                    className="rounded-full border border-border px-s py-xs text-xs text-textSecondary"
+                    className="rounded-pill border border-border px-s py-xs text-xs text-textSecondary"
                   >
                     {t}
                   </span>
@@ -383,7 +388,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                           {formatFcfa(v.totalPrice, currency)}
                         </span>
                       ) : null}
-                      <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
+                      <span className="rounded-pill bg-surface px-s py-xs text-xs text-textSecondary">
                         {statusLabelFr(v.status)}
                       </span>
                     </span>
@@ -420,7 +425,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
         />
       ) : null}
       {toast ? (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
           {toast}
         </div>
       ) : null}

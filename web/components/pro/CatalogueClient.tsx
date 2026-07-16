@@ -218,7 +218,7 @@ function ServiceRow({
         <p className="font-medium text-textPrimary">
           {service.name}
           {service.active === false ? (
-            <span className="ml-s rounded-full bg-surface px-s py-xs text-xs text-textTertiary">
+            <span className="ml-s rounded-pill bg-surface px-s py-xs text-xs text-textTertiary">
               Inactif
             </span>
           ) : null}
@@ -537,13 +537,13 @@ function ArtistFormCard({
               <img
                 src={form.imageUrl}
                 alt="Photo de l’employé"
-                className="h-14 w-14 rounded-full object-cover"
+                className="h-14 w-14 rounded-pill object-cover"
               />
               <button
                 type="button"
                 aria-label="Retirer la photo"
                 onClick={() => setForm((f) => ({ ...f, imageUrl: null }))}
-                className="absolute -right-1 -top-1 rounded-full bg-primary px-1 text-xs text-secondary"
+                className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-xs text-secondary"
               >
                 ✕
               </button>

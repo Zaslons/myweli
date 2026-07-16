@@ -227,7 +227,7 @@ export function ProviderView({
       </div>
 
       {/* Mobile sticky booking bar */}
-      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden">
         {min != null ? (
           <div className="text-sm">
             <span className="text-textTertiary">À partir de </span>

@@ -219,9 +219,9 @@ export function ProRegisterClient() {
       ) : null}
 
       <div className="mt-m flex items-center gap-s">
-        <div className="h-px flex-1 bg-border" />
+        <div className="flex-1 border-t border-border" />
         <span className="text-xs text-textTertiary">ou par e-mail</span>
-        <div className="h-px flex-1 bg-border" />
+        <div className="flex-1 border-t border-border" />
       </div>
 
       <label className="mt-m block text-sm text-textSecondary">
