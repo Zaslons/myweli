@@ -146,6 +146,38 @@ export const type = {
   labelSmall: ['11px', { lineHeight: '16px', letterSpacing: '0.5px' }],
 } satisfies Record<string, TypeToken>;
 
+// Icon size (SYSTEM.md §7) — a PORT of `AppTheme.iconXS…iconXL`, not an invention.
+//
+// Why these live in `fontSize` next to the type roles: every icon on the web is a
+// TEXT CHARACTER (✕ ♥ ★ ⋯), so its size *is* a font-size. Before B2c the same ✕
+// rendered at 12px, 14px, 22px and three different inherited sizes, and two of them
+// wore `titleLarge` — a class that says "card/section heading" on a close button.
+// `text-iconM` says what the thing is.
+//
+// §7's own rule, and why five entries is enough: "The codebase used 19 distinct icon
+// sizes; five is enough — snapped to these tokens (nearest; ties round up)." Same
+// method applied to the web's 10 standalone glyph controls.
+//
+// **A SIZE, AND ONLY A SIZE** — a bare string, not a `[size, {lineHeight}]` tuple.
+// This is the whole point of a port. `AppTheme.iconXS` is `16.0`; Flutter's
+// `Icon(size:)` has no line-height, so baking one here would invent a concept the
+// upstream does not have — the exact divergence B2c exists to refuse.
+//
+// It is also load-bearing, and the review caught me shipping the opposite: with
+// `lineHeight: 1` baked in, these tokens SHRANK seven controls' boxes by 4–8px
+// (preflight's `html { line-height: 1.5 }` is what gives an inheriting button its
+// height, and 1 collapsed it). §7 says "never grow the glyph to make the target
+// bigger — grow the target"; that cuts both ways, and §13.2 already fails on every
+// web control (§15 row 7h). A font-size token has no business shrinking a target.
+// Omitting lineHeight leaves the line box exactly where each element already had it.
+export const icon = {
+  iconXS: '16px', // inline w/ bodySmall; dense chips
+  iconS: '20px', // inline with text — the common case
+  iconM: '24px', // the default action icon
+  iconL: '32px', // feature / avatar-scale glyphs
+  iconXL: '64px', // the empty-state illustration
+} satisfies Record<string, string>;
+
 // Layering (WEB-SYSTEM.md §9). The scale is the LAYER, named — never a number.
 // Ties are resolved by DOM order, so if two things at the same layer can coexist,
 // one of them is at the wrong layer.

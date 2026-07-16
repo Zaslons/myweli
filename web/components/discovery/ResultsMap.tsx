@@ -177,7 +177,7 @@ function LocateButton({
   }
 
   return (
-    <div className="absolute right-3 top-3 z-sticky flex flex-col items-end gap-xs">
+    <div className="absolute right-sm top-sm z-sticky flex flex-col items-end gap-xs">
       <button
         type="button"
         onClick={locate}

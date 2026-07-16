@@ -99,7 +99,7 @@ export function ProSidebar({
             type="button"
             onClick={onClose}
             aria-label="Fermer le menu"
-            className="rounded-lg p-xs text-textTertiary hover:bg-surfaceVariant lg:hidden"
+            className="rounded-lg p-xs text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
           >
             <span aria-hidden="true">✕</span>
           </button>

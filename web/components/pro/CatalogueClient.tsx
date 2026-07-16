@@ -543,7 +543,7 @@ function ArtistFormCard({
                 type="button"
                 aria-label="Retirer la photo"
                 onClick={() => setForm((f) => ({ ...f, imageUrl: null }))}
-                className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-bodySmall text-secondary"
+                className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-iconXS text-secondary"
               >
                 ✕
               </button>

@@ -5,7 +5,7 @@ import resolveConfig from 'tailwindcss/resolveConfig';
 import { describe, expect, it } from 'vitest';
 
 import tailwindConfig from '../tailwind.config';
-import { colors, type } from '../styles/tokens';
+import { colors, icon, type } from '../styles/tokens';
 
 /// The closed-theme firewall (docs/design/WEB-SYSTEM.md §2, §15 rows 6 + 7).
 ///
@@ -192,10 +192,14 @@ describe('the tokens are actually WIRED, not just spelled', () => {
   //
   // "No forbidden classes" is not the same claim as "the classes we use exist".
   // This is the second claim.
-  it('every type role in tokens.ts survives into the resolved theme', () => {
+  it('every type role and icon size survives into the resolved theme', () => {
+    // `fontSize` carries BOTH scales: the type roles (§4) and the icon sizes
+    // (§7), because every icon on the web is a text character and its size IS a
+    // font-size. This went red the moment B2c added `icon` — which is the rule
+    // working: it is the only assertion that notices a token that isn't wired.
     const resolved = resolveConfig(tailwindConfig as never);
     expect(Object.keys(resolved.theme!.fontSize!).sort()).toEqual(
-      Object.keys(type).sort(),
+      [...Object.keys(type), ...Object.keys(icon)].sort(),
     );
   });
 
@@ -215,6 +219,7 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     ];
     const known = new Set([
       ...Object.keys(type),
+      ...Object.keys(icon),
       ...Object.keys(colors),
       ...TAILWIND_TEXT_UTILS,
     ]);

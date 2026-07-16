@@ -73,7 +73,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
             aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
             aria-pressed={rating >= n}
             onClick={() => setRating(n)}
-            className={`text-headlineSmall ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
+            className={`text-iconM ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
           >
             ★
           </button>
@@ -102,7 +102,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
                   type="button"
                   aria-label={`Retirer la photo ${i + 1}`}
                   onClick={() => setPhotos((cur) => removePhoto(cur, i))}
-                  className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-bodySmall text-secondary"
+                  className="absolute -right-1 -top-1 rounded-pill bg-primary px-xs text-iconXS text-secondary"
                 >
                   ✕
                 </button>
