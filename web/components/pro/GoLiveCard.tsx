@@ -100,7 +100,7 @@ export function GoLiveCard({
             Terminez les étapes ci-dessus pour mettre votre salon en ligne.
           </p>
         ) : null}
-        {error ? <p className="mt-xs text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-xs text-bodyMedium text-error">{error}</p> : null}
         {needsOffer ? (
           <Link
             href="/pro/abonnement"

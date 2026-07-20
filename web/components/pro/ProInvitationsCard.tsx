@@ -92,7 +92,7 @@ export function ProInvitationsCard({
           </li>
         ))}
       </ul>
-      {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
     </section>
   );
 }

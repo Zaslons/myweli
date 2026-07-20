@@ -214,7 +214,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
             </li>
           ))}
         </ul>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -258,7 +258,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
         >
           Changer d’e-mail
         </Button>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
         {error === notFoundMessage ? (
           <Link href="/pro/inscription" className="text-bodyMedium underline">
             Créer mon compte
@@ -296,7 +296,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
       <Button disabled={busy} isLoading={busy} onClick={sendCode}>
         Continuer avec e-mail
       </Button>
-      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       {error === notFoundMessage ? (
         <Link href="/pro/inscription" className="text-bodyMedium underline">
           Créer mon compte

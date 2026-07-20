@@ -316,7 +316,7 @@ export function ProRegisterClient() {
         </>
       )}
 
-      {error ? <p className="mt-m text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="mt-m text-bodyMedium text-error">{error}</p> : null}
 
       <p className="mt-l text-center text-bodyMedium text-textSecondary">
         Déjà un compte ?{' '}

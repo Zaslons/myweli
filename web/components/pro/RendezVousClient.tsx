@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
 import {
   type ListTab,
@@ -39,7 +41,7 @@ export function RendezVousClient() {
   const [journalDay, setJournalDay] = useState<JournalDay | null>(null);
   const [journalDate, setJournalDate] = useState<string>(dateKey(new Date()));
   const [showCancelled, setShowCancelled] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
   const [focused, setFocused] = useState<Date>(new Date());
   const [selected, setSelected] = useState<string>(dateKey(new Date()));
   const [listTab, setListTab] = useState<ListTab>('today');
@@ -84,15 +86,10 @@ export function RendezVousClient() {
     if (view === 'journal') loadJournal();
   }, [view, loadJournal]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const serviceName = (id: string) =>
@@ -216,7 +213,7 @@ export function RendezVousClient() {
                 profile={profile}
                 readOnly={!canManageAll}
                 onChanged={loadJournal}
-                onToast={setToast}
+                onToast={show}
               />
             </div>
           ) : (
@@ -303,19 +300,15 @@ export function RendezVousClient() {
           onClose={() => setCreating(false)}
           onCreated={async () => {
             setCreating(false);
-            setToast('Rendez-vous créé');
+            show('Rendez-vous créé', 'success');
             loadJournal();
             const appts = await listProAppointments();
             if (appts.status === 200) setItems(appts.items);
           }}
-          onToast={setToast}
+          onToast={show}
         />
       ) : null}
-      {toast ? (
-        <div className="fixed bottom-l left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }

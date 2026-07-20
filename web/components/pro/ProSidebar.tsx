@@ -180,7 +180,7 @@ export function ProSidebar({
                 </div>
               ) : null}
               {switchError ? (
-                <p className="mt-xs text-bodySmall text-error">
+                <p role="alert" className="mt-xs text-bodySmall text-error">
                   Changement impossible — votre accès à ce salon a peut-être
                   été retiré.
                 </p>

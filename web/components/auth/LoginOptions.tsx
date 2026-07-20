@@ -257,7 +257,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         <Button disabled={busy} isLoading={busy} onClick={savePhone}>
           Continuer
         </Button>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -307,7 +307,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         >
           Changer d’e-mail
         </Button>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -346,7 +346,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
       <Button disabled={busy} isLoading={busy} onClick={sendCode}>
         Continuer avec e-mail
       </Button>
-      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       <p className="text-bodySmall text-textTertiary">
         En continuant, vous acceptez nos conditions d’utilisation.
       </p>

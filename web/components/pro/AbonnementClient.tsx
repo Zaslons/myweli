@@ -84,7 +84,7 @@ export function AbonnementClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const setup = offer === null;

@@ -108,7 +108,7 @@ export function DepositProof({
         </Button>
       </div>
       {error ? (
-        <p className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           L’envoi a échoué. Vérifiez l’image et réessayez.
         </p>
       ) : null}

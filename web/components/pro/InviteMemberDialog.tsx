@@ -214,7 +214,7 @@ export function InviteMemberDialog({
         ) : null}
 
         {errorCode ? (
-          <p className="mt-s text-bodyMedium text-error">
+          <p role="alert" className="mt-s text-bodyMedium text-error">
             {teamErrorMessage(errorCode, 'invite')}
           </p>
         ) : null}

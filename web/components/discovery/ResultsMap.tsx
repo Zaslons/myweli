@@ -181,15 +181,20 @@ function LocateButton({
       <button
         type="button"
         onClick={locate}
-        className="rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
+        className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-secondary px-m text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
       >
         Autour de moi
       </button>
-      {note ? (
-        <p className="rounded-lg bg-secondary px-s py-xs text-bodySmall text-textSecondary shadow">
-          {note}
-        </p>
-      ) : null}
+      <p
+        role="status"
+        className={
+          note
+            ? 'rounded-lg bg-secondary px-s py-xs text-bodySmall text-textSecondary shadow'
+            : 'sr-only'
+        }
+      >
+        {note ?? ''}
+      </p>
     </div>
   );
 }

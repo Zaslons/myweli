@@ -126,7 +126,7 @@ export function NotificationsClient() {
   if (error) {
     return (
       <div>
-        <p className="text-error">Chargement impossible.</p>
+        <p role="alert" className="text-error">Chargement impossible.</p>
         <div className="mt-s">
           <Button variant="secondary" onClick={load}>
             Réessayer
@@ -269,7 +269,7 @@ export function NotificationsClient() {
         </p>
       )}
       {prefError ? (
-        <p className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           Impossible d’enregistrer. Réessayez.
         </p>
       ) : null}

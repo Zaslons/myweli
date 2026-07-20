@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import { statusLabelFr } from '../../lib/account/appointments';
 import {
   type ProProfile,
@@ -37,7 +39,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [providerId, setProviderId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [booking, setBooking] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [visits, setVisits] = useState<ProAppointment[]>([]);
   const [visitsTotal, setVisitsTotal] = useState(0);
@@ -87,11 +89,6 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   // The ACTIVE salon's market (multi-pays MP3).
   const tz = profile?.provider.timezone ?? undefined;
@@ -109,7 +106,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     );
   }
   if (error || !card || !providerId) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   async function saveTags(next: string[]) {
@@ -418,17 +415,13 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           onClose={() => setBooking(false)}
           onCreated={() => {
             setBooking(false);
-            setToast('Rendez-vous créé');
+            show('Rendez-vous créé', 'success');
             load();
           }}
-          onToast={setToast}
+          onToast={show}
         />
       ) : null}
-      {toast ? (
-        <div className="fixed bottom-l left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }

@@ -13,6 +13,8 @@ import {
 } from '../../lib/pro/kyc';
 import { uploadKycDocument } from '../../lib/pro/upload';
 import { Button } from '../Button';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 
 type LocalDoc = { type: KycDocType; fileName?: string; key: string };
 
@@ -30,7 +32,7 @@ export function VerificationClient() {
   const [uploadingType, setUploadingType] = useState<KycDocType | null>(null);
   const [uploadError, setUploadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
   const inputs = useRef<Partial<Record<KycDocType, HTMLInputElement | null>>>(
     {},
   );
@@ -66,11 +68,6 @@ export function VerificationClient() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   const verified = status === 'verified';
 
@@ -95,19 +92,19 @@ export function VerificationClient() {
     const r = await submitKyc(docs);
     setSubmitting(false);
     if (r.status !== 200 || !r.kyc) {
-      setToast('L’envoi a échoué. Réessayez.');
+      show('L’envoi a échoué. Réessayez.', 'error');
       return;
     }
     setStatus(r.kyc.status);
     setRejectionReason(r.kyc.rejectionReason ?? null);
-    setToast('Documents soumis pour vérification');
+    show('Documents soumis pour vérification', 'success');
   }
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
     return (
       <div>
-        <p className="text-error">Chargement impossible.</p>
+        <p role="alert" className="text-error">Chargement impossible.</p>
         <div className="mt-s">
           <Button variant="secondary" onClick={load}>
             Réessayer
@@ -215,7 +212,7 @@ export function VerificationClient() {
         })}
       </ul>
       {uploadError ? (
-        <p className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           Échec de l’envoi du document. Réessayez.
         </p>
       ) : null}
@@ -238,11 +235,7 @@ export function VerificationClient() {
         </div>
       ) : null}
 
-      {toast ? (
-        <div className="fixed bottom-l left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }

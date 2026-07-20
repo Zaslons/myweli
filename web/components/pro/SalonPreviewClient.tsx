@@ -47,7 +47,7 @@ export function SalonPreviewClient() {
   if (error || !provider) {
     return (
       <div className="p-l">
-        <p className="text-error">Impossible de charger l’aperçu.</p>
+        <p role="alert" className="text-error">Impossible de charger l’aperçu.</p>
         <div className="mt-s">
           <Button variant="secondary" onClick={load}>
             Réessayer

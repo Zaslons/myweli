@@ -129,7 +129,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (notFound || !appt) {
-    return <p className="text-error">Rendez-vous introuvable.</p>;
+    return <p role="alert" className="text-error">Rendez-vous introuvable.</p>;
   }
 
   // The salon's market (multi-pays): booking-stamped currency first (the
@@ -283,7 +283,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         {cancelError ? (
-          <p className="mt-s text-bodyMedium text-error">
+          <p role="alert" className="mt-s text-bodyMedium text-error">
             L’annulation a échoué. Réessayez.
           </p>
         ) : null}
@@ -346,7 +346,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   </div>
                 )}
                 {reschedError ? (
-                  <p className="mt-s text-bodyMedium text-error">{reschedError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">{reschedError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button

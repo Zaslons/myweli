@@ -84,7 +84,7 @@ export function ProfilClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (loadError || !form) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   // Team access R5b (amended): members WITHOUT profile.manage get a SLIM
@@ -217,10 +217,13 @@ export function ProfilClient() {
           />
         </Field>
 
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
-        {saved ? (
-          <p className="text-bodyMedium text-textSecondary">Profil enregistré.</p>
-        ) : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
+        <p
+          role="status"
+          className={saved ? 'text-bodyMedium text-textSecondary' : 'sr-only'}
+        >
+          {saved ? 'Profil enregistré.' : ''}
+        </p>
         <div className="pt-s">
           <Button disabled={busy} onClick={save}>
             Enregistrer

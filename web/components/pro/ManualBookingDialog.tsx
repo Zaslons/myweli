@@ -43,7 +43,7 @@ export function ManualBookingDialog({
   initialClient?: { name: string; phone?: string };
   onClose: () => void;
   onCreated: () => void;
-  onToast: (msg: string) => void;
+  onToast: (msg: string, kind?: 'success' | 'info' | 'error') => void;
 }) {
   const services = (profile.provider.services ?? []).filter(
     (s) => s.active !== false,
@@ -105,7 +105,7 @@ export function ManualBookingDialog({
     // The app's future-only guard — on the standalone path (a grid cell is
     // the salon's own calendar choice).
     if (!fixed && !isFutureIso(dt)) {
-      onToast('Choisissez une date et une heure à venir');
+      onToast('Choisissez une date et une heure à venir', 'error');
       return;
     }
     setBusy(true);
@@ -126,6 +126,7 @@ export function ManualBookingDialog({
         r.status === 409
           ? 'Ce créneau est déjà pris.'
           : 'Création impossible. Réessayez.',
+        'error',
       );
   }
 

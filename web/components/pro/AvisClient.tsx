@@ -70,7 +70,7 @@ export function AvisClient() {
   if (error) {
     return (
       <div>
-        <p className="text-error">Impossible de charger les avis.</p>
+        <p role="alert" className="text-error">Impossible de charger les avis.</p>
         <div className="mt-s">
           <Button variant="secondary" onClick={load}>
             Réessayer

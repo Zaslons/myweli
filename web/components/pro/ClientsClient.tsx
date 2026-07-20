@@ -100,7 +100,7 @@ export function ClientsClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const emptyBase = total === 0 && !query && !tag;
@@ -316,7 +316,7 @@ function AddClientModal({
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-        {message ? <p className="mt-s text-bodyMedium text-error">{message}</p> : null}
+        {message ? <p role="alert" className="mt-s text-bodyMedium text-error">{message}</p> : null}
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler

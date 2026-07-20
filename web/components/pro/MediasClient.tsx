@@ -51,7 +51,7 @@ export function MediasClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (loadError) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   return (
@@ -205,10 +205,13 @@ function PhotosTab({
         </Button>
       </div>
 
-      {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
-      {saved ? (
-        <p className="mt-s text-bodyMedium text-textSecondary">Photos enregistrées.</p>
-      ) : null}
+      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
+      <p
+        role="status"
+        className={saved ? 'mt-s text-bodyMedium text-textSecondary' : 'sr-only'}
+      >
+        {saved ? 'Photos enregistrées.' : ''}
+      </p>
     </div>
   );
 }
@@ -323,12 +326,13 @@ function AvantApresTab({
           Enregistrer
         </Button>
       </div>
-      {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
-      {saved ? (
-        <p className="mt-s text-bodyMedium text-textSecondary">
-          Avant/Après enregistré.
-        </p>
-      ) : null}
+      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
+      <p
+        role="status"
+        className={saved ? 'mt-s text-bodyMedium text-textSecondary' : 'sr-only'}
+      >
+        {saved ? 'Avant/Après enregistré.' : ''}
+      </p>
     </div>
   );
 }

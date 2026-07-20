@@ -157,7 +157,7 @@ export function AddSalonClient() {
       </div>
 
       {errorCode ? (
-        <p className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           {teamErrorMessage(errorCode)}
         </p>
       ) : null}

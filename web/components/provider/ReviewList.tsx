@@ -155,7 +155,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
           pour signaler cet avis.
         </p>
       ) : state === 'error' ? (
-        <p className="mt-xs text-bodySmall text-error">
+        <p role="alert" className="mt-xs text-bodySmall text-error">
           Le signalement a échoué. Réessayez.
         </p>
       ) : null}

@@ -62,7 +62,7 @@ export function DataExportClient() {
   if (error || !me) {
     return (
       <div>
-        <p className="text-error">Chargement impossible.</p>
+        <p role="alert" className="text-error">Chargement impossible.</p>
         <div className="mt-s">
           <Button variant="secondary" onClick={load}>
             Réessayer
@@ -126,6 +126,9 @@ export function DataExportClient() {
           <Button variant="secondary" onClick={copy}>
             {copied ? 'Copié ✓' : 'Copier'}
           </Button>
+          <span role="status" className="sr-only">
+            {copied ? 'Données copiées.' : ''}
+          </span>
         </div>
       </section>
     </div>

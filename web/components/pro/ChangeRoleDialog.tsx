@@ -187,7 +187,7 @@ export function ChangeRoleDialog({
           </div>
         ) : null}
 
-        {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>

@@ -87,7 +87,7 @@ export function LocationPicker({
             ? 'Glissez le repère ou touchez la carte pour ajuster.'
             : 'Touchez la carte pour placer votre salon.'}
         </p>
-        {note ? <p className="text-bodySmall text-error">{note}</p> : null}
+        {note ? <p role="alert" className="text-bodySmall text-error">{note}</p> : null}
       </div>
     </div>
   );

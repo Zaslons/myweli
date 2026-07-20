@@ -141,7 +141,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
           </div>
         ) : null}
       </div>
-      {error ? <p className="mt-xs text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="mt-xs text-bodyMedium text-error">{error}</p> : null}
       <div className="mt-s">
         <Button disabled={busy || uploading} onClick={submit}>
           Envoyer l’avis

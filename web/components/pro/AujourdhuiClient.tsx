@@ -81,7 +81,7 @@ export function AujourdhuiClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   // The ACTIVE salon's market (multi-pays MP3) — day boundary + money label.
@@ -156,12 +156,18 @@ export function AujourdhuiClient() {
           }}
         />
       ) : null}
-      {live ? (
-        <p className="mt-m rounded-xl border border-success/40 bg-success/10 p-m text-bodyMedium text-success">
-          🎉 Votre salon est en ligne ! Il apparaît maintenant dans les
-          recherches.
-        </p>
-      ) : null}
+      <p
+        role="status"
+        className={
+          live
+            ? 'mt-m rounded-xl border border-success/40 bg-success/10 p-m text-bodyMedium text-success'
+            : 'sr-only'
+        }
+      >
+        {live
+          ? '🎉 Votre salon est en ligne ! Il apparaît maintenant dans les recherches.'
+          : ''}
+      </p>
 
       {hasCap(m, 'profile.manage') ? (
         <Link

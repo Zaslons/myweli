@@ -9,6 +9,8 @@ import {
   resendInvitation,
   revokeMember,
 } from '../../lib/api/pro';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import type { Artist } from '../../lib/pro/catalogue';
 import { formatDateFr } from '../../lib/format';
 import {
@@ -49,7 +51,7 @@ export function EquipeClient() {
   const [revokeTarget, setRevokeTarget] = useState<TeamMember | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -86,10 +88,6 @@ export function EquipeClient() {
     })();
   }, [router]);
 
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  }
 
   function upsert(member: TeamMember) {
     setMembers((prev) => {
@@ -107,15 +105,17 @@ export function EquipeClient() {
     const r = await resendInvitation(m.id);
     setBusyId(null);
     if (!r.ok || !r.member) {
-      showToast(
+      show(
         r.status === 429
           ? 'Budget de renvois épuisé pour cette invitation.'
           : 'Renvoi impossible. Réessayez.',
+      
+        'error',
       );
       return;
     }
     upsert(r.member);
-    showToast(`Invitation renvoyée à ${m.email}.`);
+    show(`Invitation renvoyée à ${m.email}.`, 'success');
   }
 
   async function doRevoke() {
@@ -126,16 +126,16 @@ export function EquipeClient() {
     setBusyId(null);
     setRevokeTarget(null);
     if (!r.ok || !r.member) {
-      showToast('Révocation impossible. Réessayez.');
+      show('Révocation impossible. Réessayez.', 'error');
       return;
     }
     upsert(r.member);
-    showToast(`Accès de ${m.email} révoqué.`);
+    show(`Accès de ${m.email} révoqué.`, 'success');
   }
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const nonOwner = members.filter((m) => m.role !== 'owner');
@@ -308,14 +308,7 @@ export function EquipeClient() {
           </table>
         </div>
 
-      {toast ? (
-        <div
-          role="status"
-          className="fixed bottom-l left-1/2 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg"
-        >
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
 
       {inviteOpen && providerId ? (
         <InviteMemberDialog
@@ -326,7 +319,7 @@ export function EquipeClient() {
           onInvited={(member, email) => {
             upsert(member);
             setInviteOpen(false);
-            showToast(`Invitation envoyée à ${email}.`);
+            show(`Invitation envoyée à ${email}.`, 'success');
           }}
         />
       ) : null}
@@ -341,7 +334,7 @@ export function EquipeClient() {
           onChanged={(member) => {
             upsert(member);
             setRoleTarget(null);
-            showToast('Rôle mis à jour.');
+            show('Rôle mis à jour.', 'success');
           }}
         />
       ) : null}
