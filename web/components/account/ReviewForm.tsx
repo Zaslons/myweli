@@ -84,11 +84,12 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
             tabIndex={n === (rating || 1) ? 0 : -1}
             onClick={() => setRating(n)}
             onKeyDown={(e) => {
+              // APG radio pattern: arrows WRAP at the edges.
               const next =
                 e.key === 'ArrowRight' || e.key === 'ArrowDown'
-                  ? Math.min(5, n + 1)
+                  ? (n % 5) + 1
                   : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
-                    ? Math.max(1, n - 1)
+                    ? ((n + 3) % 5) + 1
                     : null;
               if (next === null) return;
               e.preventDefault();

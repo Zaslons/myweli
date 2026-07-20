@@ -59,7 +59,9 @@ does. Recorded here so the omission is a decision, not a gap.
 `<div role="status" aria-live="polite">` (fixed, bottom-center, `z-toast`) and the
 pill swaps **inside** it — the region pre-exists every message, structurally.
 `useToast()` owns the state + timer (kind-based duration, re-show resets, cleanup
-on unmount). `motion-reduce` respected on the entrance.
+on unmount). No entrance animation — the pre-B5 pills had none, and inventing
+motion is exactly what B2c banned; if one is ever added it must be a token
+duration + `motion-reduce`.
 
 Converted: the 4 fixed-position toasts (Verification, RendezVous ± ManualBooking's
 `onToast`, ClientCard, Equipe). `ResultsMap`'s locate note stays **map-local**
@@ -110,27 +112,38 @@ panel (`w-full max-w-md rounded-xl border border-border bg-secondary p-l`).
 ### Stars → a real radio group (row 21)
 
 `role="radio"` + `aria-checked={rating === n}` + roving tabIndex (the selected
-star is the tab stop; the first when unrated) + Arrow keys move **and** select.
-`aria-pressed` dies. Visuals unchanged (fill is still `rating >= n`).
+star is the tab stop; the first when unrated) + Arrow keys move **and** select,
+**wrapping at the edges** (APG). `aria-pressed` dies. Visuals unchanged (fill is
+still `rating >= n`).
 
 ### FilePick (row 22)
 
-The 5 `hidden` inputs → `sr-only`; their labels gain
-`focus-within:outline focus-within:outline-2 focus-within:outline-offset-2
-focus-within:outline-borderFocus` — §5's ring, projected onto the visible label
-while the (invisible) input holds focus. Enter/Space on a focused file input opens
-the picker natively; nothing else to wire.
+As-built correction: of the 5 hidden inputs, **3 already had focusable proxy
+`<Button>`s** (Verification, Catalogue, ReviewForm — keyboard-fine); only
+**MediasClient's two** label-wrapped pickers were keyboard-dead. Both → `sr-only`
+(a real tab stop), labels gain `focus-within:outline focus-within:outline-2
+focus-within:outline-offset-2 focus-within:outline-borderFocus` — §5's ring,
+projected onto the visible label while the (invisible) input holds focus.
+Enter/Space on a focused file input opens the picker natively; nothing else to
+wire.
 
 ## The gates (§14)
 
-- **`tests/e2e/axe.spec.ts`** — `@axe-core/playwright` over **12 routes**
+- **`tests/e2e/axe.spec.ts`** — `@axe-core/playwright` over **13 routes**
   (`/`, `/recherche?commune=Cocody`, `/beaute-divine`, `/beaute-divine/reserver`,
-  `/connexion`, `/mon-compte`, `/mon-compte/notifications`, `/pro/connexion`,
-  `/pro`, `/pro/rendez-vous`, `/pro/equipe`, `/pro/clients`) **plus two stateful
-  scans**: an open Modal and a visible Toast. Runs inside the already-blocking
-  e2e job. Proof-red at branch base recorded before any fix is trusted. Any
-  genuinely unfixable rule (third-party internals) gets a per-rule exclusion with
-  ds-ignore-style prose — fix first, exclude last.
+  `/connexion`, `/mon-compte`, `/mon-compte/notifications`, `/mon-compte/appt2`
+  — the stars' page, added when the base census proved the first matrix never
+  reached row 21 — `/pro/connexion`, `/pro`, `/pro/rendez-vous`, `/pro/equipe`,
+  `/pro/clients`) **plus two stateful scans**: an open Modal and a visible Toast
+  (triggered by the manual-booking past-date error — deterministic, no stub-data
+  dependency). Runs inside the already-blocking e2e job. **Proof-red at base
+  479e092, measured in a worktree: 11 violations / 13 nodes / 5 rules / 8 of 12
+  routes — and 3 of the 5 rules were unregistered finds** (`region` ×7: the home
+  hero outside `<main>` + the landmark-less install banner; `nested-interactive`:
+  maplibre's role=button marker wrapper; `aria-prohibited-attr`: MapEmbed;
+  `empty-table-header`: Équipe). Any genuinely unfixable rule (third-party
+  internals) gets a per-rule exclusion with ds-ignore-style prose — fix first,
+  exclude last. Today: **zero exclusions**.
 - **Lighthouse promoted to blocking**: a11y `["error", {minScore: 0.95}]`
   (§14's own prescription), SEO stays `error` 0.9, performance/best-practices
   stay `warn` (the flake-prone pair); URLs `/` + `/connexion`; the job loses
