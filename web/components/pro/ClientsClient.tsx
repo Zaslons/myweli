@@ -13,6 +13,7 @@ import {
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 import { TextField } from '../TextField';
 
 /// Module `clients` C1b — the salon client base at /pro/clients
@@ -281,16 +282,7 @@ function AddClientModal({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Ajouter un client"
-      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Ajouter un client
-        </h2>
+    <Modal title="Ajouter un client" onClose={onClose}>
         <TextField
           className="mt-m"
           label="Nom"
@@ -328,7 +320,6 @@ function AddClientModal({
             Ajouter
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

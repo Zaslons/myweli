@@ -16,6 +16,7 @@ import {
 } from '../../lib/pro/manual-booking';
 import { salonToday } from '../../lib/time';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 
 const todayYmd = (tz?: string) => salonToday(new Date(), tz);
 
@@ -130,29 +131,12 @@ export function ManualBookingDialog({
       );
   }
 
+  // ds-ignore: viewport-relative dialog scroll box.
+  // eslint-disable-next-line tailwindcss/no-arbitrary-value
+  const panelCls = 'max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l';
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Nouveau rendez-vous"
-      className="fixed inset-0 z-modal flex items-center justify-center p-m"
-    >
-      {/* The scrim carries the dismiss click and is decoration to AT —
-          ProShell's own drawer-scrim precedent. The panel is a SIBLING
-          above it, so it needs no stopPropagation. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-primary/40"
-        onClick={onClose}
-      />
-      <div
-        // ds-ignore: viewport-relative dialog scroll box.
-        // eslint-disable-next-line tailwindcss/no-arbitrary-value
-        className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l"
-      >
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Nouveau rendez-vous
-        </h2>
+    <Modal title="Nouveau rendez-vous" onClose={onClose} panelClassName={panelCls}>
         {fixed ? (
           <p className="mt-xs text-bodyMedium text-textSecondary">
             {formatDateTimeFr(dateTimeIso!, tz)}
@@ -327,7 +311,6 @@ export function ManualBookingDialog({
             Créer
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

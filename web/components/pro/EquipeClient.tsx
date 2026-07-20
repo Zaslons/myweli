@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   getMyProvider,
@@ -9,6 +9,7 @@ import {
   resendInvitation,
   revokeMember,
 } from '../../lib/api/pro';
+import { Modal } from '../Modal';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import type { Artist } from '../../lib/pro/catalogue';
@@ -52,6 +53,7 @@ export function EquipeClient() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const { toast, show } = useToast();
+  const revokeCancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -340,38 +342,34 @@ export function EquipeClient() {
       ) : null}
 
       {revokeTarget ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Révoquer l’accès"
-          className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
+        <Modal
+          title="Révoquer l’accès"
+          onClose={() => setRevokeTarget(null)}
+          // SYSTEM §15: the cancel path is the safe default and gets focus.
+          initialFocusRef={revokeCancelRef}
         >
-          <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-            <h2 className="text-titleLarge font-semibold text-textPrimary">
-              Révoquer l’accès
-            </h2>
-            <p className="mt-m text-bodyMedium text-textSecondary">
-              {revokeTarget.email} perdra immédiatement l’accès à {salonName}.
-              Son compte MyWeli n’est pas supprimé.
-            </p>
-            <div className="mt-l flex justify-end gap-s">
-              <Button
-                variant="secondary"
-                onClick={() => setRevokeTarget(null)}
-                disabled={busyId === revokeTarget.id}
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={doRevoke}
-                disabled={busyId === revokeTarget.id}
-                className="!bg-error hover:!bg-error"
-              >
-                Révoquer
-              </Button>
-            </div>
+          <p className="mt-m text-bodyMedium text-textSecondary">
+            {revokeTarget.email} perdra immédiatement l’accès à {salonName}.
+            Son compte MyWeli n’est pas supprimé.
+          </p>
+          <div className="mt-l flex justify-end gap-s">
+            <Button
+              ref={revokeCancelRef}
+              variant="secondary"
+              onClick={() => setRevokeTarget(null)}
+              disabled={busyId === revokeTarget.id}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={doRevoke}
+              disabled={busyId === revokeTarget.id}
+              className="!bg-error hover:!bg-error"
+            >
+              Révoquer
+            </Button>
           </div>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );

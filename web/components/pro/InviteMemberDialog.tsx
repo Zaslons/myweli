@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createArtistReturning, inviteMember } from '../../lib/api/pro';
 import type { Artist } from '../../lib/pro/catalogue';
 import {
@@ -12,6 +12,7 @@ import {
   validateInviteEmail,
 } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 
 const ROLE_ORDER: TeamRoleInput[] = ['manager', 'reception', 'staff'];
 const ROLE_LABELS: Record<TeamRoleInput, string> = {
@@ -47,13 +48,6 @@ export function InviteMemberDialog({
   // the matching CTA (offer_required/seat_limit → the picker).
   const [errorCode, setErrorCode] = useState<string | undefined>();
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const checked = validateInviteEmail(stepEmail);
   const cta = teamErrorCta(errorCode);
@@ -102,16 +96,7 @@ export function InviteMemberDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Inviter un membre"
-      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Inviter un membre
-        </h2>
+    <Modal title="Inviter un membre" onClose={onClose}>
 
         <label className="mt-m block text-bodyMedium text-textSecondary">
           Adresse e-mail
@@ -232,7 +217,6 @@ export function InviteMemberDialog({
             Envoyer l’invitation
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

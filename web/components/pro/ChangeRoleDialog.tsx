@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { changeMemberRole, createArtistReturning } from '../../lib/api/pro';
 import type { Artist } from '../../lib/pro/catalogue';
 import {
@@ -10,6 +10,7 @@ import {
   teamErrorMessage,
 } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 
 const ROLE_ORDER: TeamRoleInput[] = ['manager', 'reception', 'staff'];
 const ROLE_LABELS: Record<TeamRoleInput, string> = {
@@ -44,13 +45,6 @@ export function ChangeRoleDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   async function createFiche() {
     const name = newFicheName.trim();
@@ -94,16 +88,7 @@ export function ChangeRoleDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Changer le rôle"
-      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Changer le rôle
-        </h2>
+    <Modal title="Changer le rôle" onClose={onClose}>
         <p className="mt-xs text-bodyMedium text-textTertiary">{member.email}</p>
 
         <div className="mt-m flex flex-col gap-s">
@@ -197,7 +182,6 @@ export function ChangeRoleDialog({
             Enregistrer
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
