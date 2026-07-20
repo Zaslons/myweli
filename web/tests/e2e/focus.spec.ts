@@ -122,3 +122,42 @@ test('an invalid submit ties the error to its field (§6, §14)', async ({
   const alertId = await alert.getAttribute('id');
   expect(ids).toContain(alertId);
 });
+
+test('an open Modal traps Tab in a REAL browser and restores on Escape (§8)', async ({
+  page,
+}) => {
+  // jsdom pins the cycling logic (tests/modal.test.tsx); this is the
+  // browser-truth twin — a Tab walk can NEVER land outside the dialog.
+  await page.goto('/pro/connexion');
+  await page.getByLabel('Votre e-mail').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.getByLabel('Code à 6 chiffres').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.goto('/pro/clients');
+  const opener = page.getByRole('button', { name: 'Ajouter un client' });
+  await opener.focus();
+  await opener.press('Enter');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+
+  // Focus moved IN on open.
+  expect(
+    await dialog.evaluate((d) => d.contains(document.activeElement)),
+  ).toBe(true);
+
+  // 12 Tabs (more than the dialog has focusables) never escape the panel.
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press(i % 3 === 2 ? 'Shift+Tab' : 'Tab');
+    expect(
+      await dialog.evaluate((d) => d.contains(document.activeElement)),
+      `Tab #${i + 1} escaped the dialog`,
+    ).toBe(true);
+  }
+
+  // Escape closes and the OPENER gets focus back.
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
+});
