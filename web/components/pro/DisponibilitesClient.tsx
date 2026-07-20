@@ -104,7 +104,7 @@ export function DisponibilitesClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (loadError) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const inputCls =
@@ -214,12 +214,13 @@ export function DisponibilitesClient() {
         )}
       </section>
 
-      {error ? <p className="mt-m text-bodyMedium text-error">{error}</p> : null}
-      {saved ? (
-        <p className="mt-m text-bodyMedium text-textSecondary">
-          Disponibilités enregistrées.
-        </p>
-      ) : null}
+      {error ? <p role="alert" className="mt-m text-bodyMedium text-error">{error}</p> : null}
+      <p
+        role="status"
+        className={saved ? 'mt-m text-bodyMedium text-textSecondary' : 'sr-only'}
+      >
+        {saved ? 'Disponibilités enregistrées.' : ''}
+      </p>
 
       <div className="mt-l">
         <Button disabled={busy} onClick={save}>

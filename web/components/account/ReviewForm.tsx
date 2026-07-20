@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { isValidRating } from '../../lib/account/extras';
 import {
   addPhoto,
@@ -16,6 +17,7 @@ import { TextField } from '../TextField';
 /// up to 3 photos — the app's submit sheet, parity 2.13).
 export function ReviewForm({ appointmentId }: { appointmentId: string }) {
   const [rating, setRating] = useState(0);
+  const starRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -59,7 +61,13 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
 
   if (done) {
     return (
-      <p className="text-bodyMedium text-textSecondary">Merci pour votre avis&nbsp;!</p>
+      <p
+        ref={focusOnMount}
+        tabIndex={-1}
+        className="text-bodyMedium text-textSecondary"
+      >
+        Merci pour votre avis&nbsp;!
+      </p>
     );
   }
 
@@ -67,15 +75,37 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
     <div>
       <p className="font-medium text-textPrimary">Laisser un avis</p>
       {/* §13.2: each star is a ≥48px target and adjacent targets sit ≥8px
-          apart (they were 24px glyphs 4px apart — both violations measured). */}
+          apart (they were 24px glyphs 4px apart — both violations measured).
+          B5 (row 21): a REAL radio group — pick-one-of-five, not five toggles.
+          aria-pressed buttons inside a radiogroup are invalid ARIA children;
+          radios carry aria-checked on the CHOSEN value (the fill still paints
+          rating >= n), one roving tab stop, and arrows move + select. */}
       <div className="mt-s flex gap-s" role="radiogroup" aria-label="Note">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
+            role="radio"
             aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
-            aria-pressed={rating >= n}
+            aria-checked={rating === n}
+            tabIndex={n === (rating || 1) ? 0 : -1}
             onClick={() => setRating(n)}
+            onKeyDown={(e) => {
+              // APG radio pattern: arrows WRAP at the edges.
+              const next =
+                e.key === 'ArrowRight' || e.key === 'ArrowDown'
+                  ? (n % 5) + 1
+                  : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+                    ? ((n + 3) % 5) + 1
+                    : null;
+              if (next === null) return;
+              e.preventDefault();
+              setRating(next);
+              starRefs.current[next - 1]?.focus();
+            }}
+            ref={(el) => {
+              starRefs.current[n - 1] = el;
+            }}
             className={`flex min-h-12 min-w-12 items-center justify-center text-iconM ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
           >
             ★
@@ -141,7 +171,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
           </div>
         ) : null}
       </div>
-      {error ? <p className="mt-xs text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="mt-xs text-bodyMedium text-error">{error}</p> : null}
       <div className="mt-s">
         <Button disabled={busy || uploading} onClick={submit}>
           Envoyer l’avis

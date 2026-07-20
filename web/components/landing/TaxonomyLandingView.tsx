@@ -330,13 +330,18 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       ) : null}
 
       {providers.length > 0 ? (
-        <ul className="mt-l grid gap-m sm:grid-cols-2">
+        <>
+        <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
+          {providers.length} salon{providers.length > 1 ? 's' : ''}
+        </h2>
+        <ul className="mt-m grid gap-m sm:grid-cols-2">
           {providers.map((p) => (
             <li key={p.id}>
               <ProviderCard provider={p} />
             </li>
           ))}
         </ul>
+        </>
       ) : (
         <p className="mt-l text-textSecondary">
           Aucun salon de {label.toLowerCase()} {place.prefix} {place.name} pour

@@ -41,7 +41,7 @@ export function JournalPanel({
   serviceName: (id: string) => string | undefined;
   onClose: () => void;
   onChanged: () => void;
-  onToast: (msg: string) => void;
+  onToast: (msg: string, kind?: 'success' | 'info' | 'error') => void;
   /// The active salon's timezone/currency (multi-pays MP3) — wall-clocks and
   /// money render in the SALON's market, never the viewer's.
   tz?: string;
@@ -76,7 +76,7 @@ export function JournalPanel({
     const r = await fn();
     setBusy(false);
     if (r.ok) onChanged();
-    else onToast('Action impossible. Réessayez.');
+    else onToast('Action impossible. Réessayez.', 'error');
   }
 
   const services = (appt.serviceIds ?? [])
@@ -93,7 +93,7 @@ export function JournalPanel({
       className="fixed inset-y-0 right-0 z-dropdown flex w-full max-w-sm flex-col border-l border-border bg-secondary shadow-xl"
     >
       <div className="flex items-center justify-between border-b border-border p-m">
-        <h2 className="font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Détails du rendez-vous
         </h2>
         <button

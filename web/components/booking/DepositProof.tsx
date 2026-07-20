@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { attachDepositProof, uploadDepositProof } from '../../lib/booking/deposit';
 import { formatFcfa } from '../../lib/format';
 import {
@@ -58,7 +59,7 @@ export function DepositProof({
 
   if (sent) {
     return (
-      <div className="rounded-lg bg-surface p-m">
+      <div ref={focusOnMount} tabIndex={-1} className="rounded-lg bg-surface p-m">
         <p className="font-medium text-textPrimary">
           Acompte envoyé · en attente de confirmation du salon
         </p>
@@ -108,7 +109,7 @@ export function DepositProof({
         </Button>
       </div>
       {error ? (
-        <p className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           L’envoi a échoué. Vérifiez l’image et réessayez.
         </p>
       ) : null}

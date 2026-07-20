@@ -109,6 +109,9 @@ export function CompteDangerSection({
             <Button variant="secondary" disabled={exporting} onClick={copy}>
               {copied ? 'Copié ✓' : 'Copier'}
             </Button>
+            <span role="status" className="sr-only">
+              {copied ? 'Données copiées.' : ''}
+            </span>
           </div>
         </div>
       ) : null}
@@ -145,7 +148,7 @@ export function CompteDangerSection({
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder="SUPPRIMER"
             />
-            {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
+            {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
             <div className="mt-s flex gap-s">
               <Button
                 variant="secondary"

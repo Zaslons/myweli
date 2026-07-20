@@ -341,7 +341,17 @@ navigation must announce itself:
 - **Async results** ("12 salons trouvés") → a polite live region.
 - The region must exist in the DOM **before** the text lands, or nothing is read.
 
-Today: `aria-live` appears **zero times**, and 4 of 5 toasts are silent.
+**Shipped in B5** — `components/Toast.tsx` + `lib/useToast.ts` is the single
+transient-feedback entry point (SYSTEM §15's kind/duration table: success/info
+3 s, error 6 s; the with-action row is deliberately absent — zero callers
+product-wide). The component **always** renders the `role="status"` region and
+swaps the pill inside it — the region-before-text rule held structurally; every
+pre-B5 toast (including the one that had `role="status"`) mounted the region
+together with its text. Beyond the toasts, B5 swept **56 silent error-outcome
+sites** onto `role="alert"` (insertion-announced — the alert exception), the
+five « Enregistré. » confirmations + the go-live banner onto persistent
+`role="status"` regions whose **text** toggles, and the two « Copié ✓ » label
+swaps onto sr-only status twins. « Chargement… » strings await B6's `Loading`.
 
 ## 8. Dialogs
 
@@ -349,13 +359,21 @@ Six hand-rolled modals, **zero** focus traps. A modal that doesn't trap focus le
 a keyboard user tab out into the page behind it — where they are stuck, invisible,
 interacting with content that is visually covered.
 
-One shared `<Modal>`:
+One shared `<Modal>` — **shipped in B5** (`components/Modal.tsx`), all six
+dialogs converted:
 
-- `role="dialog"` `aria-modal="true"` `aria-labelledby` (its own title).
-- **Focus moves in on open, is trapped inside, and returns to the trigger on
-  close.**
-- **Esc closes.** Background scroll locks.
-- The overlay is a scrim, not a `<div onClick>` masquerading as a button.
+- `role="dialog"` `aria-modal="true"` `aria-labelledby` (Modal renders its own
+  `<h2>` title; `label` replaces it for the title-less Lightbox).
+- **Focus moves in on open** (`initialFocusRef` ?? first focusable — the
+  EquipeClient revoke confirm points it at **Annuler**, SYSTEM §15's
+  cancel-gets-focus), **is trapped inside** (Tab/Shift+Tab cycle), **and
+  returns to the opener on close** (guarded — the opener may have unmounted).
+- **Esc closes** (capture + stopPropagation, so a modal above the pro drawer
+  closes alone). Background scroll locks.
+- The overlay is an `aria-hidden` scrim sibling carrying the dismiss click —
+  never a `<div onClick>` masquerading as a button. Deliberately hand-rolled,
+  not native `<dialog>`: jsdom has no `showModal()` and `z-layers.spec.ts`
+  asserts the token stack.
 
 ## 9. Responsive & desktop
 
@@ -420,8 +438,8 @@ where they have an app twin):
 
 | Component | Why |
 |---|---|
-| **`Toast`** | §7 — `aria-live`. |
-| **`Modal`** | §8 — focus trap. |
+| ~~**`Toast`**~~ | §7 — `aria-live`. **Shipped in B5** (+ `useToast`, §15 durations). |
+| ~~**`Modal`**~~ | §8 — focus trap. **Shipped in B5** — all 6 dialogs converted. |
 | `Loading` / `Skeleton` | Kills the 35 inline "Chargement…" strings. 1 skeleton exists; `animate-pulse` = 0. |
 | `EmptyState` / `ErrorState` | ~15 error paths currently offer **no retry**. |
 | `Rating` | Glyph + numeral ([SYSTEM.md §3.5](SYSTEM.md#35-accents)). |
@@ -472,8 +490,8 @@ web converts, the app deepens:
 | Tokens only (§2) | **Closed Tailwind theme** (B2a) + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** — **and** `tokens.theme-pin.test.ts`, because the lint has two blind spots (bare `const` class strings; a bare `rounded`, which it passes clean while Tailwind emits nothing). Config lives in **`.eslintrc.js`**, not `.json`: the plugin resolves `tailwindcss` relative to `dirname(settings.tailwindcss.config)`, so a *relative* config path makes it look in `.` and throw — JSON cannot compute an absolute path |
 | Layering (§9) | `tests/e2e/z-layers.spec.ts` — the drawer/scrim/panel stack and the map control, asserted on **computed layers** (a hit-test can't see it: `<main>` is `inert` while the drawer is open, and inert content isn't hit-tested) |
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |
-| The whole of §4–§8, on real pages | **`@axe-core/playwright`** over ~10 routes, inside the **already-blocking** e2e job |
-| Regression | Lighthouse a11y ≥ **0.95**, as an **error** |
+| The whole of §4–§8, on real pages | **`@axe-core/playwright`** over **13 routes + 2 stateful scans** (an open Modal, a visible toast) inside the **already-blocking** e2e job (`tests/e2e/axe.spec.ts`, B5; proof-red at base: 11 violations / 5 rules / 8 routes — 3 rules were new finds) |
+| Regression | Lighthouse a11y ≥ **0.95** as an **error** on `/` + `/connexion` (B5; SEO ≥ 0.9 errors on `/` — `/connexion` is deliberately noindex, so its SEO score gates nothing) |
 | Everything | typecheck · lint · `vitest` · `next build` |
 
 Two of these are the point:
@@ -488,9 +506,11 @@ Two of these are the point:
   three of the 16 were `img-redundant-alt` catching the **French** word « Photo »
   — the rule's banned-word list is language-blind, the alts were reworded to say
   what the image shows.
-- **Lighthouse is `continue-on-error: true`, a11y is `warn`, and it audits exactly
-  one URL — the homepage.** A gate that cannot fail and looks at one page is not a
-  gate.
+- **Lighthouse was `continue-on-error: true`, a11y `warn`, one URL** — a gate
+  that cannot fail, looking at one page. B5 promoted it: the job blocks, a11y
+  0.95 + SEO 0.9 are errors (perf/best-practices stay `warn` — the flake-prone
+  pair), and `/connexion` joined via `assertMatrix` (a11y only — it is noindex
+  by design).
 
 ## 15. The known-violations register
 
@@ -513,23 +533,23 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 9 | Labelled inputs (§6) | ~~0~~ → **every control associated** | `<TextField>` (label + `useId`) across the funnels, account, booking, clients, dialogs; label-*wrapped* forms (ProfilClient's `Field`, the label-wrapped dialogs) kept their working implicit association — the metric that matters is *associated*, not *htmlFor specifically*. The funnels' 8 placeholder-only inputs have real labels ("Votre e-mail" replaced its placeholder; "Code à 6 chiffres" became one; "07 00 00 00 00" survives as a format example, the one legitimate placeholder role). Optional fields say « (optionnelle) » in the label (§14 rule 6) | ✅ **B4** |
 | 10 | Errors tied to fields (§6) | ~~0~~ → **wired** | `<TextField>`/`PhoneField` render `aria-invalid` + `aria-describedby` (error id first, hint id second) + `<p role="alert">`; `useFieldErrors` implements §14 rule 2 (validate on submit, re-validate on change once errored, `set()` for server faults — « Code incorrect ou expiré » now renders under the code field). The funnels' `disabled={!emailValid}` gates — rule 5's dead-end anti-pattern — are gone; an invalid submit answers with a field error. E2e-proven: the describedby chain resolves id-by-id. **The first `validate()` replaced the whole error map** — a step-2 submit wiped a still-unfixed step-1 error and the submit fired with the empty value (the review proved it on ProRegister's businessName); it now **merges**, touching only the keys it validated, and ProRegister validates each path's full field subset | ✅ **B4** |
 | 11 | jsx-a11y strict (§14) | ~~off~~ → **on, 0 errors, 0 disables** | branch-base proof-red = **16 errors / 5 rules** (3 were `label-has-associated-control` depth-2 false positives → `{depth: 25}`; 3 were `img-redundant-alt` catching the **French** « Photo » — reworded to say what the image shows; the rest: the 2 raw PhoneInput labels, the dialog backdrops restructured to ProShell's aria-hidden-scrim precedent, the `/recherche` hover-sync wrapper gaining focus parity). The theme-pin rejects an undocumented `eslint-disable jsx-a11y/*` | ✅ **B4** |
-| 12 | Announcements (§7) | `aria-live` = **0** | 4 of 5 toasts silent | **B5** |
-| 13 | Focus-trapped dialogs (§8) | **0 of 6** | | **B5** |
-| 14 | Heading order (§4) | 1 | `/recherche` **h1 → h3** (`ProviderCard.tsx:23`) | **B5** |
-| 15 | axe on real routes (§14) | none | Lighthouse: 1 URL, `warn`, `continue-on-error` | **B5** |
+| 12 | Announcements (§7) | ~~0~~ → **wired product-wide** | the count was low three ways: 5 toasts (1 announced — unreliably: its region mounted WITH the text, against §7's own rule — and it was the one toast missing `z-toast`), **plus ~63 silent outcome sites nobody had counted**. Shipped: `<Toast>`/`useToast` (§15 durations; the region always exists, text swaps inside) over the 4 fixed toasts + the map note in place; `role="alert"` on **56** error-outcome sites; persistent `role="status"` on the 5 « Enregistré. » confirmations + the go-live banner; sr-only status twins for the 2 « Copié ✓ » swaps. « Chargement… » → B6's `Loading`. **The review then broke the first "wired product-wide" claim four ways**, all fixed: in-dialog errors announced via the OUTSIDE toast — which `aria-modal` prunes from the a11y tree (ManualBooking's « Ce créneau est déjà pris. » was inaudible with the dialog open) → in-dialog `role="alert"`, the dialog's `onToast` died; three **replaced-form successes** (ReviewForm, DepositProof — the payments flow —, ReviewList's report) were silent AND dropped focus to `<body>` → the confirmation takes focus itself (`lib/focusOnMount.ts`; a focused element is announced, a status region mounted with its text is not); ReviewList's 401 prompt → alert; and the « Copié ✓ » status said « Identifiant copié. » while the button copies the **data export** → « Données copiées. » | ✅ **B5** |
+| 13 | Focus-trapped dialogs (§8) | ~~0 of 6~~ → **6 of 6** | the debt was wider than the trap: focus-in/restore **0/6**, scroll lock **0/6**, Escape **2/6**, three scrim patterns. One `<Modal>` (trap · Escape · restore guarded on `isConnected` · scroll lock · aria-labelledby'd h2) converted all six; the revoke confirm focuses **Annuler** (SYSTEM §15). `Button` gained `forwardRef` for exactly that. **Review corrections**: the Lightbox conversion had broken portrait photos (the panel's content-driven height severed the `max-h-full` chain — clipped, unscrollable) → `panelClassName="contents"` restores the pre-B5 geometry byte-for-byte; the ⋯-menu dialogs restored focus to `<body>` (the menu item — the captured opener — unmounts in the very commit the dialog mounts) → `returnFocusRef` aims at the row's ⋯ trigger; Escape now ignores `isComposing` (an IME cancel must not eat the dialog) | ✅ **B5** |
+| 14 | Heading order (§4) | ~~1~~ → **0** | the count was 1 of **2**: `/recherche`'s h1→h3 (fixed by promoting the tertiary count `<p>` to the visible « N salons » h2 — the card was already correct on home/landing under their h2 sections) — and `/mon-compte/[id]` had **no h1 at all** (the salon-name h2 is promoted; it is the page's only heading). Row 7f's 4 token-less h2s joined `text-titleLarge` here. **The review then found the count was really 5**: AREA taxonomy landings skipped h1→h3 (the two h2 sections above the list are root/city-gated) → the « N salons » count h2, same pattern; `/recherche`'s mobile « Carte » view display:none'd the page's only h1 → an sr-only, `lg:hidden` twin in the map pane; and `/mon-compte/[id]`'s not-found state — the route this slice promoted an h1 on — was a zero-heading dead end → a real error state (h1 + alert + « ← Mes rendez-vous »). The ~15 pro clients' one-line error states remain h1-less inside the shell's landmarks — B6's `ErrorState` owns them (row 16) | ✅ **B5** |
+| 15 | axe on real routes (§14) | ~~none~~ → **13 routes + 2 stateful scans, blocking** | proof-red at base (measured in a worktree, `axe-base.json`): **11 violations / 13 nodes / 5 rules / 8 of 12 routes** — and 3 of the 5 rules were violations **nothing in this register knew**: `region` ×7 routes (the home hero — h1 + search — sat OUTSIDE `<main>`; the install banner was landmark-less chrome everywhere), `nested-interactive` (maplibre stamps `role=button` on its marker wrapper around our named pin — the child now claims the wrapper as presentation before `addTo`), `aria-prohibited-attr` (MapEmbed's aria-label on a role-less div), `empty-table-header` (Équipe's actions column). The row-21 radiogroup never fired at base because the stars' route wasn't in the first matrix — it is now (13th route). Lighthouse promoted to blocking (a11y 0.95 + SEO 0.9 as errors; `/connexion` a11y-only — noindex by design). **Review hardening**: the gate now aborts the CARTO basemap CDN like every other map spec (live tiles + `networkidle` + a 6-route budget = a blocking gate that flakes, and proof-red vs CI scanning different DOMs); the matrix grew to **15** (+ the area landing whose skip it had missed, + `/pro/apercu`); the toast scan asserts the pill **survived** `analyze()` (success auto-dismisses at 3 s — expiry would have made the scan silently vacuous) | ✅ **B5** |
 | 16 | Shared primitives (§10) | library = **1** → growing | 35 inline "Chargement", 6 modals, 5 toasts, 7 inputs. B4 added `TextField`/`Button`/`PhoneField` — and found `OtpLoginForm` has **zero callers** (both funnels inline their own OTP steps): a "shared" component nothing shares. Keep-or-delete is B6's call | *B6* |
 | 7e | Icons borrow a type role | ~~2~~ → **0** | the count was the *tokenised* ones. Measured, the same `✕` rendered at **12, 14, 22px and three inherited sizes** — the drift was in the 24 nobody counted. §7's scale is ported (`text-iconXS…XL`, **a bare size** — see §3) and 10 standalone glyph controls snapped to it by §7's own method. The inheriting ✕s sat at the 16px body default → `iconXS` is **zero-pixel, box included** (measured: font 16 · line 24 · box 24 on both sides); the rest move by the snap and every one **grows** (♡ 22→24, box 26→28), which is the right direction for row 7h. **The first attempt did not**: baking `lineHeight: 1` shrank 7 boxes by 4–8px, and the review measured it — a font-size token quietly regressing the tap-target metric this very slice added. A glyph *inside a sentence* (`★ 4,8 sur 5`, `← Tableau de bord`) is text, not an icon, and was left alone | ✅ **B2c** |
 | 7g | **The `maxWidth` leak** | ~~5~~ → **0** | `maxWidth` spread `spacing` **first**, so `max-w-s`=8px · `max-w-m`=16px · `max-w-l`=24px · `max-w-xxl`=48px · `max-w-xxxl`=64px — rhythm tokens acting as max-widths — while `max-w-sm`=24rem and `max-w-xl`=36rem, because Tailwind's names win where they collide. `max-w-l` (24px) and `max-w-xl` (576px) sat adjacent in one scheme, **24× apart**. Closed to the named steps; the 7 in use are byte-identical | ✅ **B2c** |
-| 7h | **Tap targets ≥ 48 (§13.2)** | ~~0 of ~10~~ → **0 remaining** | the count was wrong **three** times over: the glyph floor was **16px** (not 18); the census missed HeaderBell (20×20) and the phone country selects; and the first "0 remaining" claim here was **false** — the adversarial review measured a long tail the sweep never reached (the header logo 70×28 and « MyWeli Pro » 112×28 wordmark links, sidebar nav links 207×36 at a 4px stride, the salon switcher ~30, ManualBookingDialog's checkbox/client rows 28 and « Changer » 57×20, ClientCardClient's tag pills + tel links + « Supprimer », DayHoursEditor's « Travaille » rows) — **and** four adjacency violations the sweep itself had *created* with two-sided negative margins (banner ✕/bell/hamburger abutting neighbours at 0–4px; fixed one-sided), plus MediasClient's 3×48 IconBtn row overflowing its 155px grid-cols-2 card at 375 (fixed: 1-col base / `sm:2` / `lg:3` + a wrapping footer). Fixed by A4a's two patterns, ported: bordered boxes/pills grow visibly (`Button` 36→48 = mobile A3's `Size(0, 48)`; chips 28→48; IconBtn; the Lightbox ✕ pill; ReviewForm's stars 24→48 each **+ `gap-s` fixing their 4px adjacency violation**); tight-layout glyphs grow invisibly (padding + **one-sided** negative margin where a neighbour exists, glyph unmoved); the switch keeps its 44×24 track inside a 48 target, labelled by its row title; the photo-✕ badges got 48 wrappers at compensated offsets; text-links became `<Button variant="text">` or floored in place. MonthCalendar cells: **height floored at 48, width grid-bound (~43 at 375px)** — recorded, not hidden. Pinned by `tap-targets.spec.ts` (boundingBox ≥ 48 over the control table, incl. the review's finds; EquipeClient's ⋯ is floored in code but **not pinnable** — the stub seeds no second member, and the first draft's guard passed vacuously) | ✅ **B4** |
+| 7h | **Tap targets ≥ 48 (§13.2)** | ~~0 of ~10~~ → **0 remaining** | the count was wrong **three** times over: the glyph floor was **16px** (not 18); the census missed HeaderBell (20×20) and the phone country selects; and the first "0 remaining" claim here was **false** — the adversarial review measured a long tail the sweep never reached (the header logo 70×28 and « MyWeli Pro » 112×28 wordmark links, sidebar nav links 207×36 at a 4px stride, the salon switcher ~30, ManualBookingDialog's checkbox/client rows 28 and « Changer » 57×20, ClientCardClient's tag pills + tel links + « Supprimer », DayHoursEditor's « Travaille » rows) — **and** four adjacency violations the sweep itself had *created* with two-sided negative margins (banner ✕/bell/hamburger abutting neighbours at 0–4px; fixed one-sided), plus MediasClient's 3×48 IconBtn row overflowing its 155px grid-cols-2 card at 375 (fixed: 1-col base / `sm:2` / `lg:3` + a wrapping footer). Fixed by A4a's two patterns, ported: bordered boxes/pills grow visibly (`Button` 36→48 = mobile A3's `Size(0, 48)`; chips 28→48; IconBtn; the Lightbox ✕ pill; ReviewForm's stars 24→48 each **+ `gap-s` fixing their 4px adjacency violation**); tight-layout glyphs grow invisibly (padding + **one-sided** negative margin where a neighbour exists, glyph unmoved); the switch keeps its 44×24 track inside a 48 target, labelled by its row title; the photo-✕ badges got 48 wrappers at compensated offsets; text-links became `<Button variant="text">` or floored in place. MonthCalendar cells: **height floored at 48, width grid-bound (~43 at 375px)** — recorded, not hidden. Pinned by `tap-targets.spec.ts` (boundingBox ≥ 48 over the control table, incl. the review's finds; EquipeClient's ⋯ is floored in code but **not pinnable** — the stub seeds no second member, and the first draft's guard passed vacuously). B5 found one more in passing — the map's « Autour de moi » at 40px — floored + `borderStrong` | ✅ **B4** (+B5) |
 | 7i | No `<Icon>` component | **4 channels** | icon size lives in Tailwind classes (2 of 5 svgs), raw SVG `width`/`height` attrs (3), `globals.css` (the 44px map pin, a 22px dot), and font-size (10 glyphs). B2c governs the last; a real `<Icon>` would govern all four | *B6* |
 | 7j | `contentMaxWidth` unapplied | **1** | §10's `contentMaxWidth = 720` is the only non-icon dimension the system names, and it had never existed in code on either surface. B2c makes it a token (`max-w-content`); **applying** it to the pages that need it is a layout decision | *B7* |
-| 7f | `<h2>` with no type token | **4** | `ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient` carry no size class, so they inherit while their 38 peers are `titleLarge`. Pre-existing — B2b had no `text-*` there to migrate — but it widens the gap to 8px | *B5* |
+| 7f | `<h2>` with no type token | ~~4~~ → **0** | all four (`ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient`) joined their 38 peers on `text-titleLarge` (ProRegister's also traded `font-medium` for the peers' `font-semibold`) | ✅ **B5** |
 | 17 | Reading text = 16px (§3) | **356 × `text-bodyMedium`** | `bodyLarge` (16px) used **once**. B2b renamed the workhorse but did not resize it — the web still reads one step smaller than the app | *B8* |
 | 18 | Desktop-grade pro dashboard (§9) | `xl:`/`2xl:` = **0** | a stretched phone column | *B7* |
 | 19 | Token generator (Flutter → `tokens.ts`) | hand-mirrored | drifted **six times** now (row 4; B4 found `borderFocus` missing — §5's own snippet would not have built — and `warningLight`/`infoLight` still exist on mobile only) | *B3* |
 | 20 | Role pickers announce selection | ~~visual-only~~ → **`aria-pressed`** | ChangeRoleDialog/InviteMemberDialog's role rows showed the chosen role by border colour alone — a screen reader heard four identical buttons. Two lines each | ✅ **B4** |
-| 21 | ReviewForm stars: toggle semantics | 5 × `aria-pressed` | the stars are five independent toggles where "pick one of five" wants a radiogroup; functional but semantically loose. B5's axe run owns the re-shape | *B5* |
-| 22 | FilePick is keyboard-inaccessible | **3 pickers** | the `<input type="file">` is `hidden` (display:none) — unfocusable, so keyboard users cannot upload in MediasClient at all. B4 removed the dead `focus:` classes that *implied* it worked; the fix is `sr-only` + `focus-within` styling on the label | *B5* |
+| 21 | ReviewForm stars: toggle semantics | ~~5 × `aria-pressed`~~ → **a real radio group** | worse than "loose": `aria-pressed` buttons are **invalid children** of `role="radiogroup"` (axe `aria-required-children`). Now `role="radio"` + `aria-checked` on the chosen value, one roving tab stop, arrows move-and-select **wrapping at the edges** (APG); the ≥48px targets and `rating >= n` fill are untouched. Pinned by the axe matrix's 13th route | ✅ **B5** |
+| 22 | FilePick is keyboard-inaccessible | ~~3~~ → **0** | the count was wrong twice: **5** hidden file inputs exist, but 3 (Verification, Catalogue, ReviewForm) already had focusable proxy `<Button>`s — only **MediasClient's two** label-wrapped pickers were keyboard-dead. Both: `hidden` → `sr-only` (a real tab stop) + §5's ring projected onto the label via `focus-within:outline-*`. DepositProof's sixth input was always visible | ✅ **B5** |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.

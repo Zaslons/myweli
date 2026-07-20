@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   getMyProvider,
@@ -9,6 +9,9 @@ import {
   resendInvitation,
   revokeMember,
 } from '../../lib/api/pro';
+import { Modal } from '../Modal';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import type { Artist } from '../../lib/pro/catalogue';
 import { formatDateFr } from '../../lib/format';
 import {
@@ -49,7 +52,13 @@ export function EquipeClient() {
   const [revokeTarget, setRevokeTarget] = useState<TeamMember | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
+  const revokeCancelRef = useRef<HTMLButtonElement>(null);
+  // The ⋯ trigger per member — the dialogs' restore target: their true opener
+  // (the menu ITEM) unmounts in the same commit the dialog mounts, so Modal's
+  // captured activeElement is already gone by close time.
+  const dotsRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const dotsRefFor = (id: string) => ({ current: dotsRefs.current[id] ?? null });
 
   useEffect(() => {
     (async () => {
@@ -86,10 +95,6 @@ export function EquipeClient() {
     })();
   }, [router]);
 
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  }
 
   function upsert(member: TeamMember) {
     setMembers((prev) => {
@@ -107,15 +112,17 @@ export function EquipeClient() {
     const r = await resendInvitation(m.id);
     setBusyId(null);
     if (!r.ok || !r.member) {
-      showToast(
+      show(
         r.status === 429
           ? 'Budget de renvois épuisé pour cette invitation.'
           : 'Renvoi impossible. Réessayez.',
+      
+        'error',
       );
       return;
     }
     upsert(r.member);
-    showToast(`Invitation renvoyée à ${m.email}.`);
+    show(`Invitation renvoyée à ${m.email}.`, 'success');
   }
 
   async function doRevoke() {
@@ -126,16 +133,16 @@ export function EquipeClient() {
     setBusyId(null);
     setRevokeTarget(null);
     if (!r.ok || !r.member) {
-      showToast('Révocation impossible. Réessayez.');
+      show('Révocation impossible. Réessayez.', 'error');
       return;
     }
     upsert(r.member);
-    showToast(`Accès de ${m.email} révoqué.`);
+    show(`Accès de ${m.email} révoqué.`, 'success');
   }
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const nonOwner = members.filter((m) => m.role !== 'owner');
@@ -203,7 +210,9 @@ export function EquipeClient() {
                 <th className="px-m py-s font-medium">Rôle</th>
                 <th className="px-m py-s font-medium">Employé</th>
                 <th className="px-m py-s font-medium">Statut</th>
-                <th className="px-m py-s font-medium" />
+                <th className="px-m py-s font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -253,6 +262,9 @@ export function EquipeClient() {
                         <div className="relative inline-block">
                           <button
                             type="button"
+                            ref={(el) => {
+                              dotsRefs.current[m.id] = el;
+                            }}
                             aria-label={`Actions pour ${m.email}`}
                             disabled={busyId === m.id}
                             onClick={() =>
@@ -308,14 +320,7 @@ export function EquipeClient() {
           </table>
         </div>
 
-      {toast ? (
-        <div
-          role="status"
-          className="fixed bottom-l left-1/2 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg"
-        >
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
 
       {inviteOpen && providerId ? (
         <InviteMemberDialog
@@ -326,13 +331,14 @@ export function EquipeClient() {
           onInvited={(member, email) => {
             upsert(member);
             setInviteOpen(false);
-            showToast(`Invitation envoyée à ${email}.`);
+            show(`Invitation envoyée à ${email}.`, 'success');
           }}
         />
       ) : null}
 
       {roleTarget && providerId ? (
         <ChangeRoleDialog
+          returnFocusRef={dotsRefFor(roleTarget.id)}
           member={roleTarget}
           providerId={providerId}
           artists={artists}
@@ -341,44 +347,41 @@ export function EquipeClient() {
           onChanged={(member) => {
             upsert(member);
             setRoleTarget(null);
-            showToast('Rôle mis à jour.');
+            show('Rôle mis à jour.', 'success');
           }}
         />
       ) : null}
 
       {revokeTarget ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Révoquer l’accès"
-          className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
+        <Modal
+          title="Révoquer l’accès"
+          onClose={() => setRevokeTarget(null)}
+          returnFocusRef={dotsRefFor(revokeTarget.id)}
+          // SYSTEM §15: the cancel path is the safe default and gets focus.
+          initialFocusRef={revokeCancelRef}
         >
-          <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-            <h2 className="text-titleLarge font-semibold text-textPrimary">
-              Révoquer l’accès
-            </h2>
-            <p className="mt-m text-bodyMedium text-textSecondary">
-              {revokeTarget.email} perdra immédiatement l’accès à {salonName}.
-              Son compte MyWeli n’est pas supprimé.
-            </p>
-            <div className="mt-l flex justify-end gap-s">
-              <Button
-                variant="secondary"
-                onClick={() => setRevokeTarget(null)}
-                disabled={busyId === revokeTarget.id}
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={doRevoke}
-                disabled={busyId === revokeTarget.id}
-                className="!bg-error hover:!bg-error"
-              >
-                Révoquer
-              </Button>
-            </div>
+          <p className="mt-m text-bodyMedium text-textSecondary">
+            {revokeTarget.email} perdra immédiatement l’accès à {salonName}.
+            Son compte MyWeli n’est pas supprimé.
+          </p>
+          <div className="mt-l flex justify-end gap-s">
+            <Button
+              ref={revokeCancelRef}
+              variant="secondary"
+              onClick={() => setRevokeTarget(null)}
+              disabled={busyId === revokeTarget.id}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={doRevoke}
+              disabled={busyId === revokeTarget.id}
+              className="!bg-error hover:!bg-error"
+            >
+              Révoquer
+            </Button>
           </div>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );

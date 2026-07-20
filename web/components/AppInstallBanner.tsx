@@ -28,7 +28,10 @@ export function AppInstallBanner() {
   }
 
   return (
-    <div className="flex items-center justify-between gap-m bg-primary px-m py-s text-secondary">
+    <aside
+      aria-label="Installer l’application"
+      className="flex items-center justify-between gap-m bg-primary px-m py-s text-secondary"
+    >
       <p className="text-bodyMedium">Réservez plus vite — téléchargez l’app MyWeli.</p>
       <div className="flex items-center gap-s">
         {href ? (
@@ -48,6 +51,6 @@ export function AppInstallBanner() {
           ✕
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

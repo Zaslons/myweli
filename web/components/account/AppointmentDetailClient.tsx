@@ -129,7 +129,23 @@ export function AppointmentDetailClient({ id }: { id: string }) {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (notFound || !appt) {
-    return <p className="text-error">Rendez-vous introuvable.</p>;
+    // A persistent state is a page: it needs the h1 and a way out
+    // (SYSTEM §12 — an error state without one is a dead end).
+    return (
+      <div>
+        <h1 className="text-titleLarge font-semibold text-textPrimary">
+          Rendez-vous introuvable
+        </h1>
+        <p role="alert" className="mt-s text-bodyMedium text-error">
+          Ce rendez-vous n’existe pas ou n’est plus accessible.
+        </p>
+        <p className="mt-m">
+          <Link href="/mon-compte" className="text-bodyMedium underline">
+            ← Mes rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   // The salon's market (multi-pays): booking-stamped currency first (the
@@ -144,9 +160,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       </Link>
       <section className="mt-m rounded-xl border border-border bg-secondary p-l">
         <div className="flex items-center justify-between gap-m">
-          <h2 className="text-titleLarge font-semibold text-textPrimary">
+          <h1 className="text-titleLarge font-semibold text-textPrimary">
             {appt.providerName ?? 'Salon'}
-          </h2>
+          </h1>
           <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
             {statusLabelFr(appt.status)}
           </span>
@@ -283,7 +299,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         {cancelError ? (
-          <p className="mt-s text-bodyMedium text-error">
+          <p role="alert" className="mt-s text-bodyMedium text-error">
             L’annulation a échoué. Réessayez.
           </p>
         ) : null}
@@ -346,7 +362,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   </div>
                 )}
                 {reschedError ? (
-                  <p className="mt-s text-bodyMedium text-error">{reschedError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">{reschedError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button

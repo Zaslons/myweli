@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { focusOnMount } from '../../lib/focusOnMount';
 import type { Review } from '../../lib/api/providers';
 import { reportReview } from '../../lib/account/review-photos';
 import { formatDateFr } from '../../lib/format';
@@ -111,7 +112,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
 
   if (state === 'done') {
     return (
-      <p className="text-bodySmall text-textSecondary">
+      <p ref={focusOnMount} tabIndex={-1} className="text-bodySmall text-textSecondary">
         Merci. Notre équipe va examiner cet avis.
       </p>
     );
@@ -148,14 +149,14 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
         </div>
       )}
       {state === 'auth' ? (
-        <p className="mt-xs text-bodySmall text-textSecondary">
+        <p role="alert" className="mt-xs text-bodySmall text-textSecondary">
           <a href={`/connexion?returnTo=/${slug}`} className="underline">
             Connectez-vous
           </a>{' '}
           pour signaler cet avis.
         </p>
       ) : state === 'error' ? (
-        <p className="mt-xs text-bodySmall text-error">
+        <p role="alert" className="mt-xs text-bodySmall text-error">
           Le signalement a échoué. Réessayez.
         </p>
       ) : null}

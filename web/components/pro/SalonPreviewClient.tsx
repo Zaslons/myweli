@@ -42,18 +42,22 @@ export function SalonPreviewClient() {
   }, [load]);
 
   if (loading) {
-    return <p className="p-l text-textSecondary">Chargement de l’aperçu…</p>;
+    return (
+      <main className="p-l">
+        <p className="text-textSecondary">Chargement de l’aperçu…</p>
+      </main>
+    );
   }
   if (error || !provider) {
     return (
-      <div className="p-l">
-        <p className="text-error">Impossible de charger l’aperçu.</p>
+      <main className="p-l">
+        <p role="alert" className="text-error">Impossible de charger l’aperçu.</p>
         <div className="mt-s">
           <Button variant="secondary" onClick={load}>
             Réessayer
           </Button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -61,8 +65,12 @@ export function SalonPreviewClient() {
 
   return (
     <div>
-      {/* The preview banner — the only element a client will NOT see. */}
-      <div className="border-b border-border bg-primary px-m py-s text-bodyMedium text-secondary">
+      {/* The preview banner — the only element a client will NOT see. A
+          landmark (axe `region`): every element belongs to one. */}
+      <aside
+        aria-label="Aperçu du salon"
+        className="border-b border-border bg-primary px-m py-s text-bodyMedium text-secondary"
+      >
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-s">
           <span>
             {draft
@@ -80,7 +88,7 @@ export function SalonPreviewClient() {
             </Link>
           </span>
         </div>
-      </div>
+      </aside>
       <ProviderView
         provider={provider}
         slug={provider.slug ?? ''}

@@ -13,6 +13,7 @@ import {
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 import { TextField } from '../TextField';
 
 /// Module `clients` C1b — the salon client base at /pro/clients
@@ -100,7 +101,7 @@ export function ClientsClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const emptyBase = total === 0 && !query && !tag;
@@ -281,16 +282,7 @@ function AddClientModal({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Ajouter un client"
-      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Ajouter un client
-        </h2>
+    <Modal title="Ajouter un client" onClose={onClose}>
         <TextField
           className="mt-m"
           label="Nom"
@@ -316,7 +308,7 @@ function AddClientModal({
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-        {message ? <p className="mt-s text-bodyMedium text-error">{message}</p> : null}
+        {message ? <p role="alert" className="mt-s text-bodyMedium text-error">{message}</p> : null}
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler
@@ -328,7 +320,6 @@ function AddClientModal({
             Ajouter
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

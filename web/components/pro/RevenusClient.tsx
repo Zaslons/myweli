@@ -106,7 +106,7 @@ export function RevenusClient() {
         <p className="mt-l text-textSecondary">Chargement…</p>
       ) : error ? (
         <div className="mt-l">
-          <p className="text-error">Chargement impossible.</p>
+          <p role="alert" className="text-error">Chargement impossible.</p>
           <div className="mt-s">
             <Button variant="secondary" onClick={init}>
               Réessayer

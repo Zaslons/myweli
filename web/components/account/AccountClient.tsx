@@ -112,7 +112,7 @@ export function AccountClient() {
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error) {
     return (
-      <p className="text-error">Une erreur est survenue. Réessayez plus tard.</p>
+      <p role="alert" className="text-error">Une erreur est survenue. Réessayez plus tard.</p>
     );
   }
 
@@ -226,7 +226,7 @@ export function AccountClient() {
                 </Button>
               </div>
               {phoneError ? (
-                <p className="text-bodyMedium text-error">
+                <p role="alert" className="text-bodyMedium text-error">
                   Numéro invalide. Réessayez.
                 </p>
               ) : null}
@@ -396,7 +396,7 @@ export function AccountClient() {
                 </button>
               </div>
               {deleteError ? (
-                <p className="mt-s text-bodyMedium text-error">
+                <p role="alert" className="mt-s text-bodyMedium text-error">
                   La suppression a échoué. Réessayez.
                 </p>
               ) : null}

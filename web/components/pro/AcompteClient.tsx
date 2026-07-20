@@ -67,7 +67,7 @@ export function AcompteClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (loadError || !form) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   function set<K extends keyof DepositForm>(k: K, v: DepositForm[K]) {
@@ -149,7 +149,7 @@ export function AcompteClient() {
                 </select>
               ) : localities.error ? (
                 <span className="mt-xs flex items-center gap-s">
-                  <span className="flex-1 text-bodyMedium text-error">
+                  <span role="alert" className="flex-1 text-bodyMedium text-error">
                     Liste des opérateurs indisponible.
                   </span>
                   <Button variant="secondary" onClick={localities.retry}>
@@ -192,10 +192,13 @@ export function AcompteClient() {
           />
         </label>
 
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
-        {saved ? (
-          <p className="text-bodyMedium text-textSecondary">Acompte enregistré.</p>
-        ) : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
+        <p
+          role="status"
+          className={saved ? 'text-bodyMedium text-textSecondary' : 'sr-only'}
+        >
+          {saved ? 'Acompte enregistré.' : ''}
+        </p>
         <Button disabled={busy} onClick={save}>
           Enregistrer
         </Button>

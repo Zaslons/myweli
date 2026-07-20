@@ -115,7 +115,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (notFound || !appt) {
-    return <p className="text-error">Rendez-vous introuvable.</p>;
+    return <p role="alert" className="text-error">Rendez-vous introuvable.</p>;
   }
 
   // The ACTIVE salon's market (multi-pays MP3).
@@ -214,7 +214,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           </p>
         ) : null}
 
-        {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
         {actions.length > 0 ? (
           <div className="mt-l flex flex-wrap gap-s">
@@ -323,7 +323,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                   />
                 </div>
                 {reprogError ? (
-                  <p className="mt-s text-bodyMedium text-error">{reprogError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">{reprogError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button variant="secondary" onClick={() => setReprog(false)}>

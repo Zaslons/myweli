@@ -69,7 +69,7 @@ export function CatalogueClient() {
 
   if (loading) return <p className="text-textSecondary">Chargement…</p>;
   if (error || !profile) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
 
   const providerId = profile.provider.id;
@@ -445,7 +445,7 @@ function ServiceFormCard({
         ) : null}
       </div>
 
-      {err ? <p className="mt-s text-bodyMedium text-error">{err}</p> : null}
+      {err ? <p role="alert" className="mt-s text-bodyMedium text-error">{err}</p> : null}
 
       <FormActions
         busy={busy}
@@ -624,7 +624,7 @@ function ArtistFormCard({
         ) : null}
       </div>
 
-      {err ? <p className="mt-s text-bodyMedium text-error">{err}</p> : null}
+      {err ? <p role="alert" className="mt-s text-bodyMedium text-error">{err}</p> : null}
 
       <FormActions
         busy={busy}

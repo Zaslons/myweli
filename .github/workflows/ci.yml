@@ -277,11 +277,10 @@ jobs:
         run: npm run e2e
 
   web-lighthouse:
-    name: Web — Lighthouse (report-only)
+    name: Web — Lighthouse
     runs-on: ubuntu-latest
-    # Surfaced but not yet blocking (CWV/SEO budgets in lighthouserc.json);
-    # promote to blocking once stable.
-    continue-on-error: true
+    # BLOCKING since B5 (§14): a11y ≥ 0.95 and SEO ≥ 0.9 are errors;
+    # performance/best-practices stay warn (the flake-prone pair).
     defaults:
       run:
         working-directory: web
@@ -302,7 +301,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Lighthouse budgets (home)
+      - name: Lighthouse budgets (home + connexion)
         run: npm run lhci
 
   security:
