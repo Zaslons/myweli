@@ -205,7 +205,9 @@ export function EquipeClient() {
                 <th className="px-m py-s font-medium">Rôle</th>
                 <th className="px-m py-s font-medium">Employé</th>
                 <th className="px-m py-s font-medium">Statut</th>
-                <th className="px-m py-s font-medium" />
+                <th className="px-m py-s font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>

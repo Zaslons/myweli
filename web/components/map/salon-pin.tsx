@@ -24,6 +24,15 @@ const ICON_PATHS: Record<string, string> = {
     'M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 4H6v-4h6v4z',
 };
 
+/// maplibre stamps `role="button"` + « Map marker » on its wrapper div at
+/// addTo() — but only when no role exists. Our child IS the real control
+/// (named button, focusable), so a wrapper-button around it is axe's
+/// `nested-interactive`. A ref callback claims the wrapper as presentation
+/// FIRST: React commits children before the library Marker's addTo effect.
+export function presentationalMarkerRef(el: HTMLElement | null) {
+  el?.parentElement?.setAttribute('role', 'presentation');
+}
+
 /// The app's `_SalonMarker`: 44px white circle, 2px category ring, category
 /// icon (20px) in the category color (§7 tokens via `currentColor`). The
 /// click is handled by the library Marker (a native listener on the marker
@@ -41,6 +50,7 @@ export function SalonPin({
   return (
     <button
       type="button"
+      ref={presentationalMarkerRef}
       aria-label={`Voir ${name} sur la carte`}
       className={`myweli-marker myweli-pin${active ? ' is-active' : ''}`}
       style={{ color: markerColor(category) }}

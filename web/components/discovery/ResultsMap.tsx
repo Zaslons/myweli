@@ -17,7 +17,7 @@ import {
   boundsFor,
 } from '../../lib/discovery/map';
 import { formatFcfa } from '../../lib/format';
-import { MAP_STYLE, SalonPin } from '../map/salon-pin';
+import { MAP_STYLE, SalonPin, presentationalMarkerRef } from '../map/salon-pin';
 
 const FIT_OPTS = { padding: 40, maxZoom: 15 };
 
@@ -86,7 +86,7 @@ export function ResultsMap({
         })}
         {userPos ? (
           <Marker longitude={userPos[0]} latitude={userPos[1]} anchor="center">
-            <span className="myweli-user-dot" />
+            <span ref={presentationalMarkerRef} className="myweli-user-dot" />
           </Marker>
         ) : null}
         {selected ? (

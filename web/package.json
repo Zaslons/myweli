@@ -24,6 +24,7 @@
     "react-phone-number-input": "^3.4.17"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@lhci/cli": "^0.14.0",
     "@playwright/test": "^1.47.2",
     "@testing-library/jest-dom": "^6.4.8",

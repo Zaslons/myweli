@@ -75,6 +75,7 @@ export default async function HomePage() {
       <JsonLd data={websiteJsonLd()} />
       <JsonLd data={faqJsonLd(faq)} />
 
+      <main>
       <section className="relative overflow-hidden border-b border-divider">
         <HeroBackground />
         {/* `relative` is load-bearing: the backdrop is absolutely positioned, so
@@ -98,7 +99,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-5xl px-m py-xl">
+      <div className="mx-auto max-w-5xl px-m py-xl">
         <section>
           <h2 className="text-titleLarge font-semibold text-textPrimary">Catégories</h2>
           <div className="mt-m grid grid-cols-2 gap-s sm:grid-cols-3 lg:grid-cols-6">
@@ -198,6 +199,7 @@ export default async function HomePage() {
             ))}
           </dl>
         </section>
+      </div>
       </main>
     </>
   );

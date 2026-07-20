@@ -68,6 +68,7 @@ export function MapEmbed({
         <>
           <div
             ref={holder}
+            role="region"
             aria-label={`Carte — ${address ?? name}`}
             className="mt-m h-64 w-full overflow-hidden rounded-lg border border-border md:h-80"
           >
