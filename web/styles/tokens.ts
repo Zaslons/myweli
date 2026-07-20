@@ -1,7 +1,9 @@
-// Shared design tokens — the web mirror of the Flutter `AppColors`
-// (mobile/lib/core/theme/colors.dart). Kept hand-synced with it and with
-// docs/design/SYSTEM.md §3; the values, ratios and usage rules live there.
-// (A Flutter→web generator + a CI drift gate is slice B3; until then, hand-synced.)
+// Shared design tokens — the web mirror of the Flutter theme
+// (mobile/lib/core/theme/). Hand-WRITTEN but no longer hand-TRUSTED: since B3,
+// `tests/tokens.mirror.test.ts` parses the Dart sources (and the §9 doc tables
+// for the web-only families) on every test run and fails on ANY mismatch,
+// either direction. Healing: `npm run gen:tokens` prints the fresh blocks —
+// paste the values, keep these comments (they carry the six drift histories).
 // `tests/tokens.contrast.test.ts` asserts every floor below is met.
 
 export const colors = {

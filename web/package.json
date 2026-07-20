@@ -12,7 +12,8 @@
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "lhci": "lhci autorun",
-    "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o lib/api/schema.ts"
+    "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o lib/api/schema.ts",
+    "gen:tokens": "node scripts/gen-tokens.mjs"
   },
   "dependencies": {
     "@vis.gl/react-maplibre": "^8.1.1",
