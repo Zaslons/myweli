@@ -42,7 +42,7 @@ jobs:
             --dart-define=API_BASE_URL=https://api.myweli.com
 
       - name: Ensure Cloudflare Pages project exists
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         continue-on-error: true # no-op once the project exists
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -50,7 +50,7 @@ jobs:
           command: pages project create myweli-admin --production-branch=main
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
