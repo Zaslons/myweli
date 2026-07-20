@@ -24,7 +24,15 @@ const surfaces: Record<string, string> = {
   card: colors.secondary,
 };
 
+/// B3: every colors key must be asserted SOMEWHERE in this file — expectFloor
+/// records what passed through it, ASSERTED_ELSEWHERE declares the keys whose
+/// assertions have a different shape (negative pins, ordering, identity), and
+/// the completeness test at the bottom fails on anything left over. Before
+/// this, a new mirrored color could land with no contrast row at all.
+const asserted = new Set<string>();
+
 function expectFloor(name: string, c: string, floor: number) {
+  asserted.add(name);
   for (const [surfaceName, bg] of Object.entries(surfaces)) {
     const ratio = contrastRatio(c, bg);
     expect(
@@ -74,12 +82,23 @@ describe('semantic', () => {
     expectFloor('errorLight', colors.errorLight, FLOOR_TEXT);
     expectFloor('warning', colors.warning, FLOOR_TEXT);
     expectFloor('info', colors.info, FLOOR_TEXT);
+    expectFloor('infoLight', colors.infoLight, FLOOR_TEXT);
+  });
+  it('warningLight is a TINT, never a foreground (the mobile pin, mirrored)', () => {
+    // Mobile's design_contrast_test asserts the same: #FFB800 works only as a
+    // fill under ink — below 3:1 on every surface as a foreground.
+    for (const surface of [colors.background, colors.surface, colors.secondary]) {
+      expect(contrastRatio(colors.warningLight, surface)).toBeLessThan(FLOOR_NON_TEXT);
+    }
   });
   it('white on the filled status surfaces', () => {
     for (const [name, fill] of [
       ['success', colors.success],
       ['error', colors.error],
+      // Every primary button hover renders white label text on this fill.
+      ['primaryHover', colors.primaryHover],
     ] as const) {
+      asserted.add(name);
       const ratio = contrastRatio(colors.secondary, fill);
       expect(ratio, `white on ${name} is ${ratioLabel(ratio)}:1`).toBeGreaterThanOrEqual(
         FLOOR_TEXT,
@@ -106,6 +125,34 @@ describe('the two blacks (SYSTEM.md §1)', () => {
     const r = (c: string) => contrastRatio(c, colors.background);
     expect(r(colors.divider)).toBeLessThan(r(colors.border));
     expect(r(colors.border)).toBeLessThan(r(colors.borderStrong));
+  });
+});
+
+describe('every colour is asserted (B3 — the completeness gate)', () => {
+  // Keys whose assertions don't flow through expectFloor: the surfaces
+  // themselves (they ARE the background side of every ratio), the two-blacks
+  // identity pins, the border-ordering trio's members already floored or
+  // ordered, and the two deliberate below-floor accents (negative pins below).
+  const ASSERTED_ELSEWHERE = [
+    'primary', // two-blacks pin + white-on-primary
+    'secondary', // IS the card surface
+    'secondaryVariant', // = surfaceVariant's hex; a surface, not a foreground
+    'background', // a surface
+    'surface', // a surface
+    'surfaceVariant', // a surface
+    'divider', // decorative by design — the ordering test places it
+    'border', // container hairline — the ordering test places it
+    'starRating', // NEGATIVE pin: below 3:1, decoration only
+    'warningLight', // NEGATIVE pin: below 3:1, tint only (drift #4, closed B3)
+  ];
+  it('no colors key escapes this file', () => {
+    const covered = new Set([...asserted, ...ASSERTED_ELSEWHERE]);
+    const missing = Object.keys(colors).filter((k) => !covered.has(k));
+    expect(
+      missing,
+      'colors keys with NO contrast assertion — add an expectFloor row, a ' +
+        'negative pin, or a documented ASSERTED_ELSEWHERE entry',
+    ).toEqual([]);
   });
 });
 
