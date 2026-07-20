@@ -159,6 +159,30 @@ keyboard test. Lockstep: `account.spec.ts:85` star selector → `getByRole('radi
 `equipe-invite.test.tsx` if dialog structure shifts selectors. E2e: full suite +
 the axe spec, zero skips.
 
+## What the adversarial review corrected (recorded, per the register's own rule)
+
+Fourteen findings, **zero refuted** — the reviewers ground every one in code (two
+with browser repros). The classes: **(1) aria-modal eats the toast** — in-dialog
+errors routed to the outside `<Toast>` are pruned from the a11y tree while the
+dialog is open; ManualBooking's errors now render as in-dialog `role="alert"`
+and its `onToast` prop died. **(2) The replaced-form blind spot** — the sweep
+classified visible *messages* but missed successes that replace the whole form
+(ReviewForm, DepositProof — the payments flow —, ReviewList's report): silent
+AND focus dropped to body; the confirmation now takes focus itself
+(`lib/focusOnMount.ts`). **(3) A wrong announcement** — « Identifiant copié. »
+for a button that copies the data export → « Données copiées. » **(4) A visual
+regression** — the Lightbox panel severed the `max-h-full` chain; portrait
+photos clipped → `panelClassName="contents"` restores the pre-B5 geometry.
+**(5) Focus-restore theatre** — the ⋯-menu dialogs' captured opener unmounts in
+the same commit the dialog mounts → `Modal.returnFocusRef` aims at the row's ⋯
+trigger. **(6) IME** — Escape during composition closed the dialog → guarded.
+**(7) Three more heading states** — area landings (h1→h3), the mobile « Carte »
+view (zero headings), the not-found dead end on the very route B5 fixed.
+**(8) The gate's own honesty** — live CARTO tiles under `networkidle` in a
+blocking 6-route test (every other map spec aborts that CDN), and a toast scan
+that could expire mid-analyze and pass vacuously → hermetic + post-analyze
+assert + the matrix grew to 15 routes.
+
 ## Not in scope
 
 `Loading`/`Skeleton`, `EmptyState`/`ErrorState`, `ConfirmDialog`-as-component and

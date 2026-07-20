@@ -187,7 +187,6 @@ export function JournalGrid({
             setQuick(null);
             onChanged();
           }}
-          onToast={onToast}
         />
       ) : null}
     </div>

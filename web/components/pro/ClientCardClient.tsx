@@ -418,7 +418,6 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             show('Rendez-vous créé', 'success');
             load();
           }}
-          onToast={show}
         />
       ) : null}
       <Toast toast={toast} />

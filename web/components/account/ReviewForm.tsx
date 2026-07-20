@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { isValidRating } from '../../lib/account/extras';
 import {
   addPhoto,
@@ -60,7 +61,13 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
 
   if (done) {
     return (
-      <p className="text-bodyMedium text-textSecondary">Merci pour votre avis&nbsp;!</p>
+      <p
+        ref={focusOnMount}
+        tabIndex={-1}
+        className="text-bodyMedium text-textSecondary"
+      >
+        Merci pour votre avis&nbsp;!
+      </p>
     );
   }
 

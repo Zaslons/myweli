@@ -1,5 +1,6 @@
 'use client';
 
+import type { RefObject } from 'react';
 import { useState } from 'react';
 import { changeMemberRole, createArtistReturning } from '../../lib/api/pro';
 import type { Artist } from '../../lib/pro/catalogue';
@@ -27,6 +28,7 @@ export function ChangeRoleDialog({
   artists,
   onArtistCreated,
   onClose,
+  returnFocusRef,
   onChanged,
 }: {
   member: TeamMember;
@@ -34,6 +36,8 @@ export function ChangeRoleDialog({
   artists: Artist[];
   onArtistCreated: (a: Artist) => void;
   onClose: () => void;
+  /** See Modal.returnFocusRef — the ⋯ menu item that opens this unmounts. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
   onChanged: (member: TeamMember) => void;
 }) {
   const initialRole =
@@ -88,7 +92,7 @@ export function ChangeRoleDialog({
   }
 
   return (
-    <Modal title="Changer le rôle" onClose={onClose}>
+    <Modal title="Changer le rôle" onClose={onClose} returnFocusRef={returnFocusRef}>
         <p className="mt-xs text-bodyMedium text-textTertiary">{member.email}</p>
 
         <div className="mt-m flex flex-col gap-s">

@@ -21,13 +21,19 @@ export function Lightbox({
       label={label}
       onClose={onClose}
       scrimClassName="bg-primary/80"
-      panelClassName="flex max-h-full max-w-full items-center justify-center"
+      // `contents`: the panel box vanishes and the img/✕ become the fixed
+      // wrapper's own flex items — the pre-B5 geometry, where `max-h-full`
+      // resolves against the VIEWPORT-sized wrapper. A regular panel broke
+      // portrait photos: its height is content-driven, so the img's
+      // percentage cap resolved against nothing and tall shots clipped
+      // (the review measured it). The trap still walks the DOM subtree.
+      panelClassName="contents"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
         alt={label}
-        className="max-h-full max-w-full rounded-lg object-contain"
+        className="relative max-h-full max-w-full rounded-lg object-contain"
       />
       <button
         type="button"

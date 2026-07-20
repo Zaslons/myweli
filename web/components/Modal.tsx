@@ -31,6 +31,7 @@ export function Modal({
   label,
   onClose,
   initialFocusRef,
+  returnFocusRef,
   panelClassName = 'w-full max-w-md rounded-xl border border-border bg-secondary p-l',
   scrimClassName = 'bg-primary/40',
   children,
@@ -44,14 +45,23 @@ export function Modal({
   /** Focused on open. SYSTEM §15: on a destructive confirm, point this at the
    *  CANCEL button — the safe default gets focus. */
   initialFocusRef?: RefObject<HTMLElement | null>;
+  /** Focused on close INSTEAD of the captured opener. For dialogs opened from
+   *  an element that unmounts in the same commit (a row's ⋯ menu item —
+   *  the menu closes as the dialog opens), point this at a stable ancestor
+   *  trigger (the ⋯ button) or the restore silently drops to <body>. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
   panelClassName?: string;
   scrimClassName?: string;
   children: ReactNode;
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Latest-prop mirror: the unmount cleanup below closes over mount-time
+  // values, but the RIGHT restore target is the one from the LAST render.
+  const returnRef = useRef(returnFocusRef);
+  returnRef.current = returnFocusRef;
 
-  // Focus in on mount, restore to the opener on unmount.
+  // Focus in on mount, restore on unmount (returnFocusRef, else the opener).
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
@@ -59,7 +69,9 @@ export function Modal({
       initialFocusRef?.current ?? (panel ? firstFocusable(panel) : null) ?? panel;
     target?.focus();
     return () => {
-      if (opener && opener.isConnected) opener.focus();
+      const ret = returnRef.current?.current;
+      if (ret && ret.isConnected) ret.focus();
+      else if (opener && opener.isConnected) opener.focus();
     };
     // A ref is stable, so this still runs exactly once per open.
   }, [initialFocusRef]);
@@ -67,6 +79,9 @@ export function Modal({
   // Escape closes; Tab cycles inside the panel (§8's trap).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // An Escape (or any key) during IME composition belongs to the IME —
+      // closing the dialog would discard the user's half-composed input.
+      if (e.isComposing) return;
       if (e.key === 'Escape') {
         e.stopPropagation(); // a modal above the pro drawer must not close both
         onClose();

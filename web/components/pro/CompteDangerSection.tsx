@@ -110,7 +110,7 @@ export function CompteDangerSection({
               {copied ? 'Copié ✓' : 'Copier'}
             </Button>
             <span role="status" className="sr-only">
-              {copied ? 'Identifiant copié.' : ''}
+              {copied ? 'Données copiées.' : ''}
             </span>
           </div>
         </div>

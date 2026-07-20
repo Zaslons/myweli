@@ -34,7 +34,6 @@ export function ManualBookingDialog({
   initialClient,
   onClose,
   onCreated,
-  onToast,
 }: {
   providerId: string;
   profile: ProProfile;
@@ -44,7 +43,6 @@ export function ManualBookingDialog({
   initialClient?: { name: string; phone?: string };
   onClose: () => void;
   onCreated: () => void;
-  onToast: (msg: string, kind?: 'success' | 'info' | 'error') => void;
 }) {
   const services = (profile.provider.services ?? []).filter(
     (s) => s.active !== false,
@@ -95,6 +93,8 @@ export function ManualBookingDialog({
     );
   }
 
+  const [error, setError] = useState<string | null>(null);
+
   const canSubmit = canSubmitManualBooking({
     serviceIds: selected,
     dateTimeIso: dt,
@@ -106,9 +106,10 @@ export function ManualBookingDialog({
     // The app's future-only guard — on the standalone path (a grid cell is
     // the salon's own calendar choice).
     if (!fixed && !isFutureIso(dt)) {
-      onToast('Choisissez une date et une heure à venir', 'error');
+      setError('Choisissez une date et une heure à venir');
       return;
     }
+    setError(null);
     setBusy(true);
     const name = picked?.name ?? query.trim();
     const r = await createManualBooking(providerId, {
@@ -123,11 +124,10 @@ export function ManualBookingDialog({
     setBusy(false);
     if (r.ok) onCreated();
     else
-      onToast(
+      setError(
         r.status === 409
           ? 'Ce créneau est déjà pris.'
           : 'Création impossible. Réessayez.',
-        'error',
       );
   }
 
@@ -303,6 +303,11 @@ export function ManualBookingDialog({
           </span>
         </div>
 
+        {error ? (
+          <p role="alert" className="mt-s text-bodyMedium text-error">
+            {error}
+          </p>
+        ) : null}
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler

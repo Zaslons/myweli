@@ -305,7 +305,6 @@ export function RendezVousClient() {
             const appts = await listProAppointments();
             if (appts.status === 200) setItems(appts.items);
           }}
-          onToast={show}
         />
       ) : null}
       <Toast toast={toast} />

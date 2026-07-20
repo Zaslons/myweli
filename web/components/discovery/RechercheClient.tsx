@@ -256,6 +256,11 @@ export function RechercheClient({
       {/* RIGHT — the map, part of the screen: no frame, flush to the right
           edge, full viewport height once the (non-sticky) header scrolls by. */}
       <div className={mobileView === 'map' ? 'block' : 'hidden lg:block'}>
+        {/* In the mobile « Carte » view the left column — and with it the
+            page's only h1 — is display:none. Keep a heading in the a11y
+            tree; lg:hidden keeps it single at desktop, where the real h1
+            is visible again. */}
+        <h1 className="sr-only lg:hidden">{title}</h1>
         <div
           // ds-ignore: viewport arithmetic (full height minus the header) — no token can express
           // a calc().

@@ -54,6 +54,11 @@ export function EquipeClient() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const { toast, show } = useToast();
   const revokeCancelRef = useRef<HTMLButtonElement>(null);
+  // The ⋯ trigger per member — the dialogs' restore target: their true opener
+  // (the menu ITEM) unmounts in the same commit the dialog mounts, so Modal's
+  // captured activeElement is already gone by close time.
+  const dotsRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const dotsRefFor = (id: string) => ({ current: dotsRefs.current[id] ?? null });
 
   useEffect(() => {
     (async () => {
@@ -257,6 +262,9 @@ export function EquipeClient() {
                         <div className="relative inline-block">
                           <button
                             type="button"
+                            ref={(el) => {
+                              dotsRefs.current[m.id] = el;
+                            }}
                             aria-label={`Actions pour ${m.email}`}
                             disabled={busyId === m.id}
                             onClick={() =>
@@ -330,6 +338,7 @@ export function EquipeClient() {
 
       {roleTarget && providerId ? (
         <ChangeRoleDialog
+          returnFocusRef={dotsRefFor(roleTarget.id)}
           member={roleTarget}
           providerId={providerId}
           artists={artists}
@@ -347,6 +356,7 @@ export function EquipeClient() {
         <Modal
           title="Révoquer l’accès"
           onClose={() => setRevokeTarget(null)}
+          returnFocusRef={dotsRefFor(revokeTarget.id)}
           // SYSTEM §15: the cancel path is the safe default and gets focus.
           initialFocusRef={revokeCancelRef}
         >
