@@ -19,21 +19,72 @@ import {
 // The three surfaces a token has to survive, worst → best. A token clears its
 // floor on `background` (the worst case) to be legal anywhere.
 const surfaces: Record<string, string> = {
+  // The review disproved the old "background is the worst case" premise:
+  // surfaceVariant (#F5F5F5) is DARKER than background (#F6F7F9), so it is
+  // the true worst case for dark-on-light text — and it was asserted nowhere.
+  surfaceVariant: colors.surfaceVariant,
   background: colors.background,
   surface: colors.surface,
   card: colors.secondary,
 };
 
-/// B3: every colors key must be asserted SOMEWHERE in this file — expectFloor
-/// records what passed through it, ASSERTED_ELSEWHERE declares the keys whose
-/// assertions have a different shape (negative pins, ordering, identity), and
-/// the completeness test at the bottom fails on anything left over. Before
-/// this, a new mirrored color could land with no contrast row at all.
-const asserted = new Set<string>();
+/// B3: every colors key must be asserted SOMEWHERE in this file. The coverage
+/// ledger is STATIC (FLOOR_ROWS + WHITE_ON + the negative pins +
+/// ASSERTED_ELSEWHERE) and the test bodies are GENERATED from it — the review
+/// proved the first version's runtime-Set variant went vacuous under `-t`
+/// filtering and test reordering; a declared table cannot.
+type FloorRow = {
+  key: keyof typeof colors;
+  floor: number;
+  note?: string;
+  /** Scope to a surface subset — ONLY with a register entry explaining why. */
+  on?: string[];
+};
 
-function expectFloor(name: string, c: string, floor: number) {
-  asserted.add(name);
+const FLOOR_ROWS: FloorRow[] = [
+  // text — WCAG 1.4.3, 4.5:1
+  { key: 'textPrimary', floor: FLOOR_TEXT, note: 'the ink' },
+  { key: 'textSecondary', floor: FLOOR_TEXT },
+  { key: 'textTertiary', floor: FLOOR_TEXT, note: 'the lightest legal text; nothing goes below it' },
+  // No WCAG floor; ours: it must still read as *a disabled thing*. The old
+  // #C0C0C0 was 1.70:1 — effectively nothing.
+  { key: 'textDisabled', floor: 2.0, note: 'exempt, but legible-inert — not blank' },
+  // non-text — WCAG 1.4.11, 3:1
+  { key: 'borderStrong', floor: FLOOR_NON_TEXT, note: 'the boundary of an interactive control' },
+  // 19.59:1 — trivially passes. The row exists because the TOKEN once didn't:
+  // borderFocus was promised by WEB-SYSTEM §1/§5 from B1 and only landed in
+  // B4 (the sixth mirror drift). With the row here, deleting the token goes red.
+  { key: 'borderFocus', floor: FLOOR_NON_TEXT, note: 'the focus ring (§5)' },
+  // gold measures 2.98:1 on surfaceVariant — BELOW the floor by 0.02. Found
+  // the moment the review's worst-case surface landed; mobile mirrors the
+  // same value and never measured it either. B3 cannot re-pick a mirrored
+  // brand value, so the row is scoped and the gap is REGISTERED (§15 row 23):
+  // the fix is a cross-surface token change (mobile first, the gate carries
+  // it over).
+  { key: 'gold', floor: FLOOR_NON_TEXT, note: 'gold-as-state (the owner chip)', on: ['background', 'surface', 'card'] },
+  { key: 'favorite', floor: FLOOR_NON_TEXT, note: 'the heart glyph' },
+  { key: 'categorySpa', floor: FLOOR_TEXT },
+  { key: 'categoryBarber', floor: FLOOR_TEXT },
+  { key: 'categorySalon', floor: FLOOR_TEXT },
+  // semantic — every status colour legible as text
+  { key: 'success', floor: FLOOR_TEXT },
+  { key: 'successLight', floor: FLOOR_TEXT },
+  { key: 'error', floor: FLOOR_TEXT },
+  { key: 'errorLight', floor: FLOOR_TEXT },
+  { key: 'warning', floor: FLOOR_TEXT },
+  { key: 'info', floor: FLOOR_TEXT },
+  { key: 'infoLight', floor: FLOOR_TEXT },
+];
+
+/** White label text sits on these fills (buttons, status chips). */
+const WHITE_ON: (keyof typeof colors)[] = ['success', 'error', 'primaryHover'];
+
+/** Deliberately BELOW the floor — decoration/tints only, pinned negatively. */
+const NEGATIVE_PINS: (keyof typeof colors)[] = ['starRating', 'warningLight'];
+
+function expectFloor(name: string, c: string, floor: number, on?: string[]) {
   for (const [surfaceName, bg] of Object.entries(surfaces)) {
+    if (on && !on.includes(surfaceName)) continue;
     const ratio = contrastRatio(c, bg);
     expect(
       ratio,
@@ -42,67 +93,30 @@ function expectFloor(name: string, c: string, floor: number) {
   }
 }
 
-describe('text — WCAG 1.4.3, 4.5:1', () => {
-  it('textPrimary (the ink)', () =>
-    expectFloor('textPrimary', colors.textPrimary, FLOOR_TEXT));
-  it('textSecondary', () =>
-    expectFloor('textSecondary', colors.textSecondary, FLOOR_TEXT));
-  it('textTertiary — the lightest legal text; nothing goes below it', () =>
-    expectFloor('textTertiary', colors.textTertiary, FLOOR_TEXT));
-  it('textDisabled is exempt, but legible-inert — not blank', () =>
-    // No WCAG floor; ours: it must still read as *a disabled thing*. The old
-    // #C0C0C0 was 1.70:1 — effectively nothing.
-    expectFloor('textDisabled', colors.textDisabled, 2.0));
+describe('floors — WCAG 1.4.3 text (4.5) / 1.4.11 non-text (3), from the ledger', () => {
+  for (const row of FLOOR_ROWS) {
+    it(`${row.key}${row.note ? ` — ${row.note}` : ''} ≥ ${row.floor.toFixed(1)}:1`, () =>
+      expectFloor(row.key, colors[row.key], row.floor, row.on));
+  }
 });
 
-describe('non-text — WCAG 1.4.11, 3:1', () => {
-  it('borderStrong — the boundary of an interactive control', () =>
-    expectFloor('borderStrong', colors.borderStrong, FLOOR_NON_TEXT));
-  // 19.59:1 — trivially passes. The row exists because the TOKEN once didn't:
-  // borderFocus was promised by WEB-SYSTEM §1/§5 from B1 and only landed in B4
-  // (the sixth mirror drift). With the row here, deleting the token goes red.
-  it('borderFocus — the focus ring (§5)', () =>
-    expectFloor('borderFocus', colors.borderFocus, FLOOR_NON_TEXT));
-  it('gold — gold-as-state (the owner chip)', () =>
-    expectFloor('gold', colors.gold, FLOOR_NON_TEXT));
-  it('favorite — the heart glyph', () =>
-    expectFloor('favorite', colors.favorite, FLOOR_NON_TEXT));
-  it('the category accents stay legible', () => {
-    expectFloor('categorySpa', colors.categorySpa, FLOOR_TEXT);
-    expectFloor('categoryBarber', colors.categoryBarber, FLOOR_TEXT);
-    expectFloor('categorySalon', colors.categorySalon, FLOOR_TEXT);
-  });
-});
-
-describe('semantic', () => {
-  it('every status colour is legible as text', () => {
-    expectFloor('success', colors.success, FLOOR_TEXT);
-    expectFloor('successLight', colors.successLight, FLOOR_TEXT);
-    expectFloor('error', colors.error, FLOOR_TEXT);
-    expectFloor('errorLight', colors.errorLight, FLOOR_TEXT);
-    expectFloor('warning', colors.warning, FLOOR_TEXT);
-    expectFloor('info', colors.info, FLOOR_TEXT);
-    expectFloor('infoLight', colors.infoLight, FLOOR_TEXT);
-  });
-  it('warningLight is a TINT, never a foreground (the mobile pin, mirrored)', () => {
-    // Mobile's design_contrast_test asserts the same: #FFB800 works only as a
-    // fill under ink — below 3:1 on every surface as a foreground.
-    for (const surface of [colors.background, colors.surface, colors.secondary]) {
-      expect(contrastRatio(colors.warningLight, surface)).toBeLessThan(FLOOR_NON_TEXT);
-    }
-  });
-  it('white on the filled status surfaces', () => {
-    for (const [name, fill] of [
-      ['success', colors.success],
-      ['error', colors.error],
-      // Every primary button hover renders white label text on this fill.
-      ['primaryHover', colors.primaryHover],
-    ] as const) {
-      asserted.add(name);
-      const ratio = contrastRatio(colors.secondary, fill);
+describe('white-on-fill (buttons, status chips)', () => {
+  for (const name of WHITE_ON) {
+    it(`white on ${name}`, () => {
+      const ratio = contrastRatio(colors.secondary, colors[name]);
       expect(ratio, `white on ${name} is ${ratioLabel(ratio)}:1`).toBeGreaterThanOrEqual(
         FLOOR_TEXT,
       );
+    });
+  }
+});
+
+describe('the negative pins — deliberately BELOW the floor, decoration/tints only', () => {
+  it('warningLight is a TINT, never a foreground (the mobile pin, mirrored)', () => {
+    // Mobile's design_contrast_test asserts the same: #FFB800 works only as a
+    // fill under ink — below 3:1 on every surface as a foreground.
+    for (const surface of Object.values(surfaces)) {
+      expect(contrastRatio(colors.warningLight, surface)).toBeLessThan(FLOOR_NON_TEXT);
     }
   });
 });
@@ -129,28 +143,31 @@ describe('the two blacks (SYSTEM.md §1)', () => {
 });
 
 describe('every colour is asserted (B3 — the completeness gate)', () => {
-  // Keys whose assertions don't flow through expectFloor: the surfaces
-  // themselves (they ARE the background side of every ratio), the two-blacks
-  // identity pins, the border-ordering trio's members already floored or
-  // ordered, and the two deliberate below-floor accents (negative pins below).
+  // Keys whose assertions have a different shape than a floor row: the
+  // surfaces (they are the BACKGROUND side of every expectFloor ratio —
+  // surfaceVariant included since the review proved it is the true worst
+  // case), the two-blacks identity pins, and the ordering trio.
   const ASSERTED_ELSEWHERE = [
-    'primary', // two-blacks pin + white-on-primary
-    'secondary', // IS the card surface
-    'secondaryVariant', // = surfaceVariant's hex; a surface, not a foreground
-    'background', // a surface
+    'primary', // two-blacks pin + 21:1 white-on-primary
+    'secondary', // IS the card surface (and the white of white-on-fill)
+    'secondaryVariant', // = surfaceVariant's hex — a surface, not a foreground
+    'background', // a surface (an expectFloor denominator)
     'surface', // a surface
-    'surfaceVariant', // a surface
+    'surfaceVariant', // a surface — IN the surfaces record since the review
     'divider', // decorative by design — the ordering test places it
     'border', // container hairline — the ordering test places it
-    'starRating', // NEGATIVE pin: below 3:1, decoration only
-    'warningLight', // NEGATIVE pin: below 3:1, tint only (drift #4, closed B3)
   ];
-  it('no colors key escapes this file', () => {
-    const covered = new Set([...asserted, ...ASSERTED_ELSEWHERE]);
+  it('no colors key escapes this file (a STATIC ledger — filter/order-proof)', () => {
+    const covered = new Set<string>([
+      ...FLOOR_ROWS.map((r) => r.key),
+      ...WHITE_ON,
+      ...NEGATIVE_PINS,
+      ...ASSERTED_ELSEWHERE,
+    ]);
     const missing = Object.keys(colors).filter((k) => !covered.has(k));
     expect(
       missing,
-      'colors keys with NO contrast assertion — add an expectFloor row, a ' +
+      'colors keys with NO contrast assertion — add a FLOOR_ROWS entry, a ' +
         'negative pin, or a documented ASSERTED_ELSEWHERE entry',
     ).toEqual([]);
   });

@@ -50,12 +50,17 @@ Parsers, one per declaration idiom (verified against the actual files):
 | `app_theme.dart` (19) | `static const double name = N.0;` | name + number (elevation getters, methods, the ThemeData builder don't match the idiom — skipped by construction) |
 | `text_styles.dart` (15) | `TextStyle(fontSize: N, fontWeight: FontWeight.X, height: A / B, letterSpacing: L)` | the `TextStyle(...)` body parsed **field-by-field** (order-independent); `height`'s division expression evaluated |
 
-**The self-check that closes the silent-parse hole:** per file, the raw count of
-idiom openers (`static const Color` / `double` / `TextStyle`) must equal the
-parsed count. A future declaration that deviates from the idiom — a computed
-color, a reformatted style — fails loud (*"unparseable declaration"*) instead of
-silently vanishing from the mirror. No hard-coded 29/15/19: new tokens flow
-through; malformed ones scream.
+**The self-check that closes the silent-parse hole** (hardened by the review —
+the first version counted idiom OPENERS, which a `static final` or type-inferred
+declaration never contains): Dart comments are **stripped first**, then every
+`static const|final [Type] name = …` in the file is a **candidate**, and the gate
+asserts candidates ≡ parsed, both directions. A declaration no idiom parser
+understands fails loud with its name instead of silently vanishing from the
+mirror. Getters and methods aren't candidates by construction. No hard-coded
+29/15/19: new tokens flow through; unparseable ones scream. The doc tables get
+the same treatment (a per-section row count), and the theme DIRECTORY itself is
+manifest-pinned — a future `motion.dart` forces a conscious gate update instead
+of being a file nothing reads.
 
 **The mapping table, explicit** (the encoded deliberate divergences):
 
@@ -80,8 +85,10 @@ Runs inside the **existing blocking vitest job** — no new CI step. Unlike
 `gen:api` (whose committed output is a build input, so CI regenerates + diffs),
 tokens.ts is hand-owned; equality-at-test-time IS the gate. Asserts per family:
 
-1. **Missing on web** — each with an actionable message: *"mobile `spacingSM` =
-   12 → web `spacing.sm` — MISSING. Run `npm run gen:tokens`."*
+1. **Missing on web** — each with an actionable, two-sided message: *"mobile
+   `spacingSM` = "12px" → web `spacing.sm` — MISSING on web. Run
+   `npm run gen:tokens`."* (the mobile constant name comes from the reversed
+   key maps — the review caught the first version naming only the web side).
 2. **Extra on web** — anything not in `WEB_ONLY` fails (a web-invented token is
    a mirror divergence too).
 3. **Exact value equality** (`toEqual` per family — vitest's object diff).
@@ -129,6 +136,35 @@ colors.infoLight = "#2D3561" — MISSING on web. Run `npm run gen:tokens`.
 ```
 Every other family already mirrored exactly — the drift was precisely and only
 the two known open rows.
+
+## What the adversarial review corrected (recorded, per the register's own rule)
+
+Fourteen findings, **zero refuted** — every one proven by executing the attack
+against the real gate. The classes: **(1) comments parsed as code** — a
+commented-out declaration kept a removed token alive; a stale
+`// letterSpacing: 0.15` comment SHADOWED the live field (first-match won); a
+stale declaration comment after the live line OVERWROTE it; a prose TODO turned
+the self-check permanently red → comments are stripped before any regex runs.
+**(2) The opener-count self-check was evadable** — `static final Color`
+(withValues() is not const-able, so `final` is forced) and type-inferred
+`static const scrim = …` were invisible to the parser AND the check →  the
+candidate check (every `static const|final … =` must parse, both directions).
+**(3) The doc-table pins had no self-check** — a `600 ms` cell, a bolded value,
+or an unbackticked row silently vanished → per-section row counts, with the
+`z-auto` row a declared exception. **(4) No guard on NEW theme files** — a
+future `motion.dart` would simply never be read → the directory manifest pin.
+**(5) The gate's own tests lied in places** — `WEB_ONLY.motion`/`zIndex` were
+declared but never consumed (a contract-following new web-only key produced a
+factually false failure message) → consumed generically; `screens` was the one
+export nothing compared (a mutated breakpoint stayed green) → pinned by value;
+the contrast completeness Set was order-dependent (vacuous under `-t` filters)
+→ a static ledger generating the test bodies. **And the review's worst-case
+surface immediately paid for itself**: `surfaceVariant` (#F5F5F5) is darker
+than `background`, and against it **`gold` measures 2.98:1 — a real sub-floor
+violation neither surface had ever measured** (mobile's suite stops at the same
+three surfaces). Registered as row 23; the fix is a mobile-side value change
+the gate will then carry over. Every attack is pinned forever in
+`tests/dart-tokens.review.test.ts`.
 
 ## Not in scope
 
