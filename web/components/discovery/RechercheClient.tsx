@@ -211,9 +211,11 @@ export function RechercheClient({
           </a>
         </div>
 
-        <p className="mt-m text-bodyMedium text-textTertiary">
-          {results.length} salon{results.length > 1 ? 's' : ''}
-        </p>
+        {results.length > 0 ? (
+          <h2 className="mt-m text-titleLarge font-semibold text-textPrimary">
+            {results.length} salon{results.length > 1 ? 's' : ''}
+          </h2>
+        ) : null}
         <div className="mt-m space-y-m">
           {results.length === 0 ? (
             <div className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">

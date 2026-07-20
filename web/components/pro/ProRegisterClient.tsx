@@ -221,7 +221,7 @@ export function ProRegisterClient() {
       </div>
 
       {/* Identity */}
-      <h2 className="mt-l font-medium text-textPrimary">
+      <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
         Votre identité de connexion
       </h2>
       <p className="mt-xs text-bodySmall text-textTertiary">

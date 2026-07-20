@@ -270,7 +270,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           </div>
 
           <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-            <h2 className="font-semibold text-textPrimary">Notes</h2>
+            <h2 className="text-titleLarge font-semibold text-textPrimary">Notes</h2>
             <p className="mt-xs text-bodySmall text-textTertiary">
               Visible uniquement par votre équipe.
             </p>
@@ -362,7 +362,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           ) : null}
 
           <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-            <h2 className="font-semibold text-textPrimary">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">
               Historique des visites
             </h2>
             {visits.length === 0 ? (

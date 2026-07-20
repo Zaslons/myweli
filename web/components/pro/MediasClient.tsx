@@ -188,12 +188,15 @@ function PhotosTab({
 
       <div className="mt-m flex flex-wrap items-center gap-s">
         {canAddPhoto(photos) ? (
-          <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
+          // Row 22: `hidden` (display:none) made the input unfocusable — a
+          // keyboard user could not upload at all. sr-only keeps it a real
+          // tab stop; §5's ring projects onto the label via focus-within.
+          <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-borderFocus hover:bg-surfaceVariant">
             {uploading ? 'Téléversement…' : 'Ajouter une photo'}
             <input
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
               onChange={onPick}
             />
           </label>
@@ -368,9 +371,9 @@ function FilePick({
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant">
+    <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-borderFocus hover:bg-surfaceVariant">
       {label}
-      <input type="file" accept="image/*" className="hidden" onChange={onChange} />
+      <input type="file" accept="image/*" className="sr-only" onChange={onChange} />
     </label>
   );
 }

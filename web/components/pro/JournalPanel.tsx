@@ -93,7 +93,7 @@ export function JournalPanel({
       className="fixed inset-y-0 right-0 z-dropdown flex w-full max-w-sm flex-col border-l border-border bg-secondary shadow-xl"
     >
       <div className="flex items-center justify-between border-b border-border p-m">
-        <h2 className="font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Détails du rendez-vous
         </h2>
         <button

@@ -144,9 +144,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       </Link>
       <section className="mt-m rounded-xl border border-border bg-secondary p-l">
         <div className="flex items-center justify-between gap-m">
-          <h2 className="text-titleLarge font-semibold text-textPrimary">
+          <h1 className="text-titleLarge font-semibold text-textPrimary">
             {appt.providerName ?? 'Salon'}
-          </h2>
+          </h1>
           <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
             {statusLabelFr(appt.status)}
           </span>

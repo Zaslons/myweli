@@ -16,6 +16,7 @@ import { TextField } from '../TextField';
 /// up to 3 photos — the app's submit sheet, parity 2.13).
 export function ReviewForm({ appointmentId }: { appointmentId: string }) {
   const [rating, setRating] = useState(0);
+  const starRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -67,15 +68,36 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
     <div>
       <p className="font-medium text-textPrimary">Laisser un avis</p>
       {/* §13.2: each star is a ≥48px target and adjacent targets sit ≥8px
-          apart (they were 24px glyphs 4px apart — both violations measured). */}
+          apart (they were 24px glyphs 4px apart — both violations measured).
+          B5 (row 21): a REAL radio group — pick-one-of-five, not five toggles.
+          aria-pressed buttons inside a radiogroup are invalid ARIA children;
+          radios carry aria-checked on the CHOSEN value (the fill still paints
+          rating >= n), one roving tab stop, and arrows move + select. */}
       <div className="mt-s flex gap-s" role="radiogroup" aria-label="Note">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
+            role="radio"
             aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
-            aria-pressed={rating >= n}
+            aria-checked={rating === n}
+            tabIndex={n === (rating || 1) ? 0 : -1}
             onClick={() => setRating(n)}
+            onKeyDown={(e) => {
+              const next =
+                e.key === 'ArrowRight' || e.key === 'ArrowDown'
+                  ? Math.min(5, n + 1)
+                  : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+                    ? Math.max(1, n - 1)
+                    : null;
+              if (next === null) return;
+              e.preventDefault();
+              setRating(next);
+              starRefs.current[next - 1]?.focus();
+            }}
+            ref={(el) => {
+              starRefs.current[n - 1] = el;
+            }}
             className={`flex min-h-12 min-w-12 items-center justify-center text-iconM ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
           >
             ★
