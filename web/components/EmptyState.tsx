@@ -24,17 +24,20 @@ export function EmptyState({
   title,
   description,
   action,
+  plain = false,
   className = '',
 }: {
   icon?: IconName;
   title: string;
   description?: string;
   action?: ReactNode;
+  /** No card chrome — for embedding inside an already-boxed host (DataTable). */
+  plain?: boolean;
   className?: string;
 }) {
   return (
     <div
-      className={`rounded-xl border border-border bg-secondary p-xl text-center ${className}`}
+      className={`${plain ? 'p-xl' : 'rounded-xl border border-border bg-secondary p-xl'} text-center ${className}`}
     >
       {icon ? (
         <Icon name={icon} size="iconXL" className="mx-auto text-textTertiary" />
