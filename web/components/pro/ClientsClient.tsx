@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { addClient, getMyProvider, listClients } from '../../lib/api/pro';
@@ -34,6 +36,7 @@ export function ClientsClient() {
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [adding, setAdding] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,7 +86,7 @@ export function ClientsClient() {
       setSalonTz(me.profile.provider.timezone ?? undefined);
       await load(pid, { query: '', tag: '', page: 1 });
     })();
-  }, [router, load]);
+  }, [router, load, reloadKey]);
 
   function search(next: string) {
     setQuery(next);
@@ -102,7 +105,7 @@ export function ClientsClient() {
 
   if (loading) return <SkeletonRows count={6} className="mt-l" />;
   if (error) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Clients" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const emptyBase = total === 0 && !query && !tag;
@@ -152,9 +155,24 @@ export function ClientsClient() {
           </p>
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-l text-textSecondary">
-          Aucun client pour « {query || tag} ».
-        </p>
+        <EmptyState
+          className="mt-l"
+          icon="people"
+          title={`Aucun client pour « ${query || tag} »`}
+          description="Essayez un autre nom ou effacez le filtre."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setQuery('');
+                setTag('');
+                if (providerId) load(providerId, { query: '', tag: '', page: 1 });
+              }}
+            >
+              Effacer la recherche
+            </Button>
+          }
+        />
       ) : (
         <>
           <ul className="mt-m divide-y divide-border rounded-xl border border-border bg-secondary">

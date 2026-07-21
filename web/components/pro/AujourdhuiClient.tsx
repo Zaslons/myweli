@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -31,6 +33,7 @@ export function AujourdhuiClient() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [offerLive, setOfferLive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -78,11 +81,11 @@ export function AujourdhuiClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Aujourd’hui" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   // The ACTIVE salon's market (multi-pays MP3) — day boundary + money label.
@@ -114,9 +117,7 @@ export function AujourdhuiClient() {
         </h2>
         <div className="mt-m space-y-s">
           {today.length === 0 ? (
-            <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-              Aucun rendez-vous aujourd’hui.
-            </p>
+            <EmptyState icon="event" title="Aucun rendez-vous aujourd’hui" description="Vos rendez-vous du jour apparaîtront ici." />
           ) : (
             today.map((a) => (
               <ProAppointmentRow
@@ -220,9 +221,7 @@ export function AujourdhuiClient() {
       </h2>
       <div className="mt-m space-y-s">
         {today.length === 0 ? (
-          <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-            Aucun rendez-vous aujourd’hui.
-          </p>
+          <EmptyState icon="event" title="Aucun rendez-vous aujourd’hui" description="Vos rendez-vous du jour apparaîtront ici." />
         ) : (
           today.map((a) => (
             <ProAppointmentRow

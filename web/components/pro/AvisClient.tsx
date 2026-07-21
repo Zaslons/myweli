@@ -1,6 +1,8 @@
 'use client';
 
 import Image from 'next/image';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Review } from '../../lib/api/providers';
@@ -71,12 +73,7 @@ export function AvisClient() {
   if (error) {
     return (
       <div>
-        <p role="alert" className="text-error">Impossible de charger les avis.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Avis" message="Impossible de charger les avis." onRetry={load} />
       </div>
     );
   }
@@ -88,12 +85,12 @@ export function AvisClient() {
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Avis</h1>
 
       {items.length === 0 ? (
-        <div className="mt-l rounded-xl border border-border bg-secondary p-xl text-center">
-          <p className="text-titleLarge font-medium text-textSecondary">Aucun avis</p>
-          <p className="mt-xs text-bodyMedium text-textTertiary">
-            Les avis de vos clients apparaîtront ici
-          </p>
-        </div>
+        <EmptyState
+          className="mt-l"
+          icon="star"
+          title="Aucun avis"
+          description="Les avis de vos clients apparaîtront ici."
+        />
       ) : (
         <>
           {/* Summary card — the app's average + 5→1 distribution */}

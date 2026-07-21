@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getKycStatus, getMyProvider, submitKyc } from '../../lib/api/pro';
 import {
@@ -105,12 +106,7 @@ export function VerificationClient() {
   if (error) {
     return (
       <div>
-        <p role="alert" className="text-error">Chargement impossible.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Vérification" message="Chargement impossible." onRetry={load} />
       </div>
     );
   }

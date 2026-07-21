@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Me } from '../../lib/api/account';
@@ -63,12 +64,7 @@ export function DataExportClient() {
   if (error || !me) {
     return (
       <div>
-        <p role="alert" className="text-error">Chargement impossible.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Mes données" message="Chargement impossible." onRetry={load} />
       </div>
     );
   }

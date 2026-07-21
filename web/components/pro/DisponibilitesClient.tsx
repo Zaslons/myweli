@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ErrorState } from '../ErrorState';
 import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
 import { DayHoursEditor } from './DayHoursEditor';
@@ -30,6 +31,7 @@ export function DisponibilitesClient() {
   const [blocked, setBlocked] = useState<string[]>([]);
   const [newDate, setNewDate] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export function DisponibilitesClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   function patchBreak(i: number, patch: Partial<DayForm>) {
     setBreakDays((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -105,7 +107,7 @@ export function DisponibilitesClient() {
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (loadError) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Disponibilités" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const inputCls =

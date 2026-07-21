@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Toast } from '../Toast';
@@ -107,7 +108,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     );
   }
   if (error || !card || !providerId) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Fiche client" onRetry={() => { setError(false); setLoading(true); void load(); }} />;
   }
 
   async function saveTags(next: string[]) {

@@ -1,6 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type ProProfile,
@@ -70,7 +72,7 @@ export function CatalogueClient() {
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error || !profile) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Catalogue" onRetry={() => { setError(false); setLoading(true); void load(); }} />;
   }
 
   const providerId = profile.provider.id;
@@ -162,7 +164,7 @@ export function CatalogueClient() {
                   onSaved={afterSave}
                 />
               ),
-              'Aucun service. Ajoutez votre premier service.',
+              { title: 'Aucun service', description: 'Ajoutez votre premier service.' },
             )
           : renderList(
               artists,
@@ -177,7 +179,7 @@ export function CatalogueClient() {
                   onSaved={afterSave}
                 />
               ),
-              'Aucun employé. Ajoutez vos fiches employés.',
+              { title: 'Aucun employé', description: 'Ajoutez vos fiches employés.' },
             )}
       </div>
     </div>
@@ -189,13 +191,11 @@ function renderList<T extends { id: string }>(
   open: Open,
   row: (item: T) => JSX.Element,
   editor: (item: T) => JSX.Element,
-  empty: string,
+  empty: { title: string; description: string },
 ) {
   if (items.length === 0 && open !== 'new') {
     return (
-      <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-        {empty}
-      </p>
+      <EmptyState title={empty.title} description={empty.description} />
     );
   }
   return items.map((item) => (

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { EmptyState } from '../EmptyState';
 import type {
   LocalityArea,
   LocalityCity,
@@ -343,10 +344,12 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
         </ul>
         </>
       ) : (
-        <p className="mt-l text-textSecondary">
-          Aucun salon de {label.toLowerCase()} {place.prefix} {place.name} pour
-          le moment. Explorez les liens ci-dessous.
-        </p>
+        <EmptyState
+          className="mt-l"
+          icon="search"
+          title={`Aucun salon de ${label.toLowerCase()} ${place.prefix} ${place.name} pour le moment`}
+          description="Explorez les liens ci-dessous."
+        />
       )}
 
       {/* Area level: the same root across the city's other areas. */}

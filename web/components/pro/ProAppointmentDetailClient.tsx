@@ -116,7 +116,21 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
   if (loading) return <Loading className="mt-l" />;
   if (notFound || !appt) {
-    return <p role="alert" className="text-error">Rendez-vous introuvable.</p>;
+    return (
+      <div>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
+          Rendez-vous
+        </h1>
+        <p role="alert" className="mt-m text-bodyMedium text-error">
+          Rendez-vous introuvable.
+        </p>
+        <p className="mt-m">
+          <Link href="/pro/rendez-vous" className="text-bodyMedium underline">
+            ← Rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   // The ACTIVE salon's market (multi-pays MP3).

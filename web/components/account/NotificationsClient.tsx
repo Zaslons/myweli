@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ICON_PATHS, Icon, type IconName } from '../Icon';
@@ -120,12 +122,7 @@ export function NotificationsClient() {
   if (error) {
     return (
       <div>
-        <p role="alert" className="text-error">Chargement impossible.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Notifications" message="Chargement impossible." onRetry={load} />
       </div>
     );
   }
@@ -149,12 +146,12 @@ export function NotificationsClient() {
       </div>
 
       {items.length === 0 ? (
-        <div className="mt-l rounded-xl border border-border bg-secondary p-l text-center">
-          <p className="font-medium text-textPrimary">Aucune notification</p>
-          <p className="mt-xs text-bodyMedium text-textSecondary">
-            Vos confirmations de rendez-vous et nouveautés apparaîtront ici.
-          </p>
-        </div>
+        <EmptyState
+          className="mt-l"
+          icon="bell"
+          title="Aucune notification"
+          description="Vos confirmations de rendez-vous et nouveautés apparaîtront ici."
+        />
       ) : (
         <ul className="mt-l space-y-s">
           {items.map((n) => (

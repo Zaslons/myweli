@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { EmptyState } from '../EmptyState';
 import { Loading } from '../Loading';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultCity, findCity, type LocalityTree } from '../../lib/api/localities';
@@ -219,10 +220,11 @@ export function RechercheClient({
         ) : null}
         <div className="mt-m space-y-m">
           {results.length === 0 ? (
-            <div className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-              Aucun salon trouvé. Essayez une autre recherche ou une autre
-              commune.
-            </div>
+            <EmptyState
+              icon="search"
+              title="Aucun salon trouvé"
+              description="Essayez une autre recherche ou une autre commune."
+            />
           ) : (
             results.map((p) => (
               <div

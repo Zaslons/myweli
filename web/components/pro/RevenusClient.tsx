@@ -1,6 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import { getEarnings, getMyProvider } from '../../lib/api/pro';
@@ -107,12 +109,7 @@ export function RevenusClient() {
         <SkeletonRows count={5} className="mt-l" />
       ) : error ? (
         <div className="mt-l">
-          <p role="alert" className="text-error">Chargement impossible.</p>
-          <div className="mt-s">
-            <Button variant="secondary" onClick={init}>
-              Réessayer
-            </Button>
-          </div>
+          <ErrorState message="Chargement impossible." onRetry={init} />
         </div>
       ) : earnings ? (
         <>
@@ -124,9 +121,7 @@ export function RevenusClient() {
           </div>
 
           {earnings.transactions.length === 0 ? (
-            <p className="mt-l rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-              Aucune transaction sur cette période.
-            </p>
+            <EmptyState className="mt-l" icon="depositReceived" title="Aucune transaction" description="Les encaissements de la période choisie apparaîtront ici." />
           ) : (
             <ul className="mt-l space-y-s">
               {earnings.transactions.map((t) => (

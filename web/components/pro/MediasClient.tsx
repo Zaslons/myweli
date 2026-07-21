@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ErrorState } from '../ErrorState';
 import { type ChangeEvent, useEffect, useState } from 'react';
 import { getMyProvider, saveBeforeAfters, saveGallery } from '../../lib/api/pro';
 import {
@@ -24,6 +25,7 @@ export function MediasClient() {
   const [pairs, setPairs] = useState<BeforeAfterPair[]>([]);
   const [tab, setTab] = useState<Tab>('photos');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -48,11 +50,11 @@ export function MediasClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   if (loading) return <SkeletonGrid count={6} className="mt-l grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" />;
   if (loadError) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Médias" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   return (

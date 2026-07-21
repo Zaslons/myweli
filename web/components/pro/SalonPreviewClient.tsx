@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
 import { Loading } from '../Loading';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -52,12 +53,11 @@ export function SalonPreviewClient() {
   if (error || !provider) {
     return (
       <main className="p-l">
-        <p role="alert" className="text-error">Impossible de charger l’aperçu.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState
+          title="Aperçu du salon"
+          message="Impossible de charger l’aperçu."
+          onRetry={load}
+        />
       </main>
     );
   }

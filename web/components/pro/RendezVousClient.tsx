@@ -1,6 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import { Toast } from '../Toast';
@@ -37,6 +39,7 @@ export function RendezVousClient() {
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [view, setView] = useState<View>('journal');
   const [journalDay, setJournalDay] = useState<JournalDay | null>(null);
@@ -75,7 +78,7 @@ export function RendezVousClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   const loadJournal = useCallback(async () => {
     if (!profile) return;
@@ -90,7 +93,7 @@ export function RendezVousClient() {
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Rendez-vous" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const serviceName = (id: string) =>
@@ -237,9 +240,7 @@ export function RendezVousClient() {
             </p>
             <div className="mt-s space-y-s">
               {dayList.length === 0 ? (
-                <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-                  Aucun rendez-vous ce jour-là.
-                </p>
+                <EmptyState icon="event" title="Aucun rendez-vous ce jour-là" />
               ) : (
                 dayList.map((a) => (
                   <ProAppointmentRow
@@ -275,9 +276,7 @@ export function RendezVousClient() {
           </div>
           <div className="mt-m space-y-s">
             {list.length === 0 ? (
-              <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-                Aucun rendez-vous.
-              </p>
+              <EmptyState icon="event" title="Aucun rendez-vous" description="Les réservations de vos clients apparaîtront ici." />
             ) : (
               list.map((a) => (
                 <ProAppointmentRow
