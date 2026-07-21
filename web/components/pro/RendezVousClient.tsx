@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { SkeletonRows } from '../Skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
@@ -87,7 +88,7 @@ export function RendezVousClient() {
   }, [view, loadJournal]);
 
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
@@ -217,7 +218,7 @@ export function RendezVousClient() {
               />
             </div>
           ) : (
-            <p className="mt-l text-textSecondary">Chargement du planning…</p>
+            <SkeletonRows count={6} className="mt-l" />
           )}
         </div>
       ) : view === 'calendar' ? (

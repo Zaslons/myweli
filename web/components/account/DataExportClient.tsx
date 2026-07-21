@@ -12,6 +12,7 @@ import {
 import type { Appointment } from '../../lib/account/appointments';
 import { buildUserDataExport } from '../../lib/account/export';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 /// « Mes données » (parity 11.2 — the app's data-export screen, web-adapted):
 /// profile + rendez-vous + favoris assembled client-side into one JSON,
@@ -58,7 +59,7 @@ export function DataExportClient() {
     return () => clearTimeout(t);
   }, [copied]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (error || !me) {
     return (
       <div>

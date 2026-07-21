@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { SkeletonRows } from '../Skeleton';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -79,7 +80,7 @@ export function AujourdhuiClient() {
     };
   }, [router]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

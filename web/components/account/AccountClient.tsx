@@ -24,6 +24,7 @@ import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
 import { supportWhatsAppUrl } from '../../lib/support';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { TextField } from '../TextField';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
@@ -109,7 +110,7 @@ export function AccountClient() {
     setEditingPhone(false);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     return (
       <p role="alert" className="text-error">Une erreur est survenue. Réessayez plus tard.</p>

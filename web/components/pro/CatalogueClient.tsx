@@ -35,6 +35,7 @@ import {
 } from '../../lib/pro/catalogue';
 import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 
 type Tab = 'services' | 'equipe';
 // `open` = which form shows: null · 'new' · an item id (edit).
@@ -67,7 +68,7 @@ export function CatalogueClient() {
     load();
   }, [load]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error || !profile) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }
@@ -576,14 +577,10 @@ function ArtistFormCard({
           />
           <Button
             variant="secondary"
-            disabled={uploading}
+            isLoading={uploading}
             onClick={() => photoRef.current?.click()}
           >
-            {uploading
-              ? 'Envoi…'
-              : form.imageUrl
-                ? 'Changer la photo'
-                : 'Ajouter une photo'}
+            {form.imageUrl ? 'Changer la photo' : 'Ajouter une photo'}
           </Button>
         </div>
 

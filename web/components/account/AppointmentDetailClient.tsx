@@ -24,6 +24,7 @@ import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { salonDayKey, salonFormatter, salonToday } from '../../lib/time';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 import { TextField } from '../TextField';
 import { SalonTimeHint } from '../SalonTimeHint';
 import { DepositProof } from '../booking/DepositProof';
@@ -127,7 +128,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     await load();
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (notFound || !appt) {
     // A persistent state is a page: it needs the h1 and a way out
     // (SYSTEM §12 — an error state without one is a dead end).
@@ -333,9 +334,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   }}
                 />
                 {slotsLoading ? (
-                  <p className="mt-s text-bodyMedium text-textSecondary">
-                    Chargement des créneaux…
-                  </p>
+                  <Loading label="Chargement des créneaux…" className="mt-s" />
                 ) : slots.length === 0 ? (
                   <p className="mt-s text-bodyMedium text-textSecondary">
                     Aucun créneau disponible ce jour.

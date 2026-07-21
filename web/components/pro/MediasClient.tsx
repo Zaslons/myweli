@@ -12,6 +12,7 @@ import {
 } from '../../lib/pro/medias';
 import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
+import { SkeletonGrid } from '../Skeleton';
 import { TextField } from '../TextField';
 
 type Tab = 'photos' | 'avant-apres';
@@ -49,7 +50,7 @@ export function MediasClient() {
     };
   }, [router]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonGrid count={6} className="mt-l grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" />;
   if (loadError) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

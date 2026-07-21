@@ -25,6 +25,7 @@ import { combineDateTime } from '../../lib/pro/manual-booking';
 import type { ProAppointment } from '../../lib/pro/today';
 import { isSameSalonDay, salonDayKey, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -113,7 +114,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     await load();
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (notFound || !appt) {
     return <p role="alert" className="text-error">Rendez-vous introuvable.</p>;
   }

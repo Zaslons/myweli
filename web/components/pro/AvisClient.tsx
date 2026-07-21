@@ -8,6 +8,7 @@ import { getMyProvider, listProviderReviews } from '../../lib/api/pro';
 import { formatDateFr } from '../../lib/format';
 import { reviewStats } from '../../lib/pro/reviews';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 
 /// « Avis » (docs/design/web-pro-reviews.md) — the pro app's ReviewsScreen,
 /// web-adapted: summary card (average + 5→1 distribution) over the review
@@ -66,7 +67,7 @@ export function AvisClient() {
     setPage((p) => p + 1);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     return (
       <div>
@@ -190,8 +191,8 @@ export function AvisClient() {
 
           {items.length < total ? (
             <div className="mt-m">
-              <Button variant="secondary" disabled={busy} onClick={loadMore}>
-                {busy ? 'Chargement…' : 'Charger plus'}
+              <Button variant="secondary" isLoading={busy} onClick={loadMore}>
+                Charger plus
               </Button>
             </div>
           ) : null}

@@ -16,6 +16,7 @@ import {
 } from '../../lib/pro/availability';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 
 export function DisponibilitesClient() {
   const router = useRouter();
@@ -102,7 +103,7 @@ export function DisponibilitesClient() {
     setSaved(true);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (loadError) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

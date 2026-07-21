@@ -26,6 +26,7 @@ import {
   waHref,
 } from '../../lib/pro/clients';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { TextField } from '../TextField';
 import { ManualBookingDialog } from './ManualBookingDialog';
 
@@ -94,7 +95,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const tz = profile?.provider.timezone ?? undefined;
   const currency = profile?.provider.currency ?? undefined;
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (notFound) {
     return (
       <div>

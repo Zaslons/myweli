@@ -17,6 +17,7 @@ import {
 } from '../../lib/pro/deposit';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 const input =
   'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
@@ -65,7 +66,7 @@ export function AcompteClient() {
     };
   }, [router]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (loadError || !form) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Loading } from '../Loading';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Provider } from '../../lib/api/providers';
@@ -44,7 +45,7 @@ export function SalonPreviewClient() {
   if (loading) {
     return (
       <main className="p-l">
-        <p className="text-textSecondary">Chargement de l’aperçu…</p>
+        <Loading label="Chargement de l’aperçu…" />
       </main>
     );
   }

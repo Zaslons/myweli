@@ -24,6 +24,7 @@ import {
   seatsLabel,
 } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { ChangeRoleDialog } from './ChangeRoleDialog';
 import { InviteMemberDialog } from './InviteMemberDialog';
 import { TeamRoleChip } from './TeamRoleChip';
@@ -140,7 +141,7 @@ export function EquipeClient() {
     show(`Accès de ${m.email} révoqué.`, 'success');
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

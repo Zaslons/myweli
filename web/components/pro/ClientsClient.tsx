@@ -13,6 +13,7 @@ import {
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { Modal } from '../Modal';
 import { TextField } from '../TextField';
 
@@ -99,7 +100,7 @@ export function ClientsClient() {
     if (providerId) load(providerId, { query, tag: value, page: 1 });
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={6} className="mt-l" />;
   if (error) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

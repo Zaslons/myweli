@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Loading } from '../Loading';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultCity, findCity, type LocalityTree } from '../../lib/api/localities';
 import type { Provider } from '../../lib/api/providers';
@@ -23,7 +24,7 @@ const ResultsMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center bg-surfaceVariant">
-        <p className="text-bodyMedium text-textSecondary">Chargement de la carte…</p>
+        <Loading label="Chargement de la carte…" />
       </div>
     ),
   },

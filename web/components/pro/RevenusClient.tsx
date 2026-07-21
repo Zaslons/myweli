@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { SkeletonRows } from '../Skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import { getEarnings, getMyProvider } from '../../lib/api/pro';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
@@ -103,7 +104,7 @@ export function RevenusClient() {
       </div>
 
       {loading ? (
-        <p className="mt-l text-textSecondary">Chargement…</p>
+        <SkeletonRows count={5} className="mt-l" />
       ) : error ? (
         <div className="mt-l">
           <p role="alert" className="text-error">Chargement impossible.</p>

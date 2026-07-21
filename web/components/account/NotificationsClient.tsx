@@ -19,6 +19,7 @@ import {
 } from '../../lib/api/account';
 import { formatDateTimeFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 
 /// Notification glyphs (Material outline paths), one per contract type.
 
@@ -115,7 +116,7 @@ export function NotificationsClient() {
     }
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
     return (
       <div>

@@ -19,6 +19,7 @@ import {
 } from '../../lib/pro/subscription-plans';
 import { seatsLabel } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 /// /pro/abonnement (team access R5a — docs/design/web-team-access-r5.md §2.3):
 /// the offer picker on GET/PUT /providers/{id}/subscription. Setup (404) shows
@@ -82,7 +83,7 @@ export function AbonnementClient() {
     setNotice(null);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (error) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

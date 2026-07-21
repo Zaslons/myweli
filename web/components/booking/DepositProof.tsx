@@ -104,8 +104,8 @@ export function DepositProof({
           aria-label="Capture du paiement"
           className="text-bodyMedium text-textSecondary"
         />
-        <Button disabled={busy} onClick={send}>
-          {busy ? 'Envoi…' : 'Envoyer la preuve'}
+        <Button isLoading={busy} onClick={send}>
+          Envoyer la preuve
         </Button>
       </div>
       {error ? (

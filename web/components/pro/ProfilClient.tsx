@@ -18,6 +18,7 @@ import { centerOf } from '../../lib/discovery/map';
 import { hasCap } from '../../lib/pro/team';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 import { CompteDangerSection } from './CompteDangerSection';
 import { LocalityPicker } from './LocalityPicker';
 import { TeamRoleChip } from './TeamRoleChip';
@@ -30,7 +31,7 @@ const LocationPicker = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-surfaceVariant md:h-80">
-        <p className="text-bodyMedium text-textSecondary">Chargement de la carte…</p>
+        <Loading label="Chargement de la carte…" />
       </div>
     ),
   },
@@ -82,7 +83,7 @@ export function ProfilClient() {
     };
   }, [router]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (loadError || !form) {
     return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
   }

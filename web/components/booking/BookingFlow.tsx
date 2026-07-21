@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Loading } from '../Loading';
+import { SkeletonRows } from '../Skeleton';
 import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import { type Me, getMe } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
@@ -339,7 +341,7 @@ export function BookingFlow({
         </dl>
 
         {me === undefined ? (
-          <p className="mt-m text-bodyMedium text-textSecondary">Chargement…</p>
+          <SkeletonRows count={4} className="mt-m" />
         ) : me === null ? (
           <div className="mt-m">
             <p className="text-bodyMedium text-textSecondary">
@@ -567,7 +569,7 @@ export function BookingFlow({
             onChange={(e) => onDate(e.target.value)}
           />
           {slotsLoading ? (
-            <p className="mt-m text-textSecondary">Chargement des créneaux…</p>
+            <Loading label="Chargement des créneaux…" className="mt-m" />
           ) : slots.length === 0 ? (
             <p className="mt-m text-textSecondary">Aucun créneau disponible</p>
           ) : (
