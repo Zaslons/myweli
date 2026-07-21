@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ChipButton } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
@@ -88,20 +89,17 @@ export function RevenusClient() {
         Vos revenus réalisés (rendez-vous terminés).
       </p>
 
+      {/* Was px-m py-xs with NO 48px floor — a row-7h leak the B4 sweep
+          missed; ChipButton carries the floor and §16's borderStrong. */}
       <div className="mt-m flex flex-wrap gap-s">
         {PERIODS.map((p) => (
-          <button
+          <ChipButton
             key={p.key}
-            type="button"
+            selected={period === p.key}
             onClick={() => pick(p.key)}
-            className={`rounded-pill border px-m py-xs text-bodyMedium ${
-              period === p.key
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-secondary text-textPrimary'
-            }`}
           >
             {p.label}
-          </button>
+          </ChipButton>
         ))}
       </div>
 

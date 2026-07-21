@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Chip } from '../Chip';
 import { ErrorState } from '../ErrorState';
 import { type ChangeEvent, useEffect, useState } from 'react';
 import { getMyProvider, saveBeforeAfters, saveGallery } from '../../lib/api/pro';
@@ -158,9 +159,9 @@ function PhotosTab({
             <img src={url} alt="" className="h-40 w-full object-cover sm:h-32" />
             <div className="flex flex-wrap items-center justify-between gap-s p-s">
               {i === 0 ? (
-                <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+                <Chip>
                   Couverture
-                </span>
+                </Chip>
               ) : (
                 <span />
               )}

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip, ChipButton } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
@@ -129,18 +130,13 @@ export function ClientsClient() {
 
       <div className="mt-s flex flex-wrap gap-xs">
         {availableTags.map((t) => (
-          <button
+          <ChipButton
             key={t}
-            type="button"
+            selected={tag === t}
             onClick={() => filterTag(t)}
-            className={`inline-flex min-h-12 items-center rounded-pill border px-s text-bodySmall ${
-              tag === t
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-surface text-textSecondary'
-            }`}
           >
             {t}
-          </button>
+          </ChipButton>
         ))}
       </div>
 
@@ -191,22 +187,18 @@ export function ClientsClient() {
                         {c.displayName}
                       </span>
                       {c.linked ? (
-                        <span
-                          className="rounded-pill bg-surface px-xs text-labelSmall uppercase text-textTertiary"
-                        >
+                        <Chip dense className="uppercase text-textTertiary">
                           MyWeli
-                        </span>
+                        </Chip>
                       ) : null}
                       {noShowBadge(c.noShows) !== 'none' ? (
-                        <span
-                          className={`rounded-pill px-xs text-labelSmall ${
-                            noShowBadge(c.noShows) === 'red'
-                              ? 'bg-error/10 text-error'
-                              : 'bg-surface text-textSecondary'
-                          }`}
+                        <Chip
+                          dense
+                          variant={noShowBadge(c.noShows) === 'red' ? 'tinted' : 'neutral'}
+                          tint="error"
                         >
                           {noShowLabel(c.noShows)}
-                        </span>
+                        </Chip>
                       ) : null}
                     </span>
                     <span className="mt-xs block text-bodySmall text-textSecondary">
@@ -221,12 +213,9 @@ export function ClientsClient() {
                   </span>
                   <span className="flex gap-xs">
                     {c.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-pill border border-border px-xs text-labelSmall text-textSecondary"
-                      >
+                      <Chip dense variant="outlined" key={t}>
                         {t}
-                      </span>
+                      </Chip>
                     ))}
                   </span>
                 </Link>

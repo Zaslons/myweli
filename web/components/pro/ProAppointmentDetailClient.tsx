@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip } from '../Chip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -161,15 +162,12 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           <p className="flex items-center gap-s font-medium text-textPrimary">
             {appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
-              <span
-                className={`rounded-pill px-s py-xs text-bodySmall font-normal ${
-                  noShowBadge(appt.clientNoShowCount) === 'red'
-                    ? 'bg-error/10 text-error'
-                    : 'bg-surface text-textSecondary'
-                }`}
+              <Chip
+                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
-              </span>
+              </Chip>
             ) : null}
             {appt.salonClientId && canViewClients ? (
               <Link
@@ -180,9 +178,9 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
               </Link>
             ) : null}
           </p>
-          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+          <Chip>
             {statusLabelFr(appt.status)}
-          </span>
+          </Chip>
         </div>
 
         <dl className="mt-m space-y-xs text-bodyMedium">

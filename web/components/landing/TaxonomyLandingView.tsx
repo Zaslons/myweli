@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { chipLinkClasses } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import type {
   LocalityArea,
@@ -201,9 +202,7 @@ export async function taxonomyMetadata(
 
 // --- the view ----------------------------------------------------------------
 
-const chip =
-  'inline-flex min-h-12 items-center rounded-pill border border-border bg-secondary px-m text-bodyMedium ' +
-  'text-textPrimary hover:bg-surfaceVariant';
+const chip = chipLinkClasses(false);
 
 /// French names for LocalityArea.labelKind (section headings).
 const AREA_KIND_LABEL: Record<string, string> = {

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip, chipLinkClasses } from '../Chip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -164,9 +165,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <h1 className="text-titleLarge font-semibold text-textPrimary">
             {appt.providerName ?? 'Salon'}
           </h1>
-          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+          <Chip>
             {statusLabelFr(appt.status)}
-          </span>
+          </Chip>
         </div>
         {appt.providerSlug ? (
           <Link
@@ -346,11 +347,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                         key={iso}
                         type="button"
                         onClick={() => setPickedSlot(iso)}
-                        className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                          pickedSlot === iso
-                            ? 'border-primary bg-primary text-secondary'
-                            : 'border-border bg-secondary text-textPrimary'
-                        }`}
+                        className={chipLinkClasses(pickedSlot === iso)}
                       >
                         {salonFormatter(
                           { hour: '2-digit', minute: '2-digit' },

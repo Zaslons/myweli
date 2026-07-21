@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { chipLinkClasses } from '../Chip';
 import { Loading } from '../Loading';
 import { SkeletonRows } from '../Skeleton';
 import { isPossiblePhoneNumber } from 'react-phone-number-input';
@@ -469,11 +470,7 @@ export function BookingFlow({
                     type="button"
                     onClick={() => onVariant(k)}
                     aria-pressed={s.lengthVariant === k}
-                    className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                      s.lengthVariant === k
-                        ? 'border-primary bg-primary text-secondary'
-                        : 'border-border bg-surface text-textPrimary'
-                    }`}
+                    className={chipLinkClasses(s.lengthVariant === k)}
                   >
                     {lengthVariantLabel(k)} ·{' '}
                     {formatDuration(totalDuration(provider, s.serviceIds, k))}
@@ -579,11 +576,7 @@ export function BookingFlow({
                   key={iso}
                   type="button"
                   onClick={() => onPickSlot(iso)}
-                  className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                    s.slot === iso
-                      ? 'border-primary bg-primary text-secondary'
-                      : 'border-border bg-surface text-textPrimary'
-                  }`}
+                  className={chipLinkClasses(s.slot === iso)}
                 >
                   {slotTime(iso, tz)}
                 </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Rating } from '../Rating';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
@@ -97,7 +98,7 @@ export function AvisClient() {
           <section className="mt-l flex flex-wrap items-center gap-l rounded-xl border border-border bg-secondary p-l">
             <div>
               <p className="text-headlineMedium font-semibold text-textPrimary">
-                ★ {stats.average.toFixed(1)}
+                <Rating value={stats.average} />
               </p>
               <p className="mt-xs text-bodyMedium text-textSecondary">
                 {total} avis
@@ -148,14 +149,14 @@ export function AvisClient() {
                       <p className="font-medium text-textPrimary">
                         {r.userName}
                       </p>
-                      <p
-                        className="text-bodyMedium text-primary"
-                        aria-label={`${r.rating} étoiles sur 5`}
-                      >
-                        {'★'.repeat(Math.round(r.rating))}
-                        <span className="text-textTertiary">
-                          {'★'.repeat(5 - Math.round(r.rating))}
-                        </span>
+                      <p className="text-bodyMedium text-primary">
+                        <span aria-hidden="true">
+                          {'★'.repeat(Math.round(r.rating))}
+                          <span className="text-textTertiary">
+                            {'★'.repeat(5 - Math.round(r.rating))}
+                          </span>
+                        </span>{' '}
+                        <span className="text-textSecondary">{r.rating}/5</span>
                       </p>
                     </div>
                     <p className="mt-xs text-bodySmall text-textTertiary">

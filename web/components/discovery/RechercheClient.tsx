@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { chipLinkClasses } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { Loading } from '../Loading';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -159,11 +160,7 @@ export function RechercheClient({
         <div className="mt-m flex flex-wrap gap-s" aria-label="Catégories">
           <a
             href={chipHref(null)}
-            className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-              !category
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-surface text-textPrimary'
-            }`}
+            className={chipLinkClasses(!category)}
           >
             Tous
           </a>
@@ -171,11 +168,7 @@ export function RechercheClient({
             <a
               key={c.apiKey}
               href={chipHref(c.apiKey)}
-              className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                category === c.apiKey
-                  ? 'border-primary bg-primary text-secondary'
-                  : 'border-border bg-surface text-textPrimary'
-              }`}
+              className={chipLinkClasses(category === c.apiKey)}
             >
               {c.label}
             </a>
@@ -203,11 +196,7 @@ export function RechercheClient({
           <a
             href={hrefWith({ dispo: !dispo })}
             aria-current={dispo ? 'true' : undefined}
-            className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-              dispo
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-surface text-textPrimary'
-            }`}
+            className={chipLinkClasses(dispo)}
           >
             Disponible aujourd’hui
           </a>

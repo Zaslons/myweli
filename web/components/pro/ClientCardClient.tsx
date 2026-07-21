@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip, chipLinkClasses } from '../Chip';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -170,11 +171,9 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 <h1 className="flex items-center gap-xs text-titleLarge font-semibold text-textPrimary">
                   <span className="truncate">{card.displayName}</span>
                   {card.linked ? (
-                    <span
-                      className="rounded-pill bg-surface px-xs text-labelSmall uppercase text-textTertiary"
-                    >
+                    <Chip dense className="uppercase text-textTertiary">
                       MyWeli
-                    </span>
+                    </Chip>
                   ) : null}
                 </h1>
                 {card.phone ? (
@@ -219,21 +218,14 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       const next = toggleTag(card.tags, t);
                       if (next) saveTags(next);
                     }}
-                    className={`inline-flex min-h-12 items-center rounded-pill border px-s text-bodySmall ${
-                      active
-                        ? 'border-primary bg-primary text-secondary'
-                        : 'border-border bg-surface text-textSecondary'
-                    }`}
+                    className={chipLinkClasses(active)}
                   >
                     {t}
                   </button>
                 ) : (
-                  <span
-                    key={t}
-                    className="rounded-pill border border-border px-s py-xs text-bodySmall text-textSecondary"
-                  >
+                  <Chip variant="outlined" key={t}>
                     {t}
-                  </span>
+                  </Chip>
                 );
               })}
               <button
@@ -387,9 +379,9 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                           {formatFcfa(v.totalPrice, currency)}
                         </span>
                       ) : null}
-                      <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+                      <Chip>
                         {statusLabelFr(v.status)}
-                      </span>
+                      </Chip>
                     </span>
                   </li>
                 ))}

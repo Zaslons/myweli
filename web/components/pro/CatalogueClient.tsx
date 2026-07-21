@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Chip } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -219,9 +220,9 @@ function ServiceRow({
         <p className="font-medium text-textPrimary">
           {service.name}
           {service.active === false ? (
-            <span className="ml-s rounded-pill bg-surface px-s py-xs text-bodySmall text-textTertiary">
+            <Chip className="ml-s">
               Inactif
-            </span>
+            </Chip>
           ) : null}
         </p>
         <p className="text-bodyMedium text-textTertiary">

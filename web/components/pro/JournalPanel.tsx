@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip } from '../Chip';
 import { useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
 import {
@@ -112,15 +113,12 @@ export function JournalPanel({
           <p className="flex items-center gap-s font-medium text-textPrimary">
             {appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
-              <span
-                className={`rounded-pill px-s py-xs text-bodySmall ${
-                  noShowBadge(appt.clientNoShowCount) === 'red'
-                    ? 'bg-error/10 text-error'
-                    : 'bg-surface text-textSecondary'
-                }`}
+              <Chip
+                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
-              </span>
+              </Chip>
             ) : null}
           </p>
           {appt.clientPhone ? (
