@@ -1,7 +1,9 @@
-// Shared design tokens — the web mirror of the Flutter `AppColors`
-// (mobile/lib/core/theme/colors.dart). Kept hand-synced with it and with
-// docs/design/SYSTEM.md §3; the values, ratios and usage rules live there.
-// (A Flutter→web generator + a CI drift gate is slice B3; until then, hand-synced.)
+// Shared design tokens — the web mirror of the Flutter theme
+// (mobile/lib/core/theme/). Hand-WRITTEN but no longer hand-TRUSTED: since B3,
+// `tests/tokens.mirror.test.ts` parses the Dart sources (and the §9 doc tables
+// for the web-only families) on every test run and fails on ANY mismatch,
+// either direction. Healing: `npm run gen:tokens` prints the fresh blocks —
+// paste the values, keep these comments (they carry the six drift histories).
 // `tests/tokens.contrast.test.ts` asserts every floor below is met.
 
 export const colors = {
@@ -38,7 +40,14 @@ export const colors = {
   error: '#8B0000',
   errorLight: '#DC143C',
   warning: '#6B5B00',
+  // Drifts #4/#5 (§15 row 19), closed by B3's mirror gate: both existed on
+  // mobile since PR-0 and never reached the web until the gate demanded them.
+  // warningLight is starRating's hex under a DIFFERENT ROLE (mobile records
+  // the same pair) — a tint fill for warning surfaces, ink-on-tint only: the
+  // contrast suite pins it BELOW 3:1 as a foreground, like starRating.
+  warningLight: '#FFB800',
   info: '#1A1A2E',
+  infoLight: '#2D3561', // legible-as-text (7.55:1) — the info tint's darker step
   // Accents. `gold` (3.04:1) is gold-as-STATE. `starRating` (1.62:1) is the fill
   // of a rating-star glyph and nothing else — currently unused on web, which
   // renders `★` in ink/neutral (an amber-star parity pass would revive it).

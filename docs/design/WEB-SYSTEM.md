@@ -33,6 +33,12 @@ Enforced by the **`myweli-web-guardrails`** skill.
 `web/styles/tokens.ts` mirrors `mobile/lib/core/theme/`. Tailwind consumes it in
 `tailwind.config.ts`. **Use the token utility, never a raw hex or px.**
 
+**The mirror is gated since B3** (`tests/tokens.mirror.test.ts`): the Dart
+sources are parsed on every test run and any mismatch — missing, extra, or
+changed, either direction — fails the blocking vitest job. `npm run gen:tokens`
+prints the healing blocks. The six historical drifts (row 19) cannot recur
+silently.
+
 The values, the contrast ratios and the *rules about which token may be used
 where* are in [SYSTEM.md §3–§10](SYSTEM.md#3-color). What follows is only the
 mapping:
@@ -486,7 +492,8 @@ web converts, the app deepens:
 
 | Rule | Gate |
 |---|---|
-| Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps |
+| Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps, **and (B3) a completeness gate: every `colors` key must carry an assertion** |
+| The Flutter↔web mirror (§1) | **`tokens.mirror.test.ts`** (B3) — parses `mobile/lib/core/theme/` + the §9 doc tables per run; per-family equality both directions; parser self-checks (comments stripped, then every `static const|final … =` candidate must parse — a `static final` or type-inferred declaration screams; doc tables row-counted; the theme directory manifest-pinned); heal with `npm run gen:tokens` |
 | Tokens only (§2) | **Closed Tailwind theme** (B2a) + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** — **and** `tokens.theme-pin.test.ts`, because the lint has two blind spots (bare `const` class strings; a bare `rounded`, which it passes clean while Tailwind emits nothing). Config lives in **`.eslintrc.js`**, not `.json`: the plugin resolves `tailwindcss` relative to `dirname(settings.tailwindcss.config)`, so a *relative* config path makes it look in `.` and throw — JSON cannot compute an absolute path |
 | Layering (§9) | `tests/e2e/z-layers.spec.ts` — the drawer/scrim/panel stack and the map control, asserted on **computed layers** (a hit-test can't see it: `<main>` is `inert` while the drawer is open, and inert content isn't hit-tested) |
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |
@@ -546,10 +553,11 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 7f | `<h2>` with no type token | ~~4~~ → **0** | all four (`ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient`) joined their 38 peers on `text-titleLarge` (ProRegister's also traded `font-medium` for the peers' `font-semibold`) | ✅ **B5** |
 | 17 | Reading text = 16px (§3) | **356 × `text-bodyMedium`** | `bodyLarge` (16px) used **once**. B2b renamed the workhorse but did not resize it — the web still reads one step smaller than the app | *B8* |
 | 18 | Desktop-grade pro dashboard (§9) | `xl:`/`2xl:` = **0** | a stretched phone column | *B7* |
-| 19 | Token generator (Flutter → `tokens.ts`) | hand-mirrored | drifted **six times** now (row 4; B4 found `borderFocus` missing — §5's own snippet would not have built — and `warningLight`/`infoLight` still exist on mobile only) | *B3* |
+| 19 | Token generator (Flutter → `tokens.ts`) | ~~hand-mirrored, drifted **six times**~~ → **gated** | the six: `gold` dropped (→ the invisible chip, row 4) · `spacingSM`/`XXXL` dropped · tracking nearly dropped (§4's own table omitted it — mirror the CODE) · `warningLight`/`infoLight` mobile-only for five slices (**closed here** — with warningLight's negative pin and the new completeness gate: every `colors` key must carry a contrast assertion) · `borderFocus` missing while §5's snippet consumed it. Now: `tokens.mirror.test.ts` parses the Dart sources + the §9 doc tables per test run — per-family equality both directions, parser self-checks — hardened by the review from opener-counts to comment-stripped CANDIDATE checks (a `static final`, a type-inferred const, a stale shadowing comment, a drifted doc-table row and a new theme file were all proven to slip the first version; every attack is pinned in `tests/dart-tokens.review.test.ts`) — `WEB_ONLY` declarations explicit and consumed, `screens` value-pinned. Proof-red at base was REAL: the gate's first run failed on exactly `warningLight`/`infoLight` and nothing else. Healing = `npm run gen:tokens` (a printer, not a writer — tokens.ts keeps the drift histories as comments). Mutation-proven: a flipped mobile hex and a non-idiom declaration both went red before being trusted | ✅ **B3** |
 | 20 | Role pickers announce selection | ~~visual-only~~ → **`aria-pressed`** | ChangeRoleDialog/InviteMemberDialog's role rows showed the chosen role by border colour alone — a screen reader heard four identical buttons. Two lines each | ✅ **B4** |
 | 21 | ReviewForm stars: toggle semantics | ~~5 × `aria-pressed`~~ → **a real radio group** | worse than "loose": `aria-pressed` buttons are **invalid children** of `role="radiogroup"` (axe `aria-required-children`). Now `role="radio"` + `aria-checked` on the chosen value, one roving tab stop, arrows move-and-select **wrapping at the edges** (APG); the ≥48px targets and `rating >= n` fill are untouched. Pinned by the axe matrix's 13th route | ✅ **B5** |
 | 22 | FilePick is keyboard-inaccessible | ~~3~~ → **0** | the count was wrong twice: **5** hidden file inputs exist, but 3 (Verification, Catalogue, ReviewForm) already had focusable proxy `<Button>`s — only **MediasClient's two** label-wrapped pickers were keyboard-dead. Both: `hidden` → `sr-only` (a real tab stop) + §5's ring projected onto the label via `focus-within:outline-*`. DepositProof's sixth input was always visible | ✅ **B5** |
+| 23 | `gold` ≥ 3:1 on EVERY surface | **2.98:1 on `surfaceVariant`** | found the moment B3's review made `surfaceVariant` (#F5F5F5 — DARKER than `background`, the true worst case) an assertion surface. Mobile mirrors the same value and never measured it either — its suite also stops at background/surface/card. The web row is **scoped** (background/surface/card) with the gap recorded here, because a mirrored brand value can't be re-picked web-side: the fix is a small mobile-side darkening (≈`#B8860B`→`#B5830A`+), which the mirror gate then carries over | mobile A-series |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.
