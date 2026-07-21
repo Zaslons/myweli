@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { isPossiblePhoneNumber } from 'react-phone-number-input';
@@ -24,6 +26,7 @@ import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
 import { supportWhatsAppUrl } from '../../lib/support';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { TextField } from '../TextField';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
@@ -44,6 +47,7 @@ export function AccountClient() {
   const [favorites, setFavorites] = useState<Provider[]>([]);
   const [tab, setTab] = useState<Tab>('upcoming');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   // Contact-phone edit (auth overhaul: phone is contact data, not the login).
   const [editingPhone, setEditingPhone] = useState(false);
@@ -82,7 +86,7 @@ export function AccountClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   async function removeFav(id: string) {
     setFavorites((f) => f.filter((x) => x.id !== id));
@@ -109,10 +113,12 @@ export function AccountClient() {
     setEditingPhone(false);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     return (
-      <p role="alert" className="text-error">Une erreur est survenue. Réessayez plus tard.</p>
+      <ErrorState
+        onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }}
+      />
     );
   }
 
@@ -275,15 +281,16 @@ export function AccountClient() {
 
       <div className="mt-m space-y-s">
         {shown.length === 0 ? (
-          <div className="rounded-xl border border-border bg-secondary p-l text-center">
-            <p className="text-textSecondary">Aucun rendez-vous.</p>
-            <Link
-              href="/"
-              className="mt-s inline-block text-bodyMedium text-textPrimary underline"
-            >
-              Découvrir des salons
-            </Link>
-          </div>
+          <EmptyState
+            icon="event"
+            title="Aucun rendez-vous"
+            description="Vos réservations apparaîtront ici."
+            action={
+              <Link href="/" className="text-bodyMedium text-textPrimary underline">
+                Découvrir des salons
+              </Link>
+            }
+          />
         ) : (
           shown.map((a) => <AppointmentCard key={a.id} appt={a} />)
         )}
@@ -292,9 +299,17 @@ export function AccountClient() {
       <section className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Favoris</h2>
         {favorites.length === 0 ? (
-          <p className="mt-s text-bodyMedium text-textTertiary">
-            Aucun favori — explorez les salons.
-          </p>
+          <EmptyState
+            className="mt-s"
+            icon="search"
+            title="Aucun favori"
+            description="Ajoutez vos salons préférés avec le ♥ pour les retrouver ici."
+            action={
+              <Link href="/" className="text-bodyMedium text-textPrimary underline">
+                Découvrir des salons
+              </Link>
+            }
+          />
         ) : (
           <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3">
             {favorites.map((f) => (

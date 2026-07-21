@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
+import { Loading } from '../Loading';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Provider } from '../../lib/api/providers';
 import { getMyProvider } from '../../lib/api/pro';
 import { ProviderView } from '../provider/ProviderView';
-import { Button } from '../Button';
 
 /// « Aperçu de ma page » (docs/design/pro-salon-lifecycle.md B4): the owner
 /// sees their salon EXACTLY as a client will — the real consumer page
@@ -44,19 +45,18 @@ export function SalonPreviewClient() {
   if (loading) {
     return (
       <main className="p-l">
-        <p className="text-textSecondary">Chargement de l’aperçu…</p>
+        <Loading label="Chargement de l’aperçu…" />
       </main>
     );
   }
   if (error || !provider) {
     return (
       <main className="p-l">
-        <p role="alert" className="text-error">Impossible de charger l’aperçu.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState
+          title="Aperçu du salon"
+          message="Impossible de charger l’aperçu."
+          onRetry={load}
+        />
       </main>
     );
   }

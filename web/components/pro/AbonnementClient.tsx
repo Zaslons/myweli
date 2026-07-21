@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { chooseOffer, getMyProvider, getSalonSubscription } from '../../lib/api/pro';
@@ -19,6 +20,7 @@ import {
 } from '../../lib/pro/subscription-plans';
 import { seatsLabel } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 /// /pro/abonnement (team access R5a — docs/design/web-team-access-r5.md §2.3):
 /// the offer picker on GET/PUT /providers/{id}/subscription. Setup (404) shows
@@ -30,6 +32,7 @@ export function AbonnementClient() {
   const [providerId, setProviderId] = useState<string | null>(null);
   const [offer, setOffer] = useState<SalonOffer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [choosing, setChoosing] = useState<OfferTier | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export function AbonnementClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   async function pick(tier: OfferTier) {
     if (!providerId) return;
@@ -82,9 +85,9 @@ export function AbonnementClient() {
     setNotice(null);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (error) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Mon abonnement" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const setup = offer === null;

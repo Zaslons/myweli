@@ -163,10 +163,10 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
             />
             <Button
               variant="secondary"
-              disabled={uploading}
+              isLoading={uploading}
               onClick={() => fileRef.current?.click()}
             >
-              {uploading ? 'Envoi…' : 'Ajouter une photo'}
+              Ajouter une photo
             </Button>
           </div>
         ) : null}

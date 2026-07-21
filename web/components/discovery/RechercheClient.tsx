@@ -1,6 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { chipLinkClasses } from '../Chip';
+import { EmptyState } from '../EmptyState';
+import { Loading } from '../Loading';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultCity, findCity, type LocalityTree } from '../../lib/api/localities';
 import type { Provider } from '../../lib/api/providers';
@@ -23,7 +26,7 @@ const ResultsMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center bg-surfaceVariant">
-        <p className="text-bodyMedium text-textSecondary">Chargement de la carte…</p>
+        <Loading label="Chargement de la carte…" />
       </div>
     ),
   },
@@ -157,11 +160,7 @@ export function RechercheClient({
         <div className="mt-m flex flex-wrap gap-s" aria-label="Catégories">
           <a
             href={chipHref(null)}
-            className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-              !category
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-surface text-textPrimary'
-            }`}
+            className={chipLinkClasses(!category)}
           >
             Tous
           </a>
@@ -169,11 +168,7 @@ export function RechercheClient({
             <a
               key={c.apiKey}
               href={chipHref(c.apiKey)}
-              className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                category === c.apiKey
-                  ? 'border-primary bg-primary text-secondary'
-                  : 'border-border bg-surface text-textPrimary'
-              }`}
+              className={chipLinkClasses(category === c.apiKey)}
             >
               {c.label}
             </a>
@@ -201,11 +196,7 @@ export function RechercheClient({
           <a
             href={hrefWith({ dispo: !dispo })}
             aria-current={dispo ? 'true' : undefined}
-            className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-              dispo
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-surface text-textPrimary'
-            }`}
+            className={chipLinkClasses(dispo)}
           >
             Disponible aujourd’hui
           </a>
@@ -218,10 +209,11 @@ export function RechercheClient({
         ) : null}
         <div className="mt-m space-y-m">
           {results.length === 0 ? (
-            <div className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-              Aucun salon trouvé. Essayez une autre recherche ou une autre
-              commune.
-            </div>
+            <EmptyState
+              icon="search"
+              title="Aucun salon trouvé"
+              description="Essayez une autre recherche ou une autre commune."
+            />
           ) : (
             results.map((p) => (
               <div

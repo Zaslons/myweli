@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Rating } from '../Rating';
 import { focusOnMount } from '../../lib/focusOnMount';
 import type { Review } from '../../lib/api/providers';
 import { reportReview } from '../../lib/account/review-photos';
@@ -34,14 +35,14 @@ export function ReviewList({
         Avis ({reviewCount})
       </h2>
       <p className="mt-xs text-bodyMedium text-textSecondary">
-        ★ {rating.toFixed(1)} sur 5
+        <Rating value={rating} suffix="sur 5" />
       </p>
       <ul className="mt-m space-y-m">
         {reviews.map((r) => (
           <li key={r.id} className="rounded-lg bg-secondary p-m">
             <div className="flex justify-between">
               <span className="font-medium text-textPrimary">{r.userName}</span>
-              <span className="text-bodyMedium text-textTertiary">★ {r.rating}</span>
+              <span className="text-bodyMedium text-textTertiary"><span aria-hidden="true">★</span> {r.rating}</span>
             </div>
             {r.text ? (
               <p className="mt-xs text-bodyMedium text-textSecondary">{r.text}</p>

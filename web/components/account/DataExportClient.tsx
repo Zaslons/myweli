@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Me } from '../../lib/api/account';
@@ -12,6 +13,7 @@ import {
 import type { Appointment } from '../../lib/account/appointments';
 import { buildUserDataExport } from '../../lib/account/export';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 /// « Mes données » (parity 11.2 — the app's data-export screen, web-adapted):
 /// profile + rendez-vous + favoris assembled client-side into one JSON,
@@ -58,16 +60,11 @@ export function DataExportClient() {
     return () => clearTimeout(t);
   }, [copied]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (error || !me) {
     return (
       <div>
-        <p role="alert" className="text-error">Chargement impossible.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Mes données" message="Chargement impossible." onRetry={load} />
       </div>
     );
   }

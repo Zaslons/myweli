@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Chip } from '../Chip';
 import { statusLabelFr } from '../../lib/account/appointments';
 import { formatFcfa } from '../../lib/format';
 import type { ProAppointment } from '../../lib/pro/today';
@@ -41,9 +42,9 @@ export function ProAppointmentRow({
         </p>
       </div>
       <div className="text-right">
-        <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+        <Chip>
           {statusLabelFr(appt.status)}
-        </span>
+        </Chip>
         {typeof appt.totalPrice === 'number' ? (
           <p className="mt-s text-bodyMedium text-textPrimary">
             {formatFcfa(appt.totalPrice, currency ?? undefined)}

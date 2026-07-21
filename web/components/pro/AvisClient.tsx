@@ -1,6 +1,9 @@
 'use client';
 
 import Image from 'next/image';
+import { Rating } from '../Rating';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Review } from '../../lib/api/providers';
@@ -8,6 +11,7 @@ import { getMyProvider, listProviderReviews } from '../../lib/api/pro';
 import { formatDateFr } from '../../lib/format';
 import { reviewStats } from '../../lib/pro/reviews';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 
 /// « Avis » (docs/design/web-pro-reviews.md) — the pro app's ReviewsScreen,
 /// web-adapted: summary card (average + 5→1 distribution) over the review
@@ -66,16 +70,11 @@ export function AvisClient() {
     setPage((p) => p + 1);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     return (
       <div>
-        <p role="alert" className="text-error">Impossible de charger les avis.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Avis" message="Impossible de charger les avis." onRetry={load} />
       </div>
     );
   }
@@ -87,19 +86,19 @@ export function AvisClient() {
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Avis</h1>
 
       {items.length === 0 ? (
-        <div className="mt-l rounded-xl border border-border bg-secondary p-xl text-center">
-          <p className="text-titleLarge font-medium text-textSecondary">Aucun avis</p>
-          <p className="mt-xs text-bodyMedium text-textTertiary">
-            Les avis de vos clients apparaîtront ici
-          </p>
-        </div>
+        <EmptyState
+          className="mt-l"
+          icon="star"
+          title="Aucun avis"
+          description="Les avis de vos clients apparaîtront ici."
+        />
       ) : (
         <>
           {/* Summary card — the app's average + 5→1 distribution */}
           <section className="mt-l flex flex-wrap items-center gap-l rounded-xl border border-border bg-secondary p-l">
             <div>
               <p className="text-headlineMedium font-semibold text-textPrimary">
-                ★ {stats.average.toFixed(1)}
+                <Rating value={stats.average} />
               </p>
               <p className="mt-xs text-bodyMedium text-textSecondary">
                 {total} avis
@@ -150,14 +149,14 @@ export function AvisClient() {
                       <p className="font-medium text-textPrimary">
                         {r.userName}
                       </p>
-                      <p
-                        className="text-bodyMedium text-primary"
-                        aria-label={`${r.rating} étoiles sur 5`}
-                      >
-                        {'★'.repeat(Math.round(r.rating))}
-                        <span className="text-textTertiary">
-                          {'★'.repeat(5 - Math.round(r.rating))}
-                        </span>
+                      <p className="text-bodyMedium text-primary">
+                        <span aria-hidden="true">
+                          {'★'.repeat(Math.round(r.rating))}
+                          <span className="text-textTertiary">
+                            {'★'.repeat(5 - Math.round(r.rating))}
+                          </span>
+                        </span>{' '}
+                        <span className="text-textSecondary">{r.rating}/5</span>
                       </p>
                     </div>
                     <p className="mt-xs text-bodySmall text-textTertiary">
@@ -190,8 +189,8 @@ export function AvisClient() {
 
           {items.length < total ? (
             <div className="mt-m">
-              <Button variant="secondary" disabled={busy} onClick={loadMore}>
-                {busy ? 'Chargement…' : 'Charger plus'}
+              <Button variant="secondary" isLoading={busy} onClick={loadMore}>
+                Charger plus
               </Button>
             </div>
           ) : null}

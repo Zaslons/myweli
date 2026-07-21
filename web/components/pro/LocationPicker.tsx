@@ -1,6 +1,7 @@
 'use client';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { Icon } from '../Icon';
 import { Map, Marker, NavigationControl } from '@vis.gl/react-maplibre';
 import { useState } from 'react';
 import { FALLBACK_CENTER } from '../../lib/discovery/map';
@@ -60,15 +61,7 @@ export function LocationPicker({
               onDragEnd={(e) => onChange(e.lngLat.lat, e.lngLat.lng)}
             >
               <span className="myweli-pin" style={{ color: '#000000' }}>
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-                </svg>
+                <Icon name="place" size="iconS" />
               </span>
             </Marker>
           ) : null}

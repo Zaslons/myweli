@@ -530,7 +530,7 @@ test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async (
   await expect(page).toHaveURL(/\/pro\/avis/);
 
   // Summary card: average of the stubbed 5★ + 4★ reviews.
-  await expect(page.getByText('★ 4.5')).toBeVisible();
+  await expect(page.getByText('★ 4,5')).toBeVisible();
   await expect(page.getByText('2 avis')).toBeVisible();
 
   // Cards: author, text, visit context, photo review.

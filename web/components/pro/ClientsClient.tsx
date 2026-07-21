@@ -1,6 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip, ChipButton } from '../Chip';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { addClient, getMyProvider, listClients } from '../../lib/api/pro';
@@ -13,6 +16,7 @@ import {
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { Modal } from '../Modal';
 import { TextField } from '../TextField';
 
@@ -33,12 +37,16 @@ export function ClientsClient() {
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [adding, setAdding] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(
     async (pid: string, opts: { query: string; tag: string; page: number }) => {
+      // An explicit load supersedes any pending debounced search — the
+      // review raced a stale filtered response over the cleared list.
+      if (debounce.current) clearTimeout(debounce.current);
       const r = await listClients(pid, {
         query: opts.query || undefined,
         tag: opts.tag || undefined,
@@ -82,7 +90,7 @@ export function ClientsClient() {
       setSalonTz(me.profile.provider.timezone ?? undefined);
       await load(pid, { query: '', tag: '', page: 1 });
     })();
-  }, [router, load]);
+  }, [router, load, reloadKey]);
 
   function search(next: string) {
     setQuery(next);
@@ -99,9 +107,9 @@ export function ClientsClient() {
     if (providerId) load(providerId, { query, tag: value, page: 1 });
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={6} className="mt-l" />;
   if (error) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Clients" onRetry={() => { setError(false); setQuery(''); setTag(''); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const emptyBase = total === 0 && !query && !tag;
@@ -125,18 +133,13 @@ export function ClientsClient() {
 
       <div className="mt-s flex flex-wrap gap-xs">
         {availableTags.map((t) => (
-          <button
+          <ChipButton
             key={t}
-            type="button"
+            selected={tag === t}
             onClick={() => filterTag(t)}
-            className={`inline-flex min-h-12 items-center rounded-pill border px-s text-bodySmall ${
-              tag === t
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-surface text-textSecondary'
-            }`}
           >
             {t}
-          </button>
+          </ChipButton>
         ))}
       </div>
 
@@ -151,9 +154,28 @@ export function ClientsClient() {
           </p>
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-l text-textSecondary">
-          Aucun client pour « {query || tag} ».
-        </p>
+        <EmptyState
+          className="mt-l"
+          icon="people"
+          title={`Aucun client pour « ${query || tag} »`}
+          description="Essayez un autre nom ou effacez le filtre."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setQuery('');
+                setTag('');
+                // setLoading BEFORE the reload: the review caught the base
+                // « aucun client » onboarding card flashing for the whole
+                // request (total was still the filtered 0).
+                setLoading(true);
+                if (providerId) load(providerId, { query: '', tag: '', page: 1 });
+              }}
+            >
+              Effacer la recherche
+            </Button>
+          }
+        />
       ) : (
         <>
           <ul className="mt-m divide-y divide-border rounded-xl border border-border bg-secondary">
@@ -172,22 +194,18 @@ export function ClientsClient() {
                         {c.displayName}
                       </span>
                       {c.linked ? (
-                        <span
-                          className="rounded-pill bg-surface px-xs text-labelSmall uppercase text-textTertiary"
-                        >
+                        <Chip dense className="uppercase text-textTertiary">
                           MyWeli
-                        </span>
+                        </Chip>
                       ) : null}
                       {noShowBadge(c.noShows) !== 'none' ? (
-                        <span
-                          className={`rounded-pill px-xs text-labelSmall ${
-                            noShowBadge(c.noShows) === 'red'
-                              ? 'bg-error/10 text-error'
-                              : 'bg-surface text-textSecondary'
-                          }`}
+                        <Chip
+                          dense
+                          variant={noShowBadge(c.noShows) === 'red' ? 'tinted' : 'neutral'}
+                          tint="error"
                         >
                           {noShowLabel(c.noShows)}
-                        </span>
+                        </Chip>
                       ) : null}
                     </span>
                     <span className="mt-xs block text-bodySmall text-textSecondary">
@@ -202,12 +220,9 @@ export function ClientsClient() {
                   </span>
                   <span className="flex gap-xs">
                     {c.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-pill border border-border px-xs text-labelSmall text-textSecondary"
-                      >
+                      <Chip dense variant="outlined" key={t}>
                         {t}
-                      </span>
+                      </Chip>
                     ))}
                   </span>
                 </Link>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import {
   getMyProvider,
@@ -24,6 +25,7 @@ import {
   seatsLabel,
 } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { ChangeRoleDialog } from './ChangeRoleDialog';
 import { InviteMemberDialog } from './InviteMemberDialog';
 import { TeamRoleChip } from './TeamRoleChip';
@@ -46,6 +48,7 @@ export function EquipeClient() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [offer, setOffer] = useState<SalonOffer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [roleTarget, setRoleTarget] = useState<TeamMember | null>(null);
@@ -93,7 +96,7 @@ export function EquipeClient() {
       if (sub.status === 200 && sub.offer) setOffer(sub.offer);
       setLoading(false);
     })();
-  }, [router]);
+  }, [router, reloadKey]);
 
 
   function upsert(member: TeamMember) {
@@ -140,9 +143,9 @@ export function EquipeClient() {
     show(`Accès de ${m.email} révoqué.`, 'success');
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
-    return <p role="alert" className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Équipe" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const nonOwner = members.filter((m) => m.role !== 'owner');

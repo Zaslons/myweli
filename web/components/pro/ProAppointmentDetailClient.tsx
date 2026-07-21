@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
+import { Chip } from '../Chip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -25,6 +27,7 @@ import { combineDateTime } from '../../lib/pro/manual-booking';
 import type { ProAppointment } from '../../lib/pro/today';
 import { isSameSalonDay, salonDayKey, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -32,12 +35,16 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const [appt, setAppt] = useState<ProAppointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<LifecycleAction | null>(null);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(false);
+    setNotFound(false);
+    setLoading(true);
     const me = await getMyProvider();
     if (me.status === 401) {
       router.replace('/pro/connexion');
@@ -50,7 +57,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     }
     setProfile(me.profile ?? null);
     if (r.status !== 200 || !r.appt) {
-      setNotFound(true);
+      // The API wrapper DISTINGUISHES: 404 = a loaded list without this id
+      // (terminal); anything else is a transient failure — the review proved
+      // a stub restart told the pro their appointment "n'existe pas".
+      if (r.status === 404) setNotFound(true);
+      else setLoadError(true);
       setLoading(false);
       return;
     }
@@ -113,9 +124,26 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     await load();
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
+  if (loadError) {
+    return <ErrorState title="Rendez-vous" onRetry={load} />;
+  }
   if (notFound || !appt) {
-    return <p role="alert" className="text-error">Rendez-vous introuvable.</p>;
+    return (
+      <div>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
+          Rendez-vous
+        </h1>
+        <p role="alert" className="mt-m text-bodyMedium text-error">
+          Rendez-vous introuvable.
+        </p>
+        <p className="mt-m">
+          <Link href="/pro/rendez-vous" className="text-bodyMedium underline">
+            ← Rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   // The ACTIVE salon's market (multi-pays MP3).
@@ -146,15 +174,12 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           <p className="flex items-center gap-s font-medium text-textPrimary">
             {appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
-              <span
-                className={`rounded-pill px-s py-xs text-bodySmall font-normal ${
-                  noShowBadge(appt.clientNoShowCount) === 'red'
-                    ? 'bg-error/10 text-error'
-                    : 'bg-surface text-textSecondary'
-                }`}
+              <Chip
+                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
-              </span>
+              </Chip>
             ) : null}
             {appt.salonClientId && canViewClients ? (
               <Link
@@ -165,9 +190,9 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
               </Link>
             ) : null}
           </p>
-          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+          <Chip>
             {statusLabelFr(appt.status)}
-          </span>
+          </Chip>
         </div>
 
         <dl className="mt-m space-y-xs text-bodyMedium">

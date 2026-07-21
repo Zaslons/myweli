@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getKycStatus, getMyProvider, submitKyc } from '../../lib/api/pro';
 import {
@@ -13,6 +14,7 @@ import {
 } from '../../lib/pro/kyc';
 import { uploadKycDocument } from '../../lib/pro/upload';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 
@@ -100,16 +102,11 @@ export function VerificationClient() {
     show('Documents soumis pour vérification', 'success');
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (error) {
     return (
       <div>
-        <p role="alert" className="text-error">Chargement impossible.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Vérification" message="Chargement impossible." onRetry={load} />
       </div>
     );
   }
@@ -200,10 +197,10 @@ export function VerificationClient() {
                   />
                   <Button
                     variant="secondary"
-                    disabled={uploading}
+                    isLoading={uploading}
                     onClick={() => inputs.current[type]?.click()}
                   >
-                    {uploading ? 'Envoi…' : doc ? 'Modifier' : 'Ajouter'}
+                    {doc ? 'Modifier' : 'Ajouter'}
                   </Button>
                 </div>
               ) : null}
@@ -224,8 +221,8 @@ export function VerificationClient() {
 
       {!verified ? (
         <div className="mt-l">
-          <Button disabled={!canSubmit} onClick={submit}>
-            {submitting ? 'Envoi…' : 'Soumettre pour vérification'}
+          <Button disabled={!canSubmit} isLoading={submitting} onClick={submit}>
+            Soumettre pour vérification
           </Button>
           {!canSubmit && !submitting && uploadingType == null ? (
             <p className="mt-xs text-bodySmall text-textTertiary">

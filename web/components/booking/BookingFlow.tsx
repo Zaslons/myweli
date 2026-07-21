@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { chipLinkClasses } from '../Chip';
+import { Loading } from '../Loading';
+import { SkeletonRows } from '../Skeleton';
 import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import { type Me, getMe } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
@@ -339,7 +342,7 @@ export function BookingFlow({
         </dl>
 
         {me === undefined ? (
-          <p className="mt-m text-bodyMedium text-textSecondary">Chargement…</p>
+          <Loading className="mt-m" />
         ) : me === null ? (
           <div className="mt-m">
             <p className="text-bodyMedium text-textSecondary">
@@ -467,11 +470,7 @@ export function BookingFlow({
                     type="button"
                     onClick={() => onVariant(k)}
                     aria-pressed={s.lengthVariant === k}
-                    className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                      s.lengthVariant === k
-                        ? 'border-primary bg-primary text-secondary'
-                        : 'border-border bg-surface text-textPrimary'
-                    }`}
+                    className={chipLinkClasses(s.lengthVariant === k)}
                   >
                     {lengthVariantLabel(k)} ·{' '}
                     {formatDuration(totalDuration(provider, s.serviceIds, k))}
@@ -567,7 +566,7 @@ export function BookingFlow({
             onChange={(e) => onDate(e.target.value)}
           />
           {slotsLoading ? (
-            <p className="mt-m text-textSecondary">Chargement des créneaux…</p>
+            <Loading label="Chargement des créneaux…" className="mt-m" />
           ) : slots.length === 0 ? (
             <p className="mt-m text-textSecondary">Aucun créneau disponible</p>
           ) : (
@@ -577,11 +576,7 @@ export function BookingFlow({
                   key={iso}
                   type="button"
                   onClick={() => onPickSlot(iso)}
-                  className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                    s.slot === iso
-                      ? 'border-primary bg-primary text-secondary'
-                      : 'border-border bg-surface text-textPrimary'
-                  }`}
+                  className={chipLinkClasses(s.slot === iso)}
                 >
                   {slotTime(iso, tz)}
                 </button>

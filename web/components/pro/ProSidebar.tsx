@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
+import { Skeleton } from '../Skeleton';
 import { ProLogoutButton } from './ProLogoutButton';
 import { TeamRoleChip } from './TeamRoleChip';
 import { useProMembership } from './ProMembershipContext';
@@ -108,7 +109,7 @@ export function ProSidebar({
       {loading ? (
         <div className="mt-l space-y-xs" aria-hidden="true">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="mx-s h-8 rounded-lg bg-surfaceVariant" />
+            <Skeleton key={i} className="mx-s h-8" />
           ))}
         </div>
       ) : (

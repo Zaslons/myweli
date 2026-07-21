@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Chip } from '../Chip';
 import {
   type Appointment,
   statusLabelFr,
@@ -35,9 +36,9 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           ) : null}
         </div>
         <div className="text-right">
-          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+          <Chip>
             {statusLabelFr(appt.status)}
-          </span>
+          </Chip>
           {typeof appt.totalPrice === 'number' ? (
             <p className="mt-s text-bodyMedium text-textPrimary">
               {formatFcfa(

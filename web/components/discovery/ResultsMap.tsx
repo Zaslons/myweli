@@ -1,6 +1,7 @@
 'use client';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { Rating } from '../Rating';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -130,7 +131,11 @@ function MiniCard({ provider: p }: { provider: MappableProvider }) {
     <div className="min-w-44">
       <p className="font-medium text-textPrimary">{p.name}</p>
       <p className="mt-xs text-bodySmall text-textSecondary">
-        {p.reviewCount > 0 ? `★ ${p.rating.toFixed(1)} · ` : ''}
+        {p.reviewCount > 0 ? (
+          <>
+            <Rating value={p.rating} /> ·{' '}
+          </>
+        ) : null}
         {p.commune ?? ''}
       </p>
       {min != null ? (
