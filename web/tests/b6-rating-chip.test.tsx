@@ -26,7 +26,29 @@ describe('Rating', () => {
   });
 });
 
+import { TeamRoleChip } from '../components/pro/TeamRoleChip';
+
+describe('TeamRoleChip → Chip mapping (the review: nothing pinned it)', () => {
+  it('owner wears the gold treatment — the only privileged tone', () => {
+    render(<TeamRoleChip role="owner" />);
+    expect(screen.getByText('Propriétaire').className).toContain('bg-gold/15');
+  });
+  it('manager is filled; staff is outlined-borderStrong', () => {
+    const { rerender } = render(<TeamRoleChip role="manager" />);
+    expect(screen.getByText('Manager').className).toContain('bg-primary');
+    rerender(<TeamRoleChip role="staff" />);
+    expect(screen.getByText('Collaborateur').className).toContain('border-borderStrong');
+  });
+});
+
 describe('Chip', () => {
+  it('filled and neutral variants render their fills', () => {
+    const { rerender } = render(<Chip variant="filled">A</Chip>);
+    expect(screen.getByText('A').className).toContain('bg-primary');
+    rerender(<Chip variant="neutral">A</Chip>);
+    expect(screen.getByText('A').className).toContain('bg-surface');
+  });
+
   it('outlined wears borderStrong — §16 names outlined chips in the mandatory rule', () => {
     render(<Chip variant="outlined">Tag</Chip>);
     expect(screen.getByText('Tag').className).toContain('border-borderStrong');

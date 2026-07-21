@@ -342,7 +342,7 @@ export function BookingFlow({
         </dl>
 
         {me === undefined ? (
-          <SkeletonRows count={4} className="mt-m" />
+          <Loading className="mt-m" />
         ) : me === null ? (
           <div className="mt-m">
             <p className="text-bodyMedium text-textSecondary">

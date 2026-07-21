@@ -44,6 +44,9 @@ export function ClientsClient() {
 
   const load = useCallback(
     async (pid: string, opts: { query: string; tag: string; page: number }) => {
+      // An explicit load supersedes any pending debounced search — the
+      // review raced a stale filtered response over the cleared list.
+      if (debounce.current) clearTimeout(debounce.current);
       const r = await listClients(pid, {
         query: opts.query || undefined,
         tag: opts.tag || undefined,
@@ -106,7 +109,7 @@ export function ClientsClient() {
 
   if (loading) return <SkeletonRows count={6} className="mt-l" />;
   if (error) {
-    return <ErrorState title="Clients" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+    return <ErrorState title="Clients" onRetry={() => { setError(false); setQuery(''); setTag(''); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const emptyBase = total === 0 && !query && !tag;
@@ -162,6 +165,10 @@ export function ClientsClient() {
               onClick={() => {
                 setQuery('');
                 setTag('');
+                // setLoading BEFORE the reload: the review caught the base
+                // « aucun client » onboarding card flashing for the whole
+                // request (total was still the filtered 0).
+                setLoading(true);
                 if (providerId) load(providerId, { query: '', tag: '', page: 1 });
               }}
             >

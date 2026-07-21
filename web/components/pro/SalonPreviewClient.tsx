@@ -8,7 +8,6 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Provider } from '../../lib/api/providers';
 import { getMyProvider } from '../../lib/api/pro';
 import { ProviderView } from '../provider/ProviderView';
-import { Button } from '../Button';
 
 /// « Aperçu de ma page » (docs/design/pro-salon-lifecycle.md B4): the owner
 /// sees their salon EXACTLY as a client will — the real consumer page

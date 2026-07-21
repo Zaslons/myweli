@@ -11,10 +11,12 @@ design-system programme, slice B6 (register rows 16 · 7i).
 The library grew (Button, TextField, PhoneField, Toast, Modal) but the four
 states never got their primitives, measured:
 
-- **Loading**: 35 « Chargement… » sites — **18 byte-identical** full-page
-  `<p>`s, 5 section loaders, 3 map placeholders, 3 `<option>`s, and 7
-  hand-rolled « Envoi… » label swaps that bypass the `Button isLoading` B4
-  shipped. ONE skeleton exists (ProSidebar, static grey, no pulse);
+- **Loading**: the register's « 35 » was the raw `Chargement` grep; the real
+  ledger (review-corrected): **18 byte-identical** full-page `<p>`s, 5 section
+  loaders + 1 main-wrapped, 3 map placeholders, 3 `<option>`s (4 grep hits were
+  « Chargement impossible. » error alerts, not loaders) — plus **7 hand-rolled
+  label swaps** (« Envoi… », mostly non-`Chargement` strings) bypassing the
+  `Button isLoading` B4 shipped. ONE skeleton exists (ProSidebar, static grey, no pulse);
   `animate-pulse` = 0 product-wide — §12's "skeleton when the shape is known"
   was satisfied nowhere.
 - **Empty**: ~20 sites, **zero icons product-wide**, mostly bare dead-end
@@ -70,9 +72,11 @@ removed, not announced.
 `Rows` (the ProSidebar shape, generalized) and `Grid` presets. Applied per
 §12's rule using the census's shape classification: **list pages → Rows,
 card grids → Grid, shape-unknown (forms · single-record detail · maps ·
-slot loads) → `Loading`** with their contextual labels kept. The 7 label-swap
-buttons route through `Button isLoading`; the 3 `<option>` loaders stay (a
-select's option IS its loading idiom).
+slot loads) → `Loading`** with their contextual labels kept. **6** of the 7
+label swaps route through `Button isLoading` — the 7th is MediasClient's
+file-pick `<label>` (« Téléversement… »), which cannot be a Button; its swap
+stays, recorded. The 3 `<option>` loaders stay (a select's option IS its
+loading idiom).
 
 ### `<EmptyState icon? title description? action?>` (§12 empty)
 
@@ -130,6 +134,36 @@ census proved 'Chargement'/'Aucun'/error copy is unpinned by tests
 E2e: the full suite + axe; a skeleton state is never crawled by the route scans
 (the stub resolves before networkidle) — recorded honestly rather than
 pretended.
+
+## What the adversarial review corrected (recorded, per the register's own rule)
+
+Twelve findings total — 7 confirmed by live execution, 5 whose verifiers died
+on session limits and were **verified by hand instead** (an unverified finding
+is not a rejected one). The classes:
+
+**(1) Retry that lies.** ClientsClient's retry re-armed the init effect —
+which reloads UNFILTERED — while the search box and tag chip kept showing the
+old filter as active (and « Charger plus » would append a filtered page 2 onto
+the unfiltered list); the retry now clears the filter state to match. Revenus'
+`onRetry={init}` hard-coded the 'all' period under a still-selected « Semaine »
+chip; it now retries the picked period. **(2) A 5xx is not a 404.**
+ProAppointmentDetail collapsed every non-200 into the terminal « Rendez-vous
+introuvable » — a stub restart told the pro their appointment didn't exist;
+the API wrapper distinguishes, and now only the true 404 is terminal (5xx →
+ErrorState with retry). **(3) Sweep completeness.** NotificationsClient's
+prefs-failure section said « Rechargez la page » with no control — the exact
+shape the sweep existed to kill, missed because its copy lacked the census's
+grep markers; now a section-level ErrorState. **(4) A new action's own state
+bug.** « Effacer la recherche » flashed the base « no clients yet » onboarding
+card for the whole clearing reload (no `setLoading(true)`) and could be
+overwritten by a still-pending debounced search — fixed (the skeleton shows;
+`load()` now supersedes any pending debounce). **(5) The spec's own rule,
+broken once.** BookingFlow's session probe got list-shaped SkeletonRows for a
+bimodal (login-prompt-or-form) resolve — swapped to `Loading` per the
+shape-unknown rule. **(6) Hand-verified leftovers:** two dead `Button` imports
+removed; the spec's loading-census arithmetic and « 7 label swaps » claim
+corrected (6 + the file-pick label); TeamRoleChip's role→variant mapping and
+the gold/filled/neutral variants now carry their own assertions.
 
 ## Not in scope
 

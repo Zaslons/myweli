@@ -14,7 +14,6 @@ import {
   PERIODS,
   periodRange,
 } from '../../lib/pro/earnings';
-import { Button } from '../Button';
 
 /// « Revenus » (parity 9.1 — the app's earnings_screen, web-adapted): period
 /// tabs → realized total (completed bookings only) → transaction ledger.
@@ -107,7 +106,15 @@ export function RevenusClient() {
         <SkeletonRows count={5} className="mt-l" />
       ) : error ? (
         <div className="mt-l">
-          <ErrorState message="Chargement impossible." onRetry={init} />
+          <ErrorState
+            message="Chargement impossible."
+            // Retry the PERIOD the user picked — init() hard-codes 'all' and
+            // the review watched « Semaine » stay selected over all-time
+            // figures after a retry.
+            onRetry={() =>
+              providerId ? loadPeriod(providerId, period, salonTz) : init()
+            }
+          />
         </div>
       ) : earnings ? (
         <>

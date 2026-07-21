@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
 import { Chip } from '../Chip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -34,12 +35,16 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const [appt, setAppt] = useState<ProAppointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<LifecycleAction | null>(null);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(false);
+    setNotFound(false);
+    setLoading(true);
     const me = await getMyProvider();
     if (me.status === 401) {
       router.replace('/pro/connexion');
@@ -52,7 +57,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     }
     setProfile(me.profile ?? null);
     if (r.status !== 200 || !r.appt) {
-      setNotFound(true);
+      // The API wrapper DISTINGUISHES: 404 = a loaded list without this id
+      // (terminal); anything else is a transient failure — the review proved
+      // a stub restart told the pro their appointment "n'existe pas".
+      if (r.status === 404) setNotFound(true);
+      else setLoadError(true);
       setLoading(false);
       return;
     }
@@ -116,6 +125,9 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   }
 
   if (loading) return <Loading className="mt-l" />;
+  if (loadError) {
+    return <ErrorState title="Rendez-vous" onRetry={load} />;
+  }
   if (notFound || !appt) {
     return (
       <div>

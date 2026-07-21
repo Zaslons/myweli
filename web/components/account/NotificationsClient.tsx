@@ -248,9 +248,10 @@ export function NotificationsClient() {
           ))}
         </div>
       ) : (
-        <p className="mt-m text-bodyMedium text-textSecondary">
-          Préférences indisponibles. Rechargez la page.
-        </p>
+        <ErrorState
+          message="Préférences indisponibles."
+          onRetry={load}
+        />
       )}
       {prefError ? (
         <p role="alert" className="mt-s text-bodyMedium text-error">
