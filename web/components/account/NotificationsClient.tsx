@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { ICON_PATHS, Icon, type IconName } from '../Icon';
 import {
   type AppNotification,
   type NotificationPrefs,
@@ -20,22 +21,6 @@ import { formatDateTimeFr } from '../../lib/format';
 import { Button } from '../Button';
 
 /// Notification glyphs (Material outline paths), one per contract type.
-const TYPE_PATHS: Record<string, string> = {
-  bookingConfirmed:
-    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.4L6.4 12l1.4-1.4 3 3 5.4-5.4 1.4 1.4-6.8 6.8z',
-  depositReceived:
-    'M21 7H5a1 1 0 0 1 0-2h14V3H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zm-4 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z',
-  reminder:
-    'M12 22a9 9 0 1 1 0-18 9 9 0 0 1 0 18zm.5-13.5h-1.5V14l4 2.4.75-1.23-3.25-1.92V8.5zM5 2 1.5 5l1.3 1.3L6.3 3.3 5 2zm14 0-1.3 1.3 3.5 3L22.5 5 19 2z',
-  reschedule:
-    'M12 6V3L8 7l4 4V8a4 4 0 0 1 3.9 4.9l1.5 1.1A6 6 0 0 0 12 6zm0 10a4 4 0 0 1-3.9-4.9L6.6 10A6 6 0 0 0 12 18v3l4-4-4-4v3z',
-  cancellation:
-    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.3 12.9-1.4 1.4L12 13.4l-2.9 2.9-1.4-1.4 2.9-2.9-2.9-2.9 1.4-1.4 2.9 2.9 2.9-2.9 1.4 1.4-2.9 2.9 2.9 2.9z',
-  reviewRequest:
-    'M12 17.3 6.2 21l1.5-6.6L2.5 9.9l6.7-.6L12 3l2.8 6.3 6.7.6-5.2 4.5L17.8 21z',
-  general:
-    'M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-4.5-5.8V4.5a1.5 1.5 0 0 0-3 0v.7A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z',
-};
 
 const PREF_ROWS: {
   key: keyof NotificationPrefs;
@@ -58,6 +43,14 @@ const PREF_ROWS: {
     subtitle: 'Notifications push sur vos appareils mobiles.',
   },
 ];
+
+/// Per-type glyph — the registry names match the API types; the generic
+/// fallback is the bell (the pre-B6 private TYPE_PATHS, now in <Icon>).
+function typeIcon(type: string): IconName {
+  return type in ICON_PATHS && type !== 'bell'
+    ? (type as IconName)
+    : 'bell';
+}
 
 export function NotificationsClient() {
   const router = useRouter();
@@ -171,14 +164,7 @@ export function NotificationsClient() {
                 className="flex w-full items-start gap-m rounded-xl border border-border bg-secondary p-m text-left hover:bg-surfaceVariant"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-textPrimary">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    aria-hidden
-                  >
-                    <path d={TYPE_PATHS[n.type] ?? TYPE_PATHS.general} />
-                  </svg>
+                  <Icon name={typeIcon(n.type)} size="iconS" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-s">
