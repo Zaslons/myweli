@@ -151,6 +151,47 @@ stretched journal, and a 720-capped prose page.
   DataTable's `py-sm`/`last:border-b-0`), −3 (all died with Équipe's
   hand-rolled `<table>`: `border-collapse`, `-mx-s`, `last:border-0`).
 
+## The adversarial review's corrections
+
+Four confirmed by execution, eight hand-verified after their refuters died on
+session limits (an unverified finding is not a rejected one):
+
+- **DataTable is an ARIA table now.** The div grid had traded Équipe's real
+  `<table>`/`<th>`/`<td>` for zero column↔cell association (WCAG 1.3.1) — and
+  axe cannot flag it, because axe only runs table rules on elements *exposed*
+  as tables. Markup: `role="table" → rowgroup → row → columnheader/cell`.
+  The row control moved INTO the first cell with a row-wide stretch span
+  (the row is the positioning context); the other cells stay outside the
+  control so table navigation reads them clean — this also dissolves the
+  « aria-label swallows the row content » concern. Tracks are
+  `minmax(0, Nfr)`: every row resolves identical column widths (a plain
+  `Nfr` let one long unbreakable email widen its own row's column). The
+  non-success states render OUTSIDE the `role="table"` element. Contract
+  note: a table that can overflow keeps ≥1 focusable control per row (all
+  four callers do); a control-less overflowing table adds the
+  focusable-region pattern with its first real consumer.
+- **The Catalogue editor is keyed by the edited id.** `main` keyed the
+  in-place editor per row; the rethread lost that, and `useState(initial)`
+  meant « Modifier » A→B kept A's form and **saved A's data onto B** —
+  pinned by `tests/catalogue-editor.test.tsx`. The edited row now carries
+  `aria-current` + the surfaceVariant tint, « Modifier » carries
+  `aria-expanded`, and the editor opens with a **focused heading**
+  (« Modifier « {nom} » ») — focusOnMount scrolls to it and announces it
+  (the editor used to mount below the fold with zero feedback).
+- **JournalPanel is a non-modal `role="dialog"`** (aria-label « Détails du
+  rendez-vous », no aria-modal, no trap — it never blocked the page): the
+  shortcut guard can now see it (←/→ changed the day under the open panel),
+  and the semantics were right anyway. Plus `e.repeat` is ignored and
+  `loadJournal` carries the booking hub's request-id dedupe — a held arrow
+  fired racing day-fetches and the slowest response won.
+- **`statusChipLabel` normalizes like `statusChipKind`** (`NO_SHOW` tinted
+  danger but printed the raw enum next to red ink).
+- **Revenus' « Rendez-vous » column, resolved honestly**: the payload carries
+  only `appointmentId` — no name to print — so the ledger row **links** to
+  the appointment (`rowLabel` « Ouvrir le rendez-vous du {date} ») instead
+  of faking a column. The spec's column list above is corrected by this
+  note.
+
 ## Not in scope
 
 Sorting/pagination inside DataTable (callers own paging — recorded) · a global

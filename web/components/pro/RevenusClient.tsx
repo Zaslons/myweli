@@ -141,6 +141,11 @@ export function RevenusClient() {
               minWidthClassName="min-w-0"
               rows={earnings.transactions.map((t) => ({
                 key: t.id,
+                // The spec's « Rendez-vous » column, honestly: the payload
+                // carries only appointmentId (no name to print), so the row
+                // LINKS to the appointment instead of faking a column.
+                href: `/pro/rendez-vous/${t.appointmentId}`,
+                rowLabel: `Ouvrir le rendez-vous du ${formatDateTimeFr(t.date, salonTz)}`,
                 cells: [
                   <span key="d" className="text-textPrimary">
                     {formatDateTimeFr(t.date, salonTz)}

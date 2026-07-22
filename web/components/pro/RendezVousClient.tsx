@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
@@ -80,9 +80,15 @@ export function RendezVousClient() {
     };
   }, [router, reloadKey]);
 
+  // The booking hub's request-id dedupe: a held ←/→ fires several day loads
+  // in flight at once, and without this the SLOWEST response wins — the grid
+  // could show Tuesday under a header saying Thursday.
+  const journalReq = useRef(0);
   const loadJournal = useCallback(async () => {
     if (!profile) return;
+    const req = ++journalReq.current;
     const r = await getJournalDay(profile.provider.id, journalDate);
+    if (req !== journalReq.current) return;
     if (r.status === 200 && r.day) setJournalDay(r.day);
   }, [profile, journalDate]);
 
@@ -100,6 +106,8 @@ export function RendezVousClient() {
     if (view !== 'journal') return;
     const salonTz = profile?.provider.timezone ?? undefined;
     const onKey = (e: KeyboardEvent) => {
+      // A held key auto-repeats — one deliberate press, one step.
+      if (e.repeat) return;
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       const t = e.target as HTMLElement | null;
       if (

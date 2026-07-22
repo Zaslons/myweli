@@ -46,6 +46,14 @@ describe('statusChipKind — kind, not color, is the API (§11.2)', () => {
     expect(statusChipLabel('revoked')).toBe('Accès révoqué');
   });
 
+  it('labels are normalization-robust like kinds (NO_SHOW, no-show, EXPIRED)', () => {
+    // The review's catch: a variant spelling tinted the pill red (kind is
+    // normalized) while printing the raw enum beside it (label was not).
+    expect(statusChipLabel('NO_SHOW')).toBe('Absent');
+    expect(statusChipLabel('no-show')).toBe('Absent');
+    expect(statusChipLabel('EXPIRED')).toBe('Expirée');
+  });
+
   it('renders the kind tint (pending = warning amber, danger = error red)', () => {
     const { rerender } = render(<StatusChip status="pending" />);
     expect(screen.getByText('En attente').className).toContain('text-warning');
@@ -86,8 +94,31 @@ describe('DataTable — the four-state twin (§11.2/§12)', () => {
     expect(screen.getByText('Ils apparaîtront ici.')).toBeInTheDocument();
   });
 
-  it('a navigation row is a NAMED link WRAPPING its cells (text stays hit-testable)', () => {
-    render(
+  it('is a REAL ARIA table: rowgroups, columnheaders, cells, shared tracks', () => {
+    const { container } = render(
+      <DataTable
+        columns={[{ label: 'Nom', flex: 3 }, { label: 'Montant', flex: 1, align: 'right' as const }]}
+        rows={[
+          { key: 'a', cells: ['Awa', '5 000 FCFA'] },
+          { key: 'b', cells: ['Koffi', '8 000 FCFA'] },
+        ]}
+        emptyTitle="Vide"
+      />,
+    );
+    // The review's regression: Équipe's hand-rolled <table> gave AT the
+    // column↔cell association; the div grid must keep it via ARIA roles.
+    screen.getByRole('table');
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Nom', 'Montant']);
+    expect(screen.getAllByRole('row')).toHaveLength(3); // header + 2
+    expect(screen.getAllByRole('cell')).toHaveLength(4);
+    // minmax(0, Nfr) tracks: every row resolves the SAME widths — a plain Nfr
+    // lets one long unbreakable cell misalign its own row's columns.
+    const row = container.querySelector('[role="rowgroup"] [role="row"]') as HTMLElement;
+    expect(row.style.gridTemplateColumns).toBe('minmax(0, 3fr) minmax(0, 1fr)');
+  });
+
+  it('a navigation row = a NAMED first-cell link stretched over the row', () => {
+    const { container } = render(
       <DataTable
         columns={cols}
         rows={[{ key: 'a', cells: ['Awa', '5 000 FCFA'], href: '/pro/clients/a', rowLabel: 'Ouvrir la fiche de Awa' }]}
@@ -96,9 +127,31 @@ describe('DataTable — the four-state twin (§11.2/§12)', () => {
     );
     const link = screen.getByRole('link', { name: 'Ouvrir la fiche de Awa' });
     expect(link).toHaveAttribute('href', '/pro/clients/a');
-    // The cells render INSIDE the control — clicking the text IS clicking the
-    // row (the Playwright hit-target rule; pointer-events hacks regress this).
+    // The first cell's content lives INSIDE the control; the stretch span
+    // (absolute inset-0, anchored to the row) extends its hit area row-wide.
     expect(link).toContainElement(screen.getByText('Awa'));
+    expect(link.querySelector('[aria-hidden="true"]')!.className).toContain('inset-0');
+    // The OTHER cells stay outside the control — table nav reads them clean.
+    expect(link).not.toContainElement(screen.getByText('5 000 FCFA'));
+    const bodyRow = container.querySelectorAll('[role="rowgroup"]')[1].querySelector('[role="row"]')!;
+    expect(bodyRow.className).toContain('relative');
+  });
+
+  it('current marks the edited row: aria-current + the surfaceVariant tint', () => {
+    render(
+      <DataTable
+        columns={cols}
+        rows={[
+          { key: 'a', cells: ['Tresses', '5 000'], current: true },
+          { key: 'b', cells: ['Coupe', '3 000'] },
+        ]}
+        emptyTitle="Vide"
+      />,
+    );
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveAttribute('aria-current', 'true');
+    expect(rows[0].className).toContain('bg-surfaceVariant');
+    expect(rows[1]).not.toHaveAttribute('aria-current');
   });
 
   it('success = header + rows; a clickable row is a NAMED, focusable control', () => {

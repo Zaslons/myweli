@@ -39,6 +39,7 @@ import {
   validateService,
 } from '../../lib/pro/catalogue';
 import { uploadGalleryImage } from '../../lib/pro/upload';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 
@@ -176,7 +177,12 @@ export function CatalogueClient() {
                 ) : (
                   <StatusChip key="s" status="active" dense />
                 ),
-                <Button key="e" variant="secondary" onClick={() => setOpen(sv.id)}>
+                <Button
+                  key="e"
+                  variant="secondary"
+                  aria-expanded={open === sv.id}
+                  onClick={() => setOpen(sv.id)}
+                >
                   Modifier
                 </Button>,
               ],
@@ -191,6 +197,7 @@ export function CatalogueClient() {
                 />
               ),
               { title: 'Aucun service', description: 'Ajoutez votre premier service.' },
+              (sv) => `Modifier « ${sv.name} »`,
             )
           : renderTable(
               artists,
@@ -207,7 +214,12 @@ export function CatalogueClient() {
                 <span key="s" className="text-textSecondary">
                   {a.specialization ?? '—'}
                 </span>,
-                <Button key="e" variant="secondary" onClick={() => setOpen(a.id)}>
+                <Button
+                  key="e"
+                  variant="secondary"
+                  aria-expanded={open === a.id}
+                  onClick={() => setOpen(a.id)}
+                >
                   Modifier
                 </Button>,
               ],
@@ -221,6 +233,7 @@ export function CatalogueClient() {
                 />
               ),
               { title: 'Aucun employé', description: 'Ajoutez vos fiches employés.' },
+              (a) => `Modifier « ${a.name} »`,
             )}
       </div>
     </div>
@@ -231,6 +244,14 @@ export function CatalogueClient() {
 /// renders BELOW it (same state machine — `open` picks the edited item; the
 /// « Ajouter » flow is unchanged). Rows carry explicit « Modifier » buttons,
 /// never row-level onClick (the DataTable contract: interactive cells).
+///
+/// The review's three corrections live here: the editor is KEYED by the
+/// edited id (main keyed it per row; an unkeyed switch A→B kept A's form
+/// state and saved it onto B), the edited ROW is highlighted (`current` →
+/// aria-current + surfaceVariant), and the editor announces itself — a
+/// focused heading naming the item (focusOnMount: the editor mounts below
+/// the fold on a long table; focus scrolls to it AND a screen reader hears
+/// which item the form edits).
 function renderTable<T extends { id: string }>(
   items: T[],
   open: Open,
@@ -238,6 +259,7 @@ function renderTable<T extends { id: string }>(
   toCells: (item: T) => JSX.Element[],
   editor: (item: T) => JSX.Element,
   empty: { title: string; description: string },
+  editingTitle: (item: T) => string,
 ) {
   const editing = items.find((i) => open === i.id);
   return (
@@ -246,9 +268,24 @@ function renderTable<T extends { id: string }>(
         columns={columns}
         emptyTitle={empty.title}
         emptyDescription={empty.description}
-        rows={items.map((item) => ({ key: item.id, cells: toCells(item) }))}
+        rows={items.map((item) => ({
+          key: item.id,
+          cells: toCells(item),
+          current: open === item.id || undefined,
+        }))}
       />
-      {editing ? <div className="mt-m">{editor(editing)}</div> : null}
+      {editing ? (
+        <div key={editing.id} className="mt-m">
+          <h2
+            ref={focusOnMount}
+            tabIndex={-1}
+            className="text-titleLarge font-semibold text-textPrimary"
+          >
+            {editingTitle(editing)}
+          </h2>
+          <div className="mt-s">{editor(editing)}</div>
+        </div>
+      ) : null}
     </>
   );
 }

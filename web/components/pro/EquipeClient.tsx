@@ -225,11 +225,11 @@ export function EquipeClient() {
             return {
               key: m.id,
               cells: [
-                <div key="who" className="flex items-center gap-s">
+                <div key="who" className="flex min-w-0 items-center gap-s">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surfaceVariant text-labelMedium font-medium text-textSecondary">
                     {initials(m.email)}
                   </span>
-                  <span className="truncate text-textPrimary">{m.email}</span>
+                  <span className="min-w-0 truncate text-textPrimary">{m.email}</span>
                 </div>,
                 <TeamRoleChip key="role" role={m.role as TeamRole} />,
                 <span key="artist" className="text-textSecondary">

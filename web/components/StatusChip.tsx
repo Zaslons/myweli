@@ -52,10 +52,26 @@ const EXTRA_FR: Record<string, string> = {
   draft: 'Brouillon',
 };
 
+/// The label lookup is normalization-robust like the KIND lookup: mobile's
+/// `StatusChip.forStatus` treats `NO_SHOW`/`noShow`/`no-show` as one status,
+/// and a label that only matches the exact spelling would tint the pill red
+/// while printing the raw enum string beside it (the review's catch).
+const NORMALIZED_FR: Record<string, string> = Object.fromEntries(
+  [
+    ['pending', statusLabelFr('pending')],
+    ['confirmed', statusLabelFr('confirmed')],
+    ['completed', statusLabelFr('completed')],
+    ['cancelled', statusLabelFr('cancelled')],
+    ['noshow', statusLabelFr('noShow')],
+    ...Object.entries(EXTRA_FR),
+  ].map(([k, v]) => [k.toLowerCase().replace(/[_\s-]/g, ''), v]),
+);
+
 export function statusChipLabel(status: string): string {
   const viaAppointments = statusLabelFr(status);
   if (viaAppointments !== status) return viaAppointments;
-  return EXTRA_FR[status] ?? EXTRA_FR[status.toLowerCase()] ?? status;
+  if (EXTRA_FR[status]) return EXTRA_FR[status];
+  return NORMALIZED_FR[status.toLowerCase().replace(/[_\s-]/g, '')] ?? status;
 }
 
 export function StatusChip({
