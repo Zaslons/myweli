@@ -87,6 +87,12 @@ export function JournalPanel({
   return (
     <div
       id="pro-journal-panel"
+      // A NON-modal dialog (role without aria-modal): it has its own close
+      // button and overlays content, but no scrim and no trap. The role also
+      // lets the journal shortcuts' [role="dialog"] guard see it — B7's
+      // review caught ←/→ changing the day UNDER the open panel.
+      role="dialog"
+      aria-label="Détails du rendez-vous"
       // The panel is NOT modal — no scrim, doesn't block the page — so it sits
       // at `dropdown`, under the drawer's scrim (`overlay`) and the drawer
       // itself (`modal`). It used to be `z-40`, tying with the drawer and

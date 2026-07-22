@@ -53,7 +53,7 @@ export function MediasClient() {
     };
   }, [router, reloadKey]);
 
-  if (loading) return <SkeletonGrid count={6} className="mt-l grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" />;
+  if (loading) return <SkeletonGrid count={6} className="mt-l grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" />;
   if (loadError) {
     return <ErrorState title="Médias" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
@@ -149,7 +149,7 @@ function PhotosTab({
         Ajoutez au moins 3 photos. La première sert de couverture.
       </p>
 
-      <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {photos.map((url, i) => (
           <div
             key={`${url}-${i}`}

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Chip } from '../Chip';
+import { StatusChip } from '../StatusChip';
 import {
   type Appointment,
   statusLabelFr,
@@ -36,9 +36,7 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           ) : null}
         </div>
         <div className="text-right">
-          <Chip>
-            {statusLabelFr(appt.status)}
-          </Chip>
+          <StatusChip status={appt.status} />
           {typeof appt.totalPrice === 'number' ? (
             <p className="mt-s text-bodyMedium text-textPrimary">
               {formatFcfa(

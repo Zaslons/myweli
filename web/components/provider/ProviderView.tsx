@@ -135,7 +135,7 @@ export function ProviderView({
 
       <div className="lg:grid lg:grid-cols-3 lg:gap-l">
         <div className="lg:col-span-2">
-          <p className="px-m pt-m text-textSecondary">
+          <p className="max-w-content px-m pt-m text-textSecondary">
             Réservez en ligne chez {p.name}, {cat} à {commune} ({country}).
             Services, tarifs, horaires et avis — réservation 24/7, sans appel.
           </p>

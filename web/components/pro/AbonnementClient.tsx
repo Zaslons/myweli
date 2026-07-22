@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -164,7 +165,7 @@ export function AbonnementClient() {
       (offer.status === 'trial' ||
         offer.status === 'paid' ||
         offer.status === 'grace') ? (
-        <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+        <Card as="section" className="mt-l">
           <p className="font-semibold text-textPrimary">Ajouter un salon</p>
           <p className="mt-xs text-bodyMedium text-textSecondary">
             Chaque salon a sa propre offre et son propre essai.
@@ -175,7 +176,7 @@ export function AbonnementClient() {
           >
             Ajouter un salon
           </Link>
-        </section>
+        </Card>
       ) : null}
 
       <div className="mt-l grid gap-m md:grid-cols-3">

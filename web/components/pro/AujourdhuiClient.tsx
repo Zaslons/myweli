@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
@@ -140,100 +141,117 @@ export function AujourdhuiClient() {
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Aujourd’hui</h1>
       <p className="mt-xs text-bodyMedium text-textTertiary">{profile?.provider.name}</p>
 
-      {/* Team access R5a: pending invitations for THIS account (if any). */}
-      <ProInvitationsCard />
+      {/* §9's two-pane desktop (B7): ONE DOM tree. Below xl the two children
+          stack in the vertical flow (interrupts + stats, then the day's
+          list); at xl the agenda takes the main pane and this rail moves
+          right — grid placement, no duplicated content. */}
+      <div className="xl:grid xl:grid-cols-desk xl:items-start xl:gap-xl">
+        <div className="xl:col-start-2 xl:row-start-1">
+          {/* Team access R5a: pending invitations for THIS account (if any). */}
+          <ProInvitationsCard />
 
-      {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2) —
-          publishing is the owner's act (salon.publish). */}
-      {profile?.provider.status === 'draft' && hasCap(m, 'salon.publish') ? (
-        <GoLiveCard
-          profile={profile}
-          offerLive={offerLive}
-          onPublished={() => {
-            setProfile({
-              ...profile,
-              provider: { ...profile.provider, status: 'active' },
-            });
-            setLive(true);
-          }}
-        />
-      ) : null}
-      <p
-        role="status"
-        className={
-          live
-            ? 'mt-m rounded-xl border border-success/40 bg-success/10 p-m text-bodyMedium text-success'
-            : 'sr-only'
-        }
-      >
-        {live
-          ? '🎉 Votre salon est en ligne ! Il apparaît maintenant dans les recherches.'
-          : ''}
-      </p>
-
-      {hasCap(m, 'profile.manage') ? (
-        <Link
-          href="/pro/profil"
-          className="mt-m flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
-        >
-          <span>Configurer mon profil</span>
-          <span className="text-textTertiary">›</span>
-        </Link>
-      ) : null}
-
-      {profile?.provider.status === 'active' && profile.provider.slug ? (
-        <Link
-          href={`/${profile.provider.slug}`}
-          className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
-        >
-          <span>Voir ma page publique</span>
-          <span className="text-textTertiary">›</span>
-        </Link>
-      ) : null}
-
-      <div className="mt-l grid grid-cols-3 gap-m">
-        <Stat label="À confirmer" value={counts.pending} />
-        <Stat label="Confirmés" value={counts.confirmed} />
-        <Stat label="Total du jour" value={counts.total} />
-      </div>
-
-      {/* The money row needs finances.view — the server drops the revenue
-          fields for other roles, so rendering it would show a lying 0 F. */}
-      {hasCap(m, 'finances.view') ? (
-        <div className="mt-m grid grid-cols-3 gap-m">
-          <Stat
-            label="Revenus aujourd’hui"
-            value={stats ? formatFcfa(stats.todayRevenue ?? 0, currency) : '—'}
-          />
-          <Stat
-            label="Revenus cette semaine"
-            value={stats ? formatFcfa(stats.weekRevenue ?? 0, currency) : '—'}
-          />
-          <Stat
-            label="Revenus ce mois"
-            value={stats ? formatFcfa(stats.monthRevenue ?? 0, currency) : '—'}
-          />
-        </div>
-      ) : null}
-
-      <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
-        Rendez-vous du jour
-      </h2>
-      <div className="mt-m space-y-s">
-        {today.length === 0 ? (
-          <EmptyState icon="event" title="Aucun rendez-vous aujourd’hui" description="Vos rendez-vous du jour apparaîtront ici." />
-        ) : (
-          today.map((a) => (
-            <ProAppointmentRow
-              key={a.id}
-              appt={a}
-              serviceName={serviceName}
-              href={`/pro/rendez-vous/${a.id}`}
-              tz={tz}
-              currency={currency}
+          {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2) —
+              publishing is the owner's act (salon.publish). */}
+          {profile?.provider.status === 'draft' && hasCap(m, 'salon.publish') ? (
+            <GoLiveCard
+              profile={profile}
+              offerLive={offerLive}
+              onPublished={() => {
+                setProfile({
+                  ...profile,
+                  provider: { ...profile.provider, status: 'active' },
+                });
+                setLive(true);
+              }}
             />
-          ))
-        )}
+          ) : null}
+          <p
+            role="status"
+            className={
+              live
+                ? 'mt-m rounded-xl border border-success/40 bg-success/10 p-m text-bodyMedium text-success'
+                : 'sr-only'
+            }
+          >
+            {live
+              ? '🎉 Votre salon est en ligne ! Il apparaît maintenant dans les recherches.'
+              : ''}
+          </p>
+
+          {/* Parity with the app's « Demandes » (web-b7-desktop.md): pending
+              across ALL dates from DashboardStats — a salon with Monday
+              requests must not read « 0 » on Friday. Today-only fallback
+              while the best-effort stats call is out (or failed). */}
+          <div className="mt-l grid grid-cols-3 gap-m xl:grid-cols-1">
+            <Stat
+              label="Demandes en attente"
+              value={stats?.pendingRequests ?? counts.pending}
+            />
+            <Stat label="Confirmés" value={counts.confirmed} />
+            <Stat label="Total du jour" value={counts.total} />
+          </div>
+
+          {/* The money row needs finances.view — the server drops the revenue
+              fields for other roles, so rendering it would show a lying 0 F. */}
+          {hasCap(m, 'finances.view') ? (
+            <div className="mt-m grid grid-cols-3 gap-m xl:grid-cols-1">
+              <Stat
+                label="Revenus aujourd’hui"
+                value={stats ? formatFcfa(stats.todayRevenue ?? 0, currency) : '—'}
+              />
+              <Stat
+                label="Revenus cette semaine"
+                value={stats ? formatFcfa(stats.weekRevenue ?? 0, currency) : '—'}
+              />
+              <Stat
+                label="Revenus ce mois"
+                value={stats ? formatFcfa(stats.monthRevenue ?? 0, currency) : '—'}
+              />
+            </div>
+          ) : null}
+
+          {hasCap(m, 'profile.manage') ? (
+            <Link
+              href="/pro/profil"
+              className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+            >
+              <span>Configurer mon profil</span>
+              <span className="text-textTertiary">›</span>
+            </Link>
+          ) : null}
+
+          {profile?.provider.status === 'active' && profile.provider.slug ? (
+            <Link
+              href={`/${profile.provider.slug}`}
+              className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+            >
+              <span>Voir ma page publique</span>
+              <span className="text-textTertiary">›</span>
+            </Link>
+          ) : null}
+        </div>
+
+        <div className="xl:col-start-1 xl:row-start-1">
+          <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
+            Rendez-vous du jour
+          </h2>
+          <div className="mt-m space-y-s">
+            {today.length === 0 ? (
+              <EmptyState icon="event" title="Aucun rendez-vous aujourd’hui" description="Vos rendez-vous du jour apparaîtront ici." />
+            ) : (
+              today.map((a) => (
+                <ProAppointmentRow
+                  key={a.id}
+                  appt={a}
+                  serviceName={serviceName}
+                  href={`/pro/rendez-vous/${a.id}`}
+                  tz={tz}
+                  currency={currency}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -247,9 +265,9 @@ function Stat({
   value: number | string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-secondary p-m text-center">
+    <Card className="text-center">
       <p className="text-titleLarge font-semibold text-textPrimary">{value}</p>
       <p className="text-bodySmall text-textTertiary">{label}</p>
-    </div>
+    </Card>
   );
 }

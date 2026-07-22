@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Card } from '../Card';
 import { Rating } from '../Rating';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
@@ -95,7 +96,7 @@ export function AvisClient() {
       ) : (
         <>
           {/* Summary card — the app's average + 5→1 distribution */}
-          <section className="mt-l flex flex-wrap items-center gap-l rounded-xl border border-border bg-secondary p-l">
+          <Card as="section" className="mt-l flex flex-wrap items-center gap-l">
             <div>
               <p className="text-headlineMedium font-semibold text-textPrimary">
                 <Rating value={stats.average} />
@@ -131,7 +132,7 @@ export function AvisClient() {
                 </div>
               ))}
             </dl>
-          </section>
+          </Card>
 
           {/* Review cards */}
           <ul className="mt-m space-y-s">

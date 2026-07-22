@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -118,7 +119,7 @@ export function AcompteClient() {
         </div>
       ) : null}
 
-      <section className="mt-l space-y-m rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l space-y-m">
         <label
           className={`flex items-center gap-s text-textPrimary ${
             verified ? '' : 'opacity-50'
@@ -205,7 +206,7 @@ export function AcompteClient() {
         <Button disabled={busy} onClick={save}>
           Enregistrer
         </Button>
-      </section>
+      </Card>
     </div>
   );
 }

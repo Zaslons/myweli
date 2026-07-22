@@ -81,7 +81,14 @@ describe('AujourdhuiClient — role shapes', () => {
     const calls = mockFetch(MANAGER);
     render(<AujourdhuiClient />);
 
-    expect(await screen.findByText('À confirmer')).toBeTruthy();
+    const pending = await screen.findByText('Demandes en attente');
+    // Parity with the app (B7): the value is DashboardStats.pendingRequests —
+    // pending across ALL dates (1 in the mock), not the today-only count (0:
+    // the appointments list is empty). The today-only fallback showing here
+    // would read 0.
+    await waitFor(() =>
+      expect(pending.previousElementSibling?.textContent).toBe('1'),
+    );
     expect(screen.queryByText('Revenus ce mois')).toBeNull();
     expect(screen.queryByText('Revenus aujourd’hui')).toBeNull();
     // The dashboard call still runs (journal.view.all) …
@@ -103,7 +110,7 @@ describe('AujourdhuiClient — role shapes', () => {
         name: 'Beauté Divine — votre planning',
       }),
     ).toBeTruthy();
-    expect(screen.queryByText('À confirmer')).toBeNull();
+    expect(screen.queryByText('Demandes en attente')).toBeNull();
     expect(screen.queryByText('Revenus ce mois')).toBeNull();
     expect(screen.queryByText('Configurer mon profil')).toBeNull();
     expect(screen.getByText('Rendez-vous du jour')).toBeTruthy();

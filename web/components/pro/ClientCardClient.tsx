@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { Chip, chipLinkClasses } from '../Chip';
+import { StatusChip } from '../StatusChip';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -162,7 +164,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
       <div className="mt-m grid gap-l lg:grid-cols-2">
         {/* Identity + notes */}
         <div>
-          <div className="rounded-xl border border-border bg-secondary p-l">
+          <Card>
             <div className="flex items-center gap-m">
               <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-surface text-titleLarge font-medium text-textPrimary">
                 {card.displayName.slice(0, 1).toUpperCase()}
@@ -261,9 +263,9 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 </Button>
               </form>
             ) : null}
-          </div>
+          </Card>
 
-          <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+          <Card as="section" className="mt-l">
             <h2 className="text-titleLarge font-semibold text-textPrimary">Notes</h2>
             <p className="mt-xs text-bodySmall text-textTertiary">
               Visible uniquement par votre équipe.
@@ -316,7 +318,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 ))}
               </ul>
             )}
-          </section>
+          </Card>
         </div>
 
         {/* Stats + history */}
@@ -355,7 +357,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             </Link>
           ) : null}
 
-          <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+          <Card as="section" className="mt-l">
             <h2 className="text-titleLarge font-semibold text-textPrimary">
               Historique des visites
             </h2>
@@ -379,9 +381,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                           {formatFcfa(v.totalPrice, currency)}
                         </span>
                       ) : null}
-                      <Chip>
-                        {statusLabelFr(v.status)}
-                      </Chip>
+                      <StatusChip status={v.status} />
                     </span>
                   </li>
                 ))}
@@ -394,7 +394,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 </Button>
               </div>
             ) : null}
-          </section>
+          </Card>
         </div>
       </div>
 
