@@ -102,7 +102,7 @@ export function DepositProof({
           type="file"
           accept="image/*"
           aria-label="Capture du paiement"
-          className="text-bodyMedium text-textSecondary"
+          className="text-bodyLarge text-textSecondary"
         />
         <Button isLoading={busy} onClick={send}>
           Envoyer la preuve

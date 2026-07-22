@@ -184,7 +184,7 @@ export function RechercheClient({
               onChange={(e) => {
                 window.location.assign(hrefWith({ sort: e.target.value }));
               }}
-              className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>

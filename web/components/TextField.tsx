@@ -66,7 +66,7 @@ export function TextField({
       .join(' ') || undefined;
 
   const field = [
-    'mt-xs w-full min-h-12 rounded-lg border bg-surface p-m text-bodyMedium',
+    'mt-xs w-full min-h-12 rounded-lg border bg-surface p-m text-bodyLarge',
     'text-textPrimary placeholder:text-textTertiary',
     'disabled:border-border disabled:text-textDisabled',
     error

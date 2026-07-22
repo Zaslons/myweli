@@ -27,6 +27,9 @@ const PUBLIC_ROUTES = [
   ['the marketing home — all 15 of the h2s that grew 20 → 22px live here', '/'],
   ['discovery', '/recherche?commune=Cocody'],
   ['a salon page — the h1 that went 30 → 28px', '/salon/salon-excellence'],
+  // B8: the auth prompt copy reads at 16 and the e-mail field types at 16 —
+  // the first route where both of B8's growths meet a 375px viewport.
+  ['the consumer connexion — B8 copy + a 16px field', '/connexion'],
 ];
 
 /// The document must not scroll sideways. This is the blunt, honest check: if any
@@ -67,6 +70,31 @@ for (const [name, url] of PUBLIC_ROUTES) {
   });
 }
 
+async function loginPro(page: import('@playwright/test').Page) {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+}
+
+test('disponibilités at 375 — the tightest input geometry survives 16px digits (B8)', async ({
+  page,
+}) => {
+  // DayHoursEditor: checkbox + start/end time inputs at `px-s py-xs`, the
+  // densest field row in the product — B8 grows the typed text 14 → 16.
+  // HONEST NOTE: `overflowingText()` never queries inputs (a field clips its
+  // own value by design) — the page-level scrollWidth check is the real
+  // assertion here; the per-element pass covers the labels around them.
+  await loginPro(page);
+  await page.goto('/pro/disponibilites');
+  await expect(
+    page.getByRole('heading', { name: 'Disponibilités' }),
+  ).toBeVisible();
+  expect(await noHorizontalScroll(page), 'the page scrolls sideways at 375px').toBe(true);
+  expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+});
+
 test('the pro journal — the 11px block label still fits its ~15px row', async ({
   page,
 }) => {
@@ -74,11 +102,7 @@ test('the pro journal — the 11px block label still fits its ~15px row', async 
   // `text-[11px]` → `text-labelSmall`, which carries a 16px line the arbitrary
   // value never had. `leading-tight` overrides it back to 13.75px — this is what
   // proves that actually happens in a browser rather than only in the cascade.
-  await page.goto('/pro/connexion');
-  await page.locator('input[type=email]').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await loginPro(page);
   await page.goto('/pro/rendez-vous');
   await expect(page.getByText('Awa').first()).toBeVisible();
 

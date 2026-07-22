@@ -56,6 +56,12 @@ body {
   flex: 1;
   min-width: 0;
   min-height: 48px; /* §13.2 — the same floor as TextField's min-h-12 */
+  /* B8: the typed text is bodyLarge BY DECLARATION — it was 16px only by
+     inheriting the browser default (no font-size anywhere in the chain),
+     and any future base body class would have silently shrunk it. */
+  font-size: theme('fontSize.bodyLarge.0');
+  line-height: theme('fontSize.bodyLarge.1.lineHeight');
+  letter-spacing: theme('fontSize.bodyLarge.1.letterSpacing');
   padding: theme('spacing.m');
   border: 1px solid theme('colors.borderStrong');
   border-radius: theme('borderRadius.lg');
