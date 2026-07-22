@@ -255,7 +255,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
   const areaSlug = input.level === 'area' ? input.area.slug : undefined;
 
   return (
-    <main className="mx-auto max-w-3xl px-m py-l">
+    <main className="mx-auto max-w-content px-m py-l">
       <JsonLd data={breadcrumbJsonLd(crumbsOf(input))} />
       {providers.length > 0 ? (
         <JsonLd

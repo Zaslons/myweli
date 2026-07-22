@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { publishSalon } from '../../lib/api/pro';
@@ -52,7 +53,7 @@ export function GoLiveCard({
   }
 
   return (
-    <section className="mt-m rounded-xl border border-border bg-secondary p-l">
+    <Card as="section" className="mt-m">
       <p className="font-semibold text-textPrimary">
         Votre salon n’est pas encore en ligne
       </p>
@@ -110,6 +111,6 @@ export function GoLiveCard({
           </Link>
         ) : null}
       </div>
-    </section>
+    </Card>
   );
 }

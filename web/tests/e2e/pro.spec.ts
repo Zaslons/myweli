@@ -452,6 +452,38 @@ test('web pro registration: fields + email code → authenticated on /pro', asyn
   await expect(page.getByRole('heading', { name: /Aujourd/ })).toBeVisible();
 });
 
+test('journal: keyboard shortcuts \u2190/\u2192/T, guarded while typing (\u00a79 B7)', async ({
+  page,
+}) => {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.goto('/pro/rendez-vous');
+  const dateInput = page.getByLabel('Date');
+  await expect(dateInput).not.toHaveValue('');
+  const today = await dateInput.inputValue();
+  const plus1 = new Date(Date.parse(`${today}T12:00:00Z`) + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+  // \u2192 = jour suivant, T = retour \u00e0 aujourd'hui.
+  await page.locator('body').click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press('ArrowRight');
+  await expect(dateInput).toHaveValue(plus1);
+  await page.keyboard.press('t');
+  await expect(dateInput).toHaveValue(today);
+
+  // The typing guard: with the date input FOCUSED, arrows edit the field,
+  // they never navigate the journal (without the guard this would read +1).
+  await dateInput.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(dateInput).toHaveValue(today);
+});
+
 test('web pro registration: duplicate identity shows provider_exists', async ({
   page,
 }) => {

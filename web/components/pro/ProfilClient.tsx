@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -98,7 +99,7 @@ export function ProfilClient() {
     return (
       <div className="max-w-xl">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
-        <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
+        <Card as="section" className="mt-l space-y-s">
           {profile.account.email ? (
             <p className="break-all text-bodyMedium text-textPrimary">
               {profile.account.email}
@@ -108,7 +109,7 @@ export function ProfilClient() {
           <p className="text-bodyMedium text-textSecondary">
             Salon : {profile.provider.name}
           </p>
-        </section>
+        </Card>
         <CompteDangerSection profile={profile} exportEnabled={false} />
       </div>
     );
@@ -143,7 +144,7 @@ export function ProfilClient() {
     <div className="max-w-2xl">
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
 
-      <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l space-y-s">
         <Field label="Nom du salon">
           <input
             className={input}
@@ -232,7 +233,7 @@ export function ProfilClient() {
             Enregistrer
           </Button>
         </div>
-      </section>
+      </Card>
 
       <section className="mt-l space-y-s">
         <SectionLink

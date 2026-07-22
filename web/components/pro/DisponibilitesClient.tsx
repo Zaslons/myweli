@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
@@ -117,14 +118,14 @@ export function DisponibilitesClient() {
     <div>
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Disponibilités</h1>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Horaires</h2>
         <div className="mt-m space-y-s">
           <DayHoursEditor days={days} onPatch={patchDay} />
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Pauses</h2>
         <p className="mt-xs text-bodyMedium text-textSecondary">
           Une pause récurrente par jour (ex. déjeuner). Elle bloque les
@@ -138,9 +139,9 @@ export function DisponibilitesClient() {
             onPatch={patchBreak}
           />
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">
           Tampon entre rendez-vous
         </h2>
@@ -163,9 +164,9 @@ export function DisponibilitesClient() {
             </button>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Dates bloquées</h2>
         <div className="mt-m flex flex-wrap items-center gap-s">
           <input
@@ -215,7 +216,7 @@ export function DisponibilitesClient() {
         ) : (
           <p className="mt-s text-bodyMedium text-textTertiary">Aucune date bloquée.</p>
         )}
-      </section>
+      </Card>
 
       {error ? <p role="alert" className="mt-m text-bodyMedium text-error">{error}</p> : null}
       <p

@@ -233,7 +233,10 @@ function JournalColumn({
 
   return (
     <div
-      className="relative shrink-0 border-r border-border"
+      // §9's stretch (B7): columns GROW past their 168px floor so the grid
+      // fills 1280/1536 instead of left-piling — flex-1 with the same
+      // minWidth keeps the narrow-viewport scroll behaviour intact.
+      className="relative flex-1 border-r border-border"
       style={{ minWidth: colMinW, height: height + 8 }}
     >
       {/* The children are ordered bottom-to-top ON PURPOSE: surface → header →

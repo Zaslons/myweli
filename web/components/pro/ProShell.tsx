@@ -120,7 +120,7 @@ export function ProShell({ children }: { children: ReactNode }) {
 
       <ProSidebar open={open} onClose={() => setOpen(false)} />
 
-      <main ref={mainRef} className="flex-1 p-l lg:min-w-0">
+      <main ref={mainRef} className="flex-1 p-l lg:min-w-0 xl:p-xl">
         {children}
       </main>
     </div>

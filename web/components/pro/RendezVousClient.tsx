@@ -90,6 +90,42 @@ export function RendezVousClient() {
     if (view === 'journal') loadJournal();
   }, [view, loadJournal]);
 
+  // §9's journal shortcuts (B7): ← / → = jour précédent/suivant, T =
+  // aujourd'hui. Guarded four ways — no modifier chords, never while typing
+  // (input/textarea/select/contenteditable), never while ANY dialog is open
+  // (the manual-booking + quick-create dialogs and the block panel), and
+  // only on the Journée view. T is a single-character shortcut (WCAG 2.1.4);
+  // the typing guard + view scope are the mitigation, recorded in §9.
+  useEffect(() => {
+    if (view !== 'journal') return;
+    const salonTz = profile?.provider.timezone ?? undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          t.isContentEditable)
+      )
+        return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const delta = e.key === 'ArrowLeft' ? -1 : 1;
+        setJournalDate((d) =>
+          // Midday anchor: ±1 day stays inside the salon day at any offset.
+          dateKey(addDays(new Date(`${d}T12:00:00.000Z`), delta), salonTz),
+        );
+      } else if (e.key === 't' || e.key === 'T') {
+        setJournalDate(dateKey(new Date(), salonTz));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, profile]);
+
 
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
@@ -151,6 +187,7 @@ export function RendezVousClient() {
               <button
                 type="button"
                 aria-label="Jour précédent"
+                title="Raccourci : ←"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
                   // Midday anchor: ±1 day stays inside the salon day at any
@@ -175,6 +212,7 @@ export function RendezVousClient() {
               <button
                 type="button"
                 aria-label="Jour suivant"
+                title="Raccourci : →"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
                   setJournalDate(
@@ -189,6 +227,7 @@ export function RendezVousClient() {
               </button>
               <button
                 type="button"
+                title="Raccourci : T"
                 className="text-bodyMedium text-textTertiary underline"
                 onClick={() => setJournalDate(dateKey(new Date(), tz))}
               >

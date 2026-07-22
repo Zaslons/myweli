@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { Chip } from '../Chip';
+import { StatusChip } from '../StatusChip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -169,7 +171,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         Détails du rendez-vous
       </h1>
 
-      <section className="mt-m rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-m">
         <div className="flex items-center justify-between gap-m">
           <p className="flex items-center gap-s font-medium text-textPrimary">
             {appt.clientName ?? 'Client'}
@@ -190,9 +192,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
               </Link>
             ) : null}
           </p>
-          <Chip>
-            {statusLabelFr(appt.status)}
-          </Chip>
+          <StatusChip status={appt.status} />
         </div>
 
         <dl className="mt-m space-y-xs text-bodyMedium">
@@ -365,7 +365,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             )}
           </div>
         ) : null}
-      </section>
+      </Card>
     </div>
   );
 }

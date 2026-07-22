@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Card } from '../Card';
 import { DataTable } from '../DataTable';
 import { StatusChip } from '../StatusChip';
 import { EmptyState } from '../EmptyState';
@@ -303,7 +304,7 @@ function ServiceFormCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-secondary p-l">
+    <Card>
       <div className="space-y-s">
         <label className="block text-bodyMedium text-textTertiary">
           Nom du service
@@ -454,7 +455,7 @@ function ServiceFormCard({
         onAskDelete={() => setConfirmDelete(true)}
         onDelete={remove}
       />
-    </div>
+    </Card>
   );
 }
 
@@ -508,7 +509,7 @@ function ArtistFormCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-secondary p-l">
+    <Card>
       <div className="space-y-s">
         <label className="block text-bodyMedium text-textTertiary">
           Nom
@@ -629,7 +630,7 @@ function ArtistFormCard({
         onAskDelete={() => setConfirmDelete(true)}
         onDelete={remove}
       />
-    </div>
+    </Card>
   );
 }
 

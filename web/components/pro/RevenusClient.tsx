@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Card } from '../Card';
 import { DataTable } from '../DataTable';
 import { ChipButton } from '../Chip';
 import { EmptyState } from '../EmptyState';
@@ -83,7 +84,7 @@ export function RevenusClient() {
   const currency = earnings?.currency ?? salonCurrency;
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Revenus</h1>
       <p className="mt-xs text-bodyMedium text-textSecondary">
         Vos revenus réalisés (rendez-vous terminés).
@@ -119,12 +120,12 @@ export function RevenusClient() {
         </div>
       ) : earnings ? (
         <>
-          <div className="mt-l rounded-xl border border-border bg-secondary p-l text-center">
+          <Card className="mt-l text-center">
             <p className="text-bodyMedium text-textSecondary">Total</p>
             <p className="mt-xs text-headlineMedium font-semibold text-textPrimary">
               {formatFcfa(earnings.totalEarnings, currency)}
             </p>
-          </div>
+          </Card>
 
           {/* B7: the ledger as a DataTable — Date · Montant (right-aligned).
               The empty state lives inside the table's own four-state contract. */}

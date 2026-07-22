@@ -7,7 +7,7 @@ export function Faq({
 }) {
   if (items.length === 0) return null;
   return (
-    <section className="px-m py-l">
+    <section className="max-w-content px-m py-l">
       <h2 className="text-titleLarge font-semibold text-textPrimary">
         Questions fréquentes
       </h2>

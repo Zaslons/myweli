@@ -8,5 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function ProRevenusPage() {
-  return <RevenusClient />;
+  // B7 (§9/§10): the desktop cap — every state (skeleton, error,
+  // success) shares it, so nothing flashes full-bleed then snaps.
+  return (
+    <div className="max-w-content">
+      <RevenusClient />
+    </div>
+  );
 }

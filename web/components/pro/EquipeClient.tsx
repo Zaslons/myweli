@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Card } from '../Card';
 import { DataTable } from '../DataTable';
 import { StatusChip } from '../StatusChip';
 import { ErrorState } from '../ErrorState';
@@ -190,7 +191,7 @@ export function EquipeClient() {
       )}
 
       {nonOwner.length === 0 ? (
-        <div className="mt-l rounded-xl border border-border bg-secondary p-l">
+        <Card className="mt-l">
           <p className="text-titleMedium font-medium text-textPrimary">
             Invitez votre équipe
           </p>
@@ -198,7 +199,7 @@ export function EquipeClient() {
             Chaque membre a son propre accès. Les collaborateurs ne voient que
             leur propre planning.
           </p>
-        </div>
+        </Card>
       ) : null}
 
       {/* The owner is always pinned at the top of the roster, even alone.
