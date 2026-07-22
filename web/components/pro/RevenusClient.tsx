@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { DataTable } from '../DataTable';
 import { ChipButton } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
@@ -125,25 +126,31 @@ export function RevenusClient() {
             </p>
           </div>
 
-          {earnings.transactions.length === 0 ? (
-            <EmptyState className="mt-l" icon="depositReceived" title="Aucune transaction" description="Les encaissements de la période choisie apparaîtront ici." />
-          ) : (
-            <ul className="mt-l space-y-s">
-              {earnings.transactions.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
-                >
-                  <span className="text-bodyMedium text-textPrimary">
+          {/* B7: the ledger as a DataTable — Date · Montant (right-aligned).
+              The empty state lives inside the table's own four-state contract. */}
+          <div className="mt-l">
+            <DataTable
+              columns={[
+                { label: 'Date', flex: 2 },
+                { label: 'Montant', flex: 1, align: 'right' },
+              ]}
+              emptyTitle="Aucune transaction"
+              emptyIcon="depositReceived"
+              emptyDescription="Les encaissements de la période choisie apparaîtront ici."
+              minWidthClassName="min-w-0"
+              rows={earnings.transactions.map((t) => ({
+                key: t.id,
+                cells: [
+                  <span key="d" className="text-textPrimary">
                     {formatDateTimeFr(t.date, salonTz)}
-                  </span>
-                  <span className="text-bodyMedium font-semibold text-textPrimary">
+                  </span>,
+                  <span key="a" className="font-semibold text-textPrimary">
                     {formatFcfa(t.amount, t.currency ?? currency)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+                  </span>,
+                ],
+              }))}
+            />
+          </div>
         </>
       ) : null}
     </div>

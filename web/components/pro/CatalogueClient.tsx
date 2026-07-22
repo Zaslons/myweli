@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Chip } from '../Chip';
+import { DataTable } from '../DataTable';
+import { StatusChip } from '../StatusChip';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -145,21 +146,44 @@ export function CatalogueClient() {
 
       <div className="mt-l space-y-s">
         {tab === 'services'
-          ? renderList(
+          ? renderTable(
               services,
               open,
-              (s) => (
-                <ServiceRow
-                  service={s}
-                  currency={profile?.provider.currency}
-                  onEdit={() => setOpen(s.id)}
-                />
-              ),
-              (s) => (
+              [
+                { label: 'Nom', flex: 3 },
+                { label: 'Durée', flex: 1 },
+                { label: 'Prix', flex: 2 },
+                { label: 'Statut', flex: 1 },
+                { label: 'Actions', flex: 1, align: 'right' },
+              ],
+              (sv) => [
+                <span key="n" className="min-w-0 truncate font-medium text-textPrimary">
+                  {sv.name}
+                </span>,
+                <span key="d" className="text-textSecondary">
+                  {sv.durationMinutes != null
+                    ? formatDuration(sv.durationMinutes)
+                    : '—'}
+                </span>,
+                <span key="p" className="text-textSecondary">
+                  {sv.price != null
+                    ? priceRange(sv.price, sv.priceMax, profile.provider.currency ?? undefined)
+                    : '—'}
+                </span>,
+                sv.active === false ? (
+                  <StatusChip key="s" status="inactive" label="Inactif" dense />
+                ) : (
+                  <StatusChip key="s" status="active" dense />
+                ),
+                <Button key="e" variant="secondary" onClick={() => setOpen(sv.id)}>
+                  Modifier
+                </Button>,
+              ],
+              (sv) => (
                 <ServiceFormCard
                   providerId={providerId}
-                  serviceId={s.id}
-                  initial={serviceToForm(s)}
+                  serviceId={sv.id}
+                  initial={serviceToForm(sv)}
                   artists={artists}
                   onCancel={() => setOpen(null)}
                   onSaved={afterSave}
@@ -167,10 +191,25 @@ export function CatalogueClient() {
               ),
               { title: 'Aucun service', description: 'Ajoutez votre premier service.' },
             )
-          : renderList(
+          : renderTable(
               artists,
               open,
-              (a) => <ArtistRow artist={a} onEdit={() => setOpen(a.id)} />,
+              [
+                { label: 'Nom', flex: 2 },
+                { label: 'Spécialité', flex: 2 },
+                { label: 'Actions', flex: 1, align: 'right' },
+              ],
+              (a) => [
+                <span key="n" className="font-medium text-textPrimary">
+                  {a.name}
+                </span>,
+                <span key="s" className="text-textSecondary">
+                  {a.specialization ?? '—'}
+                </span>,
+                <Button key="e" variant="secondary" onClick={() => setOpen(a.id)}>
+                  Modifier
+                </Button>,
+              ],
               (a) => (
                 <ArtistFormCard
                   providerId={providerId}
@@ -187,73 +226,29 @@ export function CatalogueClient() {
   );
 }
 
-function renderList<T extends { id: string }>(
+/// B7's rethreading: the rows moved into a <DataTable> and the inline editor
+/// renders BELOW it (same state machine — `open` picks the edited item; the
+/// « Ajouter » flow is unchanged). Rows carry explicit « Modifier » buttons,
+/// never row-level onClick (the DataTable contract: interactive cells).
+function renderTable<T extends { id: string }>(
   items: T[],
   open: Open,
-  row: (item: T) => JSX.Element,
+  columns: { label: string; flex?: number; align?: 'left' | 'right' }[],
+  toCells: (item: T) => JSX.Element[],
   editor: (item: T) => JSX.Element,
   empty: { title: string; description: string },
 ) {
-  if (items.length === 0 && open !== 'new') {
-    return (
-      <EmptyState title={empty.title} description={empty.description} />
-    );
-  }
-  return items.map((item) => (
-    <div key={item.id}>{open === item.id ? editor(item) : row(item)}</div>
-  ));
-}
-
-function ServiceRow({
-  service,
-  onEdit,
-  currency,
-}: {
-  service: Service;
-  onEdit: () => void;
-  /// The salon's currency (multi-pays MP3).
-  currency?: string | null;
-}) {
+  const editing = items.find((i) => open === i.id);
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m">
-      <div>
-        <p className="font-medium text-textPrimary">
-          {service.name}
-          {service.active === false ? (
-            <Chip className="ml-s">
-              Inactif
-            </Chip>
-          ) : null}
-        </p>
-        <p className="text-bodyMedium text-textTertiary">
-          {service.durationMinutes != null
-            ? `${formatDuration(service.durationMinutes)} · `
-            : ''}
-          {service.price != null
-            ? priceRange(service.price, service.priceMax, currency ?? undefined)
-            : ''}
-        </p>
-      </div>
-      <Button variant="secondary" onClick={onEdit}>
-        Modifier
-      </Button>
-    </div>
-  );
-}
-
-function ArtistRow({ artist, onEdit }: { artist: Artist; onEdit: () => void }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m">
-      <div>
-        <p className="font-medium text-textPrimary">{artist.name}</p>
-        {artist.specialization ? (
-          <p className="text-bodyMedium text-textTertiary">{artist.specialization}</p>
-        ) : null}
-      </div>
-      <Button variant="secondary" onClick={onEdit}>
-        Modifier
-      </Button>
-    </div>
+    <>
+      <DataTable
+        columns={columns}
+        emptyTitle={empty.title}
+        emptyDescription={empty.description}
+        rows={items.map((item) => ({ key: item.id, cells: toCells(item) }))}
+      />
+      {editing ? <div className="mt-m">{editor(editing)}</div> : null}
+    </>
   );
 }
 

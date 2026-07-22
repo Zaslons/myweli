@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { DataTable } from '../DataTable';
+import { StatusChip } from '../StatusChip';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import {
@@ -199,129 +201,114 @@ export function EquipeClient() {
         </div>
       ) : null}
 
-      {/* The owner is always pinned at the top of the roster, even alone. */}
-      <div className="mt-l overflow-x-auto rounded-xl border border-border">
-        <table
-          // ds-ignore: the roster's minimum column budget before the wrapper scrolls — a
-          // table-specific measure, not a shared size.
-          // eslint-disable-next-line tailwindcss/no-arbitrary-value
-          className="w-full min-w-[640px] border-collapse text-bodyMedium"
-        >
-            <thead>
-              <tr className="border-b border-divider text-left text-textTertiary">
-                <th className="px-m py-s font-medium">Membre</th>
-                <th className="px-m py-s font-medium">Rôle</th>
-                <th className="px-m py-s font-medium">Employé</th>
-                <th className="px-m py-s font-medium">Statut</th>
-                <th className="px-m py-s font-medium">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((m) => {
-                const badge = memberStatusBadge(m, formatDateFr);
-                const isOwner = m.role === 'owner';
-                const isInvited = m.status === 'invited';
-                const isRevoked = m.status === 'revoked';
-                return (
-                  <tr
-                    key={m.id}
-                    className="border-b border-divider last:border-0"
-                  >
-                    <td className="px-m py-s">
-                      <div className="flex items-center gap-s">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-pill bg-surfaceVariant text-labelMedium font-medium text-textSecondary">
-                          {initials(m.email)}
-                        </span>
-                        <span className="text-textPrimary">{m.email}</span>
-                      </div>
-                    </td>
-                    <td className="px-m py-s">
-                      <TeamRoleChip role={m.role as TeamRole} />
-                    </td>
-                    <td className="px-m py-s text-textSecondary">
-                      {m.role === 'staff' ? (m.artistName ?? '—') : '—'}
-                    </td>
-                    <td className="px-m py-s">
-                      {badge ? (
-                        <span
-                          className={
-                            badge.tone === 'error'
-                              ? 'text-error'
-                              : 'text-textTertiary'
-                          }
+      {/* The owner is always pinned at the top of the roster, even alone.
+          B7: the hand-rolled <table> re-based on <DataTable> (the reference
+          conversion). The ⋯ Actions cell is interactive, so rows carry NO
+          onClick (the DataTable contract); the z-dropdown menu keeps the same
+          overflow box it always lived in. */}
+      <div className="mt-l">
+        <DataTable
+          columns={[
+            { label: 'Membre', flex: 3 },
+            { label: 'Rôle', flex: 2 },
+            { label: 'Employé', flex: 2 },
+            { label: 'Statut', flex: 3 },
+            { label: 'Actions', flex: 1, align: 'right' },
+          ]}
+          emptyTitle="Aucun membre"
+          rows={rows.map((m) => {
+            const badge = memberStatusBadge(m, formatDateFr);
+            const isOwner = m.role === 'owner';
+            const isInvited = m.status === 'invited';
+            const isRevoked = m.status === 'revoked';
+            return {
+              key: m.id,
+              cells: [
+                <div key="who" className="flex items-center gap-s">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surfaceVariant text-labelMedium font-medium text-textSecondary">
+                    {initials(m.email)}
+                  </span>
+                  <span className="truncate text-textPrimary">{m.email}</span>
+                </div>,
+                <TeamRoleChip key="role" role={m.role as TeamRole} />,
+                <span key="artist" className="text-textSecondary">
+                  {m.role === 'staff' ? (m.artistName ?? '—') : '—'}
+                </span>,
+                <StatusChip
+                  key="status"
+                  status={
+                    isRevoked
+                      ? 'revoked'
+                      : isInvited
+                        ? m.expired
+                          ? 'expired'
+                          : 'invited'
+                        : 'active'
+                  }
+                  label={badge?.label ?? 'Actif'}
+                  dense
+                />,
+                isOwner || isRevoked ? (
+                  <span key="none" className="text-bodySmall text-textDisabled">
+                    —
+                  </span>
+                ) : (
+                  <div key="actions" className="relative inline-block">
+                    <button
+                      type="button"
+                      ref={(el) => {
+                        dotsRefs.current[m.id] = el;
+                      }}
+                      aria-label={`Actions pour ${m.email}`}
+                      disabled={busyId === m.id}
+                      onClick={() => setMenuFor(menuFor === m.id ? null : m.id)}
+                      className="-my-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textSecondary hover:bg-surfaceVariant"
+                    >
+                      ⋯
+                    </button>
+                    {menuFor === m.id ? (
+                      <div className="absolute right-0 z-dropdown mt-xs w-56 rounded-lg border border-border bg-secondary py-xs text-left shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuFor(null);
+                            setRoleTarget(m);
+                          }}
+                          className="block w-full px-m py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                         >
-                          {badge.label}
-                        </span>
-                      ) : (
-                        <span className="text-textTertiary">Actif</span>
-                      )}
-                    </td>
-                    <td className="px-m py-s text-right">
-                      {isOwner || isRevoked ? (
-                        <span className="text-bodySmall text-textDisabled">—</span>
-                      ) : (
-                        <div className="relative inline-block">
+                          Changer le rôle
+                        </button>
+                        {isInvited ? (
                           <button
                             type="button"
-                            ref={(el) => {
-                              dotsRefs.current[m.id] = el;
-                            }}
-                            aria-label={`Actions pour ${m.email}`}
-                            disabled={busyId === m.id}
-                            onClick={() =>
-                              setMenuFor(menuFor === m.id ? null : m.id)
-                            }
-                            className="-mx-s -my-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textSecondary hover:bg-surfaceVariant"
+                            onClick={() => doResend(m)}
+                            className="block w-full px-m py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                           >
-                            ⋯
+                            Renvoyer l’invitation
+                            {typeof m.resendsLeft === 'number'
+                              ? ` (${m.resendsLeft} restants)`
+                              : ''}
                           </button>
-                          {menuFor === m.id ? (
-                            <div className="absolute right-0 z-dropdown mt-xs w-56 rounded-lg border border-border bg-secondary py-xs shadow-lg">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMenuFor(null);
-                                  setRoleTarget(m);
-                                }}
-                                className="block w-full px-m py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
-                              >
-                                Changer le rôle
-                              </button>
-                              {isInvited ? (
-                                <button
-                                  type="button"
-                                  onClick={() => doResend(m)}
-                                  className="block w-full px-m py-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
-                                >
-                                  Renvoyer l’invitation
-                                  {typeof m.resendsLeft === 'number'
-                                    ? ` (${m.resendsLeft} restants)`
-                                    : ''}
-                                </button>
-                              ) : null}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMenuFor(null);
-                                  setRevokeTarget(m);
-                                }}
-                                className="block w-full px-m py-s text-left text-bodyMedium text-error hover:bg-surfaceVariant"
-                              >
-                                Révoquer l’accès
-                              </button>
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuFor(null);
+                            setRevokeTarget(m);
+                          }}
+                          className="block w-full px-m py-s text-left text-bodyMedium text-error hover:bg-surfaceVariant"
+                        >
+                          Révoquer l’accès
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ),
+              ],
+            };
+          })}
+        />
+      </div>
 
       <Toast toast={toast} />
 

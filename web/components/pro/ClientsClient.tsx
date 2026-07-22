@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { DataTable } from '../DataTable';
 import { Chip, ChipButton } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { ErrorState } from '../ErrorState';
@@ -178,57 +179,69 @@ export function ClientsClient() {
         />
       ) : (
         <>
-          <ul className="mt-m divide-y divide-border rounded-xl border border-border bg-secondary">
-            {items.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/pro/clients/${c.id}`}
-                  className="flex items-center gap-m p-m hover:bg-surface"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-surface text-labelLarge font-medium text-textPrimary">
-                    {c.displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-xs">
-                      <span className="truncate font-medium text-textPrimary">
-                        {c.displayName}
-                      </span>
-                      {c.linked ? (
-                        <Chip dense className="uppercase text-textTertiary">
-                          MyWeli
-                        </Chip>
-                      ) : null}
-                      {noShowBadge(c.noShows) !== 'none' ? (
-                        <Chip
-                          dense
-                          variant={noShowBadge(c.noShows) === 'red' ? 'tinted' : 'neutral'}
-                          tint="error"
-                        >
-                          {noShowLabel(c.noShows)}
-                        </Chip>
-                      ) : null}
+          {/* B7: the roster as a DataTable (Client · Téléphone · Visites ·
+              Dernière visite · Tags). Row activation navigates to the card —
+              the row is the DataTable's named full-row control, so the cells
+              carry no interactive children (the contract). */}
+          <div className="mt-m">
+            <DataTable
+              columns={[
+                { label: 'Client', flex: 3 },
+                { label: 'Téléphone', flex: 2 },
+                { label: 'Visites', flex: 1 },
+                { label: 'Dernière visite', flex: 2 },
+                { label: 'Tags', flex: 2 },
+              ]}
+              emptyTitle="Aucun client"
+              rows={items.map((c) => ({
+                key: c.id,
+                href: `/pro/clients/${c.id}`,
+                rowLabel: `Ouvrir la fiche de ${c.displayName}`,
+                cells: [
+                  <span key="who" className="flex min-w-0 items-center gap-s">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surface text-labelMedium font-medium text-textPrimary">
+                      {c.displayName.slice(0, 1).toUpperCase()}
                     </span>
-                    <span className="mt-xs block text-bodySmall text-textSecondary">
-                      {maskPhone(c.phone)}
-                      {c.visits > 0
-                        ? ` · ${c.visits} visite${c.visits > 1 ? 's' : ''}`
-                        : ''}
-                      {c.lastVisitAt
-                        ? ` · dernière ${formatDateFr(c.lastVisitAt, salonTz)}`
-                        : ''}
+                    <span className="truncate font-medium text-textPrimary">
+                      {c.displayName}
                     </span>
-                  </span>
-                  <span className="flex gap-xs">
-                    {c.tags.map((t) => (
-                      <Chip dense variant="outlined" key={t}>
-                        {t}
+                    {c.linked ? (
+                      <Chip dense className="uppercase text-textTertiary">
+                        MyWeli
                       </Chip>
-                    ))}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    ) : null}
+                    {noShowBadge(c.noShows) !== 'none' ? (
+                      <Chip
+                        dense
+                        variant={noShowBadge(c.noShows) === 'red' ? 'tinted' : 'neutral'}
+                        tint="error"
+                      >
+                        {noShowLabel(c.noShows)}
+                      </Chip>
+                    ) : null}
+                  </span>,
+                  <span key="tel" className="text-textSecondary">
+                    {maskPhone(c.phone)}
+                  </span>,
+                  <span key="visits" className="text-textSecondary">
+                    {c.visits > 0 ? c.visits : '—'}
+                  </span>,
+                  <span key="last" className="text-textSecondary">
+                    {c.lastVisitAt ? formatDateFr(c.lastVisitAt, salonTz) : '—'}
+                  </span>,
+                  <span key="tags" className="flex flex-wrap gap-xs">
+                    {c.tags.length > 0
+                      ? c.tags.map((t) => (
+                          <Chip dense variant="outlined" key={t}>
+                            {t}
+                          </Chip>
+                        ))
+                      : '—'}
+                  </span>,
+                ],
+              }))}
+            />
+          </div>
           {items.length < total ? (
             <div className="mt-m text-center">
               <Button

@@ -86,6 +86,21 @@ describe('DataTable — the four-state twin (§11.2/§12)', () => {
     expect(screen.getByText('Ils apparaîtront ici.')).toBeInTheDocument();
   });
 
+  it('a navigation row is a NAMED link WRAPPING its cells (text stays hit-testable)', () => {
+    render(
+      <DataTable
+        columns={cols}
+        rows={[{ key: 'a', cells: ['Awa', '5 000 FCFA'], href: '/pro/clients/a', rowLabel: 'Ouvrir la fiche de Awa' }]}
+        emptyTitle="Vide"
+      />,
+    );
+    const link = screen.getByRole('link', { name: 'Ouvrir la fiche de Awa' });
+    expect(link).toHaveAttribute('href', '/pro/clients/a');
+    // The cells render INSIDE the control — clicking the text IS clicking the
+    // row (the Playwright hit-target rule; pointer-events hacks regress this).
+    expect(link).toContainElement(screen.getByText('Awa'));
+  });
+
   it('success = header + rows; a clickable row is a NAMED, focusable control', () => {
     const onClick = vi.fn();
     render(
