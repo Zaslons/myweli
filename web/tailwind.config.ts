@@ -142,6 +142,13 @@ const config: Config = {
       maxHeight: defaultTheme.spacing,
       inset: defaultTheme.spacing,
       translate: defaultTheme.spacing,
+      // ─── B7: the desktop two-pane (WEB-SYSTEM §9) ──────────────────────────
+      // NAMED, not arbitrary (`grid-cols-[…]` is banned): the pro dashboard's
+      // main-pane + 320px right rail. One name so every two-pane surface
+      // agrees on the rail width.
+      gridTemplateColumns: {
+        desk: 'minmax(0, 1fr) 20rem',
+      },
       // `size` is NOT here: `size-*` has 74 keys and zero uses — all 17 square
       // elements spell `h-N w-N`. The carve-out was dead weight.
       //
