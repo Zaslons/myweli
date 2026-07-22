@@ -1,6 +1,6 @@
 # web-b7-desktop — the desktop-grade pro dashboard: Card, StatusChip, DataTable, the two-pane Aujourd'hui, contentMaxWidth (B7)
 
-**Status:** Built (2026-07-22). **Surface:** `web/` · the pro dashboard's
+**Status:** Shipped (2026-07-22) — see « As built » for the deltas. **Surface:** `web/` · the pro dashboard's
 desktop layouts + the density components + the public reading widths.
 **Design system:** [WEB-SYSTEM.md §9, §10](WEB-SYSTEM.md#9-responsive--desktop) ·
 [SYSTEM.md §10–§12](SYSTEM.md#10-layout-breakpoints-content-width-z-index) ·
@@ -110,6 +110,46 @@ pro.spec:411 re-verified against the flex-1 stretch) + a new shortcuts
 assertion + axe (the tables live on already-scanned routes). Browser
 screenshots at 1280 and 1536 for the two-pane dashboard, a DataTable page, the
 stretched journal, and a 720-capped prose page.
+
+## As built — the deltas the build forced
+
+- **DataTable navigation rows are LINKS wrapping their cells.** The planned
+  pattern (a full-row button UNDER `pointer-events-none` cells) broke real
+  hit-testing on row text — Playwright's clients flow refused the click, and
+  users couldn't hover/select row text either. Rows gained `href` (a `Link`
+  around the cell grid — open-in-new-tab works) next to `onClick` (a button,
+  same wrapping). The contract is unchanged: an activatable row carries no
+  interactive cells.
+- **The grid template is a named token.** `xl:grid-cols-[minmax(0,1fr)_320px]`
+  is an arbitrary value and those are banned — the theme gains
+  `gridTemplateColumns.desk` (`minmax(0, 1fr) 20rem`), so every two-pane
+  surface agrees on the rail width.
+- **The width caps live at the PAGE level** (`app/pro/(dash)/*/page.tsx`), not
+  inside the clients: skeleton, error and success share the cap, so nothing
+  flashes full-bleed and snaps narrow.
+- **Catalogue's services table** shows Statut as its own column
+  (`StatusChip` — Actif in ok-green, Inactif neutral), matching Équipe.
+- **The rail keeps the interrupt order on desktop** (invitations → go-live →
+  stats → revenue → links): a draft salon's ONE action stays on top. The
+  mobile flow moved the two config links below the stats — numbers first,
+  configuration after — the same DOM order at every width, zero `order:`
+  utilities.
+- **The tint sweep's honest count is 6 pill sites**, not ~7: the four
+  appointment pills + Catalogue + Équipe. The « KYC doc rows » candidate does
+  not exist as a pill (Vérification uses a tinted *banner* + colored text
+  lines, already kind-coloured); Abonnement is a banner too. Excluded,
+  recorded here.
+- **The Card sweep converted 19 boxes across 12 pro files.** Two survivors,
+  both deliberate: ManualBookingDialog's panel (dialog chrome, not a card) and
+  ClientCard's « Prochain rendez-vous » link (`<Card>` hosts no interactive
+  elements — a hover card-link is its own pattern).
+- **Shortcuts carry `title` hints** (« Raccourci : ← / → / T ») on their
+  buttons, and the WCAG 2.1.4 single-character concern for **T** is recorded
+  in §9 with its mitigation (typing guard + view scope).
+- **Emitted CSS**: +13 selectors (the `xl:` two-pane set, `xl:p-xl`,
+  `2xl:grid-cols-4`, `max-w-content` — emitted for the FIRST time —,
+  DataTable's `py-sm`/`last:border-b-0`), −3 (all died with Équipe's
+  hand-rolled `<table>`: `border-collapse`, `-mx-s`, `last:border-0`).
 
 ## Not in scope
 
