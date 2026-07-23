@@ -45,7 +45,7 @@ export function ReviewList({
               <span className="text-bodyMedium text-textTertiary"><span aria-hidden="true">★</span> {r.rating}</span>
             </div>
             {r.text ? (
-              <p className="mt-xs text-bodyMedium text-textSecondary">{r.text}</p>
+              <p className="mt-xs text-bodyLarge text-textSecondary">{r.text}</p>
             ) : null}
             {r.photoUrls && r.photoUrls.length > 0 ? (
               <div className="mt-s flex gap-s overflow-x-auto">

@@ -286,7 +286,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             />
           </div>
         ) : appt.status === 'pending' && appt.depositScreenshotUrl ? (
-          <p className="mt-m text-bodyMedium text-textSecondary">
+          <p className="mt-m text-bodyLarge text-textSecondary">
             Justificatif d’acompte envoyé · en attente de confirmation du
             salon.{' '}
             <a
@@ -307,7 +307,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         {rescheduled ? (
-          <p className="mt-m text-bodyMedium text-textSecondary">
+          <p className="mt-m text-bodyLarge text-textSecondary">
             Rendez-vous reporté ✓
           </p>
         ) : null}
@@ -319,7 +319,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               <Button onClick={() => openReschedule(appt)}>Reporter</Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-bodyMedium text-textPrimary">
+                <p className="text-bodyLarge text-textPrimary">
                   Choisissez un nouveau créneau
                 </p>
                 <TextField
@@ -337,7 +337,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 {slotsLoading ? (
                   <Loading label="Chargement des créneaux…" className="mt-s" />
                 ) : slots.length === 0 ? (
-                  <p className="mt-s text-bodyMedium text-textSecondary">
+                  <p className="mt-s text-bodyLarge text-textSecondary">
                     Aucun créneau disponible ce jour.
                   </p>
                 ) : (
@@ -387,7 +387,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               </Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-bodyMedium text-textSecondary">
+                <p className="text-bodyLarge text-textSecondary">
                   Confirmer l’annulation&nbsp;?
                   {appt.depositAmount
                     ? ' L’acompte peut ne pas être remboursé selon la politique du salon.'

@@ -345,7 +345,7 @@ export function BookingFlow({
           <Loading className="mt-m" />
         ) : me === null ? (
           <div className="mt-m">
-            <p className="text-bodyMedium text-textSecondary">
+            <p className="text-bodyLarge text-textSecondary">
               Connectez-vous pour confirmer votre réservation.
             </p>
             <div className="mt-s">

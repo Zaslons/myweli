@@ -47,7 +47,7 @@ export default async function ReserverPage({
       <h1 className="text-headlineSmall font-semibold text-textPrimary">
         Réserver chez {p.name}
       </h1>
-      <p className="mt-xs text-bodyMedium text-textTertiary">
+      <p className="mt-xs text-bodyLarge text-textTertiary">
         {categoryLabelFr(p.category)}
         {p.commune ? ` · ${p.commune}` : ''}
       </p>

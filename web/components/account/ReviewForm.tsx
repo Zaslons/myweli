@@ -64,7 +64,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
       <p
         ref={focusOnMount}
         tabIndex={-1}
-        className="text-bodyMedium text-textSecondary"
+        className="text-bodyLarge text-textSecondary"
       >
         Merci pour votre avis&nbsp;!
       </p>
