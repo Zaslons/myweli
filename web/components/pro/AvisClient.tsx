@@ -166,7 +166,7 @@ export function AvisClient() {
                       {r.artistName ? ` · avec ${r.artistName}` : ''}
                     </p>
                     {r.text ? (
-                      <p className="mt-s text-bodyMedium text-textSecondary">{r.text}</p>
+                      <p className="mt-s text-bodyLarge text-textSecondary">{r.text}</p>
                     ) : null}
                     {(r.photoUrls ?? []).length > 0 ? (
                       <div className="mt-s flex flex-wrap gap-s">

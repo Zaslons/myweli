@@ -89,7 +89,7 @@ export default async function HomePage() {
           <h1 className="max-w-2xl text-headlineLarge font-semibold text-textPrimary">
             Réservez beauté & bien-être à {cityName}
           </h1>
-          <p className="mt-m max-w-xl text-textSecondary">
+          <p className="mt-m max-w-xl text-bodyLarge text-textSecondary">
             Coiffure, tresses, barbier, onglerie, spa — réservez en ligne, près
             de chez vous, en quelques secondes.
           </p>

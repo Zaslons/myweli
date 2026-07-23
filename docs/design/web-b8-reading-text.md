@@ -1,6 +1,6 @@
 # web-b8-reading-text — the reading-text resize: bodyLarge where you read, 16px where you type, 14 where you scan (B8)
 
-**Status:** In progress (2026-07-23). **Surface:** `web/` — every
+**Status:** Shipped (2026-07-23) — see « As built ». **Surface:** `web/` — every
 `text-bodyMedium` call site, classified. **Design system:**
 [WEB-SYSTEM.md §3](WEB-SYSTEM.md#3-type-on-the-web) ·
 [SYSTEM.md §4](SYSTEM.md#4-type). **Roadmap:** design-system programme,
@@ -157,6 +157,44 @@ battery + Lighthouse + all token gates, then:
 - **A partial input sweep re-summons iOS zoom** — the residual grep and the
   TextField pin are the only nets; a future input added at `text-bodyMedium`
   regresses silently (a lint rule is out of scope, recorded).
+
+## As built — the deltas and the finds
+
+- **The reconciliation is exact: 308 = 67 flipped + 241 stay**, plus **4
+  token-less reading paragraphs declared** `text-bodyLarge` (zero-pixel: they
+  rendered 16 only via the browser default — the phone-input accident in
+  prose form): the salon page's intro (the most-read sentence on the most
+  important public page), the marketing hero subline, the taxonomy landing
+  intro, the 404 body. A tail of token-less `font-medium` TITLE-ish
+  paragraphs remains (card titles missing title tokens) — a different,
+  smaller debt, recorded here, not silently absorbed.
+- **The tag scan beat the census twice**: it caught DepositProof's file-name
+  input (missed), and un-binned the two Médias file-pick LABELS (control
+  text, rule 3 — they stay 14; iOS zoom doesn't apply to file inputs).
+- **The census's "~6 dialog body copy" dissolved to ONE** under the
+  heuristic: ManualBookingDialog's guidance sentence. The email line is
+  meta, the alert stays, the picked-client and Total rows are fact rows.
+- **Judgment calls made (review targets)**: the invitation decision sentence
+  (« X vous invite comme Y ») flipped on both surfaces — rule 5 over rule 6
+  (read once to accept/decline, not scanned); the notification PREFS row
+  titles flipped (SwitchListTile parity) while the notification FEED rows
+  stay (a scanning list); the pro reviews page's review TEXT flipped (a
+  review is read — the consumer twin flipped the same day).
+- **Found in passing, fixed here**: type-overflow's salon route had been
+  VACUOUS since the slug scheme changed — `/salon/salon-excellence` scanned
+  the 404 page (which also doesn't overflow). Repointed at `/beaute-divine`,
+  the real salon page, which now also carries B8's intro + FAQ growths.
+- **Emitted-CSS diff, measured**: B8's own contribution is exactly the
+  predicted **+1 / −0** — `.text-bodyLarge{font-size:16px;line-height:24px;
+  letter-spacing:.5px}`, its first emission ever. (The raw diff vs the b7
+  snapshot shows one more addition, `focus-within:bg-surfaceVariant` — that
+  is B7's REVIEW fix, landed after the snapshot was taken; attributed, not
+  B8's.) The phone-input change lives inside an existing selector.
+- **Verified in the browser** @375: the salon page (intro 16/24 · FAQ 16 ·
+  meta 14 · no h-scroll), /connexion (field 16/24 · prompt 16),
+  /pro/disponibilites (3 fields at 16, no h-scroll), /pro/abonnement (the
+  hybrid in one frame: the banner subtitle at 16 beside the 14px
+  line-through anchor price).
 
 ## Not in scope
 

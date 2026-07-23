@@ -26,7 +26,10 @@ test.use({ viewport: { width: 375, height: 812 } });
 const PUBLIC_ROUTES = [
   ['the marketing home — all 15 of the h2s that grew 20 → 22px live here', '/'],
   ['discovery', '/recherche?commune=Cocody'],
-  ['a salon page — the h1 that went 30 → 28px', '/salon/salon-excellence'],
+  // B8 caught this route VACUOUS: the stub's salon is `beaute-divine` and the
+  // canonical path is `/{slug}` — `/salon/salon-excellence` had been scanning
+  // the 404 page (which also doesn't overflow) since the slug scheme changed.
+  ['a salon page — the h1 that went 30 → 28px', '/beaute-divine'],
   // B8: the auth prompt copy reads at 16 and the e-mail field types at 16 —
   // the first route where both of B8's growths meet a 375px viewport.
   ['the consumer connexion — B8 copy + a 16px field', '/connexion'],
