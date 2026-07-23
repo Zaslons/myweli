@@ -18,9 +18,10 @@ describe('EmptyState', () => {
       />,
     );
     expect(screen.getByText('Aucun avis')).toBeInTheDocument();
-    expect(
-      screen.getByText('Les avis de vos clients apparaîtront ici.'),
-    ).toBeInTheDocument();
+    const why = screen.getByText('Les avis de vos clients apparaîtront ici.');
+    // B8 (row 17): the WHY is reading copy — it reads at 16, never 14.
+    expect(why.className).toContain('text-bodyLarge');
+    expect(why.className).not.toContain('text-bodyMedium');
     expect(screen.getByRole('link', { name: 'Agir' })).toBeInTheDocument();
   });
 
@@ -34,9 +35,12 @@ describe('ErrorState', () => {
   it('message is an alert; retry is a REAL control (§12: never a dead end)', () => {
     const retry = vi.fn();
     render(<ErrorState onRetry={retry} />);
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Une erreur est survenue. Réessayez.',
-    );
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Une erreur est survenue. Réessayez.');
+    // B8 (row 17): a page-level error body is reading copy — 16, never 14
+    // (the role=alert FIELD errors stay small; this is not one of them).
+    expect(alert.className).toContain('text-bodyLarge');
+    expect(alert.className).not.toContain('text-bodyMedium');
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
     expect(retry).toHaveBeenCalledTimes(1);
   });
