@@ -110,7 +110,7 @@ export function AcompteClient() {
       {/* T52: deposits are verified-only — the server enforces it; this
           mirrors the rule with guidance. */}
       {!verified ? (
-        <div className="mt-l rounded-xl border border-border bg-surface p-m text-bodyMedium text-textSecondary">
+        <div className="mt-l rounded-xl border border-border bg-surface p-m text-bodyLarge text-textSecondary">
           Les acomptes sont disponibles après la vérification de votre
           compte.{' '}
           <Link href="/pro/verification" className="underline">

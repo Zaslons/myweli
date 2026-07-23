@@ -69,7 +69,7 @@ export function ProInvitationsCard({
             className="flex flex-wrap items-center justify-between gap-s rounded-lg border border-border bg-surface p-m"
           >
             <div>
-              <p className="text-bodyMedium text-textPrimary">
+              <p className="text-bodyLarge text-textPrimary">
                 <span className="font-semibold">{inv.salonName}</span> vous
                 invite comme {inv.roleLabel}
               </p>

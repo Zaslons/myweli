@@ -192,7 +192,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
               key={inv.id}
               className="flex flex-col gap-s rounded-lg border border-border bg-surface p-m"
             >
-              <p className="text-bodyMedium text-textPrimary">
+              <p className="text-bodyLarge text-textPrimary">
                 <span className="font-semibold">{inv.salonName}</span> vous
                 invite comme {inv.roleLabel}
               </p>

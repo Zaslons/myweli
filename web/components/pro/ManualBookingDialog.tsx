@@ -148,7 +148,7 @@ export function ManualBookingDialog({
           Prestations
         </p>
         {services.length === 0 ? (
-          <p className="mt-xs text-bodyMedium text-textTertiary">
+          <p className="mt-xs text-bodyLarge text-textTertiary">
             Ajoutez des services à votre profil pour pouvoir créer un
             rendez-vous.
           </p>

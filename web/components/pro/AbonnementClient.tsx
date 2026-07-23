@@ -103,7 +103,7 @@ export function AbonnementClient() {
           <p className="text-titleLarge font-semibold text-textPrimary">
             {SETUP_HEADLINE}
           </p>
-          <p className="mt-xs text-bodyMedium text-textSecondary">{SETUP_SUBLINE}</p>
+          <p className="mt-xs text-bodyLarge text-textSecondary">{SETUP_SUBLINE}</p>
         </section>
       ) : banner ? (
         <section
@@ -126,7 +126,7 @@ export function AbonnementClient() {
           >
             {banner.title}
           </p>
-          <p className="mt-xs text-bodyMedium text-textSecondary">{banner.subtitle}</p>
+          <p className="mt-xs text-bodyLarge text-textSecondary">{banner.subtitle}</p>
           {banner.urgent ? (
             <a
               href={contactWhatsAppUrl()}
@@ -167,7 +167,7 @@ export function AbonnementClient() {
         offer.status === 'grace') ? (
         <Card as="section" className="mt-l">
           <p className="font-semibold text-textPrimary">Ajouter un salon</p>
-          <p className="mt-xs text-bodyMedium text-textSecondary">
+          <p className="mt-xs text-bodyLarge text-textSecondary">
             Chaque salon a sa propre offre et son propre essai.
           </p>
           <Link
@@ -205,7 +205,7 @@ export function AbonnementClient() {
         </p>
       ) : null}
 
-      <p className="mt-m text-bodyMedium text-textTertiary">{TRIAL_KEPT_LINE}</p>
+      <p className="mt-m text-bodyLarge text-textTertiary">{TRIAL_KEPT_LINE}</p>
     </div>
   );
 }

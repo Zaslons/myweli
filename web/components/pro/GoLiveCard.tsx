@@ -57,7 +57,7 @@ export function GoLiveCard({
       <p className="font-semibold text-textPrimary">
         Votre salon n’est pas encore en ligne
       </p>
-      <p className="mt-xs text-bodyMedium text-textSecondary">
+      <p className="mt-xs text-bodyLarge text-textSecondary">
         Complétez votre profil pour apparaître dans les recherches et recevoir
         des réservations.
       </p>
