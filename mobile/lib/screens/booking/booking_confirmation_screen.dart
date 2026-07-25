@@ -20,6 +20,7 @@ import '../../providers/messaging_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/push/push_permission_sheet.dart';
@@ -72,13 +73,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
         // Show a message that they need to sign in
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Veuillez vous connecter pour confirmer votre réservation'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          AppSnackBar.show(context,
+              'Veuillez vous connecter pour confirmer votre réservation');
         });
 
         context
@@ -150,12 +146,9 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       await _maybeAskPush();
       if (!mounted) return;
       context.go('/bookings');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Acompte envoyé · en attente de confirmation du salon'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      AppSnackBar.show(
+          context, 'Acompte envoyé · en attente de confirmation du salon',
+          kind: SnackKind.success);
       return;
     }
 
@@ -179,21 +172,13 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       await _maybeAskPush();
       if (!mounted) return;
       context.go('/bookings');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Réservation envoyée · en attente de confirmation du salon'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      AppSnackBar.show(
+          context, 'Réservation envoyée · en attente de confirmation du salon',
+          kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              appointmentProvider.error ?? 'Erreur lors de la réservation'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, appointmentProvider.error ?? 'Erreur lors de la réservation',
+          kind: SnackKind.error);
     }
   }
 

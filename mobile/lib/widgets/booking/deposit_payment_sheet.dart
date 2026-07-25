@@ -17,6 +17,8 @@ import '../../models/locality.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
 import '../common/app_button.dart';
+import '../common/app_snack_bar.dart';
+import '../common/inline_feedback.dart';
 import '../provider/image_picker_sheet.dart';
 import '../provider/mock_image_picker_sheet.dart';
 
@@ -139,6 +141,10 @@ class _DepositPaymentSheet extends StatefulWidget {
 }
 
 class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
+  /// A6: feedback raised while this sheet is open renders INSIDE it — a
+  /// snackbar here is invisible to a screen reader and hidden by the scrim.
+  (String, SnackKind)? _feedback;
+
   /// The private object key returned by the upload (sent to the backend).
   @override
   void initState() {
@@ -177,18 +183,15 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir Wave')),
-      );
+      // A6: inside a sheet, a snackbar is pruned by the modal barrier and
+      // painted under the scrim — the message belongs here.
+      setState(() => _feedback = ('Impossible d’ouvrir Wave', SnackKind.error));
     }
   }
 
   void _copyNumber() {
     Clipboard.setData(ClipboardData(text: widget.depositNumber!));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Numéro copié'), duration: Duration(seconds: 1)),
-    );
+    setState(() => _feedback = ('Numéro copié', SnackKind.success));
   }
 
   Future<void> _attachScreenshot() async {
@@ -313,6 +316,8 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingM),
+              if (_feedback != null)
+                InlineFeedback(_feedback!.$1, kind: _feedback!.$2),
               if (_hasHandle) ...[
                 if (deepLinkKindIsWave(
                     _operatorInfo(context)?.deepLinkKind)) ...[

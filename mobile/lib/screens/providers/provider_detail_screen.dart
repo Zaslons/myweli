@@ -17,6 +17,8 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/providers/before_after_section.dart';
@@ -103,51 +105,30 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   Future<void> _reportReview(String reviewId) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (!auth.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connectez-vous pour signaler un avis.'),
-        ),
-      );
+      AppSnackBar.show(context, 'Connectez-vous pour signaler un avis.');
       return;
     }
-    final reasonController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Signaler cet avis ?'),
-        content: TextField(
-          controller: reasonController,
-          maxLength: 500,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Raison (optionnel)',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Signaler'),
-          ),
-        ],
+    // The reason is optional, so `null` (cancel) is the only stop signal —
+    // and the dialog owns its controller, which this one used to leak.
+    final reason = await showInputDialog(
+      context,
+      title: 'Signaler cet avis ?',
+      confirmLabel: 'Signaler',
+      field: const ConfirmField(
+        hint: 'Raison (optionnel)',
+        isRequired: false,
+        maxLength: 500,
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (reason == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final ok = await Provider.of<ProviderProvider>(context, listen: false)
-        .reportReview(reviewId, reason: reasonController.text);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Merci. Notre équipe va examiner cet avis.'
-              : 'Le signalement a échoué. Réessayez.',
-        ),
-        backgroundColor: ok ? null : AppColors.error,
-      ),
+        .reportReview(reviewId, reason: reason);
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Merci. Notre équipe va examiner cet avis.',
+      error: 'Le signalement a échoué. Réessayez.',
     );
   }
 
@@ -213,33 +194,42 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           ),
                           onPressed: () async {
                             if (!authProvider.isAuthenticated) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Connectez-vous pour ajouter aux favoris'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+                              AppSnackBar.show(context,
+                                  'Connectez-vous pour ajouter aux favoris');
                               final currentPath =
                                   GoRouterState.of(context).uri.toString();
                               context.go(
                                   '/login?returnTo=${Uri.encodeComponent(currentPath)}');
                               return;
                             }
-                            await favoritesProvider.toggleFavorite(
+                            final messenger = ScaffoldMessenger.of(context);
+                            // The toggle can fail. Announcing success either
+                            // way is a lie, and « Annuler » on a failed toggle
+                            // would PERFORM the action instead of undoing it.
+                            final ok = await favoritesProvider.toggleFavorite(
                                 userId, widget.providerId);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isFavorite
-                                        ? 'Retiré des favoris'
-                                        : 'Ajouté aux favoris',
-                                  ),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
-                            }
+                            AppSnackBar.outcomeOn(
+                              messenger,
+                              ok: ok,
+                              success: isFavorite
+                                  ? 'Retiré des favoris'
+                                  : 'Ajouté aux favoris',
+                              error: favoritesProvider.error ??
+                                  'Une erreur est survenue. Réessayez.',
+                              action: !ok
+                                  ? null
+                                  : SnackAction(
+                                      label: 'Annuler',
+                                      onPressed: () =>
+                                          favoritesProvider.toggleFavorite(
+                                              userId, widget.providerId),
+                                      // §15 as amended by A6: the heart itself
+                                      // is a one-tap undo, so this keeps the
+                                      // kind's 3s instead of occluding the
+                                      // screen for 10.
+                                      isOnlyRouteBack: false,
+                                    ),
+                            );
                           },
                         );
                       },
@@ -562,13 +552,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             InkWell(
                               onTap: () {
                                 if (p.latitude == null || p.longitude == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content:
-                                          Text('Localisation non disponible'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
+                                  AppSnackBar.show(
+                                      context, 'Localisation non disponible',
+                                      kind: SnackKind.error);
                                   return;
                                 }
                                 context.push('/favorites?providerId=${p.id}');

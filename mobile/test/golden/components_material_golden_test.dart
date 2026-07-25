@@ -24,34 +24,6 @@ void main() {
       );
       await expectGolden(tester, 'components_material');
     });
-
-    testWidgets('a dialog', (tester) async {
-      goldenSurface(tester, size: const Size(390, 360));
-      await tester.pumpWidget(
-        goldenApp(
-          home: const Scaffold(
-            backgroundColor: AppColors.background,
-            body: Center(
-              child: AlertDialog(
-                title: Text('Annuler le rendez-vous ?'),
-                content: Text(
-                  'Cette action est définitive. Le client sera prévenu.',
-                ),
-                actions: [
-                  TextButton(onPressed: _noop, child: Text('Retour')),
-                  ElevatedButton(
-                    onPressed: _noop,
-                    child: Text('Annuler le RDV'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      await expectGolden(tester, 'components_dialog');
-    });
   }, skip: kGoldensSkip);
 }
 

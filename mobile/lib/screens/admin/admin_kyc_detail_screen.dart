@@ -9,6 +9,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/admin/admin_kyc_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import 'widgets/admin_scaffold.dart';
@@ -42,13 +43,12 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
     final ok = await p.approve(widget.accountId);
     if (!mounted) return;
     if (ok) {
-      messenger.showSnackBar(const SnackBar(content: Text('Salon vérifié')));
+      AppSnackBar.showOn(messenger, 'Salon vérifié', kind: SnackKind.success);
       context.go('/admin/kyc');
       unawaited(p.loadQueue());
     } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(p.actionError ?? 'Action impossible')),
-      );
+      AppSnackBar.showOn(messenger, p.actionError ?? 'Action impossible',
+          kind: SnackKind.error);
     }
   }
 
@@ -57,6 +57,7 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
       context,
       title: 'Motif du rejet',
       confirmLabel: 'Rejeter',
+      isDestructive: true,
       hint: 'Visible par le salon (ex. document illisible)',
     );
     if (reason == null || !mounted) return;
@@ -65,13 +66,12 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
     final ok = await p.reject(widget.accountId, reason);
     if (!mounted) return;
     if (ok) {
-      messenger.showSnackBar(const SnackBar(content: Text('Demande rejetée')));
+      AppSnackBar.showOn(messenger, 'Demande rejetée', kind: SnackKind.success);
       context.go('/admin/kyc');
       unawaited(p.loadQueue());
     } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(p.actionError ?? 'Action impossible')),
-      );
+      AppSnackBar.showOn(messenger, p.actionError ?? 'Action impossible',
+          kind: SnackKind.error);
     }
   }
 

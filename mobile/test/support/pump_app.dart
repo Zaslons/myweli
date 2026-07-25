@@ -22,6 +22,9 @@ Widget wrapApp({
   Widget? home,
   RouterConfig<Object>? routerConfig,
   List<SingleChildWidget>? providers,
+  // A6: a feedback test drives the messenger DIRECTLY (`AppSnackBar.showOn`),
+  // which is also the shape 38 call sites use — capture before the await.
+  GlobalKey<ScaffoldMessengerState>? scaffoldMessengerKey,
 }) {
   assert(
     (home == null) != (routerConfig == null),
@@ -32,11 +35,13 @@ Widget wrapApp({
       ? MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          scaffoldMessengerKey: scaffoldMessengerKey,
           home: home,
         )
       : MaterialApp.router(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          scaffoldMessengerKey: scaffoldMessengerKey,
           routerConfig: routerConfig,
         );
 

@@ -11,6 +11,7 @@ import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
@@ -115,10 +116,8 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
     final dt = _dateTime;
     if (dt == null) return;
     if (dt.isBefore(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Choisissez une date et une heure à venir')),
-      );
+      AppSnackBar.show(context, 'Choisissez une date et une heure à venir',
+          kind: SnackKind.error);
       return;
     }
 
@@ -138,20 +137,11 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
     setState(() => _submitting = false);
 
     if (ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rendez-vous créé'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      AppSnackBar.show(context, 'Rendez-vous créé', kind: SnackKind.success);
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Erreur'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, provider.error ?? 'Erreur',
+          kind: SnackKind.error);
     }
   }
 

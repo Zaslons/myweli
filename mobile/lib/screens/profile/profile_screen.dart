@@ -10,6 +10,8 @@ import '../../core/theme/text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -97,9 +99,7 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Langue',
                   trailing: const Text('Français'),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fonctionnalité à venir')),
-                    );
+                    AppSnackBar.show(context, 'Fonctionnalité à venir');
                   },
                 ),
                 _SettingsItem(
@@ -110,11 +110,8 @@ class ProfileScreen extends StatelessWidget {
                     final messenger = ScaffoldMessenger.of(context);
                     final number = AppConfig.supportWhatsApp;
                     if (number.isEmpty) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Contact bientôt disponible.'),
-                        ),
-                      );
+                      AppSnackBar.showOn(
+                          messenger, 'Contact bientôt disponible.');
                       return;
                     }
                     final uri = Uri.parse(
@@ -124,11 +121,9 @@ class ProfileScreen extends StatelessWidget {
                       uri,
                       mode: LaunchMode.externalApplication,
                     )) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Impossible d’ouvrir WhatsApp.'),
-                        ),
-                      );
+                      AppSnackBar.showOn(
+                          messenger, 'Impossible d’ouvrir WhatsApp.',
+                          kind: SnackKind.error);
                     }
                   },
                 ),
@@ -157,26 +152,17 @@ class ProfileScreen extends StatelessWidget {
                     text: 'Déconnexion',
                     type: AppButtonType.secondary,
                     onPressed: () async {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Déconnexion'),
-                          content: const Text(
-                              'Êtes-vous sûr de vouloir vous déconnecter ?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Annuler'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Déconnexion'),
-                            ),
-                          ],
-                        ),
+                      final confirmed = await showConfirmDialog(
+                        context,
+                        title: 'Déconnexion',
+                        message: 'Vous devrez vous reconnecter pour '
+                            'retrouver vos rendez-vous.',
+                        confirmLabel: 'Se déconnecter',
+                        // Reversible — you log back in. Red would be a lie.
+                        isDestructive: false,
                       );
 
-                      if (confirmed == true && context.mounted) {
+                      if (confirmed && context.mounted) {
                         // Clear favorites from state (but keep in storage per user)
                         final favoritesProvider =
                             Provider.of<FavoritesProvider>(context,
@@ -211,7 +197,7 @@ class ProfileScreen extends StatelessWidget {
     AuthProvider authProvider,
   ) async {
     final confirmed = await _confirmDeletion(context);
-    if (confirmed != true || !context.mounted) return;
+    if (!confirmed || !context.mounted) return;
 
     final favoritesProvider =
         Provider.of<FavoritesProvider>(context, listen: false);
@@ -221,81 +207,25 @@ class ProfileScreen extends StatelessWidget {
     if (success) {
       favoritesProvider.clearFavorites();
       context.go('/login');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Compte supprimé')),
-      );
+      AppSnackBar.show(context, 'Compte supprimé', kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Erreur lors de la suppression'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, authProvider.error ?? 'Erreur lors de la suppression',
+          kind: SnackKind.error);
     }
   }
 
-  Future<bool?> _confirmDeletion(BuildContext context) async {
-    final controller = TextEditingController();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocalState) {
-          final canDelete = controller.text.trim().toUpperCase() == 'SUPPRIMER';
-          return AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: AppColors.error),
-                SizedBox(width: AppTheme.spacingS),
-                Expanded(child: Text('Supprimer mon compte')),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Cette action est définitive. Vos rendez-vous, favoris et '
-                  'avis seront supprimés. Pensez à exporter vos données avant.',
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                Text(
-                  'Tapez SUPPRIMER pour confirmer',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingS),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.characters,
-                  onChanged: (_) => setLocalState(() {}),
-                  decoration: const InputDecoration(hintText: 'SUPPRIMER'),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Annuler'),
-              ),
-              TextButton(
-                onPressed: canDelete ? () => Navigator.pop(ctx, true) : null,
-                child: Text(
-                  'Supprimer définitivement',
-                  style: TextStyle(
-                    color: canDelete ? AppColors.error : AppColors.textTertiary,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    controller.dispose();
-    return result;
-  }
+  /// A6: the hand-rolled StatefulBuilder + gating + its own controller became
+  /// three arguments — the ladder's top rung expressed as parameters.
+  Future<bool> _confirmDeletion(BuildContext context) => showConfirmDialog(
+        context,
+        title: 'Supprimer mon compte',
+        message: 'Cette action est définitive. Vos rendez-vous, favoris et '
+            'avis seront supprimés. Pensez à exporter vos données avant.',
+        confirmLabel: 'Supprimer définitivement',
+        icon: Icons.warning_amber_rounded,
+        confirmWord: 'SUPPRIMER',
+      );
 }
 
 class _SettingsItem extends StatelessWidget {

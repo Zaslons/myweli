@@ -9,6 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../models/service.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 
 class ServiceSelectionScreen extends StatefulWidget {
@@ -63,10 +64,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
 
   void _handleContinue() {
     if (_selectedServiceIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Veuillez sélectionner au moins un service')),
-      );
+      AppSnackBar.show(context, 'Veuillez sélectionner au moins un service',
+          kind: SnackKind.error);
       return;
     }
 

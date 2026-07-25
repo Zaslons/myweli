@@ -10,7 +10,9 @@ import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 
 const _durationPresets = [15, 30, 45, 60];
 
@@ -150,47 +152,24 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Service enregistré'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Service enregistré', kind: SnackKind.success);
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(serviceProvider.error ?? 'Erreur lors de la sauvegarde'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, serviceProvider.error ?? 'Erreur lors de la sauvegarde',
+          kind: SnackKind.error);
     }
   }
 
   Future<void> _handleDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer ce service ?'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer ce service ?',
+      message: 'Il ne sera plus réservable. Cette action est irréversible.',
+      confirmLabel: 'Supprimer le service',
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final serviceProvider =
         Provider.of<ProServiceProvider>(context, listen: false);
@@ -199,21 +178,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Service supprimé'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Service supprimé', kind: SnackKind.success);
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(serviceProvider.error ?? 'Erreur lors de la suppression'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, serviceProvider.error ?? 'Erreur lors de la suppression',
+          kind: SnackKind.error);
     }
   }
 

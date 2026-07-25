@@ -8,6 +8,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 
@@ -84,17 +85,13 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
     if (!mounted) return;
     setState(() => _submitting = false);
     if (created == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.error ?? 'Création du salon impossible.'),
-        ),
-      );
+      AppSnackBar.show(context, auth.error ?? 'Création du salon impossible.',
+          kind: SnackKind.error);
       return;
     }
     // Switched to the new draft — its setup checklist is the next step.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('« ${created.salonName} » créé.')),
-    );
+    AppSnackBar.show(context, '« ${created.salonName} » créé.',
+        kind: SnackKind.success);
     context.go('/pro/onboarding');
   }
 

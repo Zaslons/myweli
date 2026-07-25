@@ -8,6 +8,8 @@ import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_before_after_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
@@ -54,37 +56,24 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
       caption: caption,
     );
     if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(p.error ?? 'Échec de l’envoi'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, p.error ?? 'Échec de l’envoi',
+          kind: SnackKind.error);
     }
   }
 
   Future<String?> _askCaption() async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Légende (optionnel)'),
-        content: TextField(
-          controller: controller,
-          maxLength: 120,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Ex. Tresses collées'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Passer'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Ajouter'),
-          ),
-        ],
+    // Not destructive — a prompt, so `showInputDialog` rather than a confirm
+    // (§15: the friction must match the damage; here there is none).
+    return showInputDialog(
+      context,
+      title: 'Légende (optionnel)',
+      confirmLabel: 'Ajouter',
+      cancelLabel: 'Passer',
+      field: const ConfirmField(
+        hint: 'Ex. Tresses collées',
+        isRequired: false,
+        maxLength: 120,
+        maxLines: 1,
       ),
     );
   }
@@ -94,24 +83,36 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
     ProBeforeAfterProvider p,
     int index,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer cette paire ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer cette paire ?',
+      message: 'L’avant/après disparaîtra de votre galerie publique.',
+      confirmLabel: 'Supprimer la paire',
+    );
+    if (!confirmed || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final removed = p.pairs[index];
+    final ok = await p.removePair(providerId, index);
+    if (!ok) {
+      AppSnackBar.showOn(messenger, p.error ?? 'Suppression impossible.',
+          kind: SnackKind.error);
+      return;
+    }
+    AppSnackBar.showOn(
+      messenger,
+      'Avant/après supprimé',
+      kind: SnackKind.success,
+      action: SnackAction(
+        label: 'Annuler',
+        onPressed: () async {
+          final restored = await p.restorePairAt(providerId, index, removed);
+          if (!restored) {
+            AppSnackBar.showOn(messenger, p.error ?? 'Restauration impossible.',
+                kind: SnackKind.error);
+          }
+        },
       ),
     );
-    if (confirmed == true) await p.removePair(providerId, index);
   }
 
   @override

@@ -13,6 +13,7 @@ import '../../../core/utils/salon_time.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
@@ -445,9 +446,8 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     );
     final ok = await journal.reschedule(a.id, newDt);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(journal.error ?? 'Créneau indisponible.')),
-      );
+      AppSnackBar.show(context, journal.error ?? 'Créneau indisponible.',
+          kind: SnackKind.error);
     }
   }
 
@@ -455,9 +455,8 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final journal = context.read<ProJournalProvider>();
     final ok = await future;
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(journal.error ?? 'Action impossible.')),
-      );
+      AppSnackBar.show(context, journal.error ?? 'Action impossible.',
+          kind: SnackKind.error);
     }
   }
 }

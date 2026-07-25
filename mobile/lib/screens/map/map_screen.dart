@@ -256,14 +256,21 @@ class _MapScreenState extends State<MapScreen> {
                                     '/login?returnTo=${Uri.encodeComponent('/favorites')}');
                                 return;
                               }
-                              await favorites.toggleFavorite(
+                              final ok = await favorites.toggleFavorite(
                                   auth.user!.id, p.id);
                               if (sheetCtx.mounted) {
+                                // A snackbar here would be pruned by the
+                                // sheet's ModalBarrier (§15/§10), so this one
+                                // stays an announcement — but it must not
+                                // announce a success that did not happen.
                                 Helpers.announce(
                                   sheetCtx,
-                                  isFav
-                                      ? 'Retiré des favoris'
-                                      : 'Ajouté aux favoris',
+                                  ok
+                                      ? (isFav
+                                          ? 'Retiré des favoris'
+                                          : 'Ajouté aux favoris')
+                                      : (favorites.error ??
+                                          'Une erreur est survenue. Réessayez.'),
                                 );
                               }
                             },

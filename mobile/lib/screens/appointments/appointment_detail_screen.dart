@@ -17,6 +17,8 @@ import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
@@ -89,22 +91,17 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final p = res.data;
     final raw = whatsapp ? p?.whatsapp : p?.phoneNumber;
     if (!res.success || p == null || raw == null || raw.isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
-          ),
-        ),
-      );
+      AppSnackBar.showOn(messenger,
+          whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
+          kind: SnackKind.error);
       return;
     }
     final uri = whatsapp
         ? Uri.parse('https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}')
         : Uri.parse('tel:${raw.replaceAll(RegExp(r'\s'), '')}');
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir l’application.')),
-      );
+      AppSnackBar.showOn(messenger, 'Impossible d’ouvrir l’application.',
+          kind: SnackKind.error);
     }
   }
 
@@ -117,79 +114,75 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       depositAmount: appointment.depositAmount,
     );
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler le rendez-vous ?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
-            if (appointment.depositAmount > 0) ...[
-              const SizedBox(height: AppTheme.spacingSM),
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingM),
-                decoration: BoxDecoration(
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Annuler le rendez-vous ?',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
+          if (appointment.depositAmount > 0) ...[
+            const SizedBox(height: AppTheme.spacingSM),
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              decoration: BoxDecoration(
+                // §13.1: `errorLight`/`successLight` are foregrounds (4.66:1 ON
+                // white). Used as a fill they put `error` ink at 2.00:1 and
+                // `success` ink at 1.85:1 — both illegible. A neutral tint
+                // carries the ink (9.19:1 / 15.98:1) and the semantic hue moves
+                // to the border, beside the glyph that already distinguishes it.
+                color: AppColors.surfaceVariant,
+                border: Border.all(
                   color: outcome.depositForfeited
-                      ? AppColors.errorLight
-                      : AppColors.successLight,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                      ? AppColors.error
+                      : AppColors.success,
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    outcome.depositForfeited
+                        ? Icons.warning_amber_rounded
+                        : Icons.info_outline,
+                    size: AppTheme.iconS,
+                    color: outcome.depositForfeited
+                        ? AppColors.error
+                        : AppColors.success,
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Expanded(
+                    child: Text(
                       outcome.depositForfeited
-                          ? Icons.warning_amber_rounded
-                          : Icons.info_outline,
-                      size: AppTheme.iconS,
-                      color: outcome.depositForfeited
-                          ? AppColors.error
-                          : AppColors.success,
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Expanded(
-                      child: Text(
-                        outcome.depositForfeited
-                            ? 'Annulation à moins de '
-                                '${appointment.cancellationWindowHours} h : '
-                                'votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                                'ne sera pas remboursé.'
-                            : 'Votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                                'sera remboursé.',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: outcome.depositForfeited
-                              ? AppColors.error
-                              : AppColors.textPrimary,
-                        ),
+                          ? 'Annulation à moins de '
+                              '${appointment.cancellationWindowHours} h : '
+                              'votre acompte de '
+                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                              'ne sera pas remboursé.'
+                          : 'Votre acompte de '
+                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                              'sera remboursé.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: outcome.depositForfeited
+                            ? AppColors.error
+                            : AppColors.textPrimary,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Oui, annuler',
-              style: TextStyle(color: AppColors.error),
             ),
-          ),
+          ],
         ],
       ),
+      // §15: label the button with the VERB, never « Oui ». The consequence —
+      // whether the deposit is forfeited — is the computed body above.
+      confirmLabel: 'Annuler le rendez-vous',
+      cancelLabel: 'Garder',
     );
-
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
 
     final success = await provider.cancelAppointment(widget.appointmentId);
 
@@ -197,19 +190,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     if (success) {
       context.pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rendez-vous annulé'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      AppSnackBar.show(context, 'Rendez-vous annulé', kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Erreur lors de l\'annulation'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, provider.error ?? 'Erreur lors de l\'annulation',
+          kind: SnackKind.error);
     }
   }
 
@@ -232,13 +217,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Rendez-vous reporté' : (provider.error ?? 'Erreur'),
-        ),
-        backgroundColor: success ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcome(
+      context,
+      ok: success,
+      success: 'Rendez-vous reporté',
+      error: provider.error ?? 'Erreur',
     );
   }
 
@@ -262,12 +245,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       currency: appointment.currency ?? p?.currency,
     );
     if (sent != true || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Acompte envoyé. En attente de confirmation du salon.'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    AppSnackBar.show(
+        context, 'Acompte envoyé. En attente de confirmation du salon.',
+        kind: SnackKind.success);
   }
 
   /// View the screenshot the consumer already submitted (signed URL).
@@ -288,9 +268,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         ),
       );
     } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(res.error ?? 'Capture indisponible')),
-      );
+      AppSnackBar.showOn(messenger, res.error ?? 'Capture indisponible',
+          kind: SnackKind.error);
     }
   }
 
@@ -398,15 +377,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       ),
     );
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Rendez-vous ajouté à votre calendrier'
-              : 'Impossible d\'ouvrir le calendrier',
-        ),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Rendez-vous ajouté à votre calendrier',
+      error: 'Impossible d\'ouvrir le calendrier',
     );
   }
 

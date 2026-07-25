@@ -14,6 +14,8 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/team/team_role_chip.dart';
 
@@ -377,42 +379,30 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer votre compte ?'),
-        content: const Text(
-          'Cette action est définitive. Votre salon sera retiré de MyWeli. '
-          'Pensez à exporter vos données avant.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer votre compte ?',
+      message: 'Cette action est définitive. Votre salon sera retiré de '
+          'MyWeli. Pensez à exporter vos données avant.',
+      confirmLabel: 'Supprimer définitivement',
+      icon: Icons.warning_amber_rounded,
+      // A6 closes the ladder's asymmetry: the CONSUMER account delete has
+      // asked you to type SUPPRIMER since it shipped, while the PRO salon
+      // delete — the same irreversible + high-value rung, and a whole salon —
+      // asked for one tap. §15 says both get type-to-confirm.
+      confirmWord: 'SUPPRIMER',
     );
-    if (confirmed != true || !context.mounted) return;
+    if (!confirmed || !context.mounted) return;
 
     final res = await serviceLocator.proService.deleteProviderAccount();
     if (!res.success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            res.code == 'future_bookings'
-                ? 'Terminez ou annulez vos rendez-vous à venir avant de '
-                    'supprimer votre compte.'
-                : res.error ?? 'La suppression a échoué. Réessayez.',
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger,
+          res.code == 'future_bookings'
+              ? 'Terminez ou annulez vos rendez-vous à venir avant de '
+                  'supprimer votre compte.'
+              : res.error ?? 'La suppression a échoué.',
+          kind: SnackKind.error);
       return;
     }
     await authProvider.logout();

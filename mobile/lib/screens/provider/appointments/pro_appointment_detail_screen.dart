@@ -16,6 +16,8 @@ import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 
 class ProAppointmentDetailScreen extends StatefulWidget {
@@ -254,9 +256,8 @@ class _ProAppointmentDetailScreenState
                       final success = await appointmentProvider
                           .acceptAppointment(appointment.id);
                       if (success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Rendez-vous accepté')),
-                        );
+                        AppSnackBar.show(context, 'Rendez-vous accepté',
+                            kind: SnackKind.success);
                         Navigator.pop(context);
                       }
                     },
@@ -269,9 +270,8 @@ class _ProAppointmentDetailScreenState
                       final success = await appointmentProvider
                           .rejectAppointment(appointment.id, null);
                       if (success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Rendez-vous rejeté')),
-                        );
+                        AppSnackBar.show(context, 'Rendez-vous rejeté',
+                            kind: SnackKind.success);
                         Navigator.pop(context);
                       }
                     },
@@ -294,14 +294,11 @@ class _ProAppointmentDetailScreenState
                             .read<ProJournalProvider>()
                             .arrive(appointment.id);
                         if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              ok
-                                  ? 'Arrivée enregistrée'
-                                  : 'Impossible d’enregistrer l’arrivée.',
-                            ),
-                          ),
+                        AppSnackBar.outcome(
+                          context,
+                          ok: ok,
+                          success: 'Arrivée enregistrée',
+                          error: 'Impossible d’enregistrer l’arrivée.',
                         );
                         if (ok && authProvider.provider != null) {
                           await appointmentProvider.loadAppointments(
@@ -318,9 +315,8 @@ class _ProAppointmentDetailScreenState
                       final success = await appointmentProvider
                           .markComplete(appointment.id);
                       if (success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Rendez-vous terminé')),
-                        );
+                        AppSnackBar.show(context, 'Rendez-vous terminé',
+                            kind: SnackKind.success);
                         Navigator.pop(context);
                       }
                     },
@@ -331,34 +327,23 @@ class _ProAppointmentDetailScreenState
                       text: 'Marquer comme absent',
                       type: AppButtonType.secondary,
                       onPressed: () async {
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Client absent ?'),
-                            content: const Text(
-                              'Le client ne s\'est pas présenté. L\'acompte '
-                              'est conservé selon votre politique d\'annulation.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Annuler'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Confirmer'),
-                              ),
-                            ],
-                          ),
+                        final confirmed = await showConfirmDialog(
+                          context,
+                          title: 'Client absent ?',
+                          message: 'Le client ne s’est pas présenté. '
+                              'L’acompte est conservé selon votre politique '
+                              'd’annulation.',
+                          confirmLabel: 'Marquer absent',
+                          // Not a deletion — a state change. §15: red is for
+                          // destruction; spending it here would dilute it.
+                          isDestructive: false,
                         );
-                        if (confirmed != true || !context.mounted) return;
+                        if (!confirmed || !context.mounted) return;
                         final success = await appointmentProvider
                             .markNoShow(appointment.id);
                         if (success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Marqué comme absent')),
-                          );
+                          AppSnackBar.show(context, 'Marqué comme absent',
+                              kind: SnackKind.success);
                           Navigator.pop(context);
                         }
                       },

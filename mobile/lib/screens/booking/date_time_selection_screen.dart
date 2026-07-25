@@ -18,6 +18,7 @@ import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/salon_time_hint.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
@@ -145,9 +146,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 
   void _handleContinue() {
     if (_selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une heure')),
-      );
+      AppSnackBar.show(context, 'Veuillez sélectionner une heure',
+          kind: SnackKind.error);
       return;
     }
 
