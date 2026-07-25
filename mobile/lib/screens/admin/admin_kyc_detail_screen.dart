@@ -57,6 +57,7 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
       context,
       title: 'Motif du rejet',
       confirmLabel: 'Rejeter',
+      isDestructive: true,
       hint: 'Visible par le salon (ex. document illisible)',
     );
     if (reason == null || !mounted) return;

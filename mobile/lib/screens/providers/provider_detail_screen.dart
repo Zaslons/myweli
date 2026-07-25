@@ -18,6 +18,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/providers/before_after_section.dart';
@@ -107,35 +108,22 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
       AppSnackBar.show(context, 'Connectez-vous pour signaler un avis.');
       return;
     }
-    final reasonController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Signaler cet avis ?'),
-        content: TextField(
-          controller: reasonController,
-          maxLength: 500,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Raison (optionnel)',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Signaler'),
-          ),
-        ],
+    // The reason is optional, so `null` (cancel) is the only stop signal —
+    // and the dialog owns its controller, which this one used to leak.
+    final reason = await showInputDialog(
+      context,
+      title: 'Signaler cet avis ?',
+      confirmLabel: 'Signaler',
+      field: const ConfirmField(
+        hint: 'Raison (optionnel)',
+        isRequired: false,
+        maxLength: 500,
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (reason == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final ok = await Provider.of<ProviderProvider>(context, listen: false)
-        .reportReview(reviewId, reason: reasonController.text);
+        .reportReview(reviewId, reason: reason);
     AppSnackBar.outcomeOn(
       messenger,
       ok: ok,

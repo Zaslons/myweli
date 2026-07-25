@@ -40,6 +40,7 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
       context,
       title: 'Suspendre ce salon ?',
       confirmLabel: 'Suspendre',
+      isDestructive: true,
       hint: 'Motif (interne)',
       reasonRequired: false,
     );

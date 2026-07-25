@@ -18,6 +18,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
@@ -113,79 +114,67 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       depositAmount: appointment.depositAmount,
     );
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler le rendez-vous ?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
-            if (appointment.depositAmount > 0) ...[
-              const SizedBox(height: AppTheme.spacingSM),
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingM),
-                decoration: BoxDecoration(
-                  color: outcome.depositForfeited
-                      ? AppColors.errorLight
-                      : AppColors.successLight,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Annuler le rendez-vous ?',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
+          if (appointment.depositAmount > 0) ...[
+            const SizedBox(height: AppTheme.spacingSM),
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              decoration: BoxDecoration(
+                color: outcome.depositForfeited
+                    ? AppColors.errorLight
+                    : AppColors.successLight,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    outcome.depositForfeited
+                        ? Icons.warning_amber_rounded
+                        : Icons.info_outline,
+                    size: AppTheme.iconS,
+                    color: outcome.depositForfeited
+                        ? AppColors.error
+                        : AppColors.success,
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Expanded(
+                    child: Text(
                       outcome.depositForfeited
-                          ? Icons.warning_amber_rounded
-                          : Icons.info_outline,
-                      size: AppTheme.iconS,
-                      color: outcome.depositForfeited
-                          ? AppColors.error
-                          : AppColors.success,
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Expanded(
-                      child: Text(
-                        outcome.depositForfeited
-                            ? 'Annulation à moins de '
-                                '${appointment.cancellationWindowHours} h : '
-                                'votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                                'ne sera pas remboursé.'
-                            : 'Votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                                'sera remboursé.',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: outcome.depositForfeited
-                              ? AppColors.error
-                              : AppColors.textPrimary,
-                        ),
+                          ? 'Annulation à moins de '
+                              '${appointment.cancellationWindowHours} h : '
+                              'votre acompte de '
+                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                              'ne sera pas remboursé.'
+                          : 'Votre acompte de '
+                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                              'sera remboursé.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: outcome.depositForfeited
+                            ? AppColors.error
+                            : AppColors.textPrimary,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Oui, annuler',
-              style: TextStyle(color: AppColors.error),
             ),
-          ),
+          ],
         ],
       ),
+      // §15: label the button with the VERB, never « Oui ». The consequence —
+      // whether the deposit is forfeited — is the computed body above.
+      confirmLabel: 'Annuler le rendez-vous',
+      cancelLabel: 'Garder',
     );
-
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
 
     final success = await provider.cancelAppointment(widget.appointmentId);
 

@@ -8,6 +8,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_gallery_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
@@ -53,26 +54,14 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
 
   Future<void> _removePhoto(
       String providerId, ProGalleryProvider gallery, int index) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer cette photo ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer cette photo ?',
+      message: 'Elle disparaîtra de votre galerie publique.',
+      confirmLabel: 'Supprimer la photo',
     );
-    if (confirmed == true) {
-      await gallery.removePhoto(providerId, index);
-    }
+    if (!confirmed || !mounted) return;
+    await gallery.removePhoto(providerId, index);
   }
 
   @override

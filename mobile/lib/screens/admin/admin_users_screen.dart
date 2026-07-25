@@ -38,6 +38,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       context,
       title: 'Bannir ce client ?',
       confirmLabel: 'Bannir',
+      isDestructive: true,
       hint: 'Motif (interne)',
       reasonRequired: false,
     );

@@ -13,6 +13,7 @@ import '../../../providers/pro_subscription_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/team/team_role_chip.dart';
@@ -423,28 +424,17 @@ class _MemberActionsSheet extends StatelessWidget {
   Future<void> _revoke(BuildContext context, ProTeamProvider team) async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Révoquer l\'accès ?'),
-        content: Text(
-          '${member.email} perdra immédiatement l\'accès à $salonName. '
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Révoquer l\'accès ?',
+      message: '${member.email} perdra immédiatement l\'accès à $salonName. '
           'Son compte MyWeli n\'est pas supprimé.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Révoquer'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Révoquer',
     );
-    if (confirmed != true) return;
+    // No `mounted` here by design: this is a stateless row, and the messenger
+    // and navigator were captured BEFORE the dialog — the census flagged the
+    // old `confirmed != true` as a missing guard, but the capture is the fix.
+    if (!confirmed) return;
     final ok = await team.revoke(member.id);
     navigator.pop();
     AppSnackBar.outcomeOn(

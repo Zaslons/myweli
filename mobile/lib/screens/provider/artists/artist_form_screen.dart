@@ -12,6 +12,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
@@ -121,28 +122,15 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   }
 
   Future<void> _handleDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer cet employé ?'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer cet employé ?',
+      message: 'Sa fiche et ses créneaux disparaîtront. Cette action est '
+          'irréversible.',
+      confirmLabel: 'Supprimer l’employé',
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final artistProvider =
         Provider.of<ProArtistProvider>(context, listen: false);

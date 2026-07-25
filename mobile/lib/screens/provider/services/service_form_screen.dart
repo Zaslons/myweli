@@ -12,6 +12,7 @@ import '../../../providers/pro_service_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 
 const _durationPresets = [15, 30, 45, 60];
 
@@ -161,28 +162,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   }
 
   Future<void> _handleDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer ce service ?'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer ce service ?',
+      message: 'Il ne sera plus réservable. Cette action est irréversible.',
+      confirmLabel: 'Supprimer le service',
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final serviceProvider =
         Provider.of<ProServiceProvider>(context, listen: false);

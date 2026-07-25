@@ -40,6 +40,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
       context,
       title: 'Bannir ce client ?',
       confirmLabel: 'Bannir',
+      isDestructive: true,
       hint: 'Motif (interne)',
       reasonRequired: false,
     );

@@ -45,6 +45,7 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       context,
       title: 'Masquer cet avis ?',
       confirmLabel: 'Masquer',
+      isDestructive: true,
       hint: 'Motif interne (optionnel)',
       reasonRequired: false,
     );
