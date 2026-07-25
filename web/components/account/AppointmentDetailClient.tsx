@@ -138,7 +138,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         <h1 className="text-titleLarge font-semibold text-textPrimary">
           Rendez-vous introuvable
         </h1>
-        <p role="alert" className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyLarge text-error">
           Ce rendez-vous n’existe pas ou n’est plus accessible.
         </p>
         <p className="mt-m">
@@ -286,7 +286,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             />
           </div>
         ) : appt.status === 'pending' && appt.depositScreenshotUrl ? (
-          <p className="mt-m text-bodyMedium text-textSecondary">
+          <p className="mt-m text-bodyLarge text-textSecondary">
             Justificatif d’acompte envoyé · en attente de confirmation du
             salon.{' '}
             <a
@@ -319,7 +319,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               <Button onClick={() => openReschedule(appt)}>Reporter</Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-bodyMedium text-textPrimary">
+                <p className="text-bodyLarge text-textPrimary">
                   Choisissez un nouveau créneau
                 </p>
                 <TextField
@@ -387,7 +387,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               </Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-bodyMedium text-textSecondary">
+                <p className="text-bodyLarge text-textSecondary">
                   Confirmer l’annulation&nbsp;?
                   {appt.depositAmount
                     ? ' L’acompte peut ne pas être remboursé selon la politique du salon.'

@@ -29,7 +29,7 @@ export function HomeSearch({
   }
 
   const field =
-    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus';
+    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus';
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-s sm:flex-row">

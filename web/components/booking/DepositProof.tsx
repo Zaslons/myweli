@@ -63,7 +63,7 @@ export function DepositProof({
         <p className="font-medium text-textPrimary">
           Acompte envoyé · en attente de confirmation du salon
         </p>
-        <p className="mt-xs text-bodyMedium text-textSecondary">
+        <p className="mt-xs text-bodyLarge text-textSecondary">
           Le salon confirme votre rendez-vous dès réception.
         </p>
       </div>
@@ -81,7 +81,7 @@ export function DepositProof({
       <p className="font-medium text-textPrimary">
         Acompte à régler : {formatFcfa(amount, currency ?? undefined)}
       </p>
-      <p className="mt-xs text-bodyMedium text-textSecondary">
+      <p className="mt-xs text-bodyLarge text-textSecondary">
         Payez directement au salon
         {number ? ` (${opLabel ?? 'Mobile Money'} : ${number})` : ''}, puis
         joignez la capture du paiement. MyWeli ne prélève rien.
@@ -102,7 +102,7 @@ export function DepositProof({
           type="file"
           accept="image/*"
           aria-label="Capture du paiement"
-          className="text-bodyMedium text-textSecondary"
+          className="text-bodyLarge text-textSecondary"
         />
         <Button isLoading={busy} onClick={send}>
           Envoyer la preuve

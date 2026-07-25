@@ -23,10 +23,16 @@ import { expect, test } from '@playwright/test';
 
 test.use({ viewport: { width: 375, height: 812 } });
 
-const PUBLIC_ROUTES = [
-  ['the marketing home — all 15 of the h2s that grew 20 → 22px live here', '/'],
-  ['discovery', '/recherche?commune=Cocody'],
-  ['a salon page — the h1 that went 30 → 28px', '/salon/salon-excellence'],
+const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
+  ['the marketing home — all 15 of the h2s that grew 20 → 22px live here', '/', /Réservez beauté/],
+  ['discovery', '/recherche?commune=Cocody', /Salons à Cocody/],
+  // B8 caught this route VACUOUS: the stub's salon is `beaute-divine` and the
+  // canonical path is `/{slug}` — `/salon/salon-excellence` had been scanning
+  // the 404 page (which also doesn't overflow) since the slug scheme changed.
+  ['a salon page — the h1 that went 30 → 28px', '/beaute-divine', 'Beauté Divine'],
+  // B8: the auth prompt copy reads at 16 and the e-mail field types at 16 —
+  // the first route where both of B8's growths meet a 375px viewport.
+  ['the consumer connexion — B8 copy + a 16px field', '/connexion', /Connexion|Se connecter|e-mail/i],
 ];
 
 /// The document must not scroll sideways. This is the blunt, honest check: if any
@@ -58,14 +64,52 @@ async function overflowingText(page: import('@playwright/test').Page) {
   });
 }
 
-for (const [name, url] of PUBLIC_ROUTES) {
+for (const [name, url, anchor] of PUBLIC_ROUTES) {
   test(`${name} — no horizontal overflow at 375px`, async ({ page }) => {
     await page.goto(url);
-    await page.waitForLoadState('networkidle');
+    // The content anchor is BOTH the "page rendered" signal AND the vacuity
+    // guard — waiting on it beats `networkidle`, which never fires on the
+    // image-bearing routes (the stub's salon photos point at an unresolvable
+    // `cdn.stub`, so `next/image` keeps the network busy past the 30s
+    // timeout). B8 found the salon route had been silently scanning the 404
+    // page for months (a slug rename left it 404, and the 404 page doesn't
+    // overflow either — a green gate measuring nothing); a heading unique to
+    // the REAL page makes that vacuity loud.
+    // `.first()`: some routes carry a responsive heading twin (a visible h1 +
+    // an sr-only lg:hidden one); one is enough to prove the DOM is right.
+    await expect(
+      page.getByRole('heading', { name: anchor }).first(),
+      `${url} did not render its own page (wrong DOM — vacuous scan)`,
+    ).toBeVisible();
     expect(await noHorizontalScroll(page), `the page scrolls sideways at 375px`).toBe(true);
     expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
   });
 }
+
+async function loginPro(page: import('@playwright/test').Page) {
+  await page.goto('/pro/connexion');
+  await page.locator('input[type=email]').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+}
+
+test('disponibilités at 375 — the tightest input geometry survives 16px digits (B8)', async ({
+  page,
+}) => {
+  // DayHoursEditor: checkbox + start/end time inputs at `px-s py-xs`, the
+  // densest field row in the product — B8 grows the typed text 14 → 16.
+  // HONEST NOTE: `overflowingText()` never queries inputs (a field clips its
+  // own value by design) — the page-level scrollWidth check is the real
+  // assertion here; the per-element pass covers the labels around them.
+  await loginPro(page);
+  await page.goto('/pro/disponibilites');
+  await expect(
+    page.getByRole('heading', { name: 'Disponibilités' }),
+  ).toBeVisible();
+  expect(await noHorizontalScroll(page), 'the page scrolls sideways at 375px').toBe(true);
+  expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+});
 
 test('the pro journal — the 11px block label still fits its ~15px row', async ({
   page,
@@ -74,11 +118,7 @@ test('the pro journal — the 11px block label still fits its ~15px row', async 
   // `text-[11px]` → `text-labelSmall`, which carries a 16px line the arbitrary
   // value never had. `leading-tight` overrides it back to 13.75px — this is what
   // proves that actually happens in a browser rather than only in the cascade.
-  await page.goto('/pro/connexion');
-  await page.locator('input[type=email]').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await loginPro(page);
   await page.goto('/pro/rendez-vous');
   await expect(page.getByText('Awa').first()).toBeVisible();
 

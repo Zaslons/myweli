@@ -22,7 +22,7 @@ import { Button } from '../Button';
 import { Loading } from '../Loading';
 
 const input =
-  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 export function AcompteClient() {
   const router = useRouter();
@@ -110,7 +110,7 @@ export function AcompteClient() {
       {/* T52: deposits are verified-only — the server enforces it; this
           mirrors the rule with guidance. */}
       {!verified ? (
-        <div className="mt-l rounded-xl border border-border bg-surface p-m text-bodyMedium text-textSecondary">
+        <div className="mt-l rounded-xl border border-border bg-surface p-m text-bodyLarge text-textSecondary">
           Les acomptes sont disponibles après la vérification de votre
           compte.{' '}
           <Link href="/pro/verification" className="underline">

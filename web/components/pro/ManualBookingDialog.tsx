@@ -148,7 +148,7 @@ export function ManualBookingDialog({
           Prestations
         </p>
         {services.length === 0 ? (
-          <p className="mt-xs text-bodyMedium text-textTertiary">
+          <p className="mt-xs text-bodyLarge text-textTertiary">
             Ajoutez des services à votre profil pour pouvoir créer un
             rendez-vous.
           </p>
@@ -187,7 +187,7 @@ export function ManualBookingDialog({
                 min={todayYmd(tz)}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
               <input
                 type="time"
@@ -195,7 +195,7 @@ export function ManualBookingDialog({
                 step={900}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
             </div>
           </div>
@@ -227,7 +227,7 @@ export function ManualBookingDialog({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Client (nom ou téléphone)…"
               aria-label="Rechercher ou nommer le client"
-              className="w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
             {matches.length > 0 ? (
               <ul className="mt-xs divide-y divide-border rounded-lg border border-border">
@@ -256,7 +256,7 @@ export function ManualBookingDialog({
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="Téléphone (pour retrouver ce client)"
                 aria-label="Téléphone du nouveau client"
-                className="mt-xs w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="mt-xs w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
             ) : null}
           </div>
@@ -292,7 +292,7 @@ export function ManualBookingDialog({
           maxLength={500}
           placeholder="Note (optionnel)"
           aria-label="Note"
-          className="mt-m w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+          className="mt-m w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
         />
 
         {/* Total (the app's running sum; server re-prices) */}

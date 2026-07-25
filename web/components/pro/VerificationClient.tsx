@@ -142,7 +142,7 @@ export function VerificationClient() {
 
       <div className={`mt-l rounded-xl border p-m ${banner.cls}`}>
         <p className="font-medium">{banner.title}</p>
-        <p className="mt-xs text-bodyMedium">{banner.subtitle}</p>
+        <p className="mt-xs text-bodyLarge">{banner.subtitle}</p>
       </div>
 
       <p className="mt-l text-labelMedium font-medium uppercase text-textTertiary">

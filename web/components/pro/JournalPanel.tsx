@@ -241,7 +241,7 @@ export function JournalPanel({
                   aria-label="Nouvelle date"
                   value={reprogDate}
                   onChange={(e) => setReprogDate(e.target.value)}
-                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <input
                   type="time"
@@ -249,7 +249,7 @@ export function JournalPanel({
                   step={900}
                   value={reprogTime}
                   onChange={(e) => setReprogTime(e.target.value)}
-                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
               </div>
               <div className="mt-s flex gap-s">

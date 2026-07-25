@@ -213,7 +213,7 @@ export function AujourdhuiClient() {
           {hasCap(m, 'profile.manage') ? (
             <Link
               href="/pro/profil"
-              className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
             >
               <span>Configurer mon profil</span>
               <span className="text-textTertiary">›</span>
@@ -223,7 +223,7 @@ export function AujourdhuiClient() {
           {profile?.provider.status === 'active' && profile.provider.slug ? (
             <Link
               href={`/${profile.provider.slug}`}
-              className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
             >
               <span>Voir ma page publique</span>
               <span className="text-textTertiary">›</span>

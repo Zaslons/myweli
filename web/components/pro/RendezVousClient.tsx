@@ -215,7 +215,7 @@ export function RendezVousClient() {
                 value={journalDate}
                 onChange={(e) => setJournalDate(e.target.value)}
                 aria-label="Date"
-                className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
               <button
                 type="button"
