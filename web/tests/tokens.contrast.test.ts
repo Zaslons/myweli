@@ -55,13 +55,11 @@ const FLOOR_ROWS: FloorRow[] = [
   // borderFocus was promised by WEB-SYSTEM §1/§5 from B1 and only landed in
   // B4 (the sixth mirror drift). With the row here, deleting the token goes red.
   { key: 'borderFocus', floor: FLOOR_NON_TEXT, note: 'the focus ring (§5)' },
-  // gold measures 2.98:1 on surfaceVariant — BELOW the floor by 0.02. Found
-  // the moment the review's worst-case surface landed; mobile mirrors the
-  // same value and never measured it either. B3 cannot re-pick a mirrored
-  // brand value, so the row is scoped and the gap is REGISTERED (§15 row 23):
-  // the fix is a cross-surface token change (mobile first, the gate carries
-  // it over).
-  { key: 'gold', floor: FLOOR_NON_TEXT, note: 'gold-as-state (the owner chip)', on: ['background', 'surface', 'card'] },
+  // gold now clears the floor on EVERY surface incl. surfaceVariant (3.10:1) —
+  // §15 row 23 CLOSED. It was #B8860B (2.98:1 there, below by 0.02); the fix
+  // was the mirrored mobile-side darkening to #B5830A (the mirror gate carried
+  // it over). No `on` scoping any more: the darker gold is legal everywhere.
+  { key: 'gold', floor: FLOOR_NON_TEXT, note: 'gold-as-state (the owner chip)' },
   { key: 'favorite', floor: FLOOR_NON_TEXT, note: 'the heart glyph' },
   { key: 'categorySpa', floor: FLOOR_TEXT },
   { key: 'categoryBarber', floor: FLOOR_TEXT },

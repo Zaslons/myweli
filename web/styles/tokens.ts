@@ -51,7 +51,7 @@ export const colors = {
   // Accents. `gold` (3.04:1) is gold-as-STATE. `starRating` (1.62:1) is the fill
   // of a rating-star glyph and nothing else — currently unused on web, which
   // renders `★` in ink/neutral (an amber-star parity pass would revive it).
-  gold: '#B8860B', // 3.04:1 — the owner chip, unseen-story ring, etc.
+  gold: '#B5830A', // 3.10:1 on surfaceVariant (worst) — owner chip, story ring; mirrored from AppColors.gold (§15 row 23)
   starRating: '#FFB800',
   favorite: '#E53935',
   // Category accents (a sanctioned exception to monochrome), via markerColor().

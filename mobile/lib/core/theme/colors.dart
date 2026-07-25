@@ -101,7 +101,11 @@ class AppColors {
   static const Color favorite =
       Color(0xFFE53935); // 3.94:1 — heart GLYPH; not text
   static const Color gold =
-      Color(0xFFB8860B); // 3.04:1 — gold-as-state; not text
+      // 3.10:1 on surfaceVariant (the worst surface) — gold-as-state, not text.
+      // Darkened from #B8860B, which read 2.98:1 there (WEB-SYSTEM §15 row 23):
+      // a proportional scale, so the hue is unchanged and it clears 3:1 on all
+      // four surfaces (bg 3.15 · surface 3.24 · card 3.38 · surfaceVariant 3.10).
+      Color(0xFFB5830A);
 
   // Service-category accents (map markers + category chips). A deliberate,
   // bounded **exception** to the monochrome identity: muted/earthy hues that aid
