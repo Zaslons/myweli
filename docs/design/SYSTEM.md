@@ -629,6 +629,20 @@ is proportional to the damage:
 The destructive button is `error`; the cancel path is the safe default and gets
 focus. Never place the destructive action where "OK" usually sits.
 
+**Undo undoes ONE action — it never restores a snapshot.** A6's review caught
+the trap: when the service takes a whole collection, the obvious undo is to
+capture the list before the delete and PUT it back. That is not undo, it is a
+rewind — and everything the user did during the 10-second window is destroyed
+by the button whose entire promise is that nothing was lost (a reorder
+reverted, a photo uploaded in the meantime deleted for good). Re-insert the one
+removed item into the **current** collection instead. And an undo that fails
+must say so: the restore's result is feedback, never a discarded `Future`.
+
+**A dialog `scrollable: true`.** A consequence sentence plus a type-to-confirm
+field overflows its own box at 200 % text (§13.1) — measured at 4px on a
+400×700 surface — and paints the message over the buttons; a keyboard rising
+under a field does the same.
+
 ---
 
 ## 16. Iconography

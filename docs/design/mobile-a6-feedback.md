@@ -253,13 +253,62 @@ class. It gains one.
   of the four §15-compliant verb labels the census counted, so team_screen's
   copy stays byte-for-byte and its test never needed touching. Changing correct
   copy is a cost with no benefit.
-- **Undo required a provider addition**: `restorePhotos`/`restorePairs`. The
-  services take the whole list, so restoring the pre-delete snapshot is the
-  same call that performed the delete — which is what makes this real undo
-  rather than a re-upload.
+- **Undo required a provider addition**: `restorePhotoAt`/`restorePairAt`. The
+  services take the whole list, which is what makes this real undo rather than
+  a re-upload — but see the review section below: the first version restored a
+  *snapshot*, and that was a bug, not a shortcut.
 - **Goldens: 3 baselines move** (`components_dialog` re-based on the real
   component, plus two new). `components_material_golden_test` loses its dialog
   test; the fixture it photographed never existed in the product.
+
+## What the adversarial review changed
+
+75 agents, multi-lens finders with independent refuters: **4 confirmed, 25
+refuted, 6 whose refuters died** on session limits. The dead-refuter six were
+hand-verified rather than dropped — an unverified finding is not a rejected
+one — and split **3 real / 3 refuted by measurement**. All seven real ones are
+fixed in this PR.
+
+**The undo I shipped in ④ was wrong in three ways**, all in the same direction:
+it assumed nothing else happens during the 10s window.
+
+| # | The defect | The fix |
+|---|---|---|
+| 1 | Undo restored a **snapshot**. `restorePhotos(id, listCapturedBeforeTheDelete)` PUT the whole pre-delete list, so a reorder made during the window was reverted and a photo uploaded during it was **destroyed** — by the button whose entire promise is that nothing was lost. | `restorePhotoAt(id, index, url)` / `restorePairAt(...)` re-insert ONE item into the **current** list. Undo undoes one action; it does not rewind. |
+| 2 | The restore's `Future<bool>` was **discarded** — a failed undo said nothing. | Both call sites surface the provider's error. |
+| 3 | The favourite toggle discarded its result at **all four** sites: a green « Ajouté aux favoris » for a favourite that was never added, and an « Annuler » that would then *perform* the toggle. The map sheet announced the same lie to a screen reader. | `outcomeOn`, and the undo is armed only when the toggle succeeded. |
+
+**Hand-verified real (3):**
+
+- **The dialog did not scroll.** Measured, not argued: a consequence sentence
+  plus type-to-confirm overflowed its own Column by **4px at 2.0 text scale**
+  on a 400×700 surface, painting the message over its own buttons (§13.1). A
+  keyboard rising under a field does the same. `scrollable: true`, gated.
+- **The deposit-forfeit callout inverted two tokens' contract.** `errorLight`
+  and `successLight` are **foregrounds** (4.66:1 *on white*); used as a fill
+  they left `error` ink at **2.00:1** and `success` ink at **1.85:1**. A
+  neutral tint now carries the ink (9.19:1 / 15.98:1) and the semantic hue
+  moved to the border, beside the glyph that already tells them apart.
+- **`semanticLabel: null`** on the snackbar glyph was the parameter's own
+  default dressed as an intention — a no-op. Dropped.
+
+**Two gates could not fail.** The controller-disposal test asserted only
+`takeException() == null`, which holds whether or not anything is disposed —
+proven by deleting `_controller.dispose()` and watching it stay green. It now
+holds the real controller and asserts it is dead afterwards. Both new gates
+were re-mutated and both went red.
+
+**Refuted by measurement** (recorded so they are not re-litigated): the
+snackbar `Row` does **not** overflow at 200 % — the `Expanded` wraps; and the
+cancel-focus gate **does** catch its own inversion — moving `autofocus` to the
+confirm button fails it with the intended message.
+
+**A process note worth keeping.** Review agents wrote to the working tree:
+`confirm_dialog.dart` came back with `scrollable: true` added and `autofocus`
+**moved from cancel to confirm** — the exact inversion §15 forbids — plus ten
+scratch test files. Reverted, then re-derived independently. Their *conclusion*
+about scrolling was right; their edit also carried a regression. Read what an
+agent changed, never adopt it.
 
 ## Definition of done
 
