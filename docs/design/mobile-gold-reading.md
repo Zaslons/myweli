@@ -1,6 +1,6 @@
 # mobile-gold-reading — the mirror-debt close: gold ≥ 3:1 on every surface + the reading paragraphs at 16
 
-**Status:** In progress (2026-07-25). **Surface:** `mobile/` (the Flutter theme
+**Status:** Shipped (2026-07-25) — see « As built ». **Surface:** `mobile/` (the Flutter theme
 + two screens) and the `web/` token mirror. **Design system:**
 [SYSTEM.md §3.5](SYSTEM.md#3-colour) (gold-as-state) ·
 [SYSTEM.md §4](SYSTEM.md#4-type) (reading text) ·
@@ -104,6 +104,36 @@ newly-noticed a11y gap. Recorded as a **new §21 candidate row** (gold-as-text
 below the 4.5:1 floor — the owner chip), fix sketch: a dedicated darker
 gold-text token, or a neutral text colour on the tinted fill. The review
 confirms the scoping call.
+
+## As built — the deltas
+
+- **The proof-red held exactly**: adding `surfaceVariant` to the surface map
+  turned `gold` red at **2.98:1** and nothing else — every other token cleared
+  it (measured: textTertiary 4.68, borderStrong 3.17 the closest). `#B5830A`
+  greens all four surfaces.
+- **Five goldens moved, not four.** The EmptyState body change reaches EVERY
+  golden that renders an EmptyState with a description — so `admin_table_empty`
+  moved alongside `components_empty_state` (both under-counted in the plan).
+  The three gold goldens moved as predicted (`tokens_color`, `pro_team`,
+  `consumer_home`).
+- **`consumer_provider_detail` did NOT move.** The salon « À propos »
+  description sits below that golden's 390×1200 capture, so the flip is
+  code-verified only there. Recorded, not hidden: the shared `EmptyState` body
+  (the reused reading surface) carries the widget pin; a focused
+  description pin would need the full screen DI harness for one Text.
+- **The gold-as-text finding is real and registered** (§21 row 28): the
+  regenerated `pro_team` golden shows it — « Propriétaire » in gold on a pale
+  gold tint. Flagged, not fixed (its own slice).
+- **The mirror gate carried the value byte-for-byte**: `gen:tokens` printed
+  `#B5830A`; `tokens.mirror.test.ts` is green against `colors.dart`.
+
+## Dependency
+
+Row 27 was created by web **B8** (PR #263), which is green but may be
+unmerged when this lands. This branch is off `main`, so §21 adds row 27 in its
+closed form; **merge #263 first, then rebase** — the row-27 line resolves to
+this (closed) version. The code (gold, colors, tokens.ts, the two screens)
+never overlaps B8's.
 
 ## Not in scope
 
