@@ -21,7 +21,8 @@ void main() {
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
   });
 
-  testWidgets('the body reads at 16 — bodyLarge, not the workhorse (§21 row 27)',
+  testWidgets(
+      'the body reads at 16 — bodyLarge, not the workhorse (§21 row 27)',
       (tester) async {
     // §4 declares bodyLarge "Default reading text"; the empty-state body is
     // reading copy. This pin goes red if it slips back to bodyMedium (14).
