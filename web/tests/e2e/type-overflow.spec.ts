@@ -67,16 +67,17 @@ async function overflowingText(page: import('@playwright/test').Page) {
 for (const [name, url, anchor] of PUBLIC_ROUTES) {
   test(`${name} — no horizontal overflow at 375px`, async ({ page }) => {
     await page.goto(url);
-    await page.waitForLoadState('networkidle');
-    // The content anchor: a heading unique to the REAL page. B8 found the
-    // salon route had been silently scanning the 404 page for months (a slug
-    // rename left it 404, and the 404 page doesn't overflow either — a green
-    // gate measuring nothing). A route that overflow-passes on the wrong DOM
-    // is worse than no test; this makes the vacuity loud.
+    // The content anchor is BOTH the "page rendered" signal AND the vacuity
+    // guard — waiting on it beats `networkidle`, which never fires on the
+    // image-bearing routes (the stub's salon photos point at an unresolvable
+    // `cdn.stub`, so `next/image` keeps the network busy past the 30s
+    // timeout). B8 found the salon route had been silently scanning the 404
+    // page for months (a slug rename left it 404, and the 404 page doesn't
+    // overflow either — a green gate measuring nothing); a heading unique to
+    // the REAL page makes that vacuity loud.
+    // `.first()`: some routes carry a responsive heading twin (a visible h1 +
+    // an sr-only lg:hidden one); one is enough to prove the DOM is right.
     await expect(
-      // `.first()`: some routes carry a responsive heading twin (a visible h1
-      // + an sr-only lg:hidden one). We only need ONE to prove the real page
-      // rendered — the point is catching a wrong DOM, not counting headings.
       page.getByRole('heading', { name: anchor }).first(),
       `${url} did not render its own page (wrong DOM — vacuous scan)`,
     ).toBeVisible();
