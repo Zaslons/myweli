@@ -573,23 +573,52 @@ The rules:
 
 ### Snackbars
 
-118 `showSnackBar` calls exist; 73 are raw inline `SnackBar(...)`, only 5 go
-through the shared helper, and exactly **one** in the entire product offers an
-action. That is the whole feedback layer of the app, unmanaged.
+~~118 `showSnackBar` calls exist; 73 are raw inline `SnackBar(...)`~~ — **A6
+closed this**: every snackbar in the product goes through **`AppSnackBar`**,
+and the kind is the API (a call site never picks a colour or a duration).
 
-The single entry point is **`AppSnackBar`**:
+| Kind | Color | Glyph | Duration |
+|---|---|---|---|
+| success | `success` | `check_circle_outline` | 3s |
+| info | `textPrimary` | `info_outline` | 3s |
+| error | `error` | `error_outline` | **6s** (an error needs time to read) |
+| with action | — | — | **10s** — *when the snackbar is the only route back* |
 
-| Kind | Color | Duration |
-|---|---|---|
-| success | `success` | 3s |
-| info | `textPrimary` | 3s |
-| error | `error` | **6s** (an error needs time to read) |
-| with action | — | **10s** (time to reach the button) |
+**The glyph is not decoration (§13.6).** `success` (#2D5016) and `error`
+(#8B0000) have relative luminances of 0.072 and 0.062 — screenshot them in
+greyscale and the outcome is gone. Colour + glyph is two cues, the same fix
+A4b made on the story ring. *(A6 amendment.)*
+
+**The 10s rule is scoped.** §15 originally gave every action-bearing snackbar
+10s. But when the SCREEN itself is the undo — the favourite heart is one tap —
+ten seconds of occlusion on a routine action is a cost with no benefit. 10s is
+for when the bar is the only way back (a deleted photo); otherwise the kind
+keeps its own duration. `SnackAction.isOnlyRouteBack` says which.
+*(A6 amendment.)*
+
+**Feedback raised while a dialog or sheet is open is NOT a snackbar.**
+`ModalBarrier` renders `BlockSemantics(ExcludeSemantics(…))`, so the bar is
+pruned from the semantics tree — a screen reader never hears it — and it paints
+*under* the scrim (§10). It belongs inside the modal that raised it:
+**`InlineFeedback`**, which borrows the same `SnackKind` so feedback speaks one
+vocabulary wherever it lands. *(A6 amendment; the mirror of web B5's
+`aria-modal` finding.)*
+
+**Announcements: the `SnackBar` is already a live region** (Flutter wraps every
+one in `Semantics(liveRegion: true)`), which is the mechanism both platforms
+support — and the ONLY one on Android, where `supportsAnnounce` is false and a
+direct announcement clears TalkBack's queue. **Do not add `SemanticsService`
+beside a snackbar**; A6 deleted the six sites that did. `Helpers.announce`
+remains right for genuinely off-focus events that are *not* snackbars (the map
+sheet's favourite, pull-to-refresh). *(A6 correction — the pre-A6 register
+claimed the opposite.)*
 
 ### Destructive actions — the confirm ladder
 
-Eleven copy-pasted `showDialog<bool>` confirmations exist. They become one
-**`ConfirmDialog`**, and the friction is proportional to the damage:
+~~Eleven copy-pasted `showDialog<bool>` confirmations exist.~~ — **A6 closed
+this** (13 `AlertDialog`s, once the admin's `showReasonDialog` and the caption
+prompt were counted). One **`ConfirmDialog`** serves them all, and the friction
+is proportional to the damage:
 
 | Damage | Pattern |
 |---|---|
@@ -755,11 +784,11 @@ own design system?" — today, mostly not.
 | 11 | Buttons sized by container (§10) | ~~all~~ → **0** | `elevated`/`outlinedButtonTheme` `Size(double.infinity, 48)` → `Size(0, 48)` — width comes from the container, not a forced full-width bar | ✅ **A3** |
 | 12 | Tap targets ≥ 48 (§13.2) | ~~67~~ → **0** | **26** of the 67 rendered <48 (favourite hearts, photo arrows, close/remove ×, contact + text-link rows, pills, segments) + 3 adjacency (<8px) + `review_tile`'s `shrinkWrap` 32px button. Icon-glyphs → 48 transparent hit area (glyph unmoved, anchor compensated); rows/pills → `ConstrainedBox(minHeight: 48)` (grows with text scale). New **`test/a11y/`** gate — `meetsGuideline(androidTapTargetGuideline)` on 5 components — went **red** before the fixes | ✅ **A4a** |
 | 13 | Icon-only controls labelled (§13.4) | ~~26 of 40~~ → **0** | `tooltip:` (= the SR label on IconButton) on the 21 unlabelled buttons + the 3 FABs, state-dependent for toggles ("Ajouter/Retirer des favoris", "Noter N étoiles"); `Semantics(label:)` on the gesture-icons (hearts, remove-×). Pinned by `labeledTapTargetGuideline` | ✅ **A4b** |
-| 14 | `Semantics` on custom controls (§13.4) | ~~0~~ → **0** | **A4b** — roles + states: `Semantics(button/checked/selected/expanded/slider+value)` on the hand-rolled controls (services checkbox / artist radio rows, accordion, date row, before/after slider + thumbnails, segments, pill, hearts). **A4c** — the reading experience: `TimedCachedImage` gains a `semanticLabel` (decorative by default, so images stop being announced as noise); `MergeSemantics` done right (whole-tile on the sub-button-less tappable tiles, content-only on `InvitationCard`; tappable cards with sub-buttons keep tap-aggregation); `SemanticsService.announce` at the snackbar helper + the off-focus events (favourite, review published, pull-to-refresh). | ✅ **A4b + A4c** |
+| 14 | `Semantics` on custom controls (§13.4) | ~~0~~ → **0** | **A4b** — roles + states: `Semantics(button/checked/selected/expanded/slider+value)` on the hand-rolled controls (services checkbox / artist radio rows, accordion, date row, before/after slider + thumbnails, segments, pill, hearts). **A4c** — the reading experience: `TimedCachedImage` gains a `semanticLabel` (decorative by default, so images stop being announced as noise); `MergeSemantics` done right (whole-tile on the sub-button-less tappable tiles, content-only on `InvitationCard`; tappable cards with sub-buttons keep tap-aggregation); `SemanticsService.announce` at the snackbar helper + the off-focus events (favourite, review published, pull-to-refresh). | ✅ **A4b + A4c** **A6 correction**: the announcement half of this row was WRONG. Flutter wraps every `SnackBar` in `Semantics(liveRegion: true)` (snack_bar.dart:831) — the mechanism both platforms support, and the ONLY one on Android, where `supportsAnnounce` is false and a direct announcement clears TalkBack's queue. So the 6 sites that ALSO called `SemanticsService` were the anomaly (double-speaking on iOS), not the 111 that didn't. A6 deleted them and gates the live region instead; `Helpers.announce` stays for genuinely off-focus non-snackbar events. |
 | 15 | 200% text scale (§13.3) | ~~3~~ → **0** | the count under-read it (as row 4 did): **9** boxes bounded *text* with a constant and clipped it — `category_chips` (the named worst, 50), the home's two card carousels (280) + its tile strip (92), provider-detail's tile strip (100), the journal's artist chips (48) + day pill (32), the client tag strip (44), admin's search field (38). **Two of them clipped at 1×** — the tile strips were shipping a bug at the *default* font size (the strip gives 92/100; the tile measures 96/120), so this row was never only an a11y row. Three fixes, chosen by what the box actually is: short scroller → `SingleChildScrollView` + `Row`, **intrinsic**, no bound at all (the default — no arithmetic can rot); long/lazy scroller, which *must* have a bound → the widget exposes it (`ProviderCard.carouselHeight`) via `AppTheme.textScaledBound`; plain box → delete the constant. Boxes bounding an image/logo/divider are correctly fixed and were left alone — see the "wrong target" note below | ✅ **A5** |
 | 16 | Overflow discipline (§13.3) | ~~46 of 963~~ → **0** | the "4.8% have `maxLines`" figure was a **proxy** — most `Text` sits in a `Flexible`/`Wrap` and never overflows, so the count measured the wrong thing. The real check is executable: pumped at **2×**, a `Text` that can't fit throws. That found **one** genuine break the proxy never would have ranked: `compact_appointment_tile`'s hint `Row` overflowed by **217px** at 200% — a `Row` hands its children infinite width, so an unflexed `Text` never wraps, it just runs off the tile. `Flexible` fixes it. The rest of the audited `Text` already ellipsises correctly | ✅ **A5** |
-| 17 | One snackbar entry point (§15) | 118 calls; 73 raw; **1** with an action | shared helper hardcodes `Colors.black87` | *A6* |
-| 18 | One `ConfirmDialog` (§15) | **11** copy-pasted | | *A6* |
+| 17 | One snackbar entry point (§15) | ~~118 calls; 73 raw; 1 with an action~~ → **0** | the counts were RIGHT — the first rows a census hasn't disproven — but they hid the defects. `.showSnackBar(` 116 → **1** and `SnackBar(` 111 → **2**, both inside `AppSnackBar`, whose kind IS the API. Fixed with them: the tone (only 7 of 31 successes were green, 30 of 61 errors weren't red), the durations (2s ×15 · 1s ×4 · Material's 4s ×99 — §15's 3/6/10 appeared NOWHERE, including on the one action-bearing bar), the two local re-inventions (`_toast`, `_showError`) and `Helpers.showSnackBar` itself. **Six sites were feeding a modal-blocked bar** — pruned by `BlockSemantics`, painted under the scrim — and now raise `InlineFeedback` inside the sheet that owns the failure. **The worst-instance note here was stale** (A3 had already removed `Colors.black87`) and the a11y claim inverted: see row 14. Gated by 2 pin rules + `test/a11y/feedback_test.dart` | ✅ **A6** |
+| 18 | One `ConfirmDialog` (§15) | ~~11 copy-pasted~~ → **0** | 11 was right for `showDialog<bool>`, but `AlertDialog(` counted **13** — the admin's `showReasonDialog` (9 call sites) and the caption prompt were never counted. All 13 → one component; `showReasonDialog` survives as a 6-line delegation so the admin didn't change a line. The ladder is now real: the 2 title-only deletes state their consequence, « Oui, annuler » became « Annuler le rendez-vous », the **pro** salon delete gained the type-to-confirm its consumer twin always had, and destructive is a stated classification (red where something is destroyed; explicitly NOT for logout / report-a-review / no-show, so the red keeps its meaning). **Cancel-takes-focus was 0/11** (§15 AND §13.5) — the component does it for all. Its 4 missing `mounted` guards and 3 leaked controllers died with the copies. Gated by 2 pin rules + `test/widget/confirm_dialog_test.dart` | ✅ **A6** |
 | 19 | Field-anchored errors (§14) | **1** caller passes `errorText` | validation = "throw a red toast" | *A8* |
 | 20 | Reduced motion (§9) | **0** | | *A9* |
 | 21 | Tests wrap the real theme | ~~0 of 34~~ → **34 of 34** | all 34 widget tests migrated to `wrapApp`/`pumpApp` (`test/support/pump_app.dart`) — they render `AppTheme.lightTheme`, so a restyle that breaks a screen's layout now fails a test. `pump_app_test.dart` asserts the harness injects the real theme. | ✅ **A3b** |
@@ -770,15 +799,19 @@ own design system?" — today, mostly not.
 | 26 | Unselected segments have no boundary | 2 | both **hand-rolled** segmented controls (not Material `SegmentedButton`) draw a border on the active segment only — so `segmentedButtonTheme` can't fix them; it's a widget change, not a ThemeData one. | *a widget cleanup, not A3* |
 | 27 | Reading paragraphs read one step small (§4) | ~~2 paragraph roles~~ → **0** | §4 declares `bodyLarge` "Default reading text", yet the salon description (`provider_detail_screen.dart`) and the empty-state body (`empty_state.dart`) rendered **`bodyMedium` (14)** — one step below the app's own doctrine. Raised from the OUTSIDE by web B8's census (which disproved "the app reads at 16px"). Both → `bodyLarge`; no density mode to split across (unlike web's HYBRID). Spec: [mobile-gold-reading.md](mobile-gold-reading.md) | ✅ **mobile A-series** |
 | 28 | `gold` used as TEXT below the 4.5:1 floor | **1** | found darkening gold for row 23: `TeamRoleChip`'s « Propriétaire » renders `gold` as *text* (labelSmall, 11px) on a 12%-gold tint — **~3:1**, below the 4.5:1 text floor even at `#B5830A`. Row 3b closed gold as *state* (3:1, "not text") and the a11y contrast guideline covers 6 widgets but not this chip, so it slipped both. Fix: a darker gold-text token, or ink on the tint | *needs its own slice* |
+| 29 | Every Material default string is ENGLISH (§17) | **the whole app** | there is no `flutter_localizations` anywhere — zero `localizationsDelegates`, zero `supportedLocales` — so `DefaultMaterialLocalizations` supplies the modal barrier's semantics label, « Dismiss », the dialog route name and every other Material default **in English**, under a §17 that says French everywhere. Found while building `ConfirmDialog` (A6): the barrier a screen reader announces is not ours to word until this lands | *needs its own slice* |
+| 30 | Undo stops at the client boundary (§15) | **the server-backed destructions** | A6 shipped the product's first undo where the client owns the whole list (photos, before/afters, favourites — restoring the snapshot IS the same call that removed it). Cancelling a booking, revoking access and deleting an account cannot be undone without new service methods, so they keep the confirm-only rung. §15's reversible row is satisfied where it can be and honestly unmet where it can't | *needs backend work* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.
 
-Rows **23–28** were not in the original audit. Each was found by *doing the work*:
+Rows **23–30** were not in the original audit. Each was found by *doing the work*:
 23 and 24 by taking the pictures (PR-0.5), 25 and 26 by walking every bordered
 control in A1, **27 from the outside** (web B8's reading-text census disproved
-"the app reads at 16px"), and **28 while fixing 3b's surfaceVariant gap** (the
-darkened gold exposed that the owner chip uses it as *text*, not state). Row **4's count was wrong** — the audit said ~128, but migrating it
+"the app reads at 16px"), **28 while fixing 3b's surfaceVariant gap** (the darkened gold exposed that the
+owner chip uses it as *text*, not state), and **29–30 while building A6's two
+components** (the dialog's barrier speaks English; undo runs out of road where
+the server owns the state). Row **4's count was wrong** — the audit said ~128, but migrating it
 found **~488** (it had never counted the pixel-identical on-grid literals). Row **15's
 was wrong too** (3 → **9**), and row **16's counted the wrong thing entirely** — "4.8%
 of `Text` have `maxLines`" measures a *proxy*; the executable check (pump at 2×) found

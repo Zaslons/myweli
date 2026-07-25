@@ -1,6 +1,6 @@
 # mobile-a6-feedback — one `AppSnackBar`, one `ConfirmDialog`, and the confirm ladder (A6)
 
-**Status:** In progress (2026-07-25). **Surface:** `mobile/` — every snackbar
+**Status:** Shipped (2026-07-25) — see « As built ». **Surface:** `mobile/` — every snackbar
 call site and every `AlertDialog`, across consumer · pro · admin. **Design
 system:** [SYSTEM.md §15](SYSTEM.md#15-feedback--destructive-actions) ·
 [§11.3](SYSTEM.md#11-components) · [§13.4/§13.6](SYSTEM.md#13-accessibility) ·
@@ -232,6 +232,34 @@ class. It gains one.
 - The 6 `showDialog<void>` lightboxes and the admin `<int>` month picker (not
   confirms) · A9's motion tokens · row 26 (segmented borders) · row 28
   (gold-as-text).
+
+## As built — the deltas
+
+- **Row 18's count was 11 for `showDialog<bool>` but 13 for `AlertDialog(`** —
+  the admin's `showReasonDialog` and the caption prompt were never counted.
+  All 13 converted; the register records the honest number.
+- **`InlineFeedback` borrows `SnackKind`** rather than being error-only: the
+  deposit sheet's « Numéro copié » is a *success* inside a modal, and an
+  error-red row would have been a lie. One vocabulary, two places it can land.
+- **The salon picker became stateful.** A failed switch keeps the user in the
+  sheet — they may want a different salon — so the reason renders there instead
+  of the sheet closing over an invisible bar.
+- **Two `context.go('/admin/kyc')` navigations were eaten by my own sweep** and
+  restored: the block replacement consumed statements that shared a line group
+  with the snackbar call. The whole sweep was then re-audited line by line for
+  other swallowed statements (none). The unused-import warning is what surfaced
+  it — worth remembering as a canary.
+- **I over-corrected one dialog and reverted it.** « Révoquer » was already one
+  of the four §15-compliant verb labels the census counted, so team_screen's
+  copy stays byte-for-byte and its test never needed touching. Changing correct
+  copy is a cost with no benefit.
+- **Undo required a provider addition**: `restorePhotos`/`restorePairs`. The
+  services take the whole list, so restoring the pre-delete snapshot is the
+  same call that performed the delete — which is what makes this real undo
+  rather than a re-upload.
+- **Goldens: 3 baselines move** (`components_dialog` re-based on the real
+  component, plus two new). `components_material_golden_test` loses its dialog
+  test; the fixture it photographed never existed in the product.
 
 ## Definition of done
 
