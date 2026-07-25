@@ -90,7 +90,23 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
       confirmLabel: 'Supprimer la paire',
     );
     if (!confirmed || !mounted) return;
-    await p.removePair(providerId, index);
+    final messenger = ScaffoldMessenger.of(context);
+    final before = [...p.pairs];
+    final ok = await p.removePair(providerId, index);
+    if (!ok) {
+      AppSnackBar.showOn(messenger, p.error ?? 'Suppression impossible.',
+          kind: SnackKind.error);
+      return;
+    }
+    AppSnackBar.showOn(
+      messenger,
+      'Avant/après supprimé',
+      kind: SnackKind.success,
+      action: SnackAction(
+        label: 'Annuler',
+        onPressed: () => p.restorePairs(providerId, before),
+      ),
+    );
   }
 
   @override

@@ -110,6 +110,23 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
+  /// A6/§15: the snapshot an Undo restores — see [ProGalleryProvider].
+  Future<bool> restorePairs(
+    String providerId,
+    List<BeforeAfterPair> pairs,
+  ) async {
+    final saved = await _proService.updateBeforeAfters(providerId, pairs);
+    if (saved.success && saved.data != null) {
+      _pairs = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Restauration impossible';
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> removePair(String providerId, int index) async {
     if (index < 0 || index >= _pairs.length) return false;
     final next = [..._pairs]..removeAt(index);

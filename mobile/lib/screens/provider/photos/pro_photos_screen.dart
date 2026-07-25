@@ -61,7 +61,28 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
       confirmLabel: 'Supprimer la photo',
     );
     if (!confirmed || !mounted) return;
-    await gallery.removePhoto(providerId, index);
+    final messenger = ScaffoldMessenger.of(context);
+    // The snapshot BEFORE the delete — the service takes the whole list, so
+    // restoring it is a genuine undo (§15's reversible rung).
+    final before = [...gallery.photos];
+    final ok = await gallery.removePhoto(providerId, index);
+    if (!ok) {
+      AppSnackBar.showOn(messenger, gallery.error ?? 'Suppression impossible.',
+          kind: SnackKind.error);
+      return;
+    }
+    // Before A6 the photo simply disappeared: no confirmation, nothing
+    // announced, no way back. The snackbar IS the only route back, so it
+    // carries §15's 10s.
+    AppSnackBar.showOn(
+      messenger,
+      'Photo supprimée',
+      kind: SnackKind.success,
+      action: SnackAction(
+        label: 'Annuler',
+        onPressed: () => gallery.restorePhotos(providerId, before),
+      ),
+    );
   }
 
   @override

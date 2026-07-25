@@ -7,7 +7,6 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/utils/helpers.dart';
 import '../../models/artist.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
@@ -131,7 +130,8 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
 
     if (ok) {
       widget.onSubmitted?.call();
-      Helpers.announce(context, 'Merci pour votre avis');
+      // The snackbar below is a live region — announcing here as well
+      // double-spoke it on iOS and cleared TalkBack's queue on Android.
       Navigator.pop(context);
       AppSnackBar.show(context, 'Merci pour votre avis',
           kind: SnackKind.success);

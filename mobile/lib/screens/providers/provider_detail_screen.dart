@@ -202,16 +202,25 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   '/login?returnTo=${Uri.encodeComponent(currentPath)}');
                               return;
                             }
+                            final messenger = ScaffoldMessenger.of(context);
                             await favoritesProvider.toggleFavorite(
                                 userId, widget.providerId);
-                            if (context.mounted) {
-                              AppSnackBar.show(
-                                  context,
-                                  isFavorite
-                                      ? 'Retiré des favoris'
-                                      : 'Ajouté aux favoris',
-                                  kind: SnackKind.success);
-                            }
+                            AppSnackBar.showOn(
+                              messenger,
+                              isFavorite
+                                  ? 'Retiré des favoris'
+                                  : 'Ajouté aux favoris',
+                              kind: SnackKind.success,
+                              action: SnackAction(
+                                label: 'Annuler',
+                                onPressed: () => favoritesProvider
+                                    .toggleFavorite(userId, widget.providerId),
+                                // §15 as amended by A6: the heart itself is a
+                                // one-tap undo, so this keeps the kind's 3s
+                                // instead of occluding the screen for 10.
+                                isOnlyRouteBack: false,
+                              ),
+                            );
                           },
                         );
                       },

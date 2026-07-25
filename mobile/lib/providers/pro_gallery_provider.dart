@@ -108,6 +108,22 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
     return false;
   }
 
+  /// A6/§15: the snapshot an Undo restores. A delete here is fully
+  /// reversible client-side — the service takes the WHOLE list — so the
+  /// confirmation offers a way back instead of the photo vanishing silently.
+  Future<bool> restorePhotos(String providerId, List<String> photos) async {
+    final saved = await _proService.updateGalleryPhotos(providerId, photos);
+    if (saved.success && saved.data != null) {
+      _photos = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Restauration impossible';
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> removePhoto(String providerId, int index) async {
     if (index < 0 || index >= _photos.length) return false;
     final next = [..._photos]..removeAt(index);
