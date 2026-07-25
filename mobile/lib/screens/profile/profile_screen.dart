@@ -10,6 +10,7 @@ import '../../core/theme/text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -97,9 +98,7 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Langue',
                   trailing: const Text('Français'),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fonctionnalité à venir')),
-                    );
+                    AppSnackBar.show(context, 'Fonctionnalité à venir');
                   },
                 ),
                 _SettingsItem(
@@ -110,11 +109,8 @@ class ProfileScreen extends StatelessWidget {
                     final messenger = ScaffoldMessenger.of(context);
                     final number = AppConfig.supportWhatsApp;
                     if (number.isEmpty) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Contact bientôt disponible.'),
-                        ),
-                      );
+                      AppSnackBar.showOn(
+                          messenger, 'Contact bientôt disponible.');
                       return;
                     }
                     final uri = Uri.parse(
@@ -124,11 +120,9 @@ class ProfileScreen extends StatelessWidget {
                       uri,
                       mode: LaunchMode.externalApplication,
                     )) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Impossible d’ouvrir WhatsApp.'),
-                        ),
-                      );
+                      AppSnackBar.showOn(
+                          messenger, 'Impossible d’ouvrir WhatsApp.',
+                          kind: SnackKind.error);
                     }
                   },
                 ),
@@ -221,16 +215,11 @@ class ProfileScreen extends StatelessWidget {
     if (success) {
       favoritesProvider.clearFavorites();
       context.go('/login');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Compte supprimé')),
-      );
+      AppSnackBar.show(context, 'Compte supprimé', kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Erreur lors de la suppression'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, authProvider.error ?? 'Erreur lors de la suppression',
+          kind: SnackKind.error);
     }
   }
 

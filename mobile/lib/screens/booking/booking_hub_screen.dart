@@ -15,6 +15,7 @@ import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
+import '../../widgets/common/app_snack_bar.dart';
 
 class BookingDraft {
   final String providerId;
@@ -344,15 +345,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
 
   Future<void> _confirm(models.Provider p) async {
     if (_draft.serviceIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choisissez au moins un service')),
-      );
+      AppSnackBar.show(context, 'Choisissez au moins un service',
+          kind: SnackKind.error);
       return;
     }
     if (_draft.dateTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choisissez une date et une heure')),
-      );
+      AppSnackBar.show(context, 'Choisissez une date et une heure',
+          kind: SnackKind.error);
       return;
     }
 
@@ -370,9 +369,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir la confirmation')),
-      );
+      AppSnackBar.show(context, 'Impossible d’ouvrir la confirmation',
+          kind: SnackKind.error);
     }
   }
 

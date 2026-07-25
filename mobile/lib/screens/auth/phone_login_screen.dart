@@ -10,6 +10,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/phone_number_field.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
@@ -46,13 +47,9 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       unawaited(context.push(
           '/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam'));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(authProvider.error ?? 'Erreur lors de l\'envoi du code'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, authProvider.error ?? 'Erreur lors de l\'envoi du code',
+          kind: SnackKind.error);
     }
   }
 

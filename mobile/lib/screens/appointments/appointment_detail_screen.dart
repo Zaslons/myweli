@@ -17,6 +17,7 @@ import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
@@ -89,22 +90,17 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final p = res.data;
     final raw = whatsapp ? p?.whatsapp : p?.phoneNumber;
     if (!res.success || p == null || raw == null || raw.isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
-          ),
-        ),
-      );
+      AppSnackBar.showOn(messenger,
+          whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
+          kind: SnackKind.error);
       return;
     }
     final uri = whatsapp
         ? Uri.parse('https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}')
         : Uri.parse('tel:${raw.replaceAll(RegExp(r'\s'), '')}');
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir l’application.')),
-      );
+      AppSnackBar.showOn(messenger, 'Impossible d’ouvrir l’application.',
+          kind: SnackKind.error);
     }
   }
 
@@ -197,19 +193,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     if (success) {
       context.pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rendez-vous annulé'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      AppSnackBar.show(context, 'Rendez-vous annulé', kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Erreur lors de l\'annulation'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, provider.error ?? 'Erreur lors de l\'annulation',
+          kind: SnackKind.error);
     }
   }
 
@@ -232,13 +220,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Rendez-vous reporté' : (provider.error ?? 'Erreur'),
-        ),
-        backgroundColor: success ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcome(
+      context,
+      ok: success,
+      success: 'Rendez-vous reporté',
+      error: provider.error ?? 'Erreur',
     );
   }
 
@@ -262,12 +248,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       currency: appointment.currency ?? p?.currency,
     );
     if (sent != true || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Acompte envoyé. En attente de confirmation du salon.'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    AppSnackBar.show(
+        context, 'Acompte envoyé. En attente de confirmation du salon.',
+        kind: SnackKind.success);
   }
 
   /// View the screenshot the consumer already submitted (signed URL).
@@ -288,9 +271,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         ),
       );
     } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(res.error ?? 'Capture indisponible')),
-      );
+      AppSnackBar.showOn(messenger, res.error ?? 'Capture indisponible',
+          kind: SnackKind.error);
     }
   }
 
@@ -398,15 +380,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       ),
     );
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Rendez-vous ajouté à votre calendrier'
-              : 'Impossible d\'ouvrir le calendrier',
-        ),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Rendez-vous ajouté à votre calendrier',
+      error: 'Impossible d\'ouvrir le calendrier',
     );
   }
 

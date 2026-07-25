@@ -9,6 +9,7 @@ import '../../core/theme/text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/provider/provider_card.dart';
@@ -30,12 +31,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       // Check if user is authenticated
       if (!authProvider.isAuthenticated || authProvider.user == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Veuillez vous connecter pour voir vos favoris'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          AppSnackBar.show(
+              context, 'Veuillez vous connecter pour voir vos favoris');
           context.go('/login?returnTo=${Uri.encodeComponent('/favorites')}');
         });
         return;

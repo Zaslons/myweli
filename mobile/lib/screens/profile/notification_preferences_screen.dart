@@ -9,6 +9,7 @@ import '../../core/theme/text_styles.dart';
 import '../../providers/notification_preferences_provider.dart';
 import '../../services/interfaces/push_notification_service_interface.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/push/push_blocked_banner.dart';
 
@@ -76,13 +77,9 @@ class _NotificationPreferencesScreenState
     final provider = context.read<NotificationPreferencesProvider>();
     final ok = await action();
     if (!ok && mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content:
-              Text(provider.error ?? 'Impossible d\'enregistrer. Réessayez.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger, provider.error ?? 'Impossible d\'enregistrer. Réessayez.',
+          kind: SnackKind.error);
     }
   }
 

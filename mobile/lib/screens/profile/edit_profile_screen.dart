@@ -9,6 +9,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/phone_number_field.dart';
 import '../../widgets/common/timed_cached_image.dart';
@@ -54,12 +55,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final ok = await authProvider.uploadAvatar(source);
     if (!mounted) return;
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Échec de l’envoi'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, authProvider.error ?? 'Échec de l’envoi',
+          kind: SnackKind.error);
     }
   }
 
@@ -77,19 +74,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (success) {
       context.pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil mis à jour'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Profil mis à jour', kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Erreur lors de la mise à jour'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, authProvider.error ?? 'Erreur lors de la mise à jour',
+          kind: SnackKind.error);
     }
   }
 

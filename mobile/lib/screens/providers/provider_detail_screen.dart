@@ -17,6 +17,7 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/providers/before_after_section.dart';
@@ -103,11 +104,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   Future<void> _reportReview(String reviewId) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (!auth.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connectez-vous pour signaler un avis.'),
-        ),
-      );
+      AppSnackBar.show(context, 'Connectez-vous pour signaler un avis.');
       return;
     }
     final reasonController = TextEditingController();
@@ -139,15 +136,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await Provider.of<ProviderProvider>(context, listen: false)
         .reportReview(reviewId, reason: reasonController.text);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Merci. Notre équipe va examiner cet avis.'
-              : 'Le signalement a échoué. Réessayez.',
-        ),
-        backgroundColor: ok ? null : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Merci. Notre équipe va examiner cet avis.',
+      error: 'Le signalement a échoué. Réessayez.',
     );
   }
 
@@ -213,13 +206,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           ),
                           onPressed: () async {
                             if (!authProvider.isAuthenticated) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Connectez-vous pour ajouter aux favoris'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+                              AppSnackBar.show(context,
+                                  'Connectez-vous pour ajouter aux favoris');
                               final currentPath =
                                   GoRouterState.of(context).uri.toString();
                               context.go(
@@ -229,16 +217,12 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             await favoritesProvider.toggleFavorite(
                                 userId, widget.providerId);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isFavorite
-                                        ? 'Retiré des favoris'
-                                        : 'Ajouté aux favoris',
-                                  ),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
+                              AppSnackBar.show(
+                                  context,
+                                  isFavorite
+                                      ? 'Retiré des favoris'
+                                      : 'Ajouté aux favoris',
+                                  kind: SnackKind.success);
                             }
                           },
                         );
@@ -562,13 +546,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             InkWell(
                               onTap: () {
                                 if (p.latitude == null || p.longitude == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content:
-                                          Text('Localisation non disponible'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
+                                  AppSnackBar.show(
+                                      context, 'Localisation non disponible',
+                                      kind: SnackKind.error);
                                   return;
                                 }
                                 context.push('/favorites?providerId=${p.id}');
