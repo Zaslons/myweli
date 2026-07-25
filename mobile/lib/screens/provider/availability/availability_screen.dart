@@ -12,6 +12,7 @@ import '../../../core/utils/salon_time.dart';
 import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class AvailabilityScreen extends StatefulWidget {
@@ -263,12 +264,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           availability.copyWith(blockedDates: updatedBlockedDates);
       await provider.updateAvailability(providerId, updatedAvailability);
       if (context.mounted && provider.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error!),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
       }
     }
   }
@@ -286,12 +282,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       availability.copyWith(bufferMinutes: minutes),
     );
     if (context.mounted && provider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error!),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
     }
   }
 
@@ -307,12 +298,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       availability.copyWith(breaks: breaks),
     );
     if (context.mounted && provider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error!),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
     }
   }
 
@@ -330,12 +316,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         availability.copyWith(blockedDates: updatedBlockedDates);
     await provider.updateAvailability(providerId, updatedAvailability);
     if (context.mounted && provider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error!),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
     }
   }
 }
@@ -644,12 +625,9 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     if (endDateTime.isBefore(startDateTime) ||
         endDateTime.isAtSameMomentAs(startDateTime)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('L\'heure de fin doit être après l\'heure de début'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppSnackBar.show(
+            context, 'L\'heure de fin doit être après l\'heure de début',
+            kind: SnackKind.error);
       }
       return;
     }
@@ -690,20 +668,13 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
         widget.providerId, updatedAvailability);
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Horaires enregistrés'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        AppSnackBar.show(context, 'Horaires enregistrés',
+            kind: SnackKind.success);
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Erreur lors de l\'enregistrement'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppSnackBar.show(
+            context, provider.error ?? 'Erreur lors de l\'enregistrement',
+            kind: SnackKind.error);
       }
     }
   }

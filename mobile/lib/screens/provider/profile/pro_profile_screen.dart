@@ -14,6 +14,7 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/team/team_role_chip.dart';
 
@@ -402,17 +403,13 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
 
     final res = await serviceLocator.proService.deleteProviderAccount();
     if (!res.success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            res.code == 'future_bookings'
-                ? 'Terminez ou annulez vos rendez-vous à venir avant de '
-                    'supprimer votre compte.'
-                : res.error ?? 'La suppression a échoué. Réessayez.',
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger,
+          res.code == 'future_bookings'
+              ? 'Terminez ou annulez vos rendez-vous à venir avant de '
+                  'supprimer votre compte.'
+              : res.error ?? 'La suppression a échoué.',
+          kind: SnackKind.error);
       return;
     }
     await authProvider.logout();

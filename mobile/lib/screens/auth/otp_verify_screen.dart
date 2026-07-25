@@ -15,6 +15,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../services/mock/mock_auth_service.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
@@ -180,7 +181,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     if (!mounted) return;
 
     if (success) {
-      Helpers.showSnackBar(context, 'Code renvoyé avec succès');
+      AppSnackBar.show(context, 'Code renvoyé avec succès',
+          kind: SnackKind.success);
       setState(() {
         _inlineError = null;
         _hasError = false;

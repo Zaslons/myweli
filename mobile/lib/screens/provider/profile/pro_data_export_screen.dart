@@ -11,6 +11,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/data_export.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -100,12 +101,8 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     final json = const JsonEncoder.withIndent('  ').convert(export);
     await Clipboard.setData(ClipboardData(text: json));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Données copiées dans le presse-papiers'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    AppSnackBar.show(context, 'Données copiées dans le presse-papiers',
+        kind: SnackKind.success);
   }
 
   @override

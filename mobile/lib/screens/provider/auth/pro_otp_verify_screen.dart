@@ -12,6 +12,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 
 class ProOtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
@@ -77,8 +78,8 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
   Future<void> _handleVerify() async {
     final otp = _controllers.map((c) => c.text).join();
     if (otp.length != 6) {
-      Helpers.showSnackBar(context, 'Veuillez entrer le code complet',
-          isError: true);
+      AppSnackBar.show(context, 'Veuillez entrer le code complet',
+          kind: SnackKind.error);
       return;
     }
 
@@ -97,11 +98,8 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
         context.go('/pro/dashboard');
       }
     } else {
-      Helpers.showSnackBar(
-        context,
-        authProvider.error ?? 'Code invalide',
-        isError: true,
-      );
+      AppSnackBar.show(context, authProvider.error ?? 'Code invalide',
+          kind: SnackKind.error);
       for (var controller in _controllers) {
         controller.clear();
       }
@@ -118,14 +116,12 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
     if (!mounted) return;
 
     if (success) {
-      Helpers.showSnackBar(context, 'Code renvoyé avec succès');
+      AppSnackBar.show(context, 'Code renvoyé avec succès',
+          kind: SnackKind.success);
       _startCooldown();
     } else {
-      Helpers.showSnackBar(
-        context,
-        authProvider.error ?? 'Erreur lors de l\'envoi',
-        isError: true,
-      );
+      AppSnackBar.show(context, authProvider.error ?? 'Erreur lors de l\'envoi',
+          kind: SnackKind.error);
     }
   }
 

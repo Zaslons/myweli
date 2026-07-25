@@ -9,6 +9,7 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 
 /// The 3-step invite sheet (module `access` §5.1): e-mail → rôle (3 cartes)
@@ -90,9 +91,8 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
     if (!mounted) return;
     if (member != null) {
       Navigator.of(context).pop(member.email);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Invitation envoyée à ${member.email}')),
-      );
+      AppSnackBar.showOn(messenger, 'Invitation envoyée à ${member.email}',
+          kind: SnackKind.success);
     }
   }
 

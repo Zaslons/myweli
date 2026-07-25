@@ -10,6 +10,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
@@ -76,12 +77,8 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   bool _validateBusinessFields() {
     if (!_formKey.currentState!.validate()) return false;
     if (_phoneNumber.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Le numéro de téléphone du salon est requis'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, 'Le numéro de téléphone du salon est requis',
+          kind: SnackKind.error);
       return false;
     }
     return true;

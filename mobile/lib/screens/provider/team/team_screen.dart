@@ -11,6 +11,7 @@ import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../providers/pro_team_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
@@ -393,24 +394,16 @@ class _MemberActionsSheet extends StatelessWidget {
     final ok = await team.changeRole(member.id, role: role);
     navigator.pop();
     if (ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Rôle de ${member.email} : ${teamRoleLabel(role)}.',
-          ),
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger, 'Rôle de ${member.email} : ${teamRoleLabel(role)}.',
+          kind: SnackKind.success);
     } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            team.actionErrorCode == 'artist_required'
-                ? teamErrorMessage('artist_required')
-                : (team.actionError ?? 'Action impossible.'),
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger,
+          team.actionErrorCode == 'artist_required'
+              ? teamErrorMessage('artist_required')
+              : (team.actionError ?? 'Action impossible.'),
+          kind: SnackKind.error);
     }
   }
 
@@ -419,15 +412,11 @@ class _MemberActionsSheet extends StatelessWidget {
     final navigator = Navigator.of(context);
     final ok = await team.resend(member.id);
     navigator.pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Invitation renvoyée à ${member.email}.'
-              : (team.actionError ?? 'Renvoi impossible.'),
-        ),
-        backgroundColor: ok ? null : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Invitation renvoyée à ${member.email}.',
+      error: team.actionError ?? 'Renvoi impossible.',
     );
   }
 
@@ -458,15 +447,11 @@ class _MemberActionsSheet extends StatelessWidget {
     if (confirmed != true) return;
     final ok = await team.revoke(member.id);
     navigator.pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Accès de ${member.email} révoqué.'
-              : (team.actionError ?? 'Révocation impossible.'),
-        ),
-        backgroundColor: ok ? null : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Accès de ${member.email} révoqué.',
+      error: team.actionError ?? 'Révocation impossible.',
     );
   }
 }

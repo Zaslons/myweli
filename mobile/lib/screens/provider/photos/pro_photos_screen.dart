@@ -7,6 +7,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_gallery_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
@@ -45,12 +46,8 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     if (source == null) return;
     final ok = await gallery.addPhoto(providerId, source);
     if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(gallery.error ?? 'Échec de l’envoi'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, gallery.error ?? 'Échec de l’envoi',
+          kind: SnackKind.error);
     }
   }
 

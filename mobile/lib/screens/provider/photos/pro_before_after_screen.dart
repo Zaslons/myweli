@@ -8,6 +8,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_before_after_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
@@ -54,12 +55,8 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
       caption: caption,
     );
     if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(p.error ?? 'Échec de l’envoi'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, p.error ?? 'Échec de l’envoi',
+          kind: SnackKind.error);
     }
   }
 

@@ -11,6 +11,7 @@ import '../../../models/provider.dart' as models;
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_salon_profile_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
@@ -106,10 +107,14 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   }
 
   Future<void> _useMyPosition() async {
+    // Captured BEFORE the geolocator awaits — the correct idiom, and the one
+    // the deleted `_toast` wrapper was hiding behind a `mounted` guard.
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _locating = true);
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        _toast('Localisation désactivée');
+        AppSnackBar.showOn(messenger, 'Localisation désactivée',
+            kind: SnackKind.error);
         return;
       }
       var permission = await Geolocator.checkPermission();
@@ -118,14 +123,17 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        _toast('Autorisez la localisation pour vous placer');
+        AppSnackBar.showOn(
+            messenger, 'Autorisez la localisation pour vous placer',
+            kind: SnackKind.error);
         return;
       }
       final pos = await Geolocator.getCurrentPosition();
       if (!mounted) return;
       setState(() => _pin = LatLng(pos.latitude, pos.longitude));
     } catch (_) {
-      _toast('Position indisponible');
+      AppSnackBar.showOn(messenger, 'Position indisponible',
+          kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -144,19 +152,10 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     });
   }
 
-  void _toast(String message, {bool error = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? AppColors.error : null,
-      ),
-    );
-  }
-
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) {
-      return _toast('Le nom est requis', error: true);
+      return AppSnackBar.show(context, 'Le nom est requis',
+          kind: SnackKind.error);
     }
     final profile = context.read<ProSalonProfileProvider>();
     final ok = await profile.save(_providerId!, {
@@ -176,10 +175,11 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     });
     if (!mounted) return;
     if (ok) {
-      _toast('Profil enregistré');
+      AppSnackBar.show(context, 'Profil enregistré', kind: SnackKind.success);
       Navigator.of(context).pop();
     } else {
-      _toast(profile.error ?? 'Enregistrement impossible', error: true);
+      AppSnackBar.show(context, profile.error ?? 'Enregistrement impossible',
+          kind: SnackKind.error);
     }
   }
 

@@ -14,6 +14,7 @@ import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -54,9 +55,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final number = AppConfig.supportWhatsApp;
     if (number.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Contact bientôt disponible.')),
-      );
+      AppSnackBar.showOn(messenger, 'Contact bientôt disponible.');
       return;
     }
     final text = message ??
@@ -66,12 +65,8 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     );
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Impossible d\'ouvrir WhatsApp.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, 'Impossible d\'ouvrir WhatsApp.',
+          kind: SnackKind.error);
     }
   }
 
@@ -82,24 +77,16 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     final ok = await provider.choose(providerId, tier);
     if (!mounted) return;
     if (ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            wasSetup
-                ? 'Offre ${salonTierLabel(tier)} choisie — '
-                    '${SubscriptionPlans.trialMonths} mois offerts !'
-                : 'Vous êtes maintenant sur l\'offre '
-                    '${salonTierLabel(tier)}.',
-          ),
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger,
+          wasSetup
+              ? 'Offre ${salonTierLabel(tier)} choisie — '
+                  '${SubscriptionPlans.trialMonths} mois offerts !'
+              : 'Vous êtes maintenant sur l\'offre ${salonTierLabel(tier)}.',
+          kind: SnackKind.success);
     } else if (provider.chooseErrorCode != 'trial_used') {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(provider.chooseError ?? 'Choix impossible.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, provider.chooseError ?? 'Choix impossible.',
+          kind: SnackKind.error);
     }
   }
 

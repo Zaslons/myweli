@@ -12,6 +12,7 @@ import '../../../providers/locality_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
@@ -53,13 +54,11 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     provider.setMobileMoneyNumber(_numberController.text);
     final ok = await provider.save(widget.providerId);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? 'Paramètres enregistrés' : (provider.error ?? 'Erreur'),
-        ),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcome(
+      context,
+      ok: ok,
+      success: 'Paramètres enregistrés',
+      error: provider.error ?? 'Erreur',
     );
   }
 

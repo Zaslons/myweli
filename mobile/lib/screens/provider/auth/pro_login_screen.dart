@@ -13,6 +13,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/team/invitation_card.dart';
@@ -102,9 +103,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     final ok = await auth.acceptPendingInvitation(invitationId);
     if (!mounted) return;
     if (ok) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Bienvenue dans l\'équipe de $salonName !')),
-      );
+      AppSnackBar.showOn(messenger, 'Bienvenue dans l\'équipe de $salonName !',
+          kind: SnackKind.success);
       _finish();
     }
   }

@@ -12,6 +12,7 @@ import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
@@ -82,9 +83,8 @@ class _ClientListScreenState extends State<ClientListScreen> {
     );
     if (id == null || !mounted) return;
     if (clients.lastAddWasDuplicate) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ce numéro existe déjà.')),
-      );
+      AppSnackBar.show(context, 'Ce numéro existe déjà.',
+          kind: SnackKind.error);
     }
     unawaited(context.push('/pro/clients/$id'));
   }

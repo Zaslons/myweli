@@ -10,6 +10,7 @@ import '../../../models/availability.dart';
 import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -82,12 +83,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     if (url != null) {
       setState(() => _avatarUrl = url);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Échec de l’envoi'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, provider.error ?? 'Échec de l’envoi',
+          kind: SnackKind.error);
     }
   }
 
@@ -114,20 +111,12 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Employé enregistré'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Employé enregistré', kind: SnackKind.success);
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(artistProvider.error ?? 'Erreur lors de la sauvegarde'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, artistProvider.error ?? 'Erreur lors de la sauvegarde',
+          kind: SnackKind.error);
     }
   }
 
@@ -162,21 +151,12 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Employé supprimé'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Employé supprimé', kind: SnackKind.success);
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(artistProvider.error ?? 'Erreur lors de la suppression'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(
+          context, artistProvider.error ?? 'Erreur lors de la suppression',
+          kind: SnackKind.error);
     }
   }
 
