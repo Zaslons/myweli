@@ -9,6 +9,7 @@ import '../../core/utils/helpers.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../common/timed_cached_image.dart';
 
 class ProviderCard extends StatelessWidget {
@@ -123,13 +124,8 @@ class ProviderCard extends StatelessWidget {
                               behavior: HitTestBehavior.opaque,
                               onTap: () async {
                                 if (!authProvider.isAuthenticated) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Connectez-vous pour ajouter aux favoris'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
+                                  AppSnackBar.show(context,
+                                      'Connectez-vous pour ajouter aux favoris');
                                   final currentPath =
                                       GoRouterState.of(context).uri.toString();
                                   context.go(
@@ -146,16 +142,12 @@ class ProviderCard extends StatelessWidget {
                                         ? 'Retiré des favoris'
                                         : 'Ajouté aux favoris',
                                   );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        isFavorite
-                                            ? 'Retiré des favoris'
-                                            : 'Ajouté aux favoris',
-                                      ),
-                                      duration: const Duration(seconds: 1),
-                                    ),
-                                  );
+                                  AppSnackBar.show(
+                                      context,
+                                      isFavorite
+                                          ? 'Retiré des favoris'
+                                          : 'Ajouté aux favoris',
+                                      kind: SnackKind.success);
                                 }
                               },
                               child: SizedBox(
@@ -319,13 +311,8 @@ class ProviderCard extends StatelessWidget {
                           behavior: HitTestBehavior.opaque,
                           onTap: () async {
                             if (!authProvider.isAuthenticated) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Connectez-vous pour ajouter aux favoris'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+                              AppSnackBar.show(context,
+                                  'Connectez-vous pour ajouter aux favoris');
                               final currentPath =
                                   GoRouterState.of(context).uri.toString();
                               context.go(
@@ -342,16 +329,12 @@ class ProviderCard extends StatelessWidget {
                                     ? 'Retiré des favoris'
                                     : 'Ajouté aux favoris',
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isFavorite
-                                        ? 'Retiré des favoris'
-                                        : 'Ajouté aux favoris',
-                                  ),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
+                              AppSnackBar.show(
+                                  context,
+                                  isFavorite
+                                      ? 'Retiré des favoris'
+                                      : 'Ajouté aux favoris',
+                                  kind: SnackKind.success);
                             }
                           },
                           child: SizedBox(

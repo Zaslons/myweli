@@ -8,6 +8,7 @@ import '../../models/salon_membership_info.dart';
 import '../../models/team_member.dart';
 import '../../providers/pro_auth_provider.dart';
 import '../common/brand_loader.dart';
+import '../common/inline_feedback.dart';
 
 /// « Mes salons » (module `access` R6 — docs/design/
 /// team-access-r6-multi-salons.md §6): the salon switcher bottom sheet.
@@ -29,8 +30,18 @@ Future<String?> showSalonPicker(BuildContext context) {
   );
 }
 
-class _SalonPickerSheet extends StatelessWidget {
+class _SalonPickerSheet extends StatefulWidget {
   const _SalonPickerSheet();
+
+  @override
+  State<_SalonPickerSheet> createState() => _SalonPickerSheetState();
+}
+
+class _SalonPickerSheetState extends State<_SalonPickerSheet> {
+  /// A6: a failed switch keeps the user IN the sheet — they may want another
+  /// salon — so the reason renders here. A snackbar would be pruned by the
+  /// modal barrier and painted under the scrim.
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +71,11 @@ class _SalonPickerSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                 ),
               ),
+            ),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+              child: InlineFeedback(_error),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -95,6 +111,7 @@ class _SalonPickerSheet extends StatelessWidget {
                       (s) => _SalonTile(
                         salon: s,
                         isActive: s.salonId == activeId,
+                        onFailed: (msg) => setState(() => _error = msg),
                       ),
                     ),
                     if (auth.canAddSalon) ...[
@@ -124,10 +141,17 @@ class _SalonPickerSheet extends StatelessWidget {
 }
 
 class _SalonTile extends StatelessWidget {
-  const _SalonTile({required this.salon, required this.isActive});
+  const _SalonTile({
+    required this.salon,
+    required this.isActive,
+    required this.onFailed,
+  });
 
   final SalonMembershipInfo salon;
   final bool isActive;
+
+  /// Reports a failed switch up to the sheet, which renders it inline.
+  final ValueChanged<String> onFailed;
 
   @override
   Widget build(BuildContext context) {
@@ -178,21 +202,14 @@ class _SalonTile extends StatelessWidget {
       onTap: () async {
         final auth = context.read<ProAuthProvider>();
         final navigator = Navigator.of(context);
-        final messenger = ScaffoldMessenger.of(context);
         if (isActive) {
           navigator.pop();
           return;
         }
         final ok = await auth.switchSalon(salon.salonId);
         if (!ok) {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Changement impossible — votre accès à ce salon a peut-être '
-                'été retiré.',
-              ),
-            ),
-          );
+          onFailed('Changement impossible — votre accès à ce salon a '
+              'peut-être été retiré.');
           return;
         }
         navigator.pop(salon.salonId);

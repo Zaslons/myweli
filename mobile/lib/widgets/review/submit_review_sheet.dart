@@ -12,8 +12,10 @@ import '../../models/artist.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_button.dart';
 import '../common/app_text_field.dart';
+import '../common/inline_feedback.dart';
 import '../common/timed_cached_image.dart';
 import '../provider/image_picker_sheet.dart';
 import '../provider/mock_image_picker_sheet.dart';
@@ -44,6 +46,11 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
   final _textController = TextEditingController();
   final List<String> _photoUrls = [];
   bool _uploadingPhoto = false;
+
+  /// A6: a failure raised while this sheet is open cannot be a snackbar — the
+  /// modal barrier prunes it from the semantics tree and paints it under the
+  /// scrim. It belongs here, inside the sheet that owns the failure.
+  String? _error;
   bool _submitting = false;
 
   @override
@@ -71,12 +78,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       if (url != null) _photoUrls.add(url);
     });
     if (url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Échec de l’envoi de la photo'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      setState(() => _error = 'Échec de l’envoi de la photo');
     }
   }
 
@@ -119,7 +121,10 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       createdAt: DateTime.now(),
     );
 
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     final ok = await providerProvider.submitReview(review);
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -128,20 +133,11 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       widget.onSubmitted?.call();
       Helpers.announce(context, 'Merci pour votre avis');
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Merci pour votre avis'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Merci pour votre avis',
+          kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(providerProvider.error ?? 'Erreur lors de la publication'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      setState(() =>
+          _error = providerProvider.error ?? 'Erreur lors de la publication');
     }
   }
 
@@ -298,6 +294,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
               ],
             ),
           ),
+          InlineFeedback(_error),
           const SizedBox(height: AppTheme.spacingL),
           Row(
             children: [

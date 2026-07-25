@@ -13,6 +13,7 @@ import '../../models/artist.dart';
 import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../common/timed_cached_image.dart';
 
 class AppointmentCard extends StatelessWidget {
@@ -164,13 +165,10 @@ class AppointmentCard extends StatelessWidget {
                                     if (provider == null ||
                                         provider.latitude == null ||
                                         provider.longitude == null) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Localisation non disponible pour ce salon'),
-                                          duration: Duration(seconds: 2),
-                                        ),
+                                      AppSnackBar.show(
+                                        context,
+                                        'Localisation non disponible pour ce salon',
+                                        kind: SnackKind.error,
                                       );
                                       return;
                                     }

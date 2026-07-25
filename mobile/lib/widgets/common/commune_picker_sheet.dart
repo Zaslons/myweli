@@ -8,6 +8,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../models/locality.dart';
 import '../../providers/locality_provider.dart';
+import 'inline_feedback.dart';
 
 /// Result of the commune picker. `commune == null` means "all communes".
 /// The picker returns `null` (not a [CommuneChoice]) when dismissed without a
@@ -51,6 +52,11 @@ class _CommunePickerSheet extends StatefulWidget {
 class _CommunePickerSheetState extends State<_CommunePickerSheet> {
   String _query = '';
   bool _locating = false;
+
+  /// A6: this sheet is a modal, so its failures render inside it — a snackbar
+  /// raised here never reaches a screen reader (BlockSemantics) and paints
+  /// under the scrim.
+  String? _error;
 
   @override
   void initState() {
@@ -107,9 +113,9 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    // A6: this sheet IS a modal — a snackbar raised here is pruned from the
+    // semantics tree and painted under the scrim. The message renders inside.
+    setState(() => _error = message);
   }
 
   @override
@@ -130,6 +136,11 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: AppTheme.spacingS),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+              child: InlineFeedback(_error),
+            ),
             Center(
               child: Container(
                 width: 40,
