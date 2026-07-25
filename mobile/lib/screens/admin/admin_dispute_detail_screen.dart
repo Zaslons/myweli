@@ -10,6 +10,7 @@ import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_dispute_detail_provider.dart';
 import '../../providers/admin/admin_disputes_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import 'widgets/admin_detail_widgets.dart';
 import 'widgets/admin_scaffold.dart';
@@ -49,9 +50,11 @@ class _AdminDisputeDetailScreenState extends State<AdminDisputeDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await p.resolve(widget.id, resolution);
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-          content: Text(ok ? 'Litige résolu' : (p.actionError ?? 'Échec'))),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Litige résolu',
+      error: p.actionError ?? 'Échec',
     );
     if (ok) unawaited(context.read<AdminDisputesProvider>().load());
   }

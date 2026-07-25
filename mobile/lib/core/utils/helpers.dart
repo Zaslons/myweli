@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../widgets/common/app_snack_bar.dart';
 import '../theme/app_theme.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
@@ -113,11 +114,8 @@ class Helpers {
     if (!context.mounted) return;
 
     if (available.isEmpty) {
-      showSnackBar(
-        context,
-        'Aucune application de navigation trouvée',
-        isError: true,
-      );
+      AppSnackBar.show(context, 'Aucune application de navigation trouvée',
+          kind: SnackKind.error);
       return;
     }
 
@@ -181,23 +179,6 @@ class Helpers {
         );
       },
     );
-  }
-
-  /// Show snackbar with message. Background/behaviour/shape come from
-  /// `snackBarTheme` (SYSTEM.md §15); only the error tone overrides it — the
-  /// non-error case used to hardcode `Colors.black87`, now the theme's ink.
-  static void showSnackBar(BuildContext context, String message,
-      {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? AppColors.error : null,
-        margin: const EdgeInsets.all(AppTheme.spacingM),
-      ),
-    );
-    // A SnackBar is off-focus, so TalkBack/VoiceOver won't read it on its own —
-    // announce the same French message to screen readers explicitly.
-    announce(context, message);
   }
 
   /// Speak an off-focus change (a SnackBar, a list reload — things a screen

@@ -7,6 +7,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/admin/admin_users_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import 'widgets/admin_data_table.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/admin_search_field.dart';
@@ -53,8 +54,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await action();
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? okMsg : (p.actionError ?? 'Échec'))),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: okMsg,
+      error: p.actionError ?? 'Échec',
     );
   }
 
