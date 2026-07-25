@@ -35,9 +35,10 @@ void main() {
 
   /// Every `path:line  <text>` in [dartFiles] whose line matches [pattern] and
   /// does not carry a `// ds-ignore` escape.
-  List<String> offenders(RegExp pattern) {
+  List<String> offenders(RegExp pattern, {List<String> allow = const []}) {
     final hits = <String>[];
     for (final file in dartFiles) {
+      if (allow.any(file.path.contains)) continue;
       final lines = file.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
@@ -51,6 +52,58 @@ void main() {
   }
 
   group('design-system literal pins (SYSTEM.md §20)', () {
+    // ── A6: feedback has ONE entry point each (SYSTEM.md §15, §21 rows 17/18).
+    //
+    // Measured at the slice's base (b4d3dbe), these four went red at 116 · 111
+    // · 13 · 13 — that is the rows' whole reason for existing. They are usage
+    // pins, not literal pins: the failure is "you built your own", not "you
+    // typed a number".
+    const snackBarComponent = '/widgets/common/app_snack_bar.dart';
+    const dialogComponent = '/widgets/common/confirm_dialog.dart';
+
+    test('one snackbar entry point — no raw showSnackBar (§15)', () {
+      expect(
+        offenders(RegExp(r'\.showSnackBar\('), allow: [snackBarComponent]),
+        isEmpty,
+        reason: 'feedback goes through AppSnackBar.show/showOn/outcome. It '
+            'owns §15\'s kind→colour+icon+duration table; a hand-rolled bar '
+            'picks its own tone (30 of 61 errors used to render ink-black) '
+            'and its own duration (2s/1s/4s — §15 says 3/6/10).',
+      );
+    });
+
+    test('no hand-built SnackBar (§15)', () {
+      expect(
+        offenders(RegExp(r'(?:^|[^A-Za-z0-9_])SnackBar\('),
+            allow: [snackBarComponent]),
+        isEmpty,
+        reason: 'constructing a SnackBar is building the component again.',
+      );
+    });
+
+    test('one ConfirmDialog — no hand-built AlertDialog (§15)', () {
+      expect(
+        offenders(RegExp(r'(?:^|[^A-Za-z0-9_])AlertDialog\('),
+            allow: [dialogComponent]),
+        isEmpty,
+        reason: 'use showConfirmDialog / showInputDialog. The component owns '
+            'the ladder (verb label, consequence, type-to-confirm), the '
+            'destructive classification, cancel-takes-focus (§13.5) and the '
+            'controller\'s lifetime — all things the 13 copies got wrong '
+            'severally.',
+      );
+    });
+
+    test('…and its entry points (§15)', () {
+      expect(
+        offenders(RegExp(r'showDialog<(?:bool|String)>'),
+            allow: [dialogComponent]),
+        isEmpty,
+        reason: 'a bool/String dialog IS a confirm or an input — both belong '
+            'to ConfirmDialog. (showDialog<void> for a lightbox is fine.)',
+      );
+    });
+
     test('spacing is a token — no raw SizedBox(height/width: N) (§5)', () {
       // Strict `)` so only single-arg SPACER boxes match; a multi-arg
       // `SizedBox(height: N, child: …)` is a *sized container* (a fixed
