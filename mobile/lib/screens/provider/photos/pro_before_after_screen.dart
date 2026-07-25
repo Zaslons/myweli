@@ -91,7 +91,7 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
     );
     if (!confirmed || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    final before = [...p.pairs];
+    final removed = p.pairs[index];
     final ok = await p.removePair(providerId, index);
     if (!ok) {
       AppSnackBar.showOn(messenger, p.error ?? 'Suppression impossible.',
@@ -104,7 +104,13 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
       kind: SnackKind.success,
       action: SnackAction(
         label: 'Annuler',
-        onPressed: () => p.restorePairs(providerId, before),
+        onPressed: () async {
+          final restored = await p.restorePairAt(providerId, index, removed);
+          if (!restored) {
+            AppSnackBar.showOn(messenger, p.error ?? 'Restauration impossible.',
+                kind: SnackKind.error);
+          }
+        },
       ),
     );
   }

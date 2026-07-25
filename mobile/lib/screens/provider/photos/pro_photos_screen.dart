@@ -62,9 +62,10 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     );
     if (!confirmed || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    // The snapshot BEFORE the delete — the service takes the whole list, so
-    // restoring it is a genuine undo (§15's reversible rung).
-    final before = [...gallery.photos];
+    // The removed photo and WHERE it was — undo re-inserts it into whatever
+    // the gallery looks like when « Annuler » is tapped, so an upload or a
+    // reorder during the 10s window survives (the review's catch).
+    final removed = gallery.photos[index];
     final ok = await gallery.removePhoto(providerId, index);
     if (!ok) {
       AppSnackBar.showOn(messenger, gallery.error ?? 'Suppression impossible.',
@@ -80,7 +81,16 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
       kind: SnackKind.success,
       action: SnackAction(
         label: 'Annuler',
-        onPressed: () => gallery.restorePhotos(providerId, before),
+        // A failed undo used to be silent — the Future was discarded.
+        onPressed: () async {
+          final restored =
+              await gallery.restorePhotoAt(providerId, index, removed);
+          if (!restored) {
+            AppSnackBar.showOn(
+                messenger, gallery.error ?? 'Restauration impossible.',
+                kind: SnackKind.error);
+          }
+        },
       ),
     );
   }

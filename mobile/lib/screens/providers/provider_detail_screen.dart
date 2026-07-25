@@ -203,23 +203,32 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               return;
                             }
                             final messenger = ScaffoldMessenger.of(context);
-                            await favoritesProvider.toggleFavorite(
+                            // The toggle can fail. Announcing success either
+                            // way is a lie, and « Annuler » on a failed toggle
+                            // would PERFORM the action instead of undoing it.
+                            final ok = await favoritesProvider.toggleFavorite(
                                 userId, widget.providerId);
-                            AppSnackBar.showOn(
+                            AppSnackBar.outcomeOn(
                               messenger,
-                              isFavorite
+                              ok: ok,
+                              success: isFavorite
                                   ? 'Retiré des favoris'
                                   : 'Ajouté aux favoris',
-                              kind: SnackKind.success,
-                              action: SnackAction(
-                                label: 'Annuler',
-                                onPressed: () => favoritesProvider
-                                    .toggleFavorite(userId, widget.providerId),
-                                // §15 as amended by A6: the heart itself is a
-                                // one-tap undo, so this keeps the kind's 3s
-                                // instead of occluding the screen for 10.
-                                isOnlyRouteBack: false,
-                              ),
+                              error: favoritesProvider.error ??
+                                  'Une erreur est survenue. Réessayez.',
+                              action: !ok
+                                  ? null
+                                  : SnackAction(
+                                      label: 'Annuler',
+                                      onPressed: () =>
+                                          favoritesProvider.toggleFavorite(
+                                              userId, widget.providerId),
+                                      // §15 as amended by A6: the heart itself
+                                      // is a one-tap undo, so this keeps the
+                                      // kind's 3s instead of occluding the
+                                      // screen for 10.
+                                      isOnlyRouteBack: false,
+                                    ),
                             );
                           },
                         );

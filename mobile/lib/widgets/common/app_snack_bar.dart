@@ -109,9 +109,9 @@ abstract final class AppSnackBar {
               kind.icon,
               size: AppTheme.iconS,
               color: AppColors.secondary,
-              // The message carries the meaning; the glyph is the second
-              // greyscale-surviving cue, not a second announcement.
-              semanticLabel: null,
+              // No `semanticLabel` — an unlabelled Icon contributes no semantics
+              // node at all, so the glyph is the second greyscale-surviving cue
+              // without becoming a second thing to read out.
             ),
             const SizedBox(width: AppTheme.spacingS),
             Expanded(child: Text(message)),

@@ -127,9 +127,17 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingM),
               decoration: BoxDecoration(
-                color: outcome.depositForfeited
-                    ? AppColors.errorLight
-                    : AppColors.successLight,
+                // §13.1: `errorLight`/`successLight` are foregrounds (4.66:1 ON
+                // white). Used as a fill they put `error` ink at 2.00:1 and
+                // `success` ink at 1.85:1 — both illegible. A neutral tint
+                // carries the ink (9.19:1 / 15.98:1) and the semantic hue moves
+                // to the border, beside the glyph that already distinguishes it.
+                color: AppColors.surfaceVariant,
+                border: Border.all(
+                  color: outcome.depositForfeited
+                      ? AppColors.error
+                      : AppColors.success,
+                ),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
               child: Row(

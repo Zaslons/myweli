@@ -120,6 +120,11 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
   Widget build(BuildContext context) {
     final field = widget.field;
     return AlertDialog(
+      // §13.1 (200 % text) — measured, not assumed: a consequence sentence plus
+      // type-to-confirm overflowed its own Column by 4px at 2.0 on a 400×700
+      // surface, painting the message over the buttons. The keyboard rising
+      // under a field does the same. Gated by confirm_dialog_test.
+      scrollable: true,
       title: widget.icon == null
           ? Text(widget.title)
           : Row(

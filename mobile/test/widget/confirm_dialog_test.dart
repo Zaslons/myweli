@@ -221,6 +221,13 @@ void main() {
   testWidgets('the dialog owns its controller — it disposes cleanly',
       (tester) async {
     // Three hand-rolled dialogs leaked theirs.
+    //
+    // The first version of this test only asserted `takeException() == null`
+    // after closing — which is true whether or not anything is disposed. The
+    // review's mutation proved it: deleting `_controller.dispose()` outright
+    // left the test green. A gate that cannot fail is not a gate, so it now
+    // holds the real controller and asserts it is DEAD afterwards — a disposed
+    // ChangeNotifier throws from `addListener` in debug.
     await open(
       tester,
       (c) => showInputDialog(c,
@@ -230,10 +237,50 @@ void main() {
           field: const ConfirmField(
               hint: 'Légende (optionnel)', isRequired: false)),
     );
+    final controller =
+        tester.widget<TextField>(find.byType(TextField)).controller!;
     await tester.enterText(find.byType(TextField), 'Avant/après tresses');
+    expect(controller.text, 'Avant/après tresses',
+        reason: 'the dialog must be driving THIS controller');
+
     await tester.tap(find.text('Passer'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
+    expect(
+      () => controller.addListener(() {}),
+      throwsFlutterError,
+      reason: 'the controller must be disposed with the dialog, not leaked',
+    );
+  });
+
+  testWidgets('§13.1 — it SCROLLS instead of overflowing at 200 % text',
+      (tester) async {
+    // Measured, not assumed: before `scrollable: true`, this exact dialog
+    // overflowed its Column by 4px at 2.0 and painted the consequence sentence
+    // over its own buttons.
+    tester.view.physicalSize = const Size(400, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await open(
+      tester,
+      (c) => showConfirmDialog(c,
+          title: 'Supprimer définitivement votre salon ?',
+          message: 'Cette action est irréversible. Votre salon, vos services, '
+              'vos photos et votre historique de rendez-vous seront supprimés '
+              'définitivement. Vos clients ne pourront plus vous trouver ni '
+              'réserver.',
+          confirmLabel: 'Supprimer le salon',
+          confirmWord: 'SUPPRIMER'),
+    );
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    await tester.pump();
+
+    expect(tester.takeException(), isNull,
+        reason: 'no RenderFlex overflow at 200 % text scale');
+    expect(find.text('Supprimer le salon'), findsOneWidget,
+        reason: 'the confirm action must still be reachable');
   });
 }

@@ -133,24 +133,27 @@ class ProviderCard extends StatelessWidget {
                                 }
 
                                 final messenger = ScaffoldMessenger.of(context);
-                                await favoritesProvider.toggleFavorite(
-                                    userId, provider.id);
-                                // The SnackBar is already a live region
-                                // (snack_bar.dart:831); the extra announce
-                                // double-spoke it on iOS and cleared
-                                // TalkBack's queue on Android.
-                                AppSnackBar.showOn(
+                                // The toggle can fail — a green snackbar on a failed
+                                // toggle would also arm an « Annuler » that performs it.
+                                final ok = await favoritesProvider
+                                    .toggleFavorite(userId, provider.id);
+                                AppSnackBar.outcomeOn(
                                   messenger,
-                                  isFavorite
+                                  ok: ok,
+                                  success: isFavorite
                                       ? 'Retiré des favoris'
                                       : 'Ajouté aux favoris',
-                                  kind: SnackKind.success,
-                                  action: SnackAction(
-                                    label: 'Annuler',
-                                    onPressed: () => favoritesProvider
-                                        .toggleFavorite(userId, provider.id),
-                                    isOnlyRouteBack: false,
-                                  ),
+                                  error: favoritesProvider.error ??
+                                      'Une erreur est survenue. Réessayez.',
+                                  action: !ok
+                                      ? null
+                                      : SnackAction(
+                                          label: 'Annuler',
+                                          onPressed: () =>
+                                              favoritesProvider.toggleFavorite(
+                                                  userId, provider.id),
+                                          isOnlyRouteBack: false,
+                                        ),
                                 );
                               },
                               child: SizedBox(
@@ -324,20 +327,26 @@ class ProviderCard extends StatelessWidget {
                             }
 
                             final messenger = ScaffoldMessenger.of(context);
-                            await favoritesProvider.toggleFavorite(
+                            // The toggle can fail — a green snackbar on a failed
+                            // toggle would also arm an « Annuler » that performs it.
+                            final ok = await favoritesProvider.toggleFavorite(
                                 userId, provider.id);
-                            AppSnackBar.showOn(
+                            AppSnackBar.outcomeOn(
                               messenger,
-                              isFavorite
+                              ok: ok,
+                              success: isFavorite
                                   ? 'Retiré des favoris'
                                   : 'Ajouté aux favoris',
-                              kind: SnackKind.success,
-                              action: SnackAction(
-                                label: 'Annuler',
-                                onPressed: () => favoritesProvider
-                                    .toggleFavorite(userId, provider.id),
-                                isOnlyRouteBack: false,
-                              ),
+                              error: favoritesProvider.error ??
+                                  'Une erreur est survenue. Réessayez.',
+                              action: !ok
+                                  ? null
+                                  : SnackAction(
+                                      label: 'Annuler',
+                                      onPressed: () => favoritesProvider
+                                          .toggleFavorite(userId, provider.id),
+                                      isOnlyRouteBack: false,
+                                    ),
                             );
                           },
                           child: SizedBox(
