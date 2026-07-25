@@ -33,7 +33,9 @@ export function ErrorState({
           {title}
         </h1>
       ) : null}
-      <p role="alert" className={`text-bodyMedium text-error ${title ? 'mt-m' : ''}`}>
+      {/* B8: a page-level error body is reading copy (rule 5) — the
+          role=alert FIELD errors stay small; this is not one of them. */}
+      <p role="alert" className={`text-bodyLarge text-error ${title ? 'mt-m' : ''}`}>
         {message}
       </p>
       {onRetry ? (

@@ -3,7 +3,7 @@
 import type { DayForm } from '../../lib/pro/availability';
 
 const inputCls =
-  'min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 /// One weekly-schedule editor for the three places that edit day ranges:
 /// salon hours, breaks (« Pauses ») and per-artist hours (audit 3.4/3.8).

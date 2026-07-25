@@ -141,7 +141,7 @@ export function ChangeRoleDialog({
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <Button
                   onClick={createFiche}
@@ -156,7 +156,7 @@ export function ChangeRoleDialog({
                   id="changerole-fiche"
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (

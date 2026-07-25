@@ -14,7 +14,7 @@ export default function ConnexionPage() {
       <h1 className="text-headlineSmall font-semibold text-textPrimary">
         Se connecter ou créer un compte
       </h1>
-      <p className="mt-xs text-bodyMedium text-textTertiary">
+      <p className="mt-xs text-bodyLarge text-textTertiary">
         Votre compte est créé automatiquement à votre première connexion.
       </p>
       <div className="mt-l">

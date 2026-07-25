@@ -274,7 +274,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       <h1 className="mt-m text-headlineMedium font-semibold text-textPrimary">
         {h1Of(input)}
       </h1>
-      <p className="mt-m text-textSecondary">
+      <p className="mt-m text-bodyLarge text-textSecondary">
         Les meilleurs salons de {label.toLowerCase()} {place.prefix}{' '}
         {place.name}, réservables en ligne 24/7 — comparez tarifs, avis et
         disponibilités, puis réservez en quelques secondes.

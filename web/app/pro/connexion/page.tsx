@@ -13,7 +13,7 @@ export default function ProConnexionPage() {
   return (
     <main className="mx-auto max-w-md px-m py-l">
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Espace Pro</h1>
-      <p className="mt-xs text-bodyMedium text-textTertiary">
+      <p className="mt-xs text-bodyLarge text-textTertiary">
         Connectez-vous à votre espace salon.
       </p>
       <div className="mt-l">
@@ -22,7 +22,7 @@ export default function ProConnexionPage() {
           <ProConnexionClient />
         </Suspense>
       </div>
-      <p className="mt-l text-bodyMedium text-textTertiary">
+      <p className="mt-l text-bodyLarge text-textTertiary">
         Pas encore inscrit&nbsp;? Créez votre salon dans l’app MyWeli Pro.
       </p>
       <div className="mt-s">

@@ -331,7 +331,7 @@ export function AccountClient() {
       {/* Notifications (parity 5.1/5.2) */}
       <Link
         href="/mon-compte/notifications"
-        className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+        className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
       >
         <span>Notifications</span>
         <span className="text-textTertiary">›</span>
@@ -342,7 +342,7 @@ export function AccountClient() {
         href={supportWhatsAppUrl()}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+        className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
       >
         <span>Aide & Support</span>
         <span className="text-textTertiary">›</span>
@@ -354,7 +354,7 @@ export function AccountClient() {
           Confidentialité
         </h2>
         <div className="mt-s flex items-center justify-between gap-m">
-          <p className="text-bodyMedium text-textSecondary">
+          <p className="text-bodyLarge text-textSecondary">
             Recevoir une copie de vos données (profil, rendez-vous, favoris).
           </p>
           <Link
@@ -378,7 +378,7 @@ export function AccountClient() {
             </button>
           ) : (
             <div className="rounded-lg bg-surface p-m">
-              <p className="text-bodyMedium text-textPrimary">
+              <p className="text-bodyLarge text-textPrimary">
                 Cette action est définitive. Vos rendez-vous, favoris et avis
                 seront supprimés. Pensez à exporter vos données avant.
               </p>

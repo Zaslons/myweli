@@ -45,7 +45,7 @@ export function ReviewList({
               <span className="text-bodyMedium text-textTertiary"><span aria-hidden="true">★</span> {r.rating}</span>
             </div>
             {r.text ? (
-              <p className="mt-xs text-bodyMedium text-textSecondary">{r.text}</p>
+              <p className="mt-xs text-bodyLarge text-textSecondary">{r.text}</p>
             ) : null}
             {r.photoUrls && r.photoUrls.length > 0 ? (
               <div className="mt-s flex gap-s overflow-x-auto">
@@ -137,7 +137,7 @@ function ReportAction({ reviewId, slug }: { reviewId: string; slug: string }) {
             maxLength={500}
             placeholder="Raison (optionnel)"
             aria-label="Raison du signalement"
-            className="min-h-12 w-full rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+            className="min-h-12 w-full rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
           <div className="mt-s flex justify-end gap-s">
             <Button variant="secondary" onClick={() => setOpen(false)}>

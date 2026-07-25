@@ -17,7 +17,7 @@ export function Faq({
             <summary className="cursor-pointer font-medium text-textPrimary">
               {it.question}
             </summary>
-            <p className="mt-xs text-bodyMedium text-textSecondary">{it.answer}</p>
+            <p className="mt-xs text-bodyLarge text-textSecondary">{it.answer}</p>
           </details>
         ))}
       </div>

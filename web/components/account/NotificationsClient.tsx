@@ -209,7 +209,7 @@ export function NotificationsClient() {
               <div>
                 <p
                   id={`pref-${row.key}-title`}
-                  className="text-bodyMedium text-textPrimary"
+                  className="text-bodyLarge text-textPrimary"
                 >
                   {row.title}
                 </p>

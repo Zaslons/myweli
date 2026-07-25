@@ -146,7 +146,7 @@ export function ClientsClient() {
 
       {emptyBase ? (
         <div className="mt-xl rounded-xl border border-border bg-secondary p-xl text-center">
-          <p className="text-textPrimary">
+          <p className="text-bodyLarge text-textPrimary">
             Vos clients apparaîtront ici automatiquement après leur première
             réservation.
           </p>

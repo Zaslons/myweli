@@ -89,7 +89,7 @@ export default async function HomePage() {
           <h1 className="max-w-2xl text-headlineLarge font-semibold text-textPrimary">
             Réservez beauté & bien-être à {cityName}
           </h1>
-          <p className="mt-m max-w-xl text-textSecondary">
+          <p className="mt-m max-w-xl text-bodyLarge text-textSecondary">
             Coiffure, tresses, barbier, onglerie, spa — réservez en ligne, près
             de chez vous, en quelques secondes.
           </p>
@@ -169,7 +169,7 @@ export default async function HomePage() {
               className="rounded-xl border border-border bg-secondary p-l"
             >
               <p className="font-medium text-textPrimary">{title}</p>
-              <p className="mt-xs text-bodyMedium text-textSecondary">{body}</p>
+              <p className="mt-xs text-bodyLarge text-textSecondary">{body}</p>
             </div>
           ))}
         </section>
@@ -179,7 +179,7 @@ export default async function HomePage() {
             <p className="text-titleLarge font-semibold text-textPrimary">
               L’app MyWeli
             </p>
-            <p className="mt-xs text-bodyMedium text-textSecondary">
+            <p className="mt-xs text-bodyLarge text-textSecondary">
               Réservez plus vite et gérez vos rendez-vous depuis votre poche.
             </p>
           </div>
@@ -194,7 +194,7 @@ export default async function HomePage() {
             {faq.map((f) => (
               <div key={f.question}>
                 <dt className="font-medium text-textPrimary">{f.question}</dt>
-                <dd className="mt-xs text-bodyMedium text-textSecondary">{f.answer}</dd>
+                <dd className="mt-xs text-bodyLarge text-textSecondary">{f.answer}</dd>
               </div>
             ))}
           </dl>

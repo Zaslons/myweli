@@ -99,7 +99,7 @@ export function DataExportClient() {
       <h1 className="mt-s text-headlineSmall font-semibold text-textPrimary">
         Mes données
       </h1>
-      <p className="mt-xs text-bodyMedium text-textSecondary">
+      <p className="mt-xs text-bodyLarge text-textSecondary">
         Une copie de vos données MyWeli : profil, rendez-vous et favoris.
       </p>
 

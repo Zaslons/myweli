@@ -45,8 +45,10 @@ export function EmptyState({
       <p className={`text-titleLarge font-medium text-textSecondary ${icon ? 'mt-l' : ''}`}>
         {title}
       </p>
+      {/* B8: the WHY is reading copy — §4's bodyLarge, like every sentence
+          standing as content. */}
       {description ? (
-        <p className="mt-s text-bodyMedium text-textTertiary">{description}</p>
+        <p className="mt-s text-bodyLarge text-textTertiary">{description}</p>
       ) : null}
       {action ? <div className="mt-l flex justify-center">{action}</div> : null}
     </div>

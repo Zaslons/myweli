@@ -242,7 +242,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'phone') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.
         </p>
         <PhoneField
@@ -266,7 +266,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Entrez le code reçu par e-mail à {email.trim()}.
         </p>
         <TextField
