@@ -83,6 +83,11 @@ body {
    place the ring stays hand-written CSS, fixed three ways from its pre-§5 form:
    :focus-visible (was :focus — mouse rings), borderFocus (was primary), offset
    2px (was 1). */
+/* B8 (review): the country SELECT types nothing but iOS zooms on focusing a
+   <select> under 16px too — declare it, like its sibling input. */
+.myweli-phone .PhoneInputCountrySelect {
+  font-size: theme('fontSize.bodyLarge.0');
+}
 .myweli-phone .PhoneInputCountrySelect:focus-visible + .PhoneInputCountryIcon {
   outline: 2px solid theme('colors.borderFocus');
   outline-offset: 2px;

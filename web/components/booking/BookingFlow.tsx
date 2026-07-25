@@ -271,7 +271,7 @@ export function BookingFlow({
         <h2 className="text-titleLarge font-semibold text-textPrimary">
           Réservation envoyée ✓
         </h2>
-        <p className="mt-s text-textSecondary">
+        <p className="mt-s text-bodyLarge text-textSecondary">
           {provider.name} va confirmer votre rendez-vous. Vous recevrez une
           notification.
         </p>
@@ -568,7 +568,7 @@ export function BookingFlow({
           {slotsLoading ? (
             <Loading label="Chargement des créneaux…" className="mt-m" />
           ) : slots.length === 0 ? (
-            <p className="mt-m text-textSecondary">Aucun créneau disponible</p>
+            <p className="mt-m text-bodyMedium text-textSecondary">Aucun créneau disponible</p>
           ) : (
             <div className="mt-m flex flex-wrap gap-s">
               {slots.map((iso) => (

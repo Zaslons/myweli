@@ -196,6 +196,60 @@ battery + Lighthouse + all token gates, then:
   hybrid in one frame: the banner subtitle at 16 beside the 14px
   line-through anchor price).
 
+## The adversarial review's corrections
+
+The review (Fable-limit truncated — 7 of 29 agents finished, the rest
+hand-verified: an unverified finding is not a rejected one) surfaced 12
+mis-classifications, ALL real, in three classes:
+
+- **Pro reading-copy twins the consumer sweep flipped but their pro sides
+  didn't** (8 sites → bodyLarge): ProLoginOptions' two auth prompts (twins
+  of LoginOptions), CompteDangerSection's data-export sentence + the
+  **delete-account warning** (the highest-stakes sentence on the pro side —
+  its consumer twin read 16, it read 14), VerificationClient's banner
+  subtitle (incl. the `rejectionReason` — reading copy the pro must act on;
+  the Abonnement banner twin had flipped), EquipeClient's offer-gating
+  sentence + invite-card explanation (twins of Acompte/GoLive), and
+  AppointmentDetail's not-found page BODY (a `role=alert` that IS the page,
+  like ErrorState — rule 8's exemption applies).
+- **Token-less reading paragraphs still reading 16 by accident** (3 →
+  declared bodyLarge, zero-pixel): BookingFlow's booking-success body (the
+  single most-read confirmation of the consumer flow), ClientsClient's
+  onboarding empty body, ClientCard's not-found body. What remains
+  token-less is now only the `font-medium` TITLE-ish tail (row/card names) —
+  the as-built line above is accurate as written.
+- **Over-flips corrected** (3 → reverted to bodyMedium): the reserver page's
+  `catégorie · commune` caption (a meta caption, rule 4 — and its salon-page
+  Hero twin is 14), « Rendez-vous reporté ✓ » (a terse tick, rule 7's 14
+  side), and the reschedule slot-empty placeholder « Aucun créneau
+  disponible ce jour. » — reverted so that ALL in-picker "nothing here"
+  placeholders read 14 (glanced, not read; BookingFlow's own two stayed 14,
+  and its token-less third was declared 14 to match). The shared EmptyState
+  component stays 16; ad-hoc picker placeholders are 14 — the clean line.
+
+And two more, off the classification axis:
+
+- **A field the sweep missed** — `HomeSearch`'s two search inputs used a
+  token-less `field` const, so they typed 16 only by the browser default:
+  invisible to the grep audit (which hunted `text-bodyMedium`, and this had
+  no class). Declared `text-bodyLarge` — the same iOS-zoom hole as the phone
+  widget. The completeness claim is now true only WITH this fix; the audit
+  grep is widened accordingly.
+- **The phone COUNTRY SELECT** declared too — iOS zooms on focusing a
+  `<select>` under 16px, so half-declaring the widget (input only) left the
+  hole open.
+- **The vacuous-route gate hardened**: the type-overflow public routes now
+  assert a page-specific heading renders BEFORE measuring overflow — a route
+  scanning the wrong DOM (the bug B8 found) is now a loud failure, not a
+  silent green.
+
+**Final reconciliation (exact): 308 = 72 net-flipped + 236 stayed**
+(the three over-flips reverted in review count as stayed), **plus 8
+token-less reading paragraphs declared `bodyLarge`, 1 placeholder + 2
+phone-widget declarations in CSS** → working tree **80 `text-bodyLarge` /
+237 `text-bodyMedium`**. Emitted CSS: **+1 selector** (`.text-bodyLarge`),
+−0.
+
 ## Not in scope
 
 Mobile's own 14px reading paragraphs (the new SYSTEM §21 row — an A-series

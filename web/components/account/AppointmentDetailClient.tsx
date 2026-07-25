@@ -138,7 +138,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         <h1 className="text-titleLarge font-semibold text-textPrimary">
           Rendez-vous introuvable
         </h1>
-        <p role="alert" className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyLarge text-error">
           Ce rendez-vous n’existe pas ou n’est plus accessible.
         </p>
         <p className="mt-m">
@@ -307,7 +307,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         {rescheduled ? (
-          <p className="mt-m text-bodyLarge text-textSecondary">
+          <p className="mt-m text-bodyMedium text-textSecondary">
             Rendez-vous reporté ✓
           </p>
         ) : null}
@@ -337,7 +337,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 {slotsLoading ? (
                   <Loading label="Chargement des créneaux…" className="mt-s" />
                 ) : slots.length === 0 ? (
-                  <p className="mt-s text-bodyLarge text-textSecondary">
+                  <p className="mt-s text-bodyMedium text-textSecondary">
                     Aucun créneau disponible ce jour.
                   </p>
                 ) : (

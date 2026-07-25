@@ -182,7 +182,7 @@ export function EquipeClient() {
           </div>
         </div>
       ) : (
-        <p className="mt-m text-bodyMedium text-textSecondary">
+        <p className="mt-m text-bodyLarge text-textSecondary">
           Choisissez votre offre pour inviter votre équipe.{' '}
           <a href="/pro/abonnement" className="underline">
             Choisir mon offre
@@ -195,7 +195,7 @@ export function EquipeClient() {
           <p className="text-titleMedium font-medium text-textPrimary">
             Invitez votre équipe
           </p>
-          <p className="mt-xs text-bodyMedium text-textSecondary">
+          <p className="mt-xs text-bodyLarge text-textSecondary">
             Chaque membre a son propre accès. Les collaborateurs ne voient que
             leur propre planning.
           </p>

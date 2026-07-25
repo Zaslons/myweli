@@ -98,7 +98,7 @@ export function CompteDangerSection({
 
       {exportEnabled ? (
         <div className="mt-s flex items-center justify-between gap-m">
-          <p className="text-bodyMedium text-textSecondary">
+          <p className="text-bodyLarge text-textSecondary">
             Recevoir une copie des données de votre salon (compte, fiche,
             catalogue, rendez-vous, fichier clients, revenus).
           </p>
@@ -135,7 +135,7 @@ export function CompteDangerSection({
           </button>
         ) : (
           <div className="rounded-lg bg-surface p-m">
-            <p className="text-bodyMedium text-textSecondary">
+            <p className="text-bodyLarge text-textSecondary">
               {exportEnabled
                 ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
                 : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}

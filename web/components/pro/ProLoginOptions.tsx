@@ -183,7 +183,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
     return (
       <div className="flex flex-col gap-s" data-testid="pro-login-invitations">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Invitations</h2>
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Un salon vous a invité à rejoindre son équipe.
         </p>
         <ul className="flex flex-col gap-s">
@@ -222,7 +222,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Entrez le code reçu par e-mail à {email.trim()}.
         </p>
         <TextField

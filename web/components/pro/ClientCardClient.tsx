@@ -106,7 +106,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
         <Link href="/pro/clients" className="text-bodyMedium text-textTertiary">
           ← Clients
         </Link>
-        <p className="mt-m text-textSecondary">Client introuvable.</p>
+        <p className="mt-m text-bodyLarge text-textSecondary">Client introuvable.</p>
       </div>
     );
   }
