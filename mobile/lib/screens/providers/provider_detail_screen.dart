@@ -931,7 +931,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           title: 'À propos',
                           child: Text(
                             p.description,
-                            style: AppTextStyles.bodyMedium.copyWith(
+                            // §4 (SYSTEM §21 row 27): the salon description is
+                            // reading prose — bodyLarge, "Default reading text",
+                            // not the 14px workhorse.
+                            style: AppTextStyles.bodyLarge.copyWith(
                               color: AppColors.textSecondary,
                             ),
                           ),

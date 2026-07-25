@@ -16,9 +16,15 @@ import '../support/wcag.dart';
 /// If you are here because this went red: you did not break a test, you broke a
 /// contrast floor. The failure message tells you the measured ratio.
 void main() {
-  // The three surfaces a token has to survive, worst → best. A token must clear
-  // its floor on `background` — the worst case — to be legal anywhere.
+  // The FOUR surfaces a token has to survive, worst → best. The worst case is
+  // `surfaceVariant` (#F5F5F5), NOT `background` (#F6F7F9) — it is a shade
+  // darker, and it is where input fills + skeletons render. A1 measured only
+  // the first three and its own comment called `background` the worst case; it
+  // was wrong by 0.02, and `gold` slipped through at 2.98:1 (WEB-SYSTEM §15
+  // row 23, found by the web mirror's contrast test). A token must clear its
+  // floor on surfaceVariant to be legal anywhere.
   const surfaces = <String, Color>{
+    'surfaceVariant': AppColors.surfaceVariant,
     'background': AppColors.background,
     'surface': AppColors.surface,
     'card': AppColors.secondary,

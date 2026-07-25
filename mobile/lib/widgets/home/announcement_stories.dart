@@ -18,7 +18,7 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
   StorySeenService? _seenService;
   Set<String> _seenIds = <String>{};
 
-  // On-brand "unseen" ring: `AppColors.gold` (3.04:1 — it clears the non-text
+  // On-brand "unseen" ring: `AppColors.gold` (3.15:1 on background — it clears the non-text
   // floor); seen → the neutral `border`. It used to borrow `starRating`, which at
   // 1.62:1 made the ring all but invisible — and `starRating` is the fill of a
   // rating star and nothing else (docs/design/SYSTEM.md §3.5, §19).

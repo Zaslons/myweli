@@ -72,9 +72,13 @@ as a label:
 | **3:1** | Large text (≥ 18.66px bold / ≥ 24px), **icons, borders of controls, focus rings, chart strokes** | WCAG 1.4.3 + **1.4.11 non-text contrast** |
 | *(none)* | Disabled controls, pure decoration, logos | Exempt by 1.4.3 — but see the disabled rule in §13 |
 
-Our three backgrounds, worst → best: `background #F6F7F9` (the scaffold),
-`surface #FAFAFA`, `secondary #FFFFFF` (cards). **A token must clear its floor on
-`background`** — the worst case — to be used anywhere.
+Our surfaces, worst → best: **`surfaceVariant #F5F5F5`** (input fills,
+skeletons — the darkest, so the TRUE worst case), `background #F6F7F9` (the
+scaffold), `surface #FAFAFA`, `secondary #FFFFFF` (cards). **A token must clear
+its floor on `surfaceVariant`** to be used anywhere. (The contrast gate long
+measured only the middle three and called `background` the worst case; gold
+slipped through at 2.98:1 on `surfaceVariant` — §21 row 3b. All four are
+measured now.)
 
 ---
 
@@ -178,7 +182,7 @@ it as a text or icon color is a contrast failure; use `warning` (`#6B5B00`).
 |---|---|---|---|---|
 | `starRating` | `#FFB800` | 1.62 | The **fill of a star glyph** | Text; any control whose only cue is this color |
 | `favorite` | `#E53935` | 3.94 | The **fill of a heart glyph** (3:1 ✅) | Text (fails 4.5:1) |
-| `gold` | `#B8860B` | 3.04 | A **non-text accent**: the owner-chip border, the unseen-story ring (3:1 ✅, barely) | Text (fails 4.5:1) |
+| `gold` | `#B5830A` | 3.15 | A **non-text accent**: the owner-chip border, the unseen-story ring. Clears 3:1 on ALL surfaces incl. `surfaceVariant` (3.10) — darkened from `#B8860B`, which failed there at 2.98 (§21 row 3b) | Text (fails 4.5:1 — §21 row 28) |
 
 **Meaning never rides on hue alone** (WCAG 1.4.1). A gold star at 1.62:1 is
 invisible to a low-vision user and meaningless to a color-blind one — so it is
@@ -740,7 +744,7 @@ own design system?" — today, mostly not.
 | 1 | `textTertiary` ≥ 4.5:1 (§3.2) | ~~202~~ → **0** | was 3.22:1 on every input hint and the 11px nav label; now **4.76:1** | ✅ **A1** |
 | 2 | Control borders ≥ 3:1 (§3.3) | ~~every input~~ → **0** | every field was outlined at **1.44:1**; the worst was a *tappable* journal tile on `divider` at **1.24:1**. Now `borderStrong` (3.22:1) on ~30 form controls + selection states — and *not* on content-identified cards, which would have boxed the product for no gain | ✅ **A1** |
 | 3 | Ink ≠ brand black (§1) | ~~130~~ → **0** | `textPrimary` is `#1A1A1A`; `primary` stays `#000000`. Exactly ONE site had the brand black wearing the ink token (a `CircleAvatar` fill) — now grep-pinned so it can't come back | ✅ **A1** |
-| 3b | Gold carries state at ≥3:1 (§3.5) | ~~3~~ → **0** | the unseen-story ring was a **1.62:1** stroke — a state indicator you could not see. Gold-as-state → `gold` (3.04:1); the 12 real star glyphs keep `starRating` | ✅ **A1** |
+| 3b | Gold carries state at ≥3:1 (§3.5) | ~~3~~ → **0** | the unseen-story ring was a **1.62:1** stroke — a state indicator you could not see. Gold-as-state → `gold`; the 12 real star glyphs keep `starRating`. **A1 measured only 3 surfaces** (its contrast test wrongly called `background` the worst case) and gold slipped through at **2.98:1 on `surfaceVariant`** — the darker 4th surface; caught web-side (WEB-SYSTEM §15 row 23), fixed here: `#B8860B`→**`#B5830A`** clears 3:1 on all four (worst is surfaceVariant, 3.10), and the test now measures surfaceVariant too. The register got more honest, not just shorter | ✅ **A1** (+ surfaceVariant follow-through) |
 | 4 | Spacing on-grid (§5) | ~~128~~ → **0** | the register **under-counted**: it missed the pixel-identical on-grid literals, so the true in-scope set was **~488** raw spacing literals. `12`×76 → the new `spacingSM`; ~90 off-grid (`2/6/10/14/20/28/…`) resolved to the nearest token (tie → up); the rest are exact-value swaps. One fixed clearance keeps its literal under `// ds-ignore`. Pinned by `design_system_pin_test.dart` | ✅ **A2** |
 | 5 | Radius tokens (§6) | ~~23~~ → **0** | `999`×21 → `radiusPill`; `16`/`24` → `radiusXL`/`radiusXXL`; `7`/`2` → nearest. Pinned | ✅ **A2** |
 | 6 | Type scale ≥ 11px (§4) | ~~9~~ → **0** | the six `fontSize: 10` labels → `labelSmall` (11, the floor); the photo counter → `bodyMedium`; the two OTP boxes drop the magic `26` → `headlineMedium`. Pinned | ✅ **A2b** |
@@ -764,14 +768,17 @@ own design system?" — today, mostly not.
 | 24 | Disabled labels legible | ~~all~~ → **0** | was `#5C5C5C` on `#949495` (2.21:1). Now a legible-inert pair (`surfaceVariant` / `textDisabled`) in the button themes + `AppButton`. WCAG exempts disabled, but it now reads as *disabled*, not blank. | ✅ **A3** |
 | 25 | No meaning by colour alone (§13.6) | ~~1~~ → **0** | the story ring now carries **two greyscale-surviving cues**: unseen = a thick (3px) gold ring + a bold title; seen = a thin (1px) neutral ring + regular title — width and weight, not just hue. Folded into the ring's `Semantics` label ("nouvelle"/"déjà vue"). | ✅ **A4b** |
 | 26 | Unselected segments have no boundary | 2 | both **hand-rolled** segmented controls (not Material `SegmentedButton`) draw a border on the active segment only — so `segmentedButtonTheme` can't fix them; it's a widget change, not a ThemeData one. | *a widget cleanup, not A3* |
-| 27 | Reading paragraphs read one step small (§4) | **2 paragraph roles** | §4 declares `bodyLarge` "Default reading text", yet the salon description (`provider_detail_screen.dart`) and the empty-state body (`empty_state.dart`) render **`bodyMedium` (14)**. Found from the OUTSIDE: the web's B8 census disproved "the app reads at 16px" while burning down web row 17 (measured role counts: bodySmall 227 · bodyMedium 159 · titleMedium 86 · **bodyLarge 31** — the 16s are the settings ListTiles, auth prompts and typed input text). The web now reads 16 at those sites ([web-b8-reading-text.md](web-b8-reading-text.md)); the app owes itself the same decision — align the paragraphs with §4's own doctrine, or amend §4 honestly | *A-series candidate* |
+| 27 | Reading paragraphs read one step small (§4) | ~~2 paragraph roles~~ → **0** | §4 declares `bodyLarge` "Default reading text", yet the salon description (`provider_detail_screen.dart`) and the empty-state body (`empty_state.dart`) rendered **`bodyMedium` (14)** — one step below the app's own doctrine. Raised from the OUTSIDE by web B8's census (which disproved "the app reads at 16px"). Both → `bodyLarge`; no density mode to split across (unlike web's HYBRID). Spec: [mobile-gold-reading.md](mobile-gold-reading.md) | ✅ **mobile A-series** |
+| 28 | `gold` used as TEXT below the 4.5:1 floor | **1** | found darkening gold for row 23: `TeamRoleChip`'s « Propriétaire » renders `gold` as *text* (labelSmall, 11px) on a 12%-gold tint — **~3:1**, below the 4.5:1 text floor even at `#B5830A`. Row 3b closed gold as *state* (3:1, "not text") and the a11y contrast guideline covers 6 widgets but not this chip, so it slipped both. Fix: a darker gold-text token, or ink on the tint | *needs its own slice* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.
 
-Rows **23–26** were not in the original audit. Each was found by *doing the work*:
+Rows **23–28** were not in the original audit. Each was found by *doing the work*:
 23 and 24 by taking the pictures (PR-0.5), 25 and 26 by walking every bordered
-control in A1. Row **4's count was wrong** — the audit said ~128, but migrating it
+control in A1, **27 from the outside** (web B8's reading-text census disproved
+"the app reads at 16px"), and **28 while fixing 3b's surfaceVariant gap** (the
+darkened gold exposed that the owner chip uses it as *text*, not state). Row **4's count was wrong** — the audit said ~128, but migrating it
 found **~488** (it had never counted the pixel-identical on-grid literals). Row **15's
 was wrong too** (3 → **9**), and row **16's counted the wrong thing entirely** — "4.8%
 of `Text` have `maxLines`" measures a *proxy*; the executable check (pump at 2×) found

@@ -45,7 +45,9 @@ class EmptyState extends StatelessWidget {
               const SizedBox(height: AppTheme.spacingS),
               Text(
                 description!,
-                style: AppTextStyles.bodyMedium.copyWith(
+                // §4 (SYSTEM §21 row 27): the empty-state body is reading copy
+                // — bodyLarge, "Default reading text".
+                style: AppTextStyles.bodyLarge.copyWith(
                   color: AppColors.textTertiary,
                 ),
                 textAlign: TextAlign.center,
