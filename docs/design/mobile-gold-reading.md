@@ -37,8 +37,8 @@ mobile-side, both found by doing the web burn-down:
 ### gold — the computed darkening (not a guess)
 
 The darker gold must clear the 3:1 floor on ALL FOUR surfaces with a small
-margin, while staying a recognizable brand gold (proportional RGB scale =
-same hue). Using the app's own WCAG math (`test/support/wcag.dart`):
+margin, while staying a recognizable brand gold (hue held at
+42.7°→42.5°). Using the app's own WCAG math (`test/support/wcag.dart`):
 
 | surface | #F6F7F9 bg | #FAFAFA surface | #FFFFFF card | **#F5F5F5 surfaceVariant** |
 |---|---|---|---|---|

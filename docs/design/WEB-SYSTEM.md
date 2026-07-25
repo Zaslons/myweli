@@ -56,7 +56,7 @@ mapping:
 | **`borderStrong`** `#8A8A8A` | `border-borderStrong` | **Every interactive control's boundary** |
 | **`borderFocus`** `#000000` | `outline-borderFocus` | The focus ring (§5) |
 | semantic | `text-success` `bg-error` … | Status only |
-| **`gold`** `#B8860B` | `border-gold` `bg-gold/15` | Non-text accent. **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
+| **`gold`** `#B5830A` | `border-gold` `bg-gold/15` | Non-text accent (3.10:1 on `surfaceVariant`, the worst surface — darkened from `#B8860B`/2.98 in the mirror-debt slice, §15 row 23). **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
 | spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px** | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. |
 | radius | `rounded-lg` … + **`rounded-pill`** | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
 | z-index | `z-sticky` `z-modal` … | The layer, **named** — never a number (§9). |

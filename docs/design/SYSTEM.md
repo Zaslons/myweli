@@ -72,9 +72,13 @@ as a label:
 | **3:1** | Large text (≥ 18.66px bold / ≥ 24px), **icons, borders of controls, focus rings, chart strokes** | WCAG 1.4.3 + **1.4.11 non-text contrast** |
 | *(none)* | Disabled controls, pure decoration, logos | Exempt by 1.4.3 — but see the disabled rule in §13 |
 
-Our three backgrounds, worst → best: `background #F6F7F9` (the scaffold),
-`surface #FAFAFA`, `secondary #FFFFFF` (cards). **A token must clear its floor on
-`background`** — the worst case — to be used anywhere.
+Our surfaces, worst → best: **`surfaceVariant #F5F5F5`** (input fills,
+skeletons — the darkest, so the TRUE worst case), `background #F6F7F9` (the
+scaffold), `surface #FAFAFA`, `secondary #FFFFFF` (cards). **A token must clear
+its floor on `surfaceVariant`** to be used anywhere. (The contrast gate long
+measured only the middle three and called `background` the worst case; gold
+slipped through at 2.98:1 on `surfaceVariant` — §21 row 3b. All four are
+measured now.)
 
 ---
 
@@ -178,7 +182,7 @@ it as a text or icon color is a contrast failure; use `warning` (`#6B5B00`).
 |---|---|---|---|---|
 | `starRating` | `#FFB800` | 1.62 | The **fill of a star glyph** | Text; any control whose only cue is this color |
 | `favorite` | `#E53935` | 3.94 | The **fill of a heart glyph** (3:1 ✅) | Text (fails 4.5:1) |
-| `gold` | `#B8860B` | 3.04 | A **non-text accent**: the owner-chip border, the unseen-story ring (3:1 ✅, barely) | Text (fails 4.5:1) |
+| `gold` | `#B5830A` | 3.15 | A **non-text accent**: the owner-chip border, the unseen-story ring. Clears 3:1 on ALL surfaces incl. `surfaceVariant` (3.10) — darkened from `#B8860B`, which failed there at 2.98 (§21 row 3b) | Text (fails 4.5:1 — §21 row 28) |
 
 **Meaning never rides on hue alone** (WCAG 1.4.1). A gold star at 1.62:1 is
 invisible to a low-vision user and meaningless to a color-blind one — so it is
