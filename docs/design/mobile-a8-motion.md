@@ -39,10 +39,18 @@ the SDK: `forward()` → `_animateToInternal` → `animation_controller.dart:651
 which scales `AnimationBehavior.normal` controllers to **0.05** when
 `SemanticsBinding.instance.disableAnimations` is true.
 
-So with Android's "Remove animations" on, **each story shows for 300 ms and a
-five-story reel is over in 1.5 seconds.** The 6 s is a *reading time*, not
-motion — precisely the case the SDK's own `AnimationBehavior.preserve` doc
-describes. Fixed here, and it is the slice's best proof-red for row 20.
+By that reading, Android's "Remove animations" should collapse each story to
+300 ms and finish a five-story reel in 1.5 s. The 6 s is a *reading time*, not
+motion — the case the SDK's own `AnimationBehavior.preserve` doc describes.
+
+**⚠️ Not confirmed, and therefore not fixed.** Two attempts to gate it both
+refused to go red: a controller built with `preserve` tests the SDK rather than
+us, and pumping the real `StoryViewer` and counting `onViewed` calls is **green
+at base** — so either the scale is not reached on this path, or `onViewed` does
+not fire per advance. The SDK reading is sound and the risk is real, but a gate
+that will not fail is not a gate, and fixing an unreproduced bug ships a change
+nobody can justify. Carried as the slice's open question; if a reproduction
+lands, the fix is one argument (`AnimationBehavior.preserve`).
 
 ## Why the SDK does not do this for us
 
