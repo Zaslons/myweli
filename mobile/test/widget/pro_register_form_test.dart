@@ -231,6 +231,41 @@ void main() {
             'the gates answer faults, they do not stonewall a good form');
   }
 
+  /// A7-fix — **the same defect, one button over, and now gated.**
+  ///
+  /// The review that produced the six funnel gates found this while writing
+  /// them: « Renvoyer le code » called the UNCHECKED `_sendCode`. The e-mail
+  /// field stays rendered and editable on the code step, so a user could change
+  /// it to anything and re-send against the unvalidated value — `'email'`
+  /// declared, bound, revalidated, and on that one button never validated.
+  /// That is A7's original defect shape exactly, surviving inside its own fix.
+  ///
+  /// Fixing it and not gating it is the mistake this branch exists to stop
+  /// making, so: revert `pro_register_screen`'s resend to `_sendCode` and this
+  /// goes red.
+  testWidgets(
+      '« Renvoyer le code » validates the e-mail it is about to '
+      're-send to', (tester) async {
+    await reachCodeStep(tester);
+
+    // The e-mail field is still on screen and still editable here.
+    await type(tester, 'Votre e-mail', 'pas-un-email');
+    await tester.tap(find.text('Renvoyer le code'));
+    await settle(tester);
+
+    expect(
+      find.descendant(
+        of: fieldLabelled('Votre e-mail'),
+        matching: find.text('Saisissez une adresse e-mail valide.'),
+      ),
+      findsOneWidget,
+      reason: 'the resend answers under the e-mail field (§14 rule 1) — it '
+          'used to fire against whatever the field now held',
+    );
+    expect(find.byType(SnackBar), findsNothing,
+        reason: '§14 rule 3 — a field fault is never a bar');
+  });
+
   testWidgets(
       'a FOUR-digit code is refused under the code field — the hole the '
       'old « length < 4 » gate left open', (tester) async {

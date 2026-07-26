@@ -362,8 +362,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: AppTheme.spacingL),
         PhoneNumberField(
-          // A7: this field sits outside any Form, so the package's own
-          // per-country check could never run here. It has a rule now.
+          // A7 said this field sat outside any Form so the package's check
+          // "could never run here". That was measured FALSE: IntlPhoneField
+          // defaults to onUserInteraction and needs no Form, so it WAS judging
+          // from the first keystroke and overwriting our message. It is
+          // silenced at the widget now; FieldErrors is the only rule.
           errorText: _errors['phone'],
           onChanged: (e164) => setState(() {
             _phoneNumber = e164;
