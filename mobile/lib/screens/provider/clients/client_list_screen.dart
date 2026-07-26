@@ -4,18 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
 import '../../../widgets/common/app_button.dart';
-import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
@@ -81,11 +83,11 @@ class _ClientListScreenState extends State<ClientListScreen> {
             name: name, phone: phone, note: note),
       ),
     );
+    // A7: the duplicate notice used to be raised HERE — on the list, after the
+    // sheet holding the phone field had already popped, and one frame before
+    // navigating away again. The sheet keeps it now, under the field it is
+    // about; whatever id comes back is a card the user chose to open.
     if (id == null || !mounted) return;
-    if (clients.lastAddWasDuplicate) {
-      AppSnackBar.show(context, 'Ce numéro existe déjà.',
-          kind: SnackKind.error);
-    }
     unawaited(context.push('/pro/clients/$id'));
   }
 
@@ -322,15 +324,43 @@ class _AddClientSheetState extends State<_AddClientSheet> {
   String _phone = '';
   bool _busy = false;
 
+  // A7/§14 — the sheet owns its faults now instead of shouting them at the
+  // screen behind it.
+  late final _errors = FieldErrors({
+    'name': Validators.requiredField('le nom du client'),
+    'phone': Validators.phoneNumber,
+  });
+  final _nameFocus = FocusNode();
+
+  /// Set when the phone belongs to a client that already exists. The sheet
+  /// STAYS OPEN and offers the existing card, instead of popping and firing a
+  /// bar over two other screens.
+  String? _duplicateId;
+
   @override
   void dispose() {
     _nameController.dispose();
     _noteController.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    // §14 rule 5: the button is no longer disabled on empty fields, so the
+    // press has to answer. The phone rule is new too — this field sits outside
+    // any Form, so `intl_phone_field`'s own check could never run here.
+    final ok = _errors.validate({
+      'name': _nameController.text,
+      'phone': _phone,
+    });
+    setState(() => _duplicateId = null);
+    if (!ok) {
+      focusFirstError(_errors, {'name': _nameFocus});
+      return;
+    }
+
     setState(() => _busy = true);
+    final clients = context.read<ProClientsProvider>();
     final id = await widget.onSubmit(
       _nameController.text.trim(),
       _phone,
@@ -338,9 +368,22 @@ class _AddClientSheetState extends State<_AddClientSheet> {
     );
     if (!mounted) return;
     setState(() => _busy = false);
-    if (id != null) {
-      Navigator.of(context).pop(id);
+    if (id == null) return; // a real failure — `error` renders below
+
+    if (clients.lastAddWasDuplicate) {
+      // The duplicate used to pop the sheet, raise « Ce numéro existe déjà. »
+      // on the LIST screen, and navigate to the client card in the same frame
+      // — a message about the phone field, delivered over two surfaces after
+      // the field was gone. It belongs to the field, so it stays with it; the
+      // existing card is still one tap away, but as a choice rather than a
+      // hijack.
+      setState(() {
+        _duplicateId = id;
+        _errors.set('phone', 'Ce numéro existe déjà.');
+      });
+      return;
     }
+    Navigator.of(context).pop(id);
   }
 
   @override
@@ -367,10 +410,22 @@ class _AddClientSheetState extends State<_AddClientSheet> {
           AppTextField(
             controller: _nameController,
             label: 'Nom',
-            onChanged: (_) => setState(() {}),
+            focusNode: _nameFocus,
+            errorText: _errors['name'],
+            onChanged: (v) => setState(() => _errors.revalidate('name', v)),
           ),
           const SizedBox(height: AppTheme.spacingM),
-          PhoneNumberField(onChanged: (e164) => _phone = e164),
+          PhoneNumberField(
+            errorText: _errors['phone'],
+            // It also never called setState, so the submit gate read a stale
+            // phone: typing a number alone did not re-enable the button until
+            // some unrelated rebuild happened.
+            onChanged: (e164) => setState(() {
+              _phone = e164;
+              _duplicateId = null;
+              _errors.revalidate('phone', e164);
+            }),
+          ),
           const SizedBox(height: AppTheme.spacingM),
           AppTextField(
             controller: _noteController,
@@ -378,22 +433,23 @@ class _AddClientSheetState extends State<_AddClientSheet> {
             hint: 'Ex : Préfère Awa',
             maxLength: 500,
           ),
-          if (error != null) ...[
+          // The form-level outcome (a real save failure) — A6's in-modal slot,
+          // and a live region, which the red Text it replaces was not.
+          InlineFeedback(error),
+          if (_duplicateId != null) ...[
             const SizedBox(height: AppTheme.spacingS),
-            Text(
-              error,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            AppButton(
+              text: 'Voir la fiche existante',
+              type: AppButtonType.secondary,
+              isFullWidth: true,
+              onPressed: () => Navigator.of(context).pop(_duplicateId),
             ),
           ],
           const SizedBox(height: AppTheme.spacingM),
           AppButton(
             text: 'Ajouter',
             isLoading: _busy,
-            onPressed: (_busy ||
-                    _nameController.text.trim().isEmpty ||
-                    _phone.trim().isEmpty)
-                ? null
-                : _submit,
+            onPressed: _busy ? null : _submit,
           ),
         ],
       ),

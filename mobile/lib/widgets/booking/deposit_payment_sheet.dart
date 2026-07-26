@@ -223,6 +223,13 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
   }
 
   Future<void> _markPaid() async {
+    // The proof IS the submission in submit mode, so its absence is a fault,
+    // not a reason to go inert (§14 rule 5).
+    if (widget.isSubmitMode && _screenshotKey == null) {
+      setState(() =>
+          _error = 'Ajoutez la capture d’écran du paiement pour l’envoyer.');
+      return;
+    }
     setState(() {
       _booking = true;
       _error = null;
@@ -365,25 +372,23 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 ),
               const SizedBox(height: AppTheme.spacingM),
               _screenshotRow(),
-              if (_error != null) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                Text(_error!,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.error)),
-              ],
+              // A7: this sheet carried TWO inline error surfaces — the A6
+              // `_feedback` record at the top (which knows its kind) and this
+              // hand-rolled red Text near the button (which did not, and was
+              // not a live region). One vocabulary now; the message stays here,
+              // beside the screenshot row it is usually about.
+              InlineFeedback(_error),
               const SizedBox(height: AppTheme.spacingL),
               AppButton(
                 text: widget.isSubmitMode
                     ? "Envoyer l'acompte"
                     : "J'ai payé l'acompte",
                 isLoading: _booking,
-                // Submit mode needs a screenshot (it's the proof being sent);
-                // book mode lets you confirm now and attach proof later.
-                onPressed: (_booking ||
-                        _uploading ||
-                        (widget.isSubmitMode && _screenshotKey == null))
-                    ? null
-                    : _markPaid,
+                // §14 rule 5: work-in-progress only. The missing screenshot
+                // used to leave the primary button dead with no explanation
+                // anywhere near it — the nearest prose was the reassurance
+                // about the salon confirming.
+                onPressed: (_booking || _uploading) ? null : _markPaid,
               ),
               const SizedBox(height: AppTheme.spacingS),
               Text(

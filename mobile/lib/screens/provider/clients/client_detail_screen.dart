@@ -3,11 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/appointment.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -375,20 +377,39 @@ class _NotesSection extends StatefulWidget {
 
 class _NotesSectionState extends State<_NotesSection> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
+
+  // A7/§14 — including the save failure, which used to vanish.
+  late final _errors =
+      FieldErrors({'note': Validators.requiredField('une note')});
   bool _busy = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   Future<void> _add() async {
+    // §14 rule 5: the button is no longer disabled on an empty box.
+    if (!_errors.validate({'note': _controller.text})) {
+      setState(() {});
+      _focus.requestFocus();
+      return;
+    }
     setState(() => _busy = true);
     final ok = await widget.onAdd(_controller.text.trim());
     if (mounted) {
       setState(() => _busy = false);
-      if (ok) _controller.clear();
+      if (ok) {
+        _controller.clear();
+      } else {
+        // A failure used to be swallowed whole: the note stayed in the box and
+        // nothing said why.
+        setState(
+            () => _errors.set('note', 'Enregistrement impossible. Réessayez.'));
+      }
     }
   }
 
@@ -418,10 +439,12 @@ class _NotesSectionState extends State<_NotesSection> {
           const SizedBox(height: AppTheme.spacingS),
           AppTextField(
             controller: _controller,
+            focusNode: _focus,
             hint: 'Ajouter une note…',
             maxLength: 500,
             maxLines: 2,
-            onChanged: (_) => setState(() {}),
+            errorText: _errors['note'],
+            onChanged: (v) => setState(() => _errors.revalidate('note', v)),
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -429,8 +452,7 @@ class _NotesSectionState extends State<_NotesSection> {
               text: 'Ajouter',
               isFullWidth: false,
               isLoading: _busy,
-              onPressed:
-                  (_busy || _controller.text.trim().isEmpty) ? null : _add,
+              onPressed: _busy ? null : _add,
             ),
           ),
           const SizedBox(height: AppTheme.spacingS),
@@ -603,6 +625,9 @@ class _TagSheet extends StatefulWidget {
 }
 
 class _TagSheetState extends State<_TagSheet> {
+  /// A7/§14: the custom-tag field's fault. Its three rules were silent no-ops.
+  String? _tagError;
+
   late final List<String> _tags = List.of(widget.initial);
   final _customController = TextEditingController();
   bool _busy = false;
@@ -675,6 +700,10 @@ class _TagSheetState extends State<_TagSheet> {
             label: 'Tag personnalisé',
             hint: 'Ex : Mariée juin',
             maxLength: 24,
+            errorText: _tagError,
+            onChanged: (_) {
+              if (_tagError != null) setState(() => _tagError = null);
+            },
             suffixIcon: IconButton(
               tooltip: 'Ajouter le tag',
               icon: const Icon(Icons.add),
