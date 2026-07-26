@@ -81,10 +81,7 @@ class _StoryViewerState extends State<StoryViewer>
       Navigator.of(context).maybePop();
       return;
     }
-    _pageController.nextPage(
-      duration: _pageDuration,
-      curve: AppMotion.baseCurve,
-    );
+    _goToPage(_index + 1);
   }
 
   void _prev() {
@@ -92,20 +89,34 @@ class _StoryViewerState extends State<StoryViewer>
       _progress.forward(from: 0);
       return;
     }
-    _pageController.previousPage(
-      duration: _pageDuration,
-      curve: AppMotion.baseCurve,
-    );
+    _goToPage(_index - 1);
   }
 
   /// §9/A8. A story reel slides a FULL SCREEN sideways every few seconds, and
-  /// on auto-advance the user did not ask for it — the involuntary case. Zero
-  /// makes `animateTo` jump instead of glide, and the reel still advances.
+  /// on auto-advance the user did not ask for it — the involuntary case.
+  ///
+  /// **`jumpToPage`, not a zero duration.** `Duration.zero` is a jump for
+  /// `Scrollable.ensureVisible` (`scroll_position.dart:872` short-circuits it)
+  /// and an assertion failure for `PageController`: `animateToPage` reaches
+  /// `DrivenScrollActivity`, whose constructor is
+  /// `assert(duration > Duration.zero)` (`scroll_activity.dart:705`).
+  /// `_PagePosition` overrides `ensureVisible` and `jumpTo`, never `animateTo`.
+  /// The first version of this shipped the crash to exactly the users §9.1 is
+  /// written for.
   ///
   /// Not the same thing as the 6 s reading time above, which is a content timer
   /// and stays: see docs/design/mobile-a8-motion.md's open question.
-  Duration get _pageDuration =>
-      reduceMotionOf(context) ? Duration.zero : AppMotion.base;
+  void _goToPage(int page) {
+    if (reduceMotionOf(context)) {
+      _pageController.jumpToPage(page);
+      return;
+    }
+    _pageController.animateToPage(
+      page,
+      duration: AppMotion.base,
+      curve: AppMotion.baseCurve,
+    );
+  }
 
   void _pause() => _progress.stop();
   void _resume() {

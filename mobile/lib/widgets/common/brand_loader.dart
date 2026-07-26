@@ -86,23 +86,50 @@ class BrandLoader extends StatelessWidget {
       excludeSemantics: true,
       child: Center(
         child: reduceMotion && !fast
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  mark,
-                  const SizedBox(height: AppTheme.spacingS),
-                  Text(
-                    semanticsLabel,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color:
-                          onDark ? AppColors.surface : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            ? LayoutBuilder(
+                builder: (context, constraints) =>
+                    _captionFitsIn(context, constraints)
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              mark,
+                              const SizedBox(height: AppTheme.spacingS),
+                              Text(
+                                semanticsLabel,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: onDark
+                                      ? AppColors.surface
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          )
+                        : mark,
               )
             : mark,
       ),
     );
+  }
+
+  /// Is there room for the caption? **Measured against the incoming
+  /// constraints, not guessed from [size].**
+  ///
+  /// `LoadingIndicator` never passes `fast`, so ~50 sites take the caption
+  /// branch — including a **60×60 avatar placeholder**, where 40 mark + 8 gap +
+  /// a wrapped two-line caption overflowed by **44px**. Fixing that one call
+  /// site would have left the next 60px box to re-create it.
+  ///
+  /// The arithmetic is the whole risk (register row 15: a computed bound that
+  /// under-provisions clips silently, and one that over-provisions is just as
+  /// wrong), so it uses the real line height at the real text scale rather than
+  /// a magic threshold — and `motion_test.dart` checks BOTH directions,
+  /// including 2×.
+  bool _captionFitsIn(BuildContext context, BoxConstraints constraints) {
+    if (!constraints.hasBoundedHeight) return true;
+    final line = MediaQuery.textScalerOf(context)
+            .scale(AppTextStyles.bodySmall.fontSize!) *
+        AppTextStyles.bodySmall.height!;
+    return constraints.maxHeight >= size + AppTheme.spacingS + line;
   }
 }

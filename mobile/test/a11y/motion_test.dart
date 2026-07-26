@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:myweli/screens/splash/splash_screen.dart';
 import 'package:myweli/screens/stories/story_viewer.dart';
@@ -213,7 +214,13 @@ void main() {
   /// fails silently everywhere the shell is absent.
   group('the loader is correct outside our own shell', () {
     testWidgets('a bare MaterialApp still honours the flag', (tester) async {
-      setReducedMotion(tester);
+      // **`disableAnimations: false` is what makes this test mean anything.**
+      // With both flags raised, `MediaQuery.fromView` answers from
+      // `accessibilityFeatures` (`media_query.dart:298`) and `reduceMotionOf`
+      // returns at its FIRST line — the fallback below it is never evaluated.
+      // The review proved it: replacing the whole fallback with `?? false`
+      // kept the entire suite green.
+      setReducedMotion(tester, disableAnimations: false);
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: BrandLoader())),
       );
@@ -234,6 +241,26 @@ void main() {
   /// That is the lesson of this group: ①–①c all pumped ONE widget. Six
   /// `reduceMotionOf` call sites shipped, five of them asserted by nothing.
   group('§9.1 — the OTHER call sites, which nothing was pumping', () {
+    Widget storyReel() => const StoryViewer(
+          stories: [
+            StoryItem(
+              id: 'a',
+              title: 'Un',
+              assetPath: 'assets/images/stories/promo_weekend.svg',
+            ),
+            StoryItem(
+              id: 'b',
+              title: 'Deux',
+              assetPath: 'assets/images/stories/nouveaux_salons.svg',
+            ),
+          ],
+        );
+
+    /// The reel's position, in pages — the only measure that separates
+    /// "advanced instantly" from "advanced normally" from "did not advance".
+    double pageOf(WidgetTester tester) =>
+        tester.widget<PageView>(find.byType(PageView)).controller!.page!;
+
     testWidgets('the story reel ADVANCES under the flag instead of throwing',
         (tester) async {
       // `Duration.zero` is legal for `Scrollable.ensureVisible`
@@ -247,38 +274,40 @@ void main() {
       // A8 read one API's behaviour and generalised it to the other. The cost
       // is that every story reel throws on its first advance for exactly the
       // users the slice was written for.
-      await pumpWithReducedMotion(
-        tester,
-        const SizedBox.shrink(),
-      );
-      await tester.pumpWidget(
-        wrapApp(
-          home: const StoryViewer(
-            stories: [
-              StoryItem(
-                id: 'a',
-                title: 'Un',
-                assetPath: 'assets/images/stories/promo_weekend.svg',
-              ),
-              StoryItem(
-                id: 'b',
-                title: 'Deux',
-                assetPath: 'assets/images/stories/nouveaux_salons.svg',
-              ),
-            ],
-          ),
-        ),
-      );
+      await pumpWithReducedMotion(tester, const SizedBox.shrink());
+      await tester.pumpWidget(wrapApp(home: storyReel()));
       await tester.pump();
 
       // Tap the right 65 % — `_onTapDown`'s advance.
       await tester.tapAt(const Offset(700, 400));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
 
       expect(tester.takeException(), isNull,
-          reason: 'the reel must advance instantly, not assert. Zero duration '
-              'is a jump for ensureVisible and a crash for PageController.');
+          reason: 'the reel must advance, not assert. Zero duration is a jump '
+              'for ensureVisible and a crash for PageController.');
+      expect(pageOf(tester), closeTo(1.0, 0.01),
+          reason: 'ONE pump, already there. Without this the gate passes on a '
+              'reel that ignores the flag completely and animates as usual — '
+              'measured: that mutation stayed green until this line existed.');
+    });
+
+    testWidgets('…and still GLIDES with motion on — the other leg',
+        (tester) async {
+      // Without this, the assertion above is satisfied by a reel that jumps
+      // for everyone, which is not what §9 asks for and would be a silent
+      // product change for every other user.
+      await tester.pumpWidget(wrapApp(home: storyReel()));
+      await tester.pump();
+
+      await tester.tapAt(const Offset(700, 400));
+      await tester.pump();
+      await tester.pump(kOneFrame);
+
+      final page = pageOf(tester);
+      expect(page, greaterThan(0.0));
+      expect(page, lessThan(0.9),
+          reason: 'one 60fps frame into a 200ms slide must be MID-FLIGHT — '
+              'if it has arrived, the reel is jumping for everybody');
     });
 
     testWidgets('the splash SHOWS the brand instead of a blank screen',
@@ -292,9 +321,27 @@ void main() {
       // Asserting the CONTROLLER is what makes this a gate rather than a
       // restatement: a pinned progress is the only thing that both stops the
       // ticker and lands on a frame with ink in it.
+      // A real router, because the 3800 ms hold ends in a `context.go` — and
+      // because "the hold is intact" is a definition-of-done claim that
+      // nothing was asserting.
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
+          GoRoute(
+              path: '/home',
+              builder: (_, __) => const Scaffold(body: Text('accueil'))),
+        ],
+      );
       await pumpWithReducedMotion(tester, const SizedBox.shrink());
-      await tester.pumpWidget(wrapApp(home: const SplashScreen()));
+      await tester.pumpWidget(wrapApp(routerConfig: router));
+      // The composition is decoded off a real bundle read, and until it lands
+      // the widget schedules frames for the LOAD, not for motion — asserting
+      // before it resolves measures the wrong thing.
+      await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 300)));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       final lottie = tester.widget<LottieBuilder>(find.byType(LottieBuilder));
       expect(lottie.controller, isNotNull,
@@ -306,6 +353,19 @@ void main() {
               'pinned to frame 0 is the same blank screen with extra steps');
       expect(tester.binding.hasScheduledFrame, isFalse,
           reason: 'and it must still not animate');
+
+      // Still on the splash at 3.7 s, gone by 3.9 s: the hold is a `Timer`, so
+      // the framework's 5 % scale never touches it and reduced-motion users
+      // get the same boot sequence as everyone else (§9.1's "not a different
+      // app"). Nothing was asserting that, which is how a well-meant
+      // "shorten the wait for them" would have landed unnoticed.
+      await tester.pump(const Duration(milliseconds: 3300));
+      expect(find.text('accueil'), findsNothing,
+          reason: 'the 3800ms hold must not be collapsed for these users');
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(find.text('accueil'), findsOneWidget,
+          reason: 'and it must still end');
     });
 
     testWidgets('the caption never overflows a box too small to hold it',

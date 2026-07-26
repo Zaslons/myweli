@@ -43,15 +43,23 @@ class _SplashScreenState extends State<SplashScreen> {
       // Light — matches the native splash (#FAFAFA) and flows into the app.
       backgroundColor: AppColors.surface,
       body: Center(
-        // Reduced motion freezes the mark and changes NOTHING else (§9, A8).
-        // The brand, the colours, the 220px and the 3800 ms hold above all
-        // stay: the user asked the OS to stop movement, not to be shown a
-        // different app, and cutting the hold would give them a different boot
-        // sequence from everyone else. A native splash is a still image too.
+        // Reduced motion holds the animation's END frame and changes NOTHING
+        // else (§9, A8). The brand, the colours, the 220px and the 3800 ms
+        // hold all stay: the user asked the OS to stop movement, not to be
+        // shown a different app.
+        //
+        // **`AlwaysStoppedAnimation`, not `animate: false`.** Supplying a
+        // controller is what stops the ticker (`lottie.dart:415` starts
+        // nothing when one is given) — and `animate: false` alone leaves the
+        // progress at 0, which in this composition is an EMPTY CANVAS: all six
+        // glyph layers open at opacity 0 and `redraw` is not in-point until
+        // frame 54. The first version of this rendered a blank #FAFAFA screen
+        // for the full hold. A constant animation needs no vsync and no
+        // disposal, so there is no controller to leak.
         child: Lottie.asset(
           'assets/lottie/open/myweli_loader_mixed.json',
           width: 220,
-          animate: !reduceMotion,
+          controller: reduceMotion ? const AlwaysStoppedAnimation(1) : null,
           repeat: !reduceMotion,
         ),
       ),
