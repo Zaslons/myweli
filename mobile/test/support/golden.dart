@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FontLoader, MethodChannel;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 
@@ -144,9 +145,18 @@ void goldenSurface(WidgetTester tester, {Size size = kGoldenPhone}) {
 }
 
 /// The app shell a golden renders in: the real theme, French locale, no banner.
+///
+/// **A9: the `locale:` below was inert for the whole life of the baseline.**
+/// With the default `supportedLocales: [Locale('en','US')]`,
+/// `basicLocaleListResolution` cannot match `fr_FR` at any rung and falls
+/// through to `supportedLocales.first` — **`en_US`** — which
+/// `DefaultMaterialLocalizations` supports, so nothing ever complained. Every
+/// golden was photographed in English localizations while claiming French.
 Widget goldenApp({Widget? home, Widget? child}) => MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: goldenTheme(),
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('fr', 'FR')],
       locale: const Locale('fr', 'FR'),
       home: home ?? Scaffold(body: child),
     );

@@ -200,10 +200,12 @@ void main() {
       // consumer booking screen still reading "July 2026".
       await pumpApp(
         tester,
-        home: TableCalendar<void>(
-          firstDay: DateTime(2026),
-          lastDay: DateTime(2026, 12, 31),
-          focusedDay: DateTime(2026, 7, 1),
+        home: Scaffold(
+          body: TableCalendar<void>(
+            firstDay: DateTime(2026),
+            lastDay: DateTime(2026, 12, 31),
+            focusedDay: DateTime(2026, 7, 1),
+          ),
         ),
       );
       await tester.pump();
@@ -221,6 +223,20 @@ void main() {
   });
 
   group('the wiring itself', () {
+    testWidgets('the resolved locale keeps its country code', (tester) async {
+      // Written because a mutation caught the claim being unproven:
+      // `supportedLocales: [Locale('fr')]` passed every other assertion in this
+      // file. It would still be wrong — `basicLocaleListResolution` matches at
+      // the language rung and hands back a country-less locale, which disagrees
+      // with `kAppLocale`/`initializeDateFormatting('fr_FR')` and with anything
+      // that round-trips `Localizations.localeOf(context).toString()`.
+      //
+      // The comment in `main.dart` asserted this; nothing checked it. Now
+      // something does.
+      final locale = await read(tester, Localizations.localeOf);
+      expect(locale.toString(), 'fr_FR');
+    });
+
     test('every MaterialApp declares the delegates', () {
       // Discovered, not listed — a fourth app root, or a second test shell, is
       // covered the day it lands. Modelled on `salon_time_pin_test.dart:45`.
