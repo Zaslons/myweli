@@ -24,6 +24,11 @@ export declare function parseTextStyles(src: string): {
   >;
   candidates: string[];
 };
+export declare function parseMotion(src: string): {
+  durations: Record<string, number>;
+  curves: Record<string, string>;
+  candidates: string[];
+};
 export declare function parseMdTable(
   md: string,
   heading: string,
@@ -39,6 +44,11 @@ export declare function expectedWebTokens(): {
   icon: Record<string, string>;
   type: Record<string, [string, { lineHeight: string; letterSpacing: string }]>;
   motion: Record<string, string>;
+  // A8: §9's Dart side. `dartMotion` is keyed like the web export ('base'),
+  // values suffixed 'ms', so it compares directly against `motion`.
+  dartMotion: Record<string, string>;
+  dartMotionCurves: Record<string, string>;
+  docMotionCurves: Record<string, string>;
   zIndex: Record<string, string>;
   parseChecks: { file: string; candidates: string[]; parsed: string[] }[];
   themeFiles: string[];

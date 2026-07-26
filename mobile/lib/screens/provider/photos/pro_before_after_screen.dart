@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/a11y/reduce_motion.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -181,8 +182,22 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 3,
+                          // A track, because the arc at 0 % draws NOTHING:
+                          // `progress_indicator.dart:673` sweeps `value * _sweep`
+                          // and `:1130` leaves `trackColor` null unless one is
+                          // given. Under reduced motion this box holds still at 0,
+                          // so "a still arc" had to become true rather than stay
+                          // a comment about an empty rectangle.
+                          backgroundColor: AppColors.border,
+                          // §9/A8: the null fallback is an INDETERMINATE
+                          // spinner, and `repeat()` is exactly what the
+                          // framework scale cannot reach. Under the flag it
+                          // holds a still 0 % arc — and the « Envoi… 0 % »
+                          // beside it already carries what the spin was saying.
                           value:
-                              p.uploadProgress == 0 ? null : p.uploadProgress,
+                              p.uploadProgress == 0 && !reduceMotionOf(context)
+                                  ? null
+                                  : p.uploadProgress,
                         ),
                       ),
                       const SizedBox(width: AppTheme.spacingM),

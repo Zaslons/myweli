@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'core/a11y/reduce_motion.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/push/firebase_bootstrap.dart';
 import 'core/push/push_message_handler.dart';
@@ -95,11 +96,15 @@ class MyweliApp extends StatelessWidget {
           create: (_) => NotificationPreferencesProvider(),
         ),
       ],
-      child: MaterialApp.router(
-        title: 'Myweli',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        routerConfig: AppRouter.router,
+      // Above MaterialApp so the whole tree rebuilds when iOS Reduce Motion is
+      // toggled mid-session — nothing in the framework reads that flag (§9, A8).
+      child: ReduceMotionObserver(
+        child: MaterialApp.router(
+          title: 'Myweli',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          routerConfig: AppRouter.router,
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 import '../../screens/stories/story_viewer.dart';
 import '../../services/story_seen_service.dart';
@@ -92,7 +93,7 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: true,
-        transitionDuration: const Duration(milliseconds: 180),
+        transitionDuration: AppMotion.base,
         pageBuilder: (context, anim, _) {
           return FadeTransition(
             opacity: anim,

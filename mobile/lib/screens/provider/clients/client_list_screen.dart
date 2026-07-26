@@ -15,6 +15,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/brand_loader.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
@@ -66,7 +67,11 @@ class _ClientListScreenState extends State<ClientListScreen> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    // A search debounce. It collides numerically with `motionEmphasis` and
+    // has nothing to do with it; tokenising it would tie network chattiness to
+    // a curve. Named so the escape sits on a line the formatter cannot move.
+    const debounce = Duration(milliseconds: 300); // ds-ignore
+    _debounce = Timer(debounce, () {
       if (mounted) {
         context.read<ProClientsProvider>().search(_providerId, value);
       }
@@ -199,7 +204,10 @@ class _ClientListScreenState extends State<ClientListScreen> {
           if (i >= clients.clients.length) {
             return const Padding(
               padding: EdgeInsets.all(AppTheme.spacingM),
-              child: LoadingIndicator(size: AppTheme.iconM),
+              // `fast` is the inline cut — a list-footer pager is exactly the
+              // case it documents, and it is what keeps A8's reduced-motion
+              // caption out of a 24px row.
+              child: BrandLoader(size: AppTheme.iconM, fast: true),
             );
           }
           return _ClientRow(client: clients.clients[i]);

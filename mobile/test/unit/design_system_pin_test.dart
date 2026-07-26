@@ -186,5 +186,130 @@ void main() {
         reason: 'use AppTheme.icon* (XS/S/M/L/XL = 16/20/24/32/64)',
       );
     });
+
+    // ── A8: motion is a token too (SYSTEM.md §9, §21 row 8).
+    //
+    // **Scoped to `screens/` + `widgets/`, and the scope is the whole design.**
+    // The obvious pin — `duration:` and `Duration(` on one line — was measured
+    // and REJECTED: after A8's reduced-motion sweep three of its eight hits had
+    // become ternaries (`duration: reduceMotionOf(context) ? … : const
+    // Duration(…)`), so a line-anchored pin would have gated the code A8 did not
+    // touch and waved through every line it did. A pin that a sweep can walk out
+    // of is not a pin.
+    //
+    // So it matches the LITERAL, not the argument — and pays for that with a
+    // scope. `services/mock/` latency, `AppConstants.mockDelay` and the two
+    // `Timer` cooldowns are durations that never move a pixel; they live outside
+    // these two directories and are simply not in view. The three non-motion
+    // millisecond literals that DO live here carry a `// ds-ignore` with a
+    // reason on the line above, which is the point of the escape hatch: an
+    // exception you can read beats a rule that quietly does not apply.
+    //
+    // `Duration(seconds:` is deliberately out of scope, not overlooked: §9's
+    // five tokens are 50–400 ms, so nothing measured in seconds can be one of
+    // them. The story reel's 6 s dwell and the splash's 3800 ms are content
+    // timers, not motion — the same distinction §12 draws for its "~300ms"
+    // spinner heuristic, which is also not a token.
+    //
+    // `core/router/` is in scope even though it holds no animation today (0
+    // hits, checked): go_router's `CustomTransitionPage(transitionDuration:,
+    // transitionsBuilder:)` is where a full-screen transition BELONGS, and the
+    // review found it sitting in a directory neither pin read. A pin that only
+    // covers where the code is today has an expiry date.
+    //
+    // `screens/provider/features/` is NOT in scope — `dartFiles` excludes the
+    // flag-hidden V2/V3 screens (§22) and the motion pins inherit that. Named
+    // here because inheriting an exclusion silently is how one gets forgotten.
+    final animationFiles = dartFiles
+        .where((f) =>
+            f.path.contains('/screens/') ||
+            f.path.contains('/widgets/') ||
+            f.path.contains('/core/router/'))
+        .toList();
+
+    List<String> animationOffenders(RegExp pattern) {
+      final hits = <String>[];
+      for (final file in animationFiles) {
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          if (lines[i].contains('// ds-ignore')) continue;
+          if (pattern.hasMatch(lines[i])) {
+            hits.add('${file.path}:${i + 1}  ${lines[i].trim()}');
+          }
+        }
+      }
+      return hits;
+    }
+
+    test('the pin has files to look at', () {
+      // `dartFiles` is built from a relative `Directory('lib')`. If that ever
+      // resolves to nothing the two tests below pass on an empty list and read
+      // as a clean sweep — the failure mode this whole register exists to stop.
+      expect(animationFiles.length, greaterThan(100),
+          reason: 'the animation pins are scanning an empty or truncated set');
+    });
+
+    test('motion duration is a token — no raw milliseconds (§9)', () {
+      expect(
+        animationOffenders(RegExp(r'Duration\(milliseconds:')),
+        isEmpty,
+        reason: 'use AppMotion.* (stagger/fast/base/emphasis/slow = '
+            '50/100/200/300/400ms). A hand-written number is how 240ms and '
+            '220ms came to sit next to 200ms doing the same job.',
+      );
+    });
+
+    test('motion curve is a token — no raw Curves.* (§9)', () {
+      expect(
+        animationOffenders(RegExp(r'Curves\.')),
+        isEmpty,
+        reason: 'each §9 token names its curve: use AppMotion.*Curve. '
+            'The pairing is the rule — entering decelerates, exiting '
+            'accelerates — and a bare Curves.easeIn on an ENTERING fade is '
+            'exactly the inversion the tokens exist to prevent.',
+      );
+    });
+
+    // ── The two holes the review found in the pins above. Both are at ZERO
+    // today, so neither has ever gone red on real code — they are guard rails,
+    // not discoveries, and each is proven by a throwaway mutation instead.
+    // Saying so is the difference between a pin and a claim.
+
+    test('…and no hand-rolled easing curve either (§9)', () {
+      // `Curves.` is the idiom, not the language. Every name below is a `Curve`
+      // subclass that defines an easing SHAPE while containing no `Curves.` —
+      // so `curve: const Cubic(0.9, 0, 1, 1)` sailed straight past.
+      //
+      // `Interval(` is deliberately absent: it stages WHEN a curve runs, not
+      // how it eases, and the curve inside it is caught by the rule above.
+      expect(
+        animationOffenders(
+            RegExp(r'\b(Cubic|ElasticInCurve|ElasticOutCurve|ElasticInOutCurve|'
+                r'SawTooth|Threshold|FlippedCurve|CatmullRom)\(')),
+        isEmpty,
+        reason: 'an easing shape is a token (AppMotion.*Curve), not four '
+            'hand-tuned control points',
+      );
+    });
+
+    test('no animation is measured in SECONDS (§9)', () {
+      // The `milliseconds`-only rule has a role gap: §9's ladder tops out at
+      // 400ms, so nothing in seconds can BE a token — but that argues a seconds
+      // literal is WRONG, not that it should be invisible.
+      //
+      // Argument-position on purpose, and the narrowness is the point: the 11
+      // `Duration(seconds:` in these directories are OTP cooldowns, a cache
+      // timeout, the story dwell and §15's snackbar ladder — none of them
+      // motion, none of them this slice's to relabel. This catches the one
+      // shape that could only ever be motion.
+      expect(
+        animationOffenders(
+            RegExp(r'(duration|transitionDuration|reverseDuration):\s*'
+                r'(const\s+)?Duration\(seconds:')),
+        isEmpty,
+        reason: 'an animation longer than motionSlow reads as lag, not '
+            'response (§9) — and a whole second is 2.5× the ceiling',
+      );
+    });
   });
 }

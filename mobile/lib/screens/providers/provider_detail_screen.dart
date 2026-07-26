@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
@@ -505,7 +506,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               () => _servicesExpanded = !_servicesExpanded);
                         },
                         child: AnimatedCrossFade(
-                          duration: const Duration(milliseconds: 200),
+                          duration: AppMotion.base,
                           crossFadeState: _servicesExpanded
                               ? CrossFadeState.showFirst
                               : CrossFadeState.showSecond,

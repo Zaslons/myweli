@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/a11y/reduce_motion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
@@ -206,11 +208,15 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Future<void> _scrollTo(GlobalKey key) async {
     final ctx = key.currentContext;
     if (ctx == null) return;
+    // §9/A8: the app moves the page here, not the user — the involuntary case
+    // reduced motion exists for. `Duration.zero` makes `ensureVisible` jump
+    // instead of glide; the section still ends up on screen, which is the whole
+    // point of the call.
     await Scrollable.ensureVisible(
       ctx,
       alignment: 0.08,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
+      duration: reduceMotionOf(context) ? Duration.zero : AppMotion.emphasis,
+      curve: AppMotion.emphasisCurve,
     );
   }
 
@@ -253,7 +259,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Future<void> _advance(models.Provider p) async {
     final next = _nextSection(p);
     _activateSection(next);
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    // One frame's yield, not an animation: nothing moves.
+    await Future<void>.delayed(const Duration(milliseconds: 1)); // ds-ignore
     if (!mounted) return;
     if (next == _HubSection.services) {
       await _scrollTo(_servicesKey);
@@ -975,8 +982,8 @@ class _HubSectionCard extends StatelessWidget {
                       ),
                       AnimatedRotation(
                         turns: expanded ? 0.25 : 0.0,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
+                        duration: AppMotion.base,
+                        curve: AppMotion.baseCurve,
                         child: const Icon(Icons.chevron_right,
                             color: AppColors.textTertiary),
                       ),
@@ -987,8 +994,8 @@ class _HubSectionCard extends StatelessWidget {
             ),
           ),
           AnimatedSize(
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeInOut,
+            duration: AppMotion.base,
+            curve: AppMotion.baseCurve,
             child: expanded
                 ? Padding(
                     padding: const EdgeInsets.only(top: AppTheme.spacingM),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'core/a11y/reduce_motion.dart';
 import 'core/access/pro_salon_scope.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/push/firebase_bootstrap.dart';
@@ -150,11 +151,15 @@ class MyweliProApp extends StatelessWidget {
         ChangeNotifierProvider(
             create: (_) => ProSalonScope.track(ProTeamProvider())),
       ],
-      child: MaterialApp.router(
-        title: 'Myweli Pro',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        routerConfig: ProRouter.router,
+      // Above MaterialApp so the whole tree rebuilds when iOS Reduce Motion is
+      // toggled mid-session — nothing in the framework reads that flag (§9, A8).
+      child: ReduceMotionObserver(
+        child: MaterialApp.router(
+          title: 'Myweli Pro',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          routerConfig: ProRouter.router,
+        ),
       ),
     );
   }

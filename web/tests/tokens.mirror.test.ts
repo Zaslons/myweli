@@ -134,13 +134,44 @@ describe('the token mirror gate (B3, row 19)', () => {
     expect(type).toEqual(expected.type);
   });
 
-  it('motion matches SYSTEM.md §9 (the doc IS the source — no Dart upstream)', () => {
+  it('motion matches SYSTEM.md §9 — doc, Dart and web, all three (A8)', () => {
     expect(keyDiff('motion', expected.motion, motion, WEB_ONLY.motion)).toEqual([]);
     expect(mirroredPart(motion, WEB_ONLY.motion)).toEqual(expected.motion);
     expect(
       (motion as Record<string, string>).DEFAULT,
       'motion.DEFAULT must equal base — every bare `transition` reads it (dropping it makes them instant, silently)',
     ).toBe(expected.motion.base);
+
+    // Until A8 this family had no Dart upstream and the doc was the only
+    // source, so `motion.dart` is a THIRD place a number can be wrong. Assert
+    // the doc↔Dart leg too — otherwise mobile could ship 240ms `base` against
+    // a table that says 200 and nothing would notice.
+    expect(
+      expected.dartMotion,
+      'mobile/lib/core/theme/motion.dart disagrees with SYSTEM.md §9. The doc ' +
+        'table is the authority; change it there and mirror both surfaces.',
+    ).toEqual(expected.motion);
+
+    // Curves are mobile-only by declaration (tokens.ts says why), so there is
+    // no web leg — but there are still TWO sources, and the first version of
+    // this compared Dart against a hardcoded literal right here. That pinned
+    // the test against itself: editing §9's curve cell was a green job while
+    // doc and code said opposite things. Read the doc's third cell instead.
+    expect(
+      expected.dartMotionCurves,
+      'mobile/lib/core/theme/motion.dart disagrees with SYSTEM.md §9\'s Curve ' +
+        'column. Entering decelerates, exiting accelerates — the pairing is ' +
+        'the rule, and prose does not fail a build.',
+    ).toEqual(expected.docMotionCurves);
+
+    // …and the doc must still say what §9 argues, so neither source can drift
+    // to agree with a wrong value.
+    expect(expected.docMotionCurves).toEqual({
+      fastCurve: 'easeOut',
+      baseCurve: 'easeInOut',
+      emphasisCurve: 'easeOutCubic',
+      slowCurve: 'easeInOutCubic',
+    });
   });
 
   it('zIndex matches WEB-SYSTEM.md §9 (+ the declared auto escape)', () => {
