@@ -22,6 +22,7 @@ export const SOURCES = {
   colors: join(REPO_ROOT, 'mobile/lib/core/theme/colors.dart'),
   appTheme: join(REPO_ROOT, 'mobile/lib/core/theme/app_theme.dart'),
   textStyles: join(REPO_ROOT, 'mobile/lib/core/theme/text_styles.dart'),
+  motion: join(REPO_ROOT, 'mobile/lib/core/theme/motion.dart'),
   systemDoc: join(REPO_ROOT, 'docs/design/SYSTEM.md'),
   webSystemDoc: join(REPO_ROOT, 'docs/design/WEB-SYSTEM.md'),
 };
@@ -81,6 +82,31 @@ export function parseDoubles(src) {
     parsed[m[1]] = Number(m[2]);
   }
   return { parsed, candidates: tokenCandidates(stripped) };
+}
+
+/** `static const Duration name = Duration(milliseconds: N);` and
+ *  `static const Curve name = Curves.x;` → the §9 motion family (A8).
+ *
+ *  Curves are parsed but NOT mirrored: `tokens.ts` says so at its motion
+ *  export — Tailwind has no `easeOutCubic` equivalent, so the web takes
+ *  durations and stops. They are parsed anyway because the candidate
+ *  self-check demands it: an unparsed `static const Curve` would look exactly
+ *  like a token the mirror had silently dropped. */
+export function parseMotion(src) {
+  const stripped = stripDartComments(src);
+  const durations = {};
+  for (const m of stripped.matchAll(
+    /static const Duration (\w+) =\s*Duration\(milliseconds: (\d+)\);/g,
+  )) {
+    durations[m[1]] = Number(m[2]);
+  }
+  const curves = {};
+  for (const m of stripped.matchAll(
+    /static const Curve (\w+) =\s*Curves\.(\w+);/g,
+  )) {
+    curves[m[1]] = m[2];
+  }
+  return { durations, curves, candidates: tokenCandidates(stripped) };
 }
 
 /** `static const TextStyle name = TextStyle(...);` with the body parsed
@@ -204,15 +230,22 @@ export function expectedWebTokens() {
   // the gate forces the conscious decision instead of silently ignoring it.
   const themeDir = dirname(SOURCES.colors);
   const themeFiles = readdirSync(themeDir).sort();
-  const KNOWN_THEME_FILES = ['app_theme.dart', 'colors.dart', 'text_styles.dart'];
+  const KNOWN_THEME_FILES = [
+    'app_theme.dart',
+    'colors.dart',
+    'motion.dart',
+    'text_styles.dart',
+  ];
 
   const colorsSrc = readFileSync(SOURCES.colors, 'utf8');
   const themeSrc = readFileSync(SOURCES.appTheme, 'utf8');
   const stylesSrc = readFileSync(SOURCES.textStyles, 'utf8');
+  const motionSrc = readFileSync(SOURCES.motion, 'utf8');
 
   const colors = parseColors(colorsSrc);
   const doubles = parseDoubles(themeSrc);
   const styles = parseTextStyles(stylesSrc);
+  const dartMotionParse = parseMotion(motionSrc);
 
   const pick = (keyMap, px = true) => {
     const out = {};
@@ -279,7 +312,22 @@ export function expectedWebTokens() {
       { file: 'colors.dart', candidates: colors.candidates, parsed: Object.keys(colors.parsed) },
       { file: 'app_theme.dart', candidates: doubles.candidates, parsed: Object.keys(doubles.parsed) },
       { file: 'text_styles.dart', candidates: styles.candidates, parsed: Object.keys(styles.parsed) },
+      {
+        file: 'motion.dart',
+        candidates: dartMotionParse.candidates,
+        parsed: [
+          ...Object.keys(dartMotionParse.durations),
+          ...Object.keys(dartMotionParse.curves),
+        ],
+      },
     ],
+    // A8: the Dart side of §9 now exists, so the doc is no longer the ONLY
+    // upstream — it is the shared one. The gate asserts doc === Dart === web,
+    // which is what makes editing a number in any single place a red job.
+    dartMotion: Object.fromEntries(
+      Object.entries(dartMotionParse.durations).map(([k, ms]) => [k, `${ms}ms`]),
+    ),
+    dartMotionCurves: dartMotionParse.curves,
     themeFiles,
     knownThemeFiles: KNOWN_THEME_FILES,
     // Scalars the double-parse found that no family claims — the gate asserts

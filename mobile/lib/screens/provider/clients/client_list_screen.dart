@@ -67,7 +67,11 @@ class _ClientListScreenState extends State<ClientListScreen> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    // A search debounce. It collides numerically with `motionEmphasis` and
+    // has nothing to do with it; tokenising it would tie network chattiness to
+    // a curve. Named so the escape sits on a line the formatter cannot move.
+    const debounce = Duration(milliseconds: 300); // ds-ignore
+    _debounce = Timer(debounce, () {
       if (mounted) {
         context.read<ProClientsProvider>().search(_providerId, value);
       }

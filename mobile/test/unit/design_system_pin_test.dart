@@ -241,7 +241,7 @@ void main() {
       expect(
         animationOffenders(RegExp(r'Duration\(milliseconds:')),
         isEmpty,
-        reason: 'use AppTheme.motion* (Stagger/Fast/Base/Emphasis/Slow = '
+        reason: 'use AppMotion.* (stagger/fast/base/emphasis/slow = '
             '50/100/200/300/400ms). A hand-written number is how 240ms and '
             '220ms came to sit next to 200ms doing the same job.',
       );
@@ -251,7 +251,7 @@ void main() {
       expect(
         animationOffenders(RegExp(r'Curves\.')),
         isEmpty,
-        reason: 'each §9 token names its curve: use AppTheme.motion*Curve. '
+        reason: 'each §9 token names its curve: use AppMotion.*Curve. '
             'The pairing is the rule — entering decelerates, exiting '
             'accelerates — and a bare Curves.easeIn on an ENTERING fade is '
             'exactly the inversion the tokens exist to prevent.',

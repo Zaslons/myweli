@@ -134,13 +134,33 @@ describe('the token mirror gate (B3, row 19)', () => {
     expect(type).toEqual(expected.type);
   });
 
-  it('motion matches SYSTEM.md §9 (the doc IS the source — no Dart upstream)', () => {
+  it('motion matches SYSTEM.md §9 — doc, Dart and web, all three (A8)', () => {
     expect(keyDiff('motion', expected.motion, motion, WEB_ONLY.motion)).toEqual([]);
     expect(mirroredPart(motion, WEB_ONLY.motion)).toEqual(expected.motion);
     expect(
       (motion as Record<string, string>).DEFAULT,
       'motion.DEFAULT must equal base — every bare `transition` reads it (dropping it makes them instant, silently)',
     ).toBe(expected.motion.base);
+
+    // Until A8 this family had no Dart upstream and the doc was the only
+    // source, so `motion.dart` is a THIRD place a number can be wrong. Assert
+    // the doc↔Dart leg too — otherwise mobile could ship 240ms `base` against
+    // a table that says 200 and nothing would notice.
+    expect(
+      expected.dartMotion,
+      'mobile/lib/core/theme/motion.dart disagrees with SYSTEM.md §9. The doc ' +
+        'table is the authority; change it there and mirror both surfaces.',
+    ).toEqual(expected.motion);
+
+    // Curves are mobile-only by declaration (tokens.ts says why). Pin the
+    // pairing §9 states in prose, so an `easeIn` on an ENTERING surface — the
+    // inversion A8 found on the pro splash — cannot come back as a token.
+    expect(expected.dartMotionCurves).toEqual({
+      fastCurve: 'easeOut',
+      baseCurve: 'easeInOut',
+      emphasisCurve: 'easeOutCubic',
+      slowCurve: 'easeInOutCubic',
+    });
   });
 
   it('zIndex matches WEB-SYSTEM.md §9 (+ the declared auto escape)', () => {

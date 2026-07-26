@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/a11y/reduce_motion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 
 class StoryItem {
@@ -82,7 +83,7 @@ class _StoryViewerState extends State<StoryViewer>
     }
     _pageController.nextPage(
       duration: _pageDuration,
-      curve: Curves.easeOut,
+      curve: AppMotion.baseCurve,
     );
   }
 
@@ -93,7 +94,7 @@ class _StoryViewerState extends State<StoryViewer>
     }
     _pageController.previousPage(
       duration: _pageDuration,
-      curve: Curves.easeOut,
+      curve: AppMotion.baseCurve,
     );
   }
 
@@ -103,9 +104,8 @@ class _StoryViewerState extends State<StoryViewer>
   ///
   /// Not the same thing as the 6 s reading time above, which is a content timer
   /// and stays: see docs/design/mobile-a8-motion.md's open question.
-  Duration get _pageDuration => reduceMotionOf(context)
-      ? Duration.zero
-      : const Duration(milliseconds: 220);
+  Duration get _pageDuration =>
+      reduceMotionOf(context) ? Duration.zero : AppMotion.base;
 
   void _pause() => _progress.stop();
   void _resume() {

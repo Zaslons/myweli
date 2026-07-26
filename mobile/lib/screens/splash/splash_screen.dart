@@ -18,7 +18,10 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   // Hold the splash long enough to show the open animation (the `loader_v2`
   // intro + redraw cycle runs ~5 s). Tune here.
-  static const _minSplashDuration = Duration(milliseconds: 3800);
+  // A content timer, not motion: how long the open animation is given to
+  // play, the same category as the story reel's 6 s reading time. §9's ladder
+  // tops out at 400 ms and could not name it.
+  static const _minSplashDuration = Duration(milliseconds: 3800); // ds-ignore
 
   @override
   void initState() {
