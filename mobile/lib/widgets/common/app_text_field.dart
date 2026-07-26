@@ -4,11 +4,16 @@ import '../../core/theme/app_theme.dart';
 
 /// Design: docs/design/mobile-a7-forms.md · SYSTEM.md §14, §11.1.
 ///
-/// [errorText] is **the contract for validation** (§11.1). It is fed by a
-/// [FieldErrors] map, never by a `validator:` — see `core/forms/field_errors.dart`
-/// for why Flutter's own mechanism cannot express §14 rule 2, and note that a
-/// `validator` result silently *overwrites* `decoration.errorText`
-/// (`text_form_field.dart:218`), which is what made mixing the two a bug.
+/// [errorText] is **the contract for validation** (§11.1), fed by a
+/// [FieldErrors] map.
+///
+/// A7 **removed the `validator` parameter**. Keeping it after its last caller
+/// died would have left the old mechanism one autocomplete away — and the two
+/// cannot coexist: a `validator` result silently *overwrites*
+/// `decoration.errorText` (`text_form_field.dart:218`), so a server fault
+/// pinned to a field is erased the moment the form re-validates. See
+/// `core/forms/field_errors.dart` for why Flutter's own mechanism cannot
+/// express §14 rule 2 in the first place.
 class AppTextField extends StatelessWidget {
   final String? label;
   final String? hint;
@@ -23,7 +28,6 @@ class AppTextField extends StatelessWidget {
   final bool enabled;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
-  final String? Function(String?)? validator;
 
   /// A7: so a failed submit can put the caret in the field it is complaining
   /// about (§13.5 + §14's focus amendment). There was no way to reach the field
@@ -45,7 +49,6 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.prefixIcon,
     this.suffixIcon,
-    this.validator,
     this.focusNode,
   });
 
@@ -61,7 +64,6 @@ class AppTextField extends StatelessWidget {
       maxLength: maxLength,
       inputFormatters: inputFormatters,
       enabled: enabled,
-      validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

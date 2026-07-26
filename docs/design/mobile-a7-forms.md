@@ -1,6 +1,6 @@
 # mobile-a7-forms — an error belongs to its field, not to a toast (A7)
 
-**Status:** In progress (2026-07-26). **Surface:** `mobile/` — every screen and
+**Status:** Shipped (2026-07-26) — see « As built ». **Surface:** `mobile/` — every screen and
 sheet that collects input and can reject it, across consumer · pro · admin.
 **Design system:** [SYSTEM.md §14](SYSTEM.md#14-forms--validation) ·
 [§11.1](SYSTEM.md#11-components) · [§13.1/§13.3/§13.5](SYSTEM.md#13-accessibility) ·
@@ -228,6 +228,35 @@ asserts the disabled button — the exact anti-pattern rule 5 forbids.
 - **Row 29 (no `flutter_localizations`)** — `TextFormField`'s `maxLength`
   counter and every Material default still render in English. Its own slice.
 - **Rows 8/20 (motion)** — renumbered to A8 by this PR, not built by it.
+
+## As built — the deltas
+
+- **The e-mail-regex count was 5 in the census and 1 by the time ④ reached it**
+  — three of the "remaining" hits were my own doc comments describing the
+  problem. The pin matches `RegExp(r'^[^@…`, i.e. the code form, so prose about
+  the rule does not trip it.
+- **`AppTextField.validator` was deleted, not just orphaned.** Driving its
+  callers to zero is not the same as keeping it at zero — the parameter would
+  have stayed one autocomplete away. The pin also guards the deletion.
+- **`errorStyle` was theatre; only `errorMaxLines` was real.** Recorded above.
+- **Flutter has no `aria-describedby`** — measured, and now §14 says so instead
+  of implying parity with the web. New register row 31.
+- **The invite sheet did not scroll.** Twelve pixels of feedback overflowed it,
+  which means it was already overflowing at any raised text scale and with the
+  keyboard up. The same class as A6's dialog `scrollable: true`, and found the
+  same way: by a message that needed room.
+- **The duplicate-client flow kept its capability.** Popping the sheet and
+  navigating to the existing card was deliberate, not a bug — the bug was the
+  message. So the sheet stays open with the fault under its field, and
+  « Voir la fiche existante » makes the navigation a choice.
+- **`_AddClientSheet`'s phone never called `setState`**, so the old submit gate
+  read a stale value and the button stayed grey until an unrelated rebuild.
+  Fixed with the gate that replaced it.
+- **The three dormant screens were converted, and one kept its own pattern.**
+  `otp_verify_screen` had the best inline treatment in the repo — six red boxes,
+  a shield-vs-error glyph, focus returned to box 0 — implemented by hand before
+  the amendment that requires it existed. Replacing it with a generic component
+  would have lost information, so only its *rule* changed.
 
 ## Definition of done
 
