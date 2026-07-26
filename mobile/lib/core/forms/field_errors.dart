@@ -45,21 +45,6 @@ class FieldErrors {
 
   final Map<String, FieldValidator> _validators;
   final Map<String, String> _errors = <String, String>{};
-  final Set<String> _judged = <String>{};
-
-  /// Declared rules that no submit has ever run.
-  ///
-  /// A7's own review found four screens that declared a rule, bound its
-  /// `errorText`, wired `revalidate` — and never validated it. The rule never
-  /// ran and the message was structurally unreachable, which is the exact
-  /// pathology register row 19 exists to kill. Because rule 5 also removed the
-  /// disabled-button gate, the press then *succeeded* where it used to be
-  /// blocked: an empty phone walked through a mandatory step.
-  ///
-  /// A screen's last submit should leave this empty. `form_answers_test.dart`
-  /// holds the invariant; a subset submit mid-funnel is legal and expected.
-  Set<String> get unvalidatedKeys =>
-      _validators.keys.where((k) => !_judged.contains(k)).toSet();
 
   /// The message currently under [key], or `null` — pass straight to
   /// `AppTextField.errorText`.
@@ -93,7 +78,6 @@ class FieldErrors {
   bool validate(Map<String, String> values) {
     var ok = true;
     values.forEach((key, value) {
-      _judged.add(key);
       assert(
         _validators.containsKey(key),
         'FieldErrors: no validator declared for "$key"',
