@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/deposit.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/locality_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -31,6 +33,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   static const double _sampleTotal = 20000;
 
   final _numberController = TextEditingController();
+  final _numberFocus = FocusNode();
+
+  // A7/§14 — the field that decides where a salon's deposits land.
+  late final _errors = FieldErrors({'number': Validators.localPhoneNumber});
   bool _numberPrefilled = false;
 
   @override
@@ -46,11 +52,26 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   @override
   void dispose() {
     _numberController.dispose();
+    _numberFocus.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     final provider = context.read<ProDepositSettingsProvider>();
+    // A7/§14 — the number clients are told to send money to had NO validation
+    // whatsoever: `"abc"` saved fine, rendered verbatim in the client's deposit
+    // sheet, and went into the Wave deep link. The only transformation on the
+    // whole path was `.trim()`.
+    //
+    // Only checked when a deposit is actually being collected — a salon that
+    // turns deposits off does not need a number.
+    if (provider.depositRequired &&
+        !_errors.validate({'number': _numberController.text})) {
+      setState(() {});
+      _numberFocus.requestFocus();
+      return;
+    }
+    setState(() {});
     provider.setMobileMoneyNumber(_numberController.text);
     final ok = await provider.save(widget.providerId);
     if (!mounted) return;
@@ -322,7 +343,11 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   label: 'Numéro Mobile Money',
                   hint: 'Ex: 07 07 12 34 56',
                   controller: _numberController,
+                  focusNode: _numberFocus,
                   keyboardType: TextInputType.phone,
+                  errorText: _errors['number'],
+                  onChanged: (v) =>
+                      setState(() => _errors.revalidate('number', v)),
                 ),
               ],
             ),
