@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/admin/widgets/status_chip.dart';
@@ -35,6 +36,11 @@ import '../support/pump_app.dart';
 /// surfaces say « Non présenté » — so mobile disagrees with mobile, and with
 /// its own twin.
 void main() {
+  // `AppointmentCard` resolves the salon through `ProviderProvider`, which
+  // reads `serviceLocator.providerService` — so this suite needs DI, the same
+  // way `appointment_card_test.dart:15` does.
+  setUpAll(setupDependencyInjection);
+
   Appointment appointment(AppointmentStatus status) => Appointment(
         id: 'a1',
         userId: 'u1',
@@ -80,6 +86,24 @@ void main() {
                 'exact defect web fixed and mobile did not');
       });
     }
+  });
+
+  testWidgets('an UNKNOWN status shows « — », never the wire value',
+      (tester) async {
+    // Written because a mutation caught the gap: restoring the old
+    // `?? raw` fallback kept every other assertion in this file green, since
+    // they all test statuses the map knows. But falling back to the raw string
+    // IS the defect — it is how `noShow` reached a user's screen. A status the
+    // app does not recognise is not a status the app should print.
+    await pumpApp(
+      tester,
+      home: Scaffold(body: StatusChip.forStatus('rescheduled_by_salon')),
+    );
+    await tester.pump();
+
+    expect(find.text('rescheduled_by_salon'), findsNothing,
+        reason: 'an unrecognised wire value must never render');
+    expect(find.text('—'), findsOneWidget);
   });
 
   group('one vocabulary across the three surfaces', () {
@@ -167,8 +191,11 @@ void main() {
                   // `case AppointmentStatus.noShow:\n  return 'Absent';`
                   RegExp("case AppointmentStatus[.]noShow:\\s*\\n\\s*return '")
                       .hasMatch(src) ||
-                  // the admin chip's raw-string form
-                  RegExp("'noshow'\\s*=>").hasMatch(src);
+                  // the admin chip's raw-string form — `'noshow' => 'Absent'`,
+                  // NOT `'noshow' => AdminChipKind.danger`, which is the KIND
+                  // switch and is correct where it is. The pin's first draft
+                  // flagged that too.
+                  RegExp("'noshow'[^\\n]*=>\\s*'").hasMatch(src);
         })
         .map((f) => f.path)
         .toList();

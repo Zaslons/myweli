@@ -5,6 +5,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
+import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../common/timed_cached_image.dart';
 
@@ -39,21 +40,6 @@ class CompactAppointmentTile extends StatelessWidget {
         return AppColors.errorLight;
       case AppointmentStatus.noShow:
         return AppColors.warningLight;
-    }
-  }
-
-  String _statusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
     }
   }
 
@@ -122,7 +108,7 @@ class CompactAppointmentTile extends StatelessWidget {
                                 BorderRadius.circular(AppTheme.radiusPill),
                           ),
                           child: Text(
-                            _statusText(appointment.status),
+                            StatusLabels.of(appointment.status),
                             style: AppTextStyles.labelSmall.copyWith(
                               color: statusColor,
                             ),

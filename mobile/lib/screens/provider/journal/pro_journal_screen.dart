@@ -10,6 +10,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
@@ -30,14 +31,6 @@ class ProJournalScreen extends StatefulWidget {
 }
 
 class _ProJournalScreenState extends State<ProJournalScreen> {
-  static const _statusFr = {
-    AppointmentStatus.pending: 'En attente',
-    AppointmentStatus.confirmed: 'Confirmé',
-    AppointmentStatus.completed: 'Terminé',
-    AppointmentStatus.cancelled: 'Annulé',
-    AppointmentStatus.noShow: 'Non présenté',
-  };
-
   String get _providerId => context.read<ProAuthProvider>().activeSalonId ?? '';
 
   /// Collaborateur own-mode (access R4b §5.3): « Ma journée » shows the
@@ -272,7 +265,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           child: _TimelineCard(
             appt: a,
             arrived: arrived,
-            statusLabel: arrived ? 'Arrivé' : (_statusFr[a.status] ?? ''),
+            statusLabel: arrived ? 'Arrivé' : StatusLabels.of(a.status),
           ),
         ),
       ),
