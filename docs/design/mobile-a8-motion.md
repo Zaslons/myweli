@@ -132,6 +132,9 @@ proved it.** Reds measured and quoted in every message.
 | ② | — | the accessor + observer · `BrandLoader` · the splash · 3 spinners · 2 involuntary movements. **9 mutations** |
 | ③ | `Duration(milliseconds:` **10** · `Curves.` **7** | — |
 | ④ | — | 7 sites → `AppMotion` · the three-legged mirror. **4 web mutations** |
+| ⑥ | the reel throws · the splash is blank · the caption overflows — **+12 −3** | — |
+| ⑦ | — | `jumpToPage` · `AlwaysStoppedAnimation(1)` · a measured caption bound. **9 mutations, one of which changed the gate** |
+| ⑧ | — | the pin holes: hand-rolled curves, seconds, `core/router/`, and the doc's Curve column. **6 mutations** |
 
 ### Five things this slice got wrong first, and how each was caught
 
@@ -155,6 +158,43 @@ proved it.** Reds measured and quoted in every message.
    and not one baseline byte moved: a golden photographs the end state, not the
    tween. Recorded in §20.1 as a limit — no golden can catch a duration
    regression.
+
+### ⑥–⑧ — the adversarial review, and the three defects it found in A8's own work
+
+**Writing the gate before the sweep was necessary and not sufficient.** ①–①c
+were four gate commits, and every assertion in all four pumped `BrandLoader`.
+Six `reduceMotionOf` call sites shipped; five were asserted by nothing. All
+three defects below lived in those five.
+
+| Defect | Why no gate saw it | Evidence |
+|---|---|---|
+| **The story reel threw** on its first advance under the flag | nothing pumped `StoryViewer` | `assert(duration > Duration.zero)`, `scroll_activity.dart:705`. `Duration.zero` is a jump for `Scrollable.ensureVisible` (`scroll_position.dart:872` special-cases it) and a crash for `PageController`. I read one API and generalised to the other |
+| **The splash rendered a blank screen for 3800 ms** | nothing pumped `SplashScreen` | the bug ⑤ had just documented fixing in `BrandLoader`, shipped one file over. All six glyph layers of `myweli_loader_mixed.json` open at opacity 0 and `redraw` is not in-point until frame 54. **Confirmed by rendering it** before believing the JSON |
+| **The caption overflowed a 60px avatar by 44px** | the gates pumped an unbounded box | `LoadingIndicator` never passes `fast`, so ~50 sites took the caption branch. The review estimated ~20px; measured, it is 44 |
+
+Two more findings were about the gates rather than the code, and both were real:
+
+- **"a bare MaterialApp still honours the flag" was vacuous.** It set *both*
+  flags, so `MediaQuery` answered at the accessor's first line and the no-scope
+  fallback the test exists to check was never evaluated — replacing that whole
+  fallback with `?? false` kept the entire suite green.
+- **The mirror's Curve column was pinned against itself.** `parseMdTable` reads
+  the name and the milliseconds and stops; `dartMotionCurves` was compared to a
+  **hardcoded literal in the test file**. Editing §9's curve cell was a green CI
+  job — while ④'s commit message claimed the mirror covered "including the curve
+  pairing".
+
+**And one gate had to be strengthened mid-fix.** "the reel advances instead of
+throwing" passed when the reel ignored the flag *entirely*: it only proved
+non-crashiness. It measures `PageController.page` now and has a motion-ON leg,
+so both "jumps for nobody" and "jumps for everybody" go red. The fix was correct
+and the gate was not — which is the whole reason to run the mutations.
+
+`expectHonoursReducedMotion` was deleted in the same round: 48 lines carrying
+this slice's most emphatic doctrine, zero call sites, exactly the shape A7's fix
+commit deleted `unvalidatedKeys` for. A generic geometry probe would have passed
+the reel that jumped for everybody — the abstraction fit none of its intended
+callers, and that is why it had none.
 
 ### Also weaker than it reads, and left as written
 
@@ -180,6 +220,17 @@ pretending otherwise.
 - **§12's "~300 ms" spinner heuristic is not a motion token**, despite colliding
   numerically with `motionEmphasis`.
 
+## The lesson, stated plainly
+
+The slice's whole premise was *gate first, then sweep* — and it still shipped a
+crash, a blank splash and a 44px overflow. The premise was not wrong; it was
+incomplete. **Four gate commits all pointed at the same widget.** Gate-first
+guarantees the rule is executable; it guarantees nothing about coverage. The
+question a gate commit has to answer is not "did I write a test before the fix"
+but *"which call sites does this test not reach"* — and A8 could have answered
+it at any point with one grep, because `reduceMotionOf` had six callers and the
+tests named one.
+
 ## Definition of done — met
 
 Rows 8 & 20 → **0** with the counts corrected rather than restated · both pins
@@ -187,4 +238,7 @@ green, reds recorded · reduced motion honoured on **both** platforms, with the
 residue recorded as row 33 · the loader static, labelled and now **goldened** ·
 the splash frozen with its 3800 ms intact · §9 rewritten + §9.1 added · §13
 cross-referenced · §20 gains a motion row · §20.1's loader caveat halved · web
-vitest green (485) · mobile 727 · `analyze` 0 · ROADMAP (French).
+vitest green (485) · mobile **734** · `analyze` 0 · ROADMAP (French) · an
+adversarial review run, its three code findings fixed and gated, its two gate
+findings fixed, and the one claim it disproved (the curve mirror) corrected in
+the doc that made it.
