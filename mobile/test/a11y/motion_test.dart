@@ -137,6 +137,42 @@ void main() {
     });
   });
 
+  /// §13 — and the gap A8 found on the way past.
+  ///
+  /// `BrandLoader` has **no `Semantics` at all** today, at 68 call sites. With
+  /// motion on it is a moving mark and nothing else: a screen reader reaches it
+  /// and says nothing, so the app's most common transient state is silent. That
+  /// is not caused by reduced motion, but freezing the mark would make it worse,
+  /// so the label is not conditional on the flag — only the *visible* text is.
+  group('§13 — the loader says what it is, in BOTH modes', () {
+    testWidgets('with motion ON, the moving mark still has a label',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      addTearDown(handle.dispose);
+
+      await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
+      await tester.pump();
+
+      expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
+          reason: 'a purely visual loading state excludes the users §13 is '
+              'written for — and this half has nothing to do with motion');
+    });
+
+    testWidgets('under reduced motion, EXACTLY one node says it',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      addTearDown(handle.dispose);
+
+      await pumpWithReducedMotion(tester, const BrandLoader());
+
+      expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
+          reason: 'the visible text and the wrapper must not BOTH announce. '
+              'This finder returns two nodes if the label is added without '
+              'excluding the Text beneath it — which is the natural way to '
+              'write it, and is why the count is asserted rather than presence');
+    });
+  });
+
   /// The scope is what makes the flag *reactive*; it must not be what makes the
   /// widget *correct*. 100+ widget tests pump a bare `MaterialApp`, and so may
   /// the next app root — a design that reads the flag only through our own shell
