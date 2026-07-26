@@ -16,7 +16,7 @@ import 'package:myweli/core/utils/validators.dart';
 ///
 /// A7⑥ deleted `AppTextField.validator` on the principle that a zero-caller API
 /// must go. The getter got the same treatment, and the real gate is behavioural,
-/// per funnel — see `login_form_test.dart` and friends.
+/// per funnel — see `login_screen_test.dart` and the five other funnel files §20 names.
 void main() {
   /// A fault that is computed but has
   /// nowhere to render. `pro_register` blocked its submit on a missing
