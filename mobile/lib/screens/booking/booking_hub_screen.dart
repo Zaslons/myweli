@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/a11y/reduce_motion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -206,10 +207,16 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Future<void> _scrollTo(GlobalKey key) async {
     final ctx = key.currentContext;
     if (ctx == null) return;
+    // §9/A8: the app moves the page here, not the user — the involuntary case
+    // reduced motion exists for. `Duration.zero` makes `ensureVisible` jump
+    // instead of glide; the section still ends up on screen, which is the whole
+    // point of the call.
     await Scrollable.ensureVisible(
       ctx,
       alignment: 0.08,
-      duration: const Duration(milliseconds: 350),
+      duration: reduceMotionOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
     );
   }

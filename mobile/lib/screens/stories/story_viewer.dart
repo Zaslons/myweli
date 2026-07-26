@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/a11y/reduce_motion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -80,7 +81,7 @@ class _StoryViewerState extends State<StoryViewer>
       return;
     }
     _pageController.nextPage(
-      duration: const Duration(milliseconds: 220),
+      duration: _pageDuration,
       curve: Curves.easeOut,
     );
   }
@@ -91,10 +92,20 @@ class _StoryViewerState extends State<StoryViewer>
       return;
     }
     _pageController.previousPage(
-      duration: const Duration(milliseconds: 220),
+      duration: _pageDuration,
       curve: Curves.easeOut,
     );
   }
+
+  /// §9/A8. A story reel slides a FULL SCREEN sideways every few seconds, and
+  /// on auto-advance the user did not ask for it — the involuntary case. Zero
+  /// makes `animateTo` jump instead of glide, and the reel still advances.
+  ///
+  /// Not the same thing as the 6 s reading time above, which is a content timer
+  /// and stays: see docs/design/mobile-a8-motion.md's open question.
+  Duration get _pageDuration => reduceMotionOf(context)
+      ? Duration.zero
+      : const Duration(milliseconds: 220);
 
   void _pause() => _progress.stop();
   void _resume() {

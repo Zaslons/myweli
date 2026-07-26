@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../core/a11y/reduce_motion.dart';
 import '../../core/theme/colors.dart';
 
 /// App-open screen: the MyWeli open animation (`loader_v2`) over the brand-black
@@ -34,14 +35,21 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = reduceMotionOf(context);
     return Scaffold(
       // Light — matches the native splash (#FAFAFA) and flows into the app.
       backgroundColor: AppColors.surface,
       body: Center(
+        // Reduced motion freezes the mark and changes NOTHING else (§9, A8).
+        // The brand, the colours, the 220px and the 3800 ms hold above all
+        // stay: the user asked the OS to stop movement, not to be shown a
+        // different app, and cutting the hold would give them a different boot
+        // sequence from everyone else. A native splash is a still image too.
         child: Lottie.asset(
           'assets/lottie/open/myweli_loader_mixed.json',
           width: 220,
-          repeat: true,
+          animate: !reduceMotion,
+          repeat: !reduceMotion,
         ),
       ),
     );

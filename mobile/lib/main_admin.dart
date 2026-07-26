@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'core/a11y/reduce_motion.dart';
 import 'core/router/admin_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
@@ -71,11 +72,16 @@ class MyweliAdminApp extends StatelessWidget {
         child: Builder(
           builder: (context) {
             final auth = context.read<AdminAuthProvider>();
-            return MaterialApp.router(
-              title: 'Myweli Admin',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              routerConfig: createAdminRouter(auth),
+            // Above MaterialApp so the whole tree rebuilds when iOS Reduce
+            // Motion is toggled mid-session — nothing in the framework reads
+            // that flag (§9, A8).
+            return ReduceMotionObserver(
+              child: MaterialApp.router(
+                title: 'Myweli Admin',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.lightTheme,
+                routerConfig: createAdminRouter(auth),
+              ),
             );
           },
         ),

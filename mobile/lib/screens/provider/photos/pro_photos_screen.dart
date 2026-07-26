@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/a11y/reduce_motion.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -297,7 +298,12 @@ class _UploadingTile extends StatelessWidget {
             height: 28,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              value: progress == 0 ? null : progress,
+              // §9/A8: the null fallback is an INDETERMINATE spinner, and
+              // `repeat()` is exactly what the framework scale cannot reach.
+              // Under the flag it holds a still 0 % arc — and the
+              // « Envoi… 0 % » below already carries what the spin was saying.
+              value:
+                  progress == 0 && !reduceMotionOf(context) ? null : progress,
             ),
           ),
           const SizedBox(height: AppTheme.spacingS),

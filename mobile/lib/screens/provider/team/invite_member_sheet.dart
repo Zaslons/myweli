@@ -13,6 +13,7 @@ import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/brand_loader.dart';
 import '../../../widgets/common/inline_feedback.dart';
 
 /// The 3-step invite sheet (module `access` §5.1): e-mail → rôle (3 cartes)
@@ -292,7 +293,10 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
       if (artists.isLoading)
         const Padding(
           padding: EdgeInsets.all(AppTheme.spacingM),
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          // §12: `LoadingIndicator` is the only spinner — and a hand-rolled
+          // Material one is also an indeterminate `repeat()` that no OS flag
+          // can reach (§9, A8). One change closes both.
+          child: Center(child: BrandLoader(size: AppTheme.iconL, fast: true)),
         )
       else ...[
         ConstrainedBox(

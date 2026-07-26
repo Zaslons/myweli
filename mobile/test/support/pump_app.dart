@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/a11y/reduce_motion.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -44,6 +45,13 @@ Widget wrapApp({
           scaffoldMessengerKey: scaffoldMessengerKey,
           routerConfig: routerConfig,
         );
+
+  // A8: the three app roots wrap `MaterialApp` in this, so the shell that
+  // claims to be "the real app minus the golden font pin" has to as well.
+  // Without it, a mid-session Reduce Motion toggle is untestable here — and
+  // every behaviour test would silently exercise the no-scope fallback instead
+  // of the path that actually ships.
+  app = ReduceMotionObserver(child: app);
 
   if (providers != null && providers.isNotEmpty) {
     app = MultiProvider(providers: providers, child: app);

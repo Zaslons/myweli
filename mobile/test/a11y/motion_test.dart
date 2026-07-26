@@ -112,6 +112,26 @@ void main() {
               'which is exactly the difference the observer exists to make.');
     });
 
+    testWidgets('the observer unregisters itself when the tree goes away',
+        (tester) async {
+      // A6 found three leaked controllers, and the test that was supposed to
+      // catch one of them stayed green when the `dispose()` was deleted. The
+      // binding holds observers for the life of the process, so a missed
+      // `removeObserver` means the next flag change calls `setState` on a
+      // defunct State — which throws, from inside a platform callback, far from
+      // the widget that caused it.
+      await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+
+      expect(() => setReducedMotion(tester, disableAnimations: false),
+          returnsNormally,
+          reason: 'the flag reached a State that no longer exists — '
+              '`_ReduceMotionObserverState.dispose` is not removing itself '
+              'from the binding');
+    });
+
     test('every app root installs the observer that makes that possible', () {
       // Discovered, not listed: a fourth `main_*.dart` is covered the day it
       // lands rather than the day someone remembers to add it here.
@@ -148,21 +168,18 @@ void main() {
     testWidgets('with motion ON, the moving mark still has a label',
         (tester) async {
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
-
       await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
       await tester.pump();
 
       expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
           reason: 'a purely visual loading state excludes the users §13 is '
               'written for — and this half has nothing to do with motion');
+      handle.dispose();
     });
 
     testWidgets('under reduced motion, EXACTLY one node says it',
         (tester) async {
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
-
       await pumpWithReducedMotion(tester, const BrandLoader());
 
       expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
@@ -170,6 +187,7 @@ void main() {
               'This finder returns two nodes if the label is added without '
               'excluding the Text beneath it — which is the natural way to '
               'write it, and is why the count is asserted rather than presence');
+      handle.dispose();
     });
   });
 
