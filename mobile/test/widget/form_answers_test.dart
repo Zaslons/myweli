@@ -18,14 +18,7 @@ import 'package:myweli/core/utils/validators.dart';
 /// must go. The getter got the same treatment, and the real gate is behavioural,
 /// per funnel — see `login_form_test.dart` and friends.
 void main() {
-  /// Every key a screen DECLARES must be a key it VALIDATES. A declared-but-
-  /// never-validated rule is a lie: the field wears an `errorText` that cannot
-  /// be populated, and after rule 5 nothing else is holding the door.
-  ///
-  /// Expressed as a contract on `FieldErrors` itself, so it holds for every
-  /// screen without needing to pump one: if a caller only ever submits a subset
-  /// of its declared keys, the keys it skips are silently unenforced.
-  /// The second half of the same defect: a fault that is computed but has
+  /// A fault that is computed but has
   /// nowhere to render. `pro_register` blocked its submit on a missing
   /// « Type d'entreprise » and rendered the message nowhere — a press that does
   /// literally nothing, which is worse than the disabled button rule 5 removed.
