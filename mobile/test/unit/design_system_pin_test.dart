@@ -210,9 +210,21 @@ void main() {
     // them. The story reel's 6 s dwell and the splash's 3800 ms are content
     // timers, not motion — the same distinction §12 draws for its "~300ms"
     // spinner heuristic, which is also not a token.
+    //
+    // `core/router/` is in scope even though it holds no animation today (0
+    // hits, checked): go_router's `CustomTransitionPage(transitionDuration:,
+    // transitionsBuilder:)` is where a full-screen transition BELONGS, and the
+    // review found it sitting in a directory neither pin read. A pin that only
+    // covers where the code is today has an expiry date.
+    //
+    // `screens/provider/features/` is NOT in scope — `dartFiles` excludes the
+    // flag-hidden V2/V3 screens (§22) and the motion pins inherit that. Named
+    // here because inheriting an exclusion silently is how one gets forgotten.
     final animationFiles = dartFiles
-        .where(
-            (f) => f.path.contains('/screens/') || f.path.contains('/widgets/'))
+        .where((f) =>
+            f.path.contains('/screens/') ||
+            f.path.contains('/widgets/') ||
+            f.path.contains('/core/router/'))
         .toList();
 
     List<String> animationOffenders(RegExp pattern) {
@@ -255,6 +267,48 @@ void main() {
             'The pairing is the rule — entering decelerates, exiting '
             'accelerates — and a bare Curves.easeIn on an ENTERING fade is '
             'exactly the inversion the tokens exist to prevent.',
+      );
+    });
+
+    // ── The two holes the review found in the pins above. Both are at ZERO
+    // today, so neither has ever gone red on real code — they are guard rails,
+    // not discoveries, and each is proven by a throwaway mutation instead.
+    // Saying so is the difference between a pin and a claim.
+
+    test('…and no hand-rolled easing curve either (§9)', () {
+      // `Curves.` is the idiom, not the language. Every name below is a `Curve`
+      // subclass that defines an easing SHAPE while containing no `Curves.` —
+      // so `curve: const Cubic(0.9, 0, 1, 1)` sailed straight past.
+      //
+      // `Interval(` is deliberately absent: it stages WHEN a curve runs, not
+      // how it eases, and the curve inside it is caught by the rule above.
+      expect(
+        animationOffenders(
+            RegExp(r'\b(Cubic|ElasticInCurve|ElasticOutCurve|ElasticInOutCurve|'
+                r'SawTooth|Threshold|FlippedCurve|CatmullRom)\(')),
+        isEmpty,
+        reason: 'an easing shape is a token (AppMotion.*Curve), not four '
+            'hand-tuned control points',
+      );
+    });
+
+    test('no animation is measured in SECONDS (§9)', () {
+      // The `milliseconds`-only rule has a role gap: §9's ladder tops out at
+      // 400ms, so nothing in seconds can BE a token — but that argues a seconds
+      // literal is WRONG, not that it should be invisible.
+      //
+      // Argument-position on purpose, and the narrowness is the point: the 11
+      // `Duration(seconds:` in these directories are OTP cooldowns, a cache
+      // timeout, the story dwell and §15's snackbar ladder — none of them
+      // motion, none of them this slice's to relabel. This catches the one
+      // shape that could only ever be motion.
+      expect(
+        animationOffenders(
+            RegExp(r'(duration|transitionDuration|reverseDuration):\s*'
+                r'(const\s+)?Duration\(seconds:')),
+        isEmpty,
+        reason: 'an animation longer than motionSlow reads as lag, not '
+            'response (§9) — and a whole second is 2.5× the ceiling',
       );
     });
   });

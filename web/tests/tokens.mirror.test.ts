@@ -152,10 +152,21 @@ describe('the token mirror gate (B3, row 19)', () => {
         'table is the authority; change it there and mirror both surfaces.',
     ).toEqual(expected.motion);
 
-    // Curves are mobile-only by declaration (tokens.ts says why). Pin the
-    // pairing §9 states in prose, so an `easeIn` on an ENTERING surface — the
-    // inversion A8 found on the pro splash — cannot come back as a token.
-    expect(expected.dartMotionCurves).toEqual({
+    // Curves are mobile-only by declaration (tokens.ts says why), so there is
+    // no web leg — but there are still TWO sources, and the first version of
+    // this compared Dart against a hardcoded literal right here. That pinned
+    // the test against itself: editing §9's curve cell was a green job while
+    // doc and code said opposite things. Read the doc's third cell instead.
+    expect(
+      expected.dartMotionCurves,
+      'mobile/lib/core/theme/motion.dart disagrees with SYSTEM.md §9\'s Curve ' +
+        'column. Entering decelerates, exiting accelerates — the pairing is ' +
+        'the rule, and prose does not fail a build.',
+    ).toEqual(expected.docMotionCurves);
+
+    // …and the doc must still say what §9 argues, so neither source can drift
+    // to agree with a wrong value.
+    expect(expected.docMotionCurves).toEqual({
       fastCurve: 'easeOut',
       baseCurve: 'easeInOut',
       emphasisCurve: 'easeOutCubic',

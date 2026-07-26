@@ -48,6 +48,7 @@ export declare function expectedWebTokens(): {
   // values suffixed 'ms', so it compares directly against `motion`.
   dartMotion: Record<string, string>;
   dartMotionCurves: Record<string, string>;
+  docMotionCurves: Record<string, string>;
   zIndex: Record<string, string>;
   parseChecks: { file: string; candidates: string[]; parsed: string[] }[];
   themeFiles: string[];

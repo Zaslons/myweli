@@ -283,6 +283,22 @@ export function expectedWebTokens() {
     motion[name[0].toLowerCase() + name.slice(1)] = `${ms}ms`;
   }
 
+  // A8's review found the §9 table's THIRD cell read by nothing: the durations
+  // were pinned doc↔Dart↔web and the curves were compared against a hardcoded
+  // literal in the test, so `| motionFast | 100ms | easeIn |` was a green CI
+  // job while the doc and the code said opposite things. Same row, same regex
+  // shape, one cell over — `—` (the stagger row, which has no curve) is
+  // skipped rather than parsed as a name.
+  const motionCurveDoc = {};
+  for (const m of readFileSync(SOURCES.systemDoc, 'utf8').matchAll(
+    /\|\s*`motion(\w+)`\s*\|\s*\d+ms\s*\|\s*(?:`(\w+)`|—)\s*\|/g,
+  )) {
+    if (m[2]) motionCurveDoc[m[1][0].toLowerCase() + m[1].slice(1)] = m[2];
+  }
+  if (Object.keys(motionCurveDoc).length === 0) {
+    throw new Error('## 9. Motion: no curve cells parsed — the table drifted');
+  }
+
   const zIndexDoc = parseMdTable(
     readFileSync(SOURCES.webSystemDoc, 'utf8'),
     '### z-index',
@@ -328,6 +344,10 @@ export function expectedWebTokens() {
       Object.entries(dartMotionParse.durations).map(([k, ms]) => [k, `${ms}ms`]),
     ),
     dartMotionCurves: dartMotionParse.curves,
+    // Keyed like the Dart symbols (`baseCurve`) so the two compare directly.
+    docMotionCurves: Object.fromEntries(
+      Object.entries(motionCurveDoc).map(([k, c]) => [`${k}Curve`, c]),
+    ),
     themeFiles,
     knownThemeFiles: KNOWN_THEME_FILES,
     // Scalars the double-parse found that no family claims — the gate asserts
