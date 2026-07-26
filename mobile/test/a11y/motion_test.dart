@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie/lottie.dart';
@@ -66,6 +68,92 @@ void main() {
       final lottie = tester.widget<LottieBuilder>(find.byType(LottieBuilder));
       expect(lottie.animate, isFalse,
           reason: 'still frame, not an invisible one that keeps ticking');
+    });
+  });
+
+  /// The first group sets **both** OS flags, so it cannot tell the two halves
+  /// apart. This one sets only the half the framework ignores.
+  ///
+  /// `FlutterViewController.mm:2159` maps iOS "Reduce Motion" to `kReduceMotion`;
+  /// `kDisableAnimations` appears in no Darwin embedder, and
+  /// `grep -rn "reduceMotion" packages/flutter/lib/` returns **zero**. So on iOS
+  /// §9's promise is kept by nothing at all unless we keep it ourselves.
+  group('§9 on iOS — the flag the framework reads nowhere', () {
+    testWidgets('the loader stops on the iOS flag ALONE', (tester) async {
+      await pumpWithReducedMotion(tester, const BrandLoader(),
+          disableAnimations: false);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.binding.hasScheduledFrame, isFalse,
+          reason: 'every iOS user who set Reduce Motion gets the animation '
+              'anyway if this reads MediaQuery alone — MediaQueryData has no '
+              'reduceMotion field to read.');
+    });
+
+    testWidgets('raising it MID-SESSION stops a loader already on screen',
+        (tester) async {
+      // The realistic path: the spinner is up, the user leaves for Settings,
+      // turns Reduce Motion on, and comes back. Nothing rebuilds on its own —
+      // `_updateData`'s `if (newData != _data)` is false when only
+      // `reduceMotion` moved, because `MediaQueryData` does not carry it.
+      await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
+      await tester.pump();
+      expect(tester.binding.hasScheduledFrame, isTrue,
+          reason: 'the control: it must be animating before the flag lands, or '
+              'the assertion below is about nothing');
+
+      setReducedMotion(tester, disableAnimations: false);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.binding.hasScheduledFrame, isFalse,
+          reason: 'this is the assertion that needs an observer. Reading the '
+              'flag at build time passes the test above and fails this one — '
+              'which is exactly the difference the observer exists to make.');
+    });
+
+    test('every app root installs the observer that makes that possible', () {
+      // Discovered, not listed: a fourth `main_*.dart` is covered the day it
+      // lands rather than the day someone remembers to add it here.
+      final roots = Directory('lib')
+          .listSync()
+          .whereType<File>()
+          .where((f) => RegExp(r'main(_\w+)?\.dart$').hasMatch(f.path))
+          .toList();
+      expect(roots, isNotEmpty,
+          reason: 'no app root found — this test is resolving paths from the '
+              'wrong directory and would pass on an empty set');
+
+      final missing = roots
+          .where((f) => !f.readAsStringSync().contains('ReduceMotionObserver'))
+          .map((f) => f.path)
+          .toList();
+
+      expect(missing, isEmpty,
+          reason: 'the iOS flag is not an InheritedWidget, so a root without '
+              'the observer honours it only on the next rebuild that happens '
+              'to occur. Correct, but not reactive — and on the splash, which '
+              'builds once, "the next rebuild" never comes.');
+    });
+  });
+
+  /// The scope is what makes the flag *reactive*; it must not be what makes the
+  /// widget *correct*. 100+ widget tests pump a bare `MaterialApp`, and so may
+  /// the next app root — a design that reads the flag only through our own shell
+  /// fails silently everywhere the shell is absent.
+  group('the loader is correct outside our own shell', () {
+    testWidgets('a bare MaterialApp still honours the flag', (tester) async {
+      setReducedMotion(tester);
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: BrandLoader())),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.binding.hasScheduledFrame, isFalse,
+          reason: 'no ReduceMotionObserver above it, and it must still stop. '
+              'Fail-safe, not fail-broken: a missing scope costs reactivity, '
+              'never correctness.');
     });
   });
 

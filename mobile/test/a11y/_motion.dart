@@ -28,18 +28,48 @@ Future<void> pumpWithReducedMotion(
   WidgetTester tester,
   Widget child, {
   List<SingleChildWidget>? providers,
+  bool disableAnimations = true,
+  bool reduceMotion = true,
 }) async {
-  // Both flags: Android reports `disableAnimations`, iOS reports `reduceMotion`
-  // and nothing in the framework reads it — see the spec's iOS finding.
-  tester.platformDispatcher.accessibilityFeaturesTestValue =
-      const FakeAccessibilityFeatures(
-    disableAnimations: true,
-    reduceMotion: true,
+  setReducedMotion(
+    tester,
+    disableAnimations: disableAnimations,
+    reduceMotion: reduceMotion,
   );
-  addTearDown(tester.platformDispatcher.clearAllTestValues);
-
   await pumpApp(tester, providers: providers, home: Scaffold(body: child));
   await tester.pump();
+}
+
+/// Raise the OS flags **without** pumping — the mid-session case.
+///
+/// Split out of [pumpWithReducedMotion] because *when* the flag arrives is a
+/// distinction the gate has to draw. A user who toggles "Reduce Motion" in
+/// Settings and comes back finds a tree that is already built:
+///
+///   * the **Android** half rides `MediaQueryData.disableAnimations`, so
+///     `_MediaQueryFromViewState.didChangeAccessibilityFeatures` recomputes the
+///     data, sees it differ, and `setState`s — reactivity for free;
+///   * the **iOS** half does not. `MediaQueryData` has no `reduceMotion` field
+///     at all (`grep -n reduceMotion media_query.dart` → 0 hits), so
+///     `_updateData`'s `if (newData != _data)` is false and nothing rebuilds.
+///
+/// So a mid-session gate must raise **only** `reduceMotion`, or `MediaQuery`
+/// answers it and the observer under test is never exercised.
+///
+/// The setter dispatches synchronously (`window.dart:536-539` calls
+/// `onAccessibilityFeaturesChanged` inline), so the very next `pump()` renders
+/// the reaction.
+void setReducedMotion(
+  WidgetTester tester, {
+  bool disableAnimations = true,
+  bool reduceMotion = true,
+}) {
+  tester.platformDispatcher.accessibilityFeaturesTestValue =
+      FakeAccessibilityFeatures(
+    disableAnimations: disableAnimations,
+    reduceMotion: reduceMotion,
+  );
+  addTearDown(tester.platformDispatcher.clearAllTestValues);
 }
 
 /// One frame at 60 fps — **the discriminator, and the arithmetic behind it.**
