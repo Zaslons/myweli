@@ -1,4 +1,7 @@
 // Design: docs/design/mobile-a7-forms.md · SYSTEM.md §14.
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 
 /// A single field's rule. Returns the message to show, or `null` when it passes.
 ///
@@ -118,4 +121,21 @@ class FieldErrors {
 
   /// Wipe everything — a step change, or « Changer d'e-mail ».
   void clear() => _errors.clear();
+}
+
+/// §14's focus amendment: take the user to the first field that failed.
+///
+/// Strict rule 5 makes every submit tappable, so a form can now answer a press
+/// with an error that is scrolled off screen — worse than the dead-end disabled
+/// button it replaced. This closes that hole: focus the first errored field in
+/// the form's reading order and bring it into view.
+///
+/// Synchronous on purpose — an async submit handler calls it and returns
+/// immediately; nobody should await a scroll animation.
+void focusFirstError(FieldErrors errors, Map<String, FocusNode> nodes) {
+  final node = nodes[errors.firstErroredKey];
+  if (node == null) return;
+  node.requestFocus();
+  final context = node.context;
+  if (context != null) unawaited(Scrollable.ensureVisible(context));
 }
