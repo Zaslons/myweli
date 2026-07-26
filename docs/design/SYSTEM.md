@@ -349,7 +349,10 @@ genuinely float above the page (menus, sheets, the bottom nav). If you reach for
 
 ## 9. Motion
 
-12 distinct durations exist today, all magic numbers. The system defines five.
+Five tokens, and this table is where their values live. `AppMotion`
+(`mobile/lib/core/theme/motion.dart`) and `motion` (`web/styles/tokens.ts`) both
+mirror it, and `web/tests/tokens.mirror.test.ts` fails on any disagreement
+between the three — editing a number in one place is a red CI job, not a drift.
 
 | Token | Value | Curve | Use for |
 |---|---|---|---|
@@ -359,14 +362,68 @@ genuinely float above the page (menus, sheets, the bottom nav). If you reach for
 | `motionEmphasis` | 300ms | `easeOutCubic` | Entering surfaces — sheets, dialogs, snackbars |
 | `motionSlow` | 400ms | `easeInOutCubic` | Full-screen / large-surface transitions |
 
-**Entering** decelerates (`easeOut*`), **exiting** accelerates (`easeIn*`), and
-things that move *and* stay use `easeInOut`. Nothing user-initiated may take
-longer than `motionSlow` — beyond ~400ms an animation stops reading as *response*
-and starts reading as *lag*, especially on the reference low-end Android.
+Dart drops the prefix the file already carries: `AppMotion.stagger` / `.fast` /
+`.base` / `.emphasis` / `.slow`, each with its `…Curve` twin. **Curves are
+mobile-only** — Tailwind has no `easeOutCubic`, so the web mirrors durations and
+stops. A declared divergence, and pinned as one.
 
-**Reduced motion:** honour `MediaQuery.disableAnimations` — when set, transitions
-become instant and looping/decorative animation stops. A vestibular-sensitive user
-asked the OS not to move the screen; we listen. *(Not yet implemented — §21.)*
+**Entering** decelerates (`easeOut*`), **exiting** accelerates (`easeIn*`), and
+things that move *and* stay use `easeInOut`. **Take the pair, not the number** —
+the duration and its curve are one token. A8 found the rule already broken in the
+only place prose could not catch it: the pro splash faded a logo *in* on
+`easeIn`. The pairing is now pinned in the mirror test.
+
+Nothing user-initiated may take longer than `motionSlow` — beyond ~400ms an
+animation stops reading as *response* and starts reading as *lag*, especially on
+the reference low-end Android.
+
+**A content timer is not motion.** How long a story stays on screen, how long the
+splash holds, how long a search waits before firing — these are measured in
+reading time or network chatter, and this ladder cannot name them. They keep
+their literal and carry a `// ds-ignore` saying which they are. §12's "~300ms"
+spinner heuristic is the same: it collides numerically with `motionEmphasis` and
+has nothing to do with it.
+
+### 9.1 Reduced motion
+
+When the user asks the OS to stop moving the screen, we listen — **on both
+platforms**, which takes more than the one flag this section used to name.
+
+- **Android** sets `disableAnimations` (and only when *Transition animation
+  scale* is exactly 0). It rides `MediaQueryData`, so reading it rebuilds for
+  free.
+- **iOS** sets `reduceMotion`, and **the framework reads it nowhere** —
+  `grep -rn "reduceMotion" packages/flutter/lib/` returns 0, and
+  `kDisableAnimations` appears in no Darwin embedder. It is also not an
+  `InheritedWidget`, so nothing rebuilds when it changes.
+
+`reduceMotionOf(context)` (`mobile/lib/core/a11y/reduce_motion.dart`) reads both;
+`ReduceMotionObserver`, installed at every app root, makes the iOS half reactive.
+The accessor falls back to reading the dispatcher directly when no scope is above
+it: a missing observer costs a rebuild, never the behaviour.
+
+**Do not hand-wire what the framework already does.** Route transitions, `Hero`
+and every implicit `AnimatedX` run plain controllers and collapse to 5 % on their
+own (`animation_controller.dart:651`). Reach for the accessor only where that
+scale cannot arrive:
+
+- **`repeat()`**, which calls `_startSimulation` directly and never sees it —
+  Lottie's ticker, an indeterminate `CircularProgressIndicator`;
+- **involuntary movement**, where the app moves the page rather than the user —
+  `Scrollable.ensureVisible`, an auto-advancing `PageController`.
+
+**What replaces the motion matters as much as stopping it.** A frozen logo and a
+broken screen look identical, so `BrandLoader` holds a still frame *and* says
+« Chargement… ». Branding, colour, layout and timing stay exactly as they are for
+everyone else: the user asked for less movement, not a different app.
+
+**A content timer must not be collapsed.** `AnimationController` scales a
+`normal` controller to 5 % under the flag, which is right for a transition and
+wrong for a reading time — a 6-second story would flash past in 300ms. A
+controller driving *dwell* rather than *movement* takes
+`AnimationBehavior.preserve`.
+
+⚠️ **The remaining gap is the framework's, and it is iOS-only** — see §21 row 33.
 
 ---
 
@@ -467,6 +524,12 @@ Plus the states that aren't about data: **offline**, **permission-denied**
 Target: **WCAG 2.1 level AA**. This section is the largest gap between what the
 old standards *said* ("≥4.5:1 contrast (monochrome passes)") and what the code
 does — see §21.
+
+**Reduced motion lives in [§9.1](#91-reduced-motion), and it belongs here too.**
+WCAG 2.3.3 is an accessibility criterion, not a styling preference: vestibular
+disorders make involuntary movement genuinely nauseating. It is written up with
+the motion tokens because that is where the mechanism is, and cross-referenced
+here because this is where anyone auditing accessibility will look.
 
 ### 13.1 Contrast
 
@@ -752,6 +815,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 | Tap targets + labels (§13.2, §13.4) | **`test/a11y/`** — **complete**: `meetsGuideline(androidTapTargetGuideline)` (A4a) + `labeledTapTargetGuideline` (A4b) + `textContrastGuideline` (A4c), all live over the key components |
 | Text scale (§13.3) | **`test/a11y/text_scale_test.dart`** — the key components pumped at `TextScaler.linear(2.0)`. **Three** assertions, because each of the first two passed against a real bug: `takeException()` is null (nothing *overflows*); **and** `expectGrowsWithTextScale` (the height actually grew — a fixed bound doesn't overflow, it **clips silently**); **and**, for any *computed* bound, that it still covers the widget's real content at **0.82× → 2×** and doesn't over-provision. Pump the widget **as it ships** — bounded, and in the variant that breaks: unbounded, nothing can overflow and the gate is vacuous |
 | **Forms & validation (§14)** | **`test/unit/field_errors_test.dart`** (rule 2's state machine, incl. the merge case web's review had to fix) + **`test/unit/validators_test.dart`** (one rule per concept) + **`test/a11y/field_error_test.dart`** (unclipped at 200 %, grows its field, reachable in the field's semantics) + two pins in `design_system_pin_test.dart` — no `validator:`, one e-mail definition. **The rule a regex cannot express — "a field fault is never a bar" — is held behaviourally on SIX named funnels**, each asserting: submit invalid → the message renders *under the field* · **no `SnackBar` in the tree** · the flow does not advance · fixing it clears the message without a second submit. Those funnels are `login_screen` · `pro_register_screen` · `pro_salon_profile_screen` · `deposit_settings_screen` · `client_list_screen`'s add-client sheet · `invite_member_sheet` (gated since A6-era A7④a) — chosen because each is a defect A7 actually shipped. **A seventh, `client_detail_screen`'s tag sheet, is held to the same shape but sits OUTSIDE this arithmetic**: it has no validator map at all (a bare `String? _tagError`), so it is not one of the 17 — see row 32. Two of them are **lockout regressions**: load the stored value and save without editing, which is the assertion that catches "the app cannot save data it just loaded". Every one was mutation-proven red before it was trusted. **Coverage is 6 of the 17 screens on `FieldErrors` — see §21 row 32 for the remainder.** A7 first claimed this row when one such test existed; the count is now named rather than implied. |
+| **Motion (§9, §9.1)** | **2 pins** in `design_system_pin_test.dart` — no `Duration(milliseconds:` and no `Curves.` under `screens/`+`widgets/` (red at **10 · 7**), plus a guard that the scan sees >100 files so an empty sweep can't read as a clean one — **and** `test/a11y/motion_test.dart`: the loader animates with motion on (the control), stops under the flag, stops on the **iOS flag alone**, stops when the flag is raised **mid-session**, stops with **no scope above it**, carries a `Semantics` label in both modes with exactly ONE node saying it, shows the **static mark** rather than a blank frozen Lottie, and unregisters its binding observer on dispose. Every app root is source-pinned to install `ReduceMotionObserver` (globbed, not listed). Values are pinned three ways — §9's table ↔ `AppMotion` ↔ `tokens.ts` — by `web/tests/tokens.mirror.test.ts`, including the curve **pairing**. 11 assertions, 9 mutations each watched fail. **What is NOT gated: the story reel's 6 s dwell** — two attempts to reproduce it both came back green, so it is an open question, not a fix (see `mobile-a8-motion.md`). |
 | Visual regression | **Goldens** — `test/golden/`, see below |
 | Market data (§18) | `salon_time_pin_test.dart` |
 | Everything | `flutter analyze --fatal-infos` = 0 |
@@ -804,11 +868,22 @@ SDK's own cache (`$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/`), and CI pi
 the same SDK — so the bytes are identical on both sides, nothing is committed, and
 it cannot drift. Roboto is also Android's system font, our primary target.
 
-**Two things a golden cannot pin**, both deliberate:
-- **The brand loader.** `BrandLoader` is an infinitely-repeating Lottie; any
-  golden of it would be a picture of an arbitrary animation frame. The loading
-  state we *do* pin is `AdminDataTable`'s skeleton, which is static.
+**Two things a golden cannot pin** — **one and a half, since A8**:
+- **The brand loader, animating.** With motion on, `BrandLoader` is an
+  infinitely-repeating Lottie and any golden of it is a picture of an arbitrary
+  frame. **Its reduced-motion state is now pinned** (`components_loader_reduced_motion`)
+  because it is a still brand mark by design — and taking that picture is what
+  found the bug: the first version froze the Lottie with `animate: false`, which
+  stops the ticker and renders **frame 0**, an empty canvas. The property
+  assertion passed; the pixels were blank. The other static loading state we pin
+  is `AdminDataTable`'s skeleton.
 - **Anything that reads the wall clock** — see register row 23.
+
+**A golden photographs the end state, not the tween.** A8 changed six animation
+durations and expected `consumer_booking_hub` and `consumer_provider_detail` to
+move; **not one byte changed**. Worth knowing before a future slice budgets time
+for a golden review it does not need — and worth knowing as a limit: no golden
+can catch a duration regression.
 
 ---
 
@@ -829,7 +904,7 @@ own design system?" — today, mostly not.
 | 5 | Radius tokens (§6) | ~~23~~ → **0** | `999`×21 → `radiusPill`; `16`/`24` → `radiusXL`/`radiusXXL`; `7`/`2` → nearest. Pinned | ✅ **A2** |
 | 6 | Type scale ≥ 11px (§4) | ~~9~~ → **0** | the six `fontSize: 10` labels → `labelSmall` (11, the floor); the photo counter → `bodyMedium`; the two OTP boxes drop the magic `26` → `headlineMedium`. Pinned | ✅ **A2b** |
 | 7 | Icon-size tokens (§7) | ~~19 distinct values~~ → **0** | 146 `size:` sites snapped to the 5 `AppTheme.icon*` (nearest; ties → up — `18`→20, `48`→64 = the empty-state glyph, §7). Pinned | ✅ **A2b** |
-| 8 | Motion tokens (§9) | **12 distinct durations**, 0 constants | | *A8* |
+| 8 | Motion tokens (§9) | ~~12 distinct durations, 0 constants~~ → **0** | **both figures were wrong, and in opposite directions.** The 12 counted `Duration(milliseconds:)` literals **app-wide, blind to category** — mock latency, OTP cooldowns and a search debounce among them — while missing motion written any other way. "0 constants" was simply false: nine named `Duration` constants existed. Measured in scope (`screens/` + `widgets/`): **7 motion sites, 6 distinct values** — 350 · 240 · 220 · 200 ×2 · 180 · **1500**. All → `AppMotion` (§9's five), nearest token, ties faster. The 1500 was a pro-splash logo fade sitting 3.75× over §9's own ceiling; it also faded a logo **in** on `Curves.easeIn`, an inversion of the rule §9 states in prose — which is why the curve pairing is now pinned in the mirror test, not just written down. Three literals stay with a `// ds-ignore` and a reason: two content timers and a debounce, none of which §9's 50–400ms ladder could name. **The pin design the plan called for had to be thrown away**: argument-position (`duration:` + `Duration(` on one line) measured 8/8 before A8's reduced-motion sweep and 5/8 after it, because the sweep turned three of them into ternaries — it would have gated the code A8 did not touch. The shipped pin matches the literal and pays for it with a directory scope. Gated by 2 pins (red at 10 · 7) + the three-legged mirror (doc ↔ Dart ↔ web) | ✅ **A8** |
 | 9 | Full `ColorScheme` + component themes (§3) | ~~23 missing~~ → **0** | the scheme set 8 of ~30 slots, so unthemed M3 widgets (pickers, snackbars, chips, tabs, icons, sheets) fell back to **Material purple**. Now the full scheme + a component theme for every component the app renders — verified by the `components_material` golden | ✅ **A3** |
 | 10 | Button min-height 48 (§13.2) | ~~all~~ → **0** | `textButtonTheme.minimumSize` `Size(0, 40)` → `Size(0, 48)` — raw TextButtons and `AppButton.text` alike | ✅ **A3** |
 | 11 | Buttons sized by container (§10) | ~~all~~ → **0** | `elevated`/`outlinedButtonTheme` `Size(double.infinity, 48)` → `Size(0, 48)` — width comes from the container, not a forced full-width bar | ✅ **A3** |
@@ -841,7 +916,7 @@ own design system?" — today, mostly not.
 | 17 | One snackbar entry point (§15) | ~~118 calls; 73 raw; 1 with an action~~ → **0** | the counts were RIGHT — the first rows a census hasn't disproven — but they hid the defects. `.showSnackBar(` 116 → **1** and `SnackBar(` 111 → **2**, both inside `AppSnackBar`, whose kind IS the API. Fixed with them: the tone (only 7 of 31 successes were green, 30 of 61 errors weren't red), the durations (2s ×15 · 1s ×4 · Material's 4s ×99 — §15's 3/6/10 appeared NOWHERE, including on the one action-bearing bar), the two local re-inventions (`_toast`, `_showError`) and `Helpers.showSnackBar` itself. **Six sites were feeding a modal-blocked bar** — pruned by `BlockSemantics`, painted under the scrim — and now raise `InlineFeedback` inside the sheet that owns the failure. **The worst-instance note here was stale** (A3 had already removed `Colors.black87`) and the a11y claim inverted: see row 14. Gated by 2 pin rules + `test/a11y/feedback_test.dart` | ✅ **A6** |
 | 18 | One `ConfirmDialog` (§15) | ~~11 copy-pasted~~ → **0** | 11 was right for `showDialog<bool>`, but `AlertDialog(` counted **13** — the admin's `showReasonDialog` (9 call sites) and the caption prompt were never counted. All 13 → one component; `showReasonDialog` survives as a 6-line delegation so the admin didn't change a line. The ladder is now real: the 2 title-only deletes state their consequence, « Oui, annuler » became « Annuler le rendez-vous », the **pro** salon delete gained the type-to-confirm its consumer twin always had, and destructive is a stated classification (red where something is destroyed; explicitly NOT for logout / report-a-review / no-show, so the red keeps its meaning). **Cancel-takes-focus was 0/11** (§15 AND §13.5) — the component does it for all. Its 4 missing `mounted` guards and 3 leaked controllers died with the copies. Gated by 2 pin rules + `test/widget/confirm_dialog_test.dart` | ✅ **A6** |
 | 19 | Field-anchored errors (§14) | ~~**1** caller passes `errorText`~~ → **0** | **both halves of this row were wrong, and the correction is the slice.** The one `errorText` caller was **dead code** — `invite_member_sheet:191` could only be reached through a button gated on the value already being valid, so the product had **zero** working field-anchored errors, not one. And validation was **not** "a red toast": only **4** validation snackbars fired on a live screen (4 more were dead code shadowed by their own disabled button), while the real pattern was the **silent disabled button ×22** and **10 hand-rolled red `Text` blocks**. A slice built on this row's framing would have hunted toasts that mostly weren't there. It was also not greenfield: **5 live screens already ran Flutter's `Form`/`validator`** with 13 validators, so two mechanisms shipped — and they collide, because a `validator` result silently overwrites `decoration.errorText`. Now **one**: `FieldErrors` (validate on submit · re-validate once errored · **merge**, never replace · `set()` for server faults) feeding `errorText`, with `GlobalKey<FormState>` and `Form(` both at **0** and the `validator` param deleted. Fixed with it, because "where the error renders" was hiding "whether the rule is right": **5 e-mail regexes → 1** (two definitions of valid e-mail shipped in one app) · the **OTP gate accepted 4 digits** on a « Code à 6 chiffres » field, on 3 live screens · the **Mobile Money number had no validation at all** — `"abc"` saved, rendered to the client, and went into the Wave deep link · 2 `PhoneNumberField`s with no rule of their own — **and A7's stated reason for that was false**: it claimed the package's validator "could never run" without a `Form` ancestor. Measured afterwards, `IntlPhoneField` defaults to `onUserInteraction`, needs no `Form`, and was judging from the first keystroke while *overwriting* the app's message. Silenced with `autovalidateMode: disabled` · a tag sheet whose 3 rules were **silent no-ops** with the button enabled · « Ce numéro existe déjà. » raised on the **list screen after the sheet had popped**, one frame before navigating away. Gated by 2 pins (red measured at 13 · 5) + `field_errors_test` + `validators_test` + `a11y/field_error_test` | ✅ **A7** |
-| 20 | Reduced motion (§9) | **0** | | *A8* |
+| 20 | Reduced motion (§9) | ~~0~~ → **0 honoured** | the count was right and the framing was not: rows 8 and 20 are **nearly disjoint**, so closing row 8 would have moved none of this. The register points at expand/collapse tweens; the harm was two `repeat: true` Lotties, an indeterminate spinner, a 6-call-site involuntary scroll and an auto-advancing story reel — **not one of them a counted number**. Two more things the row could not have known. §9 named `MediaQuery.disableAnimations`, which is **Android-only**: iOS reports `reduceMotion` and the framework reads it nowhere, so the rule as written was an iOS no-op (§9.1 now names both flags; `ReduceMotionObserver` makes the iOS half reactive, because `MediaQueryData` has no field for it and nothing rebuilds when it changes). And the framework already does the *other* half for free — plain controllers scale to 5 %, so route transitions and every implicit `AnimatedX` were never the work; `repeat()` bypasses that scale entirely and was 100 % of it. Found on the way past: **`BrandLoader` had no `Semantics` at all**, at 68 call sites — the app's most common transient state was silent to a screen reader in *both* modes. Gated by `test/a11y/motion_test.dart` (11 assertions, 9 mutations each watched fail) | ✅ **A8** |
 | 21 | Tests wrap the real theme | ~~0 of 34~~ → **34 of 34** | all 34 widget tests migrated to `wrapApp`/`pumpApp` (`test/support/pump_app.dart`) — they render `AppTheme.lightTheme`, so a restyle that breaks a screen's layout now fails a test. `pump_app_test.dart` asserts the harness injects the real theme. | ✅ **A3b** |
 | 22 | Deferred V2/V3 `Colors.*` | ~52 | flag-hidden `ComingSoon` screens | *allowlisted — fix if un-shelved* |
 | 23 | **No clock seam** (§20.1) | pro dashboard + journal | `ProJournalProvider._selectedDate = salonToday()`; `MockProService.getDashboard()` buckets by `DateTime.now().weekday` — so those screens **cannot be golden-tested**: the image would change value with the day of the week, failing CI every morning. `package:clock` is unused. | *new — needs its own slice* |
@@ -854,6 +929,7 @@ own design system?" — today, mostly not.
 | 30 | Undo stops at the client boundary (§15) | **the server-backed destructions** | A6 shipped the product's first undo where the client owns the whole list (photos, before/afters, favourites — restoring the snapshot IS the same call that removed it). Cancelling a booking, revoking access and deleting an account cannot be undone without new service methods, so they keep the confirm-only rung. §15's reversible row is satisfied where it can be and honestly unmet where it can't | *needs backend work* |
 | 31 | An error's association is weaker than the web's (§14) | **the platform** | measured in A7: Flutter does **not** fold `errorText` into the field's semantics label — it is a **child node**, so a screen reader reaches it *after* the input, not *with* it. `MergeSemantics` cannot merge it (a `TextField`'s node is a semantics boundary — the tree comes back byte-identical). There is no `aria-describedby` equivalent, and `SemanticsService` is the wrong tool (A6: `supportsAnnounce` is false on Android). §14 now states the limit rather than implying parity with the web | *platform limit — recorded, not fixable here* |
 | 32 | Per-funnel §14 coverage is 6 of 17 (§20) | **11 screens** | A7 claimed §20's behavioural row when exactly ONE such test existed, and the class of defect it was supposed to catch shipped four times in the same slice. Six of the 17 are genuinely covered and mutation-proven — the ones where a miss was dangerous. The other **11 rely on the unit + pin layer only**, and one of them is a trap worth naming: `client_detail_screen` is in the 17 because of `_NotesSection`'s rule, which has **no test** — the branch's two tag-sheet tests cover a different widget in the same file, so counting that screen as covered would have been arithmetic rather than coverage. (An earlier draft of this row did exactly that, and its totals came out right only because a second error cancelled the first.) **Also structurally uncoverable by any `FieldErrors`-based mechanism: the hand-rolled `errorText`** (`_TagSheet` holds a bare `String? _tagError` with no validator map), which is the exact shape that shipped dead in `invite_member_sheet` for months and again in A7 | *the honest remainder — extend per funnel as they are next touched* |
+| 33 | The framework ignores iOS Reduce Motion (§9.1) | **every framework-driven animation, on iOS only** | A8 made **our** code honour both flags, and it cannot make the framework do the same. `_animateToInternal`'s 5 % scale reads `SemanticsBinding.instance.disableAnimations`, which is fed by `kDisableAnimations` — a flag **no Darwin embedder sets**. `grep -rn "reduceMotion" packages/flutter/lib/` returns **0**. So on iOS, route transitions, `Hero` and every implicit `AnimatedX` still run at full speed for a user who asked their OS to stop movement, while the `repeat()`-driven and involuntary motion A8 owns correctly stops. There is no supported override: `disableAnimations` has no setter and `debugSemanticsDisableAnimations` is debug-only. The honest scope of §9.1 today is *"everything we animate ourselves, on both platforms; everything the framework animates, on Android"* | *platform limit — upstream, recorded not fixable here* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.

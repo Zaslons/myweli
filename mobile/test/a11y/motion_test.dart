@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie/lottie.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
@@ -60,14 +61,27 @@ void main() {
           reason: 'a frozen logo is indistinguishable from a broken screen');
     });
 
-    testWidgets('the Lottie is told not to animate, not merely hidden',
+    testWidgets('there is no Lottie at all — a still brand mark instead',
         (tester) async {
+      // **This assertion used to read `lottie.animate, isFalse`, and it was
+      // wrong on a point no test could see.** `animate: false` really does stop
+      // the ticker, so it passed, and the sweep shipped it. Then the golden was
+      // taken: frame 0 of a draw-on loader is an EMPTY CANVAS, so "freeze the
+      // mark" had frozen a blank box with a caption floating under it. The
+      // property was right and the pixels were not.
+      //
+      // What replaces it is the mark the animation draws towards — the same
+      // brand asset, held still. Asserting its ABSENCE is what keeps a future
+      // `animate: false` from quietly coming back.
       await pumpWithReducedMotion(tester, const BrandLoader());
       await tester.pump();
 
-      final lottie = tester.widget<LottieBuilder>(find.byType(LottieBuilder));
-      expect(lottie.animate, isFalse,
-          reason: 'still frame, not an invisible one that keeps ticking');
+      expect(find.byType(LottieBuilder), findsNothing,
+          reason: 'a Lottie under the flag is either ticking or blank — '
+              'neither is a still mark');
+      expect(find.byType(SvgPicture), findsOneWidget,
+          reason: 'the loading state must still SHOW the brand, not just '
+              'stop moving');
     });
   });
 

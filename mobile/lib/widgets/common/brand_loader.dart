@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../core/a11y/reduce_motion.dart';
@@ -58,18 +59,23 @@ class BrandLoader extends StatelessWidget {
   Widget build(BuildContext context) {
     final reduceMotion = reduceMotionOf(context);
 
+    // **Not a frozen Lottie — the static brand mark.** `animate: false` does
+    // stop the ticker (`lottie.dart:415` never starts a controller), and A8's
+    // first attempt shipped exactly that. The golden showed what it actually
+    // renders: **nothing**. Frame 0 of a draw-on loader is an empty canvas, so
+    // "freeze the mark" froze a blank box with a caption under it. The brand
+    // already has the still asset the animation draws towards; use it.
     final mark = SizedBox(
       width: size,
       height: size,
-      child: Lottie.asset(
-        _asset,
-        fit: BoxFit.contain,
-        // A still frame, not an invisible one that keeps ticking: with
-        // `animate: false` the package never starts a controller at all
-        // (`lottie.dart:415`), so the widget stops scheduling frames.
-        animate: !reduceMotion,
-        repeat: !reduceMotion,
-      ),
+      child: reduceMotion
+          ? SvgPicture.asset(
+              'assets/brand/myweli_mark_${onDark ? 'white' : 'black'}.svg',
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+            )
+          : Lottie.asset(_asset, fit: BoxFit.contain, repeat: true),
     );
 
     return Semantics(

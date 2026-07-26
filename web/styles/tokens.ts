@@ -211,7 +211,10 @@ export const zIndex = {
 } as const;
 
 // Motion (SYSTEM.md §9). Durations only — the easing curves have no Tailwind
-// equivalent and land with the motion slice (A9).
+// equivalent, so they are MOBILE-ONLY: A8 landed them in
+// `mobile/lib/core/theme/motion.dart` as `AppMotion.*Curve`, and the mirror
+// test pins the duration↔curve pairing there rather than mirroring it here.
+// A declared divergence, not a gap.
 export const motion = {
   // Load-bearing: every bare `transition`/`transition-colors` reads
   // `transitionDuration.DEFAULT`. Drop it and they all become INSTANT — silently.

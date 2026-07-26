@@ -1,6 +1,6 @@
 # mobile-a8-motion — five tokens, and the app finally listens when the OS says stop (A8)
 
-**Status:** In progress (2026-07-26). **Surface:** `mobile/` — every animation,
+**Status:** ✅ Shipped (2026-07-26). **Surface:** `mobile/` — every animation,
 plus a `web/` constraint. **Design system:**
 [SYSTEM.md §9](SYSTEM.md#9-motion) · [§13](SYSTEM.md#13-accessibility) ·
 [§20/§20.1](SYSTEM.md#20-enforcement) ·
@@ -43,14 +43,20 @@ By that reading, Android's "Remove animations" should collapse each story to
 300 ms and finish a five-story reel in 1.5 s. The 6 s is a *reading time*, not
 motion — the case the SDK's own `AnimationBehavior.preserve` doc describes.
 
-**⚠️ Not confirmed, and therefore not fixed.** Two attempts to gate it both
-refused to go red: a controller built with `preserve` tests the SDK rather than
-us, and pumping the real `StoryViewer` and counting `onViewed` calls is **green
-at base** — so either the scale is not reached on this path, or `onViewed` does
-not fire per advance. The SDK reading is sound and the risk is real, but a gate
-that will not fail is not a gate, and fixing an unreproduced bug ships a change
-nobody can justify. Carried as the slice's open question; if a reproduction
-lands, the fix is one argument (`AnimationBehavior.preserve`).
+**⚠️ Not confirmed, therefore not fixed — and it shipped that way.** Two
+attempts to gate it both refused to go red: a controller built with `preserve`
+tests the SDK rather than us, and pumping the real `StoryViewer` and counting
+`onViewed` calls is **green at base** — so either the scale is not reached on
+this path, or `onViewed` does not fire per advance. The SDK reading is sound and
+the risk is real, but a gate that will not fail is not a gate, and fixing an
+unreproduced bug ships a change nobody can justify.
+
+**The open question, stated for whoever picks it up.** Reproduce it on a device
+with *Remove animations* on: if a five-story reel finishes in ~1.5 s, the fix is
+one argument (`AnimationBehavior.preserve` on `_progress`) and §9.1 already
+carries the rule. What A8 *did* fix on that screen is the page **advance** — a
+full-screen slide the user did not ask for — which is a different animation on
+the same widget.
 
 ## Why the SDK does not do this for us
 
@@ -113,32 +119,72 @@ Two hard constraints follow:
 - **§12's "~300 ms" spinner heuristic is not a motion token**, despite colliding
   numerically with `motionEmphasis`. Stated here so nobody tokenises it.
 
-## Tests & gates — written first, watched fail, then swept
+## What shipped, and what each gate cost
 
-The working rule for this slice: **no sweep commit lands before the gate commit
-that proves it.** Reds measured at `31ce0e8`.
+The working rule held: **no sweep commit landed before the gate commit that
+proved it.** Reds measured and quoted in every message.
 
-- **The pins** — argument-position, measured **8/8 precision, 0 false positives**:
-  `duration:`/`transitionDuration:` + `Duration(` = **8**, `Curves.` = **7**. Two
-  holes stated rather than papered over: `_storyDuration` (a named const, no
-  literal) and the splash's `Future.delayed` dwell.
-- **The reduced-motion gate must be TWO-LEGGED or it is vacuous.** The motion-ON
-  leg proves the widget actually animates; the motion-OFF leg proves one 60 fps
-  frame already lands at the end state. **16 ms is the discriminator**: 5 % of
-  200 ms is 10 ms, so 16 ms ≫ 10 ms (settled with motion off) and 16 ms ≪ 200 ms
-  (clearly mid-flight with motion on).
-- **The loader** — `expect(tester.binding.hasScheduledFrame, isFalse)` after
-  pumping under the flag. Red today: the Lottie schedules a frame forever.
-- A `Duration.zero` property assertion is **not** a gate — the framework runs at
-  5 %, not 0, deliberately (`animation_controller.dart:646`). Asserting what we
-  *asked for* is the mistake `app_snack_bar_test.dart:52` already names.
+| Commit | Gate → red | Sweep |
+|---|---|---|
+| ① | loader animates (control) · stops under the flag · says « Chargement… » · a still frame | — |
+| ①b | the **iOS flag alone** · the flag raised **mid-session** · every root installs the observer · correct with **no scope** | — |
+| ①c | a `Semantics` label in **both** modes · **exactly one** node says it | — |
+| ② | — | the accessor + observer · `BrandLoader` · the splash · 3 spinners · 2 involuntary movements. **9 mutations** |
+| ③ | `Duration(milliseconds:` **10** · `Curves.` **7** | — |
+| ④ | — | 7 sites → `AppMotion` · the three-legged mirror. **4 web mutations** |
 
-## Definition of done
+### Five things this slice got wrong first, and how each was caught
 
-Rows 8 & 20 → **0** with both pins green and their reds recorded · the corrected
-count in the register · reduced motion honoured on **both** platforms · the
-loader static + labelled, the splash frozen with its timing intact, the story
-dwell preserved · §9 amended (both flags, the loader's replacement, the
-`preserve` rule for content timers) · §13 cross-referenced · §20 gains a motion
-row **after** the gates exist · §20.1's loader caveat halved by the new static
-golden · web vitest green · full battery · adversarial review · ROADMAP (French).
+1. **The planned pin design did not survive its own sweep.** Argument-position
+   (`duration:` + `Duration(` on one line) measured 8/8 before ② and **5/8**
+   after — ② had turned three hits into ternaries. It would have gated only the
+   code A8 did not touch. Caught by re-measuring instead of trusting the number
+   in the plan.
+2. **①c could not have gone green.** `addTearDown(handle.dispose)` runs *after*
+   `_endOfTestVerifications`, so the semantics tests would have failed on a live
+   handle whatever they found. Its red was real; its green was unreachable.
+3. **`animate: false` renders nothing.** Frame 0 of a draw-on loader is an empty
+   canvas, so "freeze the mark" froze a blank box with a caption under it. The
+   property assertion passed. **The golden is what caught it** — and the fix is
+   the still brand mark the animation draws towards (`myweli_mark_black.svg`).
+4. **`// ds-ignore` silently stopped applying.** `dart format` reflowed two
+   trailing escapes into a block body, where the pin does not look. The escape
+   has to sit on the offending line; two of the three now name their value so
+   the formatter cannot move it.
+5. **The golden diff the plan predicted did not happen.** Six durations changed
+   and not one baseline byte moved: a golden photographs the end state, not the
+   tween. Recorded in §20.1 as a limit — no golden can catch a duration
+   regression.
+
+### Also weaker than it reads, and left as written
+
+"…and STOPS under reduced motion" is satisfied by `repeat: false` alone: a
+non-repeating Lottie runs a plain controller, so the framework's 5 % scale
+finishes it inside the 400 ms pump. The iOS-alone, mid-session and
+no-Lottie assertions each catch what it misses, so the *suite* is sound — but the
+assertion does not prove what its name claims, and saying so is cheaper than
+pretending otherwise.
+
+## What this slice did NOT do, and why
+
+- **The story-dwell fix** — unreproduced; see above.
+- **The framework's iOS blindness** — `_animateToInternal` reads
+  `disableAnimations`, which no Darwin embedder sets. Our own animations honour
+  both flags; route transitions and implicit `AnimatedX` still do not, on iOS.
+  There is no supported override. **§21 row 33.**
+- **No test-suite simplification.** A static loader does *not* let
+  `pumpAndSettle` replace the 18 hand-rolled `settle()` ladders: a pending
+  `Future.delayed` schedules no frame, so `pumpAndSettle` returns **early** with
+  the screen still loading — a loud timeout traded for a silent wrong-state pass.
+- **A6's snackbar 3/6/10 s stay out of scope** (§15 owns them).
+- **§12's "~300 ms" spinner heuristic is not a motion token**, despite colliding
+  numerically with `motionEmphasis`.
+
+## Definition of done — met
+
+Rows 8 & 20 → **0** with the counts corrected rather than restated · both pins
+green, reds recorded · reduced motion honoured on **both** platforms, with the
+residue recorded as row 33 · the loader static, labelled and now **goldened** ·
+the splash frozen with its 3800 ms intact · §9 rewritten + §9.1 added · §13
+cross-referenced · §20 gains a motion row · §20.1's loader caveat halved · web
+vitest green (485) · mobile 727 · `analyze` 0 · ROADMAP (French).
