@@ -186,5 +186,76 @@ void main() {
         reason: 'use AppTheme.icon* (XS/S/M/L/XL = 16/20/24/32/64)',
       );
     });
+
+    // ── A8: motion is a token too (SYSTEM.md §9, §21 row 8).
+    //
+    // **Scoped to `screens/` + `widgets/`, and the scope is the whole design.**
+    // The obvious pin — `duration:` and `Duration(` on one line — was measured
+    // and REJECTED: after A8's reduced-motion sweep three of its eight hits had
+    // become ternaries (`duration: reduceMotionOf(context) ? … : const
+    // Duration(…)`), so a line-anchored pin would have gated the code A8 did not
+    // touch and waved through every line it did. A pin that a sweep can walk out
+    // of is not a pin.
+    //
+    // So it matches the LITERAL, not the argument — and pays for that with a
+    // scope. `services/mock/` latency, `AppConstants.mockDelay` and the two
+    // `Timer` cooldowns are durations that never move a pixel; they live outside
+    // these two directories and are simply not in view. The three non-motion
+    // millisecond literals that DO live here carry a `// ds-ignore` with a
+    // reason on the line above, which is the point of the escape hatch: an
+    // exception you can read beats a rule that quietly does not apply.
+    //
+    // `Duration(seconds:` is deliberately out of scope, not overlooked: §9's
+    // five tokens are 50–400 ms, so nothing measured in seconds can be one of
+    // them. The story reel's 6 s dwell and the splash's 3800 ms are content
+    // timers, not motion — the same distinction §12 draws for its "~300ms"
+    // spinner heuristic, which is also not a token.
+    final animationFiles = dartFiles
+        .where(
+            (f) => f.path.contains('/screens/') || f.path.contains('/widgets/'))
+        .toList();
+
+    List<String> animationOffenders(RegExp pattern) {
+      final hits = <String>[];
+      for (final file in animationFiles) {
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          if (lines[i].contains('// ds-ignore')) continue;
+          if (pattern.hasMatch(lines[i])) {
+            hits.add('${file.path}:${i + 1}  ${lines[i].trim()}');
+          }
+        }
+      }
+      return hits;
+    }
+
+    test('the pin has files to look at', () {
+      // `dartFiles` is built from a relative `Directory('lib')`. If that ever
+      // resolves to nothing the two tests below pass on an empty list and read
+      // as a clean sweep — the failure mode this whole register exists to stop.
+      expect(animationFiles.length, greaterThan(100),
+          reason: 'the animation pins are scanning an empty or truncated set');
+    });
+
+    test('motion duration is a token — no raw milliseconds (§9)', () {
+      expect(
+        animationOffenders(RegExp(r'Duration\(milliseconds:')),
+        isEmpty,
+        reason: 'use AppTheme.motion* (Stagger/Fast/Base/Emphasis/Slow = '
+            '50/100/200/300/400ms). A hand-written number is how 240ms and '
+            '220ms came to sit next to 200ms doing the same job.',
+      );
+    });
+
+    test('motion curve is a token — no raw Curves.* (§9)', () {
+      expect(
+        animationOffenders(RegExp(r'Curves\.')),
+        isEmpty,
+        reason: 'each §9 token names its curve: use AppTheme.motion*Curve. '
+            'The pairing is the rule — entering decelerates, exiting '
+            'accelerates — and a bare Curves.easeIn on an ENTERING fade is '
+            'exactly the inversion the tokens exist to prevent.',
+      );
+    });
   });
 }
