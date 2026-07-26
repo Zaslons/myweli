@@ -77,7 +77,7 @@ even right". Owner decision: fix these here.
 | **The Mobile Money number is unvalidated** | `deposit_settings_screen.dart:321` — the field that decides where deposits land |
 | **Two `PhoneNumberField`s can never validate** | `login_screen:331`, `client_list_screen:373` sit outside any `Form`, so the package's own validator never runs |
 | **`Validators.phoneNumber` / `.otp` / `.required`** | zero callers; 7 inline `required` duplicates instead |
-| **No `errorStyle`, no `errorMaxLines`** | `inputDecorationTheme` defines the error *borders* but not the text: `errorMaxLines` defaults to **1**, so every §17-compliant French sentence clips — a §13.3 failure at 200 % |
+| **`errorMaxLines` defaults to 1** | `inputDecorationTheme` defines the error *borders* but never bounded the error TEXT, so every §17-compliant French sentence is amputated mid-instruction — a §13.3 failure at 200 % |
 
 ## Why not the SDK
 
@@ -142,8 +142,17 @@ copies. Every inline regex dies with it.
 
 ### `inputDecorationTheme` — `mobile/lib/core/theme/app_theme.dart`
 
-Gains `errorStyle` (through the same `f(...)` scale wrapper every other style in
-that theme uses) and `errorMaxLines`.
+Gains **`errorMaxLines: 3`**, and nothing else.
+
+**A correction to this spec's own first draft.** It claimed the error text was
+"the one style in this theme with no token behind it" and added an `errorStyle`
+to fix that. Then the gate written to hold the change stayed green when the
+change was removed — theatre — so the style was measured directly: **byte for
+byte identical** with and without (`Roboto/12.0/#8B0000/1.333/0.4/w400`). A3's
+full `ColorScheme.error` and `textTheme.bodySmall` already resolve to exactly
+it. The `errorStyle` was deleted; dead configuration that agrees with its own
+default is a comment pretending to be a decision. Only `errorMaxLines` was ever
+real, and its gate goes red when it is removed.
 
 ## The three amendments §14 gains
 

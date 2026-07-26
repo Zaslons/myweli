@@ -258,6 +258,20 @@ class AppTheme {
         hintStyle: f(
           AppTextStyles.bodyMedium.copyWith(color: AppColors.textTertiary),
         ),
+        // A7 — §13.3. `errorMaxLines` defaults to **1**, so a §17-compliant
+        // French sentence (« Le numéro doit comporter 10 chiffres (ex : 07 07
+        // 12 34 56). ») was ellipsised on a narrow field and amputated at
+        // 200 %: the message telling the user how to fix the form was the one
+        // message they could not finish reading.
+        //
+        // No `errorStyle` here, deliberately. A7 added one and then MEASURED
+        // it: the rendered style is byte-identical without it, because A3's
+        // full `ColorScheme` (`error`) and `textTheme` (`bodySmall`, already
+        // through `f(...)`) resolve to exactly the same thing. The spec's first
+        // draft claimed the error text was untokened — it was not, and dead
+        // configuration that agrees with its default is a comment pretending to
+        // be a decision.
+        errorMaxLines: 3,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

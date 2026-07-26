@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 
+/// Design: docs/design/mobile-a7-forms.md · SYSTEM.md §14, §11.1.
+///
+/// [errorText] is **the contract for validation** (§11.1). It is fed by a
+/// [FieldErrors] map, never by a `validator:` — see `core/forms/field_errors.dart`
+/// for why Flutter's own mechanism cannot express §14 rule 2, and note that a
+/// `validator` result silently *overwrites* `decoration.errorText`
+/// (`text_form_field.dart:218`), which is what made mixing the two a bug.
 class AppTextField extends StatelessWidget {
   final String? label;
   final String? hint;
@@ -17,6 +24,11 @@ class AppTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
+
+  /// A7: so a failed submit can put the caret in the field it is complaining
+  /// about (§13.5 + §14's focus amendment). There was no way to reach the field
+  /// from outside before this.
+  final FocusNode? focusNode;
 
   const AppTextField({
     super.key,
@@ -34,12 +46,14 @@ class AppTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.validator,
+    this.focusNode,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       onChanged: onChanged,
       keyboardType: keyboardType,
       obscureText: obscureText,
