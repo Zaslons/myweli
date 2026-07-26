@@ -8,14 +8,17 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/validators.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/google_g_logo.dart';
+import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/team/invitation_card.dart';
 
 /// Salon sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
@@ -57,8 +60,14 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     });
   }
 
-  bool get _emailValid => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-      .hasMatch(_emailController.text.trim());
+  // A7/§14 — the third copy of the loose e-mail regex, gone.
+  late final _errors = FieldErrors({
+    'email': Validators.email,
+    'code': Validators.otp,
+  });
+  final _emailFocus = FocusNode();
+  final _codeFocus = FocusNode();
+  late final _focusNodes = {'email': _emailFocus, 'code': _codeFocus};
 
   bool get _showApple =>
       FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
@@ -68,6 +77,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     _cooldownTimer?.cancel();
     _emailController.dispose();
     _codeController.dispose();
+    _emailFocus.dispose();
+    _codeFocus.dispose();
     super.dispose();
   }
 
@@ -141,6 +152,12 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   }
 
   Future<void> _sendCode() async {
+    // §14 rule 5: the button is never disabled for validity, so it answers.
+    if (!_errors.validate({'email': _emailController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
     final auth = context.read<ProAuthProvider>();
     final ok = await auth.requestEmailOtp(_emailController.text.trim());
     if (!mounted) return;
@@ -154,6 +171,11 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   }
 
   Future<void> _verifyCode() async {
+    if (!_errors.validate({'code': _codeController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
     final auth = context.read<ProAuthProvider>();
     final ok = await auth.verifyEmailOtp(
       _emailController.text.trim(),
@@ -269,16 +291,19 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                 const SizedBox(height: AppTheme.spacingL),
                 AppTextField(
                   controller: _emailController,
+                  focusNode: _emailFocus,
                   label: 'Votre e-mail',
                   hint: 'exemple@email.com',
                   keyboardType: TextInputType.emailAddress,
-                  onChanged: (_) => setState(() {}),
+                  errorText: _errors['email'],
+                  onChanged: (v) =>
+                      setState(() => _errors.revalidate('email', v)),
                 ),
                 const SizedBox(height: AppTheme.spacingM),
                 AppButton(
                   text: 'Continuer avec e-mail',
-                  onPressed:
-                      (auth.isLoading || !_emailValid) ? null : _sendCode,
+                  // §14 rule 5: disabled ONLY while submitting.
+                  onPressed: auth.isLoading ? null : _sendCode,
                   isLoading: auth.isLoading,
                 ),
               ] else if (_step == _Step.invitations) ...[
@@ -330,10 +355,13 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                 const SizedBox(height: AppTheme.spacingL),
                 AppTextField(
                   controller: _codeController,
+                  focusNode: _codeFocus,
                   label: 'Code à 6 chiffres',
                   keyboardType: TextInputType.number,
                   maxLength: 6,
-                  onChanged: (_) => setState(() {}),
+                  errorText: _errors['code'],
+                  onChanged: (v) =>
+                      setState(() => _errors.revalidate('code', v)),
                 ),
                 if (auth.emailDevCode != null) ...[
                   const SizedBox(height: AppTheme.spacingXS),
@@ -348,10 +376,9 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                 const SizedBox(height: AppTheme.spacingM),
                 AppButton(
                   text: 'Se connecter',
-                  onPressed:
-                      (auth.isLoading || _codeController.text.trim().length < 4)
-                          ? null
-                          : _verifyCode,
+                  // The gate said 4 on a « Code à 6 chiffres » field with
+                  // maxLength 6. Rule 5: disabled only while submitting.
+                  onPressed: auth.isLoading ? null : _verifyCode,
                   isLoading: auth.isLoading,
                 ),
                 const SizedBox(height: AppTheme.spacingSM),
@@ -373,15 +400,9 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                       : () => setState(() => _step = _Step.options),
                 ),
               ],
-              if (auth.error != null) ...[
-                const SizedBox(height: AppTheme.spacingSM),
-                Text(
-                  auth.error!,
-                  style:
-                      AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+              // §14 rule 3 + §15: a server OUTCOME is form-level, and
+              // `InlineFeedback` is a live region — a red Text never was.
+              InlineFeedback(auth.error),
               if (notFound) ...[
                 const SizedBox(height: AppTheme.spacingS),
                 AppButton(
