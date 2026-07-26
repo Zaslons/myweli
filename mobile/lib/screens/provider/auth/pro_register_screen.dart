@@ -45,6 +45,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   final _addressFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _codeFocus = FocusNode();
+  // `businessType` and `phone` have no text field of their own to focus, so
+  // they are absent by design — `focusFirstError` no-ops for them and the
+  // message still renders in place. Named here so the gap is a decision, not
+  // an oversight (the review flagged it as one).
   late final _focusNodes = {
     'businessName': _businessNameFocus,
     'address': _addressFocus,
@@ -415,7 +419,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 AppButton(
                   text: 'Renvoyer le code',
                   type: AppButtonType.text,
-                  onPressed: auth.isLoading ? null : _sendCode,
+                  // The SAME defect, one button over — found writing the gate.
+                  // The e-mail field stays editable on the code step, so this
+                  // re-sent to whatever it now holds, unchecked.
+                  onPressed: auth.isLoading ? null : _sendCodeChecked,
                 ),
               ],
               if (auth.error != null) ...[

@@ -295,15 +295,25 @@ user made the selection, on six screens (§14 rule 2 applies to those too) ·
 add-client sheet overflowed at 200 % once its errors rendered — the same defect
 the invite sheet had, which I fixed there and did not think to look for here.
 
-**The gate §20 claimed now exists.** `test/widget/form_answers_test.dart` and a
-new `FieldErrors.unvalidatedKeys` hold the invariant that makes the whole class
-impossible: *a declared rule is an enforced rule*. Writing it was the honest
-order — the docs promised it before it existed, which is why nothing caught any
-of this.
+**The gate §20 claimed — at the second attempt.** The first attempt
+(`FieldErrors.unvalidatedKeys`) was theatre: five references in the repo, none
+of them pumping a screen, so it proved the CLASS could compute a set difference
+while the defect class is a SCREEN-level omission. A second review caught it and
+it was deleted, by the same "zero-caller API must go" principle A7⑥ applied to
+`AppTextField.validator`. What replaced it is behavioural and per funnel — six
+of them, each mutation-proven red — plus §21 row 32 carrying the honest 6-of-17
+remainder. The lesson is the slice's own: **a gate you have not watched fail is
+not a gate**, and a docs claim written before the gate exists is the same defect
+row 19 describes, one level up.
 
-**Still open, recorded not fixed:** `PhoneNumberField` passes
-`invalidNumberMessage`, so `intl_phone_field` runs its own validator alongside
-`FieldErrors` and the two rules can disagree · the strict e-mail regex rejects
+**`PhoneNumberField`'s second validator turned out to be LIVE, not latent** —
+and the triage that called it cosmetic rested on a false comment in that file
+claiming the package's check "could never fire" outside a `Form`. Measured: it
+defaults to `onUserInteraction`, needs no `Form`, fires from the first keystroke
+on all five call sites, and its message *replaces* the app's. Fixed with
+`autovalidateMode: disabled`.
+
+**Still open, recorded not fixed:** the strict e-mail regex rejects
 apostrophes in the local part · `service_form`'s « supérieur » message accepts
 equal values · `pro_register` still uses a hand-rolled red `Text` for its server
 outcome where its three sibling funnels use `InlineFeedback`.

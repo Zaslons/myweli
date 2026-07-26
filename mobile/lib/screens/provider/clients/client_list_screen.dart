@@ -348,7 +348,8 @@ class _AddClientSheetState extends State<_AddClientSheet> {
   Future<void> _submit() async {
     // §14 rule 5: the button is no longer disabled on empty fields, so the
     // press has to answer. The phone rule is new too — this field sits outside
-    // any Form, so `intl_phone_field`'s own check could never run here.
+    // any Form — though not for the reason A7 gave: its "the package's check
+    // could never run here" was measured false. See phone_number_field.dart.
     final ok = _errors.validate({
       'name': _nameController.text,
       'phone': _phone,

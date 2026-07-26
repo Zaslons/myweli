@@ -2,75 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/forms/field_errors.dart';
 import 'package:myweli/core/utils/validators.dart';
 
-/// A7 — **the gate §20 claimed before it existed.**
+/// A7 — the small contracts on `FieldErrors` that the per-funnel tests rely on.
 ///
-/// The slice's own adversarial review found six high-severity defects, and four
-/// of them share one shape: a screen declares a rule in its `FieldErrors` map,
-/// binds `errorText` to it, wires `revalidate` — and never calls `validate` on
-/// submit. The rule never runs, the `errorText` is structurally unreachable, and
-/// because A7 also removed the disabled-button gate under §14 rule 5, the press
-/// now *succeeds* where it used to be blocked.
+/// **This file used to be bigger, and the bigger version was theatre.** A7's
+/// fix commit added a `FieldErrors.unvalidatedKeys` getter and four assertions
+/// here, and claimed it was "the invariant that makes the whole class
+/// impossible". The second review measured it: five references in the entire
+/// repo — the getter plus these four assertions — and not one of them pumped a
+/// screen. It proved the CLASS could compute a set difference; the defect class
+/// is a **screen-level omission**, so it could not see a single one of the four
+/// bugs it was written for. It was also unreadable from any screen (every
+/// `_errors` is private state) and its invariant was false on two correct flows.
 ///
-/// That is precisely the pathology row 19 exists to kill (`invite_member_sheet`
-/// shipped it for months), re-created by a mechanical sweep. The per-funnel
-/// widget tests the docs promised would have caught it; they did not exist.
-///
-/// This file is the **structural** half, and it is deliberately cheap: it holds
-/// the invariant that makes the pathology impossible, without needing a live
-/// router, provider stack and service seam per funnel. The behavioural half —
-/// submit-invalid renders under the field and raises no `SnackBar` — lives with
-/// each funnel's own test (see `invite_member_sheet_test.dart`).
+/// A7⑥ deleted `AppTextField.validator` on the principle that a zero-caller API
+/// must go. The getter got the same treatment, and the real gate is behavioural,
+/// per funnel — see `login_screen_test.dart` and the five other funnel files §20 names.
 void main() {
-  /// Every key a screen DECLARES must be a key it VALIDATES. A declared-but-
-  /// never-validated rule is a lie: the field wears an `errorText` that cannot
-  /// be populated, and after rule 5 nothing else is holding the door.
-  ///
-  /// Expressed as a contract on `FieldErrors` itself, so it holds for every
-  /// screen without needing to pump one: if a caller only ever submits a subset
-  /// of its declared keys, the keys it skips are silently unenforced.
-  group('a declared rule is an enforced rule', () {
-    test('validate() reports which declared keys it has never judged', () {
-      final errors = FieldErrors({
-        'email': Validators.email,
-        'code': Validators.otp,
-        'phone': Validators.phoneNumber,
-      });
-
-      // The bug shape: two steps each submit their own field, and a third rule
-      // rides along declared but unreachable.
-      errors.validate({'email': 'awa@exemple.ci'});
-      errors.validate({'code': '123456'});
-
-      expect(errors.unvalidatedKeys, {'phone'},
-          reason: 'login_screen declared a phone rule, bound errorText to it, '
-              'and never submitted it — so an empty phone sailed through the '
-              'MANDATORY contact step and the message could never render');
-    });
-
-    test('a fully-submitted form leaves nothing unenforced', () {
-      final errors = FieldErrors({
-        'name': Validators.name,
-        'phone': Validators.phoneNumber,
-      });
-      errors.validate({'name': 'Awa', 'phone': '+2250707123456'});
-      expect(errors.unvalidatedKeys, isEmpty);
-    });
-
-    test('a subset submit is legal — it just has to happen eventually', () {
-      final errors = FieldErrors({
-        'email': Validators.email,
-        'code': Validators.otp,
-      });
-      errors.validate({'email': 'awa@exemple.ci'});
-      expect(errors.unvalidatedKeys, {'code'},
-          reason: 'mid-funnel this is expected; the gate is that the LAST step '
-              'leaves it empty');
-      errors.validate({'code': '123456'});
-      expect(errors.unvalidatedKeys, isEmpty);
-    });
-  });
-
-  /// The second half of the same defect: a fault that is computed but has
+  /// A fault that is computed but has
   /// nowhere to render. `pro_register` blocked its submit on a missing
   /// « Type d'entreprise » and rendered the message nowhere — a press that does
   /// literally nothing, which is worse than the disabled button rule 5 removed.
