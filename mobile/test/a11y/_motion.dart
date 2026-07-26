@@ -86,63 +86,16 @@ void setReducedMotion(
 /// modes, and prove nothing.
 const Duration kOneFrame = Duration(milliseconds: 16);
 
-/// Assert that [child] animates with motion on and **does not** with motion off.
-///
-/// **Two-legged on purpose.** The motion-OFF leg alone is vacuous: a widget that
-/// never animated at all would sail through it. The motion-ON leg is what makes
-/// the gate mean something — it proves there was motion here to stop.
-///
-/// This is the same trap `_a11y.dart` names for text scale (*"unbounded, nothing
-/// can overflow and the gate is vacuous"*) and the same distinction
-/// `app_snack_bar_test.dart:52` draws: what we ASKED for is not what happened.
-///
-/// [trigger] must start the animation (a tap, a `setState`); [measure] returns
-/// the geometry that changes — a height, a width, an offset.
-Future<void> expectHonoursReducedMotion(
-  WidgetTester tester, {
-  required Widget Function() build,
-  required Future<void> Function(WidgetTester) trigger,
-  required double Function(WidgetTester) measure,
-  List<SingleChildWidget>? providers,
-}) async {
-  // ── Leg 1: motion ON. One frame in, it must be MID-FLIGHT.
-  await pumpApp(tester, providers: providers, home: Scaffold(body: build()));
-  await tester.pump();
-  final restingOn = measure(tester);
-
-  await trigger(tester);
-  await tester.pump(); // start the tween
-  await tester.pump(kOneFrame);
-  final oneFrameIn = measure(tester);
-
-  await tester.pump(const Duration(milliseconds: 400)); // well past any token
-  final settledOn = measure(tester);
-
-  expect(
-    settledOn,
-    isNot(closeTo(restingOn, 0.5)),
-    reason: 'the trigger changed nothing — this gate has no subject, and its '
-        'reduced-motion leg would pass for a widget that never animates',
-  );
-  expect(
-    oneFrameIn,
-    isNot(closeTo(settledOn, 0.5)),
-    reason: 'one 16ms frame already reached the end state WITH motion on, so '
-        'the reduced-motion leg below cannot distinguish anything. Either the '
-        'animation is shorter than a frame or it is not running.',
-  );
-
-  // ── Leg 2: motion OFF. The same single frame must already be settled.
-  await pumpWithReducedMotion(tester, build(), providers: providers);
-  await trigger(tester);
-  await tester.pump();
-  await tester.pump(kOneFrame);
-  final oneFrameOff = measure(tester);
-
-  expect(
-    oneFrameOff,
-    closeTo(settledOn, 0.5),
-    reason: 'a user who asked the OS to stop animating still watched this move '
-        '(§9). One 60fps frame must land on the end state.',
-  );
-}
+// `expectHonoursReducedMotion` used to live here — 48 lines of two-legged
+// geometry harness carrying this file's most emphatic doctrine, and **zero
+// call sites**. It is deleted, for the reason A7's fix commit deleted
+// `FieldErrors.unvalidatedKeys`: a zero-caller API is not infrastructure, it
+// is a claim about work that was never done.
+//
+// The doctrine survives where it belongs — in the gates themselves. Every
+// reduced-motion assertion in `motion_test.dart` is two-legged against the
+// measure that actually discriminates for its subject: `hasScheduledFrame` for
+// the loader, `PageController.page` for the story reel (a generic geometry
+// probe would have passed a reel that jumped for everybody), and the presence
+// of the caption at 2x text for the loader's bound. The abstraction fit none
+// of them, which is precisely why it had no callers.

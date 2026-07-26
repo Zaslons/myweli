@@ -392,6 +392,28 @@ void main() {
               'which is the half that matters for §13');
     });
 
+    testWidgets('the INLINE cut is a bare mark — no caption, still labelled',
+        (tester) async {
+      // `fast` marks the inline case (a button, a list footer, a 60px
+      // thumbnail), and it is what keeps the caption out of boxes that cannot
+      // hold it. Until now only the Linux-only golden covered this half, so on
+      // a developer's Mac it was asserted by nothing.
+      final handle = tester.ensureSemantics();
+      await pumpWithReducedMotion(
+        tester,
+        const BrandLoader(fast: true),
+      );
+
+      expect(find.text('Chargement…'), findsNothing,
+          reason: 'no room for a caption inside a button');
+      expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
+          reason: 'but a screen reader must still be told — that half is not '
+              'conditional on the cut');
+      expect(find.byType(LottieBuilder), findsNothing,
+          reason: 'the fast cut is a Lottie too, and it repeats too');
+      handle.dispose();
+    });
+
     testWidgets('…and still shows it when there IS room, at 2× text',
         (tester) async {
       // The other half: a computed bound that under-provisions is register

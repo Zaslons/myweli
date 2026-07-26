@@ -298,6 +298,13 @@ class _UploadingTile extends StatelessWidget {
             height: 28,
             child: CircularProgressIndicator(
               strokeWidth: 3,
+              // A track, because the arc at 0 % draws NOTHING:
+              // `progress_indicator.dart:673` sweeps `value * _sweep`
+              // and `:1130` leaves `trackColor` null unless one is
+              // given. Under reduced motion this box holds still at 0,
+              // so "a still arc" had to become true rather than stay
+              // a comment about an empty rectangle.
+              backgroundColor: AppColors.border,
               // §9/A8: the null fallback is an INDETERMINATE spinner, and
               // `repeat()` is exactly what the framework scale cannot reach.
               // Under the flag it holds a still 0 % arc — and the

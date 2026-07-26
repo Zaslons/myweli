@@ -25,22 +25,28 @@ class _ProSplashScreenState extends State<ProSplashScreen>
   @override
   void initState() {
     super.initState();
+    // §9 by its USE column, not by nearest number. A logo fading in is an
+    // *entering surface* → `motionEmphasis`, whose curve decelerates. The
+    // first pass took `motionSlow` because 1500 is numerically nearest to 400
+    // — and `easeInOutCubic` still eases IN, so it swapped one violation of
+    // "entering decelerates" for a quieter one. Proximity only breaks ties
+    // WITHIN a use.
     _controller = AnimationController(
-      duration: AppMotion.slow,
+      duration: AppMotion.emphasis,
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: AppMotion.slowCurve),
+        curve: const Interval(0.0, 0.6, curve: AppMotion.emphasisCurve),
       ),
     );
 
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: AppMotion.slowCurve),
+        curve: const Interval(0.0, 0.6, curve: AppMotion.emphasisCurve),
       ),
     );
 
