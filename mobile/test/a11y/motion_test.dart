@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie/lottie.dart';
+import 'package:myweli/screens/splash/splash_screen.dart';
+import 'package:myweli/screens/stories/story_viewer.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 
 import '../support/pump_app.dart';
@@ -222,6 +224,132 @@ void main() {
           reason: 'no ReduceMotionObserver above it, and it must still stop. '
               'Fail-safe, not fail-broken: a missing scope costs reactivity, '
               'never correctness.');
+    });
+  });
+
+  /// The three defects the adversarial review found, gated before they were
+  /// fixed — every one of them in code A8 itself wrote, and every one of them
+  /// in a reduced-motion path that `BrandLoader` gates could never reach.
+  ///
+  /// That is the lesson of this group: ①–①c all pumped ONE widget. Six
+  /// `reduceMotionOf` call sites shipped, five of them asserted by nothing.
+  group('§9.1 — the OTHER call sites, which nothing was pumping', () {
+    testWidgets('the story reel ADVANCES under the flag instead of throwing',
+        (tester) async {
+      // `Duration.zero` is legal for `Scrollable.ensureVisible`
+      // (`scroll_position.dart:872` jumps explicitly) and **illegal** for
+      // `PageController`: `animateToPage` → `position.animateTo` →
+      // `DrivenScrollActivity`, whose constructor is
+      // `assert(duration > Duration.zero)` (`scroll_activity.dart:705`).
+      // `_PagePosition` overrides `ensureVisible` and `jumpTo`, never
+      // `animateTo`, so nothing short-circuits it.
+      //
+      // A8 read one API's behaviour and generalised it to the other. The cost
+      // is that every story reel throws on its first advance for exactly the
+      // users the slice was written for.
+      await pumpWithReducedMotion(
+        tester,
+        const SizedBox.shrink(),
+      );
+      await tester.pumpWidget(
+        wrapApp(
+          home: const StoryViewer(
+            stories: [
+              StoryItem(
+                id: 'a',
+                title: 'Un',
+                assetPath: 'assets/images/stories/promo_weekend.svg',
+              ),
+              StoryItem(
+                id: 'b',
+                title: 'Deux',
+                assetPath: 'assets/images/stories/nouveaux_salons.svg',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Tap the right 65 % — `_onTapDown`'s advance.
+      await tester.tapAt(const Offset(700, 400));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull,
+          reason: 'the reel must advance instantly, not assert. Zero duration '
+              'is a jump for ensureVisible and a crash for PageController.');
+    });
+
+    testWidgets('the splash SHOWS the brand instead of a blank screen',
+        (tester) async {
+      // The bug ②/⑤ already fixed in `BrandLoader`, shipped one file over:
+      // `animate: false` holds composition frame 0, and in
+      // `myweli_loader_mixed.json` every layer is either opacity 0 at t=0 or
+      // not in-point until frame 54. Under the flag the splash was
+      // `#FAFAFA` and nothing else for the full 3800 ms hold.
+      //
+      // Asserting the CONTROLLER is what makes this a gate rather than a
+      // restatement: a pinned progress is the only thing that both stops the
+      // ticker and lands on a frame with ink in it.
+      await pumpWithReducedMotion(tester, const SizedBox.shrink());
+      await tester.pumpWidget(wrapApp(home: const SplashScreen()));
+      await tester.pump();
+
+      final lottie = tester.widget<LottieBuilder>(find.byType(LottieBuilder));
+      expect(lottie.controller, isNotNull,
+          reason: 'frame 0 of this composition is an EMPTY canvas — freezing '
+              'it renders a blank splash. The progress must be pinned to a '
+              'frame that has the mark on it.');
+      expect(lottie.controller!.value, greaterThan(0.0),
+          reason:
+              'pinned to frame 0 is the same blank screen with extra steps');
+      expect(tester.binding.hasScheduledFrame, isFalse,
+          reason: 'and it must still not animate');
+    });
+
+    testWidgets('the caption never overflows a box too small to hold it',
+        (tester) async {
+      // `LoadingIndicator` never passes `fast`, so all ~50 of its call sites
+      // take the caption branch — including a 60×60 avatar placeholder
+      // (`artist_selection_screen.dart:375`). 40 mark + 8 gap + 16 line = 64,
+      // and « Chargement… » is wider than 60 so it wraps to 32: an ~20px
+      // RenderFlex overflow while avatars load.
+      //
+      // Fixing the one call site is not enough — the next 60px box re-creates
+      // it. The widget measures instead.
+      await pumpWithReducedMotion(
+        tester,
+        const SizedBox(width: 60, height: 60, child: BrandLoader()),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull,
+          reason: 'a loading state that throws is worse than one that does '
+              'not explain itself');
+      expect(find.text('Chargement…'), findsNothing,
+          reason: 'no room for it — and the Semantics label still says it, '
+              'which is the half that matters for §13');
+    });
+
+    testWidgets('…and still shows it when there IS room, at 2× text',
+        (tester) async {
+      // The other half: a computed bound that under-provisions is register
+      // row 15's exact failure, so the gate checks the scale that breaks it.
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pumpWithReducedMotion(
+        tester,
+        const SizedBox(width: 200, height: 200, child: BrandLoader()),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull,
+          reason: 'the caption must fit at 2× in a box that claims to hold it');
+      expect(find.text('Chargement…'), findsOneWidget,
+          reason: 'over-provisioning is the other way a computed bound rots — '
+              'a 200px box has room for a 48px mark and one line of text');
     });
   });
 
