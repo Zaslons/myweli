@@ -4,9 +4,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/provider.dart' as models;
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_salon_profile_provider.dart';
@@ -43,6 +45,32 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   static const LatLng _defaultCenter = LatLng(5.336, -4.026);
 
   final _name = TextEditingController();
+
+  // A7/§14 — the salon's contact numbers reach real clients, and nothing
+  // checked them.
+  //
+  // **E.164, not local digits.** The review caught this as a LOCKOUT: these
+  // controllers are prefilled from the stored value, which openapi.yaml:1334-5
+  // specifies as E.164 (`+225 …`). A 10-digit rule can never match it, so the
+  // salon could not save its profile again — the rule would have failed on data
+  // the app itself had just loaded.
+  late final _errors = FieldErrors({
+    'name': Validators.requiredField('le nom du salon'),
+    'phone': Validators.phoneNumber,
+    'whatsapp': _optionalPhone,
+  });
+  final _nameFocus = FocusNode();
+  final _phoneFocus = FocusNode();
+  final _whatsappFocus = FocusNode();
+  late final _focusNodes = {
+    'name': _nameFocus,
+    'phone': _phoneFocus,
+    'whatsapp': _whatsappFocus,
+  };
+
+  /// WhatsApp is optional — blank passes, anything typed must be a real number.
+  static String? _optionalPhone(String value) =>
+      value.trim().isEmpty ? null : Validators.phoneNumber(value);
   final _description = TextEditingController();
   final _address = TextEditingController();
   final _phone = TextEditingController();
@@ -84,6 +112,9 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       _whatsapp,
     ]) {
       c.dispose();
+    }
+    for (final f in [_nameFocus, _phoneFocus, _whatsappFocus]) {
+      f.dispose();
     }
     super.dispose();
   }
@@ -153,9 +184,18 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) {
-      return AppSnackBar.show(context, 'Le nom est requis',
-          kind: SnackKind.error);
+    // A7/§14 rule 3: « Le nom est requis » was a SNACKBAR — a field-level fault
+    // in a bar that vanishes on a timer, without saying which field or
+    // scrolling to it. The phone and WhatsApp numbers had no rule at all.
+    final valid = _errors.validate({
+      'name': _name.text,
+      'phone': _phone.text,
+      'whatsapp': _whatsapp.text,
+    });
+    setState(() {});
+    if (!valid) {
+      focusFirstError(_errors, _focusNodes);
+      return;
     }
     final profile = context.read<ProSalonProfileProvider>();
     final ok = await profile.save(_providerId!, {
@@ -215,7 +255,13 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppTheme.spacingM),
             children: [
-              AppTextField(label: 'Nom du salon', controller: _name),
+              AppTextField(
+                label: 'Nom du salon',
+                controller: _name,
+                focusNode: _nameFocus,
+                errorText: _errors['name'],
+                onChanged: (v) => setState(() => _errors.revalidate('name', v)),
+              ),
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'Description',
@@ -256,12 +302,20 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
               AppTextField(
                 label: 'Téléphone',
                 controller: _phone,
+                focusNode: _phoneFocus,
+                errorText: _errors['phone'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('phone', v)),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'WhatsApp (optionnel)',
                 controller: _whatsapp,
+                focusNode: _whatsappFocus,
+                errorText: _errors['whatsapp'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('whatsapp', v)),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: AppTheme.spacingM),

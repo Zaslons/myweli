@@ -16,6 +16,7 @@ import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/inline_feedback.dart';
 
 class BookingDraft {
   final String providerId;
@@ -343,17 +344,27 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     return null;
   }
 
+  /// A7/§14: two SELECTION faults with no field to own them, so they land
+  /// form-level. Both were snackbars, and both were DEAD — `canConfirm` was the
+  /// exact conjunction of their negations, so neither could ever fire.
+  /// §14 rule 2 applies to selection faults too: cleared the moment the user
+  /// changes the selection, not on the next submit. The review found the stale
+  /// message surviving on six screens, which reads as a form that has stopped
+  /// listening.
+  String? _selectionError;
+
   Future<void> _confirm(models.Provider p) async {
     if (_draft.serviceIds.isEmpty) {
-      AppSnackBar.show(context, 'Choisissez au moins un service',
-          kind: SnackKind.error);
+      setState(() =>
+          _selectionError = 'Choisissez au moins un service pour continuer.');
       return;
     }
     if (_draft.dateTime == null) {
-      AppSnackBar.show(context, 'Choisissez une date et une heure',
-          kind: SnackKind.error);
+      setState(() =>
+          _selectionError = 'Choisissez une date et une heure pour continuer.');
       return;
     }
+    setState(() => _selectionError = null);
 
     final qs = <String, String>{
       'providerId': widget.providerId,
@@ -401,8 +412,6 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
 
           final totalPrice = _totalPrice(p);
           final totalDuration = _totalDurationMinutes(p);
-          final canConfirm =
-              _draft.serviceIds.isNotEmpty && _draft.dateTime != null;
 
           return Padding(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -482,6 +491,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     // new selection.
                                     final selected = _selectedServices(p);
                                     if (!bookingHasVariants(selected)) {
+                                      _selectionError = null;
                                       _draft = _draft.copyWith(
                                           clearLengthVariant: true);
                                     } else if (_draft.lengthVariant == null ||
@@ -554,6 +564,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 durationFor: (length) => totalBookingDuration(
                                     _selectedServices(p), length),
                                 onChanged: (length) async {
+                                  _selectionError = null;
                                   setState(() => _draft =
                                       _draft.copyWith(lengthVariant: length));
                                   await _validateSelectedDateTime(
@@ -857,11 +868,14 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           ),
                         ),
                       ],
+                      InlineFeedback(_selectionError),
                       const SizedBox(height: AppTheme.spacingM),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: canConfirm ? () => _confirm(p) : null,
+                          // §14 rule 5 — and what makes the two messages above
+                          // reachable for the first time.
+                          onPressed: () => _confirm(p),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.secondary,

@@ -84,7 +84,13 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
   void _removePhoto(int index) => setState(() => _photoUrls.removeAt(index));
 
   Future<void> _submit() async {
-    if (_selectedRating < 1) return;
+    if (_selectedRating < 1) {
+      // The stars are a SELECTION — no field to sit under — so the fault lands
+      // form-level (§14's three-slot boundary). It used to be a dead « Publier »
+      // and a silent `return`: two ways of saying nothing.
+      setState(() => _error = 'Choisissez une note de 1 à 5 étoiles.');
+      return;
+    }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
@@ -146,7 +152,9 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
     final artists =
         context.watch<ProviderProvider>().selectedProvider?.artists ??
             const <Artist>[];
-    final canSubmit = _selectedRating >= 1 && !_submitting && !_uploadingPhoto;
+    // §14 rule 5: NOT gated on the rating. `_uploadingPhoto` and `_submitting`
+    // are work in progress, which is the rule's one allowed reason to disable.
+    final canSubmit = !_submitting && !_uploadingPhoto;
     return Padding(
       padding: const EdgeInsets.all(AppTheme.spacingL),
       child: Column(

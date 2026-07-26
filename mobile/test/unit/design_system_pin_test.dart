@@ -104,6 +104,39 @@ void main() {
       );
     });
 
+    // ── A7: validation has ONE mechanism (SYSTEM.md §14, §21 row 19).
+    //
+    // Measured at the slice's base (49d406a): `validator:` went red at **13**
+    // across 5 screens, and the loose inline e-mail regex at **5** copies. Both
+    // are usage pins — the failure is "you reached for Flutter's Form instead
+    // of FieldErrors", or "you wrote your own idea of a valid e-mail".
+    //
+    // `AppTextField` no longer declares `validator`, so the first rule also
+    // guards the deletion: re-adding the parameter is what would let callers
+    // come back.
+
+    test('validation goes through FieldErrors — no Form validators (§14)', () {
+      expect(
+        offenders(RegExp(r'(?:^|[^A-Za-z0-9_])validator:')),
+        isEmpty,
+        reason: 'a `validator:` cannot express §14 rule 2 (it fires on every '
+            'change once touched — the form that yells at `s@`), gives no '
+            'per-field map, and cannot carry a server fault to its field. '
+            'Worse, its result silently overwrites `decoration.errorText`, so '
+            'mixing the two erases pinned server errors. Use FieldErrors.',
+      );
+    });
+
+    test('one definition of a valid e-mail (§14)', () {
+      expect(
+        offenders(RegExp(r"RegExp\(r'\^\[\^@")),
+        isEmpty,
+        reason: 'five copies of the e-mail rule shipped in one app, and they '
+            'disagreed: the loose one accepted a single-character TLD the '
+            'strict one rejects. Validators.email is the definition.',
+      );
+    });
+
     test('spacing is a token — no raw SizedBox(height/width: N) (§5)', () {
       // Strict `)` so only single-arg SPACER boxes match; a multi-arg
       // `SizedBox(height: N, child: …)` is a *sized container* (a fixed

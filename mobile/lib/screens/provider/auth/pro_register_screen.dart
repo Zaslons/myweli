@@ -4,13 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
-import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
@@ -29,7 +30,27 @@ class ProRegisterScreen extends StatefulWidget {
 }
 
 class _ProRegisterScreenState extends State<ProRegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
+  // A7/§14 — declaration order IS the form's reading order, and the funnel
+  // validates one step at a time (that is what `validate`'s subset scoping is
+  // for: the identity step must not fail business fields, or vice versa).
+  late final _errors = FieldErrors({
+    'businessName': Validators.requiredField("le nom de l'entreprise"),
+    'businessType': Validators.requiredField("le type d'entreprise"),
+    'phone': Validators.phoneNumber,
+    'address': Validators.requiredField("l'adresse de l'entreprise"),
+    'email': Validators.email,
+    'code': Validators.otp,
+  });
+  final _businessNameFocus = FocusNode();
+  final _addressFocus = FocusNode();
+  final _emailFocus = FocusNode();
+  final _codeFocus = FocusNode();
+  late final _focusNodes = {
+    'businessName': _businessNameFocus,
+    'address': _addressFocus,
+    'email': _emailFocus,
+    'code': _codeFocus,
+  };
   final _businessNameController = TextEditingController();
   final _addressController = TextEditingController();
 
@@ -43,9 +64,6 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   String _phoneNumber = '';
   BusinessType? _selectedBusinessType;
   bool _codeSent = false;
-
-  bool get _emailValid => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-      .hasMatch(_emailController.text.trim());
 
   bool get _showApple =>
       FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
@@ -69,19 +87,50 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
     _addressController.dispose();
     _emailController.dispose();
     _codeController.dispose();
+    _businessNameFocus.dispose();
+    _addressFocus.dispose();
+    _emailFocus.dispose();
+    _codeFocus.dispose();
     super.dispose();
   }
 
   /// Business fields must be valid before ANY identity path fires — the
   /// backend registers identity + salon atomically in one call.
-  bool _validateBusinessFields() {
-    if (!_formKey.currentState!.validate()) return false;
-    if (_phoneNumber.trim().isEmpty) {
-      AppSnackBar.show(context, 'Le numéro de téléphone du salon est requis',
-          kind: SnackKind.error);
-      return false;
+  /// The review found `email` and `code` declared as rules and **never
+  /// validated** — A7 deleted both old gates (`!_emailValid`, `length < 4`)
+  /// and put nothing behind them, so « Recevoir un code » and « S'inscrire »
+  /// fired on anything.
+  Future<void> _sendCodeChecked() async {
+    if (!_errors.validate({'email': _emailController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
     }
-    return true;
+    await _sendCode();
+  }
+
+  Future<void> _handleEmailRegisterChecked() async {
+    if (!_errors.validate({'code': _codeController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
+    await _handleEmailRegister();
+  }
+
+  bool _validateBusinessFields() {
+    // The phone used to be checked imperatively and answered with a BAR — a
+    // field fault in a snackbar, which is exactly what §14 rule 3 forbids. It
+    // is a field in this map now, like the other three.
+    final ok = _errors.validate({
+      'businessName': _businessNameController.text,
+      'businessType': _selectedBusinessType?.name ?? '',
+      'phone': _phoneNumber,
+      'address': _addressController.text,
+    });
+    setState(() {});
+    if (!ok) focusFirstError(_errors, _focusNodes);
+    return ok;
   }
 
   void _finish() => context.go('/pro/dashboard');
@@ -138,258 +187,263 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppTheme.spacingL),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: AppTheme.spacingL),
-                Text(
-                  'Créez votre compte professionnel',
-                  style: AppTextStyles.headlineLarge.copyWith(
-                    color: AppColors.textPrimary,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: AppTheme.spacingL),
+              Text(
+                'Créez votre compte professionnel',
+                style: AppTextStyles.headlineLarge.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppTheme.spacingS),
+              Text(
+                'Rejoignez MyWeli Pro et gérez votre salon',
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppTheme.spacingXL),
+              AppTextField(
+                label: 'Nom de l\'entreprise',
+                hint: 'Ex: Salon de Beauté Marie',
+                controller: _businessNameController,
+                focusNode: _businessNameFocus,
+                prefixIcon: const Icon(Icons.store),
+                errorText: _errors['businessName'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('businessName', v)),
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              DropdownButtonFormField<BusinessType>(
+                initialValue: _selectedBusinessType,
+                decoration: InputDecoration(
+                  labelText: 'Type d\'entreprise',
+                  prefixIcon: const Icon(Icons.category),
+                  // The review: this fault was computed, blocked the submit,
+                  // and rendered NOWHERE — a press that did literally nothing,
+                  // which is worse than the disabled button rule 5 removed.
+                  errorText: _errors['businessType'],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: AppTheme.spacingS),
-                Text(
-                  'Rejoignez MyWeli Pro et gérez votre salon',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.spacingXL),
-                AppTextField(
-                  label: 'Nom de l\'entreprise',
-                  hint: 'Ex: Salon de Beauté Marie',
-                  controller: _businessNameController,
-                  prefixIcon: const Icon(Icons.store),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Le nom de l\'entreprise est requis';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                DropdownButtonFormField<BusinessType>(
-                  initialValue: _selectedBusinessType,
-                  decoration: InputDecoration(
-                    labelText: 'Type d\'entreprise',
-                    prefixIcon: const Icon(Icons.category),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusMedium),
-                    ),
-                  ),
-                  items: BusinessType.values.map((type) {
-                    String label;
-                    switch (type) {
-                      case BusinessType.salon:
-                        label = 'Salon de beauté';
-                        break;
-                      case BusinessType.barber:
-                        label = 'Barbier';
-                        break;
-                      case BusinessType.spa:
-                        label = 'Spa';
-                        break;
-                      case BusinessType.nailSalon:
-                        label = 'Institut de manucure';
-                        break;
-                      case BusinessType.massage:
-                        label = 'Massage';
-                        break;
-                      case BusinessType.other:
-                        label = 'Autre';
-                        break;
-                    }
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(label),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedBusinessType = value);
-                  },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Veuillez sélectionner un type';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                PhoneNumberField(
-                  label: 'Téléphone du salon',
-                  onChanged: (e164) => _phoneNumber = e164,
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                AppTextField(
-                  label: 'Adresse',
-                  hint: 'Adresse de l\'entreprise',
-                  controller: _addressController,
-                  prefixIcon: const Icon(Icons.location_on),
-                  maxLines: 2,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'L\'adresse est requise';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacingS),
-                InkWell(
-                  onTap: _pickCommune,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  child: InputDecorator(
-                    decoration:
-                        const InputDecoration(labelText: 'Commune (optionnel)'),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _communeName.isEmpty
-                                ? 'Choisir une commune'
-                                : _communeName,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: _communeName.isEmpty
-                                  ? AppColors.textTertiary
-                                  : AppColors.textPrimary,
-                            ),
+                items: BusinessType.values.map((type) {
+                  String label;
+                  switch (type) {
+                    case BusinessType.salon:
+                      label = 'Salon de beauté';
+                      break;
+                    case BusinessType.barber:
+                      label = 'Barbier';
+                      break;
+                    case BusinessType.spa:
+                      label = 'Spa';
+                      break;
+                    case BusinessType.nailSalon:
+                      label = 'Institut de manucure';
+                      break;
+                    case BusinessType.massage:
+                      label = 'Massage';
+                      break;
+                    case BusinessType.other:
+                      label = 'Autre';
+                      break;
+                  }
+                  return DropdownMenuItem(
+                    value: type,
+                    child: Text(label),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedBusinessType = value;
+                    _errors.revalidate('businessType', value?.name ?? '');
+                  });
+                },
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              PhoneNumberField(
+                label: 'Téléphone du salon',
+                errorText: _errors['phone'],
+                onChanged: (e164) {
+                  _phoneNumber = e164;
+                  setState(() => _errors.revalidate('phone', e164));
+                },
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              AppTextField(
+                label: 'Adresse',
+                hint: 'Adresse de l\'entreprise',
+                controller: _addressController,
+                focusNode: _addressFocus,
+                prefixIcon: const Icon(Icons.location_on),
+                maxLines: 2,
+                errorText: _errors['address'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('address', v)),
+              ),
+              const SizedBox(height: AppTheme.spacingS),
+              InkWell(
+                onTap: _pickCommune,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                child: InputDecorator(
+                  decoration:
+                      const InputDecoration(labelText: 'Commune (optionnel)'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _communeName.isEmpty
+                              ? 'Choisir une commune'
+                              : _communeName,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: _communeName.isEmpty
+                                ? AppColors.textTertiary
+                                : AppColors.textPrimary,
                           ),
                         ),
-                        const Icon(Icons.expand_more,
-                            color: AppColors.textTertiary),
-                      ],
-                    ),
+                      ),
+                      const Icon(Icons.expand_more,
+                          color: AppColors.textTertiary),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppTheme.spacingXL),
-                Text(
-                  'Votre identité de connexion',
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
+              ),
+              const SizedBox(height: AppTheme.spacingXL),
+              Text(
+                'Votre identité de connexion',
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: AppColors.textPrimary,
                 ),
-                const SizedBox(height: AppTheme.spacingXS),
-                Text(
-                  'Elle vous servira à vous connecter à votre espace pro.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              ),
+              const SizedBox(height: AppTheme.spacingXS),
+              Text(
+                'Elle vous servira à vous connecter à votre espace pro.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(height: AppTheme.spacingM),
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              AppButton(
+                text: 'S\'inscrire avec Google',
+                type: AppButtonType.secondary,
+                leading: const GoogleGLogo(),
+                onPressed: auth.isLoading ? null : _handleGoogle,
+              ),
+              if (_showApple) ...[
+                const SizedBox(height: AppTheme.spacingSM),
                 AppButton(
-                  text: 'S\'inscrire avec Google',
+                  text: 'S\'inscrire avec Apple',
                   type: AppButtonType.secondary,
-                  leading: const GoogleGLogo(),
-                  onPressed: auth.isLoading ? null : _handleGoogle,
+                  onPressed: auth.isLoading ? null : () {},
                 ),
-                if (_showApple) ...[
-                  const SizedBox(height: AppTheme.spacingSM),
-                  AppButton(
-                    text: 'S\'inscrire avec Apple',
-                    type: AppButtonType.secondary,
-                    onPressed: auth.isLoading ? null : () {},
-                  ),
-                ],
-                const SizedBox(height: AppTheme.spacingL),
-                Row(
-                  children: [
-                    const Expanded(child: Divider(color: AppColors.divider)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingM,
-                      ),
-                      child: Text(
-                        'ou par e-mail',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
+              ],
+              const SizedBox(height: AppTheme.spacingL),
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: AppColors.divider)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingM,
                     ),
-                    const Expanded(child: Divider(color: AppColors.divider)),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.spacingL),
-                AppTextField(
-                  controller: _emailController,
-                  label: 'Votre e-mail',
-                  hint: 'exemple@email.com',
-                  keyboardType: TextInputType.emailAddress,
-                  onChanged: (_) => setState(() {}),
-                ),
-                if (!_codeSent) ...[
-                  const SizedBox(height: AppTheme.spacingM),
-                  AppButton(
-                    text: 'Recevoir un code',
-                    onPressed:
-                        (auth.isLoading || !_emailValid) ? null : _sendCode,
-                    isLoading: auth.isLoading,
-                  ),
-                ] else ...[
-                  const SizedBox(height: AppTheme.spacingM),
-                  AppTextField(
-                    controller: _codeController,
-                    label: 'Code à 6 chiffres',
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  if (auth.emailDevCode != null) ...[
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Text(
-                      'Code (dev) : ${auth.emailDevCode}',
+                    child: Text(
+                      'ou par e-mail',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textTertiary,
                       ),
                     ),
-                  ],
-                  const SizedBox(height: AppTheme.spacingM),
-                  AppButton(
-                    text: 'S\'inscrire',
-                    onPressed: (auth.isLoading ||
-                            _codeController.text.trim().length < 4)
-                        ? null
-                        : _handleEmailRegister,
-                    isLoading: auth.isLoading,
                   ),
-                  const SizedBox(height: AppTheme.spacingS),
-                  AppButton(
-                    text: 'Renvoyer le code',
-                    type: AppButtonType.text,
-                    onPressed: auth.isLoading ? null : _sendCode,
-                  ),
+                  const Expanded(child: Divider(color: AppColors.divider)),
                 ],
-                if (auth.error != null) ...[
-                  const SizedBox(height: AppTheme.spacingSM),
+              ),
+              const SizedBox(height: AppTheme.spacingL),
+              AppTextField(
+                controller: _emailController,
+                label: 'Votre e-mail',
+                hint: 'exemple@email.com',
+                focusNode: _emailFocus,
+                keyboardType: TextInputType.emailAddress,
+                errorText: _errors['email'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('email', v)),
+              ),
+              if (!_codeSent) ...[
+                const SizedBox(height: AppTheme.spacingM),
+                AppButton(
+                  text: 'Recevoir un code',
+                  // §14 rule 5: disabled ONLY while submitting.
+                  onPressed: auth.isLoading ? null : _sendCodeChecked,
+                  isLoading: auth.isLoading,
+                ),
+              ] else ...[
+                const SizedBox(height: AppTheme.spacingM),
+                AppTextField(
+                  controller: _codeController,
+                  focusNode: _codeFocus,
+                  label: 'Code à 6 chiffres',
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  errorText: _errors['code'],
+                  onChanged: (v) =>
+                      setState(() => _errors.revalidate('code', v)),
+                ),
+                if (auth.emailDevCode != null) ...[
+                  const SizedBox(height: AppTheme.spacingXS),
                   Text(
-                    auth.error!,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.error),
-                    textAlign: TextAlign.center,
+                    'Code (dev) : ${auth.emailDevCode}',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
                 const SizedBox(height: AppTheme.spacingM),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Déjà un compte ? ',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => context.pop(),
-                      child: const Text('Se connecter'),
-                    ),
-                  ],
+                AppButton(
+                  text: 'S\'inscrire',
+                  // The gate said 4 on a field labelled « Code à 6 chiffres »
+                  // with maxLength 6 — a four-digit code walked through.
+                  // Rule 5: disabled only while submitting; the code's own
+                  // rule now answers with a message under the field.
+                  onPressed:
+                      auth.isLoading ? null : _handleEmailRegisterChecked,
+                  isLoading: auth.isLoading,
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                AppButton(
+                  text: 'Renvoyer le code',
+                  type: AppButtonType.text,
+                  onPressed: auth.isLoading ? null : _sendCode,
                 ),
               ],
-            ),
+              if (auth.error != null) ...[
+                const SizedBox(height: AppTheme.spacingSM),
+                Text(
+                  auth.error!,
+                  style:
+                      AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: AppTheme.spacingM),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Déjà un compte ? ',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.pop(),
+                    child: const Text('Se connecter'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

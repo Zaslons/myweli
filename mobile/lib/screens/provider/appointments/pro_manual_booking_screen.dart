@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/validators.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
@@ -14,6 +16,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
@@ -76,6 +79,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
 
   @override
   void dispose() {
+    _phoneFocus.dispose();
     _phone.dispose();
     _name.dispose();
     _note.dispose();
@@ -88,11 +92,19 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
         hour: _time!.hour, minute: _time!.minute, tz: _tz);
   }
 
-  bool get _canSubmit =>
-      _selected.isNotEmpty &&
-      _dateTime != null &&
-      (_anonymous || _phone.text.trim().isNotEmpty) &&
-      !_submitting;
+  /// A7/§14 rule 5 — work in progress only. The three content clauses moved
+  /// into `_submit`, which now answers instead of the button going dead.
+  bool get _canSubmit => !_submitting;
+
+  /// The selection faults (services, date/time) have no field to sit under, so
+  /// they land form-level. The phone DOES have one.
+  String? _selectionError;
+  late final _errors = FieldErrors({
+    // The one field that really is typed as local digits — its formatter is
+    // `digitsOnly`, so a `+` cannot even be entered.
+    'phone': Validators.localPhoneNumber,
+  });
+  final _phoneFocus = FocusNode();
 
   Future<void> _pickDate() async {
     final today = salonToday(tz: _tz);
@@ -113,13 +125,32 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   }
 
   Future<void> _submit(double total) async {
-    final dt = _dateTime;
-    if (dt == null) return;
-    if (dt.isBefore(DateTime.now())) {
-      AppSnackBar.show(context, 'Choisissez une date et une heure à venir',
-          kind: SnackKind.error);
+    if (_selected.isEmpty) {
+      setState(() => _selectionError = 'Choisissez au moins un service.');
       return;
     }
+    final dt = _dateTime;
+    if (dt == null) {
+      setState(() => _selectionError = 'Choisissez une date et une heure.');
+      return;
+    }
+    if (dt.isBefore(DateTime.now())) {
+      // Reachable, unlike the two above were: the time picker has no past-time
+      // constraint, so today + an earlier hour lands here. It was a bar about
+      // the date/time row.
+      setState(
+          () => _selectionError = 'Choisissez une date et une heure à venir.');
+      return;
+    }
+    if (!_anonymous && !_errors.validate({'phone': _phone.text})) {
+      setState(() => _selectionError = null);
+      _phoneFocus.requestFocus();
+      return;
+    }
+    setState(() {
+      _selectionError = null;
+      _errors.clear();
+    });
 
     setState(() => _submitting = true);
     final provider = context.read<ProAppointmentProvider>();
@@ -140,8 +171,9 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       AppSnackBar.show(context, 'Rendez-vous créé', kind: SnackKind.success);
       Navigator.pop(context);
     } else {
-      AppSnackBar.show(context, provider.error ?? 'Erreur',
-          kind: SnackKind.error);
+      // The server's refusal here is a slot conflict — it names the date/time
+      // row, so it stays with the form rather than floating over it.
+      setState(() => _selectionError = provider.error ?? 'Erreur');
     }
   }
 
@@ -230,10 +262,13 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 label: 'Téléphone du client',
                 hint: '+225 ...',
                 controller: _phone,
+                focusNode: _phoneFocus,
                 keyboardType: TextInputType.phone,
                 enabled: !_anonymous,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) => setState(() {}),
+                errorText: _errors['phone'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('phone', v)),
               ),
               CheckboxListTile(
                 value: _anonymous,
@@ -284,6 +319,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 ],
               ),
               const SizedBox(height: AppTheme.spacingL),
+              InlineFeedback(_selectionError),
               AppButton(
                 text: 'Créer le rendez-vous',
                 isLoading: _submitting,

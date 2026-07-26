@@ -408,7 +408,8 @@ widget; a third inline copy is a review failure.
 | Component | API | Notes |
 |---|---|---|
 | `AppButton` | `text, onPressed, type: {primary,secondary,text}, isLoading, isFullWidth, icon, leading` | `onPressed: null` = disabled. `isLoading` swaps the label for a `BrandLoader` **without changing the button's size** (no layout jump). |
-| `AppTextField` | `label, hint, errorText, controller, onChanged, keyboardType, obscureText, maxLines, maxLength, inputFormatters, enabled, prefixIcon, suffixIcon, validator` | **`errorText` is the contract for validation** — see §14. |
+| `AppTextField` | `label, hint, errorText, controller, focusNode, onChanged, keyboardType, obscureText, maxLines, maxLength, inputFormatters, enabled, prefixIcon, suffixIcon` | **`errorText` is the contract for validation** — see §14. A7 **removed `validator`**: it cannot express rule 2, and its result silently overwrites `errorText`. |
+| `InlineFeedback` | `message, kind` | The form / in-modal outcome slot (§14, §15). `null` renders nothing. |
 | `PhoneNumberField` | — | E.164 + Ivorian formatting. The only way to take a phone number. |
 | `LoadingIndicator` | `size, color` | The brand loader. The **only** spinner. |
 | `EmptyState` | `icon, title, description, actionText, onAction` | Icon at `iconXL`. |
@@ -431,13 +432,14 @@ widget; a third inline copy is a review failure.
 ### 11.3 To build (the gaps this system creates work for)
 
 These exist as copy-pasted inline code today. They are specified here so that
-when the burn-down reaches them, there is nothing left to decide:
+when the burn-down reaches them, there is nothing left to decide.
+
+*(`AppSnackBar` and `ConfirmDialog` were on this list until **A6** built them;
+`FieldErrors` + `Validators` joined §11.1's roster in **A7**.)*
 
 - **`AppRating`** — `★ 4,8 (32 avis)`. Glyph + numeral, always (§3.5).
 - **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding.
 - **`AppChip`** — filled (selected) / outlined (`borderStrong`) / tinted (status). `radiusPill`.
-- **`AppSnackBar`** — the single entry point for the 118 snackbar calls (§15).
-- **`ConfirmDialog`** — the single destructive-confirm (§15).
 - **`AppAsyncView<T>`** — takes `isLoading`/`error`/`data` and renders the four states, so a screen cannot forget one.
 
 ---
@@ -546,11 +548,13 @@ lose information, it's a bug.**
 
 **Errors belong to fields, not to toasts.**
 
-Today, `AppTextField` exposes `errorText` and exactly **one caller in the entire
-codebase passes it** — so the de-facto validation pattern is "throw a red
-snackbar." That fails users in three ways: the message disappears on a timer, it
-doesn't say *which* field is wrong, and a screen reader never associates it with
-the input.
+*Until A7, `AppTextField` exposed `errorText` and exactly **one caller passed
+it** — and that caller was unreachable, so the product had **zero** working
+field-anchored errors. The de-facto pattern was not, as this section long
+claimed, "throw a red snackbar": it was the **silent disabled button** (22
+sites), then hand-rolled red `Text` (10), then a toast (4 live, 4 dead). All
+three fail the same way — the message doesn't say which field is wrong, and it
+disappears, or never appears at all.*
 
 The rules:
 
@@ -566,6 +570,38 @@ The rules:
 5. **Disable submit only while submitting**, never as a way of expressing "the form
    is invalid" — a disabled button with no explanation is a dead end.
 6. Required vs optional is stated, not implied by an asterisk alone.
+
+**Rule 5's one exception is §15's destructive ladder.** `ConfirmDialog` holds
+its confirm disabled until the reason is typed or the confirm word matches —
+that is deliberate friction on an irreversible action, not a form judging its
+input, and §15 specifies it. A rate limit is the other legitimate disable (a
+resend cooldown, an OTP lockout), and it must label itself: « Renvoyer dans
+0:24 » says when it reopens. Nothing else may be disabled to mean "invalid".
+
+**Focus follows the first error.** §13.5 covers focus on open and on close and
+says nothing about submit — but once rule 5 makes every button tappable, a press
+can produce a message the user never sees. A failed submit scrolls the first
+errored field into view and focuses it, in the form's **reading order**
+(`focusFirstError`, `core/forms/field_errors.dart`).
+
+**Three slots, and only three** (A7; the modal half is A6's finding):
+
+| Slot | Widget | Owns |
+|---|---|---|
+| field fault | `AppTextField.errorText` | "this input is wrong" — persists until fixed |
+| form / in-modal outcome | `InlineFeedback` | « Connexion impossible » · anything inside a sheet, where a snackbar is pruned by `ModalBarrier` (§15) |
+| screen outcome | `AppSnackBar` | rule 3 — the outcome, never a field fault |
+
+**Flutter has no `aria-describedby`, and the spec should not pretend otherwise.**
+Measured in A7: `errorText` is **not** folded into the field's semantics label —
+it renders as a **child node** of the field's node, so a screen reader reaches it
+immediately *after* the input rather than hearing it *with* the input.
+`MergeSemantics` cannot change that (a `TextField`'s node is a semantics
+boundary; wrapping one produces a byte-identical tree). So rule 1's "associated"
+means **structurally associated and reachable** on this platform — which is what
+`test/a11y/field_error_test.dart` holds. Do **not** reach for `SemanticsService`
+to close the gap: `supportsAnnounce` is false on Android, where a direct
+announcement clears TalkBack's queue (§15, A6).
 
 ---
 
@@ -715,6 +751,7 @@ Rules that aren't executed rot. Each rule in this document maps to a gate:
 | No literals (§4, §5, §6, §7) | **`test/unit/design_system_pin_test.dart`** — sweep-as-test, **complete**: no raw spacing (§5), radius (§6), type (§4), or icon-size (§7) literal survives. Excludes `core/theme/` (token defs) + the flag-hidden `features/` (§22); a `// ds-ignore` line is a declared fixed-dimension exception |
 | Tap targets + labels (§13.2, §13.4) | **`test/a11y/`** — **complete**: `meetsGuideline(androidTapTargetGuideline)` (A4a) + `labeledTapTargetGuideline` (A4b) + `textContrastGuideline` (A4c), all live over the key components |
 | Text scale (§13.3) | **`test/a11y/text_scale_test.dart`** — the key components pumped at `TextScaler.linear(2.0)`. **Three** assertions, because each of the first two passed against a real bug: `takeException()` is null (nothing *overflows*); **and** `expectGrowsWithTextScale` (the height actually grew — a fixed bound doesn't overflow, it **clips silently**); **and**, for any *computed* bound, that it still covers the widget's real content at **0.82× → 2×** and doesn't over-provision. Pump the widget **as it ships** — bounded, and in the variant that breaks: unbounded, nothing can overflow and the gate is vacuous |
+| **Forms & validation (§14)** | **`test/unit/field_errors_test.dart`** (rule 2's state machine, incl. the merge case web's review had to fix) + **`test/unit/validators_test.dart`** (one rule per concept) + **`test/a11y/field_error_test.dart`** (the message is unclipped at 200 %, grows its field, and is reachable in the field's semantics) + two pins in `design_system_pin_test.dart` — no `validator:` outside the component, one e-mail definition. **A7 gave §14 its first gate; it had none, which is why register row 19 never moved.** The rule a regex cannot express — "a field fault is never a bar" — is held per funnel by widget tests that assert the message renders under the field *and* that no `SnackBar` is in the tree |
 | Visual regression | **Goldens** — `test/golden/`, see below |
 | Market data (§18) | `salon_time_pin_test.dart` |
 | Everything | `flutter analyze --fatal-infos` = 0 |
@@ -792,7 +829,7 @@ own design system?" — today, mostly not.
 | 5 | Radius tokens (§6) | ~~23~~ → **0** | `999`×21 → `radiusPill`; `16`/`24` → `radiusXL`/`radiusXXL`; `7`/`2` → nearest. Pinned | ✅ **A2** |
 | 6 | Type scale ≥ 11px (§4) | ~~9~~ → **0** | the six `fontSize: 10` labels → `labelSmall` (11, the floor); the photo counter → `bodyMedium`; the two OTP boxes drop the magic `26` → `headlineMedium`. Pinned | ✅ **A2b** |
 | 7 | Icon-size tokens (§7) | ~~19 distinct values~~ → **0** | 146 `size:` sites snapped to the 5 `AppTheme.icon*` (nearest; ties → up — `18`→20, `48`→64 = the empty-state glyph, §7). Pinned | ✅ **A2b** |
-| 8 | Motion tokens (§9) | **12 distinct durations**, 0 constants | | *A9* |
+| 8 | Motion tokens (§9) | **12 distinct durations**, 0 constants | | *A8* |
 | 9 | Full `ColorScheme` + component themes (§3) | ~~23 missing~~ → **0** | the scheme set 8 of ~30 slots, so unthemed M3 widgets (pickers, snackbars, chips, tabs, icons, sheets) fell back to **Material purple**. Now the full scheme + a component theme for every component the app renders — verified by the `components_material` golden | ✅ **A3** |
 | 10 | Button min-height 48 (§13.2) | ~~all~~ → **0** | `textButtonTheme.minimumSize` `Size(0, 40)` → `Size(0, 48)` — raw TextButtons and `AppButton.text` alike | ✅ **A3** |
 | 11 | Buttons sized by container (§10) | ~~all~~ → **0** | `elevated`/`outlinedButtonTheme` `Size(double.infinity, 48)` → `Size(0, 48)` — width comes from the container, not a forced full-width bar | ✅ **A3** |
@@ -803,8 +840,8 @@ own design system?" — today, mostly not.
 | 16 | Overflow discipline (§13.3) | ~~46 of 963~~ → **0** | the "4.8% have `maxLines`" figure was a **proxy** — most `Text` sits in a `Flexible`/`Wrap` and never overflows, so the count measured the wrong thing. The real check is executable: pumped at **2×**, a `Text` that can't fit throws. That found **one** genuine break the proxy never would have ranked: `compact_appointment_tile`'s hint `Row` overflowed by **217px** at 200% — a `Row` hands its children infinite width, so an unflexed `Text` never wraps, it just runs off the tile. `Flexible` fixes it. The rest of the audited `Text` already ellipsises correctly | ✅ **A5** |
 | 17 | One snackbar entry point (§15) | ~~118 calls; 73 raw; 1 with an action~~ → **0** | the counts were RIGHT — the first rows a census hasn't disproven — but they hid the defects. `.showSnackBar(` 116 → **1** and `SnackBar(` 111 → **2**, both inside `AppSnackBar`, whose kind IS the API. Fixed with them: the tone (only 7 of 31 successes were green, 30 of 61 errors weren't red), the durations (2s ×15 · 1s ×4 · Material's 4s ×99 — §15's 3/6/10 appeared NOWHERE, including on the one action-bearing bar), the two local re-inventions (`_toast`, `_showError`) and `Helpers.showSnackBar` itself. **Six sites were feeding a modal-blocked bar** — pruned by `BlockSemantics`, painted under the scrim — and now raise `InlineFeedback` inside the sheet that owns the failure. **The worst-instance note here was stale** (A3 had already removed `Colors.black87`) and the a11y claim inverted: see row 14. Gated by 2 pin rules + `test/a11y/feedback_test.dart` | ✅ **A6** |
 | 18 | One `ConfirmDialog` (§15) | ~~11 copy-pasted~~ → **0** | 11 was right for `showDialog<bool>`, but `AlertDialog(` counted **13** — the admin's `showReasonDialog` (9 call sites) and the caption prompt were never counted. All 13 → one component; `showReasonDialog` survives as a 6-line delegation so the admin didn't change a line. The ladder is now real: the 2 title-only deletes state their consequence, « Oui, annuler » became « Annuler le rendez-vous », the **pro** salon delete gained the type-to-confirm its consumer twin always had, and destructive is a stated classification (red where something is destroyed; explicitly NOT for logout / report-a-review / no-show, so the red keeps its meaning). **Cancel-takes-focus was 0/11** (§15 AND §13.5) — the component does it for all. Its 4 missing `mounted` guards and 3 leaked controllers died with the copies. Gated by 2 pin rules + `test/widget/confirm_dialog_test.dart` | ✅ **A6** |
-| 19 | Field-anchored errors (§14) | **1** caller passes `errorText` | validation = "throw a red toast" | *A8* |
-| 20 | Reduced motion (§9) | **0** | | *A9* |
+| 19 | Field-anchored errors (§14) | ~~**1** caller passes `errorText`~~ → **0** | **both halves of this row were wrong, and the correction is the slice.** The one `errorText` caller was **dead code** — `invite_member_sheet:191` could only be reached through a button gated on the value already being valid, so the product had **zero** working field-anchored errors, not one. And validation was **not** "a red toast": only **4** validation snackbars fired on a live screen (4 more were dead code shadowed by their own disabled button), while the real pattern was the **silent disabled button ×22** and **10 hand-rolled red `Text` blocks**. A slice built on this row's framing would have hunted toasts that mostly weren't there. It was also not greenfield: **5 live screens already ran Flutter's `Form`/`validator`** with 13 validators, so two mechanisms shipped — and they collide, because a `validator` result silently overwrites `decoration.errorText`. Now **one**: `FieldErrors` (validate on submit · re-validate once errored · **merge**, never replace · `set()` for server faults) feeding `errorText`, with `GlobalKey<FormState>` and `Form(` both at **0** and the `validator` param deleted. Fixed with it, because "where the error renders" was hiding "whether the rule is right": **5 e-mail regexes → 1** (two definitions of valid e-mail shipped in one app) · the **OTP gate accepted 4 digits** on a « Code à 6 chiffres » field, on 3 live screens · the **Mobile Money number had no validation at all** — `"abc"` saved, rendered to the client, and went into the Wave deep link · 2 `PhoneNumberField`s whose validator could never run (no `Form` ancestor) · a tag sheet whose 3 rules were **silent no-ops** with the button enabled · « Ce numéro existe déjà. » raised on the **list screen after the sheet had popped**, one frame before navigating away. Gated by 2 pins (red measured at 13 · 5) + `field_errors_test` + `validators_test` + `a11y/field_error_test` | ✅ **A7** |
+| 20 | Reduced motion (§9) | **0** | | *A8* |
 | 21 | Tests wrap the real theme | ~~0 of 34~~ → **34 of 34** | all 34 widget tests migrated to `wrapApp`/`pumpApp` (`test/support/pump_app.dart`) — they render `AppTheme.lightTheme`, so a restyle that breaks a screen's layout now fails a test. `pump_app_test.dart` asserts the harness injects the real theme. | ✅ **A3b** |
 | 22 | Deferred V2/V3 `Colors.*` | ~52 | flag-hidden `ComingSoon` screens | *allowlisted — fix if un-shelved* |
 | 23 | **No clock seam** (§20.1) | pro dashboard + journal | `ProJournalProvider._selectedDate = salonToday()`; `MockProService.getDashboard()` buckets by `DateTime.now().weekday` — so those screens **cannot be golden-tested**: the image would change value with the day of the week, failing CI every morning. `package:clock` is unused. | *new — needs its own slice* |
@@ -815,17 +852,23 @@ own design system?" — today, mostly not.
 | 28 | `gold` used as TEXT below the 4.5:1 floor | **1** | found darkening gold for row 23: `TeamRoleChip`'s « Propriétaire » renders `gold` as *text* (labelSmall, 11px) on a 12%-gold tint — **~3:1**, below the 4.5:1 text floor even at `#B5830A`. Row 3b closed gold as *state* (3:1, "not text") and the a11y contrast guideline covers 6 widgets but not this chip, so it slipped both. Fix: a darker gold-text token, or ink on the tint | *needs its own slice* |
 | 29 | Every Material default string is ENGLISH (§17) | **the whole app** | there is no `flutter_localizations` anywhere — zero `localizationsDelegates`, zero `supportedLocales` — so `DefaultMaterialLocalizations` supplies the modal barrier's semantics label, « Dismiss », the dialog route name and every other Material default **in English**, under a §17 that says French everywhere. Found while building `ConfirmDialog` (A6): the barrier a screen reader announces is not ours to word until this lands | *needs its own slice* |
 | 30 | Undo stops at the client boundary (§15) | **the server-backed destructions** | A6 shipped the product's first undo where the client owns the whole list (photos, before/afters, favourites — restoring the snapshot IS the same call that removed it). Cancelling a booking, revoking access and deleting an account cannot be undone without new service methods, so they keep the confirm-only rung. §15's reversible row is satisfied where it can be and honestly unmet where it can't | *needs backend work* |
+| 31 | An error's association is weaker than the web's (§14) | **the platform** | measured in A7: Flutter does **not** fold `errorText` into the field's semantics label — it is a **child node**, so a screen reader reaches it *after* the input, not *with* it. `MergeSemantics` cannot merge it (a `TextField`'s node is a semantics boundary — the tree comes back byte-identical). There is no `aria-describedby` equivalent, and `SemanticsService` is the wrong tool (A6: `supportsAnnounce` is false on Android). §14 now states the limit rather than implying parity with the web | *platform limit — recorded, not fixable here* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.
 
-Rows **23–30** were not in the original audit. Each was found by *doing the work*:
+Rows **23–31** were not in the original audit. Each was found by *doing the work*:
 23 and 24 by taking the pictures (PR-0.5), 25 and 26 by walking every bordered
 control in A1, **27 from the outside** (web B8's reading-text census disproved
 "the app reads at 16px"), **28 while fixing 3b's surfaceVariant gap** (the darkened gold exposed that the
-owner chip uses it as *text*, not state), and **29–30 while building A6's two
+owner chip uses it as *text*, not state), **29–30 while building A6's two
 components** (the dialog's barrier speaks English; undo runs out of road where
-the server owns the state). Row **4's count was wrong** — the audit said ~128, but migrating it
+the server owns the state), and **31 by writing A7's a11y gate against an
+assumption instead of a measurement** — the error was supposed to be in the
+field's semantics label, and it is a child node. Row **19's was wrong twice over** — its "1 caller" was dead code (the real number
+of *working* field-anchored errors was **0**) and its "validation = a red toast"
+described 4 live sites while missing the 22 silent disabled buttons that were the
+actual pattern. Row **4's count was wrong** — the audit said ~128, but migrating it
 found **~488** (it had never counted the pixel-identical on-grid literals). Row **15's
 was wrong too** (3 → **9**), and row **16's counted the wrong thing entirely** — "4.8%
 of `Text` have `maxLines`" measures a *proxy*; the executable check (pump at 2×) found

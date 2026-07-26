@@ -9,7 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../models/service.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_button.dart';
-import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/loading_indicator.dart';
 
 class ServiceSelectionScreen extends StatefulWidget {
@@ -62,12 +62,19 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
         .any((s) => s.priceMax != null);
   }
 
+  /// A7/§14: a SELECTION fault — no field to sit under, so it lands
+  /// form-level. It was a snackbar, and a DEAD one: the button that calls this
+  /// was disabled on exactly the condition being checked, so the bar could
+  /// never fire. Rule 5 opens the button and the message finally has a job.
+  String? _selectionError;
+
   void _handleContinue() {
     if (_selectedServiceIds.isEmpty) {
-      AppSnackBar.show(context, 'Veuillez sélectionner au moins un service',
-          kind: SnackKind.error);
+      setState(() =>
+          _selectionError = 'Choisissez au moins un service pour continuer.');
       return;
     }
+    setState(() => _selectionError = null);
 
     if (widget.returnToHub) {
       context.pop<List<String>>(_selectedServiceIds.toList());
@@ -149,6 +156,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                         onTap: () {
                           if (disabled) return;
                           setState(() {
+                            _selectionError =
+                                null; // §14 rule 2: the fault goes when the user fixes it
                             if (isSelected) {
                               _selectedServiceIds.remove(service.id);
                             } else {
@@ -188,11 +197,11 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                         ),
                       ],
                     ),
+                    InlineFeedback(_selectionError),
                     const SizedBox(height: AppTheme.spacingM),
                     AppButton(
                       text: 'Continuer',
-                      onPressed:
-                          _selectedServiceIds.isEmpty ? null : _handleContinue,
+                      onPressed: _handleContinue,
                     ),
                   ],
                 ),

@@ -18,7 +18,7 @@ import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_button.dart';
-import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/salon_time_hint.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
@@ -79,6 +79,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
       _selectedTime = salonDateTime(dt.year, dt.month, dt.day,
           hour: dt.hour, minute: dt.minute, tz: _tz);
+      _selectionError = null;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       unawaited(context.read<LocalityProvider>().ensureLoaded());
@@ -144,12 +145,16 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     _loadAvailableSlots();
   }
 
+  /// A7/§14 — see `service_selection_screen`: a dead snackbar behind a
+  /// disabled button, now a live form-level message behind an open one.
+  String? _selectionError;
+
   void _handleContinue() {
     if (_selectedTime == null) {
-      AppSnackBar.show(context, 'Veuillez sélectionner une heure',
-          kind: SnackKind.error);
+      setState(() => _selectionError = 'Choisissez une heure pour continuer.');
       return;
     }
+    setState(() => _selectionError = null);
 
     // The chosen wall-clock IS salon time — serializes with a Z.
     final dateTime = salonDateTime(
@@ -317,9 +322,15 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
               color: AppColors.secondary,
               boxShadow: AppTheme.elevation3,
             ),
-            child: AppButton(
-              text: 'Continuer',
-              onPressed: _selectedTime == null ? null : _handleContinue,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InlineFeedback(_selectionError),
+                AppButton(
+                  text: 'Continuer',
+                  onPressed: _handleContinue,
+                ),
+              ],
             ),
           ),
         ],

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/artist.dart';
 import '../../../models/availability.dart';
 import '../../../providers/pro_artist_provider.dart';
@@ -27,7 +29,9 @@ class ArtistFormScreen extends StatefulWidget {
 }
 
 class _ArtistFormScreenState extends State<ArtistFormScreen> {
-  final _formKey = GlobalKey<FormState>();
+  // A7/§14 — the form's faults, in the form's reading order.
+  late final _errors = FieldErrors({'name': Validators.name});
+  final _nameFocus = FocusNode();
   final _nameController = TextEditingController();
   final _specializationController = TextEditingController();
   bool _prefillDone = false;
@@ -73,6 +77,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   void dispose() {
     _nameController.dispose();
     _specializationController.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -90,7 +95,13 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   }
 
   Future<void> _handleSave() async {
-    if (!_formKey.currentState!.validate()) return;
+    // §14 rule 5: submit is never disabled for validity — pressing it answers.
+    final ok = _errors.validate({'name': _nameController.text});
+    setState(() {});
+    if (!ok) {
+      focusFirstError(_errors, {'name': _nameFocus});
+      return;
+    }
 
     final artistProvider =
         Provider.of<ProArtistProvider>(context, listen: false);
@@ -160,120 +171,113 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
         builder: (context, artistProvider, _) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppTheme.spacingL),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 40,
-                              backgroundColor: AppColors.surface,
-                              child: _avatarUrl == null
-                                  ? const Icon(Icons.person_outline,
-                                      size: AppTheme.iconL,
-                                      color: AppColors.textSecondary)
-                                  : ClipOval(
-                                      child: TimedCachedImage(
-                                        imageUrl: _avatarUrl!,
-                                        width: 80,
-                                        height: 80,
-                                        fit: BoxFit.cover,
-                                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Column(
+                    children: [
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: AppColors.surface,
+                            child: _avatarUrl == null
+                                ? const Icon(Icons.person_outline,
+                                    size: AppTheme.iconL,
+                                    color: AppColors.textSecondary)
+                                : ClipOval(
+                                    child: TimedCachedImage(
+                                      imageUrl: _avatarUrl!,
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
                                     ),
-                            ),
-                            if (artistProvider.isUploadingAvatar)
-                              const Positioned.fill(
-                                child: CircleAvatar(
-                                  radius: 40,
-                                  backgroundColor: Colors.black45,
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: BrandLoader(
-                                        size: AppTheme.iconS,
-                                        fast: true,
-                                        onDark: true),
                                   ),
+                          ),
+                          if (artistProvider.isUploadingAvatar)
+                            const Positioned.fill(
+                              child: CircleAvatar(
+                                radius: 40,
+                                backgroundColor: Colors.black45,
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: BrandLoader(
+                                      size: AppTheme.iconS,
+                                      fast: true,
+                                      onDark: true),
                                 ),
                               ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: artistProvider.isUploadingAvatar
-                              ? null
-                              : () => _pickAvatar(artistProvider),
-                          child: Text(_avatarUrl == null
-                              ? 'Ajouter une photo'
-                              : 'Changer la photo'),
-                        ),
-                      ],
-                    ),
+                            ),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: artistProvider.isUploadingAvatar
+                            ? null
+                            : () => _pickAvatar(artistProvider),
+                        child: Text(_avatarUrl == null
+                            ? 'Ajouter une photo'
+                            : 'Changer la photo'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                AppTextField(
+                  label: 'Nom',
+                  hint: 'Ex: Kouassi Jean',
+                  controller: _nameController,
+                  focusNode: _nameFocus,
+                  errorText: _errors['name'],
+                  onChanged: (v) =>
+                      setState(() => _errors.revalidate('name', v)),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+                AppTextField(
+                  label: 'Spécialisation',
+                  hint: 'Ex: Barbier, Coiffeur, Esthéticienne',
+                  controller: _specializationController,
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Suit les horaires du salon'),
+                  subtitle:
+                      const Text('Désactiver pour des horaires personnalisés'),
+                  value: !_customHours,
+                  onChanged: (followsSalon) =>
+                      setState(() => _customHours = !followsSalon),
+                ),
+                if (_customHours) ...[
+                  WeeklyHoursEditor(
+                    hours: _workingHours,
+                    onChanged: (hours) => setState(() => _workingHours = hours),
                   ),
                   const SizedBox(height: AppTheme.spacingS),
-                  AppTextField(
-                    label: 'Nom',
-                    hint: 'Ex: Kouassi Jean',
-                    controller: _nameController,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Le nom est requis';
-                      }
-                      return null;
-                    },
+                  Text(
+                    'Les clients ne verront que les créneaux où ce membre '
+                    'travaille (dans la limite des horaires du salon).',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textTertiary),
                   ),
-                  const SizedBox(height: AppTheme.spacingM),
-                  AppTextField(
-                    label: 'Spécialisation',
-                    hint: 'Ex: Barbier, Coiffeur, Esthéticienne',
-                    controller: _specializationController,
-                  ),
-                  const SizedBox(height: AppTheme.spacingS),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Suit les horaires du salon'),
-                    subtitle: const Text(
-                        'Désactiver pour des horaires personnalisés'),
-                    value: !_customHours,
-                    onChanged: (followsSalon) =>
-                        setState(() => _customHours = !followsSalon),
-                  ),
-                  if (_customHours) ...[
-                    WeeklyHoursEditor(
-                      hours: _workingHours,
-                      onChanged: (hours) =>
-                          setState(() => _workingHours = hours),
-                    ),
-                    const SizedBox(height: AppTheme.spacingS),
-                    Text(
-                      'Les clients ne verront que les créneaux où ce membre '
-                      'travaille (dans la limite des horaires du salon).',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textTertiary),
-                    ),
-                  ],
-                  const SizedBox(height: AppTheme.spacingL),
-                  AppButton(
-                    text: 'Enregistrer',
-                    onPressed: artistProvider.isLoading ? null : _handleSave,
-                    isLoading: artistProvider.isLoading,
-                  ),
-                  if (widget.artistId != null) ...[
-                    const SizedBox(height: AppTheme.spacingM),
-                    TextButton(
-                      onPressed:
-                          artistProvider.isLoading ? null : _handleDelete,
-                      style: TextButton.styleFrom(
-                          foregroundColor: AppColors.error),
-                      child: const Text('Supprimer l\'employé'),
-                    ),
-                  ],
                 ],
-              ),
+                const SizedBox(height: AppTheme.spacingL),
+                AppButton(
+                  text: 'Enregistrer',
+                  onPressed: artistProvider.isLoading ? null : _handleSave,
+                  isLoading: artistProvider.isLoading,
+                ),
+                if (widget.artistId != null) ...[
+                  const SizedBox(height: AppTheme.spacingM),
+                  TextButton(
+                    onPressed: artistProvider.isLoading ? null : _handleDelete,
+                    style:
+                        TextButton.styleFrom(foregroundColor: AppColors.error),
+                    child: const Text('Supprimer l\'employé'),
+                  ),
+                ],
+              ],
             ),
           );
         },
