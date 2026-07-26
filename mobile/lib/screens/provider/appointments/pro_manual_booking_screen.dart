@@ -100,7 +100,9 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   /// they land form-level. The phone DOES have one.
   String? _selectionError;
   late final _errors = FieldErrors({
-    'phone': Validators.requiredField('le numéro du client'),
+    // The one field that really is typed as local digits — its formatter is
+    // `digitsOnly`, so a `+` cannot even be entered.
+    'phone': Validators.localPhoneNumber,
   });
   final _phoneFocus = FocusNode();
 

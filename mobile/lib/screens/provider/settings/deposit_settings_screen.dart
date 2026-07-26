@@ -36,7 +36,13 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   final _numberFocus = FocusNode();
 
   // A7/§14 — the field that decides where a salon's deposits land.
-  late final _errors = FieldErrors({'number': Validators.localPhoneNumber});
+  //
+  // **E.164.** `PUT /deposit-policy` validates `mobileMoneyNumber` as E.164
+  // (openapi.yaml:1758), and the field is prefilled from the stored value. The
+  // review caught the first version as a LOCKOUT with an *empty intersection*:
+  // a 10-digit local rule and an E.164 server contract can never both pass, so
+  // no salon could have saved a deposit policy at all.
+  late final _errors = FieldErrors({'number': Validators.phoneNumber});
   bool _numberPrefilled = false;
 
   @override

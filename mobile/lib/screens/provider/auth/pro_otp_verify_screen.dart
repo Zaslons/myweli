@@ -78,6 +78,9 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
   }
 
   void _onOtpChanged(int index, String value) {
+    // §14 rule 2 — the review found the fault surviving a full retype and even
+    // a « Renvoyer », so the screen kept accusing a code the user had replaced.
+    if (_inlineError != null) setState(() => _inlineError = null);
     if (value.isNotEmpty && index < 5) {
       _focusNodes[index + 1].requestFocus();
     }

@@ -396,62 +396,66 @@ class _AddClientSheetState extends State<_AddClientSheet> {
         top: AppTheme.spacingL,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingL,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Ajouter un client',
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.textPrimary,
+      // §13.3 — the same defect the invite sheet had: two field errors plus the
+      // duplicate CTA overflow this sheet at raised text scale.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Ajouter un client',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          AppTextField(
-            controller: _nameController,
-            label: 'Nom',
-            focusNode: _nameFocus,
-            errorText: _errors['name'],
-            onChanged: (v) => setState(() => _errors.revalidate('name', v)),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          PhoneNumberField(
-            errorText: _errors['phone'],
-            // It also never called setState, so the submit gate read a stale
-            // phone: typing a number alone did not re-enable the button until
-            // some unrelated rebuild happened.
-            onChanged: (e164) => setState(() {
-              _phone = e164;
-              _duplicateId = null;
-              _errors.revalidate('phone', e164);
-            }),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          AppTextField(
-            controller: _noteController,
-            label: 'Note (optionnelle)',
-            hint: 'Ex : Préfère Awa',
-            maxLength: 500,
-          ),
-          // The form-level outcome (a real save failure) — A6's in-modal slot,
-          // and a live region, which the red Text it replaces was not.
-          InlineFeedback(error),
-          if (_duplicateId != null) ...[
-            const SizedBox(height: AppTheme.spacingS),
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _nameController,
+              label: 'Nom',
+              focusNode: _nameFocus,
+              errorText: _errors['name'],
+              onChanged: (v) => setState(() => _errors.revalidate('name', v)),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            PhoneNumberField(
+              errorText: _errors['phone'],
+              // It also never called setState, so the submit gate read a stale
+              // phone: typing a number alone did not re-enable the button until
+              // some unrelated rebuild happened.
+              onChanged: (e164) => setState(() {
+                _phone = e164;
+                _duplicateId = null;
+                _errors.revalidate('phone', e164);
+              }),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _noteController,
+              label: 'Note (optionnelle)',
+              hint: 'Ex : Préfère Awa',
+              maxLength: 500,
+            ),
+            // The form-level outcome (a real save failure) — A6's in-modal slot,
+            // and a live region, which the red Text it replaces was not.
+            InlineFeedback(error),
+            if (_duplicateId != null) ...[
+              const SizedBox(height: AppTheme.spacingS),
+              AppButton(
+                text: 'Voir la fiche existante',
+                type: AppButtonType.secondary,
+                isFullWidth: true,
+                onPressed: () => Navigator.of(context).pop(_duplicateId),
+              ),
+            ],
+            const SizedBox(height: AppTheme.spacingM),
             AppButton(
-              text: 'Voir la fiche existante',
-              type: AppButtonType.secondary,
-              isFullWidth: true,
-              onPressed: () => Navigator.of(context).pop(_duplicateId),
+              text: 'Ajouter',
+              isLoading: _busy,
+              onPressed: _busy ? null : _submit,
             ),
           ],
-          const SizedBox(height: AppTheme.spacingM),
-          AppButton(
-            text: 'Ajouter',
-            isLoading: _busy,
-            onPressed: _busy ? null : _submit,
-          ),
-        ],
+        ),
       ),
     );
   }

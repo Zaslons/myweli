@@ -79,6 +79,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
       _selectedTime = salonDateTime(dt.year, dt.month, dt.day,
           hour: dt.hour, minute: dt.minute, tz: _tz);
+      _selectionError = null;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       unawaited(context.read<LocalityProvider>().ensureLoaded());

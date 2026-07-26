@@ -149,6 +149,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _savePhone() async {
+    // §14 rule 5 cuts both ways: A7 removed the `_phoneNumber.isEmpty` gate
+    // that used to hold this step, and — the review's finding — put nothing
+    // behind it. `'phone'` was declared and bound to an errorText that could
+    // never populate, so one tap saved an EMPTY phone (the backend documents
+    // `''` as "clear it", 200) and landed on /home. This is the app's only
+    // enforcement of the mandatory contact number.
+    if (!_errors.validate({'phone': _phoneNumber})) {
+      setState(() {});
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final ok = await auth.updateUser(phone: _phoneNumber);
     if (!mounted) return;

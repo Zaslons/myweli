@@ -258,6 +258,56 @@ asserts the disabled button — the exact anti-pattern rule 5 forbids.
   the amendment that requires it existed. Replacing it with a generic component
   would have lost information, so only its *rule* changed.
 
+## What the adversarial review changed
+
+57 agents, six lenses, two independent refuters per finding. **45 of 50 verdicts
+came back *not refuted*** — the skeptics largely confirmed rather than killed.
+That is a bad result for this slice, and the shape of it matters more than the
+count: **four of the six high-severity defects were the same mistake.**
+
+I wired `errorText` and `revalidate` onto screen after screen and **forgot the
+`validate()` call** — declaring a rule, binding a message to it, and never
+running it. That is *precisely* the pathology row 19 exists to kill; A7
+re-created it while removing it. And because rule 5 had already deleted the
+disabled-button gate, the press then **succeeded** where it used to be blocked.
+
+| Defect | Consequence |
+|---|---|
+| `login_screen._savePhone` never validated | the **mandatory** contact-phone step bypassable in one tap; an empty phone saved (the backend documents `''` as "clear it") and landed on `/home` |
+| `pro_register`: `email` + `code` never validated | both old gates deleted with nothing behind them |
+| `pro_register`: the businessType fault rendered nowhere | computed, blocked submit, invisible — a press that did literally nothing |
+| `pro_salon_profile`: `localPhoneNumber` on a field prefilled with E.164 | **lockout** — the salon could never save its profile again |
+| `deposit_settings`: same, against a contract that requires E.164 | **lockout with an empty intersection** — no salon could save a deposit policy |
+| `_tagError` declared, rendered, cleared — **never assigned** | my tag-fault block silently failed to apply and I asserted nothing; a dead `errorText` shipped |
+
+Both lockouts came from one bad assumption: I read the hint « Ex : 07 07 12 34
+56 » and wrote a local-digits rule, without checking that
+`openapi.yaml:1334-5,1758` specifies **E.164** for all three fields and that the
+controllers are prefilled from exactly that stored value. The rule would have
+failed on data the app itself had just loaded. `localPhoneNumber` survives with
+one honest caller — manual booking's client phone, whose formatter is
+`digitsOnly` so a `+` cannot be typed.
+
+Also fixed: `edit_profile` had silently made the consumer phone **mandatory**
+(it has always been optional there) · selection faults never cleared when the
+user made the selection, on six screens (§14 rule 2 applies to those too) ·
+`pro_otp_verify` kept accusing a code the user had fully retyped · the
+add-client sheet overflowed at 200 % once its errors rendered — the same defect
+the invite sheet had, which I fixed there and did not think to look for here.
+
+**The gate §20 claimed now exists.** `test/widget/form_answers_test.dart` and a
+new `FieldErrors.unvalidatedKeys` hold the invariant that makes the whole class
+impossible: *a declared rule is an enforced rule*. Writing it was the honest
+order — the docs promised it before it existed, which is why nothing caught any
+of this.
+
+**Still open, recorded not fixed:** `PhoneNumberField` passes
+`invalidNumberMessage`, so `intl_phone_field` runs its own validator alongside
+`FieldErrors` and the two rules can disagree · the strict e-mail regex rejects
+apostrophes in the local part · `service_form`'s « supérieur » message accepts
+equal values · `pro_register` still uses a hand-rolled red `Text` for its server
+outcome where its three sibling funnels use `InlineFeedback`.
+
 ## Definition of done
 
 Row 19 → **0** with both pins green and their red recorded · every field fault

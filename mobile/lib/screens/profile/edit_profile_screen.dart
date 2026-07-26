@@ -29,8 +29,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final _errors = FieldErrors({
     'name': Validators.name,
     'email': Validators.optionalEmail,
-    'phone': Validators.phoneNumber,
+    // Optional, as it always was here — A7's first pass made it required by
+    // accident, which would have blocked a consumer with no number on file
+    // from saving an unrelated edit.
+    'phone': _optionalPhone,
   });
+  static String? _optionalPhone(String value) =>
+      value.trim().isEmpty ? null : Validators.phoneNumber(value);
+
   final _nameFocus = FocusNode();
   final _emailFocus = FocusNode();
   late final _focusNodes = {'name': _nameFocus, 'email': _emailFocus};

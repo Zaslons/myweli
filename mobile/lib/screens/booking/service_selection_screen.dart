@@ -156,6 +156,8 @@ class _ServiceSelectionScreenState extends State<ServiceSelectionScreen> {
                         onTap: () {
                           if (disabled) return;
                           setState(() {
+                            _selectionError =
+                                null; // §14 rule 2: the fault goes when the user fixes it
                             if (isSelected) {
                               _selectedServiceIds.remove(service.id);
                             } else {

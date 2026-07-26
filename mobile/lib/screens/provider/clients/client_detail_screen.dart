@@ -709,12 +709,28 @@ class _TagSheetState extends State<_TagSheet> {
               icon: const Icon(Icons.add),
               onPressed: () {
                 final t = _customController.text.trim();
-                if (t.isNotEmpty && !_tags.contains(t) && _tags.length < 10) {
-                  setState(() {
-                    _tags.add(t);
-                    _customController.clear();
-                  });
+                // Three rules used to fail in complete silence — the button was
+                // ENABLED, the user tapped, and nothing happened at all. A7
+                // wrote this block once and the edit silently did not apply;
+                // the review caught the resulting dead `errorText`, which is
+                // the very bug this slice exists to kill.
+                final fault = t.isEmpty
+                    ? 'Saisissez un tag.'
+                    : _tags.contains(t)
+                        ? 'Ce tag est déjà ajouté.'
+                        : _tags.length >= 10
+                            ? 'Vous avez atteint 10 tags — retirez-en un '
+                                'pour en ajouter.'
+                            : null;
+                if (fault != null) {
+                  setState(() => _tagError = fault);
+                  return;
                 }
+                setState(() {
+                  _tagError = null;
+                  _tags.add(t);
+                  _customController.clear();
+                });
               },
             ),
           ),

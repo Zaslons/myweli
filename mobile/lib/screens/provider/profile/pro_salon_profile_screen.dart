@@ -47,12 +47,17 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   final _name = TextEditingController();
 
   // A7/§14 — the salon's contact numbers reach real clients, and nothing
-  // checked them. `localPhoneNumber` because these are typed as digits here
-  // (not a country-picker field), which is what the hints have always shown.
+  // checked them.
+  //
+  // **E.164, not local digits.** The review caught this as a LOCKOUT: these
+  // controllers are prefilled from the stored value, which openapi.yaml:1334-5
+  // specifies as E.164 (`+225 …`). A 10-digit rule can never match it, so the
+  // salon could not save its profile again — the rule would have failed on data
+  // the app itself had just loaded.
   late final _errors = FieldErrors({
     'name': Validators.requiredField('le nom du salon'),
-    'phone': Validators.localPhoneNumber,
-    'whatsapp': _optionalLocalPhone,
+    'phone': Validators.phoneNumber,
+    'whatsapp': _optionalPhone,
   });
   final _nameFocus = FocusNode();
   final _phoneFocus = FocusNode();
@@ -64,8 +69,8 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   };
 
   /// WhatsApp is optional — blank passes, anything typed must be a real number.
-  static String? _optionalLocalPhone(String value) =>
-      value.trim().isEmpty ? null : Validators.localPhoneNumber(value);
+  static String? _optionalPhone(String value) =>
+      value.trim().isEmpty ? null : Validators.phoneNumber(value);
   final _description = TextEditingController();
   final _address = TextEditingController();
   final _phone = TextEditingController();

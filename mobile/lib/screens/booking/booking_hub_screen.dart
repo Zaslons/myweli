@@ -347,6 +347,10 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   /// A7/§14: two SELECTION faults with no field to own them, so they land
   /// form-level. Both were snackbars, and both were DEAD — `canConfirm` was the
   /// exact conjunction of their negations, so neither could ever fire.
+  /// §14 rule 2 applies to selection faults too: cleared the moment the user
+  /// changes the selection, not on the next submit. The review found the stale
+  /// message surviving on six screens, which reads as a form that has stopped
+  /// listening.
   String? _selectionError;
 
   Future<void> _confirm(models.Provider p) async {
@@ -487,6 +491,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     // new selection.
                                     final selected = _selectedServices(p);
                                     if (!bookingHasVariants(selected)) {
+                                      _selectionError = null;
                                       _draft = _draft.copyWith(
                                           clearLengthVariant: true);
                                     } else if (_draft.lengthVariant == null ||
@@ -559,6 +564,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 durationFor: (length) => totalBookingDuration(
                                     _selectedServices(p), length),
                                 onChanged: (length) async {
+                                  _selectionError = null;
                                   setState(() => _draft =
                                       _draft.copyWith(lengthVariant: length));
                                   await _validateSelectedDateTime(

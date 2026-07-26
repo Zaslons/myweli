@@ -96,6 +96,28 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
 
   /// Business fields must be valid before ANY identity path fires — the
   /// backend registers identity + salon atomically in one call.
+  /// The review found `email` and `code` declared as rules and **never
+  /// validated** — A7 deleted both old gates (`!_emailValid`, `length < 4`)
+  /// and put nothing behind them, so « Recevoir un code » and « S'inscrire »
+  /// fired on anything.
+  Future<void> _sendCodeChecked() async {
+    if (!_errors.validate({'email': _emailController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
+    await _sendCode();
+  }
+
+  Future<void> _handleEmailRegisterChecked() async {
+    if (!_errors.validate({'code': _codeController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
+    await _handleEmailRegister();
+  }
+
   bool _validateBusinessFields() {
     // The phone used to be checked imperatively and answered with a BAR — a
     // field fault in a snackbar, which is exactly what §14 rule 3 forbids. It
@@ -201,6 +223,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 decoration: InputDecoration(
                   labelText: 'Type d\'entreprise',
                   prefixIcon: const Icon(Icons.category),
+                  // The review: this fault was computed, blocked the submit,
+                  // and rendered NOWHERE — a press that did literally nothing,
+                  // which is worse than the disabled button rule 5 removed.
+                  errorText: _errors['businessType'],
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
@@ -350,7 +376,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 AppButton(
                   text: 'Recevoir un code',
                   // §14 rule 5: disabled ONLY while submitting.
-                  onPressed: auth.isLoading ? null : _sendCode,
+                  onPressed: auth.isLoading ? null : _sendCodeChecked,
                   isLoading: auth.isLoading,
                 ),
               ] else ...[
@@ -381,7 +407,8 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   // with maxLength 6 — a four-digit code walked through.
                   // Rule 5: disabled only while submitting; the code's own
                   // rule now answers with a message under the field.
-                  onPressed: auth.isLoading ? null : _handleEmailRegister,
+                  onPressed:
+                      auth.isLoading ? null : _handleEmailRegisterChecked,
                   isLoading: auth.isLoading,
                 ),
                 const SizedBox(height: AppTheme.spacingS),
