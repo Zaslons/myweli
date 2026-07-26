@@ -6,13 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/helpers.dart';
+import '../../../core/utils/validators.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/inline_feedback.dart';
 
 class ProOtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
@@ -35,6 +38,11 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
   bool _isLoading = false;
+
+  // A7/§14 — the six-digit rule is the shared one, and its verdict renders
+  // beside the boxes instead of in a bar that outlives the screen.
+  late final _errors = FieldErrors({'code': Validators.otp});
+  String? _inlineError;
 
   @override
   void initState() {
@@ -77,11 +85,14 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
 
   Future<void> _handleVerify() async {
     final otp = _controllers.map((c) => c.text).join();
-    if (otp.length != 6) {
-      AppSnackBar.show(context, 'Veuillez entrer le code complet',
-          kind: SnackKind.error);
+    // A7/§14 rule 3: an incomplete code is a FIELD fault. It used to be a
+    // snackbar — a message about these six boxes, floating at the bottom of the
+    // screen on a timer.
+    if (!_errors.validate({'code': otp})) {
+      setState(() => _inlineError = _errors['code']);
       return;
     }
+    setState(() => _inlineError = null);
 
     setState(() => _isLoading = true);
 
@@ -98,8 +109,8 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
         context.go('/pro/dashboard');
       }
     } else {
-      AppSnackBar.show(context, authProvider.error ?? 'Code invalide',
-          kind: SnackKind.error);
+      // The server's verdict on the code belongs to the code, too (rule 1).
+      setState(() => _inlineError = authProvider.error ?? 'Code invalide');
       for (var controller in _controllers) {
         controller.clear();
       }
@@ -229,8 +240,16 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                   );
                 }),
               ),
+              // §14 rule 1, as close to "under the field" as six boxes allow:
+              // the message sits with the thing it is about, and stays until
+              // the code is fixed. `InlineFeedback` is a live region, so a
+              // screen reader hears it — the snackbar it replaces was pruned
+              // the moment this screen sat under anything modal (§15/A6).
+              InlineFeedback(_inlineError),
               const SizedBox(height: AppTheme.spacingL),
               TextButton(
+                // A rate limit, not validation — §14 rule 5's stated
+                // exception, and the label says when it reopens.
                 onPressed: _resendCooldown > 0 ? null : _handleResend,
                 child: Text(
                   _resendCooldown > 0

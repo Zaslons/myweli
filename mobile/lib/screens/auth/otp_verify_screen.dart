@@ -7,10 +7,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/forms/field_errors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../services/mock/mock_auth_service.dart';
@@ -53,7 +55,15 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   String get _otp => _controllers.map((c) => c.text).join();
   bool get _entryDisabled => _locked || _expired;
-  bool get _canVerify => _otp.length == 6 && !_entryDisabled && !_isLoading;
+
+  /// §14 rule 5: NOT gated on the code's length. A lockout or an expired code
+  /// is a rate limit, not validation — that one is a legitimate disable, and
+  /// the screen says why. An incomplete code is answered, not prevented.
+  bool get _canVerify => !_entryDisabled && !_isLoading;
+
+  // A7: the six-digit rule is the shared one now. This screen used to carry
+  // `_otp.length == 6` in two places and silently do nothing when it failed.
+  late final _errors = FieldErrors({'code': Validators.otp});
 
   @override
   void initState() {
@@ -133,7 +143,16 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   }
 
   Future<void> _handleVerify() async {
-    if (_otp.length != 6 || _entryDisabled) return;
+    if (_entryDisabled) return;
+    // It used to `return` silently on a short code — the press did nothing and
+    // said nothing.
+    if (!_errors.validate({'code': _otp})) {
+      setState(() {
+        _inlineError = _errors['code'];
+        _hasError = true;
+      });
+      return;
+    }
 
     setState(() => _isLoading = true);
 
