@@ -1,6 +1,6 @@
 # mobile-a10-clock — the clock seam, and a register row copied from a comment that was wrong (A10)
 
-**Status:** In progress (2026-07-27). **Surface:** `mobile/` — the clock, and
+**Status:** Done (2026-07-27). **Surface:** `mobile/` — the clock, and
 three pro screens that could not be photographed. **Design system:**
 [SYSTEM.md §18](SYSTEM.md#18-market-data--salon-time) ·
 [§20/§20.1](SYSTEM.md#20-enforcement) ·
@@ -161,6 +161,55 @@ it is the only thing asserting the seam's default *is* the wall clock.
   seam and the pin make the remaining five goldenable; taking those pictures is a
   later slice's cheap win, and eight new baselines in one PR is more than can be
   eye-reviewed honestly — §20.1's own warning.
+
+## ⚠️ Four things this spec got wrong, found by building it
+
+Recorded here rather than silently corrected, because each was an argument this
+document made confidently before anything was measured.
+
+1. **One of the two "latent §18 violations" was not one.**
+   `pro_journal_provider.todayKey` was `keyOf(DateTime.now())`, which §"Two
+   latent §18 violations" called a call-site violation. `keyOf` is
+   `salonDayKey`, which converts the *instant* — so the raw clock read was the
+   whole defect and the sweep is the whole fix. The genuinely fragile shape in
+   that file is the other one, `keyOf(_selectedDate)`, which converts an
+   already-converted salon date; it is correct for every timezone at or east of
+   UTC, which is all of them Myweli serves.
+
+2. **The "app-wide pin" would have been the wrong instrument.** Sweeping `test/`
+   for `DateTime.now()` bans **38 sites**, nearly all legitimate relative
+   fixtures, and pushes authors toward absolute dates that rot — while missing
+   nothing, because *an unfrozen test reading the wall clock is correct*. The
+   hazard is the **mix**: a file that freezes AND reads. That is what shipped.
+
+3. **Three goldens was one too few.** `MockData` seeds `provider1` at `now+2d`,
+   `now-10d`, `now-7d` — never today — so the journal's default day is the empty
+   state, and a single picture of it pins a placeholder while the timeline rows,
+   the status chips and the artist filter go unphotographed. `pro_journal_day`
+   is the fourth, and it also catches the `isToday` branch row 23 accused —
+   « vendredi 13 mars 2026 » — which had never appeared in any test.
+
+4. **`_FixedRoster` was not buying what it claimed, and neither was the first
+   version of this spec's determinism proof.** The plan said "confirm the bytes
+   are identical". Run, that is only half right: 23 of 26 are identical, and the
+   three that move are *supposed* to. A clock-bearing golden that comes back
+   byte-identical under a different freeze is ignoring the freeze. The proof is
+   "identical, **or** differing only in rendered dates" — and it caught a real
+   bug on the first run: `pro_journal_day` tapped the literal `'13'`, which does
+   not exist in the week of 22 September 2027.
+
+## The determinism proof, run
+
+Every baseline regenerated under two frozen instants eighteen months apart —
+**11 Mar 2026** (`kFixedNow`) and **22 Sep 2027** — in the pinned Linux image.
+
+| Result | Count | Meaning |
+|---|---|---|
+| byte-identical | **23 / 26** | no hidden wall-clock read leaks in |
+| differ, only in rendered dates | 2 (`pro_journal`, `pro_journal_day`) | the strip and header follow the frozen clock and nothing else |
+| differ, in row order | 1 (`pro_team`) | §21 row 39 — `invitedAt` mixes relative and absolute seeds |
+
+Both runs: **26 passing**.
 
 ## Definition of done
 

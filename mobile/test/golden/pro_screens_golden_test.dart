@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/team_member.dart';
@@ -210,7 +211,13 @@ void main() {
         size: const Size(390, 1200),
         rounds: 10,
       );
-      await tester.tap(find.text('13'));
+      // DERIVED from [kFixedNow], not the literal '13'. The first draft hard-coded
+      // it and passed — then the two-date determinism run moved the freeze to 22
+      // September 2027, where the strip reads 20–26 and there is no 13 to tap.
+      // A golden that only works at one frozen instant is a landmine for whoever
+      // moves it next.
+      final target = salonNow(now: kFixedNow).add(const Duration(days: 2));
+      await tester.tap(find.text('${target.day}'));
       await settleMocks(tester, rounds: 10);
       expect(find.text('Aujourd\u2019hui'), findsNothing,
           reason: 'the tap must have landed — if the strip did not move, this '
@@ -234,14 +241,25 @@ void main() {
 /// `MockProTeamService` sets `expiresAt: AppClock.now().add(7 days)`, and the
 /// row prints it ("expire le lundi 20 juillet 2026").
 ///
-/// **A10 makes this redundant and keeps it anyway.** With the clock frozen the
-/// seed is already deterministic, so the override no longer prevents a daily
-/// flip. What it still buys is independence from [kFixedNow] itself: pinned FAR
-/// out in both directions — one invitation always pending, one always expired —
-/// `pro_team.png` does not churn if a later slice moves the frozen instant. The
-/// branch reads the seam rather than the wall clock, because a comparison
-/// against an unfrozen clock inside a frozen test is the exact silent
-/// decoupling `salon_time_pin_test` now pins.
+/// **A10 makes this redundant and keeps it anyway** — with a correction to what
+/// it was ever buying. With the clock frozen the seed is already deterministic,
+/// so the override no longer prevents a daily flip; what it still pins is the
+/// printed EXPIRY, far out in both directions, one invitation always pending and
+/// one always expired.
+///
+/// It does NOT pin the row ORDER, and the claim that it made `pro_team.png`
+/// independent of [kFixedNow] is measured to be false. The roster sorts on
+/// `invitedAt` (`pro_team_provider.dart:223`), and two of the six members carry
+/// clock-relative values while four are absolute (`mock_data.dart:695,730` vs
+/// `:685,708,718`) — so moving the freeze across June 2026 reorders the list.
+/// That is a real inconsistency in the seed, recorded in SYSTEM.md §21 rather
+/// than papered over here: the two relative ones encode "invited 2 days ago,
+/// still pending" and "invited 9 days ago, now expired", which are *inherently*
+/// relative, and freezing them absolute would freeze the semantics with them.
+///
+/// The branch reads the seam rather than the wall clock, because a comparison
+/// against an unfrozen clock inside a frozen test is the exact silent decoupling
+/// `salon_time_pin_test` now pins.
 class _FixedRoster extends MockProTeamService {
   @override
   Future<ApiResponse<List<TeamMember>>> getMembers() async {
