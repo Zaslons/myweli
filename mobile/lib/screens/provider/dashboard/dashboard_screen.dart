@@ -232,7 +232,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _StatCard(
-                          title: 'Aujourd\'hui',
+                          title: 'Aujourd’hui',
                           value: stats.todayAppointments.toString(),
                           subtitle: 'Rendez-vous',
                           icon: Icons.calendar_today,
@@ -259,7 +259,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Expanded(
                           child: _StatCard(
-                            title: 'Aujourd\'hui',
+                            title: 'Aujourd’hui',
                             value: Formatters.formatCurrency(
                               stats.todayRevenue!,
                               currency:

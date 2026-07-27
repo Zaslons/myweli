@@ -88,7 +88,7 @@ class Formatters {
   static String formatRelative(DateTime time, {DateTime? now}) {
     final ref = now ?? DateTime.now();
     final diff = ref.difference(time);
-    if (diff.inMinutes < 1) return 'À l\'instant';
+    if (diff.inMinutes < 1) return 'À l’instant';
     if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
     if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
     if (diff.inDays == 1) return 'Hier';

@@ -18,7 +18,7 @@ void main() {
   testWidgets('a foreign device sees the hint', (tester) async {
     await tester.pumpWidget(host(const Duration(hours: 1))); // Paris (winter)
     expect(
-      find.text('Heures affichées : heure du salon (Côte d\'Ivoire)'),
+      find.text('Heures affichées : heure du salon (Côte d’Ivoire)'),
       findsOneWidget,
     );
   });
@@ -26,7 +26,7 @@ void main() {
   testWidgets('a device on salon time sees NOTHING', (tester) async {
     await tester.pumpWidget(host(Duration.zero)); // Abidjan
     expect(
-      find.text('Heures affichées : heure du salon (Côte d\'Ivoire)'),
+      find.text('Heures affichées : heure du salon (Côte d’Ivoire)'),
       findsNothing,
     );
     expect(find.byType(SizedBox), findsOneWidget);

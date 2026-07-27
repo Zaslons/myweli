@@ -286,7 +286,7 @@ class MockData {
     Provider(
       id: 'provider1',
       name: 'Salon Excellence',
-      description: 'Salon de coiffure moderne au cœur d\'Abidjan',
+      description: 'Salon de coiffure moderne au cœur d’Abidjan',
       address: 'Cocody, Angré 7ème Tranche',
       commune: 'Cocody',
       city: 'Abidjan',
@@ -427,7 +427,7 @@ class MockData {
       id: 'provider4',
       name: 'Barber Shop Pro',
       description: 'Salon de coiffure pour hommes',
-      address: 'Plateau, Avenue Franchet d\'Esperey',
+      address: 'Plateau, Avenue Franchet d’Esperey',
       commune: 'Plateau',
       city: 'Abidjan',
       // Multi-pays market facts (mirrors the MP1 backend seed).
@@ -455,7 +455,7 @@ class MockData {
         ),
         Service(
           id: 'service10',
-          name: 'Rasage à l\'ancienne',
+          name: 'Rasage à l’ancienne',
           description: 'Rasage avec rasoir',
           price: 3500,
           durationMinutes: 15,
@@ -505,7 +505,7 @@ class MockData {
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
-      text: 'Bon salon, un peu d\'attente le samedi. Service soigné.',
+      text: 'Bon salon, un peu d’attente le samedi. Service soigné.',
       verified: true,
       artistName: 'Kouassi Jean',
       createdAt: DateTime(2025, 1, 8),

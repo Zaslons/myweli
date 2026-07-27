@@ -190,7 +190,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
               icon: Icons.storefront_outlined,
               title: 'Profil incomplet',
               description:
-                  'Configurez votre profil et vos services avant d\'ajouter '
+                  'Configurez votre profil et vos services avant d’ajouter '
                   'un rendez-vous.',
             );
           }
@@ -260,7 +260,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
               _label('CLIENT'),
               AppTextField(
                 label: 'Téléphone du client',
-                hint: '+225 ...',
+                hint: '+225 …',
                 controller: _phone,
                 focusNode: _phoneFocus,
                 keyboardType: TextInputType.phone,
@@ -291,7 +291,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                     : (v) => setState(() => _sendSms = v),
                 title: const Text('Envoyer la confirmation par SMS'),
                 subtitle: const Text(
-                    'Le client reçoit un lien vers l\'app (bientôt disponible)'),
+                    'Le client reçoit un lien vers l’app (bientôt disponible)'),
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               ),

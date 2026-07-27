@@ -128,7 +128,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Nom de l\'entreprise',
+                            'Nom de l’entreprise',
                             style: AppTextStyles.titleMedium
                                 .copyWith(color: AppColors.textPrimary),
                           ),
@@ -140,7 +140,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                           ),
                           const SizedBox(height: AppTheme.spacingM),
                           Text(
-                            'Type d\'entreprise',
+                            'Type d’entreprise',
                             style: AppTextStyles.titleMedium
                                 .copyWith(color: AppColors.textPrimary),
                           ),
@@ -309,7 +309,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.payments_outlined),
-                      title: const Text('Paramètres d\'acompte'),
+                      title: const Text('Paramètres d’acompte'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/pro/deposit-settings'),
                     ),

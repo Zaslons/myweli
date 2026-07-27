@@ -6,7 +6,7 @@ import 'package:myweli/core/utils/validators.dart';
 /// while the rules the screens actually ran carried divergent inline copies.
 void main() {
   group('Validators.phoneNumber (E.164)', () {
-    test('accepts a current Côte d\'Ivoire 10-digit number', () {
+    test('accepts a current Côte d’Ivoire 10-digit number', () {
       // The old validator wrongly rejected this (it required 8 digits).
       expect(Validators.phoneNumber('+2250712345678'), isNull);
     });

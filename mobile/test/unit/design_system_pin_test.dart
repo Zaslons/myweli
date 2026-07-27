@@ -325,11 +325,32 @@ void main() {
     // repo are dense with quoted French copy, so a naive whole-line match would
     // flag the documentation for describing the defect it documents.
 
-    /// Every single-quoted Dart string literal on [line], with the quotes.
-    List<String> stringsIn(String line) => RegExp(r"'(?:[^'\\]|\\.)*'")
-        .allMatches(line)
-        .map((m) => m.group(0)!)
-        .toList();
+    // **A pin that names a forbidden literal is a hazard to its own sweep.**
+    // The scan below only reads `lib/`, so it never sees this file — but the
+    // script that APPLIED these rules walked `test/` too, rewrote `'...'` to
+    // `'…'` inside `bad`, and inverted the rule: it began flagging every
+    // correct character. Caught because 8 legitimate `…` sites turned red at
+    // once. Any future mechanical sweep must exclude this file by name.
+
+    /// Every Dart string literal on [line], with its quotes — **both quote
+    /// styles**, because they hide the apostrophe differently.
+    ///
+    /// In `'l\'équipe'` it is an escape; in `"l'équipe"` it is a bare
+    /// character needing no escape at all. A pin that only knew the first form
+    /// would wave the second through — and the three tests that broke this
+    /// sweep were all double-quoted precisely because the author was avoiding
+    /// the escape.
+    List<String> stringsIn(String line) =>
+        RegExp('\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"')
+            .allMatches(line)
+            .map((m) => m.group(0)!)
+            .toList();
+
+    /// Does [literal] contain a straight apostrophe, in whichever form its
+    /// quoting requires?
+    bool hasStraightApostrophe(String literal) => literal.startsWith("'")
+        ? literal.contains("\\'")
+        : literal.substring(1, literal.length - 1).contains("'");
 
     // **Wider scope than the motion pins, on purpose.** Motion lives in
     // `screens/` + `widgets/` + `core/router/`; user-facing FRENCH lives
@@ -339,6 +360,25 @@ void main() {
     // `dartFiles` it measures the real number. A pin whose scope is inherited
     // rather than chosen enforces the rule somewhere other than where it
     // applies.
+    /// Offenders judged on the RAW LINE rather than on parsed literals — for
+    /// patterns a literal parser structurally cannot reach (see the apostrophe
+    /// rule below).
+    List<String> lineOffenders(bool Function(String line) bad) {
+      final hits = <String>[];
+      for (final file in dartFiles) {
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final code = lines[i].trimLeft();
+          if (code.startsWith('//') || code.startsWith('///')) continue;
+          if (lines[i].contains('// ds-ignore')) continue;
+          if (bad(lines[i])) {
+            hits.add('${file.path}:${i + 1}  ${lines[i].trim()}');
+          }
+        }
+      }
+      return hits;
+    }
+
     List<String> stringOffenders(bool Function(String literal) bad) {
       final hits = <String>[];
       for (final file in dartFiles) {
@@ -365,8 +405,23 @@ void main() {
     });
 
     test('one apostrophe — ’ never the straight one (§17.1)', () {
+      // **Line-level for the escaped form, literal-level for the bare one** —
+      // and the asymmetry is load-bearing. A literal parser cannot see inside
+      // an interpolation: in
+      //
+      //   'heure du salon (${countryLabel ?? 'Côte d\'Ivoire'})'
+      //
+      // the regex stops at the first unescaped quote and never reaches the
+      // nested string. The pin passed while that exact line still held a
+      // straight apostrophe; a FAILING TEST found it, not the gate.
+      //
+      // `\'` cannot legally appear outside a string in Dart, so scanning the
+      // whole line for it is both simpler and complete. The bare `'` inside a
+      // double-quoted literal still needs the parser, because a bare `'` on a
+      // line is usually just a normal string's own quote.
       expect(
-        stringOffenders((s) => s.contains("\\'")),
+        lineOffenders((line) => line.contains("\\'")) +
+            stringOffenders(hasStraightApostrophe),
         isEmpty,
         reason: "use ’ (U+2019), not \\'. Both shipped, sometimes in adjacent "
             'files. It also removes the escape, which is why the strings get '

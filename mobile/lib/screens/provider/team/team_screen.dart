@@ -97,7 +97,7 @@ class _TeamScreenState extends State<TeamScreen> {
         body: const EmptyState(
           icon: Icons.group_outlined,
           title: 'Réservé au propriétaire',
-          description: 'L\'équipe du salon est gérée par son propriétaire.',
+          description: 'L’équipe du salon est gérée par son propriétaire.',
         ),
       );
     }
@@ -271,7 +271,7 @@ class _MemberRow extends StatelessWidget {
     } else if (member.isPending) {
       if (member.expired) {
         lines.add(Text(
-          'Expirée — renvoyez l\'invitation',
+          'Expirée — renvoyez l’invitation',
           style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
         ));
       } else {
@@ -332,7 +332,7 @@ class _MemberActionsSheet extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.forward_to_inbox_outlined),
               title: Text(
-                'Renvoyer l\'invitation (${member.resendsLeft} '
+                'Renvoyer l’invitation (${member.resendsLeft} '
                 'restant${member.resendsLeft > 1 ? 's' : ''})',
               ),
               enabled: member.resendsLeft > 0,
@@ -344,7 +344,7 @@ class _MemberActionsSheet extends StatelessWidget {
               leading:
                   const Icon(Icons.person_off_outlined, color: AppColors.error),
               title: const Text(
-                'Révoquer l\'accès',
+                'Révoquer l’accès',
                 style: TextStyle(color: AppColors.error),
               ),
               onTap: () => _revoke(context, team),
@@ -426,9 +426,9 @@ class _MemberActionsSheet extends StatelessWidget {
     final navigator = Navigator.of(context);
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Révoquer l\'accès ?',
-      message: '${member.email} perdra immédiatement l\'accès à $salonName. '
-          'Son compte MyWeli n\'est pas supprimé.',
+      title: 'Révoquer l’accès ?',
+      message: '${member.email} perdra immédiatement l’accès à $salonName. '
+          'Son compte MyWeli n’est pas supprimé.',
       confirmLabel: 'Révoquer',
     );
     // No `mounted` here by design: this is a stateless row, and the messenger

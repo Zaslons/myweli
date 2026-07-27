@@ -201,7 +201,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      "Pourcentage de l'acompte",
+                      'Pourcentage de l’acompte',
                       style: AppTextStyles.bodyMedium,
                     ),
                     Text('$pct %', style: AppTextStyles.titleMedium),
@@ -285,11 +285,11 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Recevoir l\'acompte',
+                const Text('Recevoir l’acompte',
                     style: AppTextStyles.bodyMedium),
                 const SizedBox(height: AppTheme.spacingXS),
                 Text(
-                  'Le client envoie l\'acompte directement sur ce compte '
+                  'Le client envoie l’acompte directement sur ce compte '
                   'Mobile Money. Myweli ne le traite pas.',
                   style: AppTextStyles.bodySmall
                       .copyWith(color: AppColors.textTertiary),
@@ -371,13 +371,13 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Politique d'annulation",
+                'Politique d’annulation',
                 style: AppTextStyles.bodyMedium,
               ),
               const SizedBox(height: AppTheme.spacingXS),
               Text(
                 'Au-delà de ce délai avant le rendez-vous, le client peut '
-                "annuler et garder son acompte ; en deçà, l'acompte n'est pas "
+                'annuler et garder son acompte ; en deçà, l’acompte n’est pas '
                 'remboursé.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,

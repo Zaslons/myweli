@@ -16,7 +16,7 @@ class MockLocalityService implements LocalityServiceInterface {
     return ApiResponse.success([
       LocalityCountry(
         code: 'CI',
-        name: "Côte d'Ivoire",
+        name: 'Côte d’Ivoire',
         currency: 'XOF',
         phonePrefix: AppConstants.defaultCountryCode,
         operators: const [

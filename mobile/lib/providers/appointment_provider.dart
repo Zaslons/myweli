@@ -197,7 +197,7 @@ class AppointmentProvider extends ChangeNotifier {
         _error = null;
         return true;
       } else {
-        _error = response.error ?? 'Erreur lors de l\'annulation';
+        _error = response.error ?? 'Erreur lors de l’annulation';
         return false;
       }
     } catch (e) {

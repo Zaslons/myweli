@@ -121,7 +121,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
                 const SizedBox(width: AppTheme.spacingS),
                 _filterPill(
                   icon: Icons.event_available,
-                  label: "Disponible aujourd'hui",
+                  label: 'Disponible aujourd’hui',
                   active: provider.availableToday,
                   onTap: () =>
                       provider.setAvailableToday(!provider.availableToday),

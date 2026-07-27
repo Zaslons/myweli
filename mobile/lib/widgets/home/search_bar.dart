@@ -33,7 +33,7 @@ class AppSearchBar extends StatelessWidget {
             ),
             const SizedBox(width: AppTheme.spacingSM),
             Text(
-              'Rechercher un salon...',
+              'Rechercher un salon…',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textTertiary,
               ),

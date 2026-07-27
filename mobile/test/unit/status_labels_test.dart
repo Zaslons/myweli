@@ -187,15 +187,15 @@ void main() {
           // anything.
           return
               // `AppointmentStatus.noShow: 'Absent',`
-              RegExp("AppointmentStatus[.]noShow:\\s*'").hasMatch(src) ||
+              RegExp('AppointmentStatus[.]noShow:\\s*’').hasMatch(src) ||
                   // `case AppointmentStatus.noShow:\n  return 'Absent';`
-                  RegExp("case AppointmentStatus[.]noShow:\\s*\\n\\s*return '")
+                  RegExp('case AppointmentStatus[.]noShow:\\s*\\n\\s*return ’')
                       .hasMatch(src) ||
                   // the admin chip's raw-string form — `'noshow' => 'Absent'`,
                   // NOT `'noshow' => AdminChipKind.danger`, which is the KIND
                   // switch and is correct where it is. The pin's first draft
                   // flagged that too.
-                  RegExp("'noshow'[^\\n]*=>\\s*'").hasMatch(src);
+                  RegExp('’noshow’[^\\n]*=>\\s*’').hasMatch(src);
         })
         .map((f) => f.path)
         .toList();

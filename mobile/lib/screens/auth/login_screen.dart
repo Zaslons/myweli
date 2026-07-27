@@ -189,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: AppTheme.spacingL),
               if (_step != _LoginStep.phone)
                 Text(
-                  'En continuant, vous acceptez nos conditions d\'utilisation',
+                  'En continuant, vous acceptez nos conditions d’utilisation',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
                   ),
@@ -332,7 +332,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: AppTheme.spacingXS),
         AppButton(
-          text: 'Changer d\'e-mail',
+          text: 'Changer d’e-mail',
           type: AppButtonType.text,
           onPressed: auth.isLoading
               ? null
@@ -354,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: AppTheme.spacingS),
         Text(
-          'Le salon l\'utilise pour vous contacter au sujet de vos rendez-vous.',
+          'Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.',
           style: AppTextStyles.bodyLarge.copyWith(
             color: AppColors.textSecondary,
           ),

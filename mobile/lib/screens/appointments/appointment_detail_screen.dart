@@ -192,8 +192,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       context.pop();
       AppSnackBar.show(context, 'Rendez-vous annulé', kind: SnackKind.success);
     } else {
-      AppSnackBar.show(
-          context, provider.error ?? 'Erreur lors de l\'annulation',
+      AppSnackBar.show(context, provider.error ?? 'Erreur lors de l’annulation',
           kind: SnackKind.error);
     }
   }
@@ -308,7 +307,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           label = 'Acompte à envoyer';
           hint = 'Payez le salon directement, puis joignez une capture.';
           action = AppButton(
-            text: "Envoyer l'acompte",
+            text: 'Envoyer l’acompte',
             icon: Icons.send_outlined,
             onPressed: () => _handleSendDeposit(a),
           );
@@ -381,7 +380,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       messenger,
       ok: ok,
       success: 'Rendez-vous ajouté à votre calendrier',
-      error: 'Impossible d\'ouvrir le calendrier',
+      error: 'Impossible d’ouvrir le calendrier',
     );
   }
 

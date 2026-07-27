@@ -233,7 +233,7 @@ class _ProAppointmentDetailScreenState
                             ],
                           ),
                           Text(
-                            'Confirmez le rendez-vous une fois l\'acompte reçu '
+                            'Confirmez le rendez-vous une fois l’acompte reçu '
                             'sur votre compte Mobile Money.',
                             style: AppTextStyles.bodySmall
                                 .copyWith(color: AppColors.textTertiary),

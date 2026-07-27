@@ -93,7 +93,7 @@ class _EarningsScreenState extends State<EarningsScreen>
           controller: _tabController,
           onTap: _loadEarningsForTab,
           tabs: const [
-            Tab(text: 'Aujourd\'hui'),
+            Tab(text: 'Aujourd’hui'),
             Tab(text: 'Semaine'),
             Tab(text: 'Mois'),
             Tab(text: 'Tout'),

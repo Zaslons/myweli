@@ -490,7 +490,7 @@ class _Header extends StatelessWidget {
                     child: Center(
                       child: Text(
                         isToday
-                            ? "Aujourd'hui"
+                            ? 'Aujourd’hui'
                             : Formatters.formatDate(toSalonTime(
                                 date,
                                 tz: context

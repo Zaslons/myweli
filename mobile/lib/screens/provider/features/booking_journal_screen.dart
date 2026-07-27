@@ -102,7 +102,7 @@ class BookingJournalScreen extends StatelessWidget {
             const SizedBox(height: 24),
             // Today's Appointments
             Text(
-              'Rendez-vous d\'aujourd\'hui',
+              'Rendez-vous d’aujourd’hui',
               style: AppTextStyles.titleLarge.copyWith(
                 color: AppColors.textPrimary,
               ),

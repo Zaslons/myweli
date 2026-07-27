@@ -141,7 +141,7 @@ void main() {
       expect(l10n.backButtonTooltip, 'Retour');
     });
 
-    testWidgets('A6\'s parked question — the barrier a screen reader announces',
+    testWidgets('A6’s parked question — the barrier a screen reader announces',
         (tester) async {
       final l10n = await read(tester, MaterialLocalizations.of);
       expect(l10n.modalBarrierDismissLabel, isNot('Dismiss'),

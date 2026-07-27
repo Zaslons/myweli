@@ -122,14 +122,14 @@ void main() {
     expect(find.text('Salon Excellence'), findsNWidgets(2));
     expect(find.text('Mes salons'), findsOneWidget);
     expect(find.text('Manager'), findsOneWidget);
-    expect(find.text('Nom de l\'entreprise'), findsNothing);
+    expect(find.text('Nom de l’entreprise'), findsNothing);
 
     expect(find.text('Profil du salon'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsNothing);
     expect(find.text('Vérification'), findsNothing);
     expect(find.text('Équipe'), findsNothing);
     expect(find.text('Mon abonnement'), findsNothing);
-    expect(find.text('Paramètres d\'acompte'), findsNothing);
+    expect(find.text('Paramètres d’acompte'), findsNothing);
     await scrollDown(tester);
     expect(find.text('Photos du salon'), findsOneWidget);
     expect(find.text('Avant / Après'), findsOneWidget);
@@ -173,11 +173,11 @@ void main() {
     await tester.pumpWidget(app(await readyAuth(tester)));
     await settle(tester);
 
-    expect(find.text('Nom de l\'entreprise'), findsOneWidget);
+    expect(find.text('Nom de l’entreprise'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsOneWidget);
     expect(find.text('Équipe'), findsOneWidget);
     await scrollDown(tester);
     expect(find.text('Mon abonnement'), findsOneWidget);
-    expect(find.text('Paramètres d\'acompte'), findsOneWidget);
+    expect(find.text('Paramètres d’acompte'), findsOneWidget);
   });
 }

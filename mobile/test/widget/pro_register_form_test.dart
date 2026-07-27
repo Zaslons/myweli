@@ -121,7 +121,7 @@ void main() {
     WidgetTester tester, {
     bool withType = true,
   }) async {
-    await type(tester, 'Nom de l\'entreprise', 'Salon Awa');
+    await type(tester, 'Nom de l’entreprise', 'Salon Awa');
     if (withType) await pickBusinessType(tester);
     await type(tester, 'Téléphone du salon', '0701020304');
     await type(tester, 'Adresse', 'Cocody, Abidjan');
@@ -130,7 +130,7 @@ void main() {
   // ---- Defect 3: the fault that rendered NOWHERE ---------------------------
 
   testWidgets(
-      'the empty « Type d\'entreprise » answers UNDER the dropdown — the '
+      'the empty « Type d’entreprise » answers UNDER the dropdown — the '
       'press that used to do literally nothing', (tester) async {
     await openForm(tester);
     await fillBusinessBlock(tester, withType: false);
@@ -142,7 +142,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(DropdownButtonFormField<BusinessType>),
-        matching: find.text('Indiquez le type d\'entreprise.'),
+        matching: find.text('Indiquez le type d’entreprise.'),
       ),
       findsOneWidget,
       reason: 'rule 1 — the fault renders under the field it belongs to; '
@@ -157,7 +157,7 @@ void main() {
 
     // Rule 2: picking a type clears the message without a second submit.
     await pickBusinessType(tester);
-    expect(find.text('Indiquez le type d\'entreprise.'), findsNothing);
+    expect(find.text('Indiquez le type d’entreprise.'), findsNothing);
   });
 
   // ---- Defect 1: `email` declared, never validated -------------------------
@@ -272,7 +272,7 @@ void main() {
     await reachCodeStep(tester);
 
     await type(tester, 'Code à 6 chiffres', '1234');
-    await tester.tap(find.text('S\'inscrire'));
+    await tester.tap(find.text('S’inscrire'));
     await settle(tester);
 
     expect(
@@ -302,7 +302,7 @@ void main() {
   testWidgets('an EMPTY code answers instead of registering', (tester) async {
     await reachCodeStep(tester);
 
-    await tester.tap(find.text('S\'inscrire'));
+    await tester.tap(find.text('S’inscrire'));
     await settle(tester);
 
     expect(
@@ -327,7 +327,7 @@ void main() {
     await reachCodeStep(tester);
 
     await type(tester, 'Code à 6 chiffres', MockAuthService.demoOtp);
-    await tester.tap(find.text('S\'inscrire'));
+    await tester.tap(find.text('S’inscrire'));
     await settle(tester);
     await settle(tester);
 

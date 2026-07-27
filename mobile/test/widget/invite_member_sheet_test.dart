@@ -158,7 +158,7 @@ void main() {
     await openSheet(tester);
 
     expect(
-      find.text('À quelle adresse e-mail envoyer l\'invitation ?'),
+      find.text('À quelle adresse e-mail envoyer l’invitation ?'),
       findsOneWidget,
     );
 
@@ -179,7 +179,7 @@ void main() {
     expect(find.byType(SnackBar), findsNothing,
         reason: '§14 rule 3 — a field fault is never a bar');
     expect(
-      find.text('À quelle adresse e-mail envoyer l\'invitation ?'),
+      find.text('À quelle adresse e-mail envoyer l’invitation ?'),
       findsOneWidget,
       reason: 'and it must not advance to the role step',
     );
@@ -220,7 +220,7 @@ void main() {
 
     await tester.tap(find.text('Manager'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
     expect(find.text('Invitation envoyée à ama@b.com'), findsOneWidget);
@@ -240,7 +240,7 @@ void main() {
     await tester.tap(find.text('Continuer'));
     await settle(tester);
 
-    expect(find.text('Associer à un membre de l\'équipe'), findsOneWidget);
+    expect(find.text('Associer à un membre de l’équipe'), findsOneWidget);
     expect(find.text('Kouassi Jean'), findsOneWidget); // seeded fiche
 
     // Inline create.
@@ -251,7 +251,7 @@ void main() {
     await tester.tap(find.text('Créer la fiche'));
     await settle(tester);
 
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
     expect(find.text('Invitation envoyée à ama@b.com'), findsOneWidget);
     final row = MockData.teamMembers.singleWhere((m) => m.email == 'ama@b.com');
@@ -264,11 +264,11 @@ void main() {
 
     await tester.tap(find.text('Manager'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
     expect(
-      find.text('Cette personne est déjà dans l\'équipe.'),
+      find.text('Cette personne est déjà dans l’équipe.'),
       findsOneWidget,
     );
   });
@@ -280,11 +280,11 @@ void main() {
 
     await tester.tap(find.text('Manager'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
     expect(
-      find.text('Choisissez d\'abord votre offre pour inviter votre '
+      find.text('Choisissez d’abord votre offre pour inviter votre '
           'équipe.'),
       findsOneWidget,
     );

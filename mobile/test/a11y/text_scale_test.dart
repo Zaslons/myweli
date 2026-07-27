@@ -257,7 +257,7 @@ void main() {
         ),
       );
       expect(bound, greaterThanOrEqualTo(260),
-          reason: 'at $scale× the carousel bound is $bound, under the card\'s '
+          reason: 'at $scale× the carousel bound is $bound, under the card’s '
               'own compact threshold (260) — reducing the OS font size would '
               'silently change the card design.');
     }

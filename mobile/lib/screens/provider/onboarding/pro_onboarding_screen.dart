@@ -180,7 +180,7 @@ class _StepRow extends StatelessWidget {
   String _label(OnboardingStepKey key) {
     switch (key) {
       case OnboardingStepKey.profile:
-        return 'Profil de l\'entreprise';
+        return 'Profil de l’entreprise';
       case OnboardingStepKey.location:
         return 'Position sur la carte';
       case OnboardingStepKey.services:

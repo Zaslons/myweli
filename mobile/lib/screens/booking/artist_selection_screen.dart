@@ -245,7 +245,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                           const SizedBox(width: AppTheme.spacingSM),
                           Expanded(
                             child: Text(
-                              'Sélectionnez l\'artiste qui effectuera vos services',
+                              'Sélectionnez l’artiste qui effectuera vos services',
                               style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textSecondary,
                               ),

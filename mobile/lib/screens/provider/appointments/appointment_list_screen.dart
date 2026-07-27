@@ -180,7 +180,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                     controller: _listTabController,
                     onTap: _loadAppointmentsForListTab,
                     tabs: const [
-                      Tab(text: 'Aujourd\'hui'),
+                      Tab(text: 'Aujourd’hui'),
                       Tab(text: 'À venir'),
                       Tab(text: 'En attente'),
                       Tab(text: 'Tous'),

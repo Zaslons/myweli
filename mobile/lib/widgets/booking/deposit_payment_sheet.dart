@@ -288,7 +288,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                widget.isSubmitMode ? "Envoyer l'acompte" : "Payer l'acompte",
+                widget.isSubmitMode ? 'Envoyer l’acompte' : 'Payer l’acompte',
                 style: AppTextStyles.titleMedium,
               ),
               const SizedBox(height: AppTheme.spacingXS),
@@ -381,8 +381,8 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
               const SizedBox(height: AppTheme.spacingL),
               AppButton(
                 text: widget.isSubmitMode
-                    ? "Envoyer l'acompte"
-                    : "J'ai payé l'acompte",
+                    ? 'Envoyer l’acompte'
+                    : 'J’ai payé l’acompte',
                 isLoading: _booking,
                 // §14 rule 5: work-in-progress only. The missing screenshot
                 // used to leave the primary button dead with no explanation

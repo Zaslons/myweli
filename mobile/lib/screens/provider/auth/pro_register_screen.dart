@@ -34,10 +34,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   // validates one step at a time (that is what `validate`'s subset scoping is
   // for: the identity step must not fail business fields, or vice versa).
   late final _errors = FieldErrors({
-    'businessName': Validators.requiredField("le nom de l'entreprise"),
-    'businessType': Validators.requiredField("le type d'entreprise"),
+    'businessName': Validators.requiredField('le nom de l’entreprise'),
+    'businessType': Validators.requiredField('le type d’entreprise'),
     'phone': Validators.phoneNumber,
-    'address': Validators.requiredField("l'adresse de l'entreprise"),
+    'address': Validators.requiredField('l’adresse de l’entreprise'),
     'email': Validators.email,
     'code': Validators.otp,
   });
@@ -212,7 +212,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               ),
               const SizedBox(height: AppTheme.spacingXL),
               AppTextField(
-                label: 'Nom de l\'entreprise',
+                label: 'Nom de l’entreprise',
                 hint: 'Ex: Salon de Beauté Marie',
                 controller: _businessNameController,
                 focusNode: _businessNameFocus,
@@ -225,7 +225,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               DropdownButtonFormField<BusinessType>(
                 initialValue: _selectedBusinessType,
                 decoration: InputDecoration(
-                  labelText: 'Type d\'entreprise',
+                  labelText: 'Type d’entreprise',
                   prefixIcon: const Icon(Icons.category),
                   // The review: this fault was computed, blocked the submit,
                   // and rendered NOWHERE — a press that did literally nothing,
@@ -281,7 +281,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               const SizedBox(height: AppTheme.spacingM),
               AppTextField(
                 label: 'Adresse',
-                hint: 'Adresse de l\'entreprise',
+                hint: 'Adresse de l’entreprise',
                 controller: _addressController,
                 focusNode: _addressFocus,
                 prefixIcon: const Icon(Icons.location_on),
@@ -333,7 +333,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               ),
               const SizedBox(height: AppTheme.spacingM),
               AppButton(
-                text: 'S\'inscrire avec Google',
+                text: 'S’inscrire avec Google',
                 type: AppButtonType.secondary,
                 leading: const GoogleGLogo(),
                 onPressed: auth.isLoading ? null : _handleGoogle,
@@ -341,7 +341,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               if (_showApple) ...[
                 const SizedBox(height: AppTheme.spacingSM),
                 AppButton(
-                  text: 'S\'inscrire avec Apple',
+                  text: 'S’inscrire avec Apple',
                   type: AppButtonType.secondary,
                   onPressed: auth.isLoading ? null : () {},
                 ),
@@ -406,7 +406,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 ],
                 const SizedBox(height: AppTheme.spacingM),
                 AppButton(
-                  text: 'S\'inscrire',
+                  text: 'S’inscrire',
                   // The gate said 4 on a field labelled « Code à 6 chiffres »
                   // with maxLength 6 — a four-digit code walked through.
                   // Rule 5: disabled only while submitting; the code's own

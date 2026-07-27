@@ -117,22 +117,22 @@ void main() {
 
     await tester.tap(find.text('jean@salon-excellence.test'));
     await tester.pump();
-    expect(find.text('Révoquer l\'accès'), findsNothing);
+    expect(find.text('Révoquer l’accès'), findsNothing);
 
     await tester.tap(find.text('awa.manager@myweli.test'));
     await settle(tester);
     expect(find.text('Changer le rôle'), findsOneWidget);
-    expect(find.text('Révoquer l\'accès'), findsOneWidget);
+    expect(find.text('Révoquer l’accès'), findsOneWidget);
 
-    await tester.tap(find.text('Révoquer l\'accès'));
+    await tester.tap(find.text('Révoquer l’accès'));
     await settle(tester);
-    expect(find.text('Révoquer l\'accès ?'), findsOneWidget);
+    expect(find.text('Révoquer l’accès ?'), findsOneWidget);
     expect(
-      find.textContaining('perdra immédiatement l\'accès'),
+      find.textContaining('perdra immédiatement l’accès'),
       findsOneWidget,
     );
     expect(
-      find.textContaining('Son compte MyWeli n\'est pas supprimé.'),
+      find.textContaining('Son compte MyWeli n’est pas supprimé.'),
       findsOneWidget,
     );
 
@@ -143,14 +143,14 @@ void main() {
   });
 
   testWidgets(
-      'a pending row offers « Renvoyer l\'invitation » with the '
+      'a pending row offers « Renvoyer l’invitation » with the '
       'remaining budget', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
 
     await tester.tap(find.text('invitee@myweli.test'));
     await settle(tester);
-    expect(find.text('Renvoyer l\'invitation (3 restants)'), findsOneWidget);
+    expect(find.text('Renvoyer l’invitation (3 restants)'), findsOneWidget);
   });
 
   testWidgets('a bare member account gets the owner-only guard',

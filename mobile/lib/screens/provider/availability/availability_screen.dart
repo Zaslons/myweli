@@ -506,7 +506,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
         builder: (context, provider, _) {
           final availability = provider.availability;
           if (availability == null) {
-            return const Center(child: Text('Chargement...'));
+            return const Center(child: Text('Chargement…'));
           }
 
           return SingleChildScrollView(
@@ -626,7 +626,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
         endDateTime.isAtSameMomentAs(startDateTime)) {
       if (mounted) {
         AppSnackBar.show(
-            context, 'L\'heure de fin doit être après l\'heure de début',
+            context, 'L’heure de fin doit être après l’heure de début',
             kind: SnackKind.error);
       }
       return;
@@ -673,7 +673,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
         Navigator.pop(context);
       } else {
         AppSnackBar.show(
-            context, provider.error ?? 'Erreur lors de l\'enregistrement',
+            context, provider.error ?? 'Erreur lors de l’enregistrement',
             kind: SnackKind.error);
       }
     }
