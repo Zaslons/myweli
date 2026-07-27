@@ -44,9 +44,32 @@ test('public: buttons, links, chips and fields all reach the floor', async ({
   await page.goto('/');
   await assertBox(page.getByRole('button', { name: 'Rechercher' }), 'home search button', { minW: 0 });
   await assertBox(page.getByLabel('Service ou salon'), 'home search field', { minW: 0 });
-  await assertBox(page.getByRole('link', { name: 'Mon compte' }), '"Mon compte"', { minW: 0 });
+  // `exact` since L1: the footer's « Supprimer mon compte » CONTAINS this name,
+  // and Playwright's default substring match made a one-element assertion
+  // suddenly resolve to two. The header link is what this line has always meant.
+  await assertBox(
+    page.getByRole('link', { name: 'Mon compte', exact: true }),
+    '"Mon compte" (header)',
+    { minW: 0 },
+  );
   // The header logo link was 28px tall until the review measured it.
   await assertBox(page.getByRole('link', { name: 'MyWeli — accueil' }), 'header logo link', { minW: 0 });
+
+  // L1 — the site's first <footer>. One route proves it, because it is rendered
+  // from the root layout on every page: if this passes on `/` and the element
+  // exists elsewhere, it is the same element.
+  const footer = page.getByRole('contentinfo');
+  await expect(footer).toBeVisible();
+  await assertBox(
+    footer.getByRole('link', { name: 'Politique de confidentialité' }),
+    'footer — politique de confidentialité',
+    { minW: 0 },
+  );
+  await assertBox(
+    footer.getByRole('link', { name: 'Supprimer mon compte' }),
+    'footer — suppression de compte',
+    { minW: 0 },
+  );
 
   await page.goto('/recherche?commune=Cocody');
   // The category chips grew 28 → 48 (A4a's own pills→48 precedent). « Tous » is

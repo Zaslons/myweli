@@ -346,6 +346,25 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     ),
                   ),
                 const SizedBox(height: AppTheme.spacingL),
+                // L1 — legal is NOT capability-gated: every role, and a signed-out store
+                // reviewer, must reach the privacy policy. Above « Déconnexion » so
+                // `pro_profile_role_test`'s existing scroll ladder still reaches it.
+                // Hand-written in this file's own `Card { ListTile }` idiom rather
+                // than `SettingsTile`: its thirteen rows are all built this way, and
+                // unifying them is a refactor that does not belong in a
+                // store-submission change.
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('À propos'),
+                    subtitle:
+                        const Text('Confidentialité, CGU, mentions légales'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/a-propos'),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+
                 AppButton(
                   text: 'Déconnexion',
                   type: AppButtonType.secondary,

@@ -51,4 +51,12 @@ RETURNING reminders, marketing, push'''),
     marketing: m['marketing'] as bool,
     push: m['push'] as bool,
   );
+
+  @override
+  Future<void> deleteForUser(String userId) async {
+    await _pool.execute(
+      Sql.named('DELETE FROM notification_preferences WHERE user_id = @u'),
+      parameters: {'u': userId},
+    );
+  }
 }

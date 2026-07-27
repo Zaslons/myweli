@@ -11,6 +11,7 @@ import '../../screens/booking/service_selection_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/map/map_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
+import '../../screens/profile/about_screen.dart';
 import '../../screens/profile/data_export_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
 import '../../screens/profile/notification_preferences_screen.dart';
@@ -210,6 +211,16 @@ class AppRouter {
         path: '/notifications',
         name: 'notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      // L1 — top-level, NOT a `/profile` child. A store reviewer is never
+      // signed in, and a path that reads as account-scoped invites someone to
+      // gate it later; this one carries no auth connotation, deep-links
+      // cleanly, and lets the flat pro router register the identical route to
+      // the identical screen.
+      GoRoute(
+        path: '/a-propos',
+        name: 'about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/favorites',

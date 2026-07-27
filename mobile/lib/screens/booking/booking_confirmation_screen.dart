@@ -22,6 +22,7 @@ import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
+import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/push/push_permission_sheet.dart';
 
@@ -425,13 +426,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                   isLoading: _isLoading,
                 ),
                 const SizedBox(height: AppTheme.spacingM),
-                Text(
-                  'En confirmant, vous acceptez nos conditions d’utilisation',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                const LegalConsentText(lead: 'En confirmant'),
               ],
             ),
           );

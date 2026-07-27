@@ -5,8 +5,10 @@ import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
@@ -94,6 +96,63 @@ void main() {
     verify(() => providers.setStatus('p1', 'draft')).called(1);
     final rows = await memberships.listForAccount(id);
     expect(rows.single.status, 'revoked');
+  });
+
+  test('a deleted SALON stops receiving push too', () async {
+    // The identical defect the consumer side had (L1, T59): the pro deletion
+    // settled the agenda, unpublished the salons and erased the KYC documents,
+    // and never touched `device_tokens` or `notifications` — so the phone of a
+    // deleted salon owner kept ringing. The repository verbs are role-agnostic;
+    // this is the same two lines, on the other side of the boundary.
+    final devices = InMemoryDeviceTokenRepository();
+    final notifications = InMemoryNotificationsRepository();
+    final service = ProviderAccountService(
+      auth,
+      providers,
+      appointments,
+      const FakeStorageService(),
+      InMemoryMembershipRepository(),
+      devices: devices,
+      notifications: notifications,
+      client: MockClient((_) async => http.Response('', 204)),
+    );
+    final id = await registerWithKyc(keys: []);
+    await devices.upsert(
+      token: 'tok-pro',
+      userId: id,
+      role: 'provider',
+      platform: 'android',
+    );
+    await devices.upsert(
+      token: 'tok-other',
+      userId: 'someone-else',
+      role: 'provider',
+      platform: 'ios',
+    );
+    await notifications.add(
+      userId: id,
+      type: 'booking_new',
+      title: 'Nouvelle réservation',
+      body: 'Awa, 14:00',
+    );
+    await notifications.add(
+      userId: 'someone-else',
+      type: 'booking_new',
+      title: 'Nouvelle réservation',
+      body: 'Kouassi, 15:00',
+    );
+
+    expect((await service.deleteAccount(id)).ok, isTrue);
+
+    expect(await devices.tokensForUser(id), isEmpty);
+    expect(await notifications.listForUser(id, limit: 10), isEmpty);
+    // The bystander salon is untouched — the same predicate that would erase
+    // the fleet passes every assertion above.
+    expect(await devices.tokensForUser('someone-else'), hasLength(1));
+    expect(
+      await notifications.listForUser('someone-else', limit: 10),
+      hasLength(1),
+    );
   });
 
   test('a storage failure never blocks the account erasure', () async {

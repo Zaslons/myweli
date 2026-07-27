@@ -13,6 +13,7 @@ import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/phone_number_field.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
@@ -112,13 +113,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                 isLoading: _isLoading,
               ),
               const SizedBox(height: AppTheme.spacingL),
-              Text(
-                'En continuant, vous acceptez nos conditions d’utilisation',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-                textAlign: TextAlign.center,
-              ),
+              const LegalConsentText(),
             ],
           ),
         ),

@@ -6,6 +6,7 @@ import {
   getServiceLandingParams,
 } from '../lib/api/providers';
 import { buildTaxonomyPath } from '../lib/landing';
+import { LEGAL_ROUTES } from '../lib/legal';
 import { siteUrl } from '../lib/seo/jsonld';
 import { taxonomyRootSlugs } from '../lib/taxonomy';
 
@@ -24,6 +25,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   const entries: MetadataRoute.Sitemap = [
     { url: `${siteUrl}/`, changeFrequency: 'daily', priority: 1 },
+    // L1 — the four legal documents. They join the HARD-CODED head because
+    // everything below is API-derived and best-effort; a static route that is
+    // not listed here is simply absent from the sitemap, silently.
+    ...LEGAL_ROUTES.map((r) => ({
+      url: `${siteUrl}${r.slug}`,
+      changeFrequency: 'yearly' as const,
+      priority: 0.3,
+    })),
   ];
   const cities = tree.countries.flatMap((c) => c.cities.map((x) => x.slug));
   for (const root of taxonomyRootSlugs()) {

@@ -33,6 +33,11 @@ const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   // B8: the auth prompt copy reads at 16 and the e-mail field types at 16 —
   // the first route where both of B8's growths meet a 375px viewport.
   ['the consumer connexion — B8 copy + a 16px field', '/connexion', /Connexion|Se connecter|e-mail/i],
+  // L1: the document a store reviewer actually opens, and the only one whose
+  // prose is long enough to find a wrapping bug. The anchor is the vacuity
+  // guard this file's own header demands — a wrong URL scans the 404 page,
+  // which also does not overflow.
+  ['the account-deletion page — the one a reviewer opens on a phone', '/suppression-compte', /Supprimer votre compte/i],
 ];
 
 /// The document must not scroll sideways. This is the blunt, honest check: if any

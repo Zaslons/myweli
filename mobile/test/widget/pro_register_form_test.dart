@@ -127,6 +127,27 @@ void main() {
     await type(tester, 'Adresse', 'Cocody, Abidjan');
   }
 
+  // ---- L1: the consent this funnel never had --------------------------------
+
+  testWidgets('the pro funnel names the documents it is asking you to accept',
+      (tester) async {
+    // **The sharpest store-review gap in the product.** A professional creates
+    // an account here, then uploads identity documents (KYC) and publishes a
+    // business listing — and until L1 this screen carried NO consent copy of any
+    // kind. The consumer login had a sentence, unlinked, naming only
+    // « conditions d'utilisation » and never privacy; `pro_register_screen.dart`
+    // and `pro_login_screen.dart` had nothing at all.
+    //
+    // Three design docs (`app-auth-social.md:46`, `auth-social-email.md:313`,
+    // `web-auth-social.md:52`) specify a "CGU line" on these screens as though
+    // it existed. It was implemented as static text on the consumer side and
+    // never at all here.
+    await openForm(tester);
+
+    expect(find.textContaining('Conditions d’utilisation'), findsWidgets);
+    expect(find.textContaining('Politique de confidentialité'), findsWidgets);
+  });
+
   // ---- Defect 3: the fault that rendered NOWHERE ---------------------------
 
   testWidgets(

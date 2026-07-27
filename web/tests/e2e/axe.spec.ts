@@ -63,6 +63,12 @@ test('public routes are axe-clean', async ({ page }) => {
     // The review's finds: an AREA taxonomy landing (its h1→h3 skip survived
     // the first matrix) — landing.spec's own stub route.
     '/coiffure/abidjan/cocody',
+    // L1 — the four legal documents. They also carry the site's FIRST <footer>,
+    // so these runs are the first time axe sees that landmark at all.
+    '/politique-confidentialite',
+    '/cgu',
+    '/mentions-legales',
+    '/suppression-compte',
   ]) {
     await page.goto(route);
     await page.waitForLoadState('networkidle');
