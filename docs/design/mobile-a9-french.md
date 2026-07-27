@@ -291,6 +291,15 @@ budget — 7.3 MB of headroom. The job is back in CI with `--flavor consumer`,
 and now **blocking**, because a threshold set after the first measurement is a
 gate rather than a guess.
 
+**And what A9 itself cost: 0.37 MB.** Built from the same machine at `d8b5230`
+(**22.31 MB**) and at A9's head (**22.68 MB**). That corrects one more claim
+above — this spec warned that `supportedLocales` does not tree-shake
+`flutter_localizations`, so to expect "roughly the compiled equivalent of 2.3 MB
+of Dart". True of the *source*; the AOT compiler drops most of it, and dropping
+the dead `flutter_datetime_picker_plus` paid for part of the remainder. The
+estimate was an order of magnitude out, and only a measurement could say so —
+which is the whole argument for the row.
+
 ## Definition of done
 
 Row 29 → **0** with the census corrected rather than restated · the booking-date
