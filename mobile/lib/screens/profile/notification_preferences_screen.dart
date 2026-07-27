@@ -78,7 +78,7 @@ class _NotificationPreferencesScreenState
     final ok = await action();
     if (!ok && mounted) {
       AppSnackBar.showOn(
-          messenger, provider.error ?? 'Impossible d\'enregistrer. Réessayez.',
+          messenger, provider.error ?? 'Impossible d’enregistrer. Réessayez.',
           kind: SnackKind.error);
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/status_labels.dart';
 
 /// Semantic meaning of a status pill.
 enum AdminChipKind { ok, pending, danger, neutral }
@@ -31,21 +32,15 @@ class StatusChip extends StatelessWidget {
         AdminChipKind.danger,
       _ => AdminChipKind.neutral,
     };
-    return StatusChip(label: _frenchLabel(s, status), kind: kind);
+    // A9: `StatusLabels.ofRaw` is normalisation-robust like the kind switch
+    // above — `NO_SHOW`/`noShow`/`no-show` are one status. `_frenchLabel` fell
+    // through to `raw`, so `confirmed`, `cancelled`, `completed` and `noShow`
+    // printed the ENGLISH ENUM beside a correctly-tinted pill; `pending` also
+    // rendered lowercase while the rest of the app capitalised it. `—` on an
+    // unknown status rather than the wire value: that fallback IS how English
+    // reached a user.
+    return StatusChip(label: StatusLabels.ofRaw(status) ?? '—', kind: kind);
   }
-
-  static String _frenchLabel(String s, String? raw) => switch (s) {
-        'verified' => 'vérifié',
-        'active' => 'actif',
-        'pending' => 'en attente',
-        'rejected' => 'rejeté',
-        'suspended' => 'suspendu',
-        'banned' => 'banni',
-        'hidden' => 'masqué',
-        'open' => 'ouvert',
-        'resolved' => 'résolu',
-        _ => raw ?? '—',
-      };
 
   @override
   Widget build(BuildContext context) {

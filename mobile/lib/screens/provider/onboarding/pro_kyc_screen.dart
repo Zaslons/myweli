@@ -353,13 +353,13 @@ class _DocumentTile extends StatelessWidget {
   String _label(KycDocumentType type) {
     switch (type) {
       case KycDocumentType.idCard:
-        return 'Pièce d\'identité (CNI / passeport)';
+        return 'Pièce d’identité (CNI / passeport)';
       case KycDocumentType.selfie:
         return 'Photo du visage';
       case KycDocumentType.businessRegistration:
         return 'Registre de commerce (RCCM)';
       case KycDocumentType.addressProof:
-        return 'Justificatif d\'adresse';
+        return 'Justificatif d’adresse';
     }
   }
 

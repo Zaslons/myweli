@@ -387,7 +387,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         ),
                         const SizedBox(height: AppTheme.spacingXS),
                         Text(
-                          'Aucune sélection = toute l\'équipe.',
+                          'Aucune sélection = toute l’équipe.',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textTertiary,
                           ),

@@ -214,7 +214,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     } else {
       final code = authProvider.otpErrorCode;
       setState(() {
-        _inlineError = authProvider.error ?? 'Erreur lors de l\'envoi';
+        _inlineError = authProvider.error ?? 'Erreur lors de l’envoi';
         if (code == 'otp_resend_limit') _locked = true;
       });
     }

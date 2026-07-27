@@ -38,7 +38,7 @@ class SalonTimeHint extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final text = Text(
-      'Heures affichées : heure du salon (${countryLabel ?? 'Côte d\'Ivoire'})',
+      'Heures affichées : heure du salon (${countryLabel ?? 'Côte d’Ivoire'})',
       style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
     );
     if (padding == null) return text;

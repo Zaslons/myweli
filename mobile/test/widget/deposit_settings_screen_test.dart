@@ -81,7 +81,7 @@ void main() {
     );
     expect(find.text('Enregistrer', skipOffstage: false), findsOneWidget);
     expect(
-        find.text("Recevoir l'acompte", skipOffstage: false), findsOneWidget);
+        find.text('Recevoir l’acompte', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('hides the percentage when the deposit is off', (tester) async {
@@ -94,7 +94,7 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
 
-    expect(find.text("Pourcentage de l'acompte"), findsNothing);
+    expect(find.text('Pourcentage de l’acompte'), findsNothing);
     // Drain the mock locality fetch (pumpAndSettle never advances bare
     // timers — the R4b lesson).
     await tester.pump(const Duration(milliseconds: 400));

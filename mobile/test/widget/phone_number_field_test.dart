@@ -5,7 +5,7 @@ import 'package:myweli/widgets/common/phone_number_field.dart';
 import '../support/pump_app.dart';
 
 void main() {
-  testWidgets('renders a phone input defaulting to Côte d\'Ivoire (+225)',
+  testWidgets('renders a phone input defaulting to Côte d’Ivoire (+225)',
       (tester) async {
     var lastE164 = '';
     await tester.pumpWidget(
@@ -46,7 +46,7 @@ void main() {
   /// valid 10-digit number (it returns null). This is the case that separates
   /// them: a SHORT national number, which the package rejects and our rule has
   /// no opinion about until submit.
-  testWidgets('the package\'s own validator is silenced — one rule, on submit',
+  testWidgets('the package’s own validator is silenced — one rule, on submit',
       (tester) async {
     await tester.pumpWidget(
       wrapApp(
@@ -70,7 +70,7 @@ void main() {
   /// The other half of the same defect: when both rules have an opinion, the
   /// package's used to WIN. This pins that the app's message is the one on
   /// screen — the regression is silent otherwise, because both are red text.
-  testWidgets('the app\'s message is the one that renders, not the package\'s',
+  testWidgets('the app’s message is the one that renders, not the package’s',
       (tester) async {
     await tester.pumpWidget(
       wrapApp(

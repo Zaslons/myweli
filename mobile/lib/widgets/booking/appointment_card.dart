@@ -8,6 +8,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/salon_time.dart';
+import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/provider.dart' as models;
@@ -38,21 +39,6 @@ class AppointmentCard extends StatelessWidget {
         return AppColors.error;
       case AppointmentStatus.noShow:
         return AppColors.warning;
-    }
-  }
-
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
     }
   }
 
@@ -143,7 +129,7 @@ class AppointmentCard extends StatelessWidget {
                                       AppTheme.radiusSmall),
                                 ),
                                 child: Text(
-                                  _getStatusText(appointment.status),
+                                  StatusLabels.of(appointment.status),
                                   style: AppTextStyles.labelSmall.copyWith(
                                     color: _getStatusColor(appointment.status),
                                   ),

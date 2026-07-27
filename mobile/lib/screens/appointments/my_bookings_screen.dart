@@ -140,7 +140,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       return const EmptyState(
         icon: Icons.calendar_today,
         title: 'Aucun rendez-vous',
-        description: 'Vous n\'avez pas de rendez-vous dans cette catégorie',
+        description: 'Vous n’avez pas de rendez-vous dans cette catégorie',
       );
     }
 

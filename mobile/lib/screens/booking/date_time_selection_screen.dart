@@ -214,6 +214,11 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                   ],
                   // Calendar
                   TableCalendar(
+                    // A9: the package default is `StartingDayOfWeek.sunday`,
+                    // which is a separate defect from the English month name
+                    // above it — `Intl.defaultLocale` fixes the words, not the
+                    // grid. The pro calendar already passes this.
+                    startingDayOfWeek: StartingDayOfWeek.monday,
                     firstDay: _salonTodayNaive(),
                     lastDay: _salonTodayNaive().add(const Duration(days: 90)),
                     focusedDay: _selectedDate,

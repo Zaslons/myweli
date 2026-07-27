@@ -40,7 +40,7 @@ class MockNotificationService implements NotificationServiceInterface {
         id: 'notif4',
         type: AppNotificationType.reviewRequest,
         title: 'Donnez votre avis',
-        body: "Comment s'est passé votre rendez-vous ?",
+        body: 'Comment s’est passé votre rendez-vous ?',
         createdAt: now.subtract(const Duration(days: 3)),
         read: true,
         route: '/bookings',

@@ -42,11 +42,11 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.text("Payer l'acompte"), findsOneWidget);
+    expect(find.text('Payer l’acompte'), findsOneWidget);
     expect(find.text('Payer avec Wave'), findsOneWidget);
     expect(find.text('+2250707123456'), findsOneWidget);
     expect(find.text('Copier'), findsOneWidget);
-    expect(find.text("J'ai payé l'acompte"), findsOneWidget);
+    expect(find.text('J’ai payé l’acompte'), findsOneWidget);
   });
 
   testWidgets('a non-Wave operator shows copy only (no Wave button)',

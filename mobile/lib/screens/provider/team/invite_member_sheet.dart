@@ -61,7 +61,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
     'email': Validators.email,
     'role': Validators.requiredField('un rôle'),
     'artist': Validators.requiredField('la fiche employé du collaborateur'),
-    'artistName': Validators.requiredField('le nom de l\'employé'),
+    'artistName': Validators.requiredField('le nom de l’employé'),
   });
   final _emailFocus = FocusNode();
   final _artistNameFocus = FocusNode();
@@ -190,7 +190,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
                 AppButton(
                   text: team.inviteErrorCode == 'offer_required'
                       ? 'Choisir mon offre'
-                      : 'Changer d\'offre',
+                      : 'Changer d’offre',
                   type: AppButtonType.secondary,
                   onPressed: () {
                     Navigator.of(context).pop();
@@ -207,7 +207,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
 
   List<Widget> _emailStep() => [
         Text(
-          'À quelle adresse e-mail envoyer l\'invitation ?',
+          'À quelle adresse e-mail envoyer l’invitation ?',
           style: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.textSecondary,
           ),
@@ -256,7 +256,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
         // form-level (the three-slot boundary).
         InlineFeedback(_errors['role']),
         AppButton(
-          text: _role == TeamRole.staff ? 'Continuer' : 'Envoyer l\'invitation',
+          text: _role == TeamRole.staff ? 'Continuer' : 'Envoyer l’invitation',
           isFullWidth: true,
           isLoading: team.isInviting,
           onPressed: team.isInviting
@@ -279,7 +279,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
     final artists = context.watch<ProArtistProvider>();
     return [
       Text(
-        'Associer à un membre de l\'équipe',
+        'Associer à un membre de l’équipe',
         style: AppTextStyles.titleSmall,
       ),
       const SizedBox(height: AppTheme.spacingXS),
@@ -348,7 +348,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
         if (_creatingArtist) ...[
           const SizedBox(height: AppTheme.spacingS),
           AppTextField(
-            label: 'Nom de l\'employé',
+            label: 'Nom de l’employé',
             controller: _newArtistController,
             focusNode: _artistNameFocus,
             errorText: _errors['artistName'],
@@ -372,7 +372,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
       const SizedBox(height: AppTheme.spacingM),
       InlineFeedback(_errors['artist']),
       AppButton(
-        text: 'Envoyer l\'invitation',
+        text: 'Envoyer l’invitation',
         isFullWidth: true,
         isLoading: team.isInviting,
         onPressed: team.isInviting

@@ -56,7 +56,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
           '/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam'));
     } else {
       AppSnackBar.show(
-          context, authProvider.error ?? 'Erreur lors de l\'envoi du code',
+          context, authProvider.error ?? 'Erreur lors de l’envoi du code',
           kind: SnackKind.error);
     }
   }
@@ -113,7 +113,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               ),
               const SizedBox(height: AppTheme.spacingL),
               Text(
-                'En continuant, vous acceptez nos conditions d\'utilisation',
+                'En continuant, vous acceptez nos conditions d’utilisation',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),

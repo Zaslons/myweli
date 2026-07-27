@@ -46,6 +46,11 @@ dependencies:
   # Pull-to-refresh with the brand mark_loader instead of the Material spinner.
   custom_refresh_indicator: ^4.0.1
   flutter_slidable: ^3.1.1
+  # A9 (§9.1 of nothing — §17): the Material/Cupertino defaults, in French.
+  # Pins `intl: 0.20.2` and `path: 1.9.1` EXACTLY, which we already resolve to —
+  # so our effective intl constraint becomes =0.20.2 until the SDK bumps.
+  flutter_localizations:
+    sdk: flutter
   intl: ^0.20.2
   # International phone entry: country-code picker (default Côte d'Ivoire) + E.164.
   intl_phone_field: ^3.2.0
@@ -57,8 +62,9 @@ dependencies:
   file_picker: ^8.1.2
 
   # Calendar & Date Picker
+  # (A9 dropped `flutter_datetime_picker_plus` — zero usages in lib/ or test/.
+  #  Date entry is Material's `showDatePicker`; this was never wired up.)
   table_calendar: ^3.0.9
-  flutter_datetime_picker_plus: ^2.1.0
 
   # Utilities
   uuid: ^4.2.1

@@ -31,7 +31,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<AdminDashboardProvider>();
     return AdminScaffold(
-      title: "Vue d'ensemble",
+      title: 'Vue d’ensemble',
       actions: [
         IconButton(
           tooltip: 'Rafraîchir',

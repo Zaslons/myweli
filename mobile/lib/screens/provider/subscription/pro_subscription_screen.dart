@@ -65,7 +65,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     );
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      AppSnackBar.showOn(messenger, 'Impossible d\'ouvrir WhatsApp.',
+      AppSnackBar.showOn(messenger, 'Impossible d’ouvrir WhatsApp.',
           kind: SnackKind.error);
     }
   }
@@ -82,7 +82,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
           wasSetup
               ? 'Offre ${salonTierLabel(tier)} choisie — '
                   '${SubscriptionPlans.trialMonths} mois offerts !'
-              : 'Vous êtes maintenant sur l\'offre ${salonTierLabel(tier)}.',
+              : 'Vous êtes maintenant sur l’offre ${salonTierLabel(tier)}.',
           kind: SnackKind.success);
     } else if (provider.chooseErrorCode != 'trial_used') {
       AppSnackBar.showOn(messenger, provider.chooseError ?? 'Choix impossible.',
@@ -102,7 +102,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
           ? const EmptyState(
               icon: Icons.workspace_premium_outlined,
               title: 'Réservé au propriétaire',
-              description: 'L\'offre du salon est gérée par son propriétaire.',
+              description: 'L’offre du salon est gérée par son propriétaire.',
             )
           : Consumer<ProSubscriptionProvider>(
               builder: (context, provider, _) {
@@ -204,7 +204,7 @@ class _Body extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
             child: Text(
-              'Le changement d\'offre conserve votre période d\'essai.',
+              'Le changement d’offre conserve votre période d’essai.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textTertiary,
               ),
@@ -219,7 +219,7 @@ class _Body extends StatelessWidget {
             Expanded(
               child: Text(
                 'Le paiement se fait manuellement — contactez-nous à la fin '
-                'de votre période d\'essai. Vos données ne sont jamais '
+                'de votre période d’essai. Vos données ne sont jamais '
                 'bloquées.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
@@ -267,7 +267,7 @@ class _StatusBanner extends StatelessWidget {
           Icons.verified,
           'Offre ${salon.tierLabel} active',
           salon.paidUntil != null
-              ? 'Jusqu\'au ${Formatters.formatDate(salon.paidUntil!)}'
+              ? 'Jusqu’au ${Formatters.formatDate(salon.paidUntil!)}'
               : 'Paiement à jour',
           false,
         ),
@@ -276,7 +276,7 @@ class _StatusBanner extends StatelessWidget {
           AppColors.warning,
           Icons.warning_amber,
           'Votre offre a expiré',
-          'Jusqu\'au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
+          'Jusqu’au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
               'dépublication de votre salon. Contactez-nous pour régler.',
           true,
         ),
@@ -286,7 +286,7 @@ class _StatusBanner extends StatelessWidget {
           Icons.error_outline,
           salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
           salon.unpublishedForBilling
-              ? 'Votre salon n\'est plus visible des clients. '
+              ? 'Votre salon n’est plus visible des clients. '
                   'Contactez-nous pour réactiver — vos données sont '
                   'intactes.'
               : 'Contactez-nous pour réactiver votre offre.',
@@ -576,7 +576,7 @@ class _OfferCard extends StatelessWidget {
           if (!current) ...[
             const SizedBox(height: AppTheme.spacingM),
             AppButton(
-              text: isSetup ? 'Choisir' : 'Changer d\'offre',
+              text: isSetup ? 'Choisir' : 'Changer d’offre',
               type: isSetup ? AppButtonType.primary : AppButtonType.secondary,
               isLoading: busy,
               isFullWidth: true,

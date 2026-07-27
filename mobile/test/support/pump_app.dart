@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/a11y/reduce_motion.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/utils/app_locale.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -32,16 +34,32 @@ Widget wrapApp({
     'wrapApp: pass exactly one of home / routerConfig',
   );
 
+  // A9: the `intl` half of French, which the delegates below do not cover.
+  // The three app roots call this at boot; a shell that skipped it would let a
+  // `table_calendar` render « July 2026 » in a passing test — which is exactly
+  // how it reached production. Idempotent.
+  initAppLocale();
+
+  // A9: the three app roots declare these, so the shell that claims to be
+  // "the real app minus the golden font pin" has to as well — otherwise every
+  // behaviour test renders English Material defaults the product never shows.
+  // **Plural `delegates`**: `MaterialApp` always appends
+  // `DefaultCupertinoLocalizations.delegate`, which supports only `en`, and the
+  // singular pairing makes `_debugCheckLocalizations` fail every test here.
   Widget app = home != null
       ? MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          supportedLocales: const [Locale('fr', 'FR')],
           scaffoldMessengerKey: scaffoldMessengerKey,
           home: home,
         )
       : MaterialApp.router(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          supportedLocales: const [Locale('fr', 'FR')],
           scaffoldMessengerKey: scaffoldMessengerKey,
           routerConfig: routerConfig,
         );

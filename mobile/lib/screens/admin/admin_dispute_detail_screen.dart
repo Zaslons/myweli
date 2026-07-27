@@ -129,12 +129,12 @@ class _AdminDisputeDetailScreenState extends State<AdminDisputeDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AdminEvidenceImage(url: url, caption: "Preuve — capture de l'acompte"),
+        AdminEvidenceImage(url: url, caption: 'Preuve — capture de l’acompte'),
         const SizedBox(height: AppTheme.spacingS),
         SizedBox(
           width: 240,
           child: Text(
-            "Aucun mouvement d'argent — Myweli ne détient pas les fonds. "
+            'Aucun mouvement d’argent — Myweli ne détient pas les fonds. '
             'La résolution est consultative.',
             style:
                 AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),

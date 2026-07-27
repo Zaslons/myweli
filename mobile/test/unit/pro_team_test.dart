@@ -250,7 +250,7 @@ void main() {
       );
       expect(res, isNull);
       expect(p.inviteErrorCode, 'member_exists');
-      expect(p.inviteError, 'Cette personne est déjà dans l\'équipe.');
+      expect(p.inviteError, 'Cette personne est déjà dans l’équipe.');
     });
 
     test(

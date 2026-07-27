@@ -32,7 +32,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
   // A7/§14 — the form's faults, in the form's reading order.
   late final _errors = FieldErrors({
     'name': Validators.requiredField('le nom du salon'),
-    'type': Validators.requiredField("le type d'entreprise"),
+    'type': Validators.requiredField('le type d’entreprise'),
     'phone': Validators.phoneNumber,
   });
   final _nameFocus = FocusNode();
@@ -136,7 +136,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
               Text(
                 'Le nouveau salon démarre en brouillon avec sa propre '
                 'configuration : fiche, catalogue, équipe, offre et '
-                'période d\'essai.',
+                'période d’essai.',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -155,7 +155,7 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
               DropdownButtonFormField<BusinessType>(
                 initialValue: _businessType,
                 decoration: InputDecoration(
-                  labelText: 'Type d\'entreprise',
+                  labelText: 'Type d’entreprise',
                   prefixIcon: const Icon(Icons.category),
                   errorText: _errors['type'],
                   border: OutlineInputBorder(
@@ -246,8 +246,8 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
                   const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(
-                      'Réservé à l\'offre Réseau. Le badge « Vérifié » de '
-                      'votre compte s\'applique automatiquement au nouveau '
+                      'Réservé à l’offre Réseau. Le badge « Vérifié » de '
+                      'votre compte s’applique automatiquement au nouveau '
                       'salon.',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textTertiary,

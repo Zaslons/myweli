@@ -9,6 +9,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/appointment.dart';
 import '../../../models/salon_client.dart';
@@ -530,14 +531,6 @@ class _VisitsSection extends StatelessWidget {
 
   final List<Appointment> visits;
 
-  static const _statusFr = {
-    AppointmentStatus.pending: 'En attente',
-    AppointmentStatus.confirmed: 'Confirmé',
-    AppointmentStatus.completed: 'Terminé',
-    AppointmentStatus.cancelled: 'Annulé',
-    AppointmentStatus.noShow: 'Non présenté',
-  };
-
   Color _statusColor(AppointmentStatus s) => switch (s) {
         AppointmentStatus.completed => AppColors.success,
         AppointmentStatus.noShow => AppColors.error,
@@ -600,7 +593,7 @@ class _VisitsSection extends StatelessWidget {
                     ),
                     const SizedBox(width: AppTheme.spacingS),
                     Text(
-                      _statusFr[v.status] ?? v.status.name,
+                      StatusLabels.of(v.status),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: _statusColor(v.status),
                       ),

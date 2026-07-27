@@ -98,7 +98,7 @@ void main() {
     await reachInvitationsStep(tester);
 
     expect(
-      find.text('Rejoignez l\'équipe — aucun salon à créer.'),
+      find.text('Rejoignez l’équipe — aucun salon à créer.'),
       findsOneWidget,
     );
     expect(find.textContaining('Salon Excellence'), findsOneWidget);
@@ -118,7 +118,7 @@ void main() {
     await settle(tester);
 
     expect(
-      find.textContaining('Bienvenue dans l\'équipe de Salon Excellence'),
+      find.textContaining('Bienvenue dans l’équipe de Salon Excellence'),
       findsOneWidget,
     );
     await settle(tester);

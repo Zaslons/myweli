@@ -165,7 +165,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-            widget.artistId != null ? 'Modifier l\'employé' : 'Nouvel employé'),
+            widget.artistId != null ? 'Modifier l’employé' : 'Nouvel employé'),
       ),
       body: Consumer<ProArtistProvider>(
         builder: (context, artistProvider, _) {
@@ -274,7 +274,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                     onPressed: artistProvider.isLoading ? null : _handleDelete,
                     style:
                         TextButton.styleFrom(foregroundColor: AppColors.error),
-                    child: const Text('Supprimer l\'employé'),
+                    child: const Text('Supprimer l’employé'),
                   ),
                 ],
               ],

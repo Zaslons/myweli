@@ -10,6 +10,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/api_response.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
@@ -196,7 +197,7 @@ class _ProAppointmentDetailScreenState
                         ),
                         const SizedBox(height: AppTheme.spacingS),
                         Chip(
-                          label: Text(_getStatusText(appointment.status)),
+                          label: Text(StatusLabels.of(appointment.status)),
                           backgroundColor: _getStatusColor(appointment.status),
                         ),
                         const SizedBox(height: AppTheme.spacingM),
@@ -232,7 +233,7 @@ class _ProAppointmentDetailScreenState
                             ],
                           ),
                           Text(
-                            'Confirmez le rendez-vous une fois l\'acompte reçu '
+                            'Confirmez le rendez-vous une fois l’acompte reçu '
                             'sur votre compte Mobile Money.',
                             style: AppTextStyles.bodySmall
                                 .copyWith(color: AppColors.textTertiary),
@@ -360,21 +361,6 @@ class _ProAppointmentDetailScreenState
 
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
-
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
-    }
-  }
 }
 
 /// Salon-side view of the consumer's deposit screenshot. The image is private;

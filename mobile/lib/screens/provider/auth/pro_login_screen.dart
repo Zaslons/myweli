@@ -114,7 +114,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     final ok = await auth.acceptPendingInvitation(invitationId);
     if (!mounted) return;
     if (ok) {
-      AppSnackBar.showOn(messenger, 'Bienvenue dans l\'équipe de $salonName !',
+      AppSnackBar.showOn(messenger, 'Bienvenue dans l’équipe de $salonName !',
           kind: SnackKind.success);
       _finish();
     }
@@ -314,7 +314,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                 ),
                 const SizedBox(height: AppTheme.spacingS),
                 Text(
-                  'Rejoignez l\'équipe — aucun salon à créer.',
+                  'Rejoignez l’équipe — aucun salon à créer.',
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -393,7 +393,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                 ),
                 const SizedBox(height: AppTheme.spacingXS),
                 AppButton(
-                  text: 'Changer d\'e-mail',
+                  text: 'Changer d’e-mail',
                   type: AppButtonType.text,
                   onPressed: auth.isLoading
                       ? null
@@ -422,7 +422,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   ),
                   TextButton(
                     onPressed: () => context.go('/pro/register'),
-                    child: const Text('S\'inscrire'),
+                    child: const Text('S’inscrire'),
                   ),
                 ],
               ),

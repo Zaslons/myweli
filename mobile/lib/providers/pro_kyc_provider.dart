@@ -127,7 +127,7 @@ class ProKycProvider extends ChangeNotifier {
         _error = null;
         return true;
       }
-      _error = res.error ?? "Erreur lors de l'envoi";
+      _error = res.error ?? 'Erreur lors de l’envoi';
       return false;
     } catch (e) {
       _error = e.toString();

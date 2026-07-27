@@ -348,7 +348,7 @@ void main() {
           reason: '§14 rule 3 — a field fault is never a bar');
       expect(find.byType(FilterChip), findsNWidgets(3),
           reason: 'nothing was added: the three choices are the presets '
-              '(VIP · Fidèle · À risque), VIP being Aïcha\'s own');
+              '(VIP · Fidèle · À risque), VIP being Aïcha’s own');
 
       // Rule 2: typing clears it without a second press.
       await tester.enterText(

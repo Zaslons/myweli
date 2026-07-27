@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/a11y/reduce_motion.dart';
@@ -10,6 +10,7 @@ import 'core/push/firebase_bootstrap.dart';
 import 'core/push/push_message_handler.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/app_locale.dart';
 import 'core/utils/logger.dart';
 import 'core/utils/salon_time.dart';
 import 'providers/appointment_provider.dart';
@@ -36,7 +37,9 @@ void main() {
           stackTrace: details.stack,
         );
       };
-      await initializeDateFormatting('fr_FR', null);
+      // A9: CLDR data + `Intl.defaultLocale`, in that order. The delegates do
+      // NOT reach `intl` — see core/utils/app_locale.dart.
+      await initAppFormatting();
       // Multi-pays MP2: load the tz database once — salon times
       // render in each salon's own timezone (salon_time.dart).
       initSalonTime();
@@ -100,6 +103,21 @@ class MyweliApp extends StatelessWidget {
       // toggled mid-session — nothing in the framework reads that flag (§9, A8).
       child: ReduceMotionObserver(
         child: MaterialApp.router(
+          // A9/§17 — French everywhere, including the strings we did not write.
+          // **`delegates` (plural), not `delegate`.** `MaterialApp` always
+          // appends `DefaultCupertinoLocalizations.delegate`
+          // (`material/app.dart:931`), which supports only `en`; the singular
+          // Material+Widgets pairing leaves Cupertino unsupported for `fr`, and
+          // `_debugCheckLocalizations` turns that into a hard failure in every
+          // widget test. The plural declares all three — and iOS genuinely needs
+          // the Cupertino one: it is where the text-selection toolbar's
+          // Couper/Copier/Coller come from.
+          //
+          // `Locale('fr','FR')` with the COUNTRY code, because
+          // `basicLocaleListResolution` matches at the language rung and would
+          // otherwise resolve to a country-less `Locale('fr')`.
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          supportedLocales: const [Locale('fr', 'FR')],
           title: 'Myweli',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,

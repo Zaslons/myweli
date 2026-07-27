@@ -417,7 +417,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 const SizedBox(height: AppTheme.spacingL),
                 AppButton(
                   text: depositAmount > 0
-                      ? 'Payer l\'acompte · ${Formatters.formatCurrency(depositAmount, currency: p.currency)}'
+                      ? 'Payer l’acompte · ${Formatters.formatCurrency(depositAmount, currency: p.currency)}'
                       : 'Confirmer la réservation',
                   onPressed: _isLoading
                       ? null
@@ -426,7 +426,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 ),
                 const SizedBox(height: AppTheme.spacingM),
                 Text(
-                  'En confirmant, vous acceptez nos conditions d\'utilisation',
+                  'En confirmant, vous acceptez nos conditions d’utilisation',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
                   ),

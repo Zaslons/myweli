@@ -25,7 +25,7 @@ void main() {
   group('a rule that can fail must have somewhere to say so', () {
     test('every declared key is reachable through the subscript operator', () {
       final errors = FieldErrors({
-        'businessType': Validators.requiredField("le type d'entreprise"),
+        'businessType': Validators.requiredField('le type d’entreprise'),
       });
       expect(errors.validate({'businessType': ''}), isFalse);
       expect(errors['businessType'], isNotNull,

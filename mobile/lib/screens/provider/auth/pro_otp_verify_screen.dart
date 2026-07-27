@@ -134,7 +134,7 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
           kind: SnackKind.success);
       _startCooldown();
     } else {
-      AppSnackBar.show(context, authProvider.error ?? 'Erreur lors de l\'envoi',
+      AppSnackBar.show(context, authProvider.error ?? 'Erreur lors de l’envoi',
           kind: SnackKind.error);
     }
   }

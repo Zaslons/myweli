@@ -233,7 +233,7 @@ class OnlineBookingScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Plus de 100 études ont permis de rendre l\'interface du formulaire aussi conviviale et intuitive que possible.',
+              'Plus de 100 études ont permis de rendre l’interface du formulaire aussi conviviale et intuitive que possible.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textTertiary,
                 fontStyle: FontStyle.italic,
