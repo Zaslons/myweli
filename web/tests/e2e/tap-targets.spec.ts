@@ -48,6 +48,22 @@ test('public: buttons, links, chips and fields all reach the floor', async ({
   // The header logo link was 28px tall until the review measured it.
   await assertBox(page.getByRole('link', { name: 'MyWeli — accueil' }), 'header logo link', { minW: 0 });
 
+  // L1 — the site's first <footer>. One route proves it, because it is rendered
+  // from the root layout on every page: if this passes on `/` and the element
+  // exists elsewhere, it is the same element.
+  const footer = page.getByRole('contentinfo');
+  await expect(footer).toBeVisible();
+  await assertBox(
+    footer.getByRole('link', { name: 'Politique de confidentialité' }),
+    'footer — politique de confidentialité',
+    { minW: 0 },
+  );
+  await assertBox(
+    footer.getByRole('link', { name: 'Supprimer mon compte' }),
+    'footer — suppression de compte',
+    { minW: 0 },
+  );
+
   await page.goto('/recherche?commune=Cocody');
   // The category chips grew 28 → 48 (A4a's own pills→48 precedent). « Tous » is
   // unconditional — no count()-then-skip (count() doesn't wait for hydration).
