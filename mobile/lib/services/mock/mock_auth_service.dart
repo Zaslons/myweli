@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_clock.dart';
 import '../../models/api_response.dart';
+import '../../models/appointment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
@@ -120,11 +121,23 @@ class MockAuthService implements AuthServiceInterface {
 
     final user = MockData.users.firstWhere(
       (u) => u.phoneNumber == phoneNumber,
-      orElse: () => User(
-        id: 'user_${AppClock.now().millisecondsSinceEpoch}',
-        phoneNumber: phoneNumber,
-        createdAt: AppClock.now(),
-      ),
+      orElse: () {
+        // **This path never registered the user it created**, unlike the e-mail
+        // and social ones twenty lines below, which both `MockData.users.add`.
+        // So a phone sign-in on an unknown number produced a live session for
+        // an account that was not in the mock database: `deleteAccount`'s
+        // `removeWhere` was a no-op on it, and any screen reading the user list
+        // could not see them. Found by L2's gate asserting that a REFUSED
+        // deletion leaves the account intact — it could not, because the
+        // account was never there.
+        final created = User(
+          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          phoneNumber: phoneNumber,
+          createdAt: AppClock.now(),
+        );
+        MockData.users.add(created);
+        return created;
+      },
     );
     _currentUser = user;
     _otpStates.remove(phoneNumber);
@@ -321,6 +334,25 @@ class MockAuthService implements AuthServiceInterface {
     final user = _currentUser;
     if (user == null) {
       return ApiResponse.error('Utilisateur non connecté');
+    }
+
+    // L2 — settle the agenda first, exactly as the API does (409
+    // `future_bookings`). The mock refuses the same way so the app behaves
+    // identically off-network: a mock that only ever succeeds would let this
+    // whole flow ship untested against its own failure mode.
+    final now = AppClock.now();
+    final hasFuture = MockData.appointments.any(
+      (a) =>
+          a.userId == user.id &&
+          (a.status == AppointmentStatus.confirmed ||
+              a.status == AppointmentStatus.pending) &&
+          a.appointmentDate.isAfter(now),
+    );
+    if (hasFuture) {
+      return ApiResponse.error(
+        'Annulez vos rendez-vous à venir avant de supprimer votre compte.',
+        code: 'future_bookings',
+      );
     }
 
     MockData.users.removeWhere((u) => u.id == user.id);

@@ -76,6 +76,31 @@ class UserErasureService {
       return (ok: false, error: 'not_found');
     }
 
+    // **Settle the agenda first** — the same rule `ProviderAccountService` has
+    // enforced since audit 11.5, now on the consumer side (owner decision; §21
+    // row 48 recorded the asymmetry).
+    //
+    // A salon holds a slot for a named person. If that person can vanish without
+    // cancelling, the salon keeps a confirmed appointment it can neither contact
+    // nor fill: `booking_notifier` resolves no recipient once the phone is NULL,
+    // so even the reminder silently no-ops, and `appointments_slot_unique` keeps
+    // the slot blocked. Deleting is the user's right; stranding a business is
+    // not part of it.
+    //
+    // Before every other step, so a refusal is never a half-erasure.
+    // `DateTime.now()` directly, matching `provider_account_service.dart:56` —
+    // the backend has no clock seam (A10's `AppClock` is mobile-only), and
+    // inventing one for a single comparison is a slice of its own.
+    final now = DateTime.now().toUtc();
+    final booked = await _appointments.listForUser(userId);
+    final hasFuture = booked.any((a) {
+      final status = a['status'] as String?;
+      if (status != 'pending' && status != 'confirmed') return false;
+      final date = DateTime.tryParse(a['appointmentDate'] as String? ?? '');
+      return date != null && date.toUtc().isAfter(now);
+    });
+    if (hasFuture) return (ok: false, error: 'future_bookings');
+
     // 1. Stop the ringing first. This is the live bug, and it is the one step
     //    whose delay a user would actually notice.
     await _devices.deleteForUser(userId);

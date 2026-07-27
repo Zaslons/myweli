@@ -512,7 +512,9 @@ export interface paths {
         post?: never;
         /**
          * Erase the signed-in user's own account (B2 · L1 · threat T59)
-         * @description Consumers only — a provider token gets 403; pros delete through `DELETE /me/provider`, which settles the agenda and unpublishes the salons first. Irreversible, and idempotent: a second call returns 404.
+         * @description Consumers only — a provider token gets 403; pros delete through `DELETE /me/provider`. Irreversible, and idempotent: a second call returns 404.
+         *
+         *     **Settle the agenda first.** A pending or confirmed booking in the future → **409 `future_bookings`**; cancel it and retry. Same rule, and the same code, as the provider path: a salon holds a slot for a named person, and an account that vanishes without cancelling leaves a booking the salon can neither contact nor fill. The gate runs before any erasure, so a 409 is never a partial deletion.
          *
          *     **Deleted** — the profile and its credentials; OTP rows and every refresh token; device tokens (so push STOPS); the notification feed and its preferences; favourites; reports this user filed.
          *
@@ -544,6 +546,13 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 /** @description No such user — also the idempotent second call */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `future_bookings` — cancel the upcoming appointment(s) first. */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };

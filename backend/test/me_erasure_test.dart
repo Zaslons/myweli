@@ -123,6 +123,10 @@ void main() {
         'clientPhone': '+225070000000$uid',
         'notes': 'Allergique à l’ammoniaque',
         'depositScreenshotUrl': 'deposit/$uid/proof.jpg',
+        // `appointment_date` is NOT NULL in the schema (migrations.dart:72) and
+        // `listForUser` sorts on it — a seed without one throws in the sort,
+        // which is how this fixture gap surfaced rather than staying latent.
+        'appointmentDate': '2026-03-09T10:00:00.000Z',
         'status': 'completed',
       });
       await reviews.upsertByAppointment({
@@ -551,6 +555,7 @@ void main() {
         'userId': victim,
         'providerId': 'provider1',
         'depositScreenshotUrl': 'deposit/$bystander/stolen.jpg',
+        'appointmentDate': '2026-03-08T10:00:00.000Z',
         'status': 'completed',
       });
 

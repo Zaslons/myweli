@@ -30,9 +30,17 @@ const FAQ = [
   {
     question: 'Comment supprimer mon compte Myweli ?',
     answer:
-      'Dans l’application : Profil → Supprimer mon compte, puis saisissez ' +
-      'SUPPRIMER pour confirmer. Sur le web : Mon compte → Supprimer mon ' +
-      'compte. La suppression est immédiate et définitive.',
+      'Annulez d’abord vos rendez-vous à venir, puis : dans l’application, ' +
+      'Profil → Supprimer mon compte et saisissez SUPPRIMER pour confirmer ; ' +
+      'sur le web, Mon compte → Supprimer mon compte. La suppression est ' +
+      'ensuite immédiate et définitive.',
+  },
+  {
+    question: 'Pourquoi dois-je annuler mes rendez-vous avant ?',
+    answer:
+      'Parce qu’un salon vous garde un créneau. Un compte qui disparaît sans ' +
+      'prévenir lui laisse une réservation qu’il ne peut ni joindre ni ' +
+      'remplacer. C’est la même règle pour les comptes professionnels.',
   },
   {
     question: 'Que devient l’historique de mes rendez-vous ?',
@@ -63,6 +71,17 @@ export default function Page() {
         Vous pouvez supprimer votre compte Myweli vous-même, à tout moment, sans
         nous écrire. Voici comment — et exactement ce que cela efface.
       </Lead>
+
+      <Callout>
+        <P>
+          <strong>Annulez d’abord vos rendez-vous à venir.</strong> Tant qu’un
+          rendez-vous confirmé ou en attente est devant vous, la suppression est
+          refusée&nbsp;: un salon vous garde un créneau, et un compte qui
+          disparaît sans prévenir lui laisse une réservation qu’il ne peut ni
+          joindre ni remplacer. Annulez depuis <strong>Mes rendez-vous</strong>,
+          puis revenez ici.
+        </P>
+      </Callout>
 
       <H2>Comment faire</H2>
       <P>
@@ -156,9 +175,9 @@ export default function Page() {
 
       <H2>Si vous êtes professionnel</H2>
       <P>
-        La suppression d’un compte professionnel exige d’abord de terminer ou
-        d’annuler vos rendez-vous à venir&nbsp;: nous ne voulons pas annuler
-        d’office les réservations de vos clients. Vos salons sont ensuite{' '}
+        La même règle s’applique, dans l’autre sens&nbsp;: terminez ou annulez
+        d’abord vos rendez-vous à venir — nous ne voulons pas annuler d’office
+        les réservations de vos clients. Vos salons sont ensuite{' '}
         <strong>dépubliés</strong> plutôt que détruits, pour que les
         réservations, avis et fiches passés continuent de se résoudre, et vos
         pièces d’identité sont effacées.
