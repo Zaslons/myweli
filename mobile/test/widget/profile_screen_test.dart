@@ -5,6 +5,7 @@ import 'package:myweli/core/constants/app_constants.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
+import 'package:myweli/screens/profile/about_screen.dart';
 import 'package:myweli/screens/profile/profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,16 +77,45 @@ void main() {
     );
   });
 
-  testWidgets('the version comes from one place', (tester) async {
-    await pumpProfile(tester);
+  testWidgets('the version comes from one place — on the About screen',
+      (tester) async {
+    // **The profile row no longer shows a version at all**, and that is the
+    // fix: it printed « Version 1.0.0 » as a literal, a second copy of
+    // `AppConstants.appVersion`, with `pubspec.yaml` holding a third. The
+    // number now lives once, on the screen that is *about* the app.
+    //
+    // The first draft asserted this on the profile and went red the moment the
+    // literal was removed — a test measuring the old shape rather than the
+    // rule. Bump the constant and this still goes red, which is the whole
+    // point of it being a constant.
+    await tester.pumpWidget(wrapApp(home: const AboutScreen()));
+    await tester.pump();
+
+    expect(find.textContaining(AppConstants.appVersion), findsOneWidget);
     expect(
-      find.textContaining(AppConstants.appVersion),
-      findsWidgets,
-      reason: 'the row hardcodes « Version 1.0.0 », a second copy of '
-          '`AppConstants.appVersion` — and `pubspec.yaml` holds a third. Bump '
-          'the constant and this goes red, which is the whole point of it '
-          'being a constant.',
+      find.text('Version 1.0.0'),
+      findsOneWidget,
+      reason: 'and it reads as a human expects — the constant interpolated, '
+          'not printed raw',
     );
+  });
+
+  testWidgets('the About screen offers all four documents', (tester) async {
+    await tester.pumpWidget(wrapApp(home: const AboutScreen()));
+    await tester.pump();
+
+    for (final title in [
+      'Politique de confidentialité',
+      'Conditions d’utilisation',
+      'Mentions légales',
+      'Supprimer mon compte',
+    ]) {
+      expect(find.text(title), findsOneWidget, reason: '« $title » is missing');
+    }
+    // Every one leaves the app — there is no in-app copy of a legal document,
+    // deliberately (docs/design/legal-l1.md §5: two copies drift, and a user
+    // and a regulator would be reading different documents).
+    expect(find.byIcon(Icons.open_in_new), findsNWidgets(4));
   });
 
   testWidgets('signing out does not hide the legal route', (tester) async {

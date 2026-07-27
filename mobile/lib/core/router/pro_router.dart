@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/pro_auth_provider.dart';
+import '../../screens/profile/about_screen.dart';
 import '../../screens/provider/appointments/appointment_list_screen.dart';
 import '../../screens/provider/appointments/pro_appointment_detail_screen.dart';
 import '../../screens/provider/appointments/pro_manual_booking_screen.dart';
@@ -241,6 +242,13 @@ class ProRouter {
         path: '/pro/data-export',
         name: 'pro-data-export',
         builder: (context, state) => const ProDataExportScreen(),
+      ),
+      // L1 — the SAME screen the consumer app registers at the same path. One
+      // legal surface, two apps, no capability gate: legal is not a permission.
+      GoRoute(
+        path: '/a-propos',
+        name: 'pro-about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/pro/photos',
