@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 import CguPage from '../app/cgu/page';
 import MentionsPage from '../app/mentions-legales/page';
 import ConfidentialitePage from '../app/politique-confidentialite/page';
@@ -12,6 +12,13 @@ import { COMPANY, LEGAL_ROUTES, LEGAL_UPDATED_AT } from '../lib/legal';
 /// the things a rendered page cannot show you: that all four read ONE date, that
 /// the slugs the app links to are the slugs that exist, and that the marker
 /// separating engineering facts from legal judgement never shipped.
+
+// `globals` is off in `vitest.config.ts`, so RTL's auto-cleanup never runs and
+// each `render` STACKS in the same document. Without this the h1 counts read
+// 1 → 3 → 5 → 7 across the file — which is exactly how this was found: three
+// pages "had" extra h1s that a DOM dump showed were the previous tests' renders.
+// The house idiom (b6-rating-chip, add-salon, abonnement-setup) is explicit.
+afterEach(cleanup);
 
 const PAGES = [
   ['politique de confidentialité', ConfidentialitePage],

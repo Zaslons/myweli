@@ -159,3 +159,33 @@ export function breadcrumbJsonLd(crumbs: { name: string; url: string }[]) {
     })),
   };
 }
+
+/// A static content page (L1 — the four legal documents).
+///
+/// `WebPage` rather than `Article`: these are not editorial pieces, and
+/// `dateModified` is the field that matters — a policy's date is a claim about
+/// when the practice it describes last changed. It comes from the single
+/// `LEGAL_UPDATED_AT`, so four pages cannot disagree.
+export function webPageJsonLd({
+  name,
+  path,
+  description,
+  dateModified,
+}: {
+  name: string;
+  path: string;
+  description: string;
+  dateModified: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name,
+    url: `${siteUrl}${path}`,
+    description,
+    inLanguage: 'fr-FR',
+    dateModified,
+    isPartOf: { '@type': 'WebSite', url: siteUrl },
+    publisher: { '@type': 'Organization', name: 'MyWeli', url: siteUrl },
+  };
+}
