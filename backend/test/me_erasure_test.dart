@@ -100,7 +100,9 @@ void main() {
           body: 'Salon Excellence',
         );
       }
-      await prefs.update(uid, reminders: false, marketing: true);
+      // Opt-out model: every flag defaults to TRUE, so `false` is the only
+      // value that distinguishes a live row from a deleted one.
+      await prefs.update(uid, reminders: false, marketing: false);
       await favorites.add(uid, 'provider1');
       await favorites.add(uid, 'provider2');
       await appointments.create({
@@ -121,6 +123,7 @@ void main() {
         'providerId': 'provider1',
         'rating': 5,
         'text': 'Très bien',
+        'createdAt': '2026-03-11T10:00:00.000Z',
       });
       // Both A and B report the SAME real review, so the grouped
       // `reportCount` is an observable 2 that must fall to 1 — see the report
@@ -137,6 +140,7 @@ void main() {
       'providerId': 'provider1',
       'rating': 1,
       'text': 'Bof',
+      'createdAt': '2026-03-10T10:00:00.000Z',
     });
 
     setUp(() async {
@@ -258,8 +262,8 @@ void main() {
       );
 
       // `get` upserts a default, so absence reads as "back to defaults".
-      expect((await prefs.get(victim)).marketing, isFalse);
-      expect((await prefs.get(bystander)).marketing, isTrue);
+      expect((await prefs.get(victim)).marketing, isTrue);
+      expect((await prefs.get(bystander)).marketing, isFalse);
     });
 
     test('favourites go', () async {

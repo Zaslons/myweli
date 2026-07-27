@@ -18,6 +18,11 @@ abstract interface class DeviceTokenRepository {
 
   /// Remove a token outright (pruning a provider-reported invalid token).
   Future<void> remove(String token);
+  // ---- Privacy (L1 erasure) ------------------------------------------------
+
+  /// Every token this subject owns. Called on account erasure — until L1 the
+  /// rows survived deletion, so a deleted user's phone kept receiving push.
+  Future<void> deleteForUser(String userId);
 }
 
 class InMemoryDeviceTokenRepository implements DeviceTokenRepository {
@@ -46,4 +51,8 @@ class InMemoryDeviceTokenRepository implements DeviceTokenRepository {
 
   @override
   Future<void> remove(String token) async => _byToken.remove(token);
+
+  @override
+  Future<void> deleteForUser(String userId) async =>
+      _byToken.removeWhere((_, v) => v['userId'] == userId);
 }

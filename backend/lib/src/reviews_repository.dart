@@ -1,3 +1,5 @@
+import 'privacy/anonymized_identity.dart';
+
 /// Aggregate rating for a provider or artist.
 typedef RatingAgg = ({double rating, int count});
 
@@ -58,6 +60,20 @@ abstract interface class ReviewsRepository {
 
   /// Resolve all open reports for a review (admin acted on it).
   Future<void> resolveReports(String reviewId, String resolvedBy);
+  // ---- Privacy (L1 erasure) ------------------------------------------------
+
+  /// Erase the reviewer, keep the review.
+  ///
+  /// The rating is a public aggregate the salon **earned** — deleting the row
+  /// would silently re-score a business because a customer closed an account.
+  /// So `user_name` becomes [anonymousClientLabel] and `user_id` becomes
+  /// [deletedUserId] (a tombstone, never NULL — the column is `NOT NULL` and
+  /// the shipped mobile model types it non-nullable).
+  ///
+  /// Reports filed BY this user are **deleted**, not tombstoned:
+  /// `UNIQUE (review_id, reporter_user_id)` means two erased users who
+  /// reported the same review would collide on a shared tombstone.
+  Future<void> anonymizeUser(String userId);
 }
 
 class InMemoryReviewsRepository implements ReviewsRepository {
@@ -243,5 +259,15 @@ class InMemoryReviewsRepository implements ReviewsRepository {
         r['resolvedAt'] = DateTime.now().toUtc().toIso8601String();
       }
     }
+  }
+
+  @override
+  Future<void> anonymizeUser(String userId) async {
+    for (final r in _reviews) {
+      if (r['userId'] != userId) continue;
+      r['userName'] = anonymousClientLabel;
+      r['userId'] = deletedUserId;
+    }
+    _reports.removeWhere((r) => r['reporterUserId'] == userId);
   }
 }

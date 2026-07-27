@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:postgres/postgres.dart';
 
+import '../privacy/anonymized_identity.dart';
+
 import '../reviews_repository.dart';
 
 /// Postgres-backed [ReviewsRepository] (table `reviews`, migration `0007`;
@@ -280,5 +282,24 @@ LIMIT @lim OFFSET @off'''),
   String _reportId() {
     final bytes = List<int>.generate(12, (_) => _rng.nextInt(256));
     return 'report_${base64Url.encode(bytes).replaceAll('=', '')}';
+  }
+
+  @override
+  Future<void> anonymizeUser(String userId) async {
+    await _pool.execute(
+      Sql.named(
+        'UPDATE reviews SET user_name = @label, user_id = @tomb '
+        'WHERE user_id = @uid',
+      ),
+      parameters: {
+        'label': anonymousClientLabel,
+        'tomb': deletedUserId,
+        'uid': userId,
+      },
+    );
+    await _pool.execute(
+      Sql.named('DELETE FROM review_reports WHERE reporter_user_id = @uid'),
+      parameters: {'uid': userId},
+    );
   }
 }
