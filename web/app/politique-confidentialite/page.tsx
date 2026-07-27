@@ -56,8 +56,8 @@ export default function Page() {
       </P>
       <P>
         <strong>Votre connexion</strong> — l’identifiant technique fourni par
-        Google ou Apple, et les codes à usage unique, conservés sous forme
-        chiffrée et valables cinq minutes.
+        Google ou Apple, et les codes à usage unique — conservés sous forme
+        d’empreinte irréversible, jamais en clair, et valables cinq minutes.
       </P>
       <P>
         <strong>Vos rendez-vous</strong> — date, salon, prestations, montants, et
@@ -97,6 +97,17 @@ export default function Page() {
         valable cinq minutes. Chaque consultation est journalisée.
       </P>
 
+      <P>
+        <strong>Votre position</strong> — si vous l’autorisez, l’application et le
+        site l’utilisent pour centrer la carte et vous proposer les salons
+        proches. <strong>Elle ne quitte jamais votre appareil</strong>&nbsp;:
+        aucune coordonnée de client ne nous est transmise ni conservée. Vous
+        pouvez refuser, ou la retirer à tout moment dans les réglages de votre
+        téléphone — la recherche par commune continue de fonctionner. Un
+        professionnel qui place le point de son salon nous transmet, lui, cette
+        position&nbsp;: elle est publique, puisqu’elle sert à vous y conduire.
+      </P>
+
       <H2>Ce qui est public</H2>
       <P>
         La fiche d’un salon — nom, adresse, téléphone, WhatsApp, coordonnées
@@ -112,8 +123,11 @@ export default function Page() {
         Nos serveurs applicatifs et notre base de données sont hébergés par Render
         à <strong>Francfort, en Allemagne</strong>&nbsp;; le site web par
         Vercel&nbsp;; les fichiers — photos, captures d’écran, pièces
-        justificatives — par Cloudflare R2. Vos données sortent donc de Côte
-        d’Ivoire et sont traitées dans l’Union européenne.
+        justificatives — par Cloudflare R2, dont les serveurs sont répartis
+        mondialement. <strong>Vos données sortent donc de Côte d’Ivoire</strong>
+        : la base de données et l’API sont dans l’Union européenne, le site est
+        servi depuis les États-Unis, et les fichiers depuis le réseau de
+        Cloudflare.
       </P>
 
       <H2>Qui d’autre les reçoit</H2>
@@ -127,8 +141,9 @@ export default function Page() {
 
       <H2>Cookies</H2>
       <P>
-        Le site dépose cinq cookies, tous strictement nécessaires à votre
-        session&nbsp;: ils sont inaccessibles au JavaScript, transmis uniquement
+        Le site dépose des cookies <strong>strictement nécessaires</strong>, et
+        rien d’autre&nbsp;: deux pour une session client, trois pour une session
+        professionnelle — jamais les deux à la fois. Ils sont ils sont inaccessibles au JavaScript, transmis uniquement
         en HTTPS, et limités à notre site. Il n’existe aucun cookie de mesure
         d’audience ni de publicité. C’est pourquoi vous ne voyez pas de bandeau de
         consentement&nbsp;: il n’y a rien à consentir. L’application, elle,
@@ -139,7 +154,7 @@ export default function Page() {
       <P>
         Vous pouvez à tout moment consulter, corriger, exporter ou supprimer vos
         données, sans nous écrire&nbsp;: dans l’application, depuis{' '}
-        <strong>Profil → Mes données</strong> et{' '}
+        <strong>Profil → Exporter mes données</strong> et{' '}
         <strong>Profil → Supprimer mon compte</strong>&nbsp;; sur le web, depuis{' '}
         <A href="/mon-compte">Mon compte</A>.
       </P>
@@ -154,9 +169,11 @@ export default function Page() {
       <P>
         Nous conservons vos données tant que votre compte existe. Certaines
         informations survivent volontairement à sa suppression — le journal
-        d’envoi de nos messages, indexé par numéro de téléphone, et votre
-        éventuelle opposition à être recontacté, précisément pour qu’elle continue
-        de vous protéger. La page ci-dessus les énumère.
+        d’envoi de nos messages, indexé par numéro de téléphone&nbsp;; votre
+        éventuelle opposition à être recontacté, précisément pour qu’elle
+        continue de vous protéger&nbsp;; et les étiquettes et notes qu’un salon a
+        rédigées sur sa fiche client, qui lui appartiennent et restent attachées
+        à une fiche désormais anonyme. La page ci-dessus les énumère.
       </P>
 
       <H2>Nous contacter</H2>

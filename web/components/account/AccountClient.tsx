@@ -379,8 +379,10 @@ export function AccountClient() {
           ) : (
             <div className="rounded-lg bg-surface p-m">
               <p className="text-bodyLarge text-textPrimary">
-                Cette action est définitive. Vos rendez-vous, favoris et avis
-                seront supprimés. Pensez à exporter vos données avant.
+                Cette action est définitive. Votre profil, vos favoris et vos
+                notifications sont supprimés ; vos rendez-vous et vos avis
+                restent chez le salon, sans votre nom. Pensez à exporter vos
+                données avant.
               </p>
               <p className="mt-s text-bodySmall text-textTertiary">
                 Tapez SUPPRIMER pour confirmer

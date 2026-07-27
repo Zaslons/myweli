@@ -134,6 +134,7 @@ void main() {
         'rating': 5,
         'text': 'Très bien',
         'createdAt': '2026-03-11T10:00:00.000Z',
+        'photoUrls': ['https://cdn.myweli.com/review/$uid/before.jpg'],
       });
       // Both A and B report the SAME real review, so the grouped
       // `reportCount` is an observable 2 that must fall to 1 — see the report
@@ -328,6 +329,35 @@ void main() {
       expect(b['userId'], bystander);
     });
 
+    test('the review PHOTOS go — the tombstone is not defeated by a URL', () async {
+      // **The hole the adversarial review found, and the sharpest one in the
+      // slice.** Anonymising `user_id` hides the id in the column and leaves it
+      // in the payload beside it: review photos are uploaded to
+      // `review/{userId}/{uuid}.{ext}` in the **public** bucket
+      // (`upload_signing_service.dart:98`), so an erased reviewer's URLs still
+      // read `…/review/1f3a…/before.jpg`. Anyone could group every review that
+      // person ever left, across every salon, by prefix — and the photos are
+      // frequently of their own face or hair, served forever.
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+
+      final r = await reviewOf(victim);
+      expect(r!['photoUrls'], isEmpty, reason: 'detached from the review');
+      expect(
+        erasedObjects.where((p) => p.contains('review/$victim/')),
+        hasLength(1),
+        reason:
+            'and erased from the public bucket, not merely unlinked — an '
+            'object nobody links to is still an object anybody can fetch',
+      );
+
+      final b = await reviewOf(bystander);
+      expect(b!['photoUrls'], hasLength(1));
+      expect(
+        erasedObjects.where((p) => p.contains('review/$bystander/')),
+        isEmpty,
+      );
+    });
+
     test('a filed report is deleted, not tombstoned', () async {
       // `UNIQUE (review_id, reporter_user_id)` means two erased users who
       // reported the same review would COLLIDE on a shared tombstone — so this
@@ -435,8 +465,13 @@ void main() {
       });
 
       expect((await erase(victim)).statusCode, HttpStatus.noContent);
-      expect(erasedObjects, hasLength(1));
-      expect(erasedObjects.single, contains('deposit/$victim/proof.jpg'));
+      // Scoped to the deposit bucket: the same capture list now also holds the
+      // review photo the erasure removes from the PUBLIC bucket.
+      final deposits = erasedObjects
+          .where((p) => p.contains('deposit/'))
+          .toList();
+      expect(deposits, hasLength(1));
+      expect(deposits.single, contains('deposit/$victim/proof.jpg'));
     });
 
     test('a storage failure never blocks the erasure', () async {

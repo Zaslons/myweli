@@ -89,7 +89,11 @@ class UserErasureService {
 
     // 4. The content survives, the author does not — plus the reports this user
     //    filed, which cannot be tombstoned (a UNIQUE constraint would collide).
-    await _reviews.anonymizeUser(userId);
+    //    Returns the PUBLIC photo keys it detached: review photo URLs are
+    //    `review/{userId}/…`, so leaving them served would keep the id legible
+    //    in the address bar and let every review be grouped back together by
+    //    prefix — the tombstone would be defeated by the payload beside it.
+    final reviewPhotos = await _reviews.anonymizeUser(userId);
 
     // 5. The bookings are stripped, not deleted: the salon keeps its book.
     //    Returns the deposit keys it just cleared, which is the only place they
@@ -101,26 +105,58 @@ class UserErasureService {
     //    moved here so the whole cascade has one owner.
     await _clients.anonymizeUser(userId);
 
-    // 7. The deposit screenshots. Own-prefix only, exactly as the KYC path does
-    //    it — a foreign key on this user's own row is skipped rather than
-    //    trusted. Best-effort: a storage hiccup never blocks the erasure,
-    //    because the rows go next and any survivor is uuid-named in a private
-    //    bucket with nothing pointing at it.
-    for (final key in depositKeys) {
-      if (!key.startsWith('deposit/$userId/')) continue;
-      try {
-        final url = _storage.presignDelete(
-          key: key,
-          bucket: StorageBucket.deposit,
-        );
-        await _client.delete(Uri.parse(url));
-      } catch (_) {
-        // Tolerated — see above.
-      }
-    }
+    // 7. The objects. Own-prefix only, exactly as the KYC path does it — a
+    //    foreign key sitting on this user's own row is skipped rather than
+    //    trusted.
+    //
+    //    **Best-effort, and the user-facing copy says « nous supprimons » with
+    //    that caveat rather than a guarantee.** A storage failure does not block
+    //    the erasure, because the rows go next and a surviving DEPOSIT object is
+    //    uuid-named in a private bucket with nothing pointing at it.
+    //
+    //    A surviving REVIEW photo is different — it is public — so this runs
+    //    before the identity delete and its failure is the one worth retrying.
+    //    The keys are gone from the database after the first attempt (both
+    //    statements clear as they read), so a retry cannot re-derive them; that
+    //    is the one place this cascade does not converge, and it is recorded in
+    //    docs/design/account-deletion-erasure.md §11 rather than papered over.
+    await _eraseObjects(depositKeys, 'deposit/$userId/', StorageBucket.deposit);
+    await _eraseObjects(reviewPhotos, 'review/$userId/', StorageBucket.public);
 
     // 8. And only now the identity.
     final ok = await _auth.deleteUser(userId);
     return ok ? (ok: true, error: null) : (ok: false, error: 'not_found');
+  }
+
+  /// Erase [keys] from [bucket], keeping only those under [ownPrefix].
+  ///
+  /// Public review photos arrive here as full URLs (that is what the column
+  /// stores); deposit screenshots arrive as bare keys. Both are normalised to a
+  /// key before the prefix check, so a URL can never smuggle a foreign path
+  /// past it.
+  Future<void> _eraseObjects(
+    List<String> keys,
+    String ownPrefix,
+    StorageBucket bucket,
+  ) async {
+    for (final raw in keys) {
+      final key = _keyOf(raw);
+      if (!key.startsWith(ownPrefix)) continue;
+      try {
+        final url = _storage.presignDelete(key: key, bucket: bucket);
+        await _client.delete(Uri.parse(url));
+      } catch (_) {
+        // Tolerated — see the caller.
+      }
+    }
+  }
+
+  /// `https://cdn…/review/u1/x.jpg` → `review/u1/x.jpg`; a bare key is returned
+  /// unchanged.
+  static String _keyOf(String raw) {
+    final i = raw.indexOf('://');
+    if (i < 0) return raw;
+    final slash = raw.indexOf('/', i + 3);
+    return slash < 0 ? raw : raw.substring(slash + 1);
   }
 }

@@ -79,7 +79,7 @@ export default function Page() {
       <Callout>
         <P>
           <strong>Avant de supprimer, pensez à exporter vos données.</strong>{' '}
-          Depuis <strong>Profil → Mes données</strong> dans l’application, ou{' '}
+          Depuis <strong>Profil → Exporter mes données</strong> dans l’application, ou{' '}
           <A href="/mon-compte/donnees">Mes données</A> sur le web. La suppression
           est définitive et nous ne pouvons rien restaurer.
         </P>
@@ -99,7 +99,14 @@ export default function Page() {
         <Li>les signalements d’avis que vous avez déposés&nbsp;;</Li>
         <Li>vos codes de connexion et toutes vos sessions&nbsp;;</Li>
         <Li>
-          les captures d’écran d’acompte que vous aviez transmises.
+          les photos que vous aviez jointes à vos avis — leur adresse contenait
+          votre identifiant&nbsp;;
+        </Li>
+        <Li>
+          les captures d’écran d’acompte que vous aviez transmises. Ces deux
+          effacements de fichiers sont effectués <strong>au mieux</strong>&nbsp;:
+          si notre stockage est indisponible à cet instant précis, la suppression
+          de votre compte aboutit quand même, et un fichier peut subsister.
         </Li>
       </Ul>
 
@@ -110,9 +117,11 @@ export default function Page() {
       </P>
       <Ul>
         <Li>
-          <strong>Vos avis</strong> restent en ligne sans votre nom. La note
-          appartient à l’évaluation d’un salon, qui l’a méritée&nbsp;: la retirer
-          modifierait sa réputation parce que vous avez fermé un compte.
+          <strong>Vos avis</strong> restent en ligne sans votre nom, et sans les
+          photos que vous y aviez jointes. La note appartient à l’évaluation d’un
+          salon, qui l’a méritée&nbsp;: la retirer modifierait sa réputation
+          parce que vous avez fermé un compte. Les photos, elles, sont les
+          vôtres.
         </Li>
         <Li>
           <strong>Vos rendez-vous</strong> perdent votre nom, votre téléphone et
@@ -136,6 +145,12 @@ export default function Page() {
           <strong>Votre opposition à être recontacté</strong>, si vous en aviez
           exprimé une — précisément pour qu’elle continue de vous protéger après
           la suppression. L’effacer vous rendrait à nouveau contactable.
+        </Li>
+        <Li>
+          <strong>Les étiquettes et notes qu’un salon a écrites</strong> sur sa
+          fiche client. Elles lui appartiennent — c’est son carnet — et restent
+          attachées à une fiche désormais anonyme, sans votre nom ni votre
+          téléphone.
         </Li>
       </Ul>
 

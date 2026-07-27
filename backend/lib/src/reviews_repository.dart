@@ -73,7 +73,14 @@ abstract interface class ReviewsRepository {
   /// Reports filed BY this user are **deleted**, not tombstoned:
   /// `UNIQUE (review_id, reporter_user_id)` means two erased users who
   /// reported the same review would collide on a shared tombstone.
-  Future<void> anonymizeUser(String userId);
+  /// Returns the **public** object keys of the photos it detached, so the
+  /// caller can erase them. Without this the tombstone is defeated: photo URLs
+  /// are `review/{userId}/{uuid}.{ext}` in the PUBLIC bucket
+  /// (`upload_signing_service.dart:98`), so an erased reviewer's user id stays
+  /// legible in the address bar — and all of their reviews across every salon
+  /// can be grouped back together by prefix. The column that was tombstoned is
+  /// not the only place the id lives.
+  Future<List<String>> anonymizeUser(String userId);
 }
 
 class InMemoryReviewsRepository implements ReviewsRepository {
@@ -262,12 +269,19 @@ class InMemoryReviewsRepository implements ReviewsRepository {
   }
 
   @override
-  Future<void> anonymizeUser(String userId) async {
+  Future<List<String>> anonymizeUser(String userId) async {
+    final photos = <String>[];
     for (final r in _reviews) {
       if (r['userId'] != userId) continue;
+      final urls = r['photoUrls'];
+      if (urls is List) photos.addAll(urls.whereType<String>());
       r['userName'] = anonymousClientLabel;
       r['userId'] = deletedUserId;
+      // The review keeps its rating and its text — the salon earned those. The
+      // PHOTOS are the person's own, and their URL carries the id.
+      r['photoUrls'] = const <String>[];
     }
     _reports.removeWhere((r) => r['reporterUserId'] == userId);
+    return photos;
   }
 }

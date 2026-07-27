@@ -251,11 +251,45 @@ V1 only. No new surface.
 - [ ] Spec cross-linked from `user_erasure_service.dart` and from legal-l1.md
 - [ ] Feature branch → PR → **the user merges**; no Claude attribution
 
+## 10.1 ⚠️ What the adversarial review found
+
+Four things, every one of them after the whole suite was green — which is the
+point of running one.
+
+1. **The tombstone was defeated by a URL.** Anonymising `reviews.user_id` hid the
+   id in the column and left it in the payload beside it: review photos live at
+   `review/{userId}/{uuid}.{ext}` in the **public** bucket
+   (`upload_signing_service.dart:98`) and `photo_urls` was untouched. An erased
+   reviewer's photos stayed served, their id legible in the address bar, and every
+   review that person ever left groupable by prefix — often photographs of their
+   own face or hair. `anonymizeUser` now returns those keys and the service erases
+   them, gated with a bystander.
+2. **The deposit erasure cannot converge on a retry, and the copy promised it
+   would.** Both anonymise statements clear their key column *as they read it*, so
+   a second attempt returns an empty list and a surviving object is unreachable
+   forever. §6 had already required the honest word — *attempted*, not
+   *guaranteed* — and neither user-facing surface used it. Both now say
+   **best-effort** in as many words.
+3. **`salon_client_notes` and `salon_clients.tags` were undeclared residuals.**
+   `BACKEND.md` T48 records them; the three surfaces this slice calls "one
+   contract" did not. A salon's note can read « allergique à l'ammoniaque, habite
+   près de la pharmacie » — *"no longer identifying"* is an assumption about free
+   text, not a fact. Now named on the policy, the deletion page and the contract.
+4. **The consumer erasure has no future-bookings gate** while the provider one
+   does — see §11 and §21 row 48.
+
 ## 11. Open questions
 
 - **`outbound_messages` retention.** Phone + full body, growing without bound, and
   not erasable by a `user_id` join. Needs a TTL and a cron. Filed, not solved here.
-- **Does an anonymised review still need its photos?** `photo_urls` points at
-  public objects under a `review/{userId}/…` prefix, so the key itself carries the
-  id. Kept for now — the photo belongs to the review, and the prefix is opaque —
-  but a stricter reading would re-key or drop them.
+- **~~Does an anonymised review still need its photos?~~ Answered: no.** This
+  entry originally kept them, reasoning that *"the photo belongs to the review,
+  and the prefix is opaque"*. The prefix is **not** opaque — it is the primary key
+  the tombstone exists to hide, and an erased reviewer's photos stayed publicly
+  served with their id in the URL. Now detached and erased, gated with a
+  bystander. Recorded because the wrong answer was written down first, and
+  confidently.
+- **Should a consumer be blocked from deleting with future bookings?** The
+  provider path is (T53); the consumer path is not, so a salon can be left with a
+  confirmed slot it can neither contact nor fill. Cancelling on someone's behalf
+  is a product decision, so this is filed rather than assumed (§21 row 48).
