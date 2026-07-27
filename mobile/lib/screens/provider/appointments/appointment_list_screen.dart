@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
@@ -94,7 +95,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       case 1: // Upcoming
         appointmentProvider.loadAppointments(
           authProvider.activeSalonId ?? '',
-          startDate: DateTime.now(),
+          startDate: AppClock.now(),
         );
         return;
       case 2: // Pending

@@ -1,5 +1,6 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/di/dependency_injection.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/salon_time.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
@@ -228,7 +229,7 @@ class MockProService implements ProServiceInterface {
       );
     }
     // The new DRAFT salon in its own free SETUP state (no offer row).
-    final id = 'provider_add_${DateTime.now().millisecondsSinceEpoch}';
+    final id = 'provider_add_${AppClock.now().millisecondsSinceEpoch}';
     MockData.providers.add(
       MockData.providers.first.copyWith(
         id: id,
@@ -244,9 +245,9 @@ class MockProService implements ProServiceInterface {
       email: account.email ?? account.phoneNumber,
       role: TeamRole.owner,
       status: TeamMemberStatus.active,
-      invitedAt: DateTime.now(),
+      invitedAt: AppClock.now(),
       accountId: account.id,
-      acceptedAt: DateTime.now(),
+      acceptedAt: AppClock.now(),
     ));
     return ApiResponse.success(
       SalonMembershipInfo(
@@ -268,9 +269,15 @@ class MockProService implements ProServiceInterface {
     final appointments =
         MockData.appointments.where((a) => a.providerId == providerId).toList();
 
-    final today = DateTime.now();
-    final todayStart = DateTime(today.year, today.month, today.day);
-    final todayEnd = todayStart.add(const Duration(days: 1));
+    // §18/A10 — every one of these five boundaries was the DEVICE's, not the
+    // salon's. `DateTime(today.year, today.month, today.day)` builds local
+    // midnight, which §18 forbids outright; it is invisible in Abidjan (UTC+0,
+    // where the two agree) and wrong in every other wave. `salonDayBoundsUtc`
+    // exists for exactly this and had no caller here.
+    final salon = salonNow();
+    final bounds = salonDayBoundsUtc();
+    final todayStart = bounds.startUtc;
+    final todayEnd = bounds.endUtc;
 
     final todayAppointments = appointments.where((a) {
       final appDate = a.appointmentDate;
@@ -287,8 +294,20 @@ class MockProService implements ProServiceInterface {
           a.status == AppointmentStatus.confirmed;
     }).fold<double>(0, (sum, a) => sum + a.totalPrice);
 
-    final weekStart = todayStart.subtract(Duration(days: today.weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 7));
+    // Monday-anchored, from the SALON's weekday — `today.weekday` was the
+    // device's, so a salon and its owner on either side of midnight bucketed
+    // into different weeks. `salonWallClockToUtc` normalises out-of-range days,
+    // so `day - (weekday - 1)` crossing a month is arithmetic, not a special case.
+    final weekStart = salonWallClockToUtc(
+      salon.year,
+      salon.month,
+      salon.day - (salon.weekday - 1),
+    );
+    final weekEnd = salonWallClockToUtc(
+      salon.year,
+      salon.month,
+      salon.day - (salon.weekday - 1) + 7,
+    );
     final weekRevenue = appointments.where((a) {
       final appDate = a.appointmentDate;
       return appDate.isAfter(weekStart) &&
@@ -296,8 +315,8 @@ class MockProService implements ProServiceInterface {
           a.status == AppointmentStatus.confirmed;
     }).fold<double>(0, (sum, a) => sum + a.totalPrice);
 
-    final monthStart = DateTime(today.year, today.month, 1);
-    final monthEnd = DateTime(today.year, today.month + 1, 1);
+    final monthStart = salonWallClockToUtc(salon.year, salon.month, 1);
+    final monthEnd = salonWallClockToUtc(salon.year, salon.month + 1, 1);
     final monthRevenue = appointments.where((a) {
       final appDate = a.appointmentDate;
       return appDate.isAfter(monthStart) &&
@@ -457,7 +476,7 @@ class MockProService implements ProServiceInterface {
         MockData.appointments.indexWhere((a) => a.id == appointmentId);
     if (index == -1) return ApiResponse.error('Rendez-vous introuvable');
     MockData.appointments[index] = MockData.appointments[index].copyWith(
-      arrivedAt: DateTime.now(),
+      arrivedAt: AppClock.now(),
     );
     return ApiResponse.success(true);
   }
@@ -531,7 +550,7 @@ class MockProService implements ProServiceInterface {
     }
 
     final appointment = Appointment(
-      id: 'manual_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'manual_${AppClock.now().millisecondsSinceEpoch}',
       userId: 'manual',
       providerId: providerId,
       serviceIds: serviceIds,
@@ -546,7 +565,7 @@ class MockProService implements ProServiceInterface {
           (clientPhone != null && clientPhone.isNotEmpty) ? clientPhone : null,
       notes: notes,
       artistId: artistId,
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
     MockData.appointments.add(appointment);
 
@@ -583,7 +602,7 @@ class MockProService implements ProServiceInterface {
     await Future.delayed(AppConstants.mockDelay);
     // In real implementation, create service
     final service = Service(
-      id: 'service_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'service_${AppClock.now().millisecondsSinceEpoch}',
       name: serviceData['name'] as String,
       description: serviceData['description'] as String? ?? '',
       price: (serviceData['price'] as num).toDouble(),

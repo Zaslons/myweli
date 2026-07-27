@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../models/appointment.dart';
@@ -440,7 +441,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                                       AppointmentStatus
                                                           .cancelled ||
                                                   a.appointmentDate
-                                                      .isBefore(DateTime.now());
+                                                      .isBefore(AppClock.now());
                                               return SizedBox(
                                                 width: cardWidth,
                                                 child: CompactAppointmentTile(

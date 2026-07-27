@@ -7,6 +7,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
 import '../../models/artist.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
@@ -123,7 +124,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       artistId: _selectedArtistId,
       artistName: artistName,
       photoUrls: List<String>.from(_photoUrls),
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
 
     setState(() {

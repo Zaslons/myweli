@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 
 /// Pin [AppClock] for one test, with the tear-down wired for the caller.
 ///
@@ -12,6 +13,20 @@ import 'package:myweli/core/utils/app_clock.dart';
 void freezeClock(DateTime instant) {
   final restore = AppClock.freeze(instant);
   addTearDown(restore);
+
+  // **Freezing without re-seeding is a freeze that looks like it worked.**
+  // `MockData`'s appointment and team seeds are RELATIVE (`now + 2 days`), and
+  // the lists are `static final` — memoised per isolate at first touch. Whoever
+  // touched them first wins, so a frozen clock alone leaves stale data and the
+  // assertion fails for a reason that has nothing to do with the code under
+  // test. Both resets keep their list instances, so writes made by the code
+  // under test still land.
+  MockData.resetAppointments();
+  MockData.resetTeam();
+  addTearDown(() {
+    MockData.resetAppointments();
+    MockData.resetTeam();
+  });
 }
 
 /// A Wednesday, mid-month, mid-year — the default fixture instant.

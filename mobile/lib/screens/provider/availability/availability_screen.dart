@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../models/availability.dart';
@@ -606,7 +607,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
 
     if (pickedEnd == null || !mounted) return;
 
-    final now = DateTime.now();
+    final now = AppClock.now();
     final startDateTime = DateTime(
       now.year,
       now.month,

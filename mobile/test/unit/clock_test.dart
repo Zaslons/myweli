@@ -101,9 +101,23 @@ void main() {
           ),
         );
 
+    /// The house `settle()` ladder, **run eight times**.
+    ///
+    /// `test/widget/pro_journal_screen_test.dart` gets away with three pumps
+    /// because its `_StubProService` returns synchronously. This file drives the
+    /// real `MockProService`, and `ProJournalProvider.load` is not one delay —
+    /// it awaits `getJournalDay` (300 ms), then fires `_prefetchWeekCounts`
+    /// (`:181`), which awaits **six more sequentially**, one per week-strip pill
+    /// that is not the selected day. Three pumps leaves five in flight and the
+    /// test dies on `!timersPending` at tear-down — which is how this was
+    /// found, *after* the assertion it was hiding had already gone green.
+    ///
+    /// `pumpAndSettle` is not the fix: the house forbids it (infinite Lottie).
     Future<void> settle(WidgetTester tester) async {
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 400));
+      }
       await tester.pump();
     }
 

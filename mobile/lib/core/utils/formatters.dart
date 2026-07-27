@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'app_clock.dart';
+
 class Formatters {
   /// Format a phone number for display. Côte d'Ivoire (+225) numbers are grouped
   /// in pairs — both the current 10-digit and legacy 8-digit formats; any other
@@ -86,7 +88,7 @@ class Formatters {
   /// Relative time in French: « À l’instant », « il y a 5 min », « il y a 2 h »,
   /// "Hier", "il y a 3 j", otherwise a short date. Pass [now] for testing.
   static String formatRelative(DateTime time, {DateTime? now}) {
-    final ref = now ?? DateTime.now();
+    final ref = now ?? AppClock.now();
     final diff = ref.difference(time);
     if (diff.inMinutes < 1) return 'À l’instant';
     if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';

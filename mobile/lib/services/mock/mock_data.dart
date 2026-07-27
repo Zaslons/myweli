@@ -1,3 +1,4 @@
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
@@ -559,50 +560,70 @@ class MockData {
   ];
 
   // Sample Appointments
-  static final List<Appointment> appointments = [
-    Appointment(
-      id: 'appointment1',
-      userId: 'user1',
-      providerId: 'provider1',
-      serviceIds: const ['service1'],
-      appointmentDate: DateTime.now().add(const Duration(days: 2)),
-      status: AppointmentStatus.confirmed,
-      totalPrice: 5000,
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    Appointment(
-      id: 'appointment2',
-      userId: 'user1',
-      providerId: 'provider2',
-      serviceIds: const ['service4'],
-      appointmentDate: DateTime.now().add(const Duration(days: 5)),
-      status: AppointmentStatus.pending,
-      totalPrice: 15000,
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-    // Completed booking so user1 can see "Donner mon avis" on Salon Excellence (provider1)
-    Appointment(
-      id: 'appointment_completed1',
-      userId: 'user1',
-      providerId: 'provider1',
-      serviceIds: const ['service1'],
-      appointmentDate: DateTime.now().subtract(const Duration(days: 10)),
-      status: AppointmentStatus.completed,
-      totalPrice: 5000,
-      createdAt: DateTime.now().subtract(const Duration(days: 15)),
-    ),
-    // Completed booking so user2 can see "Donner mon avis" on Beauté Divine (provider2)
-    Appointment(
-      id: 'appointment_completed2',
-      userId: 'user2',
-      providerId: 'provider2',
-      serviceIds: const ['service4'],
-      appointmentDate: DateTime.now().subtract(const Duration(days: 7)),
-      status: AppointmentStatus.completed,
-      totalPrice: 15000,
-      createdAt: DateTime.now().subtract(const Duration(days: 10)),
-    ),
-  ];
+  //
+  // A10: seeded through [AppClock] and RE-seedable. The list instance stays
+  // `static final` on purpose — `mock_pro_service.dart:409,459` assign elements
+  // (accept / decline) and `:551` appends (manual booking), so a getter that
+  // recomputed per access would silently discard every write. Same shape as
+  // [resetTeam]: clear the list, refill it from the seed.
+  static final List<Appointment> appointments = _seedAppointments();
+
+  static List<Appointment> _seedAppointments() => [
+        Appointment(
+          id: 'appointment1',
+          userId: 'user1',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDate: AppClock.now().add(const Duration(days: 2)),
+          status: AppointmentStatus.confirmed,
+          totalPrice: 5000,
+          createdAt: AppClock.now().subtract(const Duration(days: 1)),
+        ),
+        Appointment(
+          id: 'appointment2',
+          userId: 'user1',
+          providerId: 'provider2',
+          serviceIds: const ['service4'],
+          appointmentDate: AppClock.now().add(const Duration(days: 5)),
+          status: AppointmentStatus.pending,
+          totalPrice: 15000,
+          createdAt: AppClock.now().subtract(const Duration(hours: 2)),
+        ),
+        // Completed booking so user1 can see "Donner mon avis" on Salon Excellence (provider1)
+        Appointment(
+          id: 'appointment_completed1',
+          userId: 'user1',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDate: AppClock.now().subtract(const Duration(days: 10)),
+          status: AppointmentStatus.completed,
+          totalPrice: 5000,
+          createdAt: AppClock.now().subtract(const Duration(days: 15)),
+        ),
+        // Completed booking so user2 can see "Donner mon avis" on Beauté Divine (provider2)
+        Appointment(
+          id: 'appointment_completed2',
+          userId: 'user2',
+          providerId: 'provider2',
+          serviceIds: const ['service4'],
+          appointmentDate: AppClock.now().subtract(const Duration(days: 7)),
+          status: AppointmentStatus.completed,
+          totalPrice: 15000,
+          createdAt: AppClock.now().subtract(const Duration(days: 10)),
+        ),
+      ];
+
+  /// Re-seed the appointments at the CURRENT [AppClock] instant.
+  ///
+  /// The seeds are relative (`now + 2 days`, `now - 10 days`), so a frozen clock
+  /// only reaches them if they are rebuilt after the freeze — otherwise the list
+  /// keeps whatever instant first touched it, per isolate. `freezeClock` calls
+  /// this so a freeze is never half-done.
+  static void resetAppointments() {
+    appointments
+      ..clear()
+      ..addAll(_seedAppointments());
+  }
 
   // Helper to generate time slots
   // Note: These slots use today's date as a template, but the actual date
@@ -613,7 +634,7 @@ class MockData {
     int endHour,
   ) {
     final slots = <TimeSlot>[];
-    final now = DateTime.now();
+    final now = AppClock.now();
 
     // Generate 30-minute slots from startHour to endHour
     for (int hour = startHour; hour < endHour; hour++) {
@@ -671,10 +692,10 @@ class MockData {
           email: 'invitee@myweli.test',
           role: TeamRole.staff,
           status: TeamMemberStatus.invited,
-          invitedAt: DateTime.now().subtract(const Duration(days: 2)),
+          invitedAt: AppClock.now().subtract(const Duration(days: 2)),
           artistId: 'artist2',
           artistName: 'Diallo Amadou',
-          expiresAt: DateTime.now().add(const Duration(days: 5)),
+          expiresAt: AppClock.now().add(const Duration(days: 5)),
           resendsLeft: 3,
         ),
         // ACTIVE members backing the R4b role demos (accounts seeded above).
@@ -706,8 +727,8 @@ class MockData {
           email: 'retard@myweli.test',
           role: TeamRole.reception,
           status: TeamMemberStatus.invited,
-          invitedAt: DateTime.now().subtract(const Duration(days: 9)),
-          expiresAt: DateTime.now().subtract(const Duration(days: 2)),
+          invitedAt: AppClock.now().subtract(const Duration(days: 9)),
+          expiresAt: AppClock.now().subtract(const Duration(days: 2)),
           resendsLeft: 1,
           expired: true,
         ),
@@ -735,7 +756,7 @@ class MockData {
             salonName: 'Salon Excellence',
             role: TeamRole.staff,
             roleLabel: 'Collaborateur',
-            expiresAt: DateTime.now().add(const Duration(days: 5)),
+            expiresAt: AppClock.now().add(const Duration(days: 5)),
           ),
         ],
         'mock.google@salon.test': [
@@ -745,7 +766,7 @@ class MockData {
             salonName: 'Beauté Divine',
             role: TeamRole.manager,
             roleLabel: 'Manager',
-            expiresAt: DateTime.now().add(const Duration(days: 6)),
+            expiresAt: AppClock.now().add(const Duration(days: 6)),
           ),
         ],
         // Expired card — the accept path's invitation_expired scenario.
@@ -756,7 +777,7 @@ class MockData {
             salonName: 'Salon Excellence',
             role: TeamRole.reception,
             roleLabel: 'Réception',
-            expiresAt: DateTime.now().subtract(const Duration(days: 2)),
+            expiresAt: AppClock.now().subtract(const Duration(days: 2)),
           ),
         ],
       };

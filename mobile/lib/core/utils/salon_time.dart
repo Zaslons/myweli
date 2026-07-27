@@ -13,8 +13,14 @@
 // Porto-Novo / Niamey → Africa/Lagos). The MP1 backend hit this; the app
 // accepts the APK cost for Wave-2/3 correctness.
 
+// A10: the "which instant" half now comes from `app_clock.dart`. §18 governs
+// which ZONE a time renders in; it never owned which INSTANT "now" is, and that
+// gap is why two pro screens could not be photographed (§21 row 23).
+
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tzdb;
+
+import 'app_clock.dart';
 
 /// The DEFAULT salon timezone (IANA) — Wave 0. The only place this fact
 /// lives on mobile; per-salon values come from the API.
@@ -48,7 +54,12 @@ tzdb.Location locationOf(String? tz) {
 }
 
 /// The current instant, as the salon's clock face.
-DateTime salonNow({String? tz}) => toSalonTime(DateTime.now(), tz: tz);
+///
+/// A10: takes `now` like its three siblings did all along — it was the only
+/// helper here without it, which is why its four render-path callers had no way
+/// to pin the clock.
+DateTime salonNow({DateTime? now, String? tz}) =>
+    toSalonTime(now ?? AppClock.now(), tz: tz);
 
 /// An instant re-expressed in salon time (what to feed the formatters —
 /// NEVER `.toLocal()`, which renders the device's zone). The returned value
@@ -59,7 +70,7 @@ DateTime toSalonTime(DateTime d, {String? tz}) =>
 /// The salon-calendar DATE (date-only identity — fields are the salon day;
 /// feed pickers/calendars, NOT range queries — see [salonDayBoundsUtc]).
 DateTime salonToday({DateTime? now, String? tz}) {
-  final s = toSalonTime(now ?? DateTime.now(), tz: tz);
+  final s = toSalonTime(now ?? AppClock.now(), tz: tz);
   return DateTime.utc(s.year, s.month, s.day);
 }
 
@@ -70,7 +81,7 @@ DateTime salonToday({DateTime? now, String? tz}) {
   String? tz,
 }) {
   final location = locationOf(tz);
-  final s = tzdb.TZDateTime.from((now ?? DateTime.now()).toUtc(), location);
+  final s = tzdb.TZDateTime.from((now ?? AppClock.now()).toUtc(), location);
   final start = tzdb.TZDateTime(location, s.year, s.month, s.day);
   final end = tzdb.TZDateTime(location, s.year, s.month, s.day + 1);
   return (startUtc: start.toUtc(), endUtc: end.toUtc());
@@ -123,7 +134,7 @@ bool deviceOffsetDiffersFromSalon({
   String? tz,
   DateTime? at,
 }) {
-  final instant = at ?? DateTime.now();
+  final instant = at ?? AppClock.now();
   final salonOffset =
       locationOf(tz).timeZone(instant.millisecondsSinceEpoch).offset;
   return (deviceOffset ?? instant.timeZoneOffset) != salonOffset;
