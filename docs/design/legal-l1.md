@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft (2026-07-27) |
+| **Status** | Built (2026-07-27) |
 | **Surface** | `web/` (four documents + the site's first footer) · `mobile/` (both apps) · `backend/` (reserved slugs) |
 | **PRD ref / phase** | §18 Compliance & legal · FR-AUTH-005 · **V1 — launch blocker** |
 | **Related spec** | [account-deletion-erasure.md](account-deletion-erasure.md) — the cascade that makes this policy true |

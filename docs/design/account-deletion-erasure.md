@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft (2026-07-27) |
+| **Status** | Built (2026-07-27) |
 | **Surface** | `backend/` — `DELETE /me`, and the eight tables it never reached |
 | **PRD ref / phase** | FR-AUTH-005 · §18 Compliance & legal · **V1** |
 | **Related spec** | [pro-account-deletion-export.md](pro-account-deletion-export.md) — the provider twin, Built. This is its consumer counterpart, and it fixes the same push defect on **both** sides |
