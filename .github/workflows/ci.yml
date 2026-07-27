@@ -348,8 +348,16 @@ jobs:
 
       # arm64 only: it is what the reference low-end Android actually runs, and
       # a universal APK's number is not the one a user downloads.
+      #
+      # `--analyze-size` was here on the first run and the build produced no
+      # APK ("Gradle build failed to produce an .apk file"). Dropped rather
+      # than debugged blind: the number this job exists for is the APK's size,
+      # which `stat` gives directly — the flag only added a per-library JSON
+      # breakdown. If the build still fails without it, the finding is that
+      # this project's Android release build is broken, which is a register
+      # row and not a CI-config problem.
       - name: Build release APK (arm64)
-        run: flutter build apk --release --target-platform android-arm64 --analyze-size
+        run: flutter build apk --release --target-platform android-arm64
 
       - name: Report size against the <30 MB budget
         run: |
@@ -359,12 +367,12 @@ jobs:
           echo "### APK size: ${MB} MB (budget: 30 MB)" >> "$GITHUB_STEP_SUMMARY"
           echo "arm64 release APK — ROADMAP Part 6 / NFR-PERF-002" >> "$GITHUB_STEP_SUMMARY"
           echo "APK size: ${MB} MB"
-          # `--analyze-size` writes to the HOME dir, not the build dir
-          # (`gradle.dart:745-749` → `~/.flutter-devtools/apk-code-size-analysis_NN.json`).
-          # Copy it into the workspace so the upload below can glob it —
+          # Kept for whenever `--analyze-size` comes back: it writes to the
+          # HOME dir, not the build dir (`gradle.dart:745-749`), and
           # `actions/upload-artifact` does not expand `~`.
           mkdir -p size-report
-          cp ~/.flutter-devtools/*code-size-analysis*.json size-report/ || true
+          cp ~/.flutter-devtools/*code-size-analysis*.json size-report/ 2>/dev/null || true
+          ls -l "$APK" > size-report/apk.txt
 
       - name: Upload size analysis
         if: always()
