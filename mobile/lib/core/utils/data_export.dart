@@ -5,6 +5,7 @@ import '../../models/provider_user.dart';
 import '../../models/salon_client.dart';
 import '../../models/service.dart';
 import '../../models/user.dart';
+import 'app_clock.dart';
 
 /// Builds the user's data-export document (JSON-ready) from already-loaded
 /// state. Pure and deterministic so it can be unit-tested.
@@ -15,7 +16,7 @@ Map<String, dynamic> buildUserDataExport({
   DateTime? generatedAt,
 }) {
   return {
-    'generatedAt': (generatedAt ?? DateTime.now()).toIso8601String(),
+    'generatedAt': (generatedAt ?? AppClock.now()).toIso8601String(),
     'profile': {
       'id': user.id,
       'phoneNumber': user.phoneNumber,
@@ -51,7 +52,7 @@ Map<String, dynamic> buildProviderDataExport({
   DateTime? generatedAt,
 }) {
   return {
-    'generatedAt': (generatedAt ?? DateTime.now()).toIso8601String(),
+    'generatedAt': (generatedAt ?? AppClock.now()).toIso8601String(),
     'account': {
       'id': account.id,
       'businessName': account.businessName,

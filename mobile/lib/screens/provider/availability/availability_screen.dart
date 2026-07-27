@@ -606,20 +606,29 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
 
     if (pickedEnd == null || !mounted) return;
 
-    final now = DateTime.now();
-    final startDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      pickedStart.hour,
-      pickedStart.minute,
+    // §18 — a wall-clock the user picked IS salon time, so it becomes a UTC
+    // instant through `salonDateTime`, exactly as the blocked-date picker at
+    // `:261` already did. This built `DateTime(y, m, d, h, m)` — device-local,
+    // the shape §18 forbids outright — and A10's own sweep walked past it,
+    // converting the `now` on the line above and leaving the two constructions
+    // that consume it. The pin cannot see this: there is no clock token here.
+    final tz = context.read<ProAuthProvider>().salonTimezone;
+    final today = salonToday(tz: tz);
+    final startDateTime = salonDateTime(
+      today.year,
+      today.month,
+      today.day,
+      hour: pickedStart.hour,
+      minute: pickedStart.minute,
+      tz: tz,
     );
-    final endDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      pickedEnd.hour,
-      pickedEnd.minute,
+    final endDateTime = salonDateTime(
+      today.year,
+      today.month,
+      today.day,
+      hour: pickedEnd.hour,
+      minute: pickedEnd.minute,
+      tz: tz,
     );
 
     if (endDateTime.isBefore(startDateTime) ||

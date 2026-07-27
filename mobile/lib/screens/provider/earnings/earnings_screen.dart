@@ -30,7 +30,14 @@ class _EarningsScreenState extends State<EarningsScreen>
       if (authProvider.isAuthenticated && authProvider.provider != null) {
         final earningsProvider =
             Provider.of<ProEarningsProvider>(context, listen: false);
-        earningsProvider.loadEarnings(authProvider.provider!.id);
+        // R6: the ACTIVE salon, not the account. `ProAuthProvider.activeSalonId`
+        // documents the rule at its declaration — "screens use THIS (never
+        // `provider.id` — an account id is not a salon id)" — and every other pro
+        // screen follows it. This one did not, so `getEarnings` filtered
+        // appointments on an account id and matched nothing: the screen showed
+        // « 0 FCFA » and « Aucune transaction » for a salon that had takings, and
+        // a multi-salon owner's switch never reached it.
+        earningsProvider.loadEarnings(authProvider.activeSalonId ?? '');
       }
     });
   }
@@ -77,7 +84,7 @@ class _EarningsScreenState extends State<EarningsScreen>
     }
 
     earningsProvider.loadEarnings(
-      authProvider.provider!.id,
+      authProvider.activeSalonId ?? '',
       startDate: startDate,
       endDate: endDate,
     );

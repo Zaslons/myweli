@@ -1,5 +1,6 @@
 import '../../core/config/subscription_plans.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/salon_subscription.dart';
@@ -95,7 +96,7 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
       }
       // First choice starts THIS salon's ONE trial.
       _trialUsed.add(providerId);
-      final trialEnd = DateTime.now().add(const Duration(days: 90));
+      final trialEnd = AppClock.now().add(const Duration(days: 90));
       _byId[providerId] = SalonSubscription(
         tier: tier,
         status: SalonOfferStatus.trial,

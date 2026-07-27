@@ -6,6 +6,7 @@ import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/validators.dart';
@@ -134,7 +135,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       setState(() => _selectionError = 'Choisissez une date et une heure.');
       return;
     }
-    if (dt.isBefore(DateTime.now())) {
+    if (dt.isBefore(AppClock.now())) {
       // Reachable, unlike the two above were: the time picker has no past-time
       // constraint, so today + an earlier hour lands here. It was a bar about
       // the date/time row.

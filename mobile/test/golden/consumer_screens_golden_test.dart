@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
@@ -14,7 +15,7 @@ import 'package:myweli/screens/home/home_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../support/frozen_clock.dart';
 import '../support/golden.dart';
 
 /// The consumer app's four load-bearing screens, rendered under the REAL theme
@@ -25,18 +26,45 @@ import '../support/golden.dart';
 /// break lives (`widgets/home/category_chips.dart:25`, register row 15) — A5 will
 /// diff against this image.
 ///
+/// **A10: frozen, and they were not.** `consumer_provider_detail` and
+/// `consumer_booking_hub` both render clock-derived values
+/// (`provider_detail_screen.dart:443`, `booking_hub_screen.dart:97,339,746-747`)
+/// and were stable only **by luck** — `MockData` seeds at offsets from *now*, so
+/// the relative comparisons happened to land the same way whenever CI ran. One
+/// absolute date in the seed away from a daily failure.
+///
+/// A10's first draft left this file alone and then claimed in §20.1 that these
+/// two were "stable by construction". They were not, and the two-instant
+/// determinism proof was **vacuous for them**: a file that never reads
+/// `kFixedNow` cannot change when `kFixedNow` moves, so their byte-identity
+/// proved nothing — the exact failure mode §20.1 warns about one sentence
+/// earlier. `freezeClock` makes the claim true.
+///
 /// DI note: these files call `setupDependencyInjection()` and NOTHING else. The
 /// locator's fields are `late final` — assignable once per isolate — so a file
 /// may either wire everything (this) or hand-assign a few services, never both.
 void main() {
   group('goldens', () {
     setUpAll(() async {
+      // Before `setupDependencyInjection()`: several mocks seed clock-relative
+      // data in instance-field initialisers, which run at construction, and the
+      // locator's fields are `late final` — assignable once, so no later `setUp`
+      // can replace them. `AppClock.freeze` directly because `addTearDown` does
+      // not exist in `setUpAll`; `tearDownAll` undoes it.
+      AppClock.freeze(kFixedNow);
       await initializeDateFormatting('fr_FR', null);
       SharedPreferences.setMockInitialValues({});
       stubSecureStorage(); // else the session read throws, ON SCREEN
       setupDependencyInjection(); // every service, all mocks
       await loadGoldenFonts();
     });
+
+    tearDownAll(AppClock.restore);
+
+    // And per test as well, for the `MockData` re-seed: the statics are shared
+    // across the isolate, and a screen that mutates them would otherwise leave
+    // the next picture reading its writes.
+    setUp(() => freezeClock(kFixedNow));
 
     testWidgets('the home screen', (tester) async {
       await _pumpScreen(tester, const HomeScreen());
