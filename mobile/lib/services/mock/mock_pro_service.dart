@@ -274,8 +274,17 @@ class MockProService implements ProServiceInterface {
     // midnight, which §18 forbids outright; it is invisible in Abidjan (UTC+0,
     // where the two agree) and wrong in every other wave. `salonDayBoundsUtc`
     // exists for exactly this and had no caller here.
-    final salon = salonNow();
-    final bounds = salonDayBoundsUtc();
+    // THIS salon's timezone, not the default. The first fix routed all five
+    // boundaries through the salon-time helpers and omitted `tz:` on every one,
+    // so they fell back to `kSalonTz` — correct in Abidjan and wrong in every
+    // other wave, which is the exact property the violation had before. The
+    // lookup is the one this file already uses at `getJournalDay`.
+    final tz = MockData.providers
+        .where((p) => p.id == providerId)
+        .map((p) => p.timezone)
+        .firstOrNull;
+    final salon = salonNow(tz: tz);
+    final bounds = salonDayBoundsUtc(tz: tz);
     final todayStart = bounds.startUtc;
     final todayEnd = bounds.endUtc;
 
@@ -302,11 +311,13 @@ class MockProService implements ProServiceInterface {
       salon.year,
       salon.month,
       salon.day - (salon.weekday - 1),
+      tz: tz,
     );
     final weekEnd = salonWallClockToUtc(
       salon.year,
       salon.month,
       salon.day - (salon.weekday - 1) + 7,
+      tz: tz,
     );
     final weekRevenue = appointments.where((a) {
       final appDate = a.appointmentDate;
@@ -315,8 +326,9 @@ class MockProService implements ProServiceInterface {
           a.status == AppointmentStatus.confirmed;
     }).fold<double>(0, (sum, a) => sum + a.totalPrice);
 
-    final monthStart = salonWallClockToUtc(salon.year, salon.month, 1);
-    final monthEnd = salonWallClockToUtc(salon.year, salon.month + 1, 1);
+    final monthStart = salonWallClockToUtc(salon.year, salon.month, 1, tz: tz);
+    final monthEnd =
+        salonWallClockToUtc(salon.year, salon.month + 1, 1, tz: tz);
     final monthRevenue = appointments.where((a) {
       final appDate = a.appointmentDate;
       return appDate.isAfter(monthStart) &&

@@ -157,10 +157,12 @@ it is the only thing asserting the seam's default *is* the wall clock.
 - **`screens/provider/features/booking_journal_screen.dart` is not touched** —
   three render-path clock reads, but **zero references outside its own
   declaration**; §22 shelves it.
-- **Only three goldens.** `pro_dashboard`, `pro_journal`, `pro_earnings`. The
-  seam and the pin make the remaining five goldenable; taking those pictures is a
-  later slice's cheap win, and eight new baselines in one PR is more than can be
-  eye-reviewed honestly — §20.1's own warning.
+- **~~Only three goldens.~~ Four shipped** — `pro_dashboard`, `pro_journal`,
+  `pro_journal_day`, `pro_earnings`. The fourth is argued in §"Four things this
+  spec got wrong" (item 3): three would have photographed the journal's empty
+  state and called the screen pinned. The remaining five stay for a later slice;
+  eight new baselines in one PR is more than can be eye-reviewed honestly —
+  §20.1's own warning.
 
 ## ⚠️ Four things this spec got wrong, found by building it
 
@@ -211,6 +213,26 @@ Every baseline regenerated under two frozen instants eighteen months apart —
 
 Both runs: **26 passing**.
 
+### The final proof set, after the review's fixes
+
+Re-run once the earnings bug (row 42) and the consumer freeze landed, because
+both changed what the pictures contain.
+
+| Instant B | Differ vs 11 Mar 2026 |
+|---|---|
+| **22 Sep 2027**, Wed 10:30 | `pro_journal` · `pro_journal_day` · `pro_earnings` · `pro_team` |
+| **30 Sep 2027**, Thu 18:45 (month edge, different weekday **and** hour) | the same four **plus `pro_dashboard`** |
+
+Five of the six clock-bearing baselines are now provably a function of the
+frozen instant. `pro_earnings` joined that list only after row 42 was fixed —
+before it, the screen rendered the empty state at every instant, and its
+byte-identity meant nothing.
+
+The two consumer baselines stay identical even across a different weekday and a
+different hour: their clock reads produce no visible difference. That is the
+right result — and it is now identity **by construction**, since the file
+freezes, rather than the identity by luck it was before.
+
 ### ⚠️ "Identical" is only half a proof, and a third run was needed
 
 `pro_dashboard` came back byte-identical across those two instants — and that
@@ -239,6 +261,34 @@ renders 0 FCFA and « Aucune transaction » at every instant tried. The picture
 pins the screen's tokens (which is what exposed §21 row 40) but says nothing
 about whether its buckets follow the clock. That is a limitation of the *fixture*,
 not of the seam, and it belongs to the earnings slice row 40 asks for.
+
+## What A10 does not reach, named
+
+Not "future work" — coverage this slice provably lacks, so a later reader is not
+misled by four green pictures.
+
+- **`deviceOffsetDiffersFromSalon` is unphotographable under the new regime.**
+  `kFixedNow` is a `DateTime.utc`, whose `timeZoneOffset` is `Duration.zero`, so
+  under any UTC-built freeze that helper always returns `false` and
+  `widgets/common/salon_time_hint.dart:34` never renders. Production is
+  unaffected — the seam defaults to a local `DateTime.now()` — but the « Heures
+  affichées : heure du salon » affordance cannot appear in a golden without a
+  freeze built from a non-UTC instant. A coverage hole this slice created.
+- **`pro_earnings` does not exercise its buckets.** The golden never taps a tab,
+  so `_loadEarningsForTab` — including the Monday-anchored week bucket that this
+  spec calls "the screen the row's description actually fits" — never runs. The
+  picture pins the screen's tokens and its default load, and that is all.
+- **`freezeClock` cannot re-seed a service the locator already built.** Two mocks
+  seed clock-relative data in instance-field initialisers
+  (`MockProClientsService`, `MockNotificationService`); the fields are
+  `late final`, assignable once, so the freeze must precede construction. Both
+  golden files now do that in `setUpAll`. There is no gate — a frozen clock
+  paired with wall-clock seeds looks exactly like a working freeze.
+- **The pin sees tokens, not shapes.** It catches `DateTime.now()` and
+  `DateTime.timestamp()`, file-scoped. It cannot see `DateTime(y, m, d, h, m)`
+  built from a seam read — which is how `availability_screen.dart:611,618`
+  survived the sweep on the line below the one it converted — nor a tear-off,
+  nor a new read inside an already-exempted file.
 
 ## Definition of done
 

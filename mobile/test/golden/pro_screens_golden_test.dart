@@ -82,6 +82,14 @@ import '../support/golden.dart';
 void main() {
   group('goldens', () {
     setUpAll(() async {
+      // **The freeze comes FIRST, before any service is constructed.** Several
+      // mocks seed clock-relative data in instance-field initialisers, which run
+      // at construction — and the locator's fields are `late final`, assignable
+      // once, so a `setUp` cannot replace them afterwards (it throws
+      // `Field ... has already been initialized`, which is how this was found).
+      // `AppClock.freeze` directly rather than `freezeClock`, because
+      // `addTearDown` does not exist in `setUpAll`; `tearDownAll` below undoes it.
+      AppClock.freeze(kFixedNow);
       await initializeDateFormatting('fr_FR', null);
       // `myweli_push_asked`: PushRegistration's persisted "don't nag" flag
       // (core/push/push_registration.dart:26). Without it the dashboard's
@@ -97,9 +105,17 @@ void main() {
       serviceLocator.proTeamService = _FixedRoster();
       serviceLocator.proArtistService = MockProArtistService();
       serviceLocator.localityService = MockLocalityService();
-      // A10: the dashboard's bell. Its seed is an INSTANCE field, so it is
-      // generated when `NotificationsProvider` builds it — after the freeze,
-      // which is why « il y a 2 heures » is a fixed string in the picture.
+      // The dashboard's bell. `_items = _seed()` is a non-`late` instance field,
+      // so it is generated HERE, at construction — which is why the freeze above
+      // has to precede it. The first version assigned this before any freeze and
+      // claimed in a comment that the seed was "generated when
+      // `NotificationsProvider` builds it — after the freeze, which is why
+      // « il y a 2 heures » is a fixed string in the picture". Both halves were
+      // wrong: the provider receives the already-seeded singleton, and that
+      // string is not in `pro_dashboard.png` at all — the bell renders a badge,
+      // and the relative timestamps live on a screen this file does not
+      // photograph. The picture was stable because the unread COUNT happens to be
+      // clock-independent. Luck, of exactly the kind row 39 is about.
       serviceLocator.proNotificationService = MockNotificationService();
       // The dashboard offers push on its FIRST visit, from a post-frame
       // callback in `initState` — so the locator field is read before a single
@@ -130,7 +146,22 @@ void main() {
     // picture is taken against fixtures generated FROM the frozen instant — the
     // half that is easy to forget, and that looks exactly like a working freeze
     // when it is missing.
-    setUp(() => freezeClock(kFixedNow));
+    tearDownAll(AppClock.restore);
+
+    setUp(() {
+      freezeClock(kFixedNow);
+      // **Re-built AFTER the freeze, and the comment this replaces was wrong on
+      // both of its claims.** It said the bell's seed is an instance field
+      // "generated when `NotificationsProvider` builds it — after the freeze,
+      // which is why « il y a 2 heures » is a fixed string in the picture".
+      // `_items = _seed()` is a non-`late` instance field, so it runs at
+      // CONSTRUCTION — which was in `setUpAll`, before any freeze — and the
+      // provider receives the already-seeded singleton rather than building it.
+      // And « il y a 2 heures » is not in `pro_dashboard.png` at all: the bell
+      // renders a badge, and the relative timestamps live on a screen this file
+      // does not photograph. The picture was stable because the unread COUNT is
+      // clock-independent — luck, of exactly the kind row 39 is about.
+    });
 
     testWidgets('the team roster', (tester) async {
       await _pumpPro(
@@ -211,12 +242,18 @@ void main() {
         size: const Size(390, 1200),
         rounds: 10,
       );
-      // DERIVED from [kFixedNow], not the literal '13'. The first draft hard-coded
-      // it and passed — then the two-date determinism run moved the freeze to 22
-      // September 2027, where the strip reads 20–26 and there is no 13 to tap.
-      // A golden that only works at one frozen instant is a landmine for whoever
-      // moves it next.
-      final target = salonNow(now: kFixedNow).add(const Duration(days: 2));
+      // DERIVED, and derived from the STRIP rather than from `now` — two
+      // corrections, in that order. The first draft hard-coded '13' and passed,
+      // until the determinism run moved the freeze to 22 September 2027, where
+      // the strip reads 20–26 and there is no 13 to tap. The second draft used
+      // `now + 2d`, which is only inside a Mon–Sun strip when `kFixedNow` falls
+      // Mon–Fri: move it to a Saturday and the finder misses, or worse matches a
+      // pill from an adjacent month. Anchoring on the strip's own Monday is
+      // correct for any frozen instant, and the appointment `MockData` seeds at
+      // `now + 2d` is what makes that day non-empty.
+      final today = salonNow(now: kFixedNow);
+      final monday = today.subtract(Duration(days: today.weekday - 1));
+      final target = monday.add(Duration(days: today.weekday - 1 + 2));
       await tester.tap(find.text('${target.day}'));
       await settleMocks(tester, rounds: 10);
       expect(find.text('Aujourd\u2019hui'), findsNothing,

@@ -139,8 +139,18 @@ void main() {
     test(
         'no `DateTime.now()` in lib/ outside the seam — the app renders what '
         'the clock says, not what the machine says', () {
+      // **Both spellings.** `DateTime.timestamp()` is Dart 3's UTC "now", and it
+      // is the *likely* next offender precisely because §18 now tells authors to
+      // think in UTC — nothing about the old rule would have stopped the first
+      // one. Zero occurrences today; this is the pin arriving before the defect
+      // rather than after it, which is the only time that is cheap.
       expect(
-        offenders(roots: ['lib'], token: 'DateTime.now()', allow: libAllow),
+        [
+          ...offenders(
+              roots: ['lib'], token: 'DateTime.now()', allow: libAllow),
+          ...offenders(
+              roots: ['lib'], token: 'DateTime.timestamp()', allow: libAllow),
+        ],
         isEmpty,
         reason: 'call AppClock.now() (core/utils/app_clock.dart), or better a '
             'salon_time.dart helper — a direct read cannot be frozen, and an '
@@ -157,7 +167,10 @@ void main() {
       // ④ moves them. It stays a failing assertion rather than an allowlisted
       // exemption because making that file honest is the whole slice.
       expect(
-        offenders(roots: ['test/golden'], token: 'DateTime.now()'),
+        [
+          ...offenders(roots: ['test/golden'], token: 'DateTime.now()'),
+          ...offenders(roots: ['test/golden'], token: 'DateTime.timestamp()'),
+        ],
         isEmpty,
         reason: 'a golden fixture comes from the FROZEN clock — see '
             'test/support/frozen_clock.dart',
@@ -223,7 +236,14 @@ void main() {
       // guessed `> 300` for `lib/` and was itself red — which is the argument for
       // the guard: a threshold nobody measured cannot be trusted in either
       // direction.
-      expect(sources(['lib']).length, greaterThan(230));
+      // **Measured WITH the allowlist, which the first version was not.** It
+      // called `sources(['lib'])` bare, so it could see a narrowed glob and a
+      // rename — and was blind to the third case its own comment names. Widen
+      // one `libAllow` entry to `'_screen.dart'`, a plausible-looking review
+      // edit, and pin 1 exempts every screen in the app while the bare guard
+      // still counts 292 and stays green. With the allowlist applied it counts
+      // 214 and goes red — mutation-proven.
+      expect(sources(['lib'], allow: libAllow).length, greaterThan(230));
       expect(sources(['test/golden']).length, greaterThan(8));
       expect(sources(['test']).length, greaterThan(120));
     });

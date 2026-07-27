@@ -62,6 +62,14 @@ void main() {
 
     test('freezes, and restores', () {
       final restore = AppClock.freeze(DateTime.utc(2026, 3, 11));
+      // **Belt as well as braces, and the braces were missing.** `expect` throws,
+      // so a failure on the next line would skip the manual `restore()` below and
+      // leave the isolate pinned to 11 March 2026 — the exact instant the journal
+      // gate two tests down asserts. One failure here would have turned that gate
+      // into a tautology that passes whether or not `freezeClock` works. This
+      // file's own prose names that hazard; this was the one place it was not
+      // guarded against.
+      addTearDown(restore);
       expect(AppClock.now(), DateTime.utc(2026, 3, 11));
       restore();
       expect(AppClock.now().difference(DateTime.now()).abs().inSeconds,
