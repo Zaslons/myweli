@@ -162,7 +162,9 @@ export default function Page() {
         La page <A href="/suppression-compte">Supprimer votre compte</A> décrit
         poste par poste ce qui est supprimé, ce qui est anonymisé et ce qui est
         conservé — parce qu’une suppression décrite en une phrase serait
-        inexacte.
+        inexacte. Une seule condition&nbsp;: annulez vos rendez-vous à venir
+        avant, pour ne pas laisser un salon avec un créneau qu’il ne peut plus
+        vous attribuer.
       </P>
 
       <H2>Conservation</H2>

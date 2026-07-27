@@ -57,7 +57,7 @@ export function AccountClient() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState('');
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
@@ -135,11 +135,15 @@ export function AccountClient() {
   /// session ends and the CRM identity is anonymized server-side (T48).
   async function onDelete() {
     setDeleteBusy(true);
-    setDeleteError(false);
+    setDeleteError(null);
     const r = await deleteAccount();
     setDeleteBusy(false);
     if (!r.ok) {
-      setDeleteError(true);
+      setDeleteError(
+        r.error === 'future_bookings'
+          ? 'Annulez vos rendez-vous à venir avant de supprimer votre compte.'
+          : 'La suppression a échoué. Réessayez.',
+      );
       return;
     }
     router.replace('/');
@@ -414,7 +418,7 @@ export function AccountClient() {
               </div>
               {deleteError ? (
                 <p role="alert" className="mt-s text-bodyMedium text-error">
-                  La suppression a échoué. Réessayez.
+                  {deleteError}
                 </p>
               ) : null}
             </div>

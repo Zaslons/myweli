@@ -71,8 +71,9 @@ not deleted. The dialog, the OpenAPI `delete:` description and
 |---|---|
 | `204` | erased |
 | `401` | no principal |
-| **`403`** | **new** — the principal is not a consumer (see §6) |
+| **`403`** | the principal is not a consumer (see §6) |
 | `404` | no such user; also the idempotent second call |
+| **`409`** | **L2** — `future_bookings`: a pending or confirmed booking is still ahead. Cancel it and retry |
 
 `docs/api/openapi.yaml`'s `delete:` description gains the deleted / anonymised /
 retained table verbatim. That text is the contract three surfaces paraphrase.
@@ -276,7 +277,8 @@ point of running one.
    près de la pharmacie » — *"no longer identifying"* is an assumption about free
    text, not a fact. Now named on the policy, the deletion page and the contract.
 4. **The consumer erasure has no future-bookings gate** while the provider one
-   does — see §11 and §21 row 48.
+   does. **Closed in L2** — the owner answered the product question: the consumer
+   is blocked too. See §11.
 
 ## 11. Open questions
 
@@ -289,7 +291,10 @@ point of running one.
   served with their id in the URL. Now detached and erased, gated with a
   bystander. Recorded because the wrong answer was written down first, and
   confidently.
-- **Should a consumer be blocked from deleting with future bookings?** The
-  provider path is (T53); the consumer path is not, so a salon can be left with a
-  confirmed slot it can neither contact nor fill. Cancelling on someone's behalf
-  is a product decision, so this is filed rather than assumed (§21 row 48).
+- **~~Should a consumer be blocked from deleting with future bookings?~~
+  Answered: yes (L2).** The owner's call, and it matches the provider path — the
+  consumer must cancel first. The gate runs **before the first erasure step**, so
+  a refusal is never a half-deletion, and the route returns **409
+  `future_bookings`** exactly as `/me/provider` does. Both clients name the
+  remedy instead of saying « la suppression a échoué », which was advice that
+  could not work: retrying fails identically until the booking is cancelled.

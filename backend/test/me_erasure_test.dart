@@ -123,6 +123,10 @@ void main() {
         'clientPhone': '+225070000000$uid',
         'notes': 'Allergique à l’ammoniaque',
         'depositScreenshotUrl': 'deposit/$uid/proof.jpg',
+        // `appointment_date` is NOT NULL in the schema (migrations.dart:72) and
+        // `listForUser` sorts on it — a seed without one throws in the sort,
+        // which is how this fixture gap surfaced rather than staying latent.
+        'appointmentDate': '2026-03-09T10:00:00.000Z',
         'status': 'completed',
       });
       await reviews.upsertByAppointment({
@@ -427,6 +431,96 @@ void main() {
       verifyNever(() => auth.deleteUser(bystander));
     });
 
+    // ---- The future-bookings gate ------------------------------------------
+
+    test('a confirmed booking TOMORROW blocks the erasure', () async {
+      // **Owner decision, and it matches the provider path.** A salon holds a
+      // slot for a named person; if that person can vanish without cancelling,
+      // the salon is left with a confirmed appointment it can neither contact
+      // nor fill — `booking_notifier` resolves no recipient once the phone is
+      // NULL, so even the reminder silently no-ops, and the slot stays blocked
+      // by `appointments_slot_unique`. Cancel first, then delete.
+      await appointments.create({
+        'id': 'appt-$victim-future',
+        'userId': victim,
+        'providerId': 'provider1',
+        'appointmentDate': DateTime.now()
+            .toUtc()
+            .add(const Duration(days: 1))
+            .toIso8601String(),
+        'status': 'confirmed',
+      });
+
+      final res = await erase(victim);
+      expect(res.statusCode, HttpStatus.conflict);
+      expect((await res.json() as Map)['error'], 'future_bookings');
+
+      // And **nothing** was erased — the gate fires before the first step, so a
+      // refusal is not a half-deletion.
+      expect(await devices.tokensForUser(victim), hasLength(2));
+      expect(await favorites.listForUser(victim), hasLength(2));
+      expect((await reviewOf(victim))!['userName'], 'Awa $victim');
+      verifyNever(() => auth.deleteUser(any()));
+    });
+
+    test('a PAST booking, or a cancelled one, does not block', () async {
+      // The seeded appointment is `status: completed` and undated, and the two
+      // added here are the cases a naive `status != cancelled` check would trip
+      // on. Without this the gate would lock every account that ever booked.
+      await appointments.create({
+        'id': 'appt-$victim-past',
+        'userId': victim,
+        'providerId': 'provider1',
+        'appointmentDate': DateTime.now()
+            .toUtc()
+            .subtract(const Duration(days: 3))
+            .toIso8601String(),
+        'status': 'confirmed',
+      });
+      await appointments.create({
+        'id': 'appt-$victim-cancelled',
+        'userId': victim,
+        'providerId': 'provider1',
+        'appointmentDate': DateTime.now()
+            .toUtc()
+            .add(const Duration(days: 2))
+            .toIso8601String(),
+        'status': 'cancelled',
+      });
+
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+    });
+
+    test('a PENDING request tomorrow blocks too', () async {
+      // Pending is a slot the salon is holding while it decides. Letting it
+      // become unattributable is the same problem as a confirmed one.
+      await appointments.create({
+        'id': 'appt-$victim-pending',
+        'userId': victim,
+        'providerId': 'provider1',
+        'appointmentDate': DateTime.now()
+            .toUtc()
+            .add(const Duration(days: 1))
+            .toIso8601String(),
+        'status': 'pending',
+      });
+      expect((await erase(victim)).statusCode, HttpStatus.conflict);
+    });
+
+    test("a BYSTANDER's future booking does not block me", () async {
+      await appointments.create({
+        'id': 'appt-$bystander-future',
+        'userId': bystander,
+        'providerId': 'provider1',
+        'appointmentDate': DateTime.now()
+            .toUtc()
+            .add(const Duration(days: 1))
+            .toIso8601String(),
+        'status': 'confirmed',
+      });
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+    });
+
     // ---- Authz -------------------------------------------------------------
 
     test('anonymous → 401, and nothing is touched', () async {
@@ -461,6 +555,7 @@ void main() {
         'userId': victim,
         'providerId': 'provider1',
         'depositScreenshotUrl': 'deposit/$bystander/stolen.jpg',
+        'appointmentDate': '2026-03-08T10:00:00.000Z',
         'status': 'completed',
       });
 

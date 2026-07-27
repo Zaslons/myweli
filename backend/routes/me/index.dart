@@ -10,7 +10,9 @@ import 'package:myweli_backend/src/validators.dart';
 /// `/me` — the signed-in user's own account. Protected: the principal comes
 /// from the access token, so a caller can only ever read/mutate themselves
 /// (docs/BACKEND.md §3.3). GET reads the profile; PATCH updates profile fields;
-/// DELETE erases it — see `UserErasureService` for what that means, and
+/// DELETE erases it — future pending/confirmed bookings → 409
+/// `future_bookings` (settle the agenda first, exactly as `/me/provider`
+/// does). See `UserErasureService` for what erasure means, and
 /// docs/design/account-deletion-erasure.md for why each table gets the verb
 /// it gets.
 Future<Response> onRequest(RequestContext context) async {
@@ -71,7 +73,12 @@ Future<Response> onRequest(RequestContext context) async {
         principal.userId,
       );
       if (!res.ok) {
-        return jsonError(HttpStatus.notFound, res.error ?? 'not_found');
+        // Same mapping as `/me/provider` (`me/provider/index.dart:139-141`):
+        // an unsettled agenda is a CONFLICT the caller can resolve, not a
+        // missing resource. Anything else here is a vanished user.
+        return res.error == 'future_bookings'
+            ? jsonError(HttpStatus.conflict, 'future_bookings')
+            : jsonError(HttpStatus.notFound, res.error ?? 'not_found');
       }
       return Response(statusCode: HttpStatus.noContent);
 
