@@ -44,7 +44,14 @@ test('public: buttons, links, chips and fields all reach the floor', async ({
   await page.goto('/');
   await assertBox(page.getByRole('button', { name: 'Rechercher' }), 'home search button', { minW: 0 });
   await assertBox(page.getByLabel('Service ou salon'), 'home search field', { minW: 0 });
-  await assertBox(page.getByRole('link', { name: 'Mon compte' }), '"Mon compte"', { minW: 0 });
+  // `exact` since L1: the footer's « Supprimer mon compte » CONTAINS this name,
+  // and Playwright's default substring match made a one-element assertion
+  // suddenly resolve to two. The header link is what this line has always meant.
+  await assertBox(
+    page.getByRole('link', { name: 'Mon compte', exact: true }),
+    '"Mon compte" (header)',
+    { minW: 0 },
+  );
   // The header logo link was 28px tall until the review measured it.
   await assertBox(page.getByRole('link', { name: 'MyWeli — accueil' }), 'header logo link', { minW: 0 });
 
