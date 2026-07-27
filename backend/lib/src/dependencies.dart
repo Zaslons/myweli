@@ -385,6 +385,9 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   appointmentRepository,
   storageService,
   membershipRepository,
+  // L1/T59 — a deleted salon owner's phone must stop ringing too.
+  devices: deviceTokenRepository,
+  notifications: notificationsRepository,
 );
 
 /// The pricing pivot (R2a): salon offers + the daily warning/enforcement
