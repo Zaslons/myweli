@@ -510,7 +510,18 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** Delete the signed-in user's own account (B2) */
+        /**
+         * Erase the signed-in user's own account (B2 · L1 · threat T59)
+         * @description Consumers only — a provider token gets 403; pros delete through `DELETE /me/provider`, which settles the agenda and unpublishes the salons first. Irreversible, and idempotent: a second call returns 404.
+         *
+         *     **Deleted** — the profile and its credentials; OTP rows and every refresh token; device tokens (so push STOPS); the notification feed and its preferences; favourites; reports this user filed; the deposit screenshot objects.
+         *
+         *     **Anonymised, not deleted** — reviews keep their rating and text and lose their author, because the rating is a public aggregate the salon earned and removing it would re-score a business; appointments keep the booking and lose the client name, phone and notes, so the salon can still reconcile its takings; the salon-side client card is unlinked and its name and phone cleared (T48).
+         *
+         *     **Retained, deliberately** — the transactional message log, which is keyed by phone number rather than by account (and numbers get reassigned); and any recorded objection to being contacted, precisely so it keeps protecting the person after the account is gone.
+         *
+         *     This list is the contract three surfaces paraphrase: the `/suppression-compte` page, the in-app confirmation dialog, and the privacy policy. Design: docs/design/account-deletion-erasure.md.
+         */
         delete: {
             parameters: {
                 query?: never;
@@ -520,7 +531,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Deleted */
+                /** @description Erased */
                 204: {
                     headers: {
                         [name: string]: unknown;
@@ -528,6 +539,14 @@ export interface paths {
                     content?: never;
                 };
                 401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description No such user — also the idempotent second call */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
             };
         };
         options?: never;
