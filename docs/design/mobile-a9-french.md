@@ -1,6 +1,6 @@
 # mobile-a9-french — the framework's English, a calendar in English, and a booking date that books the wrong day (A9)
 
-**Status:** In progress (2026-07-26). **Surface:** `mobile/` — all three apps.
+**Status:** ✅ Shipped (2026-07-27). **Surface:** `mobile/` — all three apps.
 **Design system:** [SYSTEM.md §17](SYSTEM.md#17-content--microcopy) ·
 [§18](SYSTEM.md#18-market-data--salon-time) ·
 [§20](SYSTEM.md#20-enforcement) ·
@@ -203,6 +203,53 @@ and a gate that only exercised one would certify the other two.
   `calendar/calendar_screen.dart` are not touched** — zero references from any
   router, §22 allowlists them, and they inflate every naive count (9 of the 60
   `AppBar(` sites, 2 of the 7 raw `TextField`s, 1 of the 3 `TableCalendar`s).
+
+## What shipped, and what each gate cost
+
+| Commit | Gate → red | Sweep |
+|---|---|---|
+| ① | the typed date · the picker · Monday · the calendar · the toolbar (both platforms) · 24h · the barrier · every `MaterialApp` — **+0 −10** | — |
+| ② | — | plural delegates · `app_locale.dart` · Monday-first · dead dep dropped. **6 mutations** |
+| ③ | the English leak · normalisation · one vocabulary · the pin — **+1 −10** | — |
+| ④ | — | 8 maps → 1. **4 mutations, one of which changed the gate** |
+| ⑤ | §17.1's two rules, then `...` **3** · `\'` **89 / 37 files** | — |
+| ⑥ | — | the sweep + 32 double-quote conversions + 33 assertions. **3 mutations** |
+
+### Six things this slice got wrong first, and what caught each
+
+1. **The census said five status vocabularies.** The pin measured **nine**,
+   then **eight** once it stopped counting a colour switch and a deposit-label
+   switch. It went 9 → 8 by narrowing honestly, not by adding an allowlist — an
+   allowlist is how a rule stops meaning anything.
+2. **A mutation proved a claim I had not earned.** `supportedLocales:
+   [Locale('fr')]` passed every assertion in the file while the comment in
+   `main.dart` asserted the country code was load-bearing. There is now a test.
+3. **A mutation proved a gate incomplete.** Restoring the admin chip's
+   `?? raw` fallback kept everything green — because every assertion tests a
+   status the map knows, while the fallback is precisely how English reached a
+   user. An unknown status now asserts « — ».
+4. **The typography sweep rewrote its own gate.** The script walked `test/`,
+   found `'...'` inside the pin's `bad` predicate and converted it — inverting
+   the rule so it flagged the correct character. Eight legitimate sites went red
+   at once, which is the only reason it was obvious.
+5. **The pin was blind to double quotes.** In `'l\'équipe'` the apostrophe is
+   an escape; in `"l'équipe"` it is bare. The first pin measured **24** where
+   there were 89. `dart analyze` then said the quiet part out loud: 32
+   `prefer_single_quotes` infos — those strings were double-quoted *only* to
+   dodge the escape.
+6. **A failing test found a hole the gate could not.** A literal parser cannot
+   see inside an interpolation, so
+   `'heure du salon (${countryLabel ?? 'Côte d\'Ivoire'})'` passed a **green**
+   pin while still holding a straight apostrophe. `\'` cannot legally appear
+   outside a string in Dart, so the escaped form is now scanned at line level.
+
+### The golden that showed a change from a different commit
+
+Five goldens moved. Two show ⑥ (« conditions d’utilisation », « renvoyez
+l’invitation »). But `admin_table_success` shows **④**: the status chips read
+« Vérifié · En attente · Rejeté · Actif » where they had been lowercase. That
+inconsistency was in no census — the gate found it and the golden confirmed it
+was live in the admin console.
 
 ## Definition of done
 
