@@ -797,6 +797,29 @@ grayscale (§13.6). One concept, one icon, product-wide.
 - **French is ~20% longer than English** — every label must survive expansion *and*
   200% text scale (§13.3). Design for the long string, not the demo one.
 
+### 17.1 Typography — one spelling per character
+
+Added in **A9**, because until then this section had **no typography rule at
+all** and §20 had no row for §17 — the only substantive section with neither,
+which is exactly why the copy drifted into two spellings of the same word.
+
+| Rule | Write | Never |
+|---|---|---|
+| Ellipsis | `…` (U+2026) | `...` |
+| Apostrophe | `’` (U+2019) | `'` (U+0027) |
+
+Measured at A9's base: `…` 10 sites vs `...` 5, and `’` 56 lines vs `\'` 90 —
+including `Chargement...` in `availability_screen` beside `Chargement…` in
+`BrandLoader`. **The same word, two spellings, one app.** Pinned in §20.
+
+**What is deliberately NOT a rule here**, so nobody adds it later as an
+oversight-correction: **guillemets « »** and the **narrow no-break space** before
+`! ? : ;`. Both are correct French typography and both are *absent* rather than
+inconsistent — 0 NBSP in 85 eligible sites, and guillemets in ~5 strings against
+138 in doc comments. A9 fixed what the app contradicted itself about; inventing a
+convention across 85 invisible characters is a different decision, and should be
+taken as one.
+
 ---
 
 ## 18. Market data & salon time

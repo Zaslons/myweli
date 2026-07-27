@@ -311,5 +311,67 @@ void main() {
             'response (§9) — and a whole second is 2.5× the ceiling',
       );
     });
+
+    // ── A9: one spelling per character (SYSTEM.md §17.1).
+    //
+    // §17 had no typography rule and §20 had no §17 row — the only substantive
+    // section with neither, and the copy drifted accordingly: the app shipped
+    // `Chargement...` in one file and `Chargement…` in another. The rules were
+    // written into §17.1 first; these enforce them.
+    //
+    // Scoped to the same directories as the motion pins, and matching only
+    // inside SINGLE-QUOTED STRINGS — a `...` in a doc comment is prose, and a
+    // `\'` outside a string does not exist in Dart. The doc comments in this
+    // repo are dense with quoted French copy, so a naive whole-line match would
+    // flag the documentation for describing the defect it documents.
+
+    /// Every single-quoted Dart string literal on [line], with the quotes.
+    List<String> stringsIn(String line) => RegExp(r"'(?:[^'\\]|\\.)*'")
+        .allMatches(line)
+        .map((m) => m.group(0)!)
+        .toList();
+
+    // **Wider scope than the motion pins, on purpose.** Motion lives in
+    // `screens/` + `widgets/` + `core/router/`; user-facing FRENCH lives
+    // wherever a string reaches a user — `core/utils/message_templates.dart`,
+    // `core/utils/team_error_messages.dart`, the `services/api/*` error
+    // strings. Scoped to `animationFiles` this pin measured 24 offenders; over
+    // `dartFiles` it measures the real number. A pin whose scope is inherited
+    // rather than chosen enforces the rule somewhere other than where it
+    // applies.
+    List<String> stringOffenders(bool Function(String literal) bad) {
+      final hits = <String>[];
+      for (final file in dartFiles) {
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final code = lines[i].trimLeft();
+          if (code.startsWith('//') || code.startsWith('///')) continue;
+          if (lines[i].contains('// ds-ignore')) continue;
+          if (stringsIn(lines[i]).any(bad)) {
+            hits.add('${file.path}:${i + 1}  ${lines[i].trim()}');
+          }
+        }
+      }
+      return hits;
+    }
+
+    test('one ellipsis character — … never ... (§17.1)', () {
+      expect(
+        stringOffenders((s) => s.contains('...')),
+        isEmpty,
+        reason: 'the app shipped `Chargement...` and `Chargement…` — the same '
+            'word, two spellings. Use the … character.',
+      );
+    });
+
+    test('one apostrophe — ’ never the straight one (§17.1)', () {
+      expect(
+        stringOffenders((s) => s.contains("\\'")),
+        isEmpty,
+        reason: "use ’ (U+2019), not \\'. Both shipped, sometimes in adjacent "
+            'files. It also removes the escape, which is why the strings get '
+            'shorter rather than longer.',
+      );
+    });
   });
 }
