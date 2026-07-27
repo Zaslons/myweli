@@ -69,6 +69,7 @@ import 'messaging/salon_notifier.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
+import 'privacy/user_erasure_service.dart';
 import 'provider_account_service.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
@@ -632,6 +633,21 @@ final BookingNotifier bookingNotifier = BookingNotifier(
   pushService,
   notificationsRepository,
   notificationPrefsRepository,
+);
+
+/// Consumer account erasure (L1, threat T59 — docs/design/account-deletion-erasure.md).
+/// Declared here rather than beside `clientsService` because it needs the
+/// notification stack, which is defined further down this file.
+final UserErasureService userErasureService = UserErasureService(
+  authRepository,
+  deviceTokenRepository,
+  notificationsRepository,
+  notificationPrefsRepository,
+  favoritesRepository,
+  reviewsRepository,
+  appointmentRepository,
+  clientsService,
+  storageService,
 );
 
 /// The provider-directed sibling: turns client-driven booking events into

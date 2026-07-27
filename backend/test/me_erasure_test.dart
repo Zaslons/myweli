@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
@@ -14,8 +16,10 @@ import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/favorites_repository.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
+import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/push/device_token_repository.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/me/index.dart' as me_route;
@@ -23,6 +27,14 @@ import '../routes/me/index.dart' as me_route;
 class _MockRequestContext extends Mock implements RequestContext {}
 
 class _MockAuth extends Mock implements AuthRepository {}
+
+/// Fails the FIRST step of the cascade, so the ordering invariant is
+/// observable: the identity must still be there afterwards.
+class _ThrowingDevices extends InMemoryDeviceTokenRepository {
+  @override
+  Future<void> deleteForUser(String userId) async =>
+      throw StateError('storage down');
+}
 
 /// L1 — `DELETE /me` must erase what the privacy policy says it erases
 /// (docs/design/account-deletion-erasure.md; docs/design/legal-l1.md).
@@ -42,17 +54,12 @@ class _MockAuth extends Mock implements AuthRepository {}
 /// every victim assertion in this file and fails B. Without B the suite would
 /// certify a cascade that erases the database.
 ///
-/// **What this file drives is the ROUTE**, not a service, so every red below is
-/// behavioural rather than a missing symbol. Two assertions cannot be written
-/// this way and are deferred to the service commit, stated here rather than
-/// discovered later:
-///
-///   * the **storage** DELETEs (there is no HTTP seam on this path today), and
-///   * the **ordering invariant** — that a failing child step leaves the `users`
-///     row alive so the owner can retry.
-///
-/// Both need `UserErasureService` to exist to be observable. They are the two
-/// sharpest assertions in the slice, and they arrive with it.
+/// **What this file drives is the ROUTE**, so every red is behavioural rather than
+/// a missing symbol. Two assertions were deferred to the service commit because
+/// they need `UserErasureService` to be observable at all — the **storage**
+/// DELETEs, and the **ordering invariant** that a failing child step leaves the
+/// `users` row alive to retry. They are the two sharpest in the slice, and they
+/// are at the bottom of this file.
 void main() {
   group('DELETE /me — the erasure cascade', () {
     final tokens = TokenService(secret: 'test-secret');
@@ -65,6 +72,9 @@ void main() {
     late InMemoryReviewsRepository reviews;
     late InMemoryAppointmentRepository appointments;
     late InMemoryClientsRepository clients;
+
+    /// Every storage object the cascade asked to erase, in order.
+    late List<String> erasedObjects;
 
     const victim = 'A';
     const bystander = 'B';
@@ -152,6 +162,7 @@ void main() {
       reviews = InMemoryReviewsRepository();
       appointments = InMemoryAppointmentRepository();
       clients = InMemoryClientsRepository();
+      erasedObjects = <String>[];
 
       when(
         () => auth.userById(victim),
@@ -183,7 +194,28 @@ void main() {
       );
     }
 
-    RequestContext ctx(Request request) {
+    /// Set to a table name to make that repository throw — the ordering gate.
+    UserErasureService erasureService({http.Client? client}) =>
+        UserErasureService(
+          auth,
+          devices,
+          notifications,
+          prefs,
+          favorites,
+          reviews,
+          appointments,
+          clientsService(),
+          const FakeStorageService(),
+          client:
+              client ??
+              MockClient((req) async {
+                expect(req.method, 'DELETE');
+                erasedObjects.add(req.url.path);
+                return http.Response('', 204);
+              }),
+        );
+
+    RequestContext ctx(Request request, {UserErasureService? erasure}) {
       final c = _MockRequestContext();
       when(() => c.request).thenReturn(request);
       when(() => c.read<TokenService>()).thenReturn(tokens);
@@ -195,6 +227,9 @@ void main() {
       when(() => c.read<FavoritesRepository>()).thenReturn(favorites);
       when(() => c.read<ReviewsRepository>()).thenReturn(reviews);
       when(() => c.read<AppointmentRepository>()).thenReturn(appointments);
+      when(
+        () => c.read<UserErasureService>(),
+      ).thenReturn(erasure ?? erasureService());
       return c;
     }
 
@@ -381,6 +416,71 @@ void main() {
       expect(res.statusCode, HttpStatus.forbidden);
       expect(await devices.tokensForUser(victim), hasLength(2));
       expect(await notifications.listForUser(victim, limit: 50), hasLength(3));
+      verifyNever(() => auth.deleteUser(any()));
+    });
+
+    // ---- The two that needed the service ----------------------------------
+
+    test('the deposit screenshot is erased, and only this user\'s', () async {
+      // A foreign key sitting on the victim's own row must be SKIPPED, not
+      // trusted — the same defence in depth the KYC path applies
+      // (`provider_account_service.dart:68`). Loosen the prefix check to
+      // `'deposit/'` and this is the assertion that goes red.
+      await appointments.create({
+        'id': 'appt-$victim-2',
+        'userId': victim,
+        'providerId': 'provider1',
+        'depositScreenshotUrl': 'deposit/$bystander/stolen.jpg',
+        'status': 'completed',
+      });
+
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+      expect(erasedObjects, hasLength(1));
+      expect(erasedObjects.single, contains('deposit/$victim/proof.jpg'));
+    });
+
+    test('a storage failure never blocks the erasure', () async {
+      final c = ctx(
+        req('DELETE', token: tok(victim)),
+        erasure: erasureService(
+          client: MockClient((_) async => throw const SocketException('down')),
+        ),
+      );
+
+      expect((await me_route.onRequest(c)).statusCode, HttpStatus.noContent);
+      verify(() => auth.deleteUser(victim)).called(1);
+      expect(
+        await devices.tokensForUser(victim),
+        isEmpty,
+        reason:
+            'the objects are uuid-named in a private bucket with the rows '
+            'gone, so a survivor is unreachable — blocking on it would leave '
+            'the account alive instead',
+      );
+    });
+
+    test('a failing child step leaves the account RETRYABLE', () async {
+      // **The ordering gate.** Move `_auth.deleteUser` to the top of
+      // `eraseUser` and this is the only test that changes: the identity would
+      // already be gone, the owner would have no token to retry with, and the
+      // rows this step failed on would survive forever. Every other assertion
+      // in this file would stay green.
+      final c = ctx(
+        req('DELETE', token: tok(victim)),
+        erasure: UserErasureService(
+          auth,
+          _ThrowingDevices(),
+          notifications,
+          prefs,
+          favorites,
+          reviews,
+          appointments,
+          clientsService(),
+          const FakeStorageService(),
+        ),
+      );
+
+      await expectLater(me_route.onRequest(c), throwsA(isA<StateError>()));
       verifyNever(() => auth.deleteUser(any()));
     });
 
