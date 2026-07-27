@@ -349,13 +349,19 @@ jobs:
           echo "### APK size: ${MB} MB (budget: 30 MB)" >> "$GITHUB_STEP_SUMMARY"
           echo "arm64 release APK — ROADMAP Part 6 / NFR-PERF-002" >> "$GITHUB_STEP_SUMMARY"
           echo "APK size: ${MB} MB"
+          # `--analyze-size` writes to the HOME dir, not the build dir
+          # (`gradle.dart:745-749` → `~/.flutter-devtools/apk-code-size-analysis_NN.json`).
+          # Copy it into the workspace so the upload below can glob it —
+          # `actions/upload-artifact` does not expand `~`.
+          mkdir -p size-report
+          cp ~/.flutter-devtools/*code-size-analysis*.json size-report/ || true
 
       - name: Upload size analysis
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: apk-size-analysis
-          path: mobile/.dart_tool/flutter_build/*.size-analysis*.json
+          path: mobile/size-report/
           if-no-files-found: warn
 
   security:
