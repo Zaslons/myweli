@@ -211,8 +211,20 @@ class ProfileScreen extends StatelessWidget {
   Future<bool> _confirmDeletion(BuildContext context) => showConfirmDialog(
         context,
         title: 'Supprimer mon compte',
-        message: 'Cette action est définitive. Vos rendez-vous, favoris et '
-            'avis seront supprimés. Pensez à exporter vos données avant.',
+        // **This copy was false, and stayed false after the cascade landed.**
+        // It promised that appointments and reviews « seront supprimés ». They
+        // are not: the booking survives stripped of your name, phone and notes
+        // (the salon needs it to reconcile takings) and the review survives
+        // without its author (the rating is an aggregate the salon earned).
+        // Saying « supprimés » of either would be describing an erasure the
+        // backend deliberately does not perform.
+        //
+        // One transcription, three surfaces: this dialog, `openapi.yaml`'s
+        // `/me` `delete:` description, and myweli.com/suppression-compte.
+        message: 'Cette action est définitive. Votre profil, vos favoris et '
+            'vos notifications sont supprimés ; vos rendez-vous et vos avis '
+            'restent chez le salon, sans votre nom. Pensez à exporter vos '
+            'données avant.',
         confirmLabel: 'Supprimer définitivement',
         icon: Icons.warning_amber_rounded,
         confirmWord: 'SUPPRIMER',

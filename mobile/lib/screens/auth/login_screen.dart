@@ -18,6 +18,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/google_g_logo.dart';
 import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/phone_number_field.dart';
 
 /// Consumer sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
@@ -187,14 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: AppTheme.spacingL),
               ..._buildStep(auth),
               const SizedBox(height: AppTheme.spacingL),
-              if (_step != _LoginStep.phone)
-                Text(
-                  'En continuant, vous acceptez nos conditions d’utilisation',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+              if (_step != _LoginStep.phone) const LegalConsentText(),
             ],
           ),
         ),

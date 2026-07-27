@@ -15,6 +15,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
+import '../../../widgets/common/legal_consent_text.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
 /// Salon registration — business fields + login identity in ONE submit
@@ -346,6 +347,15 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   onPressed: auth.isLoading ? null : () {},
                 ),
               ],
+              const SizedBox(height: AppTheme.spacingM),
+              // L1 — **this funnel had no consent copy at all**, and it is the
+              // one that precedes a KYC identity upload and a public business
+              // listing. Placed ABOVE the « ou par e-mail » divider so it
+              // governs both paths and is visible before any scroll: the Google
+              // button above creates an account in one tap.
+              const LegalConsentText(
+                lead: 'En créant votre compte professionnel',
+              ),
               const SizedBox(height: AppTheme.spacingL),
               Row(
                 children: [
