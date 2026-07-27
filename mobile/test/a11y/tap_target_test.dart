@@ -1,9 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
-import 'package:myweli/models/app_notification.dart';
-import 'package:myweli/models/appointment.dart';
-import 'package:myweli/models/review.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/admin/widgets/admin_segmented_control.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
@@ -13,6 +10,7 @@ import 'package:myweli/widgets/review/review_tile.dart';
 import 'package:provider/provider.dart';
 
 import '_a11y.dart';
+import '_fixtures.dart';
 
 /// A4a — every interactive element has a ≥48×48 touch target (SYSTEM.md §13.2,
 /// register row 12). `androidTapTargetGuideline` is Flutter's own check; before
@@ -25,36 +23,6 @@ void main() {
     initializeDateFormatting('fr_FR', null);
     setupDependencyInjection();
   });
-
-  Review review() => Review(
-        id: 'r1',
-        providerId: 'p1',
-        userId: 'u1',
-        userName: 'Marie Diallo',
-        rating: 5,
-        text: 'Super service',
-        createdAt: DateTime(2025, 2, 4),
-      );
-
-  Appointment appt() => Appointment(
-        id: 'a1',
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: DateTime(2026, 6, 30, 10),
-        status: AppointmentStatus.confirmed,
-        totalPrice: 20000,
-        createdAt: DateTime(2026),
-      );
-
-  AppNotification note() => AppNotification(
-        id: '1',
-        type: AppNotificationType.bookingConfirmed,
-        title: 'Rendez-vous confirmé',
-        body: 'Salon Excellence',
-        createdAt: DateTime(2026, 6, 29, 10),
-        read: false,
-      );
 
   testWidgets('CommunePill — the location pill', (tester) async {
     final handle = await pumpForA11y(

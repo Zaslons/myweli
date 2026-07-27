@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
-import 'package:myweli/providers/auth_provider.dart';
-import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/screens/admin/widgets/admin_segmented_control.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
-import 'package:provider/provider.dart';
-import 'package:provider/single_child_widget.dart';
 
 import '_a11y.dart';
+import '_fixtures.dart';
 
 /// A4b — every tap target carries a screen-reader label (SYSTEM.md §13.4, register
 /// row 13). `labeledTapTargetGuideline` is Flutter's own check; before A4b it went
@@ -28,11 +25,6 @@ void main() {
         isGrid: isGrid,
         onTap: () {},
       );
-
-  List<SingleChildWidget> favProviders() => [
-        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ];
 
   testWidgets('ProviderCard (list) — the favourite heart is labelled',
       (tester) async {

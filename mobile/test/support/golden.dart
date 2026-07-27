@@ -7,6 +7,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 
+import 'surface.dart';
+
 /// The golden-test harness (docs/design/SYSTEM.md §20).
 ///
 /// Goldens are the only thing in this repo that renders the REAL design system:
@@ -136,13 +138,11 @@ void stubSecureStorage() {
 }
 
 /// Pins the surface. Restored after the test so nothing leaks into the next one.
-void goldenSurface(WidgetTester tester, {Size size = kGoldenPhone}) {
-  tester.view
-    ..physicalSize = size
-    ..devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-}
+///
+/// A11 moved the body to `surface.dart` so `test/a11y/` can pin a width without
+/// importing this file's `dart:io`. Same four lines, one home.
+void goldenSurface(WidgetTester tester, {Size size = kGoldenPhone}) =>
+    pinSurface(tester, size: size);
 
 /// The app shell a golden renders in: the real theme, French locale, no banner.
 ///
