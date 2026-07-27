@@ -257,6 +257,31 @@ l’invitation »). But `admin_table_success` shows **④**: the status chips re
 inconsistency was in no census — the gate found it and the golden confirmed it
 was live in the admin console.
 
+## The APK size job, and what it found instead
+
+A9 added a CI job to record the first APK size, because the <30 MB budget
+(NFR-PERF-002) has existed since PR-0 with no measured number anywhere and no
+job checking it.
+
+**It never got a number.** `flutter build apk --release --target-platform
+android-arm64` runs Gradle to completion — ~500 s, fonts tree-shaken,
+`assembleRelease` finishes — and then fails:
+
+> Gradle build failed to produce an .apk file. It's likely that this file was
+> generated under …/mobile/build, but the tool couldn't find it.
+
+Reproduced **twice**, with and without `--analyze-size`, so the flag is not the
+trigger. **Not caused by A9**: the slice touches nothing under `mobile/android/`,
+`android/build.gradle.kts` is unchanged since PR #146, and **no CI job has ever
+built the APK** — A9's was the first, which is exactly why nobody knew.
+
+The job was **removed rather than shipped red**: a permanently-failing check
+trains people to ignore CI, and `continue-on-error` on a real build failure is
+worse. It returns with the size gate once a release build works. Recorded as
+**§21 row 37**, reframed from "the budget was never measured" to "the Android
+release build does not produce an APK" — a launch blocker for a product that is
+deployed but not launched, and its own slice.
+
 ## Definition of done
 
 Row 29 → **0** with the census corrected rather than restated · the booking-date
