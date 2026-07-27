@@ -971,6 +971,14 @@ identical result there would have been the bug: it would mean the screen ignored
 the freeze. Regenerate a clock-bearing golden and you must be able to name which
 of the two it is.
 
+**And identity is only half a proof.** `pro_dashboard` was byte-identical across
+both of those instants because both sit mid-month — an *unfrozen* dashboard shot
+twice the same afternoon would have matched too. A third run frozen on a month
+edge (30 Sep 2027) moves it: « Ce mois » goes 5 000 FCFA → 0, which is exactly
+the flake row 23 named. So: identity proves absence of leakage only for a screen
+that renders nothing clock-derived; for one that does, **sensitivity must be
+shown by a freeze that changes the value.**
+
 **A golden photographs the end state, not the tween.** A8 changed six animation
 durations and expected `consumer_booking_hub` and `consumer_provider_detail` to
 move; **not one byte changed**. Worth knowing before a future slice budgets time

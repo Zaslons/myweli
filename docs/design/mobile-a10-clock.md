@@ -211,6 +211,35 @@ Every baseline regenerated under two frozen instants eighteen months apart —
 
 Both runs: **26 passing**.
 
+### ⚠️ "Identical" is only half a proof, and a third run was needed
+
+`pro_dashboard` came back byte-identical across those two instants — and that
+does **not** prove the freeze reached it. Both dates sit mid-month, so the
+appointment seeded at `now + 2d` lands in the same month either way and
+`monthRevenue` is 5 000 in both. An unfrozen dashboard photographed twice on the
+same afternoon would have produced exactly the same result.
+
+So a third run, frozen on a **month edge** — **30 Sep 2027**:
+
+| | 11 Mar 2026 | 30 Sep 2027 |
+|---|---|---|
+| « Ce mois » | **5 000 FCFA** | **0 FCFA** |
+
+`pro_dashboard.png` moves, and it moves *for the reason row 23 named*: `now + 2d`
+falls into October, the month bucket empties. The picture is provably a function
+of the frozen clock, which no amount of byte-identity could have shown.
+
+**The rule, stated properly:** identity proves absence of leakage only for a
+screen that renders nothing clock-derived. For one that does, sensitivity has to
+be demonstrated by a freeze that *changes the value*.
+
+**And by that rule `pro_earnings` is not yet proven.** Its default tab is
+« Aujourd'hui », and `MockData` seeds at `now ± days` — never on today — so it
+renders 0 FCFA and « Aucune transaction » at every instant tried. The picture
+pins the screen's tokens (which is what exposed §21 row 40) but says nothing
+about whether its buckets follow the clock. That is a limitation of the *fixture*,
+not of the seam, and it belongs to the earnings slice row 40 asks for.
+
 ## Definition of done
 
 Row 23 → **0** with all three of its errors recorded rather than restated · the
