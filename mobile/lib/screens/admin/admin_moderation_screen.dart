@@ -172,9 +172,14 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
                 text: '${r['text'] ?? ''}',
                 sub: 'par ${r['userName'] ?? 'Client'}',
               ),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: StatusChip(label: 'masqué', kind: AdminChipKind.danger),
+                // A9: was a hardcoded lowercase « masqué » while every other
+                // console table renders « Masqué » through the shared
+                // vocabulary — the same lowercase/capitalised split ④ fixed in
+                // the chip itself. `forStatus` supplies both the word and the
+                // kind, so there is nothing left to keep in sync by hand.
+                child: StatusChip.forStatus('hidden'),
               ),
               _actions([
                 _btn('Restaurer', () => _restore('${r['id']}'), p.acting,

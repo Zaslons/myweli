@@ -395,6 +395,59 @@ void main() {
       return hits;
     }
 
+    /// **Every pin in the suite, checked for the injury A9 inflicted on four
+    /// of them.** The typography sweep walked `test/`, converted `'` to `’`
+    /// inside patterns that hold the forbidden character as DATA, and silently
+    /// disabled: this file's two §17.1 rules, `status_labels_test`'s three
+    /// vocabulary regexes, and — worst, because it belongs to an earlier slice
+    /// — `salon_time_pin_test`'s `'Africa/Abidjan'` firewall.
+    ///
+    /// The first repair was "exclude this file by name". That was one file too
+    /// narrow, and the next pin will have the same property and a different
+    /// name. This is the general form: **`’` cannot delimit a Dart string or
+    /// appear in an identifier, so a pin searching for one can never match.**
+    /// It fails in the same commit that breaks it, whatever the file is called.
+    test('no pin searches for a character Dart source cannot contain', () {
+      final pins = Directory('test')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('_test.dart'))
+          .toList();
+      expect(pins, isNotEmpty);
+
+      // Built from code points, not written literally — otherwise this line
+      // is itself a pattern containing the forbidden characters, and the rule
+      // flags its own detector. (It did, on the first run.) It also makes THIS
+      // pin immune to the sweep that broke the other four.
+      final curlyQuote = String.fromCharCode(0x2019);
+      final ellipsis = String.fromCharCode(0x2026);
+
+      final dead = <String>[];
+      for (final file in pins) {
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          if (line.trimLeft().startsWith('//')) continue;
+          // A pattern is code that SEARCHES source: a RegExp, a grep token, a
+          // contains(). A curly quote inside one is always a corrupted pin.
+          final isPattern = line.contains('RegExp(') ||
+              line.contains('token:') ||
+              line.contains('.contains(');
+          if (isPattern &&
+              (line.contains(curlyQuote) || line.contains(ellipsis))) {
+            dead.add('${file.path}:${i + 1}  ${line.trim()}');
+          }
+        }
+      }
+
+      expect(dead, isEmpty,
+          reason: 'this pattern can never match — a curly quote and an '
+              'ellipsis character do not appear in '
+              'Dart syntax, so the pin is a no-op that passes vacuously. Four '
+              'pins were disabled this way in one commit, and the suite stayed '
+              'green through all of them.');
+    });
+
     test('one ellipsis character — … never ... (§17.1)', () {
       expect(
         stringOffenders((s) => s.contains('...')),

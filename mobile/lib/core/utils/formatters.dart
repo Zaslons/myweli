@@ -83,7 +83,7 @@ class Formatters {
     return '${hours}h ${remainingMinutes}min';
   }
 
-  /// Relative time in French: "À l'instant", "il y a 5 min", "il y a 2 h",
+  /// Relative time in French: « À l’instant », « il y a 5 min », « il y a 2 h »,
   /// "Hier", "il y a 3 j", otherwise a short date. Pass [now] for testing.
   static String formatRelative(DateTime time, {DateTime? now}) {
     final ref = now ?? DateTime.now();

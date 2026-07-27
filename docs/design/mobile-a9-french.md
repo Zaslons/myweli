@@ -199,10 +199,16 @@ and a gate that only exercised one would certify the other two.
 
 - **No ARB / `AppLocalizations` layer.** See NFR-I18N-001 above.
 - **No guillemets or NBSP convention.** See §17 above.
-- **The 7 `screens/provider/features/` screens, `phone_login_screen.dart` and
-  `calendar/calendar_screen.dart` are not touched** — zero references from any
-  router, §22 allowlists them, and they inflate every naive count (9 of the 60
-  `AppBar(` sites, 2 of the 7 raw `TextField`s, 1 of the 3 `TableCalendar`s).
+- **The 7 `screens/provider/features/` screens and `phone_login_screen.dart` are
+  not *reasoned about*** — zero references from any router, §22 allowlists them,
+  and they inflate every naive count (9 of the 60 `AppBar(` sites, 2 of the 7
+  raw `TextField`s, 1 of the 3 `TableCalendar`s).
+
+  **Correction, from the review:** an earlier draft of this line said they were
+  "not touched". The typography sweep *did* touch them — it walked `lib/`
+  wholesale. Harmless, because they are unrouted, but the claim was false and
+  the §17.1 pins exclude that directory while the sweep did not, so the two now
+  disagree about what was covered. Said plainly rather than quietly amended.
 
 ## What shipped, and what each gate cost
 

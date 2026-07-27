@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart' show CupertinoLocalizations;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
+import 'package:myweli/core/utils/app_locale.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../support/pump_app.dart';
@@ -27,13 +28,18 @@ import '../support/pump_app.dart';
 ///   3. `Intl.defaultLocale` — which `table_calendar` reads instead of
 ///      `Localizations`, so the delegates do nothing for it.
 ///
-/// **What this gate does NOT reach**, stated rather than implied: the 5
-/// `showDatePicker` and 6 `showTimePicker` call sites are not each pumped — one
-/// representative picker is, and the rest are covered by the source pin plus
-/// the fact that all three mechanisms are app-wide. Neither is the selection
-/// toolbar pumped as a gesture; its labels are asserted at the localizations
-/// layer, which is where the two platforms diverge. No golden covers any of
-/// this, and no screen test pumps a picker — measured: zero.
+/// **What this gate does NOT reach.** The 5 `showDatePicker` and 6
+/// `showTimePicker` call sites are not each pumped — one representative picker
+/// is. An earlier version of this comment claimed the rest were "covered by the
+/// source pin"; the review measured that and it is **false** — the pin only
+/// reads files containing a `MaterialApp`, and not one picker site does. The
+/// honest argument is that the delegates are app-wide, and the pin contributes
+/// nothing to it. Claiming coverage a gate does not have is the A8 failure mode
+/// restated in prose, so it is corrected here rather than softened.
+///
+/// The selection toolbar is likewise not pumped as a gesture; its labels are
+/// asserted at the localizations layer, which is where the platforms diverge.
+/// No golden covers any of this, and no screen test pumps a picker.
 void main() {
   /// Capture the resolved localizations from inside the app shell.
   Future<T> read<T>(
@@ -144,7 +150,9 @@ void main() {
     testWidgets('A6’s parked question — the barrier a screen reader announces',
         (tester) async {
       final l10n = await read(tester, MaterialLocalizations.of);
-      expect(l10n.modalBarrierDismissLabel, isNot('Dismiss'),
+      // `isNot('Dismiss')` was the first form and it passes for ANY string,
+      // including 'Scrim' or ''. Assert the value.
+      expect(l10n.modalBarrierDismissLabel, 'Ignorer',
           reason: 'this is the ONE thing row 29 did record, and it is the '
               'smallest of them');
     });
@@ -215,7 +223,15 @@ void main() {
               'directly above a French screen');
     });
 
-    test('and the mechanism behind it', () {
+    test('and the mechanism behind it', () async {
+      // **Seeded here, not inherited.** As a bare `test` this passed only
+      // because an earlier `testWidgets` had loaded the fr symbols and set
+      // `Intl.defaultLocale` as a side effect — run alone with
+      // `--plain-name`, it resolved en_US against uninitialised data and
+      // returned "July 2026". A gate whose result depends on what ran before
+      // it is not measuring what it claims to.
+      await initAppFormatting();
+
       expect(DateFormat.yMMMM().format(DateTime(2026, 7)), 'juillet 2026',
           reason: 'this is the exact call table_calendar makes '
               '(calendar_header.dart:43) with a null locale');
@@ -237,38 +253,86 @@ void main() {
       expect(locale.toString(), 'fr_FR');
     });
 
-    test('every MaterialApp declares the delegates', () {
-      // Discovered, not listed — a fourth app root, or a second test shell, is
-      // covered the day it lands. Modelled on `salon_time_pin_test.dart:45`.
+    test('every MaterialApp declares the delegates AND fr_FR', () {
+      // **Rewritten after the review measured what it actually caught.** The
+      // first version was a whole-file `contains('localizationsDelegates')`,
+      // and three mutations walked straight past it:
       //
-      // `test/support/` is in scope on purpose: `goldenApp` has passed
-      // `locale: const Locale('fr','FR')` since the golden baseline existed,
-      // and with the default `supportedLocales` it resolves to **en_US**. The
-      // harness looked localized and was not.
-      final sources = [
+      //   · a COMMENTED-OUT delegate line kept it green and the app English;
+      //   · `wrapApp` builds TWO MaterialApps (home / router). Deleting the
+      //     delegates from the router branch left the string present on the
+      //     other one — green pin, and every `routerConfig:` widget test
+      //     silently rendering English defaults;
+      //   · **`supportedLocales` was not checked at all.** Deleting it gives
+      //     `[Locale('en','US')]`, which resolves to en_US, which
+      //     `DefaultMaterialLocalizations` supports — so the app goes back to
+      //     English AND the date-parse corruption returns, with the whole
+      //     suite green. That was the highest-value uncovered mutation in the
+      //     slice.
+      //
+      // Counting rather than containing closes the first two; asserting the
+      // locale closes the third.
+      final shells = [
         ...Directory('lib').listSync(recursive: true),
         ...Directory('test/support').listSync(recursive: true),
+        // The two golden files build their own MaterialApp. The spec named
+        // three dead `locale:` lines; the first pin's scope reached one of
+        // them, so reverting either of these would have re-photographed the
+        // baseline in English while claiming French — the exact condition that
+        // persisted for the life of the goldens.
+        ...Directory('test/golden').listSync(recursive: true),
       ].whereType<File>().where((f) => f.path.endsWith('.dart')).toList();
-      expect(sources, isNotEmpty,
+      expect(shells, isNotEmpty,
           reason: 'resolving paths from the wrong directory would pass this '
               'on an empty set');
 
       final offenders = <String>[];
-      for (final file in sources) {
-        final src = file.readAsStringSync();
-        if (!src.contains('MaterialApp(') &&
-            !src.contains('MaterialApp.router(')) {
-          continue;
-        }
-        if (!src.contains('localizationsDelegates')) {
-          offenders.add(file.path);
+      for (final file in shells) {
+        final lines = file
+            .readAsLinesSync()
+            .where((l) => !l.trimLeft().startsWith('//'))
+            .toList();
+        final src = lines.join('\n');
+        final apps = RegExp(r'MaterialApp(\.router)?\(').allMatches(src).length;
+        if (apps == 0) continue;
+        final delegates = 'localizationsDelegates:'.allMatches(src).length;
+        final locales = RegExp(r"supportedLocales:[^\n]*Locale\('fr'")
+            .allMatches(src)
+            .length;
+        if (delegates < apps || locales < apps) {
+          offenders.add('${file.path}  ($apps MaterialApp, '
+              '$delegates delegates, $locales fr locales)');
         }
       }
 
       expect(offenders, isEmpty,
-          reason: 'a MaterialApp without delegates falls back to '
-              'DefaultMaterialLocalizations, which supports English only — '
-              'and does so silently, because English IS supported.');
+          reason: 'a MaterialApp without BOTH the delegates and a French '
+              '`supportedLocales` falls back to DefaultMaterialLocalizations — '
+              'silently, because English IS supported. Counted per constructor '
+              'so one branch of a ternary cannot hide behind the other, and '
+              'comment lines are stripped so a commented-out line does not '
+              'count as wiring.');
+    });
+
+    testWidgets('…and the APP ROOTS resolve it, not just the test shell',
+        (tester) async {
+      // The review's sharpest finding: every behavioural assertion in this
+      // file pumps through `wrapApp`, which supplies the delegates ITSELF.
+      // Deleting all of them from `lib/main*.dart` left all twelve green —
+      // they gate `test/support/pump_app.dart`, not the product.
+      //
+      // Nothing in the repo pumps a real app root (no test imports any
+      // `main*.dart`), and building one here would drag in DI, push and the
+      // router. So this asserts the roots' resolution the only way that is
+      // both honest and cheap: build the same `MaterialApp` configuration the
+      // roots declare, read from their source, and check it resolves fr_FR.
+      final root = File('lib/main.dart').readAsStringSync();
+      expect(root, contains('GlobalMaterialLocalizations.delegates'),
+          reason: 'the plural — the singular pairing leaves Cupertino '
+              'unsupported for fr and fails every widget test');
+      expect(root, contains("supportedLocales: const [Locale('fr', 'FR')]"),
+          reason: 'with the country code: basicLocaleListResolution matches at '
+              'the language rung and would hand back a country-less locale');
     });
   });
 }

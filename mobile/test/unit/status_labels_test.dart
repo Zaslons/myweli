@@ -35,6 +35,39 @@ import '../support/pump_app.dart';
 /// `noShow: 'Absent'` carries the comment `// app label`. Mobile's two pro
 /// surfaces say « Non présenté » — so mobile disagrees with mobile, and with
 /// its own twin.
+/// Does [src] map a booking status to a French word of its own?
+///
+/// **Widened after the review measured it against ten re-introduction
+/// shapes and found it caught two.** The first version was written around
+/// the code A9 deleted — `case` + immediate `return`, and the admin chip's
+/// lowercase raw-string form — not around the rule. A Dart 3 switch
+/// EXPRESSION, a `Map<String,String>` keyed on `'noShow'`, an extension, a
+/// ternary, a `switch (status.name)`, or double quotes all walked past it,
+/// and a switch-expression rewrite of the very code it replaced is one of
+/// them.
+///
+/// Deliberately NOT matched: `case AppointmentStatus.noShow:` followed by
+/// anything that is not a French string — the colour switches and the
+/// deposit-label switch map the same enum to something that is not a status
+/// word, and a pin that flags correct code earns an allowlist, which is how
+/// a rule stops meaning anything.
+bool keepsOwnVocabulary(String src) {
+  const q = "['\"]"; // either quote style
+  final patterns = [
+    // `AppointmentStatus.noShow: 'Absent'` — a map literal
+    RegExp('AppointmentStatus[.]noShow:\\s*$q'),
+    // `case AppointmentStatus.noShow:\n  return 'Absent';`
+    RegExp('case AppointmentStatus[.]noShow:\\s*\\n\\s*return\\s*$q'),
+    // `AppointmentStatus.noShow => 'Absent'` — a Dart 3 switch expression
+    RegExp('AppointmentStatus[.]noShow\\s*=>\\s*$q'),
+    // `'noShow': 'Absent'` / `'noshow' => 'Absent'` — raw-string keyed
+    RegExp('${q}no[_-]?[sS]how$q\\s*(:|=>)\\s*$q'),
+    // a ternary on the enum that yields a string
+    RegExp('AppointmentStatus[.]noShow\\s*\\?\\s*$q'),
+  ];
+  return patterns.any((p) => p.hasMatch(src));
+}
+
 void main() {
   // `AppointmentCard` resolves the salon through `ProviderProvider`, which
   // reads `serviceLocator.providerService` — so this suite needs DI, the same
@@ -166,6 +199,48 @@ void main() {
   ///
   /// Named rather than implied, per A8's lesson: gates that reach three of five
   /// call sites are three call sites of coverage.
+  /// **The gate that gates the gate**, and it exists because the pin below was
+  /// DEAD for three commits and nothing noticed.
+  ///
+  /// A9's typography sweep walked `test/` converting `'` to `’`, and this
+  /// file's patterns *contain* the forbidden character as data. All three
+  /// regexes came out searching for `’` — which cannot delimit a Dart string,
+  /// so no valid source could ever match and `offenders` was unconditionally
+  /// empty. The sweep's commit message claimed the lesson had been learned and
+  /// named `design_system_pin_test.dart` as excluded; it was written one file
+  /// too narrowly, and the adversarial review found this.
+  ///
+  /// Excluding files by name does not scale — the next pin will have the same
+  /// property and a different name. Asserting that each pattern still matches a
+  /// known offender does, and it fails in the same commit that breaks it.
+  test('…and the pin can still fail (the gate that gates the gate)', () {
+    const shapes = <String, String>{
+      'a map literal': "AppointmentStatus.noShow: 'Absent',",
+      'a case + return':
+          "case AppointmentStatus.noShow:\n        return 'Absent';",
+      'a switch expression': "AppointmentStatus.noShow => 'Non présenté',",
+      'a raw-string key': "'no_show': 'Absent',",
+      'a ternary': "s == AppointmentStatus.noShow ? 'Absent' : ''",
+      'double quotes': 'AppointmentStatus.noShow: "Absent",',
+    };
+    for (final entry in shapes.entries) {
+      expect(keepsOwnVocabulary(entry.value), isTrue,
+          reason: '${entry.key} must be detected — this is how a sixth '
+              'vocabulary comes back');
+    }
+
+    // …and it must NOT flag the shapes that map the same enum to something
+    // that is not a status word. A pin that cries wolf gets an allowlist.
+    expect(
+        keepsOwnVocabulary(
+            'case AppointmentStatus.noShow:\n        label = deposit;'),
+        isFalse,
+        reason: 'the deposit-label switch is correct code');
+    expect(keepsOwnVocabulary('AppointmentStatus.noShow => AppColors.error,'),
+        isFalse,
+        reason: 'the colour switch is correct code');
+  });
+
   test('no screen keeps its own status vocabulary (§17, §18)', () {
     // §18: a market/domain fact lives in `core/`, never inlined in a widget —
     // "hardcoding a market fact in a widget fails review even when it works for
@@ -176,27 +251,7 @@ void main() {
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart'))
         .where((f) => !f.path.endsWith(home.substring('lib/'.length)))
-        .where((f) {
-          final src = f.readAsStringSync();
-          // A status→FRENCH-STRING map, in any of the three shapes the app
-          // uses. Deliberately NOT every `case AppointmentStatus.noShow:` —
-          // the first draft of this pin matched those and swept up a colour
-          // switch and a deposit-label switch, which map the same enum to
-          // something that is not a status word. A pin that flags correct code
-          // gets an allowlist, and an allowlist is how a rule stops meaning
-          // anything.
-          return
-              // `AppointmentStatus.noShow: 'Absent',`
-              RegExp('AppointmentStatus[.]noShow:\\s*’').hasMatch(src) ||
-                  // `case AppointmentStatus.noShow:\n  return 'Absent';`
-                  RegExp('case AppointmentStatus[.]noShow:\\s*\\n\\s*return ’')
-                      .hasMatch(src) ||
-                  // the admin chip's raw-string form — `'noshow' => 'Absent'`,
-                  // NOT `'noshow' => AdminChipKind.danger`, which is the KIND
-                  // switch and is correct where it is. The pin's first draft
-                  // flagged that too.
-                  RegExp('’noshow’[^\\n]*=>\\s*’').hasMatch(src);
-        })
+        .where((f) => keepsOwnVocabulary(f.readAsStringSync()))
         .map((f) => f.path)
         .toList();
 

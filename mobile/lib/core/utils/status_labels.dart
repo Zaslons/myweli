@@ -21,21 +21,33 @@ import '../../models/appointment.dart';
 class StatusLabels {
   StatusLabels._();
 
-  static const Map<AppointmentStatus, String> _fr = {
-    AppointmentStatus.pending: 'En attente',
-    AppointmentStatus.confirmed: 'Confirmé',
-    AppointmentStatus.completed: 'Terminé',
-    AppointmentStatus.cancelled: 'Annulé',
-    AppointmentStatus.noShow: 'Absent',
-  };
-
-  /// The French label for a typed status. Total by construction — a new enum
-  /// value is a compile error here rather than a raw word on screen.
-  static String of(AppointmentStatus status) => _fr[status]!;
+  /// The French label for a typed status.
+  ///
+  /// **A switch expression, not a map lookup — and the difference is the whole
+  /// claim.** The first version was `_fr[status]!` under a doc comment saying
+  /// "total by construction: a new enum value is a compile error". It is not:
+  /// Dart exhaustiveness-checks a switch, never a map literal, so a sixth
+  /// status would have compiled clean and thrown a null-check `TypeError` at
+  /// render time in all seven call sites. The `switch`es this file replaced
+  /// *were* checked; the consolidation quietly gave that up. Caught by review.
+  static String of(AppointmentStatus status) => switch (status) {
+        AppointmentStatus.pending => 'En attente',
+        AppointmentStatus.confirmed => 'Confirmé',
+        AppointmentStatus.completed => 'Terminé',
+        AppointmentStatus.cancelled => 'Annulé',
+        AppointmentStatus.noShow => 'Absent',
+      };
 
   /// Statuses the admin console receives as raw JSON, beyond the booking
   /// vocabulary above (`EXTRA_FR` in the web twin).
   static const Map<String, String> _extraFr = {
+    // `draft` is a **provider** status (openapi `Provider.status`), set on every
+    // new salon and again when a subscription passes grace. `listForAdmin`
+    // applies no status filter by default, so drafts sit in the admin console's
+    // « Tous » tab — and A9's first pass rendered them « — », the same glyph
+    // that row uses for a missing name or commune. The review caught it: the
+    // English word was at least information.
+    'draft': 'Brouillon',
     'verified': 'Vérifié',
     'active': 'Actif',
     'resolved': 'Résolu',
@@ -62,8 +74,8 @@ class StatusLabels {
   static String? ofRaw(String? raw) {
     final key = (raw ?? '').toLowerCase().replaceAll(RegExp('[_\\s-]'), '');
     if (key.isEmpty) return null;
-    for (final entry in _fr.entries) {
-      if (entry.key.name.toLowerCase() == key) return entry.value;
+    for (final status in AppointmentStatus.values) {
+      if (status.name.toLowerCase() == key) return of(status);
     }
     return _extraFr[key];
   }

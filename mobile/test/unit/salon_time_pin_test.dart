@@ -60,13 +60,13 @@ void main() {
     });
 
     test(
-        'no ’Africa/Abidjan’ STRING literal outside the seam (multi-pays '
+        'no \'Africa/Abidjan\' STRING literal outside the seam (multi-pays '
         'MP2) — per-salon timezones come from the API, the fallback lives '
         'in kSalonTz', () {
       expect(
         offenders(
           roots: ['lib'],
-          token: '’Africa/Abidjan’',
+          token: "'Africa/Abidjan'",
           allow: ['core/utils/salon_time.dart'],
         ),
         isEmpty,
