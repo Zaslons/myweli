@@ -7,8 +7,10 @@ import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
+import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
@@ -17,6 +19,7 @@ import 'package:myweli/screens/auth/otp_verify_screen.dart';
 import 'package:myweli/screens/home/home_screen.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_otp_verify_screen.dart';
+import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
@@ -403,6 +406,59 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
+      // ---- the pro dashboard --------------------------------------------
+      //
+      // A12, and the tenth subject. §21 row 68's finding #3, **device-confirmed
+      // before it was ever gated**: on a 360×780pt iPhone at ≈1.95× the four
+      // `_StatCard`s show Flutter's striped banner at 16px / 2.6px / 16px, and
+      // at ≈3.12× at 91px / 31px. The header row is
+      // `Text(title, bodySmall)` beside `Icon(size: iconS)` with neither flexed
+      // — and **an icon does not text-scale**, so at 2× a 20dp glyph sits in a
+      // 126dp tile next to a label that has doubled.
+      //
+      // It is also where A12's grid fix gets tested rather than asserted: the
+      // `childAspectRatio` pin proves the ratio is gone, and this proves the
+      // tile actually grows.
+      testWidgets('the pro dashboard fits $at', (tester) async {
+        final auth = await signInPro(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+            ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
+            ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+          ],
+          home: const DashboardScreen(),
+          rounds: 5,
+        );
+
+        expect(
+          find.text('Opérations quotidiennes'),
+          findsOneWidget,
+          reason: 'C: the action grid is half the subject, and it renders '
+              'below the stat cards — a screen that stopped at the header '
+              'would measure neither',
+        );
+        // §13.3: an action card is a CONTROL, and a control's label may not
+        // break inside a word. The golden at 360×2× read « Disponibil / ité »
+        // once the tile started growing instead of clipping — which is the
+        // defect the single-column branch above 1.3× exists to prevent, and
+        // this is what holds it. By name, as §13.3 requires: a sweep would red
+        // on the headings row 62 leaves open.
+        // « Disponibilité » only, and both exclusions are deliberate.
+        // « Rendez-vous » carries a HYPHEN, and breaking at one is legitimate
+        // typography — `expectNoMidWordBreak` splits on whitespace, so it would
+        // demand the whole hyphenated string on one line. It is also the stat
+        // card's subtitle, so `find.text` matches twice and the helper takes a
+        // single render object.
+        expectNoMidWordBreak(tester, 'Disponibilité', 'the action grid at $at');
+        expectNoUndeclaredTruncation(tester, context: 'pro dashboard at $at');
+        expectNoLegibilityCrush(tester, context: 'pro dashboard at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
       // ---- the consent sentence -----------------------------------------
       //
       // The one COMPONENT here, and the only open question in the set: §21
@@ -604,6 +660,11 @@ void _expectOtpRowFitsTheFloor(
 /// renders no « Mes favoris » section and measures a heading that is not there.
 void _seedPrefs() => SharedPreferences.setMockInitialValues({
       'favorites_user1': '["provider1","provider2"]',
+      // The pro dashboard offers push on its FIRST visit
+      // (`push_registration.dart`), and a modal sheet over the subject measures
+      // the sheet. A12 added the dashboard as a subject; this makes it the
+      // second visit.
+      'myweli_push_asked': true,
     });
 
 /// Unmounts the tree so the OTP resend cooldown stops.
