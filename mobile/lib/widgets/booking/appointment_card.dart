@@ -344,48 +344,56 @@ class AppointmentCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppTheme.spacingSM),
                 ],
-                // Date, Time, and Price
-                Row(
+                // Date and time.
+                //
+                // **A `Wrap`, not a `Row` of two `Expanded`s** (A11 C8, §13.3).
+                // Halving the width forced the date into ~half a card, and at
+                // 200% text `13/03/2026` did not fit — so Flutter broke it
+                // INSIDE the token and rendered « 13/03/20 » / « 26 ». That is
+                // not a wrap, it is a date cut in half, and nothing caught it:
+                // the truncation walk permits wrapping by design and no overflow
+                // fires, because wrapping is how the layout succeeds. Found by
+                // C7's first 2× golden.
+                //
+                // Each half now takes its intrinsic width and the pair wraps as
+                // two whole tokens when they stop fitting side by side.
+                Wrap(
+                  spacing: AppTheme.spacingM,
+                  runSpacing: AppTheme.spacingS,
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textTertiary),
-                          const SizedBox(width: AppTheme.spacingS),
-                          Flexible(
-                            child: Text(
-                              Formatters.formatDateShort(toSalonTime(
-                                  appointment.appointmentDate,
-                                  tz: appointment.providerTimezone)),
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textTertiary),
+                        const SizedBox(width: AppTheme.spacingS),
+                        Text(
+                          Formatters.formatDateShort(toSalonTime(
+                              appointment.appointmentDate,
+                              tz: appointment.providerTimezone)),
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.access_time,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textTertiary),
-                          const SizedBox(width: AppTheme.spacingS),
-                          Flexible(
-                            child: Text(
-                              Formatters.formatTime(toSalonTime(
-                                  appointment.appointmentDate,
-                                  tz: appointment.providerTimezone)),
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.access_time,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textTertiary),
+                        const SizedBox(width: AppTheme.spacingS),
+                        Text(
+                          Formatters.formatTime(toSalonTime(
+                              appointment.appointmentDate,
+                              tz: appointment.providerTimezone)),
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

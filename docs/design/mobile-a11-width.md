@@ -567,32 +567,46 @@ row 62, not fixed here.
       (C6); §20's Layout row landed in C2
 - [x] `golden.dart` corrected (C6) — the sentence had drifted to `:50-52`;
       *"the only surface that matters today"* is gone
-- [ ] §21 row 40 → 0, row 49 → 0 or **verified**, three new rows opened
-- [ ] `flutter analyze --fatal-infos --fatal-warnings` = 0 · format clean · tests green
-- [ ] web `tsc` · lint · vitest green, **including the new token family**
-- [ ] every gate mutation-proven red before its fix
-- [x] **five** new baselines eye-reviewed, and the other **27** byte-identical
-      (C7; the count said "three" and never named them — `pro_earnings` was
-      already photographed twice post-fix and the OTP screen is unrouted, so the
-      set became `consumer_home_w360_x2`, `consumer_provider_detail_w360_x2`,
+- [x] §21 row 40 → 0 (four sub-defects), row 49 → **1 of 2, the clip half
+      measured**, and **twelve** new rows opened (51–62) — not three — plus
+      rows 15 and 16 reopened and re-closed
+- [x] `flutter analyze --fatal-infos --fatal-warnings` = 0 · format clean · tests green
+- [x] web `tsc` · lint · vitest green, **including the new token family**
+- [x] every gate mutation-proven red before its fix — **20 mutations tabled**
+      across C3–C6 (§5). C2 needed none: it *was* the red, 27 of 48. C7 is
+      goldens, where §20.1's eye review is the instrument
+- [x] **five** new baselines at the floor, eye-reviewed; **three moved by fixes**
+      (`pro_earnings`, `pro_earnings_all`, `consumer_provider_detail`) and the
+      other **24 byte-identical** — 32 on disk. *(This line read "the other 27"
+      until C8: 6 new + 2 regenerated + 24 untouched = 32, and 27 contradicted
+      §6.1's own "three baselines moved".)* The set became
+      `consumer_home_w360_x2`, `consumer_provider_detail_w360_x2`,
       `consumer_my_bookings_w360_x2`, `pro_appointment_list_w360`,
-      `pro_reviews_w360`). Two-instant ledger: `pro_reviews_w360` identical, the
-      other four differ in the dates they print — identity would be the bug
+      `pro_reviews_w360` — `pro_earnings` was already photographed twice
+      post-fix and the OTP screen is unrouted. Two-instant ledger:
+      `pro_reviews_w360` identical, the other four differ in the dates they
+      print, where identity would have been the bug
 - [ ] **the OTP screen and both tab screens driven on a simulator at 360dp** — a
       gate that passes is not a screen that looks right
 - [ ] Feature branch → PR → **the user merges**; no Claude attribution
 
 ## 8. Open questions
 
-- **`Tab`'s framework `height: 46`** (`tabs.dart:189-233`) is a fixed height
-  around text — §13.3's written rule, supplied by Flutter, with no override short
-  of `Tab(height:)` at every call site. Measured headroom: `titleSmall` at 2× is
-  40dp inside 46, so it survives 200% by 6dp and clips above ≈2.3×. Recorded in the
-  shape of row 33 (*"platform limit — recorded, not fixable here"*) rather than
-  papered with a fixed dimension of our own, which is A5's *"wrong fix for a fixed
-  bound"* lesson.
+- ~~**`Tab`'s framework `height: 46`**~~ — **answered by C4, and it is a measured
+  green.** `_kTabHeight` is 46.0, 2dp under §13.2's floor, with no override short
+  of `Tab(height:)` at every call site — and `androidTapTargetGuideline` **passes
+  anyway**, in both scrollable and fixed mode, because it evaluates semantics
+  nodes rather than that box. §21 row 55. The related platform limit stands: a
+  `Tab` cannot grow with the text scale, so `titleSmall` at 2× is 40dp inside 46
+  — it survives 200% by 6dp and clips above ≈2.3×.
 - **The consumer phone-auth chain is unrouted and pushes an undeclared path.** A
   routing bug found by a layout census. Recorded; a routing slice should own it.
-- **Should `test/a11y/` pin 390 by default**, rather than inheriting 800×600? It
+- **Should `test/a11y/` pin a device width by default**, rather than inheriting
+  800×600? **Still open, and now precisely measurable: 2 of 9 files pin.**
+  `layout_test` and `content_width_test` do; `contrast`, `label`, `tap_target`,
+  `text_scale`, `field_error`, `feedback` and `motion` still inherit. The
+  mechanism now exists and is documented as reusable (`support/surface.dart`),
+  which is what makes the follow-up cheap — and after C6 the right default is
+  **360**, the floor §10 now names, not 390. It
   would make every existing a11y assertion a phone assertion — a strictly better
   gate, and a change large enough to deserve its own slice and its own red count.

@@ -187,6 +187,53 @@ Future<void> pumpAtWidth(
   await settleMocks(tester, rounds: rounds);
 }
 
+/// Fails if [text] is being broken INSIDE a word (§13.3, A11 C8).
+///
+/// **The gate could not see this, and could not have.**
+/// `expectNoUndeclaredTruncation` permits wrapping *deliberately* — a heading
+/// that wraps to two lines is C5's entire fix — and no overflow ever fires,
+/// because wrapping is how the layout succeeds. So a date rendered
+/// « 13/03/20 » / « 26 » and a button reading « Appel » / « er » both passed 846
+/// tests. They were found by looking at C7's first 2× pictures.
+///
+/// The predicate is exact rather than heuristic: a paragraph breaks inside a
+/// word **iff** its box is narrower than its widest single word. Measure the
+/// widest word's intrinsic width with the paragraph's own style and compare.
+///
+/// **Applied by name, never as a sweep.** §13.3 says a *value the user reads as
+/// one token* and a *control's label* may not break; a heading may. A blanket
+/// walk would red on « Salon Ex/cellence » and « Prom/o W… », which §21 row 62
+/// deliberately leaves to the slice that decides them.
+void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
+  final p = tester.renderObject<RenderParagraph>(
+    find.descendant(of: find.text(text), matching: find.byType(RichText)),
+  );
+  final style = p.text.style;
+  var widest = 0.0;
+  var widestWord = '';
+  for (final word in text.split(RegExp(r'\s+'))) {
+    if (word.isEmpty) continue;
+    final tp = TextPainter(
+      text: TextSpan(text: word, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: p.textScaler,
+    )..layout();
+    if (tp.width > widest) {
+      widest = tp.width;
+      widestWord = word;
+    }
+  }
+
+  expect(
+    p.size.width + _kWidthEpsilon,
+    greaterThanOrEqualTo(widest),
+    reason: '« $text » has ${p.size.width.toStringAsFixed(1)}dp at $at and its '
+        'longest word « $widestWord » needs ${widest.toStringAsFixed(1)} — so it '
+        'is being broken mid-word. §13.3: a value the user reads as one token, '
+        'and a control\'s label, may wrap between words but never inside one.',
+  );
+}
+
 /// Half a logical pixel — below anything a reader can see, above the rounding
 /// noise between two `TextPainter` passes.
 ///

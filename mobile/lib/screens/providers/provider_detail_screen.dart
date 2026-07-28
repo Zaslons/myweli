@@ -1000,48 +1000,74 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         ),
                       ],
                     )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final uri = Uri.parse(
-                                  'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              }
-                            },
-                            icon: const Icon(Icons.phone_outlined,
-                                size: AppTheme.iconS),
-                            label: const Text('Appeler'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: const BorderSide(
-                                  color: AppColors.borderStrong),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingM),
-                            ),
-                          ),
+                  : Builder(builder: (context) {
+                      final call = OutlinedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                              'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri);
+                          }
+                        },
+                        icon: const Icon(Icons.phone_outlined,
+                            size: AppTheme.iconS),
+                        label: const Text('Appeler'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.borderStrong),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM),
                         ),
-                        const SizedBox(width: AppTheme.spacingSM),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton.icon(
-                            onPressed: () =>
-                                context.push('/booking?providerId=${p.id}'),
-                            icon: const Icon(Icons.calendar_today,
-                                size: AppTheme.iconS),
-                            label: const Text('Réserver'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.secondary,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingM),
-                            ),
-                          ),
+                      );
+                      final book = ElevatedButton.icon(
+                        onPressed: () =>
+                            context.push('/booking?providerId=${p.id}'),
+                        icon: const Icon(Icons.calendar_today,
+                            size: AppTheme.iconS),
+                        label: const Text('Réserver'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.secondary,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM),
                         ),
-                      ],
-                    ),
+                      );
+
+                      // §13.3 (A11 C8): **a control's label may not break inside
+                      // a word.** « Appeler » is one token, and a 1:2 split of a
+                      // 328dp bar leaves it ~81dp while at 200% it wants ~105 —
+                      // so Flutter broke the word and the button read
+                      // « Appel » / « er ». A one-word label cannot wrap its way
+                      // out of that; the only honest fix is more width, so above
+                      // the threshold the bar stacks instead of splitting.
+                      //
+                      // The threshold is measured, not chosen: the break starts
+                      // between 1.3× and 1.5×. Same shape as
+                      // `ProviderCard._textBlockHeight` — a measured constant is
+                      // fine when a gate holds it, and `layout_test`'s
+                      // no-mid-word-break assertion is that gate.
+                      //
+                      // It is a TEXT-SCALE branch, not a width breakpoint (§10
+                      // still has none): what changed is how much room a word
+                      // needs, not how much room the screen has.
+                      if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(width: double.infinity, child: book),
+                            const SizedBox(height: AppTheme.spacingS),
+                            SizedBox(width: double.infinity, child: call),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: call),
+                          const SizedBox(width: AppTheme.spacingSM),
+                          Expanded(flex: 2, child: book),
+                        ],
+                      );
+                    }),
             ),
           );
         },

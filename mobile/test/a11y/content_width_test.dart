@@ -16,7 +16,7 @@ import '../support/surface.dart';
 /// **No test in this repo renders an app root.** `grep MyweliApp mobile/test/`
 /// returns nothing: every golden builds its own `MaterialApp` (`golden.dart`),
 /// every widget test goes through `wrapApp`, and neither has a `builder:`. So a
-/// cap wired into `main.dart` and `main_pro.dart` is invisible to all 838 tests,
+/// cap wired into `main.dart` and `main_pro.dart` is invisible to every test in this suite,
 /// and the spec's *"the unchanged golden suite is the no-regression proof"* is
 /// true and **vacuous** — it proves nothing about the cap, because the cap is
 /// not in any tree it photographs.

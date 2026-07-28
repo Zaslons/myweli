@@ -262,6 +262,11 @@ void main() {
               'one at now + 5d — an empty « À venir » means the session or the '
               'load did not land',
         );
+        // §13.3, A11 C8: the date rendered « 13/03/20 » / « 26 » at 2× until
+        // the `Row` of two `Expanded`s became a `Wrap`. A date is one token.
+        for (final d in ['13/03/2026', '16/03/2026']) {
+          expectNoMidWordBreak(tester, d, at);
+        }
         expectNoUndeclaredTruncation(
           tester,
           context: 'consumer bookings at $at',
@@ -345,6 +350,9 @@ void main() {
               'instead, and the subject would be missing',
         );
         _expectHeadingIsWhole(tester, 'Vos rendez-vous ici', at);
+        // §13.3, A11 C8: « Appeler » is one word and a 1:2 split left it 81dp
+        // against the ~105 it wants at 2×, so the button read « Appel » / « er ».
+        expectNoMidWordBreak(tester, 'Appeler', at);
         expectNoUndeclaredTruncation(tester, context: 'the salon page at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
