@@ -162,7 +162,21 @@ class _ServiceCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: AppTheme.spacingS),
-            Row(
+            // A12 — §21 row 68's finding #5. Two unflexed `Text`s in a `Row`,
+            // so each takes its full intrinsic width: « 20 000 FCFA » +
+            // « • 2h 30min » is ~316dp in a 280dp card at 200%.
+            //
+            // It does NOT reproduce on the seeded pro salon — provider1's
+            // three services are 5000/30min, 3000/20min, 7000/45min, all of
+            // which fit — which is why the device run never showed it. Latent,
+            // not theoretical: provider2's Lissage is 20 000 / 150min.
+            //
+            // A `Wrap`: the duration drops under the price rather than either
+            // running off the card. A price and a duration are two tokens, and
+            // §13.3 forbids breaking inside either.
+            Wrap(
+              spacing: AppTheme.spacingS,
+              runSpacing: AppTheme.spacingXS,
               children: [
                 Text(
                   Formatters.formatCurrency(
@@ -174,7 +188,6 @@ class _ServiceCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: AppTheme.spacingS),
                 Text(
                   '• ${Formatters.formatDuration(service.durationMinutes)}',
                   style: AppTextStyles.bodyMedium.copyWith(

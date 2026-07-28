@@ -23,6 +23,8 @@ import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
+import 'package:myweli/screens/providers/provider_list_screen.dart';
+import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:myweli/widgets/common/legal_consent_text.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -408,6 +410,51 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'pro reviews at $at');
         expectNoLegibilityCrush(tester, context: 'pro reviews at $at');
         expectNoVerticalClip(tester, context: 'pro reviews at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the salon list ------------------------------------------------
+      //
+      // A12, and §21 row 68's finding #2 — **device-confirmed before it was
+      // gated**: « RIGHT OVERFLOWED BY 122 PIXELS » on a 360×780pt iPhone at
+      // ≈1.95×. The subject is the filter row, and the trap is that the pill
+      // looks safe: `CommunePill` carries its own `Flexible` + ellipsis, and
+      // none of it binds while the pill is a NON-flex child of that row.
+      //
+      // `commune_pill_test.dart` and `text_scale_test.dart` both pump the pill
+      // in isolation at 360×2× and pass — because in isolation its `Flexible`
+      // IS bounded. The defect lives in the composition, so the composition is
+      // the subject.
+      testWidgets('the salon list filter row fits $at', (tester) async {
+        final auth = await signInConsumer(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider(create: (_) => ProviderProvider()),
+            // `ProviderCard` reads both — the heart is per-user.
+            ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+            ChangeNotifierProvider.value(value: auth),
+          ],
+          home: const ProviderListScreen(),
+          rounds: 5,
+        );
+
+        expect(
+          find.byType(CommunePill),
+          findsOneWidget,
+          reason: 'C: the pill is the subject',
+        );
+        expect(
+          find.text('Aucun salon'),
+          findsNothing,
+          reason: 'C: the count label only renders once providers arrive, and '
+              'it is half of what overflows',
+        );
+        expectNoUndeclaredTruncation(tester, context: 'salon list at $at');
+        expectNoLegibilityCrush(tester, context: 'salon list at $at');
+        expectNoVerticalClip(tester, context: 'salon list at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 

@@ -89,13 +89,30 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+            // A12 — §21 row 68's finding #2, **device-confirmed**: this row
+            // showed « RIGHT OVERFLOWED BY 122 PIXELS » on a 360×780pt iPhone
+            // at ≈1.95×.
+            //
+            // The mechanism is worth naming because the pill looks safe:
+            // `CommunePill` carries its own `Flexible` + `maxLines: 1` +
+            // ellipsis (`commune_pill.dart:55`), and **none of it binds here**.
+            // A `Row` hands a NON-flex child an unbounded width, so the pill
+            // laid out at full intrinsic width — « Toutes les communes » at
+            // 200% is ~286dp of glyphs plus 44 of icons in a 328dp budget —
+            // and its ellipsis was dead code at this call site.
+            //
+            // `Flexible` here, and the `Spacer` goes: two flex children would
+            // split the row in half and cap the pill even when there is room.
+            // `spaceBetween` gives the leftover to the gap instead.
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CommunePill(
-                  commune: provider.selectedCommune,
-                  onTap: () => _openCommunePicker(provider),
+                Flexible(
+                  child: CommunePill(
+                    commune: provider.selectedCommune,
+                    onTap: () => _openCommunePicker(provider),
+                  ),
                 ),
-                const Spacer(),
                 if (!provider.isLoading && provider.providers.isNotEmpty)
                   Text(
                     _countLabel(provider),
