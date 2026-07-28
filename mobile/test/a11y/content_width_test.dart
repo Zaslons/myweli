@@ -15,7 +15,7 @@ import '../support/surface.dart';
 /// ## Why this file pumps the widget instead of a screen
 ///
 /// **No test in this repo renders an app root.** `grep MyweliApp mobile/test/`
-/// returns nothing: every golden builds its own `MaterialApp` (`golden.dart`),
+/// returns exactly one hit — this line, quoting the grep: every golden builds its own `MaterialApp` (`golden.dart`),
 /// every widget test goes through `wrapApp`, and neither has a `builder:`. So a
 /// cap wired into `main.dart` and `main_pro.dart` is invisible to every test in this suite,
 /// and the spec's *"the unchanged golden suite is the no-regression proof"* is

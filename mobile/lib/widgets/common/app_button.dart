@@ -5,7 +5,7 @@ import 'brand_loader.dart';
 
 enum AppButtonType { primary, secondary, text }
 
-/// The app's button (SYSTEM.md §6).
+/// The app's button (SYSTEM.md §11.1; its 48dp floor is §13.2).
 ///
 /// ## The label is a FLEXIBLE child, and it has to be (A11 C8)
 ///

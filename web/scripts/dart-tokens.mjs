@@ -224,7 +224,7 @@ export const ICON_KEYS = {
  *  to track." That objection is retired by giving it an upstream, not by
  *  ignoring it: the value now comes from `AppTheme`, like every other token.
  *
- *  The web key stays `content` because `max-w-content` already has eight
+ *  The web key stays `content` because `max-w-content` already has seven
  *  consumers across seven files. */
 export const LAYOUT_KEYS = {
   contentMaxWidth: 'content',

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft (2026-07-28) |
+| **Status** | Shipped C1→C8 (2026-07-28) |
 | **Surface** | `mobile/` — the compact range, and the §10 rule nothing implemented |
 | **PRD ref / phase** | FR-A11Y-001 · NFR-PERF (low-end Android) · **V1** |
 | **Design system** | [SYSTEM.md §10](SYSTEM.md#10-layout-breakpoints-content-width-z-index) · §13.2 · §13.3 · §20 · §21 rows 40, 49 |
@@ -432,7 +432,7 @@ does not re-wrap and its growth is linear — `chrome + text = 160` at 1× and
 > had **no wiring assertion** — `tokens.theme-pin.test.ts`'s own comment calls its
 > `fontSize` check *"the only assertion that notices a token that isn't wired"*,
 > and it was. A `layout` export that never reached the config would have silently
-> deleted the styling on all eight `max-w-content` call sites, green. Closed in
+> deleted the styling on all seven `max-w-content` call sites, green. Closed in
 > the same commit and mutation-proven: removing `...layout` reddens it alone.
 >
 > The web half — a `LAYOUT_KEYS` family, the `layout` export, `tailwind.config.ts`
@@ -536,7 +536,18 @@ walk · ~~`contentMaxWidth` 720 → 320 reddens the 390 assertion and the 26 gol
 
 Deploy order is irrelevant — this is app-only plus a token mirror. V1 only.
 
-**Exactly one existing golden should move: `pro_earnings.png`.** The OTP screens
+⚠️ **This prediction was wrong, and the correction is the interesting part.**
+It read *"exactly one existing golden should move: `pro_earnings.png`."* **Eight
+moved.** The seven it did not foresee are the two `SectionHeading` screens (C5,
+C8d) and — the ones no reasoning here could have reached — the **six** that
+`AppButton`'s flexible label shifted by a sub-pixel: `admin_table_error`,
+`components_buttons`, `components_empty_state`, `consumer_login`,
+`pro_deposit_settings`, `pro_journal`. A shared control's rendering touches
+every sheet that photographs one, and §20.1's rule (look at every changed PNG)
+is what turned that from a surprise into a check. The original prediction
+follows.
+
+**Predicted: exactly one existing golden should move: `pro_earnings.png`.** The OTP screens
 and `appointment_list_screen` appear in no golden, and `contentMaxWidth` is
 analytically inert below 720 (a `ConstrainedBox(maxWidth: 720)` under a tight 390
 constraint passes it through; `Center` on a tight-width child is the identity).
@@ -549,7 +560,10 @@ other diff means something changed that should not have.
 
 ### 6.1 What the pictures found (C7)
 
-Three baselines moved in the whole slice, and `consumer_home.png` moved **zero
+*(Counts as of C7. The slice finished at **8 moved, 7 added, 18 untouched — 33
+on disk**; §6 above records why the extra five moved.)*
+
+Three baselines had moved at this point, and `consumer_home.png` moved **zero
 bytes** while C5 rewrote two of its sections — it is pumped signed out, and both
 headings are behind `isAuthenticated`. That is the coverage §21 row 61 records.
 
@@ -634,18 +648,27 @@ run, so this sets the convention — a numbered prose note, the shape
 - [x] `golden.dart` corrected (C6) — the sentence had drifted to `:50-52`;
       *"the only surface that matters today"* is gone
 - [x] §21 row 40 → 0 (four sub-defects), row 49 → **1 of 2, the clip half
-      measured**, and **twelve** new rows opened (51–62) — not three — plus
-      rows 15 and 16 reopened and re-closed
+      measured**, and **sixteen** new rows opened (51–66) — not three, and not
+      the twelve this line claimed until C8d — plus rows 15 and 16 reopened and
+      re-closed
 - [x] `flutter analyze --fatal-infos --fatal-warnings` = 0 · format clean · tests green
 - [x] web `tsc` · lint · vitest green, **including the new token family**
 - [x] every gate mutation-proven red before its fix — **20 mutations tabled**
-      across C3–C6 (§5). C2 needed none: it *was* the red, 27 of 48. C7 is
-      goldens, where §20.1's eye review is the instrument
-- [x] **five** new baselines at the floor, eye-reviewed; **three moved by fixes**
-      (`pro_earnings`, `pro_earnings_all`, `consumer_provider_detail`) and the
-      other **24 byte-identical** — 32 on disk. *(This line read "the other 27"
-      until C8: 6 new + 2 regenerated + 24 untouched = 32, and 27 contradicted
-      §6.1's own "three baselines moved".)* The set became
+      across C3–C6 (§5), plus **10 in C8** (3 on the button label, 2 on the auth
+      prompt and the dropdown pin, 1 on the heading padding, 4 on the review
+      fixes) run and recorded in the commit messages rather than in §5's tables.
+      C2 needed none: it *was* the red, 27 of 48. C7 is goldens, where §20.1's
+      eye review is the instrument
+- [x] baselines: **7 added · 8 regenerated · 18 untouched = 33 on disk**, every
+      changed PNG eye-reviewed. *(This line has now been wrong twice — "the
+      other 27", then "6 new + 2 regenerated + 24 untouched = 32". Both were
+      arithmetic done from memory rather than from
+      `git diff --name-status main...HEAD -- mobile/test/golden/goldens/`,
+      which is the only source that has ever been right.)* The six the
+      `AppButton` fix moved — `admin_table_error`, `components_buttons`,
+      `components_empty_state`, `consumer_login`, `pro_deposit_settings`,
+      `pro_journal` — are sub-pixel label shifts from `textAlign: center`,
+      compared crop-by-crop against their predecessors before committing. The set became
       `consumer_home_w360_x2`, `consumer_provider_detail_w360_x2`,
       `consumer_my_bookings_w360_x2`, `pro_appointment_list_w360`,
       `pro_reviews_w360` — `pro_earnings` was already photographed twice
@@ -675,11 +698,19 @@ run, so this sets the convention — a numbered prose note, the shape
   — it survives 200% by 6dp and clips above ≈2.3×.
 - **The consumer phone-auth chain is unrouted and pushes an undeclared path.** A
   routing bug found by a layout census. Recorded; a routing slice should own it.
-- **Should `test/a11y/` pin a device width by default**, rather than inheriting
-  800×600? **Still open, and now precisely measurable: 6 of 11 files pin.**
-  `layout_test`, `content_width_test`, `app_button_test`, `auth_layout_test`,
-  `field_error_test` and `text_scale_test` do; `contrast`, `label`,
-  `tap_target`, `feedback` and `motion` still inherit. The
+- ~~**Should `test/a11y/` pin a device width by default?**~~ — **half-answered
+  by C8d, and the half that was answered was a defect, not a preference.**
+  `pumpAtTextScale` never called `pinSurface`, so every component test claiming
+  200% coverage ran on `flutter_test`'s **800×600** — wider than any phone
+  sold. The repo had 360dp coverage and 2× coverage that **never intersected**
+  outside the gate's twelve subjects, which is most of why §21 row 68's twelve
+  screens went unseen. It now pins 360, and all 160 a11y tests still pass:
+  strictly stricter at no cost. That is what makes the remaining question
+  narrow rather than sweeping: **6 of 11 files pin.**
+  `layout_test`, `content_width_test`, `app_button_test` and `auth_layout_test`
+  pin directly; `field_error_test` and `text_scale_test` inherit the pin through
+  `pumpAtTextScale`. `contrast`, `label`, `tap_target`, `feedback` and `motion`
+  still run at 800×600. The
   mechanism now exists and is documented as reusable (`support/surface.dart`),
   which is what makes the follow-up cheap — and after C6 the right default is
   **360**, the floor §10 now names, not 390. It

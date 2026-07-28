@@ -168,7 +168,7 @@ thing it does not carry (see below), so it stays on the element as `font-*`.
 | `text-bodyLarge` / `text-titleMedium` | 16 / 24 | 400 / 500 | `text-base` ×1 |
 | `text-titleLarge` | 22 / 28 | 600 | **`text-lg` ×33 (18px) + `text-xl` ×18 (20px)** |
 | `text-headlineSmall` | 24 / 32 | 600 | `text-2xl` ×27 |
-| `text-headlineMedium` | 28 / 36 | 600 | `text-3xl` ×5 (30px) |
+| `text-headlineMedium` | 28 / 36 | 600 | `text-3xl` ×5 (30px) ⚠️ **C8d: five, not two.** `CatalogueClient.tsx:106`, `MediasClient.tsx:65` and `RendezVousClient.tsx:174` carry the same strip, unprotected. |
 | `text-headlineLarge` | 32 / 40 | 600 | `text-4xl` ×1 (36px) |
 
 **Not a zero-pixel rename — this is what B2b actually did.** The register said it
@@ -488,7 +488,7 @@ where they have an app twin):
 | ~~`EmptyState` / `ErrorState`~~ | ~15 error paths offered **no retry**. **Shipped in B6** — retry is real, the h1 survives the error state. |
 | ~~`Rating`~~ | Glyph + numeral ([SYSTEM.md §3.5](SYSTEM.md#35-accents)). **Shipped in B6** — with the French comma the old `toFixed(1)` never had. |
 | ~~`Chip`~~ | §11.3's variants; outlined = `borderStrong` (§16). **Shipped in B6** (+ `ChipButton`, the dense tier). `StatusChip.forStatus` mapping stays with the density work. |
-| ~~`Card` · `StatusChip.forStatus` · `DataTable`~~ | The pro/admin density work. **Shipped in B7.** `DataTable` is the `AdminDataTable` twin mirrored from the **code** (header `bodySmall`/`textTertiary`, not the admin doc's labelMedium — the B3 lesson; **no in-widget pagination** — the doc's footer was never built in the reference either, callers own paging); four states, pulsing skeleton (the web upgrade), 48px rows. A **navigation row is a link wrapping its cells** (open-in-new-tab works; the first draft's pointer-events-under-button pattern broke real hit-testing on row text — pro.spec's clients flow caught it). `StatusChip`: **kind, not color, is the API** (`ok | pending | danger | neutral`, mobile's `AdminChipKind` widened to the cross-surface inventory). `Card`: §11.3 verbatim at `p-m`. |
+| ~~`Card` · `StatusChip.forStatus` · `DataTable`~~ | The pro/admin density work. **Shipped in B7.** `DataTable` is the `AdminDataTable` twin mirrored from the **code** (header `bodySmall`/`textTertiary`, not the admin doc's labelMedium — the B3 lesson; **no in-widget pagination** — the doc's footer was never built in the reference either, callers own paging); four states, pulsing skeleton (the web upgrade), 48px rows. A **navigation row is a link wrapping its cells** (open-in-new-tab works; the first draft's pointer-events-under-button pattern broke real hit-testing on row text — pro.spec's clients flow caught it). `StatusChip`: **kind, not color, is the API** (`ok \| pending \| danger \| neutral`, mobile's `AdminChipKind` widened to the cross-surface inventory). `Card`: §11.3 verbatim at `p-m`. |
 
 (`TextField` and Button's `text`/`isLoading` parity landed in B4. The switch
 remains hand-rolled in NotificationsClient — §10 specs no Switch primitive; its
@@ -532,7 +532,7 @@ web converts, the app deepens:
 | Rule | Gate |
 |---|---|
 | Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps, **and (B3) a completeness gate: every `colors` key must carry an assertion** |
-| The Flutter↔web mirror (§1) | **`tokens.mirror.test.ts`** (B3) — parses `mobile/lib/core/theme/` + the §9 doc tables per run; per-family equality both directions; parser self-checks (comments stripped, then every `static const|final … =` candidate must parse — a `static final` or type-inferred declaration screams; doc tables row-counted; the theme directory manifest-pinned); heal with `npm run gen:tokens` |
+| The Flutter↔web mirror (§1) | **`tokens.mirror.test.ts`** (B3) — parses `mobile/lib/core/theme/` + the §9 doc tables per run; per-family equality both directions; parser self-checks (comments stripped, then every `static const\|final … =` candidate must parse — a `static final` or type-inferred declaration screams; doc tables row-counted; the theme directory manifest-pinned); heal with `npm run gen:tokens` |
 | Tokens only (§2) | **Closed Tailwind theme** (B2a) + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** — **and** `tokens.theme-pin.test.ts`, because the lint has two blind spots (bare `const` class strings; a bare `rounded`, which it passes clean while Tailwind emits nothing). Config lives in **`.eslintrc.js`**, not `.json`: the plugin resolves `tailwindcss` relative to `dirname(settings.tailwindcss.config)`, so a *relative* config path makes it look in `.` and throw — JSON cannot compute an absolute path |
 | Layering (§9) | `tests/e2e/z-layers.spec.ts` — the drawer/scrim/panel stack and the map control, asserted on **computed layers** (a hit-test can't see it: `<main>` is `inert` while the drawer is open, and inert content isn't hit-tested) |
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |

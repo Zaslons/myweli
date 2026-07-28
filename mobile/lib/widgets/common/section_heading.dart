@@ -39,7 +39,8 @@ import '../../core/theme/text_styles.dart';
 ///   Two lines instead of three, a full-size tap target, and no arithmetic
 ///   anywhere.
 ///
-/// `Wrap` is 19-times established here, and this gate has already proved it
+/// `Wrap` was 19-times established here when this was written and is **23**
+/// times now — A11 added four of them itself. This gate has already proved it
 /// scale-safe: `LegalConsentText` is a `Wrap` and is green at all six
 /// width×scale configurations (§21 row 49).
 class SectionHeading extends StatelessWidget {

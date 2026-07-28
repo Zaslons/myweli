@@ -132,10 +132,16 @@ Future<void> pumpAtTextScale(
 ///    right for a component and wrong for a screen — every subject here already
 ///    has its own `Scaffold`, and nesting them gives the inner one a body inset
 ///    by the outer one's padding, i.e. a width the product never renders at.
-/// 2. It injects the scale through a `MediaQuery` placed at `home:`. Three of
-///    the eight subjects are built by a `routerConfig`, where there is no `home:`
-///    to wrap — a `MediaQuery` there cannot reach the screen at all, and the
-///    test would silently measure 1× while its name said 2×.
+/// 2. It injects the scale through a `MediaQuery` placed at `home:`, which
+///    reaches a screen only when the screen was pumped that way. ⚠️ **An
+///    earlier version of this note said "three of the eight subjects are built
+///    by a `routerConfig`" — that is false**: `grep routerConfig
+///    test/a11y/layout_test.dart` returns 0, and all nine are pumped with
+///    `home:`. The mechanism is still the reason, and it is real: a
+///    `MediaQuery` cannot reach a `routerConfig`-built screen, so a
+///    `MediaQuery`-based helper is one refactor away from silently measuring
+///    1× while its name says 2×. The gate should not depend on nobody making
+///    that refactor.
 ///
 /// So the scale goes in at the platform dispatcher instead, which
 /// `MediaQueryData.fromView` reads through `SystemTextScaler`
@@ -265,8 +271,9 @@ const double _kWidthEpsilon = 0.5;
 ///   forbidden to wrap cannot spend its overflow on a second line, so an
 ///   intrinsic width wider than the box is text that is gone. `Tab` is the only
 ///   shape in `lib/` that reaches here (`tabs.dart:183` — `softWrap: false`,
-///   `overflow: fade`); the app declares `TextOverflow.ellipsis` at all 46 of
-///   its own overflow sites and `softWrap` at none.
+///   `overflow: fade`); the app declares `TextOverflow.ellipsis` at all **47**
+///   of its own overflow sites and `softWrap` at none. (46 on `main`; A11 added
+///   the 47th itself — `AppSearchBar`'s declared ellipsis, §21 row 56.)
 ///
 /// **What is deliberately NOT flagged: wrapping.** An earlier draft compared
 /// `size.width` against `getMaxIntrinsicWidth` for every paragraph. That is a

@@ -205,7 +205,7 @@ describe('the tokens are actually WIRED, not just spelled', () => {
 
   // A11 C6, and the same claim one family over. `maxWidth` had NO wiring
   // assertion, so a `layout` export that never reached the config would have
-  // silently deleted the styling on eight `max-w-content` call sites across
+  // silently deleted the styling on seven `max-w-content` call sites across
   // seven files — green, because nothing enumerates `maxWidth` and nothing
   // asserts the class resolves.
   //

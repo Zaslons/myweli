@@ -20,8 +20,11 @@ export 'settle.dart' show settleMocks;
 /// The golden-test harness (docs/design/SYSTEM.md §20).
 ///
 /// Goldens are the only thing in this repo that renders the REAL design system:
-/// none of the 34 widget tests passes `theme:`, so they would all stay green
-/// while the product restyled underneath them. These catch what they can't.
+/// none of the 34 widget tests passed `theme:`, so they would all have stayed
+/// green while the product restyled underneath them. These catch what they
+/// can't. ⚠️ **Past tense since A3b**: §21 row 21 records all 34 migrated to
+/// `wrapApp`, which does pass the real theme. The goldens are still the only
+/// thing that renders the system as a PICTURE, which is the load-bearing half.
 ///
 /// ## Why goldens only run on Linux
 ///

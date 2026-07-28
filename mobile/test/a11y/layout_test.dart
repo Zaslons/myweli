@@ -33,7 +33,7 @@ import '_a11y.dart';
 
 /// **A width is not all widths** (docs/design/mobile-a11-width.md, SYSTEM.md §10).
 ///
-/// §10 defines `compact` as a RANGE — everything under 600dp, with no floor —
+/// §10 defines `compact` as a RANGE. It said "everything under 600dp, with no floor" when this gate was written; C6 gave it one, so it now reads 360–599 —
 /// and every rendering test in this repo measured a single point inside it:
 /// `kGoldenPhone`, 390×844, an iPhone 14. The modal Android device in Côte
 /// d'Ivoire is **360dp** (Tecno/Infinix/itel at 720×1600), and 375 is every
