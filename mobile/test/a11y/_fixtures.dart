@@ -92,6 +92,26 @@ OtpCodeRow otpRow({bool enabled = true, bool hasError = false}) {
   );
 }
 
+/// The four-tab pro strip, as it ships since A11 C4 (scrollable + centred).
+///
+/// The first `TabBar` in any a11y inventory. Four of them shipped in `lib/` and
+/// not one had ever been measured — which is how « Aujourd'hui » came to be
+/// faded away inside a 58dp share on a 360dp phone, in a screen A10 had already
+/// photographed.
+Widget tabStrip({bool isScrollable = true}) => DefaultTabController(
+      length: 4,
+      child: TabBar(
+        isScrollable: isScrollable,
+        tabAlignment: TabAlignment.center,
+        tabs: const [
+          Tab(text: 'Aujourd\u2019hui'),
+          Tab(text: 'Semaine'),
+          Tab(text: 'Mois'),
+          Tab(text: 'Tout'),
+        ],
+      ),
+    );
+
 AppNotification note() => AppNotification(
       id: '1',
       type: AppNotificationType.bookingConfirmed,

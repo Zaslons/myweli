@@ -312,6 +312,49 @@ that. Extraction also puts the row where `androidTapTargetGuideline` and
 component-level, and the boxes land at **exactly 48.0 at 360** — the floor met
 with zero slack, by six targets typed in sequence.
 
+### 4.4b The tab bars — the rule §4 never wrote (added by C4)
+
+§4 prescribed the OTP fix in 117 lines and said **nothing** about the tab bars,
+though they are 15 of the gate's 27 reds. This is that section, written after
+doing it.
+
+**The defect.** A non-scrollable `TabBar` wraps every tab in `Expanded`
+(`tabs.dart:1977`) so each gets `W/n`, and a `Tab`'s label is
+`softWrap: false, overflow: fade` (`tabs.dart:183`) — hard-coded, no override.
+A label too long for its share is **faded away without throwing**. That is why
+`takeException` was silent and `expectNoUndeclaredTruncation` was not, and why
+A10's `pro_earnings.png` shipped a truncated « Aujourd'hui » nobody read as a bug.
+
+**The fix: `isScrollable: true` + `tabAlignment: TabAlignment.center`**, on the
+three bars that clip. Not the two obvious alternatives:
+
+| | why not |
+|---|---|
+| the M3 default (`startOffset`) | 52dp of empty leading gutter — 14% of a 360dp screen — **and** it is not in the scroll-centring math (`tabs.dart:1669-1683` reads `widget.padding` only), so the selected tab lands 52dp off-centre |
+| `start` | no gutter, but ~75dp of dead space on the right at 390, where all three strips fit |
+| **`center`** | looks like today while the labels fit; identical to `start` once they do not, because an overflowing strip fills the viewport and there is nothing left to centre. **The only alignment legal in both modes** (`tabs.dart:1809-1821`) |
+
+Set at each call site, **never in `tabBarTheme`** — the assert is per-bar against
+that bar's own `isScrollable`, so a theme value throws on every non-scrollable bar.
+
+**The fourth bar keeps `fill`, and the reasoning is the transferable part.**
+« Calendrier »/« Liste » is 257.8dp of strip at 200% text inside a 360dp bar —
+measured. It fits everywhere §10 supports, and two tabs each taking half the bar
+is the better control for a binary view switcher. What makes that safe long-term
+is not the decision but the **gate**: `expectNoUndeclaredTruncation` walks every
+paragraph on that screen at all six configurations, so a renamed or added tab
+that starts clipping goes red on its own. *The idiom is not the protection; the
+measurement is* — which is also why converting all four "for consistency" would
+have bought nothing.
+
+**Two consequences worth naming before someone finds them.** The nested bar lives
+inside a `TabBarView` page, so a horizontal drag on the strip now scrolls the
+strip instead of paging back to « Calendrier » — a gesture-arena change, not just
+a paint one. And `_openProList` had to gain `ensureVisible`: at 200% text the
+nested strip is 553dp inside a 360dp viewport and « Tous » sits fully off-screen,
+where `tester.tap` prints a warning, dispatches into nothing and fails two lines
+later on an unrelated assertion.
+
 ### 4.5 `contentMaxWidth`, and the blocking dependency
 
 `AppTheme.contentMaxWidth = 720`, applied through **one** shared widget
@@ -374,6 +417,29 @@ width is fixed and pinning each box pins the gaps by subtraction. It is kept, an
 labelled, for the configuration the arithmetic *would* accept: a smaller
 `spacing:` paid for with a wider padding still lands every box on 48 while
 putting the targets 4dp apart.
+
+**C4's four, run and tabled** — and two of them did not come out clean:
+
+| mutation | reddens | note |
+|---|---|---|
+| drop `isScrollable` on earnings | the truncation walk, all 6 configs | as predicted |
+| `tabAlignment: startOffset` | **nothing in `flutter test`** — only `pro_earnings.png`, and only on Linux | see below |
+| revert the earnings first load to unbounded | the **golden's** content assertion (« Aucune transaction » must be present) | Linux-only, i.e. CI |
+| `tabAlignment` in `tabBarTheme` | the appointment subject ×6, on the SDK assert | as predicted |
+
+**`tabAlignment` is barely gated, and that is the honest statement.** The gate
+measures *truncation*, and `startOffset` does not truncate — it adds a gutter. So
+the only thing that sees it is the earnings golden (diff 1.47% → 1.65% locally,
+where 1.47% is macOS rasterisation noise; on Linux the baseline is 0%). The
+appointment list and my-bookings have no golden, so their alignment is
+unprotected. Recorded rather than patched: a leading-gutter assertion would have
+to encode "centred when it fits, flush when it scrolls", which is the framework's
+behaviour restated, not a product rule.
+
+**And the first-load fix is gated only on Linux.** The assertion that catches it
+lives in a golden test, which `kGoldensSkip` skips off Linux — so `flutter test`
+on a Mac is green against that regression. Named because a developer's local run
+will not tell them.
 
 Older predictions, for the rest of the slice: dropping `isScrollable` reddens only the truncation
 walk · `contentMaxWidth` 720 → 320 reddens the 390 assertion **and** the 26

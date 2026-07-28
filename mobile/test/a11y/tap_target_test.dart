@@ -78,6 +78,28 @@ void main() {
     handle.dispose();
   });
 
+  // A11 C4. **The first TabBar in any a11y inventory** — four shipped in `lib/`
+  // and none had ever been measured against §13.2.
+  //
+  // Measured here rather than assumed, because the arithmetic says it should
+  // fail: `_kTabHeight` is **46.0** (tabs.dart:30), 2dp under the 48×48 floor,
+  // and it is a framework constant with no override short of `Tab(height:)` at
+  // every call site. The `Tab`'s own box does measure 46.0 — and the guideline
+  // **passes anyway**, in both scrollable and fixed mode, because
+  // `androidTapTargetGuideline` evaluates semantics nodes rather than that box.
+  //
+  // Recorded as a measured green rather than acted on: the fix for a number
+  // that is already correct is nothing.
+  for (final scrollable in [true, false]) {
+    testWidgets('TabBar — the four pro tabs (isScrollable: $scrollable)',
+        (tester) async {
+      final handle =
+          await pumpForA11y(tester, tabStrip(isScrollable: scrollable));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      handle.dispose();
+    });
+  }
+
   testWidgets('NotificationTile — the tile tap', (tester) async {
     final handle = await pumpForA11y(
       tester,
