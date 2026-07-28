@@ -15,6 +15,7 @@ import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../common/label_value_row.dart';
 import '../common/timed_cached_image.dart';
 
 class AppointmentCard extends StatelessWidget {
@@ -398,25 +399,18 @@ class AppointmentCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppTheme.spacingS),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total:',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      Formatters.formatCurrency(appointment.totalPrice,
-                          currency: appointment.currency ??
-                              appointment.providerCurrency ??
-                              'XOF'),
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
+                LabelValueRow(
+                  label: 'Total:',
+                  value: Formatters.formatCurrency(appointment.totalPrice,
+                      currency: appointment.currency ??
+                          appointment.providerCurrency ??
+                          'XOF'),
+                  labelStyle: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  valueStyle: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
