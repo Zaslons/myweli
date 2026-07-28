@@ -22,6 +22,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/providers/before_after_section.dart';
 import '../../widgets/review/review_tile.dart';
@@ -173,7 +174,21 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 160,
+                // §13.3 (A11 C5). `expandedHeight: 160` was a fixed height
+                // around text and the header clipped by **92dp at 200%** — the
+                // same class as `ProviderCard.carouselHeight`, and the same fix.
+                //
+                // The split is derived, not guessed: the overflow is 92dp at
+                // 360, 375 and 390 alike, so the block does not re-wrap and its
+                // growth is linear. `chrome + text = 160` at 1× and
+                // `chrome + 2×text = 252` at 2× gives text = 92, chrome = 68.
+                // `textScaledBound` floors at the 1× value, so nothing moves
+                // below 100%.
+                expandedHeight: AppTheme.textScaledBound(
+                  context,
+                  constant: _headerChrome,
+                  text: _headerTextBlock,
+                ),
                 pinned: true,
                 actions: [
                   if (!widget.preview)
@@ -638,12 +653,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                           size: AppTheme.iconS,
                                           color: AppColors.textTertiary),
                                       const SizedBox(width: AppTheme.spacingSM),
-                                      Text(
-                                        Formatters.formatPhoneNumber(
-                                            p.phoneNumber),
-                                        style:
-                                            AppTextStyles.bodyMedium.copyWith(
-                                          color: AppColors.textPrimary,
+                                      Expanded(
+                                        child: Text(
+                                          Formatters.formatPhoneNumber(
+                                              p.phoneNumber),
+                                          style:
+                                              AppTextStyles.bodyMedium.copyWith(
+                                            color: AppColors.textPrimary,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -681,11 +698,13 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                             color: AppColors.textTertiary),
                                         const SizedBox(
                                             width: AppTheme.spacingSM),
-                                        Text(
-                                          'WhatsApp',
-                                          style:
-                                              AppTextStyles.bodyMedium.copyWith(
-                                            color: AppColors.textPrimary,
+                                        Expanded(
+                                          child: Text(
+                                            'WhatsApp',
+                                            style: AppTextStyles.bodyMedium
+                                                .copyWith(
+                                              color: AppColors.textPrimary,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -981,48 +1000,74 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         ),
                       ],
                     )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final uri = Uri.parse(
-                                  'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              }
-                            },
-                            icon: const Icon(Icons.phone_outlined,
-                                size: AppTheme.iconS),
-                            label: const Text('Appeler'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: const BorderSide(
-                                  color: AppColors.borderStrong),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingM),
-                            ),
-                          ),
+                  : Builder(builder: (context) {
+                      final call = OutlinedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                              'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri);
+                          }
+                        },
+                        icon: const Icon(Icons.phone_outlined,
+                            size: AppTheme.iconS),
+                        label: const Text('Appeler'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.borderStrong),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM),
                         ),
-                        const SizedBox(width: AppTheme.spacingSM),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton.icon(
-                            onPressed: () =>
-                                context.push('/booking?providerId=${p.id}'),
-                            icon: const Icon(Icons.calendar_today,
-                                size: AppTheme.iconS),
-                            label: const Text('Réserver'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.secondary,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingM),
-                            ),
-                          ),
+                      );
+                      final book = ElevatedButton.icon(
+                        onPressed: () =>
+                            context.push('/booking?providerId=${p.id}'),
+                        icon: const Icon(Icons.calendar_today,
+                            size: AppTheme.iconS),
+                        label: const Text('Réserver'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.secondary,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM),
                         ),
-                      ],
-                    ),
+                      );
+
+                      // §13.3 (A11 C8): **a control's label may not break inside
+                      // a word.** « Appeler » is one token, and a 1:2 split of a
+                      // 328dp bar leaves it ~81dp while at 200% it wants ~105 —
+                      // so Flutter broke the word and the button read
+                      // « Appel » / « er ». A one-word label cannot wrap its way
+                      // out of that; the only honest fix is more width, so above
+                      // the threshold the bar stacks instead of splitting.
+                      //
+                      // The threshold is measured, not chosen: the break starts
+                      // between 1.3× and 1.5×. Same shape as
+                      // `ProviderCard._textBlockHeight` — a measured constant is
+                      // fine when a gate holds it, and `layout_test`'s
+                      // no-mid-word-break assertion is that gate.
+                      //
+                      // It is a TEXT-SCALE branch, not a width breakpoint (§10
+                      // still has none): what changed is how much room a word
+                      // needs, not how much room the screen has.
+                      if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(width: double.infinity, child: book),
+                            const SizedBox(height: AppTheme.spacingS),
+                            SizedBox(width: double.infinity, child: call),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: call),
+                          const SizedBox(width: AppTheme.spacingSM),
+                          Expanded(flex: 2, child: book),
+                        ],
+                      );
+                    }),
             ),
           );
         },
@@ -1154,6 +1199,11 @@ class PageViewIndicator extends StatelessWidget {
   }
 }
 
+/// The salon header's non-text chrome (logo, paddings) and its text block, at
+/// 1×. Derived from the measured 92dp overflow at 200% — see `expandedHeight`.
+const double _headerChrome = 68;
+const double _headerTextBlock = 92;
+
 class _SectionCard extends StatelessWidget {
   final String title;
   final Widget child;
@@ -1182,33 +1232,15 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ConstrainedBox(
-              // §13.2 touch target — only enforced when the header is tappable
-              constraints:
-                  BoxConstraints(minHeight: onHeaderTap != null ? 48 : 0),
-              child: InkWell(
-                onTap: onHeaderTap,
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
-                  child: Row(
-                    children: [
-                      Text(
-                        title,
-                        style: AppTextStyles.titleMedium.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      if (trailing != null) ...[
-                        const Spacer(),
-                        trailing!,
-                      ],
-                    ],
-                  ),
-                ),
-              ),
+            // A11 C5: this was the third copy of the heading row, and the one
+            // outside every gate — `Spacer` instead of `spaceBetween`, and no
+            // `Expanded` on the title, so « Vos rendez-vous ici » + « Voir tout »
+            // overflowed by 112–142dp at 200% text and nothing measured it.
+            SectionHeading(
+              title: title,
+              style: AppTextStyles.titleMedium,
+              action: trailing,
+              onTap: onHeaderTap,
             ),
             const SizedBox(height: AppTheme.spacingS),
             child,

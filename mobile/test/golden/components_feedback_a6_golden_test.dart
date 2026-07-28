@@ -17,7 +17,7 @@ import '../support/golden.dart';
 /// baseline is evidence rather than an illustration.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     /// Opens a dialog from a real route: the scrim, the elevation and
     /// `dialogTheme` are all in frame, and `autofocus` resolves the way it

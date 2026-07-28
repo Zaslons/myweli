@@ -361,8 +361,8 @@ class _BufferSection extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.spacingS),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: AppTheme.spacingS,
+            runSpacing: AppTheme.spacingS,
             children: _presets.map((minutes) {
               return ChoiceChip(
                 label: Text(minutes == 0 ? 'Aucun' : '$minutes min'),
@@ -407,8 +407,8 @@ class _DayScheduleCard extends StatelessWidget {
                     .copyWith(color: AppColors.textSecondary),
               )
             : Wrap(
-                spacing: 8,
-                runSpacing: 4,
+                spacing: AppTheme.spacingS,
+                runSpacing: AppTheme.spacingXS,
                 children: timeSlots.map((slot) {
                   final start = Formatters.formatTime(slot.startTime);
                   final end = Formatters.formatTime(slot.endTime);

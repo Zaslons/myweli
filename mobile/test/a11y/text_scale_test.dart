@@ -2,26 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
-import 'package:myweli/models/app_notification.dart';
-import 'package:myweli/models/appointment.dart';
-import 'package:myweli/models/review.dart';
-import 'package:myweli/providers/auth_provider.dart';
-import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/admin/widgets/admin_segmented_control.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
 import 'package:myweli/widgets/booking/compact_appointment_tile.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
+import 'package:myweli/widgets/common/otp_code_row.dart';
 import 'package:myweli/widgets/home/category_chips.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:myweli/widgets/review/review_tile.dart';
 import 'package:provider/provider.dart';
-import 'package:provider/single_child_widget.dart';
 
+import '../support/fonts.dart';
 import '../support/pump_app.dart';
 import '_a11y.dart';
+import '_fixtures.dart';
 
 /// A5 — the app survives the OS font-size setting at **200%** (SYSTEM.md §13.3,
 /// register rows 15 + 16). A user who sets 200% has told the system they cannot
@@ -31,45 +28,11 @@ import '_a11y.dart';
 /// assertion is just "no exception". Before A5 this went red on `CategoryChips`
 /// (a `SizedBox(height: 50)` around chips whose text doubled).
 void main() {
-  setUpAll(() {
-    initializeDateFormatting('fr_FR', null);
+  setUpAll(() async {
+    await loadRealFonts();
+    await initializeDateFormatting('fr_FR', null);
     setupDependencyInjection();
   });
-
-  List<SingleChildWidget> favProviders() => [
-        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ];
-
-  Review review() => Review(
-        id: 'r1',
-        providerId: 'p1',
-        userId: 'u1',
-        userName: 'Marie Diallo',
-        rating: 5,
-        text: 'Super service, je recommande vivement ce salon.',
-        createdAt: DateTime(2025, 2, 4),
-      );
-
-  Appointment appt() => Appointment(
-        id: 'a1',
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: DateTime(2026, 6, 30, 10),
-        status: AppointmentStatus.confirmed,
-        totalPrice: 20000,
-        createdAt: DateTime(2026),
-      );
-
-  AppNotification note() => AppNotification(
-        id: '1',
-        type: AppNotificationType.bookingConfirmed,
-        title: 'Rendez-vous confirmé',
-        body: 'Salon Excellence, Cocody — jeudi 30 juin à 10h00',
-        createdAt: DateTime(2026, 6, 29, 10),
-        read: false,
-      );
 
   testWidgets('CategoryChips — the home category strip', (tester) async {
     await pumpAtTextScale(tester, const CategoryChips(selectedCategory: 'all'));
@@ -84,6 +47,25 @@ void main() {
       tester,
       const CategoryChips(selectedCategory: 'all'),
       find.byType(CategoryChips),
+    );
+  });
+
+  // A11 C3. The box was `Container(width: 50, height: 64)` around a
+  // `headlineMedium` field — a fixed height around text, which §13.3 forbids in
+  // writing. It was not a hypothetical clip: measured at the moment the height
+  // came off, the field wanted **66.0dp at 1×** and had 64, so the row shipped
+  // 2dp of clipping on every device, and wanted **99.0dp at 2×**.
+  testWidgets('OtpCodeRow — the code boxes', (tester) async {
+    await pumpAtTextScale(tester, otpRow());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OtpCodeRow — the boxes grow with the text scale',
+      (tester) async {
+    await expectGrowsWithTextScale(
+      tester,
+      otpRow(),
+      find.byType(OtpCodeRow),
     );
   });
 
@@ -138,8 +120,15 @@ void main() {
         // Unbounded, a tile can never overflow and the gate is vacuous. Both
         // call sites hand it a fixed WIDTH inside a horizontal strip — so the
         // test has to hand it one too.
+        //
+        // **270, not 340** (A11 C5). 340 was wider than every width the tile is
+        // ever given: home computes `(w × 0.86).clamp(280, 360)` → 309.6 at the
+        // 360dp floor, and the salon page `(w × 0.75).clamp(260, 340)` → 270.
+        // So this gate was green about a configuration that does not ship —
+        // the same vacuity class §20 names, one level subtler than "unbounded".
+        // 270 is the narrowest width either call site can produce.
         SizedBox(
-          width: 340,
+          width: 270,
           child: CompactAppointmentTile(
             appointment: appt(),
             providerName: 'Salon Excellence',
@@ -164,7 +153,7 @@ void main() {
       // would report "it did not grow" about the screen, not the tile.
       SingleChildScrollView(
         child: SizedBox(
-          width: 340,
+          width: 270,
           child: CompactAppointmentTile(
             appointment: appt(),
             providerName: 'Salon Excellence',

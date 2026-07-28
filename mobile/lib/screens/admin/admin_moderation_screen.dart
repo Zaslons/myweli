@@ -226,8 +226,8 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
   }
 
   Widget _actions(List<Widget> buttons) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: AppTheme.spacingS,
+        runSpacing: AppTheme.spacingS,
         children: buttons,
       );
 

@@ -133,54 +133,75 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      // Rating distribution
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: List.generate(5, (index) {
-                          final rating = 5 - index;
-                          final count =
-                              reviews.where((r) => r.rating == rating).length;
-                          final percentage =
-                              reviews.isEmpty ? 0.0 : count / reviews.length;
-                          return Padding(
-                            padding: const EdgeInsets.only(
-                                bottom: AppTheme.spacingXS),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '$rating',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
+                      const SizedBox(width: AppTheme.spacingM),
+                      // Rating distribution. `Expanded`, not a `Spacer` before a
+                      // hugging Column: the bars inside are flexed now, so this
+                      // side needs a definite width to divide. With a `Spacer`
+                      // the inner rows are `MainAxisSize.min` against unbounded
+                      // width and an `Expanded` bar has nothing to expand into.
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: List.generate(5, (index) {
+                            final rating = 5 - index;
+                            final count =
+                                reviews.where((r) => r.rating == rating).length;
+                            final percentage =
+                                reviews.isEmpty ? 0.0 : count / reviews.length;
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                  bottom: AppTheme.spacingXS),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '$rating',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: AppTheme.spacingXS),
-                                const Icon(Icons.star,
-                                    size: AppTheme.iconXS,
-                                    color: AppColors.starRating),
-                                const SizedBox(width: AppTheme.spacingS),
-                                SizedBox(
-                                  width: 100,
-                                  child: LinearProgressIndicator(
-                                    value: percentage,
-                                    backgroundColor: AppColors.surface,
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                            AppColors.gold),
+                                  const SizedBox(width: AppTheme.spacingXS),
+                                  const Icon(Icons.star,
+                                      size: AppTheme.iconXS,
+                                      color: AppColors.starRating),
+                                  const SizedBox(width: AppTheme.spacingS),
+                                  // A11 C5. `SizedBox(width: 100)` was the only
+                                  // hard-coded width among the app's four
+                                  // `LinearProgressIndicator`s — the other three
+                                  // are `Expanded` or full width — and the text on
+                                  // both sides of it grows with the scale while it
+                                  // did not, which is the 4.3dp overflow at 360×2×.
+                                  // `reports_analytics_screen.dart:233` is the
+                                  // house answer to this exact shape: the bar
+                                  // flexes, the numbers keep their intrinsic width.
+                                  // The `ClipRRect` + `minHeight` come with it —
+                                  // this bar alone shipped 4dp tall with square
+                                  // ends while its three siblings did not.
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(
+                                          AppTheme.radiusSmall),
+                                      child: LinearProgressIndicator(
+                                        value: percentage,
+                                        minHeight: AppTheme.spacingS,
+                                        backgroundColor: AppColors.surface,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                                AppColors.gold),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: AppTheme.spacingS),
-                                Text(
-                                  '$count',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
+                                  const SizedBox(width: AppTheme.spacingS),
+                                  Text(
+                                    '$count',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
+                                ],
+                              ),
+                            );
+                          }),
+                        ),
                       ),
                     ],
                   ),

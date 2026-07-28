@@ -41,6 +41,22 @@ class AppTheme {
   static const double iconL = 32.0; // feature / avatar-scale glyphs
   static const double iconXL = 64.0; // the empty-state illustration glyph
 
+  // ---- Layout (SYSTEM.md §10) ---------------------------------------------
+
+  /// The widest a column of text or a form may be (§10).
+  ///
+  /// *"A 1000px-wide line of French body copy is unreadable, and an
+  /// `ElevatedButton` whose theme says `minimumSize: Size(double.infinity, 48)`
+  /// becomes a 1000px-wide button on a tablet."* §10 has said that since it was
+  /// written, and until A11 C6 it existed **in no code on either surface** —
+  /// prose on mobile, a hard-coded `'720px'` on web with a comment admitting it
+  /// stood in for this line.
+  ///
+  /// It is the one dimension the design system names that is not spacing,
+  /// radius or an icon size, which is why the web token mirror needed a fourth
+  /// family before this constant could exist at all.
+  static const double contentMaxWidth = 720;
+
   /// The height bound a **scroller** must hand a box that mixes constant chrome
   /// with text, when the OS text scale moves (SYSTEM.md §13.3).
   ///

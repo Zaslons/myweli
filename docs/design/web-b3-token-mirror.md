@@ -169,8 +169,9 @@ the gate will then carry over. Every attack is pinned forever in
 ## Not in scope
 
 Elevation (mobile's `BoxShadow` getters — no web counterpart; a web elevation
-scale would be an invention) · `contentMaxWidth` (doc-sourced, lives in
-tailwind.config — row 7j/B7 applies it) · a mobile-side JSON export (a second
+scale would be an invention) · ~~`contentMaxWidth` (doc-sourced, lives in tailwind.config)~~ — **A11 C6
+ended that premise**: Dart-sourced now, a fourth family beside
+spacing/radius/icon · a mobile-side JSON export (a second
 mirror) · auto-writing tokens.ts (the comments are the project's memory).
 
 ## Definition of done

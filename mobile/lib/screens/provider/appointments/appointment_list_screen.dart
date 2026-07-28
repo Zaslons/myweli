@@ -117,6 +117,17 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Rendez-vous'),
+        // **Deliberately NOT scrollable, unlike the four-tab bar below.**
+        // Measured, not assumed: « Calendrier » + « Liste » is 257.8dp of strip
+        // at 200% text, inside a 360dp bar — it fits at every width and scale
+        // §10 supports, so there is nothing to fix and dividing the width in two
+        // is the better control for a binary view switcher (Material's own
+        // guidance: fixed tabs for two short labels).
+        //
+        // What protects it long-term is the GATE, not this comment: the width
+        // gate walks every RenderParagraph on this screen at all six
+        // width×scale configurations, so a renamed or added tab that starts
+        // clipping goes red on its own.
         bottom: TabBar(
           controller: _mainTabController,
           tabs: const [
@@ -180,6 +191,18 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                   TabBar(
                     controller: _listTabController,
                     onTap: _loadAppointmentsForListTab,
+                    // §13.3's width twin — the same bar as `earnings_screen`,
+                    // and the same silent fade: « Aujourd’hui » needs 72.2dp and
+                    // gets 58.0 at 360. See that file for the full argument for
+                    // `center` over the M3 default.
+                    //
+                    // **This one lives inside a `TabBarView` page**, so making it
+                    // scrollable is a gesture-arena change as well as a layout
+                    // one: a horizontal drag on the strip now scrolls the strip
+                    // instead of paging back to « Calendrier ». That is what
+                    // scrollable tabs are, and it is the standard trade.
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.center,
                     tabs: const [
                       Tab(text: 'Aujourd’hui'),
                       Tab(text: 'À venir'),

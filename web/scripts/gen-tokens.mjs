@@ -35,6 +35,10 @@ console.log('export const radius = {');
 for (const [k, v] of Object.entries(t.radius)) console.log(line(k, v));
 console.log('} as const;\n');
 
+console.log('export const layout = {');
+for (const [k, v] of Object.entries(t.layout)) console.log(line(k, v));
+console.log('} satisfies Record<string, string>;\n');
+
 console.log('export const type = {');
 for (const [k, [size, opts]] of Object.entries(t.type)) {
   console.log(

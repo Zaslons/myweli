@@ -34,8 +34,8 @@ class LengthVariantSelector extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.spacingS),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: AppTheme.spacingS,
+          runSpacing: AppTheme.spacingS,
           children: available.map((length) {
             return ChoiceChip(
               label: Text(

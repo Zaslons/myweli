@@ -23,7 +23,7 @@ import '../support/golden.dart';
 /// which exactly one caller in the codebase actually uses (register row 19).
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('the text field, in every state', (tester) async {
       goldenSurface(tester, size: const Size(390, 720));

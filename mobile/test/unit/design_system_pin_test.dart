@@ -43,6 +43,17 @@ void main() {
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (line.contains('// ds-ignore')) continue;
+        // **A whole-line comment is prose, not code** (A11 C5). This sweep is
+        // line-based, so a docstring quoting the very rule it enforces used to
+        // BE a violation of it — which happened twice in three commits, once in
+        // `otp_code_row.dart` quoting §13.3's example and once in
+        // `reviews_screen.dart` naming the literal it had just deleted. The
+        // effect was a standing incentive not to document the rules.
+        //
+        // Only a line that is ENTIRELY a comment is skipped. An end-of-line
+        // `// …` is left alone on purpose: truncating at the first `//` would
+        // also cut a line containing a URL, and would hide real code beside it.
+        if (line.trimLeft().startsWith('//')) continue;
         if (pattern.hasMatch(line)) {
           hits.add('${file.path}:${i + 1}  ${line.trim()}');
         }
@@ -147,6 +158,31 @@ void main() {
         reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64). A raw spacer '
             'number is either off the 8pt grid or a token that already exists. '
             'A genuine fixed dimension declares `// ds-ignore`.',
+      );
+    });
+
+    test('gaps are a token — no raw spacing:/runSpacing: (§5)', () {
+      // A11 C3. The two rules above scan `SizedBox(…)` and `EdgeInsets.*`, and
+      // between them they were called "the complete firewall" — but Flutter 3.27
+      // put `spacing` on `Flex`, and `Wrap` has had `spacing`/`runSpacing` all
+      // along. **A gap written that way was invisible to every pin**, and 21 of
+      // them had accumulated across 11 files by the time A11 went looking.
+      //
+      // Nineteen were already the token's value (8, and one 4) — invisible, not
+      // wrong. The other two are why this is a §5 rule and not tidiness:
+      // `spacing: 10` on the booking hub's slot chips and `spacing: 6` on the
+      // appointment card's service pills. §5's own header says it: "an 8pt grid
+      // with one sanctioned half-step. Nothing else is legal: 10, 14, 18, 20 are
+      // not spacing values."
+      //
+      // `\b` keeps this off `letterSpacing:`/`wordSpacing:` twice over — those
+      // capitalise the S, and there is no word boundary before it either.
+      expect(
+        offenders(RegExp(r'\b(?:run)?[Ss]pacing: \d')),
+        isEmpty,
+        reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64) for Wrap and '
+            'Flex gaps too. A gap is spacing whether it is written as a '
+            'SizedBox between children or as the parent’s `spacing:`.',
       );
     });
 
@@ -446,6 +482,64 @@ void main() {
               'Dart syntax, so the pin is a no-op that passes vacuously. Four '
               'pins were disabled this way in one commit, and the suite stayed '
               'green through all of them.');
+    });
+
+    test('every form dropdown sets isExpanded (A11 C8, §13.3)', () {
+      // A `DropdownButtonFormField` sizes its button to the WIDEST item's
+      // intrinsic width unless told otherwise, so the field overflows the
+      // moment the longest label stops fitting. `pro_register_screen.dart`
+      // overflowed by **79px** at 360dp × 200% text on « Institut de
+      // manucure » — measured on a 360dp Android device, then in
+      // `test/a11y/auth_layout_test.dart`.
+      //
+      // Discovered, not listed: three sites were fixed, and the fourth
+      // dropdown to be written is the one this exists for.
+      //
+      // **Four ways the first version of this pin could pass on nothing**, all
+      // closed below and all found by review rather than by it failing:
+      //   1. no guard that it found ANY dropdown;
+      //   2. matching `DropdownButtonFormField<` missed the inferred-generic
+      //      form, `DropdownButtonFormField(` — legal Dart, and silently
+      //      exempt;
+      //   3. the window was not comment-filtered, so a docstring saying
+      //      "`isExpanded: true` is set below" satisfied it;
+      //   4. a 30-line window let ONE `isExpanded` cover two dropdowns in the
+      //      same form.
+      final found = <String>[];
+      final missing = <String>[];
+      for (final file in dartFiles) {
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          if (line.trimLeft().startsWith('//')) continue;
+          if (!line.contains('DropdownButtonFormField')) continue;
+          final site = '${file.path}:${i + 1}';
+          found.add(site);
+
+          // Twelve lines, comment-stripped, and stopping at the NEXT dropdown
+          // so one flag can never cover two.
+          final window = <String>[];
+          for (var k = i + 1; k < lines.length && k <= i + 12; k++) {
+            if (lines[k].contains('DropdownButtonFormField')) break;
+            if (lines[k].trimLeft().startsWith('//')) continue;
+            window.add(lines[k]);
+          }
+          if (!window.join('\n').contains('isExpanded: true')) {
+            missing.add(site);
+          }
+        }
+      }
+
+      expect(found, isNotEmpty,
+          reason: 'no DropdownButtonFormField was found anywhere in lib/, so '
+              'the assertion below is empty-set-true. Either they are all gone '
+              'or this scan is resolving paths from the wrong directory.');
+
+      expect(missing, isEmpty,
+          reason: 'a form dropdown without `isExpanded: true` is as wide as '
+              'its longest option, whatever the screen is. At 200% text that '
+              'is off the edge, and in a release build there is no striped '
+              'banner to say so.');
     });
 
     test('one ellipsis character — … never ... (§17.1)', () {

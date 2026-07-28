@@ -13,6 +13,7 @@ import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/legal_consent_text.dart';
@@ -224,6 +225,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
               ),
               const SizedBox(height: AppTheme.spacingM),
               DropdownButtonFormField<BusinessType>(
+                // A11 C8: without this the button sizes to its WIDEST item's
+                // intrinsic width — « Institut de manucure » — and overflows
+                // its field by 79px at 360dp × 200% text.
+                isExpanded: true,
                 initialValue: _selectedBusinessType,
                 decoration: InputDecoration(
                   labelText: 'Type d’entreprise',
@@ -445,20 +450,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 ),
               ],
               const SizedBox(height: AppTheme.spacingM),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Déjà un compte ? ',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.pop(),
-                    child: const Text('Se connecter'),
-                  ),
-                ],
+              AuthSwitchPrompt(
+                question: 'Déjà un compte ?',
+                actionLabel: 'Se connecter',
+                onPressed: () => context.pop(),
               ),
             ],
           ),
