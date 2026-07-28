@@ -641,6 +641,56 @@ run, so this sets the convention — a numbered prose note, the shape
    measurement already covering it at 360 × {1×, 2×}. Recorded rather than
    ticked.
 
+### 6.4 The iOS run (C8f) — the census stops being a prediction
+
+The Android run was the floor on the device class the PRD names. The iOS run is
+the second surface, and it did something the first could not: it **confirmed
+§21 row 68's static census on a real device, at the contract point.**
+
+Surface: `iPhone 13 mini` at **360×780 points** — a true 360dp iOS device, 3×
+CoreText rather than Android's 2× FreeType. There is no `pro` flavour on iOS
+(flavours are Android-only here), so it is the pro **target** on the default
+scheme: `flutter build ios --debug --simulator --target lib/main_pro.dart`.
+
+Text size is set with `xcrun simctl ui <udid> content_size <category>` — note
+the **underscore**; the hyphenated spelling prints usage and changes nothing,
+which cost one wrong conclusion before it was caught. Flutter maps
+`accessibility-large` to **≈1.95×** (the 200% contract point) and
+`accessibility-extra-extra-extra-large` to **≈3.12×**.
+
+**What held.** At 1× both DoD screens are clean: the earnings bar shows all four
+labels whole, and so does the nested four-tab bar. `AuthSwitchPrompt` lays out
+on ONE line, which is the claim §6.2 makes for it — a `Wrap` with room is the
+`Row` it replaced. At **3.12×**, 50% beyond contract, both C8 fixes still hold:
+« Continuer avec e-mail » wraps *inside* its button, « S'inscrire » drops below
+the sentence, and no overflow banner appears on the auth screens at all. At
+1.95× the earnings bar **scrolls** with « Aujourd'hui » complete — C4's fix,
+on a second device class.
+
+**What broke, at 1.95× — the contract point, not above it.**
+
+| where | over by |
+|---|---|
+| dashboard `_StatCard` « Aujourd'hui » + calendar icon | **16px** |
+| dashboard `_StatCard` « En attente » + status dot | **2.6px** |
+| dashboard `_StatCard` « Aujourd'hui » + `$` icon | **16px** |
+| `EmptyState` on the earnings tab — **vertically** | **3px** |
+
+The first three are §21 row 68's finding #3, which the census derived statically
+(« Aujourd'hui » needs ~165dp of a 126dp tile). **It is no longer a prediction.**
+At 3.12× the same cards run **91px** and **31px** over. This is the first screen
+after every pro login.
+
+The fourth is **new**, and horizontal census work could not have found it:
+`EmptyState`'s column is 3px too tall when its description wraps far enough. It
+is a shared component on every empty screen in both apps.
+
+Row 68 is amended accordingly — from *"twelve screens still break"* to twelve
+**plus one**, with three of them now device-confirmed **at contract** rather
+than inferred. It stays recorded and not fixed, for the reason it always did:
+that is a slice, and thinning it into the end of this one is the hollow pass the
+full-depth rule forbids.
+
 ## 7. Definition of done
 
 - [x] §10 states a **floor** (360, 320 out of contract) and the admin exclusion
