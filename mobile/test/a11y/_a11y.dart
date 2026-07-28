@@ -102,6 +102,7 @@ Future<void> pumpAtTextScale(
         'it — so every subject would silently render the placeholder square '
         'glyph again. Call `await loadRealFonts()` in setUpAll.',
   );
+  pinSurface(tester, size: const Size(360, 1600));
   await pumpApp(
     tester,
     providers: providers,

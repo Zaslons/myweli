@@ -69,23 +69,43 @@ void main() {
           ),
         );
 
-        // The overflow itself. A RenderFlex overflow is a reported FlutterError,
-        // so `pumpAtWidth` already dies on it — but assert the button's own box
-        // too, because a Row can also "fit" by being clipped to a parent that is
-        // itself the wrong size, and that failure is silent.
-        final button = tester.getRect(find.byType(ElevatedButton));
+        // **The label fits inside its button.** This is the assertion, and the
+        // obvious one — `button.right <= 360` — is NOT: `EmptyState` centres
+        // the button inside `Padding(spacingXL)`, so its rect is ≤296dp wide
+        // and centred no matter what the label does. It cannot fail, before or
+        // after the fix.
+        //
+        // The defect was a `RenderFlex` overflow *inside* the button: the Row
+        // still reports `constraints.constrain(...)` as its size, so the button
+        // never left the screen — the paragraph left the BUTTON. That is what
+        // is measured here.
+        final button = tester.getSize(find.byType(ElevatedButton));
+        final para = paragraphOf(tester, label);
         expect(
-          button.right,
-          lessThanOrEqualTo(360.0),
-          reason: 'the button runs to ${button.right}dp on a 360dp screen. '
-              'This is what the Android device showed: a label that cannot '
-              'shrink pushes the control off the edge, and in release there is '
-              'no striped banner to tell anyone.',
+          para.size.width,
+          lessThanOrEqualTo(button.width),
+          reason: '« $label » is ${para.size.width.toStringAsFixed(1)}dp wide '
+              'inside a ${button.width.toStringAsFixed(1)}dp button, so it is '
+              'painted outside the control. In debug that is a striped banner; '
+              'in the release build users install, it is silently clipped.',
         );
 
         // All of it is there — a fit achieved by ellipsis is not a fit.
+        //
+        // `didExceedMaxLines` alone does NOT say that: it is false whenever
+        // `maxLines` is null, which it is here. So adding
+        // `overflow: TextOverflow.ellipsis` — one of the two wrong fixes the
+        // test below forbids — would leave it green, and
+        // `expectNoUndeclaredTruncation` skips declared ellipsis by design.
+        // Assert the render object's overflow directly.
         expect(
-          paragraphOf(tester, label).didExceedMaxLines,
+          para.overflow,
+          isNot(TextOverflow.ellipsis),
+          reason: '« $label » is set to ellipsize. A control has to say what '
+              'it does; §13.3 allows a control label to WRAP, not to be cut.',
+        );
+        expect(
+          para.didExceedMaxLines,
           isFalse,
           reason: '« $label » is truncated. A control has to say what it does.',
         );
@@ -177,10 +197,25 @@ void main() {
         onPressed: _noop,
       ),
     );
-    for (final label in ['Rejoindre', 'Refuser']) {
-      expect(find.text(label), findsOneWidget, reason: '« $label » vanished');
-      expectNoMidWordBreak(tester, label, 'the InvitationCard row, 360dp @2x');
-    }
+    // **Only « Rejoindre » is a meaningful subject here**, and the asymmetry is
+    // the whole point of the test. « Refuser » is the NON-flex child, so the
+    // Row hands it an unbounded width and its paragraph is laid out at full
+    // intrinsic width — which is ≥ its widest word by definition. Asserting
+    // `expectNoMidWordBreak` on it is arithmetically guaranteed, i.e. green
+    // about nothing. « Rejoindre » is inside `Expanded`, where the squeeze
+    // actually happens.
+    expectNoMidWordBreak(tester, 'Rejoindre', 'the InvitationCard row @2x');
+
+    // And the row as a whole stays on the screen. `Refuser` taking its
+    // intrinsic width is exactly what could push it off.
+    final row = tester.getRect(find.byType(Row).first);
+    expect(
+      row.right,
+      lessThanOrEqualTo(360.0),
+      reason: 'the action row runs to ${row.right}dp on a 360dp screen — the '
+          'unbounded child took more than what was left',
+    );
+    expect(find.text('Refuser'), findsOneWidget);
   });
 
   // The other half of the rule — `isFullWidth: true` in an unbounded slot — is

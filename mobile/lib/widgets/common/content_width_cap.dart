@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -45,8 +47,8 @@ import '../../core/theme/colors.dart';
 /// horizontal scroll anywhere. At 720 that leaves ~431dp for a five-column
 /// table — truncation and overflow, not a scrollbar. §10 says it itself:
 /// *"fine for the consumer app (its users hold phones) and wrong for admin."*
-/// The exclusion is held by a source pin in `design_system_pin_test.dart`, not
-/// by this paragraph.
+/// The exclusion is held by a negative source pin in
+/// `test/a11y/content_width_test.dart`, not by this paragraph.
 class ContentWidthCap extends StatelessWidget {
   const ContentWidthCap({super.key, required this.child});
 
@@ -57,11 +59,43 @@ class ContentWidthCap extends StatelessWidget {
     return ColoredBox(
       color: AppColors.background,
       child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AppTheme.contentMaxWidth,
-          ),
-          child: child,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final capped = math.min(
+              constraints.maxWidth,
+              AppTheme.contentMaxWidth,
+            );
+            final mq = MediaQuery.of(context);
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: capped),
+              // **`MediaQuery.size` has to follow the cap, or it lies.**
+              //
+              // `MaterialApp` publishes the WINDOW size, and this widget then
+              // makes the tree narrower without telling anyone — so a screen
+              // that sizes itself from `MediaQuery` reads 1200 while its box is
+              // 720. Measured, not assumed: `content_width_test.dart` pumps a
+              // 1200dp window and the mismatch was exactly that.
+              //
+              // Two screens were already wrong because of it, and both are the
+              // kind a gate never sees:
+              //
+              //   · `story_viewer.dart` splits prev/next at `size.width * 0.35`
+              //     against a LOCAL tap x. Uncorrected, the back zone becomes
+              //     58% of the visible story and a tap just left of centre goes
+              //     BACKWARDS.
+              //   · `_FullScreenGallery` sizes its image from `size`, so the
+              //     photo overflowed its own 720dp dialog and `InteractiveViewer`
+              //     panned a mis-sized child.
+              //
+              // Only `size` is overridden. `padding`, `viewInsets` and
+              // `viewPadding` stay the window's: the keyboard and the status bar
+              // are still where the OS put them, and the column is full height.
+              child: MediaQuery(
+                data: mq.copyWith(size: Size(capped, mq.size.height)),
+                child: child,
+              ),
+            );
+          },
         ),
       ),
     );

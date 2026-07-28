@@ -492,28 +492,48 @@ void main() {
       // manucure » — measured on a 360dp Android device, then in
       // `test/a11y/auth_layout_test.dart`.
       //
-      // Discovered, not listed. Three sites were fixed; the fourth dropdown
-      // to be written is the one this exists for.
+      // Discovered, not listed: three sites were fixed, and the fourth
+      // dropdown to be written is the one this exists for.
       //
-      // The bare `DropdownButton` in `admin_audit_screen.dart` is out of
-      // scope on purpose: it is a filter on a desktop console that §10
-      // deliberately leaves uncapped, and stretching it would fill the
-      // filter bar. §10 says it itself — "fine for the consumer app (its
-      // users hold phones) and wrong for admin".
+      // **Four ways the first version of this pin could pass on nothing**, all
+      // closed below and all found by review rather than by it failing:
+      //   1. no guard that it found ANY dropdown;
+      //   2. matching `DropdownButtonFormField<` missed the inferred-generic
+      //      form, `DropdownButtonFormField(` — legal Dart, and silently
+      //      exempt;
+      //   3. the window was not comment-filtered, so a docstring saying
+      //      "`isExpanded: true` is set below" satisfied it;
+      //   4. a 30-line window let ONE `isExpanded` cover two dropdowns in the
+      //      same form.
+      final found = <String>[];
       final missing = <String>[];
       for (final file in dartFiles) {
-        if (file.path.contains('/screens/admin/')) continue;
         final lines = file.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
-          if (!lines[i].contains('DropdownButtonFormField<')) continue;
-          // The constructor's arguments, generously bounded: `isExpanded`
-          // belongs at the top, and a decoration block is a dozen lines.
-          final window = lines.skip(i).take(30).join('\n');
-          if (!window.contains('isExpanded: true')) {
-            missing.add('${file.path}:${i + 1}');
+          final line = lines[i];
+          if (line.trimLeft().startsWith('//')) continue;
+          if (!line.contains('DropdownButtonFormField')) continue;
+          final site = '${file.path}:${i + 1}';
+          found.add(site);
+
+          // Twelve lines, comment-stripped, and stopping at the NEXT dropdown
+          // so one flag can never cover two.
+          final window = <String>[];
+          for (var k = i + 1; k < lines.length && k <= i + 12; k++) {
+            if (lines[k].contains('DropdownButtonFormField')) break;
+            if (lines[k].trimLeft().startsWith('//')) continue;
+            window.add(lines[k]);
+          }
+          if (!window.join('\n').contains('isExpanded: true')) {
+            missing.add(site);
           }
         }
       }
+
+      expect(found, isNotEmpty,
+          reason: 'no DropdownButtonFormField was found anywhere in lib/, so '
+              'the assertion below is empty-set-true. Either they are all gone '
+              'or this scan is resolving paths from the wrong directory.');
 
       expect(missing, isEmpty,
           reason: 'a form dropdown without `isExpanded: true` is as wide as '

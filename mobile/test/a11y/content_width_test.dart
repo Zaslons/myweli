@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/widgets/common/content_width_cap.dart';
 
 import '../support/fonts.dart';
@@ -21,9 +22,11 @@ import '../support/surface.dart';
 /// true and **vacuous** — it proves nothing about the cap, because the cap is
 /// not in any tree it photographs.
 ///
-/// Two halves close that. This file measures the widget itself; a source pin in
-/// `design_system_pin_test.dart` asserts the two roots install it and that the
-/// admin root does not. It is the shape §20 already uses for
+/// Two halves close that. This file measures the widget itself, and the two
+/// source pins at the BOTTOM OF THIS FILE assert that the two phone roots
+/// install it and the admin root does not. (Those pins lived in
+/// `design_system_pin_test.dart` in an earlier draft; two comments still said
+/// so after they moved, which is the drift §21 keeps recording.) It is the shape §20 already uses for
 /// `ReduceMotionObserver` — *"every app root is source-pinned … globbed, not
 /// listed"* — because a widget that is correct and uninstalled is still a bug.
 ///
@@ -94,19 +97,77 @@ void main() {
 
   testWidgets('the gutters are painted, not left to the window',
       (tester) async {
-    await pumpCapAt(tester, 1024);
+    // **The fixture must not contain a ColoredBox of its own.** The first
+    // version of this test pumped `ColoredBox(child: SizedBox.expand())` as the
+    // subject and then asserted about `find.byType(ColoredBox).first` — which
+    // resolved to the cap's only because `build` happens to return it as the
+    // root. Delete the cap's ColoredBox, the exact regression this names, and
+    // `.first` matches the FIXTURE's opaque black box: green, about itself.
+    pinSurface(tester, size: const Size(1024, 800));
+    await pumpApp(
+      tester,
+      home: const ContentWidthCap(child: SizedBox.expand(key: key)),
+    );
+    await tester.pump();
+
     // Above the Navigator nothing paints the area outside the column, so the
     // ColoredBox is load-bearing rather than decoration: without it the gutters
     // are whatever the window happened to be cleared to.
-    final box = tester.widget<ColoredBox>(
-      find
-          .descendant(
-            of: find.byType(ContentWidthCap),
-            matching: find.byType(ColoredBox),
-          )
-          .first,
+    final boxes = find.descendant(
+      of: find.byType(ContentWidthCap),
+      matching: find.byType(ColoredBox),
     );
-    expect(box.color, isNot(const Color(0x00000000)));
+    expect(
+      boxes,
+      findsOneWidget,
+      reason: 'the cap paints exactly one background. Zero means the gutters '
+          'are whatever the window was cleared to; more than one means this '
+          'assertion no longer knows which box it is looking at',
+    );
+    expect(tester.widget<ColoredBox>(boxes).color, AppColors.background);
+  });
+
+  testWidgets('MediaQuery.size follows the cap — it does not report the window',
+      (tester) async {
+    // The defect this replaces was mine, introduced in C6 and found by review:
+    // `MaterialApp` publishes the WINDOW size, the cap narrowed the tree, and
+    // nothing reconciled the two. A screen reading `MediaQuery.of(context)
+    // .size.width` on a 1200dp window got **1200** while its box was **720**.
+    //
+    // Two screens were already wrong: `story_viewer.dart` splits its prev/next
+    // tap zones at `size.width * 0.35` against a LOCAL x — so the back zone
+    // became 58% of the visible story and a tap left of centre went BACKWARDS —
+    // and `_FullScreenGallery` sized its image from `size`, overflowing its own
+    // dialog. Neither is reachable by any gate in this repo: one is a gesture
+    // arithmetic bug, the other only appears above 720dp.
+    late Size seen;
+    pinSurface(tester, size: const Size(1200, 900));
+    await pumpApp(
+      tester,
+      home: ContentWidthCap(
+        child: Builder(
+          builder: (context) {
+            seen = MediaQuery.of(context).size;
+            return const SizedBox.expand();
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      seen.width,
+      AppTheme.contentMaxWidth,
+      reason: 'a screen under the cap asked how wide it is and was told '
+          '${seen.width} on a 1200dp window, while its box is 720. Anything '
+          'that sizes or splits itself from MediaQuery is then wrong by 480dp.',
+    );
+    expect(
+      seen.height,
+      900,
+      reason: 'the cap constrains WIDTH. If height moved, the override is '
+          'doing more than it claims and SafeArea/keyboard maths follows it',
+    );
   });
 
   // ---- the SnackBar, measured rather than asserted -----------------------
@@ -157,8 +218,28 @@ void main() {
     List<File> roots() => Directory('lib')
         .listSync()
         .whereType<File>()
-        .where((f) => RegExp(r'main(_\w+)?\.dart$').hasMatch(f.path))
+        // ANCHORED. `main(_\w+)?\.dart$` is unanchored at the start, so
+        // `lib/domain.dart` matches it — a false failure rather than a false
+        // pass, but not what the docstring describes.
+        .where((f) => RegExp(r'(^|/)main(_\w+)?\.dart$').hasMatch(f.path))
         .toList();
+
+    /// The file with every WHOLE-LINE comment removed.
+    ///
+    /// **`contains` does not read Dart, it reads bytes** — and both roots carry
+    /// the string twice, once in the code and once in the paragraph above it
+    /// explaining why admin is excluded. So the pin below was satisfied by its
+    /// own documentation: delete the `builder:` and keep the comment, and the
+    /// cap is uninstalled with the gate still green.
+    ///
+    /// This is the same lesson `design_system_pin_test.dart:56` already learned
+    /// on the literal sweep, arriving one file late. End-of-line comments are
+    /// left alone there and here, for the same reason: cutting at the first
+    /// `//` would also cut a URL.
+    String codeOf(File f) => f
+        .readAsLinesSync()
+        .where((l) => !l.trimLeft().startsWith('//'))
+        .join('\n');
 
     test('the phone apps install the cap', () {
       final found = roots();
@@ -166,9 +247,15 @@ void main() {
           reason: 'no app root found — this test is resolving paths from the '
               'wrong directory and would pass on an empty set');
 
-      final missing = found
-          .where((f) => !f.path.endsWith('main_admin.dart'))
-          .where((f) => !f.readAsStringSync().contains('ContentWidthCap'))
+      final capping =
+          found.where((f) => !f.path.endsWith('main_admin.dart')).toList();
+      expect(capping, isNotEmpty,
+          reason: 'every root found was main_admin.dart, so the assertion '
+              'below is empty-set-true — the guard above only checked the '
+              'set BEFORE this filter');
+
+      final missing = capping
+          .where((f) => !codeOf(f).contains('ContentWidthCap'))
           .map((f) => f.path)
           .toList();
 
@@ -193,7 +280,9 @@ void main() {
               'that is not there, which is a pass for the wrong reason');
 
       expect(
-        admin.readAsStringSync().contains('ContentWidthCap'),
+        // `codeOf`, not the raw bytes: a paragraph in main_admin.dart
+        // explaining WHY it is excluded would otherwise redden its own pin.
+        codeOf(admin).contains('ContentWidthCap'),
         isFalse,
         reason: 'admin is a desktop console, and §10 says so itself: "fine for '
             'the consumer app (its users hold phones) and wrong for admin". '

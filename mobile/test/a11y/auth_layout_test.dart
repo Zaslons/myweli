@@ -51,10 +51,29 @@ void main() {
   const widths = [360.0, 375.0, 390.0];
   const scales = [1.0, 2.0];
 
-  final screens = <String, Widget>{
-    'the consumer login': const LoginScreen(),
-    'the pro login': const ProLoginScreen(),
-    'the pro register form': const ProRegisterScreen(),
+  /// Each screen with a string that proves **it** rendered, not a Scaffold.
+  ///
+  /// Assertion C, and it is not a formality. `expectNoUndeclaredTruncation`
+  /// walks `RenderParagraph`s and flags only `didExceedMaxLines` or
+  /// `!softWrap` — and `grep -n 'maxLines\|softWrap' ` returns **zero hits**
+  /// for both login screens and every widget they compose. So B cannot fire on
+  /// two of the three subjects, and A (no overflow) is satisfied by an empty
+  /// tree. Without C, a screen that renders a bare AppBar — behind a feature
+  /// flag, or with the provider in a state these tests do not seed — is
+  /// eighteen green tests about nothing.
+  final screens = <String, ({Widget screen, String proof})>{
+    'the consumer login': (
+      screen: const LoginScreen(),
+      proof: 'Continuer avec e-mail',
+    ),
+    'the pro login': (
+      screen: const ProLoginScreen(),
+      proof: 'Pas encore de compte ?',
+    ),
+    'the pro register form': (
+      screen: const ProRegisterScreen(),
+      proof: 'Déjà un compte ?',
+    ),
   };
 
   for (final width in widths) {
@@ -71,13 +90,21 @@ void main() {
               ChangeNotifierProvider(create: (_) => AuthProvider()),
               ChangeNotifierProvider(create: (_) => ProAuthProvider()),
             ],
-            home: entry.value,
+            home: entry.value.screen,
           );
 
-          // Reaching here already means no RenderFlex overflowed — those are
-          // reported FlutterErrors and `pumpAtWidth` dies on them. That IS the
-          // assertion for this defect; the rest is what an overflow-free
-          // layout can still get wrong.
+          // C — the screen is really on the surface. See the note above.
+          expect(
+            find.text(entry.value.proof),
+            findsOneWidget,
+            reason: '« ${entry.value.proof} » is not on ${entry.key} at $at, '
+                'so whatever this measured, it was not the screen',
+          );
+
+          // A — reaching here already means no RenderFlex overflowed; those
+          // are reported FlutterErrors and the pump dies on them. That is the
+          // assertion for THIS defect.
+          // B — and what an overflow-free layout can still get wrong.
           expectNoUndeclaredTruncation(tester, context: at);
         });
       }

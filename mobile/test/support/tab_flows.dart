@@ -32,11 +32,30 @@ Future<void> openEarningsAll(WidgetTester tester) async {
   await tester.ensureVisible(find.text('Tout'));
   await tester.tap(find.text('Tout'));
   await settleMocks(tester, rounds: 3);
+
+  // **`findsNothing` on the empty state is not enough**, and the gap is not
+  // theoretical: when `earnings == null` — a failed load, or a null response —
+  // the screen renders `Center(Text(error ?? 'Aucune donnée disponible'))`
+  // (`earnings_screen.dart:146-154`), which contains neither « Aucune
+  // transaction » nor a single row. The old guard passed on that branch, and
+  // `pro_screens_golden_test.dart` photographs immediately after calling this,
+  // so `pro_earnings_all.png` could have been baselined from an ERROR SCREEN
+  // with nothing objecting.
+  //
+  // « Total » is not a sufficient replacement either: the summary card renders
+  // it whether or not the transaction list has anything in it. Assert the rows.
   expect(
     find.text('Aucune transaction'),
     findsNothing,
     reason: 'the « Tout » tap did not land, or the salon has no takings at all '
         '— either way the tab bar would be the only thing this measured',
+  );
+  expect(
+    find.byType(ListTile),
+    findsWidgets,
+    reason: 'no transaction ROW is on screen. The empty state is absent too, '
+        'which means this is the `earnings == null` branch — an error message '
+        'in a Center, and a picture of it would become the baseline',
   );
 }
 

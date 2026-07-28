@@ -95,7 +95,26 @@ class SectionHeading extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return heading;
+    // **The padding belongs to the HEADING, not to the tap target** (A11 C8).
+    //
+    // It was inside the `onTap != null` branch, and that was an extraction bug:
+    // the `_SectionCard` this replaced applied
+    // `Container(padding: symmetric(vertical: spacingXS))` **unconditionally**,
+    // outside its `InkWell`. Only 1 of the 7 salon-detail sections passes a tap
+    // handler, so the other six — Vos rendez-vous ici, Contact, Photos,
+    // Avant/Après, Avis, À propos — silently lost 8dp and sat tighter against
+    // their content.
+    //
+    // Worse, C5 regenerated `consumer_provider_detail.png` in the same commit,
+    // so the loss was written into the baseline as truth. That is §20.1's named
+    // failure mode — a golden cannot tell you it photographed a regression —
+    // and it is why the review that found this was worth running after green.
+    final padded = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+      child: heading,
+    );
+
+    if (onTap == null) return padded;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
