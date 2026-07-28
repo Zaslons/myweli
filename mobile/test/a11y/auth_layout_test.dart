@@ -107,6 +107,7 @@ void main() {
           // B — and what an overflow-free layout can still get wrong.
           expectNoUndeclaredTruncation(tester, context: at);
           expectNoLegibilityCrush(tester, context: at);
+          expectNoVerticalClip(tester, context: at);
         });
       }
     }

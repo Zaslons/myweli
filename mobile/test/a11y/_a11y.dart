@@ -422,6 +422,114 @@ void expectNoLegibilityCrush(
 /// tens of pixels.
 const double _kWidthEpsilon = 0.5;
 
+/// The vertical twin of [_kWidthEpsilon], and deliberately its own constant.
+///
+/// Sharing one is how a tolerance chosen for two `TextPainter` passes silently
+/// becomes the tolerance for a line-height comparison. Same value today, same
+/// reasoning, separate name so either can move without the other.
+const double _kHeightEpsilon = 0.5;
+
+/// Is [o] on a branch that actually gets PAINTED?
+///
+/// `tester.allRenderObjects` walks everything that was laid out, and layout is
+/// not visibility. `DropdownButton` is the case that found this: it builds
+/// **every** item so the button can show the selected one, inside an
+/// `IndexedStack`. So the three form dropdowns reported « Institut de
+/// manucure » clipped into a 48dp box — true of a copy no user can see, and
+/// false of the one they can.
+///
+/// **Two questions, because one is not enough.** `RenderObject.paintsChild`
+/// (`rendering/object.dart:3512`) is the framework's own answer and is
+/// overridden by `RenderOpacity`, `RenderOffstage` and `RenderFittedBox` — but
+/// **not** by the `_RenderVisibility` that `IndexedStack` actually uses
+/// (`basic.dart:4813` wraps each child in `Visibility(maintainSize: true)`, and
+/// `visibility.dart:269` builds a `_Visibility` that simply skips `paint`).
+/// Asking only `paintsChild` finds nothing here; asking only the widget misses
+/// opacity and offstage. Both, then.
+///
+/// The widget half reads `debugCreator`, which is debug-only — fine, because
+/// every test runs in debug, and stated so the next reader does not reach for
+/// it in product code.
+bool _isPainted(RenderObject o) {
+  var child = o;
+  for (RenderObject? n = o.parent; n != null; child = n, n = n.parent) {
+    if (!n.paintsChild(child)) return false;
+  }
+
+  // The widget half. It walks ELEMENTS, not render objects, because the render
+  // object `Visibility` creates is the private `_Visibility` — its
+  // `debugCreator` never names the public widget whose `visible` flag is the
+  // thing worth reading. `visitAncestorElements` sees the `Visibility` itself.
+  final creator = o.debugCreator;
+  if (creator is DebugCreator) {
+    var visible = true;
+    creator.element.visitAncestorElements((e) {
+      final w = e.widget;
+      if (w is Visibility && !w.visible) {
+        visible = false;
+        return false;
+      }
+      return true;
+    });
+    if (!visible) return false;
+  }
+  return true;
+}
+
+/// Fails if any text is being CLIPPED VERTICALLY by a bound (§13.3, A12).
+///
+/// §13.3 has said *"a box that contains text may not have a fixed height"* since
+/// A5 and has never had an expression. [expectGrowsWithTextScale] is the
+/// hand-applied, two-pump form of the same idea, wired per widget; this is its
+/// sweep, and it needs only one pump because the question is not "did the box
+/// move between 1× and 2×" but "does the box give the text less than it needs".
+///
+/// The predicate is the framework's own arithmetic:
+///
+/// ```
+/// getMaxIntrinsicHeight(size.width) > size.height   ⟺  text is cut off the
+///                                                      bottom of its own box
+/// ```
+///
+/// **Vertical only, and that is not an oversight.** The horizontal twin —
+/// intrinsic width against laid-out width — is true of almost every sentence on
+/// a 360dp phone, because wrapping is *how the layout succeeds*. That is the
+/// rejected first draft [expectNoUndeclaredTruncation] records. Height has no
+/// such escape: a paragraph that needs three lines and is given two loses the
+/// third, silently, with nothing thrown.
+///
+/// **Few false positives by construction.** `RenderParagraph` lays out at the
+/// given width *with its own `maxLines`*, so a `maxLines: 1` ellipsised label
+/// reports one line and equals its size — the 47 declared-ellipsis sites in
+/// `lib/` are silent. A paragraph that fits reports what it occupies.
+///
+/// **Its gap, stated:** it is paragraph-local, so a box clipping a *group*
+/// (icon + label) rather than a paragraph is invisible to it. That case
+/// generally throws, and assertion A owns it. The two together cover the class;
+/// neither alone does.
+void expectNoVerticalClip(WidgetTester tester, {String? context}) {
+  final cut = <String>[];
+  for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!_isPainted(p)) continue;
+    final need = p.getMaxIntrinsicHeight(p.size.width);
+    if (need <= p.size.height + _kHeightEpsilon) continue;
+    final text = p.text.toPlainText();
+    cut.add('    « ${text.length > 40 ? '${text.substring(0, 40)}…' : text} » '
+        'needs ${need.toStringAsFixed(1)}dp in a '
+        '${p.size.height.toStringAsFixed(1)}dp box');
+  }
+  expect(
+    cut,
+    isEmpty,
+    reason: 'text is clipped by a fixed height'
+        '${context == null ? '' : ' at $context'}:\n${cut.join('\n')}\n'
+        '§13.3: a box that contains text may not have a fixed height — use '
+        '`minHeight`, or let it grow. A clip inside a bounded box throws '
+        'nothing and truncates nothing declared, so this is the only assertion '
+        'that can see it.',
+  );
+}
+
 /// Fails if any text in the tree is being CUT OFF without saying so (§13.3).
 ///
 /// **This is the assertion `takeException` cannot make.** A `RenderFlex`

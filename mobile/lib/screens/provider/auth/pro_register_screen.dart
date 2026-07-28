@@ -229,6 +229,14 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 // intrinsic width — « Institut de manucure » — and overflows
                 // its field by 79px at 360dp × 200% text.
                 isExpanded: true,
+                // A12: `itemHeight` defaults to `kMinInteractiveDimension`
+                // (48), a FIXED height around text — so at 200% « Salon de
+                // beauté » wraps to two lines, needs 96dp and is clipped to 48
+                // the moment the menu opens. A11 C8 fixed the BUTTON with
+                // `isExpanded`; the items it lists were still frozen one level
+                // down, and nothing could see it until `expectNoVerticalClip`.
+                // `null` lets each item take its intrinsic height (§13.3).
+                itemHeight: null,
                 initialValue: _selectedBusinessType,
                 decoration: InputDecoration(
                   labelText: 'Type d’entreprise',

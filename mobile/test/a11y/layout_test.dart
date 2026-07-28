@@ -175,6 +175,7 @@ void main() {
         _expectOtpRowFitsTheFloor(tester, width: width, at: at);
         expectNoUndeclaredTruncation(tester, context: 'the pro OTP at $at');
         expectNoLegibilityCrush(tester, context: 'the pro OTP at $at');
+        expectNoVerticalClip(tester, context: 'the pro OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
 
         await _disposeTimers(tester);
@@ -210,6 +211,7 @@ void main() {
         expect(find.text('Total'), findsOneWidget, reason: 'C');
         expectNoUndeclaredTruncation(tester, context: 'pro earnings at $at');
         expectNoLegibilityCrush(tester, context: 'pro earnings at $at');
+        expectNoVerticalClip(tester, context: 'pro earnings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -319,6 +321,7 @@ void main() {
         _expectActionIsTappable(tester, 'Voir la carte', at);
         expectNoUndeclaredTruncation(tester, context: 'consumer home at $at');
         expectNoLegibilityCrush(tester, context: 'consumer home at $at');
+        expectNoVerticalClip(tester, context: 'consumer home at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -361,6 +364,7 @@ void main() {
         expectNoMidWordBreak(tester, 'Appeler', at);
         expectNoUndeclaredTruncation(tester, context: 'the salon page at $at');
         expectNoLegibilityCrush(tester, context: 'the salon page at $at');
+        expectNoVerticalClip(tester, context: 'the salon page at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -403,6 +407,7 @@ void main() {
         }
         expectNoUndeclaredTruncation(tester, context: 'pro reviews at $at');
         expectNoLegibilityCrush(tester, context: 'pro reviews at $at');
+        expectNoVerticalClip(tester, context: 'pro reviews at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -456,6 +461,7 @@ void main() {
         expectNoMidWordBreak(tester, 'Disponibilité', 'the action grid at $at');
         expectNoUndeclaredTruncation(tester, context: 'pro dashboard at $at');
         expectNoLegibilityCrush(tester, context: 'pro dashboard at $at');
+        expectNoVerticalClip(tester, context: 'pro dashboard at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -484,6 +490,7 @@ void main() {
         expect(find.byType(LegalConsentText), findsOneWidget, reason: 'C');
         expectNoUndeclaredTruncation(tester, context: 'legal consent at $at');
         expectNoLegibilityCrush(tester, context: 'legal consent at $at');
+        expectNoVerticalClip(tester, context: 'legal consent at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
     }
