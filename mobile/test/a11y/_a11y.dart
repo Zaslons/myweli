@@ -299,14 +299,26 @@ bool _isFlexed(RenderObject o) {
   return false;
 }
 
-/// The width `prefix…` needs under [p]'s own style and scaler.
-double _prefixWidth(RenderParagraph p, String text, int n) {
+/// Does `prefix…` fit [p]'s real box — its width AND its `maxLines`?
+///
+/// **`maxLines` is load-bearing, and leaving it out was a bug this gate caught
+/// in itself.** The first version compared a single-line prefix width against
+/// `p.size.width`, which silently treats every paragraph as one line. It is
+/// right for the crush case (`maxLines: 1`) and wrong for anything taller: the
+/// salon page's header is `maxLines: 2` at `headlineMedium`, so it shows ~14
+/// characters across two lines while a one-line measure reported 7 and called
+/// it a crush. The red was a false positive, and the fix is to ask the question
+/// the way the framework answers it.
+bool _prefixFits(RenderParagraph p, String text, int n) {
   final painter = TextPainter(
     text: TextSpan(text: '${text.substring(0, n)}…', style: p.text.style),
     textDirection: TextDirection.ltr,
     textScaler: p.textScaler,
-  )..layout();
-  return painter.width;
+    maxLines: p.maxLines,
+  )..layout(maxWidth: p.size.width);
+  final fits = !painter.didExceedMaxLines;
+  painter.dispose();
+  return fits;
 }
 
 /// Fails if a FLEXED label has been squeezed below legibility (§13.3, A12).
@@ -362,7 +374,7 @@ void expectNoLegibilityCrush(
       // Report mode: how many characters DO fit?
       var fits = 0;
       for (var n = 1; n <= text.length; n++) {
-        if (_prefixWidth(p, text, n) <= p.size.width + _kWidthEpsilon) {
+        if (_prefixFits(p, text, n)) {
           fits = n;
         } else {
           break;
@@ -374,10 +386,9 @@ void expectNoLegibilityCrush(
     }
 
     final n = minChars < text.length ? minChars : text.length;
-    final need = _prefixWidth(p, text, n);
-    if (p.size.width + _kWidthEpsilon < need) {
-      crushed.add('    « $text » has ${p.size.width.toStringAsFixed(1)}dp and '
-          'needs ${need.toStringAsFixed(1)} to show $n characters');
+    if (!_prefixFits(p, text, n)) {
+      crushed.add('    « $text » has ${p.size.width.toStringAsFixed(1)}dp × '
+          '${p.maxLines ?? 1} line(s) and cannot show $n characters');
     }
   }
 

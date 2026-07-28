@@ -85,17 +85,32 @@ class CompactAppointmentTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    // A12: this was a `Row` with the name `Expanded` and the
+                    // status pill NOT — and it is the same defect A11 C5 fixed
+                    // three widgets away, in `review_tile.dart:80`. There the
+                    // name and an unflexed badge OVERFLOWED by 21dp and the gate
+                    // saw it. Here the name simply gave way: at 360 × 200% it
+                    // was squeezed to **26.8dp — zero characters, an ellipsis
+                    // and nothing else** — and every assertion stayed green,
+                    // because the truncation is declared and nothing overflows.
+                    //
+                    // One shape, two widgets, and only the one that overflowed
+                    // got fixed. `expectNoLegibilityCrush` is what makes the
+                    // other visible; the answer is C5's answer — a pill whose
+                    // own label doubles cannot shrink, so it drops to its own
+                    // line rather than squeezing the name it belongs to.
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppTheme.spacingS,
+                      runSpacing: AppTheme.spacingXS,
                       children: [
-                        Expanded(
-                          child: Text(
-                            providerName,
-                            style: AppTextStyles.titleSmall.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          providerName,
+                          style: AppTextStyles.titleSmall.copyWith(
+                            color: AppColors.textPrimary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
