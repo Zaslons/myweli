@@ -254,6 +254,134 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
   );
 }
 
+/// How many characters a squeezed label must still show (§13.3, A12).
+///
+/// **0 means REPORT-ONLY** — [expectNoLegibilityCrush] measures every subject
+/// and prints the table instead of asserting. That is the state this constant
+/// ships in until the calibration run lands, because a threshold chosen before
+/// the measurement is a threshold chosen to be met.
+const int kMinLegibleChars = 0;
+
+/// Is [o] flexed by its nearest enclosing `Flex`?
+///
+/// `Expanded` and `Flexible` create **no render object** — they are
+/// `ParentDataWidget`s that write `FlexParentData.flex` onto the child's. So
+/// this is a parent walk, not a widget lookup.
+///
+/// It stops at the FIRST `FlexParentData`, and that is the point: a paragraph
+/// inside `Expanded(child: Column(child: Row(child: Text)))` is **unflexed**
+/// with respect to the Row that actually squeezes it, and the Row is the
+/// subject.
+bool _isFlexed(RenderObject o) {
+  for (RenderObject? n = o; n != null; n = n.parent) {
+    final pd = n.parentData;
+    if (pd is FlexParentData) return (pd.flex ?? 0) > 0;
+  }
+  return false;
+}
+
+/// The width `prefix…` needs under [p]'s own style and scaler.
+double _prefixWidth(RenderParagraph p, String text, int n) {
+  final painter = TextPainter(
+    text: TextSpan(text: '${text.substring(0, n)}…', style: p.text.style),
+    textDirection: TextDirection.ltr,
+    textScaler: p.textScaler,
+  )..layout();
+  return painter.width;
+}
+
+/// Fails if a FLEXED label has been squeezed below legibility (§13.3, A12).
+///
+/// **The truncating twin of [expectNoMidWordBreak].** That one asks whether a
+/// *wrapping* paragraph was given a box narrower than its widest word; this asks
+/// whether a *truncating* one was given a box narrower than a readable prefix.
+/// Between them they cover both ways a flex slot collapses — and neither can be
+/// expressed by [expectNoUndeclaredTruncation], which skips a declared ellipsis
+/// **by design** (`ellipsisIsFine`). That is why `NotificationTile`'s title,
+/// crushed to ~86dp of a 240dp row by an unflexed timestamp, passed every
+/// assertion this repo had (§21 row 68).
+///
+/// ## Two preconditions, and the second is the whole design
+///
+/// A subject must be **flexed** ([_isFlexed]) *and* have **`didExceedMaxLines`**.
+/// Without the second, every framing of this rule fires on `CommunePill`: a
+/// `Flexible` in a `mainAxisSize: min` row lays out at `min(intrinsic,
+/// available)`, so « Cocody » is narrow and entirely correct. The question is
+/// not "is this label narrow" but "did this label spend an ellipsis on a squeeze
+/// it did not choose".
+///
+/// ⚠️ `didExceedMaxLines` is false whenever `maxLines` is null, and that is
+/// right here — a flexed paragraph with no `maxLines` wraps rather than
+/// truncates, and its crush belongs to [expectNoMidWordBreak]. It does mean a
+/// site like `client_list_screen.dart`'s name (ellipsis, no `maxLines`) is out
+/// of this sweep's reach. Said rather than assumed.
+///
+/// ## Applied as a SWEEP, unlike [expectNoMidWordBreak]
+///
+/// That one is applied by name because §13.3 gives it a **role exception** — a
+/// date may not break, a heading may. Legibility has none: three characters and
+/// an ellipsis is illegible in a heading too. [except] exists for a different
+/// reason — a shape where the ellipsis *is* the design, e.g. `AppSearchBar`'s
+/// placeholder in a fixed-shape pill (§21 row 56) — and each entry should cite
+/// its register row on the line.
+void expectNoLegibilityCrush(
+  WidgetTester tester, {
+  int minChars = kMinLegibleChars,
+  String? context,
+  Iterable<String> except = const <String>[],
+}) {
+  final crushed = <String>[];
+  final report = <String>[];
+
+  for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!p.didExceedMaxLines) continue;
+    if (!_isFlexed(p)) continue;
+    final text = p.text.toPlainText();
+    if (text.isEmpty || except.contains(text)) continue;
+
+    if (minChars <= 0) {
+      // Report mode: how many characters DO fit?
+      var fits = 0;
+      for (var n = 1; n <= text.length; n++) {
+        if (_prefixWidth(p, text, n) <= p.size.width + _kWidthEpsilon) {
+          fits = n;
+        } else {
+          break;
+        }
+      }
+      report.add('    « $text »  ${p.size.width.toStringAsFixed(1)}dp '
+          '→ $fits chars + …');
+      continue;
+    }
+
+    final n = minChars < text.length ? minChars : text.length;
+    final need = _prefixWidth(p, text, n);
+    if (p.size.width + _kWidthEpsilon < need) {
+      crushed.add('    « $text » has ${p.size.width.toStringAsFixed(1)}dp and '
+          'needs ${need.toStringAsFixed(1)} to show $n characters');
+    }
+  }
+
+  if (minChars <= 0) {
+    if (report.isNotEmpty) {
+      // ignore: avoid_print
+      print('LEGIBILITY${context == null ? '' : ' ($context)'}:\n'
+          '${report.join('\n')}');
+    }
+    return;
+  }
+
+  expect(
+    crushed,
+    isEmpty,
+    reason: 'a flexed label was squeezed below $minChars characters'
+        '${context == null ? '' : ' at $context'}:\n${crushed.join('\n')}\n'
+        'The ellipsis is declared, so nothing else in this suite can see it — '
+        'but a label showing three characters says nothing. §13.3: the fix is '
+        'more width (flex the sibling, or wrap the row), never a smaller font.',
+  );
+}
+
 /// Half a logical pixel — below anything a reader can see, above the rounding
 /// noise between two `TextPainter` passes.
 ///
