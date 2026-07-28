@@ -966,7 +966,7 @@ grep -rn  --include='*.dart' "fontSize:" lib | grep -v lib/core/theme/
 
 ### 20.1 Goldens — the eye
 
-`mobile/test/golden/` holds **26** goldens, and they are the **only** thing in the
+`mobile/test/golden/` holds **32** goldens, and they are the **only** thing in the
 repo that renders the real design system: not one of the 34 widget tests passes
 `theme:`, so the whole suite would stay green while the product restyled
 underneath it (until the `pumpApp()` migration, A3b).
@@ -979,6 +979,17 @@ underneath it (until the `pumpApp()` migration, A3b).
   A token or theme change lights these up immediately.
 - **Real screens** (`consumer_*`, `pro_*`) — because a token can be right in the
   catalogue and still wreck a page.
+- **A rendering CONDITION** (`*_w360`, `*_w360_x2`) — five baselines added by
+  A11 C7, and the first whose reason for existing is not their subject but the
+  **surface they are rendered on**. Everything else here is 390 × 1×, which is
+  one point in §10's `compact` range and the OS default. The floor is 360, and
+  200% text is a first-class input (§13.3) — so a picture at 390 × 1× is blind
+  to an entire class of defect **by construction**. Concretely: four of A11's
+  fixes are the identity at 1×, and `tabAlignment` reddens *nothing* in
+  `flutter test`. Not a survey of widths; the floor, once. Suffix them `_w360`
+  and `_w360_x2` — the first *condition* suffixes in a set of content ones
+  (`_all`, `_day`, `_success`), which is an honest signal that they differ in
+  kind.
 
 **Goldens are authored on Linux, and only on Linux.** Flutter rasterizes glyphs
 through CoreText on macOS and FreeType on Linux — same font, same Skia, different
@@ -1034,7 +1045,7 @@ later `setUp` cannot replace them.)*
 
 **The proof is a re-run, not an argument.** Every baseline was generated twice,
 under two frozen instants eighteen months apart (11 Mar 2026 and 22 Sep 2027).
-**23 of 26 are byte-identical**, which is what proves no hidden wall-clock read
+**23 of 26 are byte-identical**, and C7's five were put through the same two instants: `pro_reviews_w360` identical (its `Review` fixtures carry absolute dates), the other four **differ**, in the appointment dates they print from `AppClock.now()` seeds — where identity would have been the bug, which is what proves no hidden wall-clock read
 leaks in. The three that differ — `pro_journal`, `pro_journal_day`, `pro_team` —
 differ *only* in rendered dates and in a roster ordered by `invitedAt`, and an
 identical result there would have been the bug: it would mean the screen ignored
@@ -1127,6 +1138,8 @@ own design system?" — today, mostly not.
 | 58 | A `Wrap` with `spaceBetween` shrink-wraps, and the gate cannot see it | ~~1~~ → **0** | `SectionHeading`'s first version rendered « Voir tout » snug against the title instead of at the right edge: a `Wrap` sizes to its content under loose constraints, so `spaceBetween` had no free space to distribute, where the `Row` it replaced defaulted to `mainAxisSize: max`. **The layout was correct and only the alignment was wrong**, so nothing in 838 tests objected — it was caught by looking at the regenerated `consumer_provider_detail.png`, which is the whole argument for §20.1's "look at every changed PNG" rule. Fixed with `SizedBox(width: double.infinity)` | ✅ **A11 C5** — *caught by the eye, not the gate* |
 | 59 | `contentMaxWidth` was named in §10 and implemented on neither surface | ~~2 surfaces~~ → **0** | §10 has said *"text and forms never stretch past it"* since it was written. Mobile had **nothing** — 19 `static const double`s in `AppTheme`, all spacing/radius/icon. Web had `content: '720px'` hard-coded in `tailwind.config.ts`, under a comment admitting it stood in for §10. So the one dimension the design system names was prose on one surface and a literal on the other, agreeing by luck. C6 gave it an upstream: a fourth token family (`LAYOUT_KEYS`), `AppTheme.contentMaxWidth`, `ContentWidthCap` at the two phone roots, and the web config reading the generated value. Note what made the order forced — `tokens.mirror.test.ts` refuses any `AppTheme` scalar no family claims, so **the Dart constant could not exist until the web family did** | ✅ **A11 C6** |
 | 60 | No test renders an app root, so anything wired there is unmeasurable | **1 structural gap** | `grep MyweliApp mobile/test/` returns nothing. Every golden builds its own `MaterialApp` (`golden.dart`), every widget test goes through `wrapApp`, and **neither has a `builder:`** — so `MaterialApp.builder`, `ReduceMotionObserver`'s placement, and now `ContentWidthCap` are all invisible to the suite. It is why the spec's *"the unchanged golden suite is the no-regression proof"* was true and **vacuous** for C6: zero baselines moved because the cap is in no tree any of them photographs. Held today by source pins (the `motion_test` idiom) plus component tests, which is a proxy, not coverage. The real fix is a shell that renders at a device width — `test/a11y/` currently inherits `flutter_test`'s 800×600, wider than anything this product ships on — and that is its own slice, already filed in `mobile-a11-width.md` §8 | *new — the shell should pin a real width* |
+| 61 | A slice fixed fourteen defects and moved three pictures | ~~14 fixes / 3 baselines~~ → **5 new baselines** | the coverage arithmetic nobody had done. A11 closed fourteen layout defects and the entire golden suite moved **three** files — and `consumer_home.png` moved **zero bytes** while C5 was rewriting two of its sections, because the golden pumps it **signed out** and both headings sit behind `isAuthenticated`. Five fixes were photographed by nothing at all; four more are the identity at 1×, so no picture in the repo could see them at any width. C7 added five baselines at the **360 floor**, three of them the repo's first at **200% text**. The lesson generalises past A11: **a suite of 27 pictures all taken at one width and one text scale is not coverage of a design system that defines a range and calls 200% a first-class input** | ✅ **A11 C7** |
+| 62 | At 200% text, several labels break mid-word — and the gate permits it | **4 measured** | found by looking at C7's first 2× pictures, which is the whole argument for §20.1's review rule. « Salon Ex/cellence » on the salon header · « Prom/o W… » on the home story cards · « Appel/er » on the salon page's call button · and a DATE broken as « 13/03/20 » / « 26 » on `AppointmentCard`. Flutter breaks inside a word when the box is narrower than the word, and **nothing forbids it**: `expectNoUndeclaredTruncation` deliberately permits wrapping (a heading that wraps is correct — that is C5's whole fix), and an overflow never fires because wrapping is how the layout succeeds. So this is the horizontal analogue of the gap §13.3 had before A11 — a real rule with no expression. A date and a button label are the two that clearly must never break; a heading arguably may. **Recorded, not fixed**: it needs a rule in §13.3 first, and `AppointmentCard` is a shared widget with several call sites | *new — §13.3 needs a no-mid-word-break rule, then a sweep* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.

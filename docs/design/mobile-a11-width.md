@@ -547,6 +547,20 @@ and none could have — `grep MyweliApp mobile/test/` returns nothing, so
 (analytic inertness below 720) is also true, but it is the second reason.* Any
 other diff means something changed that should not have.
 
+### 6.1 What the pictures found (C7)
+
+Three baselines moved in the whole slice, and `consumer_home.png` moved **zero
+bytes** while C5 rewrote two of its sections — it is pumped signed out, and both
+headings are behind `isAuthenticated`. That is the coverage §21 row 61 records.
+
+And the first 2× pictures immediately found something no gate can: **at 200% text
+several labels break mid-word.** « Salon Ex/cellence », « Prom/o W… »,
+« Appel/er », and a date rendered « 13/03/20 » / « 26 ». The truncation walk
+permits wrapping *by design* — a heading that wraps is C5's fix — and an overflow
+never fires because wrapping is how the layout succeeds. So it is the horizontal
+twin of the gap §13.3 had before A11: a real rule with no expression. Recorded as
+row 62, not fixed here.
+
 ## 7. Definition of done
 
 - [x] §10 states a **floor** (360, 320 out of contract) and the admin exclusion
@@ -557,7 +571,13 @@ other diff means something changed that should not have.
 - [ ] `flutter analyze --fatal-infos --fatal-warnings` = 0 · format clean · tests green
 - [ ] web `tsc` · lint · vitest green, **including the new token family**
 - [ ] every gate mutation-proven red before its fix
-- [ ] the three new baselines eye-reviewed; the other **27** byte-identical (25 was written at 26 baselines; C4 added `pro_earnings_all.png`)
+- [x] **five** new baselines eye-reviewed, and the other **27** byte-identical
+      (C7; the count said "three" and never named them — `pro_earnings` was
+      already photographed twice post-fix and the OTP screen is unrouted, so the
+      set became `consumer_home_w360_x2`, `consumer_provider_detail_w360_x2`,
+      `consumer_my_bookings_w360_x2`, `pro_appointment_list_w360`,
+      `pro_reviews_w360`). Two-instant ledger: `pro_reviews_w360` identical, the
+      other four differ in the dates they print — identity would be the bug
 - [ ] **the OTP screen and both tab screens driven on a simulator at 360dp** — a
       gate that passes is not a screen that looks right
 - [ ] Feature branch → PR → **the user merges**; no Claude attribution
