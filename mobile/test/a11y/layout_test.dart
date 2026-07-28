@@ -458,6 +458,17 @@ void _expectOtpRowFitsTheFloor(
     );
   }
 
+  // **This one cannot fire while the assertion above holds, and it is kept
+  // anyway.** The row's total width is fixed, so pinning each box to
+  // `(W − 2×spacingM − 5×spacingS)/6` pins the gaps by subtraction: every
+  // mutation tried against it — dropping `spacing:`, moving the margin back
+  // inside the `Expanded`, widening the page padding — reddens the arithmetic
+  // first, at 54.67dp, 50.67dp and 45.33dp respectively.
+  //
+  // What it is here for is the configuration the arithmetic would ALSO accept:
+  // a smaller `spacing:` paid for with a wider padding still lands every box on
+  // 48 while putting the targets 4dp apart. That is §13.2's other sentence, and
+  // it would otherwise be expressed nowhere.
   for (var i = 1; i < 6; i++) {
     expect(
       boxes[i].left - boxes[i - 1].right,
@@ -465,9 +476,7 @@ void _expectOtpRowFitsTheFloor(
       reason: 'boxes ${i - 1} and $i are '
           '${(boxes[i].left - boxes[i - 1].right).toStringAsFixed(2)}dp apart '
           'at $at — §13.2: "targets that are adjacent need ≥8px between them, '
-          'or a fat finger hits the wrong one". A dropped `spacing:` on the Row '
-          'is the usual cause, and it makes every box WIDER, so the floor '
-          'assertions above stay green.',
+          'or a fat finger hits the wrong one".',
     );
   }
 }

@@ -224,28 +224,92 @@ overflow and the gate is vacuous"*, and A8's four gate commits that all pumped
   proves a fixed height is gone. A fixed bound does not overflow; it **clips
   silently**.
 
-### 4.4 The OTP fix, and why `Expanded` rather than `width: 48`
+### 4.4 The OTP fix — ⚠️ corrected by C3, after the code disagreed with the sums
 
-The owner decision is *narrow the page padding*, and the arithmetic is exact:
-`360 − 2×spacingM(16) = 328`; `328 − 40 of margins = 288`; `288 / 6 = **48.0**`.
+**The arithmetic below was right and the code prescribed for it was wrong.** Both
+are kept, because the wrong version is the useful half.
+
+The owner decision is *narrow the page padding*, and the sums are exact:
+`360 − 2×spacingM(16) = 328`; `328 − 40 of gaps = 288`; `288 / 6 = **48.0**`.
 
 Writing `width: 48` would satisfy it and measure **328 into 328 — zero slack**.
 `RenderFlex` tolerates that (`_hasOverflow` is `_overflow > precisionErrorTolerance`),
 so it passes today and re-opens silently on the next token nudge, at the exact
-width the contract just promised.
+width the contract just promised. So: `Expanded`, making 48.0 a **property of the
+layout instead of a coincidence** — `(W − 32 − 40)/6` is 48.0@360, 50.5@375,
+53.0@390, and cannot overflow at any width.
 
-`Expanded` makes 48.0 a **property of the layout instead of a coincidence**:
-`(W − 32 − 40)/6` is 48.0@360, 50.5@375, 53.0@390, and cannot overflow at any
-width. Same six boxes, same margins, same autofill, same floor at the floor — and
-it is the `pro_journal_screen` precedent's own shape.
+#### What this section originally prescribed, and why it does not produce 48
 
-The padding change stays load-bearing: without it, `Expanded` at 360 yields
-`(360 − 48 − 40)/6 = 45.3dp`, under §13.2, **silently**. Both changes, one commit.
+> `Container(width: 50, …)` → **`Expanded(child: Container(…))`**, same margins.
+
+`Expanded` divides the **whole** row, and a `margin` on the child is then spent
+**inside** its own slot. At 360 each slot is `328/6 = 54.67`:
+
+| | slot | margin | box |
+|---|---|---|---|
+| box 0 | 54.67 | right 4 | **50.67** |
+| boxes 1–4 | 54.67 | left 4 + right 4 | **46.67** |
+| box 5 | 54.67 | left 4 | **50.67** |
+
+Four boxes at **46.67dp — under §13.2's 48 floor** — and six visibly unequal
+boxes. **And it would have shipped green**: nothing overflows, so C2's gate says
+nothing, and the padding change chosen *specifically* to buy the 48 floor would
+have been spent on a shape that misses it. Measured, not reasoned: the C3
+mutation that restores this shape reddens the arithmetic assertion at box 0 with
+`Actual: 50.66666666666666`.
+
+#### The shape that does produce it
+
+The gaps have to leave the flex division. `Flex.spacing` (Flutter 3.27+;
+`basic.dart:5357`) is where they go:
+
+```dart
+Row(
+  spacing: AppTheme.spacingS,
+  children: [for (var i = 0; i < 6; i++) Expanded(child: _box(i))],
+)
+```
+
+`(W − 2×spacingM − 5×spacingS)/6` = **48.0 / 50.5 / 53.0**, all six equal, at
+every width. 8 is exactly what the two 4dp margins already summed to between
+adjacent boxes — the rendered gap does not move — and it is §13.2's adjacency
+floor. `mainAxisAlignment: center` goes with the fixed widths, as
+`pro_journal_screen` deleted its `spaceAround` when its 7 day pills adopted
+`Expanded`.
+
+Two further findings from doing it:
+
+- **`height: 64` was already clipping.** Measured at removal: the field wants
+  **66.0dp at 1×** and had 64 — ~2dp of every digit cut, on every device — and
+  **99.0dp at 2×**. §21 row 52.
+- **`width:` on the box is now dead code**, and the mutation that "restores" it
+  is a no-op: `Expanded` hands down tight width constraints and `Container`
+  enforces its own against them, so 50 clamps to the slot. The mutation that
+  genuinely undoes C3 is *dropping the `Expanded`*, and that one reddens all 12
+  OTP tests plus the growth test.
+
+The padding change stays load-bearing: without it, the flexed boxes are
+`(360 − 48 − 40)/6 = 45.33dp`, under §13.2, **silently** — the mutation reddens
+the arithmetic assertion with `Actual: 45.33333333333334` and no overflow at all.
+Both changes, one commit.
 
 One property `width: 48` has that `Expanded` does not: at 320 (out of contract)
 fixed boxes overflow **loudly** where flexed ones degrade to a 41.3dp target
 quietly. At a width §10 now declares unsupported, the quiet degradation is the
 better failure — a tight but usable screen rather than a striped banner.
+
+#### The row is one widget now
+
+`lib/widgets/common/otp_code_row.dart`. Not because of the copy count — two is
+under §11's threshold of three — but because **the two copies had already
+diverged, and every difference ran one way**: identical geometry wrapped around
+behaviour only the consumer screen had (autofill, paste distribution, backspace,
+auto-submit). A salon owner typing a code got the worse screen, and nobody chose
+that. Extraction also puts the row where `androidTapTargetGuideline` and
+`expectGrowsWithTextScale` can reach it: every a11y gate in the repo is
+component-level, and the boxes land at **exactly 48.0 at 360** — the floor met
+with zero slack, by six targets typed in sequence.
 
 ### 4.5 `contentMaxWidth`, and the blocking dependency
 
@@ -288,10 +352,29 @@ appointment-list @all (the gate must **tap « Liste »** and assert the tap land
 my-bookings @2×. `LegalConsentText` @375×2 is §21 row 49's open property —
 **green there is a result to record, not a red to manufacture.**
 
-**Green-at-base assertions get mutations too**, each failing *exactly one*:
-reverting the OTP padding reddens only the six width assertions (proving the
-padding is what buys the floor) · restoring `height: 64` reddens only
-`expectGrowsWithTextScale` · dropping `isScrollable` reddens only the truncation
+**Green-at-base assertions get mutations too**, each failing *exactly one*.
+C3's six were run; the results and the one correction they forced:
+
+| mutation | reddens | measured |
+|---|---|---|
+| drop the `Expanded` + restore `width: 50` | all 12 OTP tests **+ the growth test** | the original bug, back |
+| restore `height: 64` | **the two growth tests, alone** | 64.0dp at 1× *and* at 2× |
+| margin back inside the `Expanded` (§4.4's first draft) | the arithmetic, all 12 | box 0 = **50.67** |
+| page padding back to `spacingL` | the arithmetic, all 12 — **and no overflow at all** | **45.33** at 360 |
+| drop `spacing:` from the Row | the arithmetic, all 12 | **54.67** |
+| write `spacing: 10` | the §5 pin **and** the arithmetic | — |
+
+Two honest results rather than one clean table. **`width: 50` on its own is not a
+valid mutation** — under an `Expanded` it is a no-op (tight constraints, and
+`Container` enforces its own against them), so it can never fail and the gate is
+right to stay green; the real undo is dropping the `Expanded`. And **the
+adjacency assertion cannot fire while the arithmetic one holds**, because the row
+width is fixed and pinning each box pins the gaps by subtraction. It is kept, and
+labelled, for the configuration the arithmetic *would* accept: a smaller
+`spacing:` paid for with a wider padding still lands every box on 48 while
+putting the targets 4dp apart.
+
+Older predictions, for the rest of the slice: dropping `isScrollable` reddens only the truncation
 walk · `contentMaxWidth` 720 → 320 reddens the 390 assertion **and** the 26
 goldens · and the **meta-mutation**: collapsing `for(w) testWidgets` into
 `testWidgets { for(w) }` turns widths 2 and 3 green while the bug is present.
