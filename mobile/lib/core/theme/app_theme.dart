@@ -55,7 +55,8 @@ class AppTheme {
   /// It is the one dimension the design system names that is not spacing,
   /// radius or an icon size, which is why the web token mirror needed a fourth
   /// family before this constant could exist at all.
-  static const double contentMaxWidth = 720.0; // the empty-state illustration glyph
+  static const double contentMaxWidth =
+      720.0; // the empty-state illustration glyph
 
   /// The height bound a **scroller** must hand a box that mixes constant chrome
   /// with text, when the OS text scale moves (SYSTEM.md §13.3).
