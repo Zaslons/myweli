@@ -18,6 +18,7 @@ import '../../providers/favorites_provider.dart';
 import '../../services/mock/mock_auth_service.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/otp_code_row.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
@@ -104,19 +105,10 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     }
   }
 
-  void _onOtpChanged(int index, String value) {
-    // Paste / autofill of multiple digits: distribute across the boxes.
-    if (value.length > 1) {
-      final digits = value.replaceAll(RegExp(r'\D'), '');
-      for (var i = 0; i + index < 6 && i < digits.length; i++) {
-        _controllers[index + i].text = digits[i];
-      }
-      final next = (index + digits.length).clamp(0, 5);
-      _focusNodes[next].requestFocus();
-    } else if (value.isNotEmpty && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
-
+  /// The row hands back the whole code after every edit; this decides what it
+  /// means. Focus advance, paste distribution and backspace used to live here
+  /// and now live in [OtpCodeRow] — the pro screen had none of the three.
+  void _onCodeChanged(String code) {
     // Typing clears a prior error so the boxes/message reset as the user fixes.
     if (_hasError || _inlineError != null) {
       _hasError = false;
@@ -124,22 +116,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     }
     setState(() {});
 
-    if (_otp.length == 6 && !_isLoading && !_entryDisabled) {
+    if (code.length == 6 && !_isLoading && !_entryDisabled) {
       _handleVerify();
     }
-  }
-
-  KeyEventResult _onBoxKey(int index, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.backspace &&
-        _controllers[index].text.isEmpty &&
-        index > 0) {
-      _controllers[index - 1].clear();
-      _focusNodes[index - 1].requestFocus();
-      setState(() {});
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
   }
 
   Future<void> _handleVerify() async {
@@ -256,11 +235,12 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppTheme.spacingXL),
-              AutofillGroup(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(6, _buildOtpBox),
-                ),
+              OtpCodeRow(
+                controllers: _controllers,
+                focusNodes: _focusNodes,
+                enabled: !_entryDisabled,
+                hasError: _hasError,
+                onChanged: _onCodeChanged,
               ),
               if (_inlineError != null) ...[
                 const SizedBox(height: AppTheme.spacingM),
@@ -325,70 +305,6 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOtpBox(int index) {
-    final borderColor = _hasError ? AppColors.error : AppColors.borderStrong;
-    return Container(
-      width: 50,
-      height: 64,
-      margin: EdgeInsets.only(
-        left: index == 0 ? 0 : AppTheme.spacingXS,
-        right: index == 5 ? 0 : AppTheme.spacingXS,
-      ),
-      child: Focus(
-        onKeyEvent: (node, event) => _onBoxKey(index, event),
-        child: TextField(
-          controller: _controllers[index],
-          focusNode: _focusNodes[index],
-          enabled: !_entryDisabled,
-          textAlign: TextAlign.center,
-          textAlignVertical: TextAlignVertical.center,
-          keyboardType: TextInputType.number,
-          maxLength: index == 0 ? 6 : 1,
-          // The OS delivers the SMS code to the first box; paste-distribution
-          // (in _onOtpChanged) then fills the rest and auto-submits.
-          autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
-          style: AppTextStyles.headlineMedium.copyWith(
-            color: _hasError ? AppColors.error : AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0,
-            height: 1.2,
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-          ],
-          decoration: InputDecoration(
-            counterText: '',
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
-            isDense: false,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: BorderSide(color: borderColor, width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: BorderSide(color: borderColor, width: 1.5),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: const BorderSide(color: AppColors.border, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: BorderSide(
-                color: _hasError ? AppColors.error : AppColors.primary,
-                width: 2.5,
-              ),
-            ),
-            filled: true,
-            fillColor: _entryDisabled ? AppColors.surface : AppColors.secondary,
-          ),
-          onChanged: (value) => _onOtpChanged(index, value),
         ),
       ),
     );
