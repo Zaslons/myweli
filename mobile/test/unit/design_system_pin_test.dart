@@ -484,6 +484,44 @@ void main() {
               'green through all of them.');
     });
 
+    test('every form dropdown sets isExpanded (A11 C8, §13.3)', () {
+      // A `DropdownButtonFormField` sizes its button to the WIDEST item's
+      // intrinsic width unless told otherwise, so the field overflows the
+      // moment the longest label stops fitting. `pro_register_screen.dart`
+      // overflowed by **79px** at 360dp × 200% text on « Institut de
+      // manucure » — measured on a 360dp Android device, then in
+      // `test/a11y/auth_layout_test.dart`.
+      //
+      // Discovered, not listed. Three sites were fixed; the fourth dropdown
+      // to be written is the one this exists for.
+      //
+      // The bare `DropdownButton` in `admin_audit_screen.dart` is out of
+      // scope on purpose: it is a filter on a desktop console that §10
+      // deliberately leaves uncapped, and stretching it would fill the
+      // filter bar. §10 says it itself — "fine for the consumer app (its
+      // users hold phones) and wrong for admin".
+      final missing = <String>[];
+      for (final file in dartFiles) {
+        if (file.path.contains('/screens/admin/')) continue;
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          if (!lines[i].contains('DropdownButtonFormField<')) continue;
+          // The constructor's arguments, generously bounded: `isExpanded`
+          // belongs at the top, and a decoration block is a dozen lines.
+          final window = lines.skip(i).take(30).join('\n');
+          if (!window.contains('isExpanded: true')) {
+            missing.add('${file.path}:${i + 1}');
+          }
+        }
+      }
+
+      expect(missing, isEmpty,
+          reason: 'a form dropdown without `isExpanded: true` is as wide as '
+              'its longest option, whatever the screen is. At 200% text that '
+              'is off the edge, and in a release build there is no striped '
+              'banner to say so.');
+    });
+
     test('one ellipsis character — … never ... (§17.1)', () {
       expect(
         stringOffenders((s) => s.contains('...')),

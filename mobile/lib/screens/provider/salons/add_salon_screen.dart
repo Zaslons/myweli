@@ -153,6 +153,9 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
               ),
               const SizedBox(height: AppTheme.spacingM),
               DropdownButtonFormField<BusinessType>(
+                // A11 C8 — see pro_register_screen.dart. Same field, same
+                // items, same overflow.
+                isExpanded: true,
                 initialValue: _businessType,
                 decoration: InputDecoration(
                   labelText: 'Type d’entreprise',

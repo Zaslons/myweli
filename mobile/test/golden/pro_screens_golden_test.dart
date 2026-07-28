@@ -22,6 +22,7 @@ import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/pro_subscription_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
+import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
@@ -353,6 +354,46 @@ void main() {
             'summary card, and the histogram bar is the whole subject',
       );
       await expectGolden(tester, 'pro_reviews_w360');
+    });
+
+    // ---- A11 C8: the screen every pro sees first ------------------------
+    //
+    // There was no picture of the pro login at ANY width — the goldens hold a
+    // `consumer_login.png` and nothing for the other app. That is where the
+    // slice's last two defects lived, and both are invisible at 390 × 1×,
+    // which is why regenerating every baseline after fixing them changed
+    // nothing at all:
+    //
+    //   · « Pas encore de compte ? » + « S'inscrire » in a Row that could not
+    //     wrap — 149px past a 360dp screen at 200% text.
+    //   · « Continuer avec Google », whose label could not shrink.
+    //
+    // Signed OUT, so `_pumpPro` is the wrong helper: it exists to put a salon
+    // owner into a session, and this is the screen before one.
+    testWidgets('the pro login at the floor, at 200% text', (tester) async {
+      goldenSurface(tester, size: const Size(360, 1400), scale: 2);
+      await tester.pumpWidget(
+        ChangeNotifierProvider(
+          create: (_) => ProAuthProvider(),
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: goldenTheme(),
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            supportedLocales: const [Locale('fr', 'FR')],
+            locale: const Locale('fr', 'FR'),
+            home: const ProLoginScreen(),
+          ),
+        ),
+      );
+      await settleMocks(tester, rounds: 3);
+
+      // Both halves of the prompt, or the picture is of the wrong thing: a
+      // signed-in session would render the dashboard and this golden would
+      // quietly become a baseline for a screen it does not name.
+      expect(find.text('Pas encore de compte ?'), findsOneWidget);
+      expect(find.text('S\u2019inscrire'), findsOneWidget);
+
+      await expectGolden(tester, 'pro_login_w360_x2');
     });
   }, skip: kGoldensSkip);
 }
