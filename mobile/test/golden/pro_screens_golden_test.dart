@@ -262,14 +262,57 @@ void main() {
       await expectGolden(tester, 'pro_journal_day');
     });
 
-    testWidgets('the earnings buckets', (tester) async {
+    // **Two pictures, and the first one is now honest.** Until A11 C4 this
+    // screen's first load passed no date bounds at all while every tab tap
+    // passed them, so the golden photographed « Aujourd'hui » listing every
+    // transaction the salon had ever taken — including « dimanche 1 mars 2026 »
+    // under a tab labelled today, with the clock frozen to 11 March. C4 made the
+    // first load the selected tab's load, so this picture is what a salon
+    // actually sees on opening: `MockData` seeds `provider1` at `now + 2d`,
+    // `now - 10d` and `now - 7d` — never today — so « Aujourd'hui » is empty.
+    //
+    // That is a real state and worth a baseline: it pins the shared `EmptyState`
+    // that replaced a bare `Center(Text(…))` in the same commit. But one picture
+    // of an empty state is not a photograph of a screen, which is why the second
+    // one exists — the same argument, and the same shape, as `pro_journal_day`.
+    testWidgets('the earnings buckets, on the day the salon opens it',
+        (tester) async {
       await _pumpPro(
         tester,
         const EarningsScreen(),
         extra: [ChangeNotifierProvider(create: (_) => ProEarningsProvider())],
         size: const Size(390, 1200),
       );
+      expect(
+        find.text('Aucune transaction'),
+        findsOneWidget,
+        reason: 'the first load must be the SELECTED tab\'s load — if this '
+            'shows rows, `initState` has drifted back to loading unbounded and '
+            'the picture is of a bug',
+      );
       await expectGolden(tester, 'pro_earnings');
+    });
+
+    testWidgets('the earnings buckets, with takings in them', (tester) async {
+      await _pumpPro(
+        tester,
+        const EarningsScreen(),
+        extra: [ChangeNotifierProvider(create: (_) => ProEarningsProvider())],
+        size: const Size(390, 1200),
+      );
+      // The bar is scrollable since C4, so the last tab is not guaranteed to be
+      // on screen at every width. It is at 390, but asserting the tap landed is
+      // cheaper than assuming it.
+      await tester.ensureVisible(find.text('Tout'));
+      await tester.tap(find.text('Tout'));
+      await settleMocks(tester, rounds: 3);
+      expect(
+        find.text('Aucune transaction'),
+        findsNothing,
+        reason: 'the tap must have landed — otherwise this golden is a second '
+            'copy of the empty one above',
+      );
+      await expectGolden(tester, 'pro_earnings_all');
     });
   }, skip: kGoldensSkip);
 }

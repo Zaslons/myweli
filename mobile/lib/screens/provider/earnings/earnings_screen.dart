@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myweli/widgets/common/empty_state.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -26,19 +27,20 @@ class _EarningsScreenState extends State<EarningsScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-      if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final earningsProvider =
-            Provider.of<ProEarningsProvider>(context, listen: false);
-        // R6: the ACTIVE salon, not the account. `ProAuthProvider.activeSalonId`
-        // documents the rule at its declaration — "screens use THIS (never
-        // `provider.id` — an account id is not a salon id)" — and every other pro
-        // screen follows it. This one did not, so `getEarnings` filtered
-        // appointments on an account id and matched nothing: the screen showed
-        // « 0 FCFA » and « Aucune transaction » for a salon that had takings, and
-        // a multi-salon owner's switch never reached it.
-        earningsProvider.loadEarnings(authProvider.activeSalonId ?? '');
-      }
+      // **The first load is the SELECTED TAB's load** (§21 row 40, fourth
+      // defect). This used to hand-roll `loadEarnings(activeSalonId)` with no
+      // date bounds at all, while every tab tap passes them — so the screen
+      // opened on « Aujourd'hui » showing *every transaction the salon has ever
+      // taken*, and only started telling the truth once the user touched a tab.
+      // A10's golden photographed exactly that: « dimanche 1 mars 2026 » under
+      // a tab labelled today, with the clock frozen to 11 March.
+      //
+      // Delegating to `_loadEarningsForTab` rather than repeating its body is
+      // the fix and the guard against the next one: there is now one definition
+      // of what each bucket means, and `initState` cannot drift from `onTap`.
+      // (The R6 rule the old body documented — the ACTIVE salon id, never the
+      // account id — lives on at `:87`, where the delegate reads it.)
+      _loadEarningsForTab(_tabController.index);
     });
   }
 
@@ -154,9 +156,18 @@ class _EarningsScreenState extends State<EarningsScreen>
 
           return Column(
             children: [
+              // §12/§6 (§21 row 40, second defect): this was a bare
+              // `Container(color: secondary)` — no radius, no elevation, no
+              // margin — so the app's headline number read as an unstyled band
+              // welded to the tab bar. It is a surface; it gets surface tokens.
               Container(
+                margin: const EdgeInsets.all(AppTheme.spacingM),
                 padding: const EdgeInsets.all(AppTheme.spacingL),
-                color: AppColors.secondary,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+                  boxShadow: AppTheme.elevation1,
+                ),
                 child: Column(
                   children: [
                     Text(
@@ -179,12 +190,18 @@ class _EarningsScreenState extends State<EarningsScreen>
               ),
               Expanded(
                 child: earnings.transactions.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Aucune transaction',
-                          style: AppTextStyles.bodyLarge
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
+                    // §12 (§21 row 40, third defect): a bare `Center(Text(…))`
+                    // met the four-states contract in name only — no icon, no
+                    // title, no explanation. It matters more now than it did:
+                    // fixing the first-load bug above makes « Aujourd'hui » the
+                    // FIRST thing most salons see, because most salons have no
+                    // takings yet at the moment they open the screen.
+                    ? const EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Aucune transaction',
+                        description:
+                            'Les paiements encaissés sur cette période '
+                            'apparaîtront ici.',
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(AppTheme.spacingM),
