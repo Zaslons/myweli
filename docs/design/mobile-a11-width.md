@@ -402,8 +402,15 @@ does not re-wrap and its growth is linear — `chrome + text = 160` at 1× and
 (`ColoredBox` → `Center` → `ConstrainedBox`) wired into each root's
 `MaterialApp.router(builder:)`. **Three lines, zero screens touched.**
 
-- **SnackBars are unaffected** — `material/app.dart` wraps `ScaffoldMessenger`
-  *above* `builder`, so §15's bars stay full-bleed.
+- **SnackBars are ~~unaffected~~ CAPPED too — corrected by C6.** The premise
+  above is true and the conclusion does not follow: `ScaffoldMessenger` *is*
+  above `builder`, but it is only the controller. The bar is rendered by
+  **`ScaffoldState`** into its own `_ScaffoldSlot.snackBar` and laid out against
+  the **Scaffold's** width, and the Scaffold is a route under the Navigator,
+  under the builder. So the bar tracks the column. Reviewed and **kept**: a
+  floating bar aligned with the content reads as belonging to it, and a 1400dp
+  bar on a stretched window is the same defect §10 names for body copy.
+  `content_width_test.dart` measures it, so nobody has to trust either account.
 - **Dialogs are capped**, because a dialog is a route under the Navigator. That is
   desirable and a no-op on a phone.
 - **Admin is excluded.** §10 names the reason itself; a data-dense ops console
@@ -420,6 +427,13 @@ does not re-wrap and its growth is linear — `chrome + text = 160` at 1× and
 > every `static const double` in `app_theme.dart` must belong to a family in
 > `dart-tokens.mjs:356`. Its own failure message says so: *"add them to
 > SPACING_KEYS/RADIUS_KEYS/ICON_KEYS … or they can never reach the web."*
+>
+> **C6 shipped it, and found one more thing than the box predicted.** `maxWidth`
+> had **no wiring assertion** — `tokens.theme-pin.test.ts`'s own comment calls its
+> `fontSize` check *"the only assertion that notices a token that isn't wired"*,
+> and it was. A `layout` export that never reached the config would have silently
+> deleted the styling on all eight `max-w-content` call sites, green. Closed in
+> the same commit and mutation-proven: removing `...layout` reddens it alone.
 >
 > The web half — a `LAYOUT_KEYS` family, the `layout` export, `tailwind.config.ts`
 > reading it instead of its hard-coded `'720px'`, and a mirror test — ships **in
@@ -496,9 +510,26 @@ A sixth was authored and thrown away: replacing the `TextButton` with an
 `IconButton` reddens with `Bad state: No element`, because it deletes the label
 the finder looks for. A mutation that changes two things proves neither.
 
+**C6's five, run and tabled:**
+
+| mutation | reddens | measured |
+|---|---|---|
+| `contentMaxWidth` 720 → 320 | the identity-below-720 assertion, **alone** | not one golden — see §6 |
+| delete the cap from `main.dart` | the positive source pin, alone | — |
+| add the cap to `main_admin.dart` | the negative source pin, alone | — |
+| drop the `unclaimedDoubles` filter clause | the mirror gate, alone | *"expected ['contentMaxWidth'] to deeply equal []"* |
+| remove `...layout` from `tailwind.config.ts` | the new wiring assertion, alone | *"maxWidth.content is not wired into the config"* |
+
+A sixth, renaming the web key, reddens the **mirror** test rather than the wiring
+one — the config spreads `...layout`, so a renamed key stays wired, just to the
+wrong name. Recorded because it is the mutation one reaches for first.
+
 Older predictions, for the rest of the slice: dropping `isScrollable` reddens only the truncation
-walk · `contentMaxWidth` 720 → 320 reddens the 390 assertion **and** the 26
-goldens · and the **meta-mutation**: collapsing `for(w) testWidgets` into
+walk · ~~`contentMaxWidth` 720 → 320 reddens the 390 assertion and the 26 goldens~~ —
+**false, and C6 measured it**: the mutation reddens the identity assertion in
+`content_width_test.dart` **alone**, and cannot touch a single baseline, because
+**no test in this repo renders an app root** and the cap lives at
+`MaterialApp.builder` · and the **meta-mutation**: collapsing `for(w) testWidgets` into
 `testWidgets { for(w) }` turns widths 2 and 3 green while the bug is present.
 
 ## 6. Rollout & scope discipline
@@ -509,19 +540,24 @@ Deploy order is irrelevant — this is app-only plus a token mirror. V1 only.
 and `appointment_list_screen` appear in no golden, and `contentMaxWidth` is
 analytically inert below 720 (a `ConstrainedBox(maxWidth: 720)` under a tight 390
 constraint passes it through; `Center` on a tight-width child is the identity).
-**The unchanged golden suite is the no-regression proof, and it is free.** Any
+**The unchanged golden suite is the no-regression proof, and it is free.**
+⚠️ *C6 correction: for the cap it is free and **vacuous**. Zero baselines moved,
+and none could have — `grep MyweliApp mobile/test/` returns nothing, so
+`MaterialApp.builder` is in no tree any golden photographs. §6's stated reason
+(analytic inertness below 720) is also true, but it is the second reason.* Any
 other diff means something changed that should not have.
 
 ## 7. Definition of done
 
-- [ ] §10 states a **floor** and the admin exclusion; §20 gains its first Layout row
-- [ ] `golden.dart:40-41` corrected — leaving it lets the next slice re-derive the
-      same wrong conclusion from the same sentence
+- [x] §10 states a **floor** (360, 320 out of contract) and the admin exclusion
+      (C6); §20's Layout row landed in C2
+- [x] `golden.dart` corrected (C6) — the sentence had drifted to `:50-52`;
+      *"the only surface that matters today"* is gone
 - [ ] §21 row 40 → 0, row 49 → 0 or **verified**, three new rows opened
 - [ ] `flutter analyze --fatal-infos --fatal-warnings` = 0 · format clean · tests green
 - [ ] web `tsc` · lint · vitest green, **including the new token family**
 - [ ] every gate mutation-proven red before its fix
-- [ ] the three new baselines eye-reviewed; the other 25 byte-identical
+- [ ] the three new baselines eye-reviewed; the other **27** byte-identical (25 was written at 26 baselines; C4 added `pro_earnings_all.png`)
 - [ ] **the OTP screen and both tab screens driven on a simulator at 360dp** — a
       gate that passes is not a screen that looks right
 - [ ] Feature branch → PR → **the user merges**; no Claude attribution

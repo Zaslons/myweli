@@ -47,8 +47,15 @@ final Object? kGoldensSkip =
         : 'goldens are authored on Linux — run tool/update_goldens.sh '
             '(or MYWELI_GOLDEN_LOCAL=1 to preview locally, without committing)';
 
-/// A phone. The apps have no breakpoints (SYSTEM.md §10), so this is the only
-/// surface that matters today.
+/// A phone — and **not the only surface that matters**, which is what this
+/// comment used to say (A11).
+///
+/// §10 defines `compact` as a RANGE, and this is one point in it: 390 is an
+/// iPhone 14, while the modal Android device in Côte d'Ivoire is **360**. Every
+/// rendering test in this repo measured this width and only this width, which is
+/// how eight layout defects shipped at 360 and 375 with 777 tests green. The
+/// range is gated by `test/a11y/layout_test.dart`; these baselines stay at 390
+/// because a golden's job is to notice a restyle, not to survey widths.
 const Size kGoldenPhone = Size(390, 844);
 
 /// The theme every golden renders under — the real one, with the font pinned.

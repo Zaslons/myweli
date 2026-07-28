@@ -39,7 +39,7 @@ class AppTheme {
   static const double iconS = 20.0; // inline with text — the common case
   static const double iconM = 24.0; // default action icon (AppBar, IconButton)
   static const double iconL = 32.0; // feature / avatar-scale glyphs
-  static const double iconXL = 64.0;
+  static const double iconXL = 64.0; // the empty-state illustration glyph
 
   // ---- Layout (SYSTEM.md §10) ---------------------------------------------
 
@@ -55,8 +55,7 @@ class AppTheme {
   /// It is the one dimension the design system names that is not spacing,
   /// radius or an icon size, which is why the web token mirror needed a fourth
   /// family before this constant could exist at all.
-  static const double contentMaxWidth =
-      720.0; // the empty-state illustration glyph
+  static const double contentMaxWidth = 720;
 
   /// The height bound a **scroller** must hand a box that mixes constant chrome
   /// with text, when the OS text scale moves (SYSTEM.md §13.3).
