@@ -484,6 +484,46 @@ void main() {
               'green through all of them.');
     });
 
+    test('a grid tile that holds text has no fixed aspect ratio (§13.3, A12)',
+        () {
+      // `childAspectRatio` freezes tile HEIGHT as a multiple of tile WIDTH, and
+      // width does not move with the OS text scale — so the tile is the same
+      // height at 100% and at 200%, forever. §13.3 already says "a box that
+      // contains text may not have a fixed height"; this is the first thing
+      // that enforces it.
+      //
+      // Two sites, both §21 row 68 findings: the pro dashboard's action grid
+      // (1.1 → a tile frozen at 143.6dp, where « Rendez-vous » wraps to two
+      // lines and runs past it while « Disponibilité » cannot break at all and
+      // is clipped) and the provider grid (0.75).
+      //
+      // **A prohibition, not a conditional** — so unlike the `isExpanded` pin
+      // below it needs no non-empty guard on its own hits (after the fixes the
+      // correct count is ZERO), no inferred-generic form to miss
+      // (`childAspectRatio:` is a named argument, spelled identically by
+      // `GridView.count`, `.builder`, `.extent` and every
+      // `SliverGridDelegateWith*`), and no lookahead window that could cover
+      // two sites. The corpus guard above is what keeps it honest.
+      //
+      // A grid of IMAGES may legitimately fix its ratio and declares
+      // `// ds-ignore` on the line, the escape `offenders` already honours. A
+      // grid of text uses `mainAxisExtent`, or a `Wrap`.
+      expect(
+        dartFiles.length,
+        greaterThan(100),
+        reason: 'this pin is scanning an empty or truncated set',
+      );
+      expect(
+        offenders(RegExp(r'childAspectRatio:')),
+        isEmpty,
+        reason:
+            'a tile height derived from its WIDTH cannot grow with the text '
+            'inside it. At 200% the label either overflows the tile or is '
+            'clipped without throwing — and a clip inside a fixed box is the '
+            'one shape neither `takeException` nor the truncation walk can see.',
+      );
+    });
+
     test('every form dropdown sets isExpanded (A11 C8, §13.3)', () {
       // A `DropdownButtonFormField` sizes its button to the WIDEST item's
       // intrinsic width unless told otherwise, so the field overflows the

@@ -47,6 +47,29 @@ class ProviderCard extends StatelessWidget {
         text: _textBlockHeight,
       );
 
+  /// The smallest image a compact (grid) card will draw — `_buildGridCard`
+  /// derives its image from the height it is given and clamps there.
+  static const double _compactImageFloor = 110.0;
+
+  /// The height a two-column GRID must give a card at the current OS text scale
+  /// (A12, §21 row 68).
+  ///
+  /// [carouselHeight]'s twin, and it needs its own constant because a grid card
+  /// is *compact*: its image is `(maxH * 0.56).clamp(110, 150)`, so the picture
+  /// absorbs a shorter box and the **text block is the part that cannot
+  /// shrink**. The bound is therefore the image FLOOR plus padding, with only
+  /// the text tracking the scale.
+  ///
+  /// `provider_list_screen.dart` used `childAspectRatio: 0.75` instead — a
+  /// height derived from the tile's WIDTH, which does not move when the font
+  /// does. 210 at 1× (the 208 that ratio produced at 360dp, within 2dp) and
+  /// 278 at 200%, where the old grid stayed at 208 and clipped.
+  static double gridHeight(BuildContext context) => AppTheme.textScaledBound(
+        context,
+        constant: _compactImageFloor + AppTheme.spacingM * 2,
+        text: _textBlockHeight,
+      );
+
   @override
   Widget build(BuildContext context) {
     if (isGrid) {

@@ -357,17 +357,52 @@ List<Widget> _section(BuildContext context, String title, List<Widget> cards) {
       style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
     ),
     const SizedBox(height: AppTheme.spacingSM),
-    GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.1,
-      children: cards,
-    ),
+    // A12: this was `GridView.count(childAspectRatio: 1.1)`, and an aspect ratio
+    // freezes tile HEIGHT as a multiple of tile WIDTH — which does not move with
+    // the OS text scale. The tile was **143.6dp at 100% and 143.6dp at 200%,
+    // forever**: « Rendez-vous » wraps to two lines and runs past the bottom,
+    // and « Disponibilité » is one unbreakable word that is simply clipped —
+    // no overflow, no exception, nothing for a gate to catch (§21 row 68).
+    //
+    // The fix is not a computed extent. `AppTheme.textScaledBound` is right when
+    // a scroller DEMANDS a bound (`ProviderCard.carouselHeight`); here nothing
+    // does, so the honest answer is to stop naming a height at all. Two
+    // `Expanded`s under an `IntrinsicHeight` give the same two-column grid with
+    // tiles that are equal to each other and as tall as their own content —
+    // §5's rule, applied vertically: divide the row, do not dimension the boxes.
+    //
+    // The gaps were raw `12`s, invisible to the §5 pin because its `\b` cannot
+    // fire inside `crossAxisSpacing`. They are `spacingSM` now, which is what
+    // 12 already meant.
+    ..._actionRows(cards),
     const SizedBox(height: AppTheme.spacingL),
   ];
+}
+
+/// [cards] laid out two per row, each row as tall as its tallest card.
+List<Widget> _actionRows(List<Widget> cards) {
+  final rows = <Widget>[];
+  for (var i = 0; i < cards.length; i += 2) {
+    if (i > 0) rows.add(const SizedBox(height: AppTheme.spacingSM));
+    rows.add(
+      IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: cards[i]),
+            const SizedBox(width: AppTheme.spacingSM),
+            // An empty second slot rather than a centred single card: the odd
+            // card keeps its column, so the grid stays a grid.
+            Expanded(
+              child:
+                  i + 1 < cards.length ? cards[i + 1] : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  return rows;
 }
 
 class _StatCard extends StatelessWidget {
@@ -436,11 +471,23 @@ class _ActionCard extends StatelessWidget {
     required this.onTap,
   });
 
+  /// The airy height the old `childAspectRatio: 1.1` produced at §10's 360dp
+  /// floor — `(360 − 32 − 12) / 2 / 1.1`.
+  ///
+  /// A **minimum**, not a height, which is the difference §13.3 draws: the card
+  /// keeps its designed proportion at 1× and grows past it when the label needs
+  /// two lines. The ratio it replaces did the first and refused the second, and
+  /// it also made the card taller on a wider phone — 157 at 390 — for no reason
+  /// anyone chose. One number at every width is the simpler promise.
+  static const double _minHeight = 143.6;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        // `constraints`, not `height:` — see [_minHeight].
+        constraints: const BoxConstraints(minHeight: _minHeight),
         padding: const EdgeInsets.all(AppTheme.spacingM),
         decoration: BoxDecoration(
           color: AppColors.secondary,
@@ -455,6 +502,7 @@ class _ActionCard extends StatelessWidget {
               title,
               style: AppTextStyles.bodyMedium
                   .copyWith(color: AppColors.textPrimary),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

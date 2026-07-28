@@ -244,11 +244,16 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         onRefresh: () => provider.loadProviders(category: widget.category),
         child: GridView.builder(
           padding: const EdgeInsets.all(AppTheme.spacingM),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          // A12: `childAspectRatio: 0.75` derived tile HEIGHT from tile WIDTH,
+          // and width does not move with the OS text scale — so the card was
+          // 208dp at 100% and 208dp at 200%, with the text block clipped. The
+          // bound now comes from the card, which is the only thing that knows
+          // its own chrome (the same reason `carouselHeight` lives there).
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: AppTheme.spacingM,
             mainAxisSpacing: AppTheme.spacingM,
-            childAspectRatio: 0.75,
+            mainAxisExtent: ProviderCard.gridHeight(context),
           ),
           itemCount: providers.length,
           itemBuilder: (context, index) {
