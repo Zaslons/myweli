@@ -193,6 +193,19 @@ export const icon = {
   iconXL: '64px', // the empty-state illustration
 } satisfies Record<string, string>;
 
+// Layout (SYSTEM.md §10) — the one dimension the design system names that is
+// neither spacing, radius nor an icon size, and the reason `LAYOUT_KEYS` exists.
+//
+// §10: "text and forms never stretch past it. A 1000px-wide line of French body
+// copy is unreadable." It lived here as a hard-coded '720px' in
+// tailwind.config.ts until A11 C6 gave it an upstream in `AppTheme`; the value
+// did not change, its provenance did. WEB-SYSTEM §2's objection to a web sizing
+// scale — "the first with no upstream for B3's generator to track" — is what
+// that retires.
+export const layout = {
+  content: '720px', // AppTheme.contentMaxWidth
+} satisfies Record<string, string>;
+
 // Layering (WEB-SYSTEM.md §9). The scale is the LAYER, named — never a number.
 // Ties are resolved by DOM order, so if two things at the same layer can coexist,
 // one of them is at the wrong layer.

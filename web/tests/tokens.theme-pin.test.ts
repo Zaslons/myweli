@@ -5,7 +5,7 @@ import resolveConfig from 'tailwindcss/resolveConfig';
 import { describe, expect, it } from 'vitest';
 
 import tailwindConfig from '../tailwind.config';
-import { colors, icon, type } from '../styles/tokens';
+import { colors, icon, layout, type } from '../styles/tokens';
 
 /// The closed-theme firewall (docs/design/WEB-SYSTEM.md §2, §15 rows 6 + 7).
 ///
@@ -201,6 +201,29 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     expect(Object.keys(resolved.theme!.fontSize!).sort()).toEqual(
       [...Object.keys(type), ...Object.keys(icon)].sort(),
     );
+  });
+
+  // A11 C6, and the same claim one family over. `maxWidth` had NO wiring
+  // assertion, so a `layout` export that never reached the config would have
+  // silently deleted the styling on eight `max-w-content` call sites across
+  // seven files — green, because nothing enumerates `maxWidth` and nothing
+  // asserts the class resolves.
+  //
+  // Not `toEqual` on the whole key set: `maxWidth` legitimately also carries
+  // Tailwind's static rem steps and, via the function form, every
+  // `max-w-screen-*` from `breakpoints(theme('screens'))`. The claim is
+  // narrower and exact — every LAYOUT token is present, with its value.
+  it('every layout token survives into the resolved theme', () => {
+    const resolved = resolveConfig(tailwindConfig as never);
+    const maxWidth = resolved.theme!.maxWidth! as Record<string, string>;
+    for (const [key, value] of Object.entries(layout)) {
+      expect(maxWidth[key], `maxWidth.${key} is not wired into the config`).toBe(
+        value,
+      );
+    }
+    // The function form is what emits `max-w-screen-*`; a static object drops
+    // them silently, so pin one as the canary.
+    expect(maxWidth['screen-lg']).toBeDefined();
   });
 
   // Catches a typo'd token — `text-bodyMedum` — which Tailwind renders as nothing
