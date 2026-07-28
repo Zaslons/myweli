@@ -256,11 +256,30 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
 
 /// How many characters a squeezed label must still show (§13.3, A12).
 ///
-/// **0 means REPORT-ONLY** — [expectNoLegibilityCrush] measures every subject
-/// and prints the table instead of asserting. That is the state this constant
-/// ships in until the calibration run lands, because a threshold chosen before
-/// the measurement is a threshold chosen to be met.
-const int kMinLegibleChars = 0;
+/// **8, and the two numbers either side of it are the whole justification.**
+/// Measured by shipping this file report-only first (`0` prints the table and
+/// asserts nothing) and running the width gate's six configurations:
+///
+/// | | shows | verdict |
+/// |---|---|---|
+/// | « Salon Excellence », salon page @360×2× | **0** | nothing but an ellipsis |
+/// | « Beauté Divine », consumer home @360×2× | **2** | |
+/// | « Salon Excellence », salon page app bar @390×2× | **7** | worst defect |
+/// | « avec Kouassi Jean », review tile @360×2× | **9** | best legitimate |
+/// | « Rechercher un salon… » @360×2× | 13 | declared, §21 row 56 |
+///
+/// So the data separates at **7 / 9** and 8 is the only value strictly between
+/// them. **That is a one-character margin, which is tighter than a threshold
+/// should be**, and it is recorded rather than smoothed over: if a future
+/// legitimate site lands on 8, the answer is to re-measure and move the number,
+/// not to widen `_kWidthEpsilon`.
+///
+/// The 7-char case is caught deliberately — a screen title showing 7 of 16
+/// characters is a defect, not a tight fit. An earlier design pass proposed 12
+/// without measuring; that would have reddened the review tile at 9.
+///
+/// Set to `0` to return to report-only mode when re-calibrating.
+const int kMinLegibleChars = 8;
 
 /// Is [o] flexed by its nearest enclosing `Flex`?
 ///
