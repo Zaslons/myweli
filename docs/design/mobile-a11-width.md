@@ -691,6 +691,49 @@ than inferred. It stays recorded and not fixed, for the reason it always did:
 that is a slice, and thinning it into the end of this one is the hollow pass the
 full-depth rule forbids.
 
+### 6.5 The consumer app, same surface
+
+The pro app was the subject because that is where the tab bars and the auth
+prompt live. The consumer app was then run on the same 360×780pt device, and it
+is the better confirmation of C5 and C7 — those fixes are almost all on this
+side.
+
+**At 1×** the home screen, a salon page and the bottom nav are clean.
+`SectionHeading`'s restored 8dp padding (C8d) is visible on « Vos rendez-vous
+ici », « Services » and « Contact ».
+
+**At ≈1.95×**, every consumer fix holds and several are visible at once:
+
+| fix | slice | what the device shows |
+|---|---|---|
+| the salon action bar **stacks** rather than splitting a word | C8b | « Réserver » above « Appeler », and « Appeler » is **whole** — it used to render « Appel/er » |
+| `SectionHeading` is a `Wrap` | C5 | « Vos rendez-vous ici » wraps to two lines and « Voir tout » drops below it |
+| the header grows with the text scale | C5 | `textScaledBound` gives « Beauté Divine » two lines plus its location and rating rows |
+| contact rows are flexed | C5 | every opening-hours line and « WhatsApp » render whole |
+| `AppointmentCard`'s date row is a `Wrap` of two intrinsic halves | C8b | « 30/07/2026 » and « 17:07 » are both **intact** — the row that used to split a date as « 13/03/20 » / « 26 » |
+| the bookings tab bar scrolls | C4 | « À venir » « Passés » « Annulés » all whole, the strip running past the viewport rather than dividing it |
+| `AppButton`'s flexible label | C8 | « Continuer avec Google » wraps inside its button on the consumer login |
+| `LegalConsentText` | L1 / A11 gate subject | the whole sentence and both links render, unclipped |
+
+**No overflow banner appeared anywhere in the consumer app**, at either scale.
+
+It also confirmed **both of §21 row 62's open items on a device**: the home
+story card renders « Prom/o W… » and the salon header renders
+« Salon Ex / cellence ». A draft of the register row claimed C5's
+`textScaledBound` had resolved the second one — opening the salon showed it had
+not, which is the difference between a claim and a look. `textScaledBound` gives
+the header **room** for two lines; it does not choose where the line breaks.
+Both are a proper noun and a promo title, and whether a heading may break inside
+a word is still the design decision this slice does not make.
+
+**And a second of row 68's twelve reproduced at contract:** finding #2,
+`provider_list_screen`'s `CommunePill`, shows *RIGHT OVERFLOWED BY 122 PIXELS*
+on « Toutes les communes ». The census predicted the defect from the arithmetic
+(~376dp of content in a 328dp budget); the magnitude differs because the count
+label is absent on this route, but the shape is exactly as described. Two of the
+twelve are now device-confirmed rather than inferred — #2 here and #3 on the pro
+dashboard.
+
 ## 7. Definition of done
 
 - [x] §10 states a **floor** (360, 320 out of contract) and the admin exclusion
