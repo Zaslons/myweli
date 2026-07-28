@@ -11,17 +11,21 @@ import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/notifications_provider.dart';
+import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_artist_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
 import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_journal_provider.dart';
+import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/pro_subscription_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
+import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
+import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/screens/provider/team/team_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -32,6 +36,7 @@ import 'package:myweli/services/mock/mock_pro_artist_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
+import 'package:myweli/services/mock/mock_review_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -39,6 +44,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
+import '../support/tab_flows.dart';
 
 /// The pro app, under the real theme (docs/design/SYSTEM.md §20).
 ///
@@ -105,6 +111,12 @@ void main() {
       serviceLocator.proTeamService = _FixedRoster();
       serviceLocator.proArtistService = MockProArtistService();
       serviceLocator.localityService = MockLocalityService();
+      // A11 C7: `ProReviewsProvider` reads `serviceLocator.reviewService` in a
+      // non-`late` field initialiser, so it throws at CONSTRUCTION — this file
+      // hand-assigns rather than calling `setupDependencyInjection()` (the
+      // locator's fields are `late final`, so it is one or the other), and a
+      // service nobody had needed yet was simply absent.
+      serviceLocator.reviewService = MockReviewService();
       // The dashboard's bell. `_items = _seed()` is a non-`late` instance field,
       // so it is generated HERE, at construction — which is why the freeze above
       // has to precede it. The first version assigned this before any freeze and
@@ -300,19 +312,47 @@ void main() {
         extra: [ChangeNotifierProvider(create: (_) => ProEarningsProvider())],
         size: const Size(390, 1200),
       );
-      // The bar is scrollable since C4, so the last tab is not guaranteed to be
-      // on screen at every width. It is at 390, but asserting the tap landed is
-      // cheaper than assuming it.
-      await tester.ensureVisible(find.text('Tout'));
-      await tester.tap(find.text('Tout'));
-      await settleMocks(tester, rounds: 3);
-      expect(
-        find.text('Aucune transaction'),
-        findsNothing,
-        reason: 'the tap must have landed — otherwise this golden is a second '
-            'copy of the empty one above',
-      );
+      await openEarningsAll(tester);
       await expectGolden(tester, 'pro_earnings_all');
+    });
+
+    // ---- A11 C7: the floor ---------------------------------------------
+    //
+    // Two subjects that no picture held at all. The appointment list is the
+    // stronger of the two: `tabAlignment` is a property the width gate
+    // provably cannot see — C4's own mutation table records that
+    // `startOffset` reddens *"nothing in `flutter test`"* — so a golden is the
+    // only instrument that measures it.
+
+    testWidgets('the appointment list at the floor', (tester) async {
+      await _pumpPro(
+        tester,
+        const AppointmentListScreen(),
+        extra: [
+          ChangeNotifierProvider(create: (_) => ProAppointmentProvider())
+        ],
+        size: const Size(360, 1200),
+      );
+      // No router: every `context.push` here is inside a callback a golden
+      // never fires, which the width gate proves at six configurations.
+      await openProList(tester);
+      await expectGolden(tester, 'pro_appointment_list_w360');
+    });
+
+    testWidgets('the reviews summary at the floor', (tester) async {
+      await _pumpPro(
+        tester,
+        const ReviewsScreen(),
+        extra: [ChangeNotifierProvider(create: (_) => ProReviewsProvider())],
+        size: const Size(360, 1200),
+      );
+      expect(
+        find.text('Aucun avis'),
+        findsNothing,
+        reason: 'provider1 has three seeded reviews — the empty state has no '
+            'summary card, and the histogram bar is the whole subject',
+      );
+      await expectGolden(tester, 'pro_reviews_w360');
     });
   }, skip: kGoldensSkip);
 }

@@ -54,8 +54,14 @@ final Object? kGoldensSkip =
 /// iPhone 14, while the modal Android device in Côte d'Ivoire is **360**. Every
 /// rendering test in this repo measured this width and only this width, which is
 /// how eight layout defects shipped at 360 and 375 with 777 tests green. The
-/// range is gated by `test/a11y/layout_test.dart`; these baselines stay at 390
+/// range is gated by `test/a11y/layout_test.dart`; **most** baselines stay at 390
 /// because a golden's job is to notice a restyle, not to survey widths.
+///
+/// C7 added five that deliberately do not, and the distinction is the point: they
+/// are not a survey, they are the **floor**, photographed once. They exist
+/// because a gate cannot see everything a picture can — `tabAlignment` reddens
+/// nothing in `flutter test`, and four of A11's fixes are identity at 1× — and
+/// because five of the fixes were photographed by nothing at all. See §20.1.
 const Size kGoldenPhone = Size(390, 844);
 
 /// The theme every golden renders under — the real one, with the font pinned.
@@ -71,8 +77,12 @@ ThemeData goldenTheme() => AppTheme.themeData(fontFamily: kRealFont);
 ///
 /// A11 moved the body to `surface.dart` so `test/a11y/` can pin a width without
 /// importing this file's `dart:io`. Same four lines, one home.
-void goldenSurface(WidgetTester tester, {Size size = kGoldenPhone}) =>
-    pinSurface(tester, size: size);
+void goldenSurface(
+  WidgetTester tester, {
+  Size size = kGoldenPhone,
+  double scale = 1.0,
+}) =>
+    pinSurface(tester, size: size, scale: scale);
 
 /// The app shell a golden renders in: the real theme, French locale, no banner.
 ///

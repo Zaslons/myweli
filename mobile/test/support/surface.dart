@@ -24,10 +24,23 @@ import 'package:flutter_test/flutter_test.dart';
 /// to*, so a `Row` still lays out at 800 and the gate goes green against every
 /// defect it exists to catch. `binding.setSurfaceSize` is legitimate but unused
 /// here; a second idiom for one job is how the repo ends up with two.
-void pinSurface(WidgetTester tester, {required Size size}) {
+///
+/// **[scale] goes in at the platform dispatcher, never through a `MediaQuery`**
+/// (A11 C7). `MediaQueryData.fromView` reads it through `SystemTextScaler`
+/// however the subtree was built, whereas a `MediaQuery` placed at `home:`
+/// cannot reach a screen built by a `routerConfig` — which is the shape of the
+/// consumer golden shell. That mistake fails *silently*: the test measures 1×
+/// while its name says 2×. `pumpAtWidth` has used this mechanism since C2; the
+/// goldens borrow it rather than invent a second one.
+void pinSurface(WidgetTester tester, {required Size size, double scale = 1.0}) {
   tester.view
     ..physicalSize = size
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+
+  if (scale != 1.0) {
+    tester.platformDispatcher.textScaleFactorTestValue = scale;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+  }
 }

@@ -27,8 +27,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../support/fonts.dart';
 import '../support/frozen_clock.dart';
 import '../support/secure_storage.dart';
-import '../support/settle.dart';
 import '../support/sign_in.dart';
+import '../support/tab_flows.dart';
 import '_a11y.dart';
 
 /// **A width is not all widths** (docs/design/mobile-a11-width.md, SYSTEM.md §10).
@@ -202,7 +202,7 @@ void main() {
           home: const EarningsScreen(),
         );
 
-        await _openEarningsAll(tester);
+        await openEarningsAll(tester);
         expect(find.text('Total'), findsOneWidget, reason: 'C');
         expectNoUndeclaredTruncation(tester, context: 'pro earnings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
@@ -225,7 +225,7 @@ void main() {
           ],
           home: const AppointmentListScreen(),
         );
-        await _openProList(tester);
+        await openProList(tester);
 
         expectNoUndeclaredTruncation(
           tester,
@@ -601,81 +601,4 @@ void _seedPrefs() => SharedPreferences.setMockInitialValues({
 Future<void> _disposeTimers(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());
   await tester.pump();
-}
-
-/// Reaches the earnings screen's DATA, and proves it arrived.
-///
-/// **This tap is new in C4 and it is the anti-vacuity assertion, not a
-/// convenience.** Until C4 the screen's first load passed no date bounds while
-/// every tab tap passed them, so it opened showing every transaction the salon
-/// had ever taken — and this gate happily measured that, asserting « Aucune
-/// transaction » was absent. C4 made the first load the selected tab's load, so
-/// « Aujourd'hui » is now correctly empty (`MockData` seeds `provider1` at
-/// `now + 2d`, `now - 10d`, `now - 7d` — never today), and the old assertion
-/// started failing *because the bug was fixed*.
-///
-/// So the gate has to go where the rows are, exactly as `_openProList` does for
-/// the list. Measuring the empty state would be measuring the padding around a
-/// placeholder and calling it a screen.
-///
-/// `ensureVisible` first: the bar is scrollable since C4 and « Tout » is the
-/// last of four, which at 200% text sits well outside a 360dp viewport.
-Future<void> _openEarningsAll(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Tout'));
-  await tester.tap(find.text('Tout'));
-  await settleMocks(tester, rounds: 3);
-  expect(
-    find.text('Aucune transaction'),
-    findsNothing,
-    reason: 'the « Tout » tap did not land, or the salon has no takings at all '
-        '— either way the tab bar would be the only thing this measured',
-  );
-}
-
-/// Reaches the four-tab bar on `AppointmentListScreen`, and proves it arrived.
-///
-/// **Two taps, and neither is optional.**
-///
-/// 1. `TabBarView` builds only the visible page, so the whole « Liste » column —
-///    including the TabBar this test exists to measure — does not exist while
-///    « Calendrier » is showing. An unbuilt widget cannot overflow, so a
-///    one-tap version of this test would be green at every width.
-/// 2. Landing on « Liste » runs `_loadAppointmentsForListTab(0)` = « Aujourd'hui »,
-///    which loads the salon's day bounds — and `MockData` seeds `provider1` at
-///    `now + 2d`, `now - 10d` and `now - 7d`, never today. So the first thing the
-///    tab shows is « Aucun rendez-vous », and the rows never render. « Tous »
-///    is the tab with data in it.
-Future<void> _openProList(WidgetTester tester) async {
-  await tester.tap(find.text('Liste'));
-  // kTabScrollDuration is 300ms and the tab's own reload is another 300; three
-  // 400ms rounds clear both with room to spare.
-  await settleMocks(tester, rounds: 3);
-  expect(
-    find.byType(TabBar),
-    findsNWidgets(2),
-    reason: 'the « Liste » page never built — its TabBar is the subject, and '
-        'a TabBarView does not build a page it is not showing',
-  );
-
-  // **`ensureVisible` before the tap, and it is not defensive padding.** C4 made
-  // this bar scrollable, so at 200% text its strip is 553dp inside a 360dp
-  // viewport and « Tous » — the last tab — sits at [458.6, 553.0], entirely
-  // off-screen at all three widths.
-  //
-  // Without this the failure is silent and misleading: `hitTestWarningShouldBeFatal`
-  // is false by default and nothing here sets it, so `tester.tap` prints a
-  // warning, dispatches into nothing, the controller never moves, and the test
-  // dies on the `findsWidgets` below — an empty-state failure whose real cause
-  // is a console line 40 rows up.
-  await tester.ensureVisible(find.text('Tous'));
-  await tester.tap(find.text('Tous'));
-  // kTabScrollDuration is 300ms and the tab's own reload is another 300; three
-  // 400ms rounds clear both with room to spare.
-  await settleMocks(tester, rounds: 3);
-  expect(
-    find.byType(Card),
-    findsWidgets,
-    reason: '« Tous » is the tab that has rows; if this is empty the gate is '
-        'measuring an empty state and will pass about nothing',
-  );
 }
