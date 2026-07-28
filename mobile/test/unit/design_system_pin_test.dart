@@ -150,6 +150,31 @@ void main() {
       );
     });
 
+    test('gaps are a token — no raw spacing:/runSpacing: (§5)', () {
+      // A11 C3. The two rules above scan `SizedBox(…)` and `EdgeInsets.*`, and
+      // between them they were called "the complete firewall" — but Flutter 3.27
+      // put `spacing` on `Flex`, and `Wrap` has had `spacing`/`runSpacing` all
+      // along. **A gap written that way was invisible to every pin**, and 21 of
+      // them had accumulated across 11 files by the time A11 went looking.
+      //
+      // Nineteen were already the token's value (8, and one 4) — invisible, not
+      // wrong. The other two are why this is a §5 rule and not tidiness:
+      // `spacing: 10` on the booking hub's slot chips and `spacing: 6` on the
+      // appointment card's service pills. §5's own header says it: "an 8pt grid
+      // with one sanctioned half-step. Nothing else is legal: 10, 14, 18, 20 are
+      // not spacing values."
+      //
+      // `\b` keeps this off `letterSpacing:`/`wordSpacing:` twice over — those
+      // capitalise the S, and there is no word boundary before it either.
+      expect(
+        offenders(RegExp(r'\b(?:run)?[Ss]pacing: \d')),
+        isEmpty,
+        reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64) for Wrap and '
+            'Flex gaps too. A gap is spacing whether it is written as a '
+            'SizedBox between children or as the parent’s `spacing:`.',
+      );
+    });
+
     test('padding/margin is a token — no numeric EdgeInsets (§5)', () {
       expect(
         offenders(

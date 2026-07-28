@@ -774,8 +774,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               )
                             else
                               Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
+                                spacing: AppTheme.spacingS,
+                                runSpacing: AppTheme.spacingS,
                                 children:
                                     _availableSlotsForSelectedDate.map((slot) {
                                   final selected = _draft.dateTime != null &&

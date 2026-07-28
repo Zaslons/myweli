@@ -276,8 +276,8 @@ class AppointmentCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppTheme.spacingXS),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                    spacing: AppTheme.spacingS,
+                    runSpacing: AppTheme.spacingS,
                     children: services.take(3).map((service) {
                       return Container(
                         padding: const EdgeInsets.symmetric(

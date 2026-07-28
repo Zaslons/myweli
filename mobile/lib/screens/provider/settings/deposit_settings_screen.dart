@@ -328,8 +328,8 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                       );
                     }
                     return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: AppTheme.spacingS,
+                      runSpacing: AppTheme.spacingS,
                       children: operators.map((op) {
                         return ChoiceChip(
                           label: Text(op.label),
@@ -385,7 +385,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
               ),
               const SizedBox(height: AppTheme.spacingM),
               Wrap(
-                spacing: 8,
+                spacing: AppTheme.spacingS,
                 children: [12, 24, 48].map((h) {
                   final selected = provider.cancellationWindowHours == h;
                   return ChoiceChip(

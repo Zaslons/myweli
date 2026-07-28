@@ -310,8 +310,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 ),
                 const SizedBox(height: AppTheme.spacingS),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AppTheme.spacingS,
+                  runSpacing: AppTheme.spacingS,
                   children: _durationPresets.map((minutes) {
                     final isSelected =
                         _durationController.text == minutes.toString();
