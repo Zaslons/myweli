@@ -561,6 +561,72 @@ never fires because wrapping is how the layout succeeds. So it is the horizontal
 twin of the gap §13.3 had before A11: a real rule with no expression. Recorded as
 row 62, not fixed here.
 
+### 6.2 What the DEVICE found (C8) — three defects no gate could see
+
+C7's pictures found what the gate could not. C8 put the pro app on a **360dp
+Android emulator** (720×1600 @ 320dpi, xhdpi — the Tecno/Infinix class the PRD
+names) and found what neither could. **No prior slice had run this app on a
+device at all.**
+
+All three are invisible to `flutter test` for the same structural reason: they
+are `RenderFlex` overflows, and the striped « RIGHT OVERFLOWED BY » banner is
+**debug-only**. In the release build a user installs, the content is simply cut
+off at the edge with nothing reported anywhere.
+
+| # | where | at 360dp × 2× | why the gate was blind |
+|---|---|---|---|
+| 1 | `AppButton`'s label — every button in both apps | « + Nouveau rendez-vous » **32px** over, « Voir toutes les communes » **65px** | the label was a NON-flex child of a `Row`, so it measured its full intrinsic width and the Row overflowed instead of the label shrinking. `layout_test.dart`'s nine subjects do not include the journal, where it was seen; and `expectNoUndeclaredTruncation` walks paragraphs — this paragraph is not truncated, it is drawn in full past its parent |
+| 2 | the pro login + register « Pas encore de compte ? » prompt | **149px** over (134 at 375, 119 at 390) | a centred `Row` holding a sentence and a `TextButton`, neither able to give way. The overflow barely moves with the width — the signature of content with a fixed intrinsic width. **The auth screens were a subject of no width test at all** |
+| 3 | `DropdownButtonFormField` × 3 phone forms | **79px** over on « Institut de manucure » | a dropdown sizes its button to its WIDEST item unless `isExpanded: true` |
+
+**The strongest evidence that a picture at one point is not coverage:**
+regenerating all 32 baselines after fixing #2 and #3 changed **nothing**. At
+390 × 1× neither defect exists. `pro_login_w360_x2.png` is the 33rd, and the
+first picture of that screen at any width — the goldens held a `consumer_login`
+and nothing for the other app.
+
+Finding #1 also produced the slice's only near-miss. Making the label flexible
+put a condition on where a button may live, and the first version of that
+condition written down was wrong in **both** directions — the narrow, measured
+version is that `RenderFlex` permits flex children under an unbounded main axis
+for `MainAxisSize.min` + loose, i.e. exactly what `isFullWidth: false` selects.
+Only `isFullWidth: true` needs a bound. Six tests in
+`pro_invitations_screen_test.dart` went red the moment the one offending call
+site was left unfixed, which is the argument for leaving that assertion loud
+rather than absorbing it in a `LayoutBuilder` — a LayoutBuilder cannot answer
+intrinsic queries, and `IntrinsicHeight` is used twice in `lib/`.
+
+### 6.3 The device run itself
+
+No screenshot tooling exists in this repo and no prior slice recorded a device
+run, so this sets the convention — a numbered prose note, the shape
+`DEPLOYMENT.md` uses for its push smoke test.
+
+1. **Surface.** Android AVD `a11_360dp`, 720×1600 @ 320dpi = **360dp at
+   xhdpi** — 2× DPR with FreeType glyphs, not the 3× CoreText of an iOS
+   simulator. `flutter build apk --debug --flavor pro`, installed with
+   `adb install -r`.
+2. **Session.** `jean@salon-excellence.test`, dev code `123456` (rendered on
+   screen when `ENV != prod`).
+3. **Seen at 1×.** Dashboard → **Revenus**: all four tab labels complete
+   (« Aujourd'hui » « Semaine » « Mois » « Tout ») where « Aujourd'hui » used to
+   fade out of a 58dp box. Dashboard → Rendez-vous → journal → appointments →
+   **Liste**: the nested four-tab bar, all four labels whole.
+4. **Seen at 200% text** (`adb shell settings put system font_scale 2.0`). The
+   four-tab bar scrolls and « Aujourd'hui » stays whole. The journal's empty
+   state showed the striped banner — finding #1.
+5. **Re-run after the fixes.** « Continuer avec Google » wraps to two lines
+   inside its button; « S'inscrire » drops below « Pas encore de compte ? »;
+   no banner anywhere on the auth screens.
+6. **The OTP screen was not driven, and could not be — at any width, on any
+   device.** It is unrouted in both apps (`app_router.dart:32-34`,
+   `pro_router.dart:61-63`) and its only push comes from a screen that is
+   itself unreferenced. The live login OTP step is a single `AppTextField`, not
+   `OtpCodeRow`. Reaching it needs a temporary route that cannot be committed,
+   which makes it a strictly **weaker** artifact than the `layout_test.dart`
+   measurement already covering it at 360 × {1×, 2×}. Recorded rather than
+   ticked.
+
 ## 7. Definition of done
 
 - [x] §10 states a **floor** (360, 320 out of contract) and the admin exclusion
@@ -586,8 +652,16 @@ row 62, not fixed here.
       post-fix and the OTP screen is unrouted. Two-instant ledger:
       `pro_reviews_w360` identical, the other four differ in the dates they
       print, where identity would have been the bug
-- [ ] **the OTP screen and both tab screens driven on a simulator at 360dp** — a
-      gate that passes is not a screen that looks right
+- [x] **both tab screens driven on a real 360dp device** at 1× and 200% text —
+      a gate that passes is not a screen that looks right, and this one found
+      **three** defects no gate could (§6.2). The OTP screen is **recorded, not
+      ticked**: it is undriveable at any width on any device, being unrouted in
+      both apps (§6.3 ⑥)
+- [x] the three device defects fixed, each mutation-proven: **34 new tests**
+      (`app_button_test.dart` 13, `auth_layout_test.dart` 21) plus a
+      discovered-not-listed source pin for `isExpanded`, and the **33rd**
+      golden — `pro_login_w360_x2`, the first picture of that screen at any
+      width
 - [ ] Feature branch → PR → **the user merges**; no Claude attribution
 
 ## 8. Open questions
@@ -602,9 +676,10 @@ row 62, not fixed here.
 - **The consumer phone-auth chain is unrouted and pushes an undeclared path.** A
   routing bug found by a layout census. Recorded; a routing slice should own it.
 - **Should `test/a11y/` pin a device width by default**, rather than inheriting
-  800×600? **Still open, and now precisely measurable: 2 of 9 files pin.**
-  `layout_test` and `content_width_test` do; `contrast`, `label`, `tap_target`,
-  `text_scale`, `field_error`, `feedback` and `motion` still inherit. The
+  800×600? **Still open, and now precisely measurable: 6 of 11 files pin.**
+  `layout_test`, `content_width_test`, `app_button_test`, `auth_layout_test`,
+  `field_error_test` and `text_scale_test` do; `contrast`, `label`,
+  `tap_target`, `feedback` and `motion` still inherit. The
   mechanism now exists and is documented as reusable (`support/surface.dart`),
   which is what makes the follow-up cheap — and after C6 the right default is
   **360**, the floor §10 now names, not 390. It
