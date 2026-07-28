@@ -23,11 +23,24 @@ import '../support/surface.dart';
 /// handle.dispose();
 /// ```
 /// The caller disposes the returned handle after the expect.
+///
+/// **It pins a phone (A12).** Until this slice it pinned nothing, so every
+/// subject of `contrast_test`, `label_test` and `tap_target_test` was measured on
+/// `flutter_test`'s default **800×600** — wider than any device this app ships
+/// to, and the same defect A11 C8d found in `pumpAtTextScale`. §21 row 60 filed
+/// it; this closes it. A tap target that is 48dp on a 800dp desktop and 44 on a
+/// 360dp phone was green, and the guideline it was asserting is §13.2's floor.
+///
+/// 1600 tall, not 780, for `pumpAtWidth`'s reason: an overflow is reported from
+/// **paint**, so a row scrolled out of a short viewport is a row the gate cannot
+/// see. The short-surface question is `vertical_fit_test.dart`'s, deliberately
+/// separate.
 Future<SemanticsHandle> pumpForA11y(
   WidgetTester tester,
   Widget child, {
   List<SingleChildWidget>? providers,
 }) async {
+  pinSurface(tester, size: const Size(360, 1600));
   final handle = tester.ensureSemantics();
   await pumpApp(tester, home: Scaffold(body: child), providers: providers);
   await tester.pumpAndSettle();

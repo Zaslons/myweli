@@ -98,10 +98,22 @@ OtpCodeRow otpRow({bool enabled = true, bool hasError = false}) {
 /// not one had ever been measured — which is how « Aujourd'hui » came to be
 /// faded away inside a 58dp share on a 360dp phone, in a screen A10 had already
 /// photographed.
-Widget tabStrip({bool isScrollable = true}) => DefaultTabController(
+///
+/// **`isScrollable` is no longer a parameter (A12).** It used to be, and the
+/// caller pumped both arms to show the tap-target guideline passing in either
+/// mode. On a 360dp surface the `false` arm **overflows** — these four labels
+/// need more than 360dp once the bar divides the width — so that arm was
+/// asserting a guideline against a layout that cannot render. It was green only
+/// because `pumpForA11y` pinned nothing and measured `flutter_test`'s 800dp.
+///
+/// Nor is it a shape the product has: C4 made all three multi-label bars
+/// scrollable, and the one bar still on `fill` is [tabStripFill]'s two. A
+/// fixture modelling a configuration `lib/` does not contain proves nothing
+/// about `lib/`.
+Widget tabStrip() => DefaultTabController(
       length: 4,
       child: TabBar(
-        isScrollable: isScrollable,
+        isScrollable: true,
         tabAlignment: TabAlignment.center,
         tabs: const [
           Tab(text: 'Aujourd\u2019hui'),
@@ -109,6 +121,19 @@ Widget tabStrip({bool isScrollable = true}) => DefaultTabController(
           Tab(text: 'Mois'),
           Tab(text: 'Tout'),
         ],
+      ),
+    );
+
+/// The one bar in `lib/` that legitimately keeps `fill` — two short labels.
+///
+/// `appointment_list_screen.dart`'s outer bar. §13.3: *"A bar whose labels do
+/// fit may keep `fill` … but that is a measurement, not a default."* This is
+/// that measurement, and A12 is the first slice to take it at 360dp rather than
+/// at 800.
+Widget tabStripFill() => DefaultTabController(
+      length: 2,
+      child: const TabBar(
+        tabs: [Tab(text: 'Calendrier'), Tab(text: 'Liste')],
       ),
     );
 

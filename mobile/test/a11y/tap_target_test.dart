@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -85,16 +86,30 @@ void main() {
   // fail: `_kTabHeight` is **46.0** (tabs.dart:30), 2dp under the 48×48 floor,
   // and it is a framework constant with no override short of `Tab(height:)` at
   // every call site. The `Tab`'s own box does measure 46.0 — and the guideline
-  // **passes anyway**, in both scrollable and fixed mode, because
-  // `androidTapTargetGuideline` evaluates semantics nodes rather than that box.
+  // **passes anyway**, in both bars below, because `androidTapTargetGuideline`
+  // evaluates semantics nodes rather than that box.
   //
   // Recorded as a measured green rather than acted on: the fix for a number
   // that is already correct is nothing.
-  for (final scrollable in [true, false]) {
-    testWidgets('TabBar — the four pro tabs (isScrollable: $scrollable)',
-        (tester) async {
-      final handle =
-          await pumpForA11y(tester, tabStrip(isScrollable: scrollable));
+  //
+  // **The two subjects are the two SHIPPING bars, not one bar pumped twice
+  // (A12).** This was `for (final scrollable in [true, false])` over the same
+  // four-label strip, and the `false` arm **overflowed** the moment
+  // `pumpForA11y` began pinning 360dp: four French labels do not fit a bar that
+  // divides a phone's width, which is the whole of C4's finding. It had been
+  // green only against `flutter_test`'s 800dp default — and `lib/` has had no
+  // such bar since C4 anyway.
+  //
+  // A guideline asserted against a layout that cannot render is not a
+  // measurement. So each mode is now the bar that actually ships in it:
+  // `tabStrip` is the scrollable four, `tabStripFill` the two short labels
+  // `appointment_list_screen.dart` keeps on `fill`.
+  for (final bar in <String, Widget Function()>{
+    'the four pro tabs (scrollable)': tabStrip,
+    'the two-tab bar that keeps fill': tabStripFill,
+  }.entries) {
+    testWidgets('TabBar — ${bar.key}', (tester) async {
+      final handle = await pumpForA11y(tester, bar.value());
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       handle.dispose();
     });
