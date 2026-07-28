@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -18,6 +19,7 @@ import 'package:myweli/screens/provider/appointments/appointment_list_screen.dar
 import 'package:myweli/screens/provider/auth/pro_otp_verify_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
 import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
+import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/widgets/common/legal_consent_text.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -301,7 +303,49 @@ void main() {
               'isAuthenticated, so a signed-out pump measures nothing',
         );
         expect(find.text('Mes favoris'), findsOneWidget, reason: 'C');
+        _expectHeadingIsWhole(tester, 'Derniers rendez-vous', at);
+        _expectHeadingIsWhole(tester, 'Mes favoris', at);
+        _expectActionIsTappable(tester, 'Voir tout', at);
+        _expectActionIsTappable(tester, 'Voir la carte', at);
         expectNoUndeclaredTruncation(tester, context: 'consumer home at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the salon page ------------------------------------------------
+      //
+      // **A11 C5 added this subject, and it was never measured before.** The
+      // screen carries SEVEN section headings through a private `_SectionCard`,
+      // one of which pairs « Vos rendez-vous ici » with the same « Voir tout »
+      // button the home screen overflows on — at `titleMedium` instead of
+      // `titleLarge`, with a `Spacer` instead of `spaceBetween`, and with no
+      // `Expanded` on the title either. Three copies of one layout, already
+      // drifted apart, and only this one was outside every gate.
+
+      testWidgets('the salon page fits $at', (tester) async {
+        final auth = await signInConsumer(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider.value(value: auth),
+            ChangeNotifierProvider(create: (_) => ProviderProvider()),
+            ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+            ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+          ],
+          home: const ProviderDetailScreen(providerId: 'provider1'),
+          rounds: 5,
+        );
+
+        expect(
+          find.text('Vos rendez-vous ici'),
+          findsOneWidget,
+          reason: 'C: the heading with an action beside it — signed out this '
+              'screen renders « Connectez-vous pour voir vos rendez-vous. » '
+              'instead, and the subject would be missing',
+        );
+        _expectHeadingIsWhole(tester, 'Vos rendez-vous ici', at);
+        expectNoUndeclaredTruncation(tester, context: 'the salon page at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -331,6 +375,17 @@ void main() {
           reason: 'C: provider1 has three seeded reviews — the empty state '
               'has no summary card, which is the whole subject',
         );
+        // The bar is about to become `Expanded`, and a flexed bar in a row that
+        // wants more than it has is a bar of ZERO width — green on A, on B and
+        // on C, and invisible to a user. Five of them, so measure all five.
+        for (var i = 0; i < 5; i++) {
+          expect(
+            tester.getSize(find.byType(LinearProgressIndicator).at(i)).width,
+            greaterThanOrEqualTo(24),
+            reason: 'distribution bar $i has collapsed at $at — a rating '
+                'histogram whose bars carry no length is a column of numbers',
+          );
+        }
         expectNoUndeclaredTruncation(tester, context: 'pro reviews at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -405,6 +460,56 @@ void main() {
           'This is what `height: 64` did, and takeException cannot see it.',
     );
   });
+}
+
+/// A section heading is WHOLE — not truncated, not squeezed (§13.3, A11 C5).
+///
+/// **This exists because the truncation walk cannot see the obvious wrong fix.**
+/// `expectNoUndeclaredTruncation` skips any paragraph that declares
+/// `TextOverflow.ellipsis`, by design — a declared ellipsis is §13.3-legal. So
+/// adding `maxLines: 1, overflow: TextOverflow.ellipsis` to « Derniers
+/// rendez-vous » turns every red in this file green **while shipping
+/// « Derniers rendez… » to the user**, and nothing else here would object. C's
+/// `find.text` would not either: it matches on the widget's string, not on what
+/// was painted.
+///
+/// A heading may wrap. A heading may not be cut.
+void _expectHeadingIsWhole(WidgetTester tester, String text, String at) {
+  final p = tester.renderObject<RenderParagraph>(
+    find.descendant(of: find.text(text), matching: find.byType(RichText)),
+  );
+  expect(
+    p.overflow,
+    isNot(TextOverflow.ellipsis),
+    reason:
+        '« $text » declares an ellipsis at $at. That is legal for body copy '
+        'and wrong for a section heading — and it is the change that makes this '
+        'file green without making the screen right.',
+  );
+  expect(
+    p.didExceedMaxLines,
+    isFalse,
+    reason: '« $text » is cut off at $at — it wanted more lines than '
+        '${p.maxLines} and did not get them',
+  );
+}
+
+/// A heading's action is still something a finger can hit (§13.2).
+///
+/// The other way to make the arithmetic work is to shrink the action until it
+/// fits — « Voir tout » demoted to a 24dp glyph. That is green on every other
+/// assertion in this file.
+void _expectActionIsTappable(WidgetTester tester, String label, String at) {
+  final size = tester.getSize(find.ancestor(
+    of: find.text(label),
+    matching: find.byType(TextButton),
+  ));
+  expect(
+    size.width >= 48 && size.height >= 48,
+    isTrue,
+    reason: '« $label » is ${size.width}×${size.height} at $at — §13.2 says '
+        'every touch target is ≥48×48',
+  );
 }
 
 /// The six OTP boxes are equal, legal, and exactly as wide as the arithmetic
