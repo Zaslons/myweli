@@ -99,6 +99,30 @@ class _EarningsScreenState extends State<EarningsScreen>
         bottom: TabBar(
           controller: _tabController,
           onTap: _loadEarningsForTab,
+          // §13.3's width twin. A non-scrollable `TabBar` wraps every tab in
+          // `Expanded` (tabs.dart:1977), so each gets exactly `W/n` — and a
+          // `Tab`'s label is `softWrap: false, overflow: fade` (tabs.dart:183),
+          // so a label too long for its share is **faded away without throwing**.
+          // No overflow, no exception: A10 photographed this bar with
+          // « Aujourd’hui » cut off and 777 tests had nothing to say.
+          //
+          // `center`, explicitly, and NOT the M3 default: that is
+          // `TabAlignment.startOffset` (tabs.dart:2727), which spends 52dp on an
+          // empty leading gutter — 14% of a 360dp screen — and is not accounted
+          // for in the scroll-centring math (tabs.dart:1669-1683 reads
+          // `widget.padding` only), so the selected tab lands 52dp off-centre.
+          //
+          // `center` is also the ONLY alignment legal in both modes
+          // (tabs.dart:1809-1821), and it degrades correctly: the strip
+          // shrink-wraps and is genuinely centred while the labels fit, and once
+          // they do not the viewport clamps to full width, centring becomes a
+          // no-op and the bar start-anchors and scrolls.
+          //
+          // It must stay HERE and never move to `tabBarTheme`: the assert is
+          // evaluated per-bar against that bar's own `isScrollable`, so a
+          // theme-level value would throw on every non-scrollable bar.
+          isScrollable: true,
+          tabAlignment: TabAlignment.center,
           tabs: const [
             Tab(text: 'Aujourd’hui'),
             Tab(text: 'Semaine'),

@@ -98,8 +98,9 @@ log was read instead of a build being reproduced.
 | `my_bookings_screen.dart:74` | 3 tabs — fits at 1×, **truncates at 2×** | computed; the case a width-only census misses |
 | `home_screen.dart:259,352` · `reviews_screen.dart:108` | fit at 1× on ~12dp and ~32dp of slack; **cannot fit at 2×** | red at 2× either way |
 
-Structural facts behind all of it: **`isScrollable` appears 0 times** across four
-`TabBar`s · **`FittedBox` appears 0 times** in `lib/` · there is **no breakpoint
+Structural facts behind all of it, *at the time of the census*:
+**`isScrollable` appeared 0 times** across four `TabBar`s — C4 set it on the
+three that clip, and recorded why the fourth keeps `fill` · **`FittedBox` appears 0 times** in `lib/` · there is **no breakpoint
 helper of any kind** (`LayoutBuilder` exists at three sites, none a width tier).
 
 **The in-repo precedent.** `pro_journal_screen.dart:556-557` already hit this exact

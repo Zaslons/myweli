@@ -183,8 +183,9 @@ const double _kWidthEpsilon = 0.5;
 /// overflow throws and paints the yellow-and-black stripes; text that runs out
 /// of room inside its own box does neither — it is silently clipped or faded,
 /// and the test stays green about a label the user cannot finish reading. The
-/// pro earnings bar clips « Aujourd'hui » at every compact width, and 777 tests
-/// and 26 goldens had nothing to say about it.
+/// pro earnings bar clipped « Aujourd'hui » at every compact width — including
+/// the 390 its golden was taken at — and 777 tests and 26 goldens had nothing to
+/// say about it. This walk is what found it; A11 C4 is what fixed it.
 ///
 /// The predicate is Flutter's own, from `RenderParagraph.performLayout`
 /// (`paragraph.dart:921-922`), split into the two cases that can actually occur:

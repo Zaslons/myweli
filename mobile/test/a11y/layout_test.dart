@@ -179,12 +179,13 @@ void main() {
       // bottom of the file, and the note there about why looping is legal in
       // that one test and nowhere else.)
       //
-      // Four tabs — « Aujourd'hui » « Semaine » « Mois » « Tout » — in a
-      // non-scrollable TabBar, so each gets width / 4. « Aujourd'hui » is the
-      // long one, and A10 already PHOTOGRAPHED it clipped at 390
-      // (`pro_earnings.png`, §21 row 40). A `Tab` is `softWrap: false` with
-      // `overflow: fade` (`tabs.dart:183`), which is why assertion A is silent
-      // here and B is not.
+      // Four tabs — « Aujourd'hui » « Semaine » « Mois » « Tout ». Until C4 this
+      // was a non-scrollable TabBar, so each tab got width / 4 and the long
+      // label was faded away inside its share: A10 PHOTOGRAPHED it clipped at
+      // 390 (`pro_earnings.png`, §21 row 40). A `Tab` is `softWrap: false` with
+      // `overflow: fade` (`tabs.dart:183`), which is why assertion A was silent
+      // about it and B was not. C4 made the bar scrollable; these tests are what
+      // keep it that way.
 
       testWidgets('the pro earnings tabs fit $at', (tester) async {
         final auth = await signInPro(tester);
@@ -527,6 +528,17 @@ Future<void> _openProList(WidgetTester tester) async {
         'a TabBarView does not build a page it is not showing',
   );
 
+  // **`ensureVisible` before the tap, and it is not defensive padding.** C4 made
+  // this bar scrollable, so at 200% text its strip is 553dp inside a 360dp
+  // viewport and « Tous » — the last tab — sits at [458.6, 553.0], entirely
+  // off-screen at all three widths.
+  //
+  // Without this the failure is silent and misleading: `hitTestWarningShouldBeFatal`
+  // is false by default and nothing here sets it, so `tester.tap` prints a
+  // warning, dispatches into nothing, the controller never moves, and the test
+  // dies on the `findsWidgets` below — an empty-state failure whose real cause
+  // is a console line 40 rows up.
+  await tester.ensureVisible(find.text('Tous'));
   await tester.tap(find.text('Tous'));
   // kTabScrollDuration is 300ms and the tab's own reload is another 300; three
   // 400ms rounds clear both with room to spare.
