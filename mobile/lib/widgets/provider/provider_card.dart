@@ -33,6 +33,19 @@ class ProviderCard extends StatelessWidget {
   /// so it can't rot silently when a row is added.
   static const double _textBlockHeight = 68.0;
 
+  /// The text block at the current OS text scale — **the only part of a card
+  /// that moves with the font**, since the image and the padding are chrome.
+  ///
+  /// Extracted in A12 because it is the one term [carouselHeight], [gridHeight]
+  /// and the compact branch in [_buildGridCard] all have to agree on. They did
+  /// not, and the card overflowed by 54dp inside a box this same file had
+  /// measured for it — see the branch's own comment.
+  static double _textBlock(BuildContext context) => AppTheme.textScaledBound(
+        context,
+        constant: 0,
+        text: _textBlockHeight,
+      );
+
   /// The height a horizontal carousel must give a grid card at the current OS
   /// text scale. Callers used to hard-code `280`, which clipped the card's text
   /// at 200% — and which no caller could fix without knowing this file's image
@@ -40,12 +53,11 @@ class ProviderCard extends StatelessWidget {
   ///
   /// 280 at 1× and at every scale below it (the floor — see
   /// [AppTheme.textScaledBound]); 348 at 200%.
+  ///
+  /// It is also **the definition of a roomy card**: exactly the room the
+  /// full-size layout needs, which is what [_buildGridCard] now tests against.
   static double carouselHeight(BuildContext context) =>
-      AppTheme.textScaledBound(
-        context,
-        constant: _imageHeight + AppTheme.spacingM * 2,
-        text: _textBlockHeight,
-      );
+      _imageHeight + AppTheme.spacingM * 2 + _textBlock(context);
 
   /// The smallest image a compact (grid) card will draw — `_buildGridCard`
   /// derives its image from the height it is given and clamps there.
@@ -55,19 +67,41 @@ class ProviderCard extends StatelessWidget {
   /// (A12, §21 row 68).
   ///
   /// [carouselHeight]'s twin, and it needs its own constant because a grid card
-  /// is *compact*: its image is `(maxH * 0.56).clamp(110, 150)`, so the picture
-  /// absorbs a shorter box and the **text block is the part that cannot
-  /// shrink**. The bound is therefore the image FLOOR plus padding, with only
-  /// the text tracking the scale.
+  /// is *compact*: the picture absorbs a shorter box, so the **text block is
+  /// the part that cannot shrink**. The bound is therefore the image FLOOR plus
+  /// padding, with only the text tracking the scale.
   ///
   /// `provider_list_screen.dart` used `childAspectRatio: 0.75` instead — a
   /// height derived from the tile's WIDTH, which does not move when the font
   /// does. 210 at 1× (the 208 that ratio produced at 360dp, within 2dp) and
   /// 278 at 200%, where the old grid stayed at 208 and clipped.
-  static double gridHeight(BuildContext context) => AppTheme.textScaledBound(
+  static double gridHeight(BuildContext context) =>
+      _compactImageFloor + AppTheme.spacingM * 2 + _textBlock(context);
+
+  /// `kMinLegibleChars` characters of `titleMedium` plus an ellipsis, measured
+  /// in Roboto at 1×: **75.6dp** for « Beauté D… », the widest 8-character
+  /// prefix in the salon catalogue. Rounded up.
+  ///
+  /// It is the catalogue's worst, not every possible name's — a salon called
+  /// « WWWWWWWW » would want more. The gate re-measures what it actually
+  /// renders, so this constant is the design input, not the guarantee.
+  static const double _minNameWidth = 76.0;
+
+  /// The narrowest cell that can still **name** a salon at the current OS text
+  /// scale — a card whose title reads « Sal… » identifies nothing (§13.3).
+  ///
+  /// A12: a 360dp screen's two-column cell is 156dp, of which the name gets
+  /// 140. That holds 8 characters until **1.90×** — and the contract point is
+  /// ≈1.95×, so the real device is on the wrong side of it. The crossing moves
+  /// with the width (375dp holds out to 2.00×, 390dp past it), which is why
+  /// this is a rule about the CELL and not a text-scale constant like the
+  /// dashboard's: a scale threshold would be wrong at two of §10's three
+  /// widths.
+  static double minGridCellWidth(BuildContext context) =>
+      AppTheme.textScaledBound(
         context,
-        constant: _compactImageFloor + AppTheme.spacingM * 2,
-        text: _textBlockHeight,
+        constant: AppTheme.spacingS * 2,
+        text: _minNameWidth,
       );
 
   @override
@@ -92,15 +126,38 @@ class ProviderCard extends StatelessWidget {
             builder: (context, constraints) {
               final hasBoundedHeight = constraints.hasBoundedHeight &&
                   constraints.maxHeight != double.infinity;
-              final maxH = hasBoundedHeight ? constraints.maxHeight : 280.0;
+              // Unbounded → the card has all the room there is, so it is the
+              // roomy layout by definition. This was a bare `280.0`, which is
+              // that number only at 1×.
+              final maxH = hasBoundedHeight
+                  ? constraints.maxHeight
+                  : carouselHeight(context);
 
-              // When used inside a tight grid cell, avoid fixed 180px image height
-              // which can overflow the card content vertically.
-              final compact = maxH < 260;
-              final imageHeight =
-                  compact ? (maxH * 0.56).clamp(110.0, 150.0) : _imageHeight;
+              final textBlock = _textBlock(context);
+
+              // **A card is compact exactly when its box cannot hold the roomy
+              // layout** — and `carouselHeight` *is* the roomy layout's height,
+              // so the two can no longer disagree.
+              //
+              // A12 device-confirmed: this was `maxH < 260`, a raw dp
+              // threshold, and A12's own `gridHeight` (142 + 68 × scale)
+              // crosses 260 at ≈1.74×. Above that the card drew the 180dp
+              // ROOMY image inside a box measured for the 110dp compact one —
+              // « BOTTOM OVERFLOWED BY 55 PIXELS » on a 360×780pt iPhone at
+              // ≈1.95×, and 54 in the gate at 2×. A constant that gates a
+              // text-dependent branch has to move with the text (§13.3).
+              final compact = maxH < carouselHeight(context);
               final contentPadding =
                   compact ? AppTheme.spacingS : AppTheme.spacingM;
+              // Compact means the PICTURE absorbs the shorter box, because the
+              // text block is the part that cannot shrink — so the image takes
+              // what is LEFT, not a fraction of the total. `(maxH * 0.56)` was
+              // the same mistake one layer down: a height derived from
+              // something that does not track the font.
+              final imageHeight = compact
+                  ? (maxH - contentPadding * 2 - textBlock)
+                      .clamp(_compactImageFloor, _imageHeight)
+                  : _imageHeight;
 
               final hasBoundedWidth = constraints.hasBoundedWidth &&
                   constraints.maxWidth != double.infinity;

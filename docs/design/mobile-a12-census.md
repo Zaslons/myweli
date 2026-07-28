@@ -215,13 +215,24 @@ shipped in a single commit.
 - [x] goldens only where the fix is invisible at 390×1× — **1 added, 3 moved**,
       every changed PNG eye-reviewed, ledger from `git diff --name-status`
 - [x] adversarial review, every finding hand-verified
-- [ ] the device re-run — **not done**, and named as open below
+- [x] the device re-run — the pro app on a 360×780pt iPhone at `accessibility-large` (≈1.95×), after the fixes
 
-## 10. Open
+## 10. The device run
 
-- **The device has not been re-driven.** A11's own lesson is that the device
-  finds what the gates cannot; A12's fixes are held by 947 tests and 34 pictures
-  but no hardware since the fixes landed.
+A11's lesson is that a device finds what the gates cannot, so the fixes were
+re-driven on the surface that produced the original evidence: the pro app on a
+360×780pt iPhone at `accessibility-large` (≈1.95×, the contract point).
+
+| | before A12 | after |
+|---|---|---|
+| `_StatCard` « Aujourd'hui » + calendar icon | **16px** over, striped banner | icon wrapped below the label, **no banner** |
+| `_StatCard` « En attente » + dot | **2.6px** over | **no banner** |
+| the action grid | « Disponibil / ité », a control's label broken mid-word | **single column**, full width, « Disponibilité » whole on one line |
+
+No overflow banner appears anywhere on the dashboard at the contract point.
+
+## 11. Open
+
 - **Two screens are fixed but not gated.** Booking confirmation and the booking
   hub carry four of the money rows; both need a booking in progress to reach, so
   `LabelValueRow` is gated as a component. That proves the widget, not the

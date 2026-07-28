@@ -26,12 +26,14 @@ import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/screens/providers/provider_list_screen.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:myweli/widgets/common/legal_consent_text.dart';
+import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/fonts.dart';
 import '../support/frozen_clock.dart';
 import '../support/secure_storage.dart';
+import '../support/settle.dart';
 import '../support/sign_in.dart';
 import '../support/tab_flows.dart';
 import '_a11y.dart';
@@ -455,6 +457,58 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'salon list at $at');
         expectNoLegibilityCrush(tester, context: 'salon list at $at');
         expectNoVerticalClip(tester, context: 'salon list at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the salon list, GRID -------------------------------------------
+      //
+      // The same screen behind a toggle, and it needs its own subject because
+      // **the subject above cannot reach it**: `_isGrid` starts `false`, so
+      // every assertion in this file measured the list branch and A12's grid
+      // fix was never once executed by a test. The device found the miss —
+      // « BOTTOM OVERFLOWED BY 55 PIXELS » on both cards at ≈1.95×, *after*
+      // `ProviderCard.gridHeight` shipped.
+      //
+      // The mechanism is two formulas in one file that disagree.
+      // `gridHeight` is `142 + 68 × scale`, derived from the COMPACT image
+      // floor; `_buildGridCard` decides compact with `maxH < 260`, a raw dp
+      // number. Above ≈1.74× the bound crosses 260, so the card draws the
+      // 180dp ROOMY image inside a box measured for the 110dp compact one.
+      // A11's lesson, one layer in: a constant that gates a text-dependent
+      // branch has to move with the text too.
+      testWidgets('the salon list grid fits $at', (tester) async {
+        final auth = await signInConsumer(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider(create: (_) => ProviderProvider()),
+            ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+            ChangeNotifierProvider.value(value: auth),
+          ],
+          home: const ProviderListScreen(),
+          rounds: 5,
+        );
+
+        await tester.tap(find.byTooltip('Afficher en grille'));
+        await settleMocks(tester, rounds: 3);
+
+        // C — without this the test is green about the list it was already
+        // measuring, which is exactly the failure being fixed.
+        expect(
+          find.byType(GridView),
+          findsOneWidget,
+          reason: 'C: the toggle did not switch to the grid',
+        );
+        expect(
+          find.byType(ProviderCard),
+          findsWidgets,
+          reason: 'C: no card is in the grid to measure',
+        );
+        expectNoUndeclaredTruncation(tester, context: 'salon grid at $at');
+        expectNoLegibilityCrush(tester, context: 'salon grid at $at');
+        expectNoVerticalClip(tester, context: 'salon grid at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 

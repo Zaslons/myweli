@@ -9,6 +9,7 @@ import 'package:myweli/widgets/booking/appointment_card.dart';
 import 'package:myweli/widgets/booking/compact_appointment_tile.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:myweli/widgets/common/otp_code_row.dart';
+import 'package:myweli/widgets/common/timed_cached_image.dart';
 import 'package:myweli/widgets/home/category_chips.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
@@ -224,33 +225,94 @@ void main() {
     });
   }
 
-  // The bound must never dip under the card's own compact threshold
-  // (provider_card.dart: maxH < 260 swaps the image size and padding). A bound
-  // that shrank with the text scale would trip it at Android "Small" (0.85) and
-  // silently hand a DIFFERENT card design to users who reduce their font size.
-  testWidgets('ProviderCard.carouselHeight never trips the compact branch',
-      (tester) async {
-    for (final scale in [0.5, 0.8, 0.82, 0.85, 1.0]) {
-      late double bound;
+  // A carousel card must be the ROOMY design at every scale — otherwise
+  // reducing the OS font size silently hands some users a different card.
+  //
+  // This used to assert `carouselHeight >= 260`, a proxy for the card's old
+  // `maxH < 260` threshold, and **the proxy is what let A12's grid bug
+  // through**: it guarded the bound dipping BELOW 260 at 0.85× and said
+  // nothing about A12's smaller `gridHeight` crossing it going UP at ≈1.74×.
+  // The threshold is now `carouselHeight` itself, so the assertion can be the
+  // real thing — the image the card actually drew.
+  for (final scale in [0.5, 0.8, 0.82, 0.85, 1.0, 1.5, 2.0]) {
+    testWidgets('a carousel card is the roomy design at $scale×',
+        (tester) async {
       await pumpApp(
         tester,
+        providers: favProviders(),
         home: Builder(
           builder: (context) => MediaQuery(
             data: MediaQuery.of(context)
                 .copyWith(textScaler: TextScaler.linear(scale)),
-            child: Builder(builder: (context) {
-              bound = ProviderCard.carouselHeight(context);
-              return const SizedBox.shrink();
-            }),
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => SizedBox(
+                  height: ProviderCard.carouselHeight(context),
+                  width: 280,
+                  child: ProviderCard(
+                    provider: MockData.providers.first,
+                    isGrid: true,
+                    onTap: () {},
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       );
-      expect(bound, greaterThanOrEqualTo(260),
-          reason: 'at $scale× the carousel bound is $bound, under the card’s '
-              'own compact threshold (260) — reducing the OS font size would '
-              'silently change the card design.');
-    }
-  });
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TimedCachedImage>(find.byType(TimedCachedImage)).height,
+        180.0,
+        reason: 'at $scale× the carousel card fell into the COMPACT branch — '
+            'a different card design for the same surface.',
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  // The grid's twin of `carouselHeight covers the card`, and the sweep that did
+  // not exist when `gridHeight` shipped. `layout_test.dart` drives the real
+  // screen but only at 1× and 2×; the defect it found lived at the crossing
+  // (≈1.74×), so the scales BETWEEN the two contract points are the point.
+  for (final scale in [0.82, 0.85, 1.0, 1.3, 1.5, 1.7, 1.8, 2.0]) {
+    testWidgets('ProviderCard.gridHeight covers the card at $scale×',
+        (tester) async {
+      await pumpApp(
+        tester,
+        providers: favProviders(),
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(scale)),
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => SizedBox(
+                  height: ProviderCard.gridHeight(context),
+                  // A 360dp screen's two-column cell: 16 padding each side and
+                  // a 16 gutter.
+                  width: (360 - 16 * 2 - 16) / 2,
+                  child: ProviderCard(
+                    provider: MockData.providers.first,
+                    isGrid: true,
+                    onTap: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'the card does not fit the height `gridHeight` promises it at '
+            '$scale× — the two formulas in provider_card.dart disagree again.',
+      );
+      expectNoVerticalClip(tester, context: 'grid card at $scale×');
+    });
+  }
 
   testWidgets('ProviderCard (list)', (tester) async {
     await pumpAtTextScale(

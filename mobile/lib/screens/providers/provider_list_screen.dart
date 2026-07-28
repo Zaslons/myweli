@@ -259,26 +259,45 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     if (_isGrid) {
       return BrandRefresh(
         onRefresh: () => provider.loadProviders(category: widget.category),
-        child: GridView.builder(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          // A12: `childAspectRatio: 0.75` derived tile HEIGHT from tile WIDTH,
-          // and width does not move with the OS text scale — so the card was
-          // 208dp at 100% and 208dp at 200%, with the text block clipped. The
-          // bound now comes from the card, which is the only thing that knows
-          // its own chrome (the same reason `carouselHeight` lives there).
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: AppTheme.spacingM,
-            mainAxisSpacing: AppTheme.spacingM,
-            mainAxisExtent: ProviderCard.gridHeight(context),
-          ),
-          itemCount: providers.length,
-          itemBuilder: (context, index) {
-            final p = providers[index];
-            return ProviderCard(
-              provider: p,
-              isGrid: true,
-              onTap: () => context.push('/provider/${p.id}'),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // A12 — **two columns is a claim about the text, not the screen.**
+            // A 360dp phone's two-column cell is 156dp and gives the salon's
+            // NAME 140 of it, which stops holding 8 characters at 1.90× — just
+            // under the ≈1.95× contract point, so the device showed
+            // « Salon … » and « Barber… » where a name should be. One column
+            // is the same answer the dashboard's action grid takes above 1.3×.
+            final inner = constraints.maxWidth - AppTheme.spacingM * 2;
+            final twoColumnCell = (inner - AppTheme.spacingM) / 2;
+            final columns =
+                twoColumnCell >= ProviderCard.minGridCellWidth(context) ? 2 : 1;
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              // `childAspectRatio: 0.75` derived tile HEIGHT from tile WIDTH,
+              // and width does not move with the OS text scale — so the card
+              // was 208dp at 100% and 208dp at 200%, with the text block
+              // clipped. The bound now comes from the card, which is the only
+              // thing that knows its own chrome (the same reason
+              // `carouselHeight` lives there). A full-width card has the room
+              // for the roomy design, so it gets the carousel's bound.
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: AppTheme.spacingM,
+                mainAxisSpacing: AppTheme.spacingM,
+                mainAxisExtent: columns == 1
+                    ? ProviderCard.carouselHeight(context)
+                    : ProviderCard.gridHeight(context),
+              ),
+              itemCount: providers.length,
+              itemBuilder: (context, index) {
+                final p = providers[index];
+                return ProviderCard(
+                  provider: p,
+                  isGrid: true,
+                  onTap: () => context.push('/provider/${p.id}'),
+                );
+              },
             );
           },
         ),
