@@ -149,6 +149,7 @@ void main() {
           reason: 'C: the six-box code row is the subject — without it this '
               'test is about an empty Scaffold',
         );
+        _expectOtpRowFitsTheFloor(tester, width: width, at: at);
         expectNoUndeclaredTruncation(tester,
             context: 'the consumer OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
@@ -166,6 +167,7 @@ void main() {
         );
 
         expect(find.byType(TextField), findsNWidgets(6), reason: 'C');
+        _expectOtpRowFitsTheFloor(tester, width: width, at: at);
         expectNoUndeclaredTruncation(tester, context: 'the pro OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
 
@@ -173,6 +175,9 @@ void main() {
       });
 
       // ---- the pro earnings bar -----------------------------------------
+      // (the OTP box's §13.3 growth assertion is outside these loops — see the
+      // bottom of the file, and the note there about why looping is legal in
+      // that one test and nowhere else.)
       //
       // Four tabs — « Aujourd'hui » « Semaine » « Mois » « Tout » — in a
       // non-scrollable TabBar, so each gets width / 4. « Aujourd'hui » is the
@@ -341,6 +346,7 @@ void main() {
       // it does at 360 × 2. A `Wrap` is supposed to survive that. **Green is
       // the answer being recorded, not a failure to find a bug.**
 
+      // ---- the consent sentence -----------------------------------------
       testWidgets('the legal consent sentence fits $at', (tester) async {
         await pumpAtWidth(
           tester,
@@ -360,6 +366,109 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
     }
+  }
+
+  // ---- §13.3: the OTP box grows with the text scale ---------------------
+  //
+  // **This one loops inside a single test, and that does not contradict the
+  // "do not collapse" rule above.** That rule is about `_overflowReportNeeded`,
+  // which latches once per render object and so hides a SECOND pump's overflow.
+  // This test never reads an overflow report — it reads `getRect`, and sizes are
+  // whatever the tree currently says. Comparing two scales is the assertion, so
+  // two pumps in one test is the only shape that can make it.
+  //
+  // It is the assertion that catches restoring `height: 64`. A fixed height
+  // around text does not overflow; it CLIPS, silently. Measured at the moment it
+  // was removed, the field wanted **66.0dp at 1×** and had 64 — so the row
+  // shipped 2dp of clipping on every device — and **99.0dp at 2×**, clipping by
+  // 35. Nothing in 825 tests had anything to say about it.
+  testWidgets('the OTP box grows with the OS text scale (§13.3)',
+      (tester) async {
+    Future<double> boxHeightAt(double scale) async {
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: scale,
+        home: OtpVerifyScreen(phoneNumber: kConsumerPhone),
+        rounds: 1,
+      );
+      expect(find.byType(TextField), findsNWidgets(6), reason: 'C');
+      final h = tester.getRect(find.byType(TextField).first).height;
+      await _disposeTimers(tester);
+      return h;
+    }
+
+    final atOne = await boxHeightAt(1);
+    final atTwo = await boxHeightAt(2);
+
+    expect(
+      atTwo,
+      greaterThan(atOne),
+      reason: 'the box is ${atOne}dp at 1× and ${atTwo}dp at 2× — it did not '
+          'grow, so the digits are being clipped by a fixed bound (§13.3). '
+          'This is what `height: 64` did, and takeException cannot see it.',
+    );
+  });
+}
+
+/// The six OTP boxes are equal, legal, and exactly as wide as the arithmetic
+/// says (§13.2, and A11 C3).
+///
+/// `takeException` proves nothing here. The row's failure modes after C3 are all
+/// **silent**: a `margin` left inside an `Expanded` makes the four middle boxes
+/// 46.67dp while the ends are 50.67; the page padding left at `spacingL` makes
+/// all six 45.33. Neither overflows. Both are under §13.2's 48 floor, and both
+/// look like a working row in a picture nobody takes.
+///
+/// The `TextField` fills its box exactly, so one finder is both the box and the
+/// tap target. **Every index is measured** — a `.first` would have passed on the
+/// margin bug, whose first box is the one that is fine.
+void _expectOtpRowFitsTheFloor(
+  WidgetTester tester, {
+  required double width,
+  required String at,
+}) {
+  final boxes = [
+    for (var i = 0; i < 6; i++) tester.getRect(find.byType(TextField).at(i)),
+  ];
+
+  // `(W − 2×spacingM − 5×spacingS)/6`, spelled out rather than named, so the
+  // test states the contract instead of re-deriving it from the widget.
+  final expected = (width - 2 * 16 - 5 * 8) / 6;
+
+  for (var i = 0; i < 6; i++) {
+    expect(
+      boxes[i].width,
+      closeTo(expected, 0.01),
+      reason: 'box $i is ${boxes[i].width}dp at $at, and the row promises '
+          '$expected — (W − 2×spacingM − 5×spacingS)/6. A margin inside the '
+          'Expanded is the usual cause: it is spent from the slot, so the four '
+          'middle boxes shrink and the two ends do not.',
+    );
+    expect(
+      boxes[i].width,
+      greaterThanOrEqualTo(48),
+      reason: 'box $i is ${boxes[i].width}dp wide at $at — §13.2 says every '
+          'touch target is ≥48×48, and this one is typed into',
+    );
+    expect(
+      boxes[i].height,
+      greaterThanOrEqualTo(48),
+      reason: 'box $i is ${boxes[i].height}dp tall at $at (§13.2)',
+    );
+  }
+
+  for (var i = 1; i < 6; i++) {
+    expect(
+      boxes[i].left - boxes[i - 1].right,
+      greaterThanOrEqualTo(8 - 0.01),
+      reason: 'boxes ${i - 1} and $i are '
+          '${(boxes[i].left - boxes[i - 1].right).toStringAsFixed(2)}dp apart '
+          'at $at — §13.2: "targets that are adjacent need ≥8px between them, '
+          'or a fat finger hits the wrong one". A dropped `spacing:` on the Row '
+          'is the usual cause, and it makes every box WIDER, so the floor '
+          'assertions above stay green.',
+    );
   }
 }
 

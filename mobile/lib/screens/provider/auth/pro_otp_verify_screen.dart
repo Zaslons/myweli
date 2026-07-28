@@ -153,7 +153,12 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacingL),
+          // spacingM, not spacingL, and it is load-bearing rather than
+          // cosmetic: the six flexed boxes are `(W − 2×pad − 40)/6`, so at
+          // spacingL they come out **45.33dp at 360 — under §13.2's 48 floor,
+          // and silently**, because nothing overflows. At spacingM they are
+          // exactly 48.0. The padding is what buys the tap target.
+          padding: const EdgeInsets.all(AppTheme.spacingM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

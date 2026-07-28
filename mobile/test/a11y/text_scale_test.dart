@@ -8,6 +8,7 @@ import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
 import 'package:myweli/widgets/booking/compact_appointment_tile.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
+import 'package:myweli/widgets/common/otp_code_row.dart';
 import 'package:myweli/widgets/home/category_chips.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
@@ -44,6 +45,25 @@ void main() {
       tester,
       const CategoryChips(selectedCategory: 'all'),
       find.byType(CategoryChips),
+    );
+  });
+
+  // A11 C3. The box was `Container(width: 50, height: 64)` around a
+  // `headlineMedium` field — a fixed height around text, which §13.3 forbids in
+  // writing. It was not a hypothetical clip: measured at the moment the height
+  // came off, the field wanted **66.0dp at 1×** and had 64, so the row shipped
+  // 2dp of clipping on every device, and wanted **99.0dp at 2×**.
+  testWidgets('OtpCodeRow — the code boxes', (tester) async {
+    await pumpAtTextScale(tester, otpRow());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OtpCodeRow — the boxes grow with the text scale',
+      (tester) async {
+    await expectGrowsWithTextScale(
+      tester,
+      otpRow(),
+      find.byType(OtpCodeRow),
     );
   });
 

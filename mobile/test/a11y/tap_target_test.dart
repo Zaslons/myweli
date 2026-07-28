@@ -66,6 +66,18 @@ void main() {
     handle.dispose();
   });
 
+  // A11 C3. The row this measures used to be inline inside two `build` methods,
+  // where this guideline could not reach it — and it was 50dp wide inside a
+  // padding that made the row overflow a 360dp phone by 28px. After C3 the boxes
+  // are `(W − 2×spacingM − 5×spacingS)/6`, which at 360 is **exactly 48.0**: the
+  // §13.2 floor met with zero slack, by six targets a user types into one after
+  // another. That is precisely the shape that needs a gate rather than a comment.
+  testWidgets('OtpCodeRow — the six code boxes', (tester) async {
+    final handle = await pumpForA11y(tester, otpRow());
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    handle.dispose();
+  });
+
   testWidgets('NotificationTile — the tile tap', (tester) async {
     final handle = await pumpForA11y(
       tester,

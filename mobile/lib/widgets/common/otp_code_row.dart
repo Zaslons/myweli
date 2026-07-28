@@ -120,71 +120,98 @@ class OtpCodeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AutofillGroup(
+      // **The gaps are OUTSIDE the flex division, and that is the whole fix.**
+      //
+      // The obvious change — keep the per-box `margin` and wrap each box in
+      // `Expanded` — produces the wrong row, silently. `Expanded` divides the
+      // WHOLE width, and a margin is then spent inside its own slot: at 360 each
+      // slot is 328/6 = 54.67, so the four middle boxes (margin 4+4) come out at
+      // **46.67dp — under §13.2's 48 floor** — while the two end boxes (margin 4)
+      // come out at 50.67. Six boxes that are neither equal nor legal, and
+      // nothing overflows, so the width gate would have said nothing.
+      //
+      // `Flex.spacing` puts the gaps between the slots instead:
+      // `(W − 2×spacingM − 5×spacingS)/6` = **48.0 @360 · 50.5 @375 · 53.0 @390**,
+      // all six equal, at every width, and it cannot overflow at any width.
+      //
+      // 8 is what the two 4dp margins already summed to between adjacent boxes,
+      // so the rendered gap does not move — and it is §13.2's adjacency floor
+      // ("targets that are adjacent need ≥8px between them"), which is why it is
+      // `spacingS` and not something smaller when the arithmetic gets tight.
+      //
+      // `mainAxisAlignment: center` is gone with the fixed widths: it is
+      // meaningless once the children fill the row. `pro_journal_screen` deleted
+      // its `spaceAround` for the same reason when its 7 day pills adopted
+      // `Expanded` — the precedent this shape is copied from.
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [for (var i = 0; i < length; i++) _box(i)],
+        spacing: AppTheme.spacingS,
+        children: [
+          for (var i = 0; i < length; i++) Expanded(child: _box(i)),
+        ],
       ),
     );
   }
 
   Widget _box(int index) {
     final borderColor = hasError ? AppColors.error : AppColors.borderStrong;
-    return Container(
-      width: 50,
-      height: 64,
-      margin: EdgeInsets.only(
-        left: index == 0 ? 0 : AppTheme.spacingXS,
-        right: index == length - 1 ? 0 : AppTheme.spacingXS,
-      ),
-      child: Focus(
-        onKeyEvent: (node, event) => _onBoxKey(index, event),
-        child: TextField(
-          controller: controllers[index],
-          focusNode: focusNodes[index],
-          enabled: enabled,
-          textAlign: TextAlign.center,
-          textAlignVertical: TextAlignVertical.center,
-          keyboardType: TextInputType.number,
-          maxLength: index == 0 ? length : 1,
-          // The OS delivers the SMS code to the first box; `_onBoxChanged`'s
-          // paste branch then fills the rest.
-          autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
-          style: AppTextStyles.headlineMedium.copyWith(
-            color: hasError ? AppColors.error : AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0,
-            height: 1.2,
-          ),
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            counterText: '',
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
-            isDense: false,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: BorderSide(color: borderColor, width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: BorderSide(color: borderColor, width: 1.5),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: const BorderSide(color: AppColors.border, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              borderSide: BorderSide(
-                color: hasError ? AppColors.error : AppColors.primary,
-                width: 2.5,
-              ),
-            ),
-            filled: true,
-            fillColor: enabled ? AppColors.secondary : AppColors.surface,
-          ),
-          onChanged: (value) => _onBoxChanged(index, value),
+    // No `width:` and no `height:` — both were fixed dimensions around text, and
+    // §13.3 forbids the height in writing: "a box that contains text may not
+    // have a fixed height … a clip waiting to happen." It was not waiting; the
+    // spelled-out example is in §13.3 and cannot be quoted here, because the §5
+    // pin reads comments as code. Measured at the moment the height was
+    // removed: the field wants **66.0dp** at 1× and got 64 — **clipping by 2dp
+    // on every device, today** — and wants 99.0dp at 2×, clipping by 35.
+    //
+    // The width had no written rule to break, which is exactly why it survived
+    // every gate; §13.3 now has the twin bullet it was missing.
+    return Focus(
+      onKeyEvent: (node, event) => _onBoxKey(index, event),
+      child: TextField(
+        controller: controllers[index],
+        focusNode: focusNodes[index],
+        enabled: enabled,
+        textAlign: TextAlign.center,
+        textAlignVertical: TextAlignVertical.center,
+        keyboardType: TextInputType.number,
+        maxLength: index == 0 ? length : 1,
+        // The OS delivers the SMS code to the first box; `_onBoxChanged`'s
+        // paste branch then fills the rest.
+        autofillHints: index == 0 ? const [AutofillHints.oneTimeCode] : null,
+        style: AppTextStyles.headlineMedium.copyWith(
+          color: hasError ? AppColors.error : AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0,
+          height: 1.2,
         ),
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(
+          counterText: '',
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
+          isDense: false,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            borderSide: BorderSide(color: borderColor, width: 1.5),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            borderSide: BorderSide(color: borderColor, width: 1.5),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            borderSide: const BorderSide(color: AppColors.border, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            borderSide: BorderSide(
+              color: hasError ? AppColors.error : AppColors.primary,
+              width: 2.5,
+            ),
+          ),
+          filled: true,
+          fillColor: enabled ? AppColors.secondary : AppColors.surface,
+        ),
+        onChanged: (value) => _onBoxChanged(index, value),
       ),
     );
   }
