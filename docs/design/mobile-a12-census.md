@@ -228,8 +228,58 @@ re-driven on the surface that produced the original evidence: the pro app on a
 | `_StatCard` « Aujourd'hui » + calendar icon | **16px** over, striped banner | icon wrapped below the label, **no banner** |
 | `_StatCard` « En attente » + dot | **2.6px** over | **no banner** |
 | the action grid | « Disponibil / ité », a control's label broken mid-word | **single column**, full width, « Disponibilité » whole on one line |
+| the salon list filter row | **122px** over | the pill truncates, « 2 salons » sits at the edge, **no banner** |
 
-No overflow banner appears anywhere on the dashboard at the contract point.
+No overflow banner appears anywhere on the dashboard or the salon list at the
+contract point.
+
+### And it found what the gates could not — twice, in the same widget
+
+The consumer half of the run opened the salon grid, which **A12 had already
+fixed**, and it was worse than before:
+
+> « BOTTOM OVERFLOWED BY 55 PIXELS », both cards.
+
+**No test in the repo could have seen it.** `_isGrid` starts `false`, so the
+salon-list subject — and every other test — measured the *list* branch: A12's
+grid fix was never once executed by an assertion. That is the A11 lesson
+arriving one layer in, and it is why the gate now taps the toggle and asserts a
+`GridView` is on screen before it measures anything.
+
+The cause was **two formulas in one file that disagreed**:
+
+```
+gridHeight       = 142 + 68 × scale     ← derived from the COMPACT image floor
+_buildGridCard   : compact = maxH < 260 ← a raw dp threshold
+```
+
+They cross at **≈1.74×**. Above that the card drew the 180dp *roomy* image
+inside a box measured for the 110dp *compact* one. `compact` is now
+`maxH < carouselHeight(context)` — the roomy layout's own height — so the two
+cannot disagree by construction, and the compact image takes what is **left**
+after the text rather than `maxH × 0.56`, which was the same
+derive-from-something-that-does-not-scale mistake one level down.
+
+Fixing the height exposed a second, real defect underneath, which the device had
+also shown and which `expectNoLegibilityCrush` then reproduced: at 360dp a
+two-column cell gives the salon's **name** 140dp, and that holds 8 characters
+only to **1.90×** — just under the ≈1.95× contract point, which is why the
+device read « Salon … » and « Barber… ». The crossing moves with the width
+(375dp holds to 2.00×, 390dp past it), so the rule is about the **cell**, not
+the text scale — a scale threshold would be wrong at two of §10's three widths.
+`ProviderCard.minGridCellWidth`, and one column below it.
+
+| the salon grid | before | after |
+|---|---|---|
+| card height | **55px** over, both cards | fits |
+| the salon's name | « Salon … » — 3 characters | « Salon Excellence », whole, one column |
+
+**The third instrument that was wrong before it was right.** `text_scale_test`
+already had a test guarding this exact class — `carouselHeight never trips the
+compact branch` — and it asserted `bound >= 260`, a *proxy* for the threshold.
+The proxy is what let this through: it guarded the bound dipping **below** 260
+at 0.85× and said nothing about a smaller bound crossing it going **up**. It now
+asserts the thing itself, the image the card actually drew.
 
 ## 11. Open
 

@@ -696,6 +696,25 @@ sets 200% has told the system they cannot read the default; a layout that clips 
   because wrapping is how the layout succeeds. `childAspectRatio` is separately
   **prohibited** by a source pin, because it freezes tile HEIGHT as a multiple of
   tile WIDTH and width does not move with the font.
+- **A constant that gates a text-dependent branch has to move with the text**
+  (A12, found on a device *after* the fix it undermined had shipped). It is the
+  fixed-box rule one level up: not a fixed size around text, but a fixed
+  **threshold** deciding which layout the text gets. `ProviderCard` chose its
+  compact design with `maxH < 260` while A12's own `gridHeight` was
+  `142 + 68 × scale` — the two cross at **≈1.74×**, above which the card drew
+  the full-size image inside a box measured for the compact one and overflowed
+  by 55dp on a real phone at ≈1.95×.
+  - The fix is to test against **the other layout's own height** rather than a
+    number that approximates it, so the two cannot disagree by construction.
+  - **A threshold that is a proxy for the rule cannot gate the rule.** The
+    repo already had a test for this exact class, and it asserted
+    `carouselHeight >= 260` — it guarded the bound dipping *below* the number
+    and said nothing about a smaller bound crossing it going *up*. Assert the
+    thing itself: which branch the widget actually took.
+  - Where the threshold is about **width** (can this cell still name a salon?),
+    do not express it as a text scale: the crossing moves with the screen, so a
+    scale constant is wrong at some of §10's widths and right at others.
+    `ProviderCard.minGridCellWidth` is the shape.
 - Text that *can* overflow gets `maxLines` + `TextOverflow.ellipsis`. Today only
   4.8% of `Text` widgets do.
 - Gate: the key screens are pumped at `TextScaler.linear(2.0)` and asserted not to
@@ -1194,6 +1213,7 @@ own design system?" — today, mostly not.
 | 69 | Two defect classes no assertion in this repo could see | **2 rules, 2 primitives** | §13.3 said *"a box that contains text may not have a fixed height"* since A5 and nothing enforced it; and a FLEXED label starved by unflexed siblings spends its declared ellipsis on a squeeze it did not choose, which `expectNoUndeclaredTruncation` skips **by design**. So `NotificationTile`'s title was unreadable and the dashboard's `childAspectRatio` tile was frozen at 143.6dp at every text scale, both green. A12 adds **`expectNoLegibilityCrush`** — flexed **and** `didExceedMaxLines`, the second precondition being the whole design, since without it every framing fires on `CommunePill`'s correctly-narrow « Cocody » — and **`expectNoVerticalClip`**, one pump of `getMaxIntrinsicHeight(size.width) > size.height`, vertical only because the horizontal twin is true of nearly every sentence on a phone. Plus a `childAspectRatio` prohibition pin, red at 2. `kMinLegibleChars = 8` was **measured, not chosen**: report-only first, then set strictly between the worst defect (7 chars, the salon app bar) and the best legitimate (9, a review tile) — a **one-character margin**, recorded rather than smoothed over | ✅ **A12** |
 | 70 | The gates had no gates | **6 self-tests** | every assertion in `_a11y.dart` runs across the width matrix, where green is the right answer and a useless one — a helper that cannot fail is indistinguishable from one that passes, and row 41 records four shipped in a single commit. A12's two primitives were **wrong three times between them** before `primitives_test.dart` existed: `_prefixWidth` measured a single line and called a `maxLines: 2` header a crush; `_isPainted` needed three attempts because `tester.allRenderObjects` walks everything LAID OUT and `DropdownButton` builds every item into an `IndexedStack` — `RenderIndexedStack` is not the marker, `RenderObject.paintsChild` is not overridden by `_RenderVisibility`, and the answer is both plus an **element** walk. Each false positive is now a permanent subject | ✅ **A12** |
 | 71 | The §5 spacing pin cannot see a compound name | **2 raw literals** | the sweep's regex is `\b(?:run)?[Ss]pacing: \d`, and `\b` cannot fire inside `crossAxisSpacing` — so `crossAxisSpacing: 12` and `mainAxisSpacing: 12` on the pro dashboard's grid were invisible to a sweep §20 calls complete. Both happened to equal `spacingSM` and were converted in passing (A12). **The pin gap itself is open**: any `*Spacing:` compound is still unswept | *new — widen the pattern* |
+| 72 | A fix that no test could execute, and the threshold that undid it | **1 screen, 2 defects, 55px** | A12 fixed the salon grid — `childAspectRatio: 0.75` → `ProviderCard.gridHeight` — and the device then showed « BOTTOM OVERFLOWED BY 55 PIXELS » on both cards at ≈1.95×, *after* the fix. **No test in the repo could have seen it**: `_isGrid` starts `false`, so `layout_test`'s salon-list subject and every other test measured the LIST branch, and the grid fix was never once executed by an assertion — the vacuity class §20 names, reached through a toggle rather than an empty state. The cause is two formulas in one file that disagreed: `gridHeight` is `142 + 68 × scale` (from the COMPACT image floor) while `_buildGridCard` decided compact with `maxH < 260`, a raw dp number; they cross at **≈1.74×**, above which the card drew the 180dp roomy image inside a box measured for the 110dp one. `compact` is now `maxH < carouselHeight(context)` — the roomy layout's own height — and the compact image takes what is LEFT after the text rather than `maxH × 0.56`. Fixing the height exposed a **second real defect** underneath, which the device had also shown and `expectNoLegibilityCrush` then reproduced: a 360dp two-column cell gives the salon's NAME 140dp, which holds 8 characters only to **1.90×** — under the ≈1.95× contract point, hence « Salon … » where a name should be. The crossing moves with the WIDTH (375dp holds to 2.00×, 390dp past it), so the rule is about the cell: `minGridCellWidth`, one column below it. **And the third instrument that was wrong first:** `text_scale_test` already guarded this class with `carouselHeight >= 260`, a proxy — which is exactly what let it through. See §13.3's new rule | ✅ **A12** |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.
