@@ -15,6 +15,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
+import '../../widgets/common/section_heading.dart';
 import '../../widgets/home/announcement_stories.dart';
 import '../../widgets/home/category_chips.dart';
 import '../../widgets/home/search_bar.dart';
@@ -256,20 +257,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Derniers rendez-vous',
-                                style: AppTextStyles.titleLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => context.push('/bookings'),
-                                child: const Text('Voir tout'),
-                              ),
-                            ],
+                          SectionHeading(
+                            title: 'Derniers rendez-vous',
+                            action: TextButton(
+                              onPressed: () => context.push('/bookings'),
+                              child: const Text('Voir tout'),
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingS),
                           // At most 3 tiles, so there is nothing to virtualise —
@@ -349,20 +342,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             horizontal: AppTheme.spacingM,
                             vertical: AppTheme.spacingS,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Mes favoris',
-                                style: AppTextStyles.titleLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => context.push('/favorites'),
-                                child: const Text('Voir la carte'),
-                              ),
-                            ],
+                          child: SectionHeading(
+                            title: 'Mes favoris',
+                            action: TextButton(
+                              onPressed: () => context.push('/favorites'),
+                              child: const Text('Voir la carte'),
+                            ),
                           ),
                         ),
                         SizedBox(

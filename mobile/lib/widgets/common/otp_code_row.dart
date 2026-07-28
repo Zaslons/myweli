@@ -156,9 +156,8 @@ class OtpCodeRow extends StatelessWidget {
     final borderColor = hasError ? AppColors.error : AppColors.borderStrong;
     // No `width:` and no `height:` — both were fixed dimensions around text, and
     // §13.3 forbids the height in writing: "a box that contains text may not
-    // have a fixed height … a clip waiting to happen." It was not waiting; the
-    // spelled-out example is in §13.3 and cannot be quoted here, because the §5
-    // pin reads comments as code. Measured at the moment the height was
+    // have a fixed height. `SizedBox(height: 50)` around a `Text` is a clip
+    // waiting to happen." It was not waiting. Measured at the moment it was
     // removed: the field wants **66.0dp** at 1× and got 64 — **clipping by 2dp
     // on every device, today** — and wants 99.0dp at 2×, clipping by 35.
     //

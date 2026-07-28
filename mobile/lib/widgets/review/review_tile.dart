@@ -77,23 +77,27 @@ class ReviewTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
+                    // A11 C5: a `Row` here overflowed by 21dp at 360×2×. The
+                    // name was `Flexible`, but the badge was not — and a pill
+                    // whose own label doubles cannot shrink, so the name went to
+                    // zero and the badge ran off the tile. Same answer as
+                    // `SectionHeading`: the badge drops to its own line rather
+                    // than squeezing the name it belongs to.
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppTheme.spacingS,
+                      runSpacing: AppTheme.spacingXS,
                       children: [
-                        Flexible(
-                          child: Text(
-                            review.userName,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          review.userName,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        if (review.verified) ...[
-                          const SizedBox(width: AppTheme.spacingS),
-                          const _VerifiedBadge(),
-                        ],
+                        if (review.verified) const _VerifiedBadge(),
                       ],
                     ),
                     const SizedBox(height: AppTheme.spacingXS),
@@ -226,9 +230,17 @@ class _VerifiedBadge extends StatelessWidget {
           const Icon(Icons.verified,
               size: AppTheme.iconXS, color: AppColors.success),
           const SizedBox(width: AppTheme.spacingXS),
-          Text(
-            'Réservation vérifiée',
-            style: AppTextStyles.labelSmall.copyWith(color: AppColors.success),
+          // A11 C5: « Réservation vérifiée » is 20 characters inside a pill, and
+          // at 200% it wants 225dp in the 212dp the tile can offer. `Flexible`
+          // lets the label WRAP inside the pill rather than run out of it —
+          // deliberately not an ellipsis, because « Réservation véri… » on a
+          // trust badge is worse than a two-line badge.
+          Flexible(
+            child: Text(
+              'Réservation vérifiée',
+              style:
+                  AppTextStyles.labelSmall.copyWith(color: AppColors.success),
+            ),
           ),
         ],
       ),

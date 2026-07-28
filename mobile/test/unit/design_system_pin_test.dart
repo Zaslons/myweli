@@ -43,6 +43,17 @@ void main() {
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (line.contains('// ds-ignore')) continue;
+        // **A whole-line comment is prose, not code** (A11 C5). This sweep is
+        // line-based, so a docstring quoting the very rule it enforces used to
+        // BE a violation of it — which happened twice in three commits, once in
+        // `otp_code_row.dart` quoting §13.3's example and once in
+        // `reviews_screen.dart` naming the literal it had just deleted. The
+        // effect was a standing incentive not to document the rules.
+        //
+        // Only a line that is ENTIRELY a comment is skipped. An end-of-line
+        // `// …` is left alone on purpose: truncating at the first `//` would
+        // also cut a line containing a URL, and would hide real code beside it.
+        if (line.trimLeft().startsWith('//')) continue;
         if (pattern.hasMatch(line)) {
           hits.add('${file.path}:${i + 1}  ${line.trim()}');
         }
