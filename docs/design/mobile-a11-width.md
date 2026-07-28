@@ -641,6 +641,99 @@ run, so this sets the convention — a numbered prose note, the shape
    measurement already covering it at 360 × {1×, 2×}. Recorded rather than
    ticked.
 
+### 6.4 The iOS run (C8f) — the census stops being a prediction
+
+The Android run was the floor on the device class the PRD names. The iOS run is
+the second surface, and it did something the first could not: it **confirmed
+§21 row 68's static census on a real device, at the contract point.**
+
+Surface: `iPhone 13 mini` at **360×780 points** — a true 360dp iOS device, 3×
+CoreText rather than Android's 2× FreeType. There is no `pro` flavour on iOS
+(flavours are Android-only here), so it is the pro **target** on the default
+scheme: `flutter build ios --debug --simulator --target lib/main_pro.dart`.
+
+Text size is set with `xcrun simctl ui <udid> content_size <category>` — note
+the **underscore**; the hyphenated spelling prints usage and changes nothing,
+which cost one wrong conclusion before it was caught. Flutter maps
+`accessibility-large` to **≈1.95×** (the 200% contract point) and
+`accessibility-extra-extra-extra-large` to **≈3.12×**.
+
+**What held.** At 1× both DoD screens are clean: the earnings bar shows all four
+labels whole, and so does the nested four-tab bar. `AuthSwitchPrompt` lays out
+on ONE line, which is the claim §6.2 makes for it — a `Wrap` with room is the
+`Row` it replaced. At **3.12×**, 50% beyond contract, both C8 fixes still hold:
+« Continuer avec e-mail » wraps *inside* its button, « S'inscrire » drops below
+the sentence, and no overflow banner appears on the auth screens at all. At
+1.95× the earnings bar **scrolls** with « Aujourd'hui » complete — C4's fix,
+on a second device class.
+
+**What broke, at 1.95× — the contract point, not above it.**
+
+| where | over by |
+|---|---|
+| dashboard `_StatCard` « Aujourd'hui » + calendar icon | **16px** |
+| dashboard `_StatCard` « En attente » + status dot | **2.6px** |
+| dashboard `_StatCard` « Aujourd'hui » + `$` icon | **16px** |
+| `EmptyState` on the earnings tab — **vertically** | **3px** |
+
+The first three are §21 row 68's finding #3, which the census derived statically
+(« Aujourd'hui » needs ~165dp of a 126dp tile). **It is no longer a prediction.**
+At 3.12× the same cards run **91px** and **31px** over. This is the first screen
+after every pro login.
+
+The fourth is **new**, and horizontal census work could not have found it:
+`EmptyState`'s column is 3px too tall when its description wraps far enough. It
+is a shared component on every empty screen in both apps.
+
+Row 68 is amended accordingly — from *"twelve screens still break"* to twelve
+**plus one**, with three of them now device-confirmed **at contract** rather
+than inferred. It stays recorded and not fixed, for the reason it always did:
+that is a slice, and thinning it into the end of this one is the hollow pass the
+full-depth rule forbids.
+
+### 6.5 The consumer app, same surface
+
+The pro app was the subject because that is where the tab bars and the auth
+prompt live. The consumer app was then run on the same 360×780pt device, and it
+is the better confirmation of C5 and C7 — those fixes are almost all on this
+side.
+
+**At 1×** the home screen, a salon page and the bottom nav are clean.
+`SectionHeading`'s restored 8dp padding (C8d) is visible on « Vos rendez-vous
+ici », « Services » and « Contact ».
+
+**At ≈1.95×**, every consumer fix holds and several are visible at once:
+
+| fix | slice | what the device shows |
+|---|---|---|
+| the salon action bar **stacks** rather than splitting a word | C8b | « Réserver » above « Appeler », and « Appeler » is **whole** — it used to render « Appel/er » |
+| `SectionHeading` is a `Wrap` | C5 | « Vos rendez-vous ici » wraps to two lines and « Voir tout » drops below it |
+| the header grows with the text scale | C5 | `textScaledBound` gives « Beauté Divine » two lines plus its location and rating rows |
+| contact rows are flexed | C5 | every opening-hours line and « WhatsApp » render whole |
+| `AppointmentCard`'s date row is a `Wrap` of two intrinsic halves | C8b | « 30/07/2026 » and « 17:07 » are both **intact** — the row that used to split a date as « 13/03/20 » / « 26 » |
+| the bookings tab bar scrolls | C4 | « À venir » « Passés » « Annulés » all whole, the strip running past the viewport rather than dividing it |
+| `AppButton`'s flexible label | C8 | « Continuer avec Google » wraps inside its button on the consumer login |
+| `LegalConsentText` | L1 / A11 gate subject | the whole sentence and both links render, unclipped |
+
+**No overflow banner appeared anywhere in the consumer app**, at either scale.
+
+It also confirmed **both of §21 row 62's open items on a device**: the home
+story card renders « Prom/o W… » and the salon header renders
+« Salon Ex / cellence ». A draft of the register row claimed C5's
+`textScaledBound` had resolved the second one — opening the salon showed it had
+not, which is the difference between a claim and a look. `textScaledBound` gives
+the header **room** for two lines; it does not choose where the line breaks.
+Both are a proper noun and a promo title, and whether a heading may break inside
+a word is still the design decision this slice does not make.
+
+**And a second of row 68's twelve reproduced at contract:** finding #2,
+`provider_list_screen`'s `CommunePill`, shows *RIGHT OVERFLOWED BY 122 PIXELS*
+on « Toutes les communes ». The census predicted the defect from the arithmetic
+(~376dp of content in a 328dp budget); the magnitude differs because the count
+label is absent on this route, but the shape is exactly as described. Two of the
+twelve are now device-confirmed rather than inferred — #2 here and #3 on the pro
+dashboard.
+
 ## 7. Definition of done
 
 - [x] §10 states a **floor** (360, 320 out of contract) and the admin exclusion
