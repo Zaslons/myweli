@@ -15,6 +15,7 @@ import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:myweli/widgets/review/review_tile.dart';
 import 'package:provider/provider.dart';
 
+import '../support/fonts.dart';
 import '../support/pump_app.dart';
 import '_a11y.dart';
 import '_fixtures.dart';
@@ -27,8 +28,9 @@ import '_fixtures.dart';
 /// assertion is just "no exception". Before A5 this went red on `CategoryChips`
 /// (a `SizedBox(height: 50)` around chips whose text doubled).
 void main() {
-  setUpAll(() {
-    initializeDateFormatting('fr_FR', null);
+  setUpAll(() async {
+    await loadRealFonts();
+    await initializeDateFormatting('fr_FR', null);
     setupDependencyInjection();
   });
 
@@ -118,8 +120,15 @@ void main() {
         // Unbounded, a tile can never overflow and the gate is vacuous. Both
         // call sites hand it a fixed WIDTH inside a horizontal strip — so the
         // test has to hand it one too.
+        //
+        // **270, not 340** (A11 C5). 340 was wider than every width the tile is
+        // ever given: home computes `(w × 0.86).clamp(280, 360)` → 309.6 at the
+        // 360dp floor, and the salon page `(w × 0.75).clamp(260, 340)` → 270.
+        // So this gate was green about a configuration that does not ship —
+        // the same vacuity class §20 names, one level subtler than "unbounded".
+        // 270 is the narrowest width either call site can produce.
         SizedBox(
-          width: 340,
+          width: 270,
           child: CompactAppointmentTile(
             appointment: appt(),
             providerName: 'Salon Excellence',
@@ -144,7 +153,7 @@ void main() {
       // would report "it did not grow" about the screen, not the tile.
       SingleChildScrollView(
         child: SizedBox(
-          width: 340,
+          width: 270,
           child: CompactAppointmentTile(
             appointment: appt(),
             providerName: 'Salon Excellence',

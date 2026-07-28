@@ -68,21 +68,31 @@ class SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heading = Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      // Only visible once the action wraps to its own line, which is the whole
-      // point of the shape.
-      runSpacing: AppTheme.spacingS,
-      children: [
-        Text(
-          title,
-          style: (style ?? AppTextStyles.titleLarge).copyWith(
-            color: AppColors.textPrimary,
+    // **`double.infinity` is load-bearing, and the golden is what found it.**
+    // A `Wrap` shrink-wraps under loose constraints, and both call sites put it
+    // in a `Column(crossAxisAlignment: start)` — so `spaceBetween` had no free
+    // space to distribute and « Voir tout » rendered snug against the title
+    // instead of at the right edge. The `Row` it replaced defaulted to
+    // `mainAxisSize: max` and never had the problem. Nothing in the width gate
+    // could see it: the layout was correct, only the alignment was not.
+    final heading = SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        // Only visible once the action wraps to its own line, which is the whole
+        // point of the shape.
+        runSpacing: AppTheme.spacingS,
+        children: [
+          Text(
+            title,
+            style: (style ?? AppTextStyles.titleLarge).copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
-        ),
-        if (action != null) action!,
-      ],
+          if (action != null) action!,
+        ],
+      ),
     );
 
     if (onTap == null) return heading;

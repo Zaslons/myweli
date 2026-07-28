@@ -123,7 +123,7 @@ every red was named in the plan before the file was run:
 | `earnings_screen` | **all three widths** · both scales | truncation | « Aujourd'hui » 72.2dp in 58.0 / 61.8 / 65.5; **143.4dp at 2×** |
 | `appointment_list_screen` | **all three** · both scales | truncation | identical box arithmetic, one screen over |
 | `my_bookings_screen` | all three · **2× only** | truncation | « Passés » 91.9 in 88.0@360 · « Annulés » 102.0 in 93.0@375 |
-| `home_screen` | all three · **2× only** | overflow | the `:259` heading row overflows by **807px** at 390×2 |
+| `home_screen` | all three · **2× only** | overflow | ~~807px~~ → **236 / 221 / 206dp** at 360/375/390 on the `:259` heading row. *The 807 was measured under the placeholder font, before `loadRealFonts` landed in this very slice* — corrected by C5, which also found that `compact_appointment_tile` does **not** overflow at any supported width (that 38dp was the same artefact), and that the screen throws **three** exceptions, not one: `:259`, `:352` (89/74/59) and `widgets/home/search_bar.dart:27` (75/60/45) |
 | `reviews_screen` | **360 × 2× only** | overflow | **4.3px** — the `SizedBox(width: 100)` bar that will not grow |
 | `LegalConsentText` | — | — | **green at all six** — §8's open question, answered |
 
@@ -355,6 +355,47 @@ nested strip is 553dp inside a 360dp viewport and « Tous » sits fully off-scre
 where `tester.tap` prints a warning, dispatches into nothing and fails two lines
 later on an unrelated assertion.
 
+### 4.4c The headings — and the fix that would have passed every gate
+
+§4 prescribed nothing for these either. This is it, written after doing it.
+
+**The trap first, because it is the transferable part.**
+`expectNoUndeclaredTruncation` skips any paragraph declaring
+`TextOverflow.ellipsis` — correctly, because a declared ellipsis is §13.3-legal
+for body copy. So `maxLines: 1, overflow: ellipsis` on « Derniers rendez-vous »
+turns **every red in the slice green while shipping « Derniers rendez… »**, and
+`find.text` does not object either: it matches the widget's string, not what was
+painted. Three siblings of the same class — a heading squeezed to 3dp, a
+progress bar flexed to 0dp, an action demoted to a 24dp glyph — are all green on
+A, B and C. C5 therefore added the assertions **before** the fix, and each is
+mutation-proven to fire alone.
+
+**The shape.** At 200% a heading plus its action wants **564dp** in **328**.
+`Expanded` on the title is honest but leaves it ~171dp — three narrow lines
+beside a button. A `Wrap(alignment: spaceBetween)` is pixel-identical to the
+`Row` at 1× and gives the title the **full width** when they stop fitting, with
+the action on its own line. Two lines, a full-size tap target, no arithmetic.
+
+**One trap inside the shape**, which no test caught: a `Wrap` shrink-wraps under
+loose constraints, so `spaceBetween` had nothing to distribute and the action
+rendered snug against the title. The layout was correct and only the alignment
+was wrong. `SizedBox(width: double.infinity)` fixes it, and **the regenerated
+golden is what found it** — §21 row 58.
+
+**The pattern was three copies, not two**, and putting the third in the gate is
+what made C5 bigger than planned. `provider_detail_screen`'s private
+`_SectionCard` had drifted (`Spacer` not `spaceBetween`, `titleMedium` not
+`titleLarge`, and the only `minHeight: 48` of the three) and sat outside every
+gate. Adding the screen as a ninth subject took the count **4 → 7** and exposed
+three more defects nobody had named: `expandedHeight: 160` clipping the salon
+header by 92dp, three unflexed contact rows, and `review_tile`'s verified badge.
+
+The header bound is derived rather than guessed, and the derivation is the
+reusable bit: the overflow is **92dp at 360, 375 and 390 alike**, so the block
+does not re-wrap and its growth is linear — `chrome + text = 160` at 1× and
+`chrome + 2×text = 252` at 2× give `text = 92, chrome = 68`. Then
+`AppTheme.textScaledBound`, exactly as `ProviderCard.carouselHeight` does.
+
 ### 4.5 `contentMaxWidth`, and the blocking dependency
 
 `AppTheme.contentMaxWidth = 720`, applied through **one** shared widget
@@ -440,6 +481,20 @@ behaviour restated, not a product rule.
 lives in a golden test, which `kGoldensSkip` skips off Linux — so `flutter test`
 on a Mac is green against that regression. Named because a developer's local run
 will not tell them.
+
+**C5's five, run and tabled** — every one fired alone:
+
+| mutation | reddens | measured |
+|---|---|---|
+| `maxLines: 1, overflow: ellipsis` on the heading | the no-ellipsis assertion, **all 6 configs × 2 screens** | *"declares an ellipsis"* — the gate now sees the false fix |
+| `Wrap` → `Row(spaceBetween)` | the overflow assertion, **2× only** | 112 / 127 / 142 / 206dp |
+| the reviews bar → `SizedBox(width: 0)` | the ≥24dp bar assertion, **all 6** | *"has collapsed … a rating histogram whose bars carry no length"* |
+| drop `Expanded` in `AppSearchBar` | the overflow assertion, 2× only, home alone | 45 / 60 / 75dp |
+| « Voir tout » in a 24dp box | the ≥48 action assertion, **all 6** | *"is 24.0×24.0 … §13.2 says every touch target is ≥48×48"* |
+
+A sixth was authored and thrown away: replacing the `TextButton` with an
+`IconButton` reddens with `Bad state: No element`, because it deletes the label
+the finder looks for. A mutation that changes two things proves neither.
 
 Older predictions, for the rest of the slice: dropping `isScrollable` reddens only the truncation
 walk · `contentMaxWidth` 720 → 320 reddens the 390 assertion **and** the 26

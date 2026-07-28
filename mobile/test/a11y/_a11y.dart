@@ -77,15 +77,35 @@ Future<void> expectGrowsWithTextScale(
   );
 }
 
+/// **The font is pinned here for the same reason `pumpAtWidth` pins it** (A11
+/// C5). With none loaded, `flutter_test` draws every glyph as a square of the
+/// font size — up to 79% wider than Roboto — so a bounded subject that fits in
+/// the product can report an overflow here. That is *conservative* for a
+/// "did it overflow" assertion and therefore harmless for years, right up until
+/// someone narrows a bound to a real shipping width: C5 narrowed
+/// `CompactAppointmentTile` from 340 to its true 270 floor and got a 58dp
+/// overflow that Roboto does not produce — the width gate pumps that exact
+/// configuration and is green.
+///
+/// `loadRealFonts()` must have run in `setUpAll`; naming the family without
+/// loading it silently falls back to the placeholder again.
 Future<void> pumpAtTextScale(
   WidgetTester tester,
   Widget child, {
   double scale = 2.0,
   List<SingleChildWidget>? providers,
 }) async {
+  expect(
+    realFontsLoaded,
+    isTrue,
+    reason: 'pumpAtTextScale names Roboto in the theme, and nothing has loaded '
+        'it — so every subject would silently render the placeholder square '
+        'glyph again. Call `await loadRealFonts()` in setUpAll.',
+  );
   await pumpApp(
     tester,
     providers: providers,
+    theme: AppTheme.themeData(fontFamily: kRealFont),
     home: Builder(
       builder: (context) => MediaQuery(
         data: MediaQuery.of(context).copyWith(
