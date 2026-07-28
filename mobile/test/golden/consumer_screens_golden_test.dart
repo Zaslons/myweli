@@ -56,7 +56,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       stubSecureStorage(); // else the session read throws, ON SCREEN
       setupDependencyInjection(); // every service, all mocks
-      await loadGoldenFonts();
+      await loadRealFonts();
     });
 
     tearDownAll(AppClock.restore);

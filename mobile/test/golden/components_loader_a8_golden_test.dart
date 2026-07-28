@@ -18,7 +18,7 @@ import '../support/golden.dart';
 /// what keeps the « Chargement… » caption out of a 24px list-footer row.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('goldens the loader with motion off', (tester) async {
       // The shipped widget, with no `ReduceMotionObserver` above it — the

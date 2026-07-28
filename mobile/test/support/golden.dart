@@ -1,13 +1,21 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FontLoader, MethodChannel;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 
+import 'fonts.dart';
 import 'surface.dart';
+
+// A11 moved `stubSecureStorage` and `settleMocks` out, so `test/a11y/` can stub
+// the channel and pump past the mocks without importing this file's `dart:io`
+// and its Linux-only authority rule. Re-exported rather than re-imported at each
+// call site: a dozen golden files already say `stubSecureStorage()` and
+// `settleMocks(...)`, and none of them should have to change for a file move.
+export 'fonts.dart' show kRealFont, loadRealFonts;
+export 'secure_storage.dart' show stubSecureStorage;
+export 'settle.dart' show settleMocks;
 
 /// The golden-test harness (docs/design/SYSTEM.md §20).
 ///
@@ -43,99 +51,14 @@ final Object? kGoldensSkip =
 /// surface that matters today.
 const Size kGoldenPhone = Size(390, 844);
 
-/// The typeface goldens are pinned to. Roboto is Android's system font — our
-/// primary target — and it ships INSIDE the Flutter SDK, which CI pins to the
-/// same version. So the bytes on the runner are the bytes here: nothing is
-/// vendored, and it can never drift from the SDK.
-const String kGoldenFont = 'Roboto';
-
 /// The theme every golden renders under — the real one, with the font pinned.
-ThemeData goldenTheme() => AppTheme.themeData(fontFamily: kGoldenFont);
-
-bool _fontsLoaded = false;
-
-/// Loads Roboto + MaterialIcons from the SDK's own font cache.
 ///
-/// Call from `setUpAll` in each golden file — deliberately NOT from a global
-/// `flutter_test_config.dart`: fonts are process-global, and loading them under
-/// the other 115 tests would change text metrics for no reason.
-Future<void> loadGoldenFonts() async {
-  if (_fontsLoaded) return;
-
-  final fonts =
-      Directory('${_flutterRoot()}/bin/cache/artifacts/material_fonts');
-  if (!fonts.existsSync()) {
-    throw StateError(
-      'Font cache not found at ${fonts.path}. Goldens need the SDK fonts; '
-      'run `flutter precache` or check FLUTTER_ROOT.',
-    );
-  }
-
-  // Every weight the type scale asks for (w400 body, w500 label/title,
-  // w600 headline, bold display) — so the engine picks by weight rather than
-  // faking one, and a semibold heading actually renders semibold.
-  await _load(kGoldenFont, fonts, const [
-    'Roboto-Thin.ttf',
-    'Roboto-Light.ttf',
-    'Roboto-Regular.ttf',
-    'Roboto-Medium.ttf',
-    'Roboto-Bold.ttf',
-    'Roboto-Black.ttf',
-  ]);
-  // Without this every Icon renders as an empty box.
-  await _load('MaterialIcons', fonts, const ['MaterialIcons-Regular.otf']);
-
-  _fontsLoaded = true;
-}
-
-Future<void> _load(String family, Directory dir, List<String> files) async {
-  final loader = FontLoader(family);
-  for (final name in files) {
-    loader.addFont(
-      File('${dir.path}/$name').readAsBytes().then(
-            (bytes) => ByteData.view(Uint8List.fromList(bytes).buffer),
-          ),
-    );
-  }
-  await loader.load();
-}
-
-/// `FLUTTER_ROOT` is set for the test process; if it ever isn't, the tester
-/// binary itself lives at `<root>/bin/cache/artifacts/engine/<plat>/flutter_tester`.
-String _flutterRoot() {
-  final env = Platform.environment['FLUTTER_ROOT'];
-  if (env != null && env.isNotEmpty) return env;
-  var dir = File(Platform.resolvedExecutable).parent; // .../engine/<plat>
-  for (var i = 0; i < 4; i++) {
-    dir = dir.parent; // engine → artifacts → cache → bin → <root>
-  }
-  return dir.path;
-}
-
-/// Makes the session store answer "no session" instead of throwing.
-///
-/// The store is `flutter_secure_storage` — a platform channel with no
-/// implementation in a test process. A real `read()` throws
-/// `MissingPluginException`, `AuthProvider` catches it into `error`, and the
-/// login screen dutifully renders that string **in red, on the screen**. The
-/// other 34 widget tests never noticed, because they assert on finders; a golden
-/// photographs everything, including the things nobody was looking at.
-///
-/// Stubbing it makes a signed-out session read as what it actually is: nothing.
-void stubSecureStorage() {
-  const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, (call) async {
-    switch (call.method) {
-      case 'readAll':
-        return <String, String>{};
-      case 'containsKey':
-        return false;
-      default:
-        return null; // read / write / delete
-    }
-  });
-}
+/// The loader itself moved to `fonts.dart` in A11: the width gate has to measure
+/// the typeface the product ships, and the fallback `flutter_test` uses when no
+/// font is loaded draws every glyph as a square of the font size — « Semaine »
+/// and « Annulés » come out the same width, 79% too wide. That is harmless to a
+/// picture (a golden loads the font) and fatal to a measurement.
+ThemeData goldenTheme() => AppTheme.themeData(fontFamily: kRealFont);
 
 /// Pins the surface. Restored after the test so nothing leaks into the next one.
 ///
@@ -169,21 +92,6 @@ Future<void> pumpGolden(
 }) async {
   goldenSurface(tester, size: size);
   await tester.pumpWidget(goldenApp(child: child));
-  await tester.pump();
-}
-
-/// Advances past the mocks' latency WITHOUT `pumpAndSettle`.
-///
-/// The mocks sleep [AppConstants.mockDelay] (300ms) and the loading state is an
-/// infinitely-repeating Lottie (`BrandLoader`) — so `pumpAndSettle()` never
-/// returns while a screen is loading. 16 widget-test files already hand-roll
-/// this; it is the house idiom, named at last. [rounds] = the number of
-/// SEQUENTIAL mock calls the screen chains before it settles.
-Future<void> settleMocks(WidgetTester tester, {int rounds = 1}) async {
-  await tester.pump();
-  for (var i = 0; i < rounds; i++) {
-    await tester.pump(const Duration(milliseconds: 400));
-  }
   await tester.pump();
 }
 
@@ -261,7 +169,7 @@ class GoldenSection extends StatelessWidget {
           Text(
             title.toUpperCase(),
             style: const TextStyle(
-              fontFamily: kGoldenFont,
+              fontFamily: kRealFont,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.2,

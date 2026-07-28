@@ -93,6 +93,7 @@ log was read instead of a build being reproduced.
 |---|---|---|
 | `otp_verify_screen.dart:232,336` · `pro_otp_verify_screen.dart:151,182` | 6×`Container(width: 50)` + 40 margins + `EdgeInsets.all(spacingL)` = **388dp**. Overflow **13@375 · 28@360 · 68@320** | **reproduced, both apps** |
 | `earnings_screen.dart:99` | 4-tab `TabBar`, no `isScrollable`. Flutter wraps each tab in `Expanded` with `kTabLabelPadding` 16/side, so text room is `W/4 − 32` = **58@360 · 65.5@390** against « Aujourd'hui » ≈85dp — **it clips at 390 too** | computed **and photographed** (§21 row 40, A10's golden) |
+| ↑ *corrected by C2* | the box arithmetic is exact — the gate measures **58.0@360 · 61.8@375 · 65.5@390**. The label estimate was not: « Aujourd'hui » in Roboto 14/w500 is **72.2dp**, not ≈85. The conclusion survives, because 72.2 > 65.5 | **measured** |
 | `appointment_list_screen.dart:180` | the same bar, four French labels, **nested under** the 2-tab bar at `:120` | computed |
 | `my_bookings_screen.dart:74` | 3 tabs — fits at 1×, **truncates at 2×** | computed; the case a width-only census misses |
 | `home_screen.dart:259,352` · `reviews_screen.dart:108` | fit at 1× on ~12dp and ~32dp of slack; **cannot fit at 2×** | red at 2× either way |
@@ -109,6 +110,43 @@ class and fixed it:
 
 A comment, and no test. A11's job is to give that comment a gate — and to adopt
 its shape rather than invent another.
+
+### 3.1 What C2 actually measured
+
+48 pumps — 8 subjects × {360, 375, 390} × {1×, 2×}. **21 green, 27 red**, and
+every red was named in the plan before the file was run:
+
+| Subject | Red at | Assertion | Measurement |
+|---|---|---|---|
+| both OTP screens | 360, 375 · **both scales** | overflow | **28px@360 · 13px@375**; fits at 390 by 2dp |
+| `earnings_screen` | **all three widths** · both scales | truncation | « Aujourd'hui » 72.2dp in 58.0 / 61.8 / 65.5; **143.4dp at 2×** |
+| `appointment_list_screen` | **all three** · both scales | truncation | identical box arithmetic, one screen over |
+| `my_bookings_screen` | all three · **2× only** | truncation | « Passés » 91.9 in 88.0@360 · « Annulés » 102.0 in 93.0@375 |
+| `home_screen` | all three · **2× only** | overflow | the `:259` heading row overflows by **807px** at 390×2 |
+| `reviews_screen` | **360 × 2× only** | overflow | **4.3px** — the `SizedBox(width: 100)` bar that will not grow |
+| `LegalConsentText` | — | — | **green at all six** — §8's open question, answered |
+
+Two estimates in the table above were wrong in the same direction and neither
+changed a verdict: `my_bookings` and `home` were predicted to break at 360×2 and
+break at **every** width at 2×; `reviews` was predicted to fail more widely and
+fails only at the floor.
+
+**The gate's first run was wrong, and the reason is worth more than the run.**
+It reported « Semaine », « À venir » and « Annulés » as clipped — three different
+seven-letter words, all measuring **98.7dp to a tenth of a pixel**. That is
+`flutter_test`'s fallback typeface, which draws every glyph as a square of the
+font size. Roboto puts them at 55.3, 44.1 and 51.4dp; all three fit. So
+**`test/a11y/` had been measuring a font the product does not ship** — invisible
+to every assertion it made until now, because contrast, tap targets and
+"did the height grow at 2×" are all relative or non-textual. A width gate is the
+first absolute one. `pumpAtWidth` now pins `AppTheme.themeData(fontFamily:
+kRealFont)` and refuses to run unless `loadRealFonts()` has been called.
+
+**And the loop position was verified, not asserted.** Collapsing
+`for (w) testWidgets` into `testWidgets { for (w) }` makes the OTP screen report
+its overflow at 360 and **report nothing at 375, while still broken** —
+`_overflowReportNeeded` latches once per render object. The probe output is
+quoted in the file's docstring.
 
 ### The rule §13.3 states, and the twin it never wrote
 
@@ -130,9 +168,23 @@ convention: `motion_test` → §9, `field_error_test` → §14). Shared machiner
 `test/a11y/_a11y.dart` rather than forking it.
 
 `test/a11y/` is **platform-agnostic** (no `kGoldensSkip`) and must not import
-`dart:io`. `golden.dart` does — so `goldenSurface`'s four-line body moves to a
-dependency-free `test/support/surface.dart` as `pinSurface`, and `goldenSurface`
-becomes a one-line delegate. One implementation, zero churn across 12 golden files.
+`golden.dart`. So the shared machinery moves out of it into `test/support/`, one
+file per job, and `golden.dart` re-exports each — one implementation, zero churn
+across its 12 call sites:
+
+| moved | to | why the a11y suite needs it |
+|---|---|---|
+| `goldenSurface`'s body → `pinSurface` | `surface.dart` | a width gate that does not pin a width is not a gate (C1) |
+| `stubSecureStorage` | `secure_storage.dart` | `setupDependencyInjection()` wires `SecureSessionStore` (`dependency_injection.dart:101`) — the channel is reached whether or not a picture is taken |
+| `settleMocks` | `settle.dart` | the mocks sleep 300ms and `BrandLoader` never settles; its own docstring counts 16 files that hand-rolled it before goldens existed |
+| `loadGoldenFonts` → `loadRealFonts` | `fonts.dart` | see §3.1 — an absolute width assertion against the fallback font is meaningless |
+
+**C2 corrected the "must not import `dart:io`" half of this rule.** `fonts.dart`
+imports it, and has to: the SDK font cache is on disk. The substantive rule is
+that a11y assertions must not be *platform-conditional*, and font **metrics**
+are not — advance widths come from the font file through the same shaper
+everywhere. It is **rasterisation** that differs by platform, which is why
+goldens are Linux-only and this gate is not.
 
 **Subjects are SCREENS**, with the components riding along. All five measured
 defects are in screens and **none is in a component** — a gate that pumped the

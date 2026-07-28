@@ -28,6 +28,13 @@ Widget wrapApp({
   // A6: a feedback test drives the messenger DIRECTLY (`AppSnackBar.showOn`),
   // which is also the shape 38 call sites use — capture before the await.
   GlobalKey<ScaffoldMessengerState>? scaffoldMessengerKey,
+  // A11: `AppTheme.lightTheme` names no font, so text renders in whatever the
+  // process has loaded — and with nothing loaded that is a placeholder whose
+  // every glyph is a square (see test/support/fonts.dart). Behaviour tests do
+  // not care; the width gate cannot work without the real one. Overriding the
+  // whole theme rather than passing a family keeps `AppTheme` the single author
+  // of what a theme is.
+  ThemeData? theme,
 }) {
   assert(
     (home == null) != (routerConfig == null),
@@ -49,7 +56,7 @@ Widget wrapApp({
   Widget app = home != null
       ? MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
+          theme: theme ?? AppTheme.lightTheme,
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           supportedLocales: const [Locale('fr', 'FR')],
           scaffoldMessengerKey: scaffoldMessengerKey,
@@ -57,7 +64,7 @@ Widget wrapApp({
         )
       : MaterialApp.router(
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
+          theme: theme ?? AppTheme.lightTheme,
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           supportedLocales: const [Locale('fr', 'FR')],
           scaffoldMessengerKey: scaffoldMessengerKey,
@@ -83,7 +90,13 @@ Future<void> pumpApp(
   Widget? home,
   RouterConfig<Object>? routerConfig,
   List<SingleChildWidget>? providers,
+  ThemeData? theme,
 }) =>
     tester.pumpWidget(
-      wrapApp(home: home, routerConfig: routerConfig, providers: providers),
+      wrapApp(
+        home: home,
+        routerConfig: routerConfig,
+        providers: providers,
+        theme: theme,
+      ),
     );

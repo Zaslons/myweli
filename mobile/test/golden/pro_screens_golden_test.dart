@@ -138,7 +138,7 @@ void main() {
         ),
       );
 
-      await loadGoldenFonts();
+      await loadRealFonts();
     });
 
     // Per test, not `setUpAll`: `freezeClock` wires `addTearDown`, which only
