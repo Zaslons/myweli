@@ -38,10 +38,14 @@ describe('Tabs', () => {
 
   it('is a NAMED group — not an unlabelled pile of buttons', () => {
     render(<Tabs label="Filtrer" items={ITEMS} value="a" onChange={() => {}} />);
-    // The name is what makes five identical-looking strips distinguishable to a
-    // screen reader, and it is what lets a Playwright subject target one strip
-    // rather than the first « Aujourd'hui » on the page — the agenda toolbar
-    // carries a rival button with that exact word.
+    // The name makes five identical-looking strips distinguishable to a screen
+    // reader. **It is not, today, what keeps a Playwright subject on the right
+    // element** — an earlier version of this comment claimed that, and the
+    // review showed it was fiction: no spec scopes by `getByRole('group')`, and
+    // the agenda toolbar's rival « Aujourd’hui » cannot co-exist with strip #2
+    // (one renders in the `journal` branch, the other in the `list` branch). The
+    // real guard there is `.first()` plus DOM order. The name IS what the
+    // `/mon-compte` overflow subject anchors on, which is a genuine use.
     expect(screen.getByRole('group', { name: 'Filtrer' })).toBeInTheDocument();
   });
 

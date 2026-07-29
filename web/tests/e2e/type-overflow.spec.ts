@@ -39,6 +39,15 @@ type Route = {
   url: string;
   /// The vacuity guard AND the "page rendered" signal — see the loop below.
   anchor: string | RegExp;
+  /// Overrides the heading lookup when the heading is NOT proof the content
+  /// rendered. `/mon-compte` is the case that forced this: its `<h1>Mon
+  /// compte</h1>` lives in the SERVER page shell (`app/mon-compte/page.tsx:13`),
+  /// outside `AccountClient` — which returns `SkeletonRows` while loading and
+  /// `ErrorState` on failure. The heading survives both, so anchoring on it
+  /// would let this subject scan a page with no tabs on it and report clean.
+  /// That is the exact vacuity this file's own header memorialises about the
+  /// 404 page, and the adversarial review caught B9 reintroducing it.
+  ready?: (page: Page) => ReturnType<Page['getByRole']>;
   auth?: 'pro' | 'consumer';
   /// Reaches state the URL cannot. Strip #2 lives behind a « Liste » click:
   /// `RendezVousClient`'s default view is `journal`, so a test that merely
@@ -111,6 +120,18 @@ async function overflowingText(page: import('@playwright/test').Page) {
 /// is what made a blanket `div` sweep false-positive on five public routes.
 /// Anything that declares `overflow-x` is opted out, exactly as above: a row
 /// that says it scrolls is not a row that broke.
+///
+/// **What it does NOT see**, named so a green run is not over-read (the
+/// adversarial review's list):
+/// - `need` sums ELEMENT children, so a bare text node — which becomes an
+///   anonymous flex item with real width — is not counted. It under-reports.
+/// - `inline-flex` passes the display filter but shrink-wraps its content, so
+///   that half is inert unless a parent constrains it.
+/// - `visibility: hidden` children still count; only `display: none` is skipped.
+/// - It measures USED widths, so a row whose children legitimately shrink
+///   (`min-w-0`, `truncate`) reads clean even when the text inside is clipped —
+///   and `overflowingText` only walks text elements, so a clipped `<div>` or
+///   `<li>` is invisible to both.
 async function overflowingFlexRows(page: import('@playwright/test').Page) {
   return page.evaluate(() => {
     const bad: string[] = [];
@@ -145,6 +166,12 @@ async function overflowingFlexRows(page: import('@playwright/test').Page) {
       const gap = (parseFloat(s.columnGap) || 0) * (items - 1);
       const pad = (parseFloat(s.paddingLeft) || 0) + (parseFloat(s.paddingRight) || 0);
       const have = el.clientWidth - pad;
+      // A row that is not laid out cannot overflow. Extending this check to the
+      // public routes surfaced `<div class="mt-m flex gap-s"> 2 items need 8 of
+      // 0` on the salon page — a collapsed container whose children are both
+      // 0-wide, so `need` was nothing but the gap. Reporting that would be the
+      // start of teaching people to ignore this helper.
+      if (have <= 0) continue;
       if (need + gap > have + 1) {
         bad.push(
           `<${el.tagName.toLowerCase()} class="${el.className}"> ` +
@@ -175,6 +202,13 @@ for (const [name, url, anchor] of PUBLIC_ROUTES) {
     ).toBeVisible();
     expect(await noHorizontalScroll(page), `the page scrolls sideways at 375px`).toBe(true);
     expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+    // The third check belongs here too. B9 first wired it into the authed loop
+    // only, which would have left the five public routes measured by two of the
+    // three defect classes with nothing saying so.
+    expect(
+      await overflowingFlexRows(page),
+      'a nowrap flex row does not fit its own container',
+    ).toEqual([]);
   });
 }
 
@@ -240,6 +274,9 @@ const AUTHED_ROUTES: Route[] = [
     url: '/mon-compte',
     anchor: 'Mon compte',
     auth: 'consumer',
+    // The strip itself, not the shell's heading — see `ready` above.
+    ready: (page) =>
+      page.getByRole('group', { name: 'Filtrer mes rendez-vous' }),
   },
 ];
 
@@ -250,7 +287,8 @@ for (const route of AUTHED_ROUTES) {
 
     await page.goto(route.url);
     await expect(
-      page.getByRole('heading', { name: route.anchor }).first(),
+      (route.ready?.(page) ??
+        page.getByRole('heading', { name: route.anchor })).first(),
       `${route.url} did not render its own page (wrong DOM — vacuous scan)`,
     ).toBeVisible();
     await route.setup?.(page);

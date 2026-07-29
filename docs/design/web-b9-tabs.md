@@ -79,8 +79,12 @@ which is the whole reason the gate goes first.
 
 ### A second defect in the same five elements
 
-Every button is `py-s` around a 20px line — **38px** as measured (36 plus the
-active tab's 2px underline), under §13.2's 48px floor, with no `min-h`.
+Every button is `py-s` around a 20px line: **36px inactive, 38px active** (the
+`border-b-2` underline). Both are under §13.2's 48px floor, and neither number
+is true of "every button" — B9's own prose stated each as universal in turn, and
+the review caught it. Worse, all five gate subjects named the *default-active*
+tab, so the 36px state — the commoner one — was never measured in a browser at
+all until the review said so. Both states are gated now.
 `tap-targets.spec.ts` does not measure them, and WEB-SYSTEM §15 **row 7h claims
 "0 remaining"**. Fixed here, because they are the elements this slice is already
 editing.
@@ -91,6 +95,22 @@ shrinks the items, `min-width: auto` stops « En attente » at its longest word,
 label wraps to two lines, and `align-items: stretch` grows all four buttons to
 match. Fixing the overflow alone would have turned a green subject red. The wrap
 and the floor are one change, and the component carries both.
+
+### A sixth control the class-string sweep could not reach
+
+Found by the adversarial review, not by the sweep: `DisponibilitesClient.tsx`'s
+buffer presets — five mutually-exclusive `{0,5,10,15,30} min` buttons — are the
+same control family at the same **38px**, on `/pro/disponibilites`, a route B9's
+own overflow matrix now visits and which `tap-targets.spec.ts` did not cover at
+all. It escaped because the sweep was by class string and **this one already
+wraps**: the overflow was never the thing it got wrong.
+
+So "there is no sixth" is true of the *class string* and false of the *control
+class*, and row 7h's "0 remaining" was wrong a fifth time. It becomes a
+`ChipButton` — the primitive whose own docstring says "an INTERACTIVE chip:
+selection, filter, toggle", which carries the floor, and which
+`RevenusClient.tsx:95` already uses in this identical shape. The hand-rolled
+version also used `border-border` where §16 requires `borderStrong`.
 
 ## 3. Why there are five copies
 
@@ -115,10 +135,21 @@ three bars). **Web wraps instead**, deliberately:
   *"the idiom is not the protection; the measurement is"* — the fourth bar kept
   `fill` because the gate walks it, not because the idiom is safe.
 
-Plain `<button>`s, **not** `role="tablist"`. Real ARIA tabs oblige APG arrow-key
-navigation and a roving tab stop (WEB-SYSTEM row 21's radio-group conversion is
-the precedent for what that costs). That is a keyboard contract worth writing —
-and worth writing deliberately, not as a side effect of an overflow fix.
+Plain `<button>`s with `aria-pressed`, **not** `role="tablist"`. Real ARIA tabs
+oblige APG arrow-key navigation and a roving tab stop. That is a keyboard
+contract worth writing — and worth writing deliberately, not as a side effect of
+an overflow fix.
+
+**The review raised the harder question, and it is a fair one**: B5 (row 21)
+converted `ReviewForm`'s five `aria-pressed` buttons to a real `radiogroup` with
+`aria-checked` and wrapping arrows, precisely because pick-one-of-five is not
+five independent toggles — so B9 reintroduces toggle semantics at five sites
+using a pattern the system already ruled against once, and argues only against
+`tablist`. Two things are true: this is still a strict improvement on what it
+replaced (**no ARIA at all**, selection conveyed by colour alone), and a screen
+reader still cannot hear that the set is exclusive. Recorded rather than
+resolved — `radiogroup` is the likely answer and it belongs with the keyboard
+contract, not here.
 
 Tokens only: `flex-wrap`, `min-h-12`, `gap-s` are first-class utilities, so
 **no `ds-ignore` is needed** (§2 bans arbitrary values, not these). `min-h-12` is
@@ -141,8 +172,10 @@ Tokens only: `flex-wrap`, `min-h-12`, `gap-s` are first-class utilities, so
   route: its selector is `h1,h2,h3,p,span,button,a,label` and the overflowing box
   is a `<div>`; each `<button>`'s `scrollWidth === clientWidth`, because
   `min-width: auto` sizes it exactly to its text. It overflows its *parent*, not
-  itself. Only `noHorizontalScroll` can see it today. The selector gains the
-  container elements.
+  itself. Only `noHorizontalScroll` can see it today. **The first attempt added
+  `div` to that selector and it was wrong** — see §7; the answer is a third,
+  separately named helper, and this bullet is left standing as the reasoning
+  that led there rather than rewritten to look prescient.
 - `tap-targets.spec.ts` gains the five strips.
 
 ## 5. States, copy, parity
@@ -211,8 +244,12 @@ reports on the weather, and it deserves its own slice.
       claim, which was the more important error**
 - [x] row 7h's "0 remaining" corrected for the fourth time
 - [x] the missing web text-scale contract opened as WEB-SYSTEM row 29 → B10
-- [x] lint · typecheck · `next build` · 503 vitest · 119 e2e green (three
-      consecutive full runs, after a real flake was diagnosed rather than retried)
+- [x] lint · typecheck · `next build` · 503 vitest · e2e green **subject to the
+      suite's pre-existing ~2-in-3 flake rate**, which B9 measured on `main` and
+      recorded as web row 30. An earlier draft of this line claimed "three
+      consecutive green full runs, after a real flake was diagnosed" — the
+      review caught that the same document retracts it two sections above. The
+      flake was **re-classified, not diagnosed**
 - [ ] adversarial review, every finding hand-verified
 
 ## 9. Open

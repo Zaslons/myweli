@@ -2,7 +2,8 @@ import { expect, type Page } from '@playwright/test';
 
 /// The one e2e sign-in (B9).
 ///
-/// **There were six copies**, and the duplication was not cosmetic — it is why
+/// **There were eleven named helpers; this replaced nine**, and the duplication
+/// was not cosmetic — it is why
 /// `type-overflow.spec.ts` never grew a real authed matrix. That file's route
 /// table is `PUBLIC_ROUTES`, and every authed page it wanted had to be a
 /// hand-written `test()` with its own copy of the login below. Two got written;
@@ -11,11 +12,20 @@ import { expect, type Page } from '@playwright/test';
 /// the page carrying the first tab strip). A matrix you have to hand-extend one
 /// `async function` at a time is a matrix that stops being extended.
 ///
-/// The six: `pro.spec.ts`, `tap-targets.spec.ts`, `axe.spec.ts`,
-/// `pro-mobile-nav.spec.ts`, `type-overflow.spec.ts`, and inline in
-/// `booking.spec.ts` / `account.spec.ts`.
+/// The nine converted: `pro`, `tap-targets`, `axe`, `pro-mobile-nav`,
+/// `type-overflow`, `salons`, `team`, `z-layers`, and `booking`'s inline
+/// `loginInline`. **Two remain and are deliberate** — `multi-pays.spec.ts:9`
+/// and `roles.spec.ts:7` sign in as other identities to test what those
+/// identities may do, so folding them in would hide the thing they vary.
+/// **`account.spec.ts` was never converted**: it has no named helper, just five
+/// inline sequences. An earlier draft of this docstring said "six copies" and
+/// listed `account.spec.ts` among them — both wrong, and caught by review.
 ///
-/// **Selectors are the accessible ones.** Four of the six drove
+/// **~36 inline `Continuer avec e-mail` sequences still exist** across the
+/// suite. This module removes the *named* duplication that blocked the matrix;
+/// it does not claim the suite has one login path.
+///
+/// **Selectors are the accessible ones.** Seven of the nine drove
 /// `input[type=email]` / `input[type=text]`; two used `getByLabel`. The label
 /// form is the one WEB-SYSTEM §6 mandates the markup to support ("a placeholder
 /// is not a label"), so a login that breaks when a label is dropped is a login

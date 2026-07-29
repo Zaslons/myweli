@@ -19,6 +19,7 @@ import {
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
+import { ChipButton } from '../Chip';
 
 export function DisponibilitesClient() {
   const router = useRouter();
@@ -145,23 +146,29 @@ export function DisponibilitesClient() {
         <h2 className="text-titleLarge font-semibold text-textPrimary">
           Tampon entre rendez-vous
         </h2>
+        {/* B9's adversarial review found this: a five-item, mutually-exclusive
+            selection row — the same control family as the tab strips — at
+            **38px**, ten under §13.2's floor, on a route B9's own overflow
+            matrix now visits. It escaped the class-string sweep only because it
+            already wraps, which is why row 7h's "0 remaining" was wrong a fifth
+            time. `ChipButton` is the primitive for exactly this (its docstring:
+            "an INTERACTIVE chip: selection, filter, toggle"), it carries the
+            floor, and `RevenusClient.tsx:95` already uses it in this identical
+            `flex flex-wrap gap-s` shape. The hand-rolled version also used
+            `border-border` where §16 requires `borderStrong` on an outlined
+            chip. */}
         <div className="mt-m flex flex-wrap gap-s">
           {BUFFER_PRESETS.map((m) => (
-            <button
+            <ChipButton
               key={m}
-              type="button"
+              selected={buffer === m}
               onClick={() => {
                 setBuffer(m);
                 setSaved(false);
               }}
-              className={`rounded-lg border px-m py-s text-bodyMedium ${
-                buffer === m
-                  ? 'border-primary bg-primary text-secondary'
-                  : 'border-border bg-surface text-textPrimary'
-              }`}
             >
               {m} min
-            </button>
+            </ChipButton>
           ))}
         </div>
       </Card>
