@@ -250,7 +250,10 @@ reports on the weather, and it deserves its own slice.
       consecutive green full runs, after a real flake was diagnosed" — the
       review caught that the same document retracts it two sections above. The
       flake was **re-classified, not diagnosed**
-- [ ] adversarial review, every finding hand-verified
+- [x] adversarial review — **10 findings, every one hand-verified**; two were
+      defects this slice introduced (a vacuous `/mon-compte` anchor, the
+      flex-row helper wired to the authed loop only), one was a sixth control
+      the sweep could not reach, and six were wrong claims in B9's own prose
 
 ## 9. Open
 
