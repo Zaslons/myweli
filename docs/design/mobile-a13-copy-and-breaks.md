@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | Design system (cross-cutting) — [MODULES.md](../MODULES.md) |
-| **Status** | Draft |
+| **Status** | Shipped (2026-07-29) |
 | **Governs** | `announcement_stories.dart` · `provider_detail_screen.dart` (header) · `design_system_pin_test.dart` (§5, §17.1) · `Formatters.count` · SYSTEM.md §13.3, §17.1, §21 rows 41, 62, 71 |
 | **Predecessor** | [mobile-a12-census.md](mobile-a12-census.md) · [web-b9-tabs.md](web-b9-tabs.md) (the same campaign's web half) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails |
@@ -203,17 +203,36 @@ Every gate watched red before its fix.
 
 ## 8. Definition of done
 
-- [ ] every gate red first, and each red count recorded here
-- [ ] the three story titles and the salon name whole at 2× on all three widths
-- [ ] §5 pin widened without the 7 `letterSpacing` false positives; the 4
-      literals converted
-- [ ] the plural sweep's true count reported and fixed; §17.1 gains its third row
-- [ ] `clientDisplayName` shipped with its three negatives, the off-day mask
-      widened, the threat model updated, `openapi.yaml` + web schema in step
-- [ ] goldens: only the two `_x2` ones should move — **`consumer_home.png` and
-      `consumer_provider_detail.png` must NOT** — every changed PNG eye-reviewed
-- [ ] device run at **both sides** of the header's branch
+- [x] every gate red first — story titles **3 of 6** (64.0dp box, « Week‑End »
+      needs 104.1); salon name **6 of 6** once the finder was fixed (224.0 /
+      239.0 / 254.0 against 269.7); §5 pin **4**; §17.1 pin **7**
+- [x] the three story titles and the salon name whole at 2× on all three widths
+- [x] §5 pin widened without the 7 `letterSpacing` false positives; the 4
+      literals converted; the sweep gained the non-empty guard it lacked
+- [x] the plural sweep's true count reported (**12**) and fixed; §17.1 gains its
+      third row; §13.3's salon-name carve-out rewritten
+- [x] `clientDisplayName` shipped with its negatives, the off-day mask widened,
+      T40 restated, `openapi.yaml` + web schema in step
+- [x] goldens: **4 moved, and `consumer_home.png` was NOT one of them** — but it
+      moved on the first regeneration and the picture showed why (see below).
+      `consumer_provider_detail.png` never moved. Every changed PNG opened
+- [x] device run at both sides of the branch — 1× unchanged, and at ≈1.95×
+      « Promo / Week-End » and a stacked header both confirmed on hardware
 - [ ] adversarial review, every finding hand-verified
+
+### The regeneration caught a regression the arithmetic did not
+
+The first pass dropped the strip's bounded height entirely, on the argument that
+three items need no virtualising — the same argument `CategoryChips` and
+`client_list_screen` used. `consumer_home.png` moved, and opening it showed the
+strip rendered as **three thin gold bars**: a card's content is a `Stack` whose
+children are all `Positioned.fill`, and positioned children contribute **nothing**
+to intrinsic height. Those precedents work because their chips wrap real text.
+
+The height is computed like the width now, and `consumer_home.png` is
+byte-identical again. **No assertion in the suite failed on this** — 1019 tests
+were green with the collapsed strip, because nothing overflowed and nothing
+truncated. §20.1's "look at every changed PNG" is the only thing that caught it.
 
 ## 9. Two things rejected explicitly
 
