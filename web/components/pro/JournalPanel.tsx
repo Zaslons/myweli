@@ -140,6 +140,10 @@ export function JournalPanel({
                 <span>{formatFcfa(card.stats.spentFcfa, currency)}</span>
                 <span>{countFr(card.stats.noShows, 'absence', 'absences')}</span>
               </div>
+              {/* clip-ok: a PREVIEW of the note, in guillemets, with « Voir la
+                  fiche » rendered immediately below it, linking to the client
+                  record where the note is shown in full. One line of prose is
+                  the intended shape; the full text is one click away. */}
               {card.notes[0] ? (
                 <p className="mt-xs truncate text-textTertiary">
                   « {card.notes[0].body} »

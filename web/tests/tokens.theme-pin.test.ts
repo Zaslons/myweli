@@ -297,3 +297,55 @@ describe('every arbitrary value is DECLARED (WEB-SYSTEM §2)', () => {
     ).toEqual([]);
   });
 });
+
+describe('every truncation is DECLARED (WEB-SYSTEM §9.4, B11)', () => {
+  // WCAG 1.4.10 asks for content "without loss of information". A `truncate` is
+  // a deliberate loss, and whether it is an ACCEPTABLE one depends entirely on
+  // something no machine can read: is the clipped string the only copy of that
+  // information on the page, or is it repeated in a heading, a link target, or
+  // the record one click away?
+  //
+  // So the judgement is made once, by a human, per site — and written down.
+  // `tests/e2e/type-overflow.spec.ts`'s `truncationLosses` is the other half:
+  // it proves nothing is ACTUALLY being cut at the tested viewports, and this
+  // proves every class that COULD cut was thought about.
+  //
+  // A distinct marker from `ds-ignore`, deliberately: that one means "no token
+  // can express this", this one means "this clipping loses nothing". Conflating
+  // two different claims under one word makes both unreadable.
+  //
+  // Reading the AST's string literals rather than the raw source is what keeps
+  // this off prose — `DataTable.tsx`'s own comment about "the caller's
+  // `truncate`" is documentation of the policy, and a pin that flags the
+  // documentation of a rule punishes the person who explained it.
+  const CLIPPERS = /(?<![\w-])(truncate|text-ellipsis|line-clamp-\d+)(?![\w-])/;
+
+  it('a truncating class carries a "// clip-ok: <why>" reason', () => {
+    const offenders: string[] = [];
+    for (const f of files) {
+      const lines = f.content.split('\n');
+      for (const { text, line } of f.literals) {
+        if (!CLIPPERS.test(text)) continue;
+        // The reason sits ABOVE the class. The window is **10 lines, not the
+        // `ds-ignore` rule's 6**, and that is a deliberate difference: a
+        // `ds-ignore` answers a narrow question ("which token would this have
+        // been?") in a sentence, while a `clip-ok` has to say where else the
+        // information appears — which takes a few lines and sometimes cites the
+        // file that proves it. Six lines silently rejected reasons that were
+        // already written and true, which teaches people to write shorter
+        // reasons rather than better ones.
+        const window = lines.slice(Math.max(0, line - 11), line).join('\n');
+        if (!/clip-ok:\s*\S/.test(window)) {
+          offenders.push(`${f.rel}:${line} — ${text.trim().slice(0, 60)}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      'a class that truncates text needs a "// clip-ok: <why the clipped text is\n' +
+        'not the only copy of this information>" line above it (within 6 lines).\n' +
+        'If it IS the only copy, that is a 1.4.10 loss — give it room instead:\n' +
+        `${offenders.join('\n')}`,
+    ).toEqual([]);
+  });
+});

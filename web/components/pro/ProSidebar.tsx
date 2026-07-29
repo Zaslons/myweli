@@ -129,12 +129,24 @@ export function ProSidebar({
                   }}
                   className="flex min-h-12 w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                 >
+                  {/* clip-ok: chrome in a 240px rail, not content. The button's
+                      accessible name carries the whole string, and the salon's
+                      full name is on `/pro/profil` (the field that sets it) and
+                      on `/pro/apercu`. Checked rather than assumed: it is NOT
+                      the dashboard `h1` — that reads « Aujourd'hui » for an
+                      owner and only names the salon in the staff branch
+                      (`AujourdhuiClient.tsx:109`). */}
                   <span className="truncate">{salonName}</span>
                   <span aria-hidden="true" className="text-textTertiary">
                     ▾
                   </span>
                 </button>
               ) : (
+                // clip-ok: the single-salon variant of the switcher above —
+                // same rail, same name, same recovery path. (A `//` comment,
+                // not `{/* */}`: inside a ternary's parentheses this is an
+                // expression position, and a JSX comment there is a syntax
+                // error.)
                 <p className="truncate rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textSecondary">
                   {salonName}
                 </p>
@@ -152,6 +164,12 @@ export function ProSidebar({
                         className="flex min-h-12 w-full items-center justify-between gap-xs px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
                       >
                         <span className="min-w-0">
+                          {/* clip-ok: one row per salon this account owns, in
+                              the same 240px rail. The button's accessible name
+                              is the full string, and picking a salon puts its
+                              name in the rail and its profile one click away.
+                              A chooser among the pro's OWN salons is the case
+                              where a prefix is enough to tell them apart. */}
                           <span className="block truncate">{s.salonName}</span>
                           <span className="block text-bodySmall text-textTertiary">
                             {ROLE_LABELS[s.role as TeamRole]}

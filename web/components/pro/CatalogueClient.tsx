@@ -151,7 +151,10 @@ export function CatalogueClient() {
                 { label: 'Actions', flex: 1, align: 'right' },
               ],
               (sv) => [
-                <span key="n" className="min-w-0 truncate font-medium text-textPrimary">
+                // B11: the service name is what the row IS, and the table view
+                // shows it nowhere else — you had to open the inline editor to
+                // read a name the table had cut. It wraps.
+                <span key="n" className="min-w-0 break-words font-medium text-textPrimary">
                   {sv.name}
                 </span>,
                 <span key="d" className="text-textSecondary">
