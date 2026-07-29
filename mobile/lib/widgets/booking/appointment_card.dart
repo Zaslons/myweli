@@ -325,7 +325,7 @@ class AppointmentCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       child: Text(
-                        '+ ${services.length - 3} autre(s)',
+                        '+ ${Formatters.count(services.length - 3, 'autre', 'autres')}',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textTertiary,
                         ),

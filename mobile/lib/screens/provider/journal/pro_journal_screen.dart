@@ -744,7 +744,11 @@ class _TimelineCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${appt.serviceIds.length} prestation(s)',
+                  Formatters.count(
+                    appt.serviceIds.length,
+                    'prestation',
+                    'prestations',
+                  ),
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),

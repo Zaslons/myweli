@@ -645,5 +645,35 @@ void main() {
             'shorter rather than longer.',
       );
     });
+
+    // §17.1's third rule (A13, §21 row 41).
+    //
+    // « 1 prestation(s) » is an ENGLISH habit. French writes « 1 prestation »
+    // and « 2 prestations », and the choice is not stylistic — the parenthetical
+    // is simply not a French form.
+    //
+    // **Why this belongs in §17.1 and not in a style guide**, using §17.1's own
+    // test: A9 added the ellipsis and apostrophe rules because *the app
+    // contradicted itself* — the same word spelled two ways in adjacent files —
+    // and explicitly declined to invent conventions (guillemets, the narrow
+    // no-break space) that were merely absent. This is the first kind: the app
+    // renders `(s)` in seven places and a correct plural in seventeen.
+    //
+    // **`invité(e)` is deliberately NOT in scope.** It is gender, not count; it
+    // is a French administrative habit rather than an English one; and it is
+    // asserted verbatim by `pro_login_invitations_test.dart`. A sweep that
+    // quietly changed it would be inventing a convention, which is the thing
+    // §17.1 says to take as its own decision.
+    test('no parenthetical plural — « 1 prestation » never « 1 prestation(s) » '
+        '(§17.1)', () {
+      expect(
+        stringOffenders((s) => s.contains('(s)')),
+        isEmpty,
+        reason: 'French does not use the English « (s) » form. Use '
+            'Formatters.count(n, singular, plural), which asks CLDR and gets '
+            'n = 0 right — French puts zero in the SINGULAR, which is exactly '
+            'where the app’s four hand-rolled idioms disagreed.',
+      );
+    });
   });
 }

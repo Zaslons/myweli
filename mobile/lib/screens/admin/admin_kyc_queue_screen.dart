@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_kyc_provider.dart';
 import 'widgets/admin_data_table.dart';
 import 'widgets/admin_scaffold.dart';
@@ -72,7 +73,12 @@ class _AdminKycQueueScreenState extends State<AdminKycQueueScreen> {
                   Text(_date(item['submittedAt']),
                       style: AppTextStyles.bodyMedium
                           .copyWith(color: AppColors.textSecondary)),
-                  Text('${item['docCount'] ?? 0} document(s)',
+                  Text(
+                      Formatters.count(
+                        (item['docCount'] as int?) ?? 0,
+                        'document',
+                        'documents',
+                      ),
                       style: AppTextStyles.bodyMedium
                           .copyWith(color: AppColors.textSecondary)),
                 ],

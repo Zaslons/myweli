@@ -242,7 +242,11 @@ class _AppointmentCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: AppTheme.spacingXS),
-            Text('${appointment.serviceIds.length} service(s)'),
+            Text(Formatters.count(
+              appointment.serviceIds.length,
+              'service',
+              'services',
+            )),
             Text(Formatters.formatCurrency(
               appointment.totalPrice,
               currency: context.read<ProAuthProvider>().salonCurrency,
