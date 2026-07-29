@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import { submitOtpLogin } from './_auth';
+
 /// B5 — §14's "the whole of §4–§8, on real pages" gate (WEB-SYSTEM §15 row 15).
 ///
 /// axe-core over 15 real routes (public + consumer + pro, stub-seeded), plus
@@ -45,12 +47,6 @@ async function expectNoViolations(
   expect(readable, `${where}: axe violations`).toEqual([]);
 }
 
-async function login(page: import('@playwright/test').Page, email: string) {
-  await page.getByLabel('Votre e-mail').fill(email);
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.getByLabel('Code à 6 chiffres').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-}
 
 test('public routes are axe-clean', async ({ page }) => {
   for (const route of [
@@ -78,7 +74,7 @@ test('public routes are axe-clean', async ({ page }) => {
 
 test('consumer account routes are axe-clean', async ({ page }) => {
   await page.goto('/connexion');
-  await login(page, 'client@example.com');
+  await submitOtpLogin(page, 'client@example.com');
   await page.waitForURL(/mon-compte|\/$/);
   for (const route of ['/mon-compte', '/mon-compte/notifications', '/mon-compte/appt2']) {
     await page.goto(route);
@@ -89,7 +85,7 @@ test('consumer account routes are axe-clean', async ({ page }) => {
 
 test('pro routes are axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await login(page, 'salon@example.com');
+  await submitOtpLogin(page, 'salon@example.com');
   await expect(page).toHaveURL(/\/pro(\/)?$/);
   for (const route of ['/pro', '/pro/rendez-vous', '/pro/equipe', '/pro/clients', '/pro/apercu']) {
     await page.goto(route);
@@ -102,7 +98,7 @@ test('an OPEN dialog is axe-clean (the stateful scan a crawl never sees)', async
   page,
 }) => {
   await page.goto('/pro/connexion');
-  await login(page, 'salon@example.com');
+  await submitOtpLogin(page, 'salon@example.com');
   await expect(page).toHaveURL(/\/pro(\/)?$/);
   await page.goto('/pro/clients');
   await page.getByRole('button', { name: 'Ajouter un client' }).click();
@@ -112,7 +108,7 @@ test('an OPEN dialog is axe-clean (the stateful scan a crawl never sees)', async
 
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
-  await login(page, 'salon@example.com');
+  await submitOtpLogin(page, 'salon@example.com');
   await expect(page).toHaveURL(/\/pro(\/)?$/);
   await page.goto('/pro/rendez-vous');
   // The SUCCESS toast (« Rendez-vous créé ») — the review moved in-dialog

@@ -16,8 +16,14 @@ import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
 import { SkeletonGrid } from '../Skeleton';
 import { TextField } from '../TextField';
+import { Tabs } from '../Tabs';
 
 type Tab = 'photos' | 'avant-apres';
+
+const MEDIA_TABS: { key: Tab; label: string }[] = [
+  { key: 'photos', label: 'Photos' },
+  { key: 'avant-apres', label: 'Avant / Après' },
+];
 
 export function MediasClient() {
   const router = useRouter();
@@ -62,27 +68,13 @@ export function MediasClient() {
     <div>
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Médias</h1>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(
-          [
-            { key: 'photos', label: 'Photos' },
-            { key: 'avant-apres', label: 'Avant / Après' },
-          ] as { key: Tab; label: string }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`px-m py-s text-bodyMedium ${
-              tab === t.key
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Type de média"
+        className="mt-l"
+        value={tab}
+        onChange={setTab}
+        items={MEDIA_TABS}
+      />
 
       {tab === 'photos' ? (
         <PhotosTab

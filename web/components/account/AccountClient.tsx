@@ -32,6 +32,7 @@ import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
 import { ProviderCard } from '../provider/ProviderCard';
 import { AppointmentCard } from './AppointmentCard';
+import { Tabs } from '../Tabs';
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Connecté via Google',
@@ -266,22 +267,13 @@ export function AccountClient() {
         </div>
       </section>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`px-m py-s text-bodyMedium ${
-              tab === t.key
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Filtrer mes rendez-vous"
+        className="mt-l"
+        value={tab}
+        onChange={setTab}
+        items={TABS}
+      />
 
       <div className="mt-m space-y-s">
         {shown.length === 0 ? (

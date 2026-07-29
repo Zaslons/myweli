@@ -1,19 +1,13 @@
 import { type Page, expect, test } from '@playwright/test';
 
+import { signInPro } from './_auth';
+
 /// Team access R6c — multi-salons on the web (docs/design/
 /// team-access-r6-multi-salons.md §6): the sidebar « Mes salons » switcher,
 /// the Réseau-gated « Ajouter un salon » arc, and the per-salon reshape.
 /// Hermetic: the stub owner owns p1 (« Beauté Divine », live Pro trial) and
 /// p3 (« Institut Belle Vue », draft SETUP).
 
-async function proLogin(page: Page) {
-  await page.goto('/pro/connexion');
-  await page.locator('input[type=email]').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/pro(\/)?$/);
-}
 
 async function openSwitcher(page: Page) {
   const trigger = page.getByRole('button', { name: 'Changer de salon' });
@@ -23,7 +17,7 @@ async function openSwitcher(page: Page) {
 
 test('the sidebar switcher lists both salons; picking the second reshapes '
   + 'the dashboard and back', async ({ page }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   // The switcher shows the active salon; the second row carries the role
   // + draft badge (p1 is also a draft in the stub world — scope by row).
@@ -53,7 +47,7 @@ test('the sidebar switcher lists both salons; picking the second reshapes '
 
 test('without a live Réseau offer: no CTA on /pro/abonnement and the '
   + 'direct form is refused with the shared copy', async ({ page }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   await page.getByRole('link', { name: 'Abonnement' }).click();
   await expect(page).toHaveURL(/\/pro\/abonnement/);
@@ -75,7 +69,7 @@ test('without a live Réseau offer: no CTA on /pro/abonnement and the '
 
 test('the Réseau arc: switch the offer → the CTA appears → create → land '
   + 'on the new draft, switched', async ({ page }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   // Move p1 to Réseau (the picker keeps the trial clock).
   await page.getByRole('link', { name: 'Abonnement' }).click();

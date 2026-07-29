@@ -1,22 +1,16 @@
 import { type Page, expect, test } from '@playwright/test';
 
+import { signInPro } from './_auth';
+
 /// Team access R5a — the owner surfaces on the web (docs/design/
 /// web-team-access-r5.md). Hermetic against the stub's team layer; every test
 /// leaves a live offer so the shared go-live/abonnement journeys are unaffected.
 
-async function proLogin(page: Page) {
-  await page.goto('/pro/connexion');
-  await page.locator('input[type=email]').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/pro(\/)?$/);
-}
 
 test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   await page.getByRole('link', { name: 'Équipe' }).click();
   await expect(page).toHaveURL(/\/pro\/equipe/);
@@ -78,7 +72,7 @@ test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
 test('Abonnement: the live-trial banner, the cards & switching offer', async ({
   page,
 }) => {
-  await proLogin(page);
+  await signInPro(page);
   await page.getByRole('link', { name: 'Abonnement' }).click();
   await expect(page).toHaveURL(/\/pro\/abonnement/);
 
