@@ -75,7 +75,99 @@ const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   // fails at sign-in and every failure is misattributed to the page under test.
   // Measured here, first, where the failure names itself.
   ['the pro connexion — every authed row is standing on it', '/pro/connexion', 'Espace Pro'],
+  // B11: the booking funnel — the product's most important consumer flow, and
+  // this gate had never rendered it at any width. `axe.spec.ts` has scanned it
+  // since B5; there was no reason but oversight for the overflow matrix not to.
+  ['the booking funnel — the flow the whole product exists for', '/beaute-divine/reserver', /Réserver chez/],
 ];
+
+/// **Text cut off the bottom of its own box** (B11 — 1.4.10's "without loss of
+/// information" clause, the vertical half).
+///
+/// The predicate is `overflow-y: hidden|clip` **and** `scrollHeight >
+/// clientHeight`, and the exclusions are the whole design:
+///
+/// - **`visible` is not a loss.** On the web an element with visible overflow
+///   paints its excess *outside* the box. That can overlap, which is ugly, but
+///   nothing is destroyed and the user can still read it. This is the one place
+///   the web genuinely differs from mobile's twin
+///   (`mobile/test/a11y/_a11y.dart:551`), where a Flutter box clips silently —
+///   porting that predicate literally would have fired on every long page in
+///   the product.
+/// - **`auto`/`scroll` is not a loss either** — the content is reachable.
+/// - **No text, no finding.** An `overflow-hidden` frame around an image is a
+///   deliberate crop, and there are eleven of them; firing on those would bury
+///   the one case that matters.
+///
+/// The warning behind all three is mobile's, and it was earned: *"a gate that
+/// is red on correct behaviour gets deleted, and takes the true positives with
+/// it."*
+async function verticalClipping(page: import('@playwright/test').Page) {
+  return page.evaluate(() => {
+    const bad: string[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+      if (!el.textContent?.trim()) continue;
+      if (el.scrollHeight <= el.clientHeight + 1) continue; // cheap first
+      // **The visually-hidden pattern is not a clip.** `sr-only` is a 1px box
+      // with `overflow: hidden` around real text — that is how a skip link
+      // reaches a screen reader without being seen, and it matched this
+      // predicate on every single route (24 of 1). Keyed on the geometry rather
+      // than the class name, because the pattern is universal and any
+      // hand-rolled copy of it is equally correct.
+      if (el.clientHeight <= 1 || el.clientWidth <= 1) continue;
+      const o = getComputedStyle(el).overflowY;
+      if (o !== 'hidden' && o !== 'clip') continue;
+      bad.push(
+        `<${el.tagName.toLowerCase()} class="${el.className}"> ` +
+          `"${el.textContent.trim().slice(0, 40)}" ` +
+          `needs ${el.scrollHeight} of ${el.clientHeight}`,
+      );
+    }
+    return bad;
+  });
+}
+
+/// **Text that is actually being truncated right now** (B11 — 1.4.10's "without
+/// loss of information" clause, the horizontal half).
+///
+/// This is the hole `overflowingText` leaves open by design: it *skips*
+/// `textOverflow: ellipsis` (`:95`), on the reasonable ground that an element
+/// declaring truncation is not overflowing by accident. But a declared
+/// truncation still removes information from the page, and 1.4.10 does not care
+/// whether the removal was intentional.
+///
+/// **Two conditions, never one.** The class alone proves nothing: `truncate` on
+/// a label whose content is short is correct and inert. The finding is
+/// `textOverflow: ellipsis` **and** `scrollWidth > clientWidth` — text that is
+/// being cut *at this viewport, with this data, right now*. Borrowed from
+/// mobile's `expectNoLegibilityCrush` (`_a11y.dart:399`), which requires both
+/// real truncation and being flexed: *"the question is not 'is this label
+/// narrow' but 'did this label spend an ellipsis on a squeeze it did not
+/// choose'."*
+///
+/// **What it cannot do:** decide whether the clipped string is the only copy of
+/// that information. No machine can. That judgement is made once per site, by a
+/// human, and written down as `// clip-ok:` — enforced by
+/// `tests/truncation.pin.test.ts`, which is the other half of this gate.
+///
+/// It is also blind to data it never sees: a name that fits with the stub's
+/// « Awa » and clips with a real user's is invisible here. Named, not solved.
+async function truncationLosses(page: import('@playwright/test').Page) {
+  return page.evaluate(() => {
+    const bad: string[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+      if (!el.textContent?.trim()) continue;
+      if (el.scrollWidth <= el.clientWidth + 1) continue; // cheap first
+      if (getComputedStyle(el).textOverflow !== 'ellipsis') continue;
+      bad.push(
+        `<${el.tagName.toLowerCase()} class="${el.className}"> ` +
+          `"${el.textContent.trim().slice(0, 40)}" ` +
+          `cut at ${el.clientWidth} of ${el.scrollWidth}`,
+      );
+    }
+    return bad;
+  });
+}
 
 /// B11 — the reflow matrix (WCAG 1.4.10; WEB-SYSTEM §9.4).
 ///
@@ -302,6 +394,17 @@ for (const vp of VIEWPORTS) {
           await overflowingFlexRows(page),
           `a nowrap flex row does not fit its own container at ${vp.name}`,
         ).toEqual([]);
+        // The two loss-of-information checks. They are the reason this file can
+        // now call itself a 1.4.10 gate: the three above prove nothing SPILLS,
+        // and these prove nothing was silenced to achieve that.
+        expect(
+          await verticalClipping(page),
+          `text is cut off the bottom of its own box at ${vp.name}`,
+        ).toEqual([]);
+        expect(
+          await truncationLosses(page),
+          `text is being truncated away at ${vp.name}`,
+        ).toEqual([]);
       });
     }
   });
@@ -373,6 +476,47 @@ const AUTHED_ROUTES: Route[] = [
     ready: (page) =>
       page.getByRole('group', { name: 'Filtrer mes rendez-vous' }),
   },
+  // ---- B11 -----------------------------------------------------------------
+  //
+  // Five routes this file had never visited, added because the reflow gate's
+  // loss-of-information half is **blind to a page it does not open**. Three of
+  // the four sites where a truncated string is the ONLY copy of its information
+  // — the team member's e-mail, the uploaded document's filename, the client
+  // list — live here. Measuring `truncate` on routes that carry none of them is
+  // how a gate reports clean about a defect it was written to find.
+  //
+  // Every one of them is already scanned by `axe.spec.ts`, with these same
+  // helpers, so their reachability was never in question.
+  {
+    name: 'the pro dashboard — three stat tiles and a French label each',
+    url: '/pro',
+    anchor: /Aujourd’hui/,
+    auth: 'pro',
+  },
+  {
+    name: 'the pro roster — the e-mail column is the row’s only identity',
+    url: '/pro/equipe',
+    anchor: 'Équipe',
+    auth: 'pro',
+  },
+  {
+    name: 'the pro client list — names in a table that truncates',
+    url: '/pro/clients',
+    anchor: 'Clients',
+    auth: 'pro',
+  },
+  {
+    name: 'the pro KYC page — the uploaded filename appears nowhere else',
+    url: '/pro/verification',
+    anchor: 'Vérification',
+    auth: 'pro',
+  },
+  {
+    name: 'the consumer notification prefs — the switch row and its title bar',
+    url: '/mon-compte/notifications',
+    anchor: 'Notifications',
+    auth: 'consumer',
+  },
 ];
 
 for (const vp of VIEWPORTS) {
@@ -403,6 +547,17 @@ for (const vp of VIEWPORTS) {
         expect(
           await overflowingFlexRows(page),
           `a nowrap flex row does not fit its own container at ${vp.name}`,
+        ).toEqual([]);
+        // The two loss-of-information checks. They are the reason this file can
+        // now call itself a 1.4.10 gate: the three above prove nothing SPILLS,
+        // and these prove nothing was silenced to achieve that.
+        expect(
+          await verticalClipping(page),
+          `text is cut off the bottom of its own box at ${vp.name}`,
+        ).toEqual([]);
+        expect(
+          await truncationLosses(page),
+          `text is being truncated away at ${vp.name}`,
         ).toEqual([]);
       });
     }

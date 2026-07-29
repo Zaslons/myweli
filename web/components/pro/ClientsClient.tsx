@@ -202,7 +202,11 @@ export function ClientsClient() {
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surface text-labelMedium font-medium text-textPrimary">
                       {c.displayName.slice(0, 1).toUpperCase()}
                     </span>
-                    <span className="truncate font-medium text-textPrimary">
+                    {/* B11: measured « Koffi » cut at 28px of 32 — the avatar,
+                        the gap and the « MyWeli » chip had eaten the column, so
+                        even a five-letter name did not fit. A client's name is
+                        what this row is for; it wraps rather than truncates. */}
+                    <span className="min-w-0 break-words font-medium text-textPrimary">
                       {c.displayName}
                     </span>
                     {c.linked ? (
