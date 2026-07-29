@@ -6047,7 +6047,10 @@ export interface components {
             depositAmount?: number;
             balanceDue?: number;
             cancellationWindowHours?: number;
+            /** @description The name the SALON typed, on a manually-created booking. NULL for every app-originated booking — the app already knows who the user is. The pro app gates its « saisi par le salon » badge on this being non-null, so it must not be repurposed as "the client's name"; `clientDisplayName` is that. */
             clientName?: string | null;
+            /** @description Who the booking is for, as the salon should see it — resolved from the salon's own client record (`salon_clients.display_name`), which is written at booking time and anonymised to « Client » when the user erases their account. Provider-facing reads only. **Masked together with `clientPhone` on off-day bookings for an own-scope Collaborateur** (BACKEND.md T40/R4a), so a restricted member cannot reconstruct the client base by browsing dates. */
+            clientDisplayName?: string | null;
             clientPhone?: string | null;
             notes?: string | null;
             depositScreenshotUrl?: string | null;

@@ -715,7 +715,7 @@ class _TimelineCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        appt.clientName ?? 'Client',
+                        appt.clientDisplayName ?? appt.clientName ?? 'Client',
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodyLarge.copyWith(
                           color: AppColors.textPrimary,

@@ -11,6 +11,7 @@ import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
+import 'package:myweli_backend/src/privacy/anonymized_identity.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/clients/[clientId]/index.dart' as card_route;
@@ -727,6 +728,107 @@ void main() {
         id,
       );
       expect(res.statusCode, HttpStatus.badRequest);
+    });
+  });
+  // A13, §21 row 41's second half. `booking_service.dart` writes
+  // `clientName: null` for every app-originated booking, so the pro app
+  // rendered the literal « Client » for every booking made through the consumer
+  // app. `clientDisplayName` resolves it from the salon's own client record.
+  //
+  // These three are the negatives the fix is only safe because of.
+  group('clientDisplayName (A13)', () {
+    test('a normal provider read carries the client’s name', () async {
+      final uid = await makeUser('+2250700000091', name: 'Awa Koné');
+      await service.recordBooking({'providerId': 'provider1', 'userId': uid});
+      await seedAppointment(id: 'a-name', userId: uid);
+
+      final out = await service.enrichForProvider(
+        'provider1',
+        await appts.listForProvider('provider1'),
+      );
+      expect(out.single['clientDisplayName'], 'Awa Koné');
+    });
+
+    // The load-bearing one. `clientName` means "the name the SALON typed", and
+    // `appointment_card.dart` gates its « saisi par le salon » badge on it —
+    // so filling THAT field would have fired the badge on every booking.
+    test('it does not touch clientName, which means something else', () async {
+      final uid = await makeUser('+2250700000092', name: 'Awa Koné');
+      await service.recordBooking({'providerId': 'provider1', 'userId': uid});
+      await seedAppointment(id: 'a-badge', userId: uid);
+
+      final out = await service.enrichForProvider(
+        'provider1',
+        await appts.listForProvider('provider1'),
+      );
+      expect(out.single['clientName'], isNull);
+    });
+
+    // T48. Erasure anonymises `salon_clients.display_name` to the same
+    // « Client » literal the app was already falling back to, so an erased user
+    // reads identically before and after A13. Safety here rests on TWO
+    // mechanisms — the `users` row is hard-deleted AND this column is
+    // anonymised — which is why the fix reads from `salon_clients` rather than
+    // joining `users`.
+    test('an erased user’s bookings do not resurrect their name', () async {
+      final uid = await makeUser('+2250700000093', name: 'Awa Koné');
+      await service.recordBooking({'providerId': 'provider1', 'userId': uid});
+      await seedAppointment(id: 'a-erased', userId: uid);
+
+      await clientsRepo.anonymizeUser(uid);
+
+      final out = await service.enrichForProvider(
+        'provider1',
+        await appts.listForProvider('provider1'),
+      );
+      // **Absent, not anonymised — and the difference is the finding.**
+      // A first draft asserted it equals `anonymousClientLabel` and went red,
+      // which is how we learned there are THREE mechanisms here, not two:
+      // `anonymizeUser` nulls `salon_clients.user_id` as well as overwriting
+      // `display_name`, so the appointment can no longer resolve to the client
+      // row **at all** and `_identityOf` returns nothing.
+      //
+      // Asserting absence rather than `isNot('Awa Koné')` matters: `isNot`
+      // would pass on an absent field and prove nothing.
+      expect(out.single.containsKey('clientDisplayName'), isFalse);
+      // And if that link ever survived, the label behind it is already the
+      // anonymous one — belt and braces, and byte-identical to the « Client »
+      // the pro app falls back to, so an erased user reads exactly as before.
+      expect(anonymousClientLabel, 'Client');
+    });
+
+    // T39 reached through T40's door: an own-scope Collaborateur who can browse
+    // days they do not work would otherwise rebuild the client base one date at
+    // a time. The name masks with the phone.
+    test('an off-day booking hides the name as well as the phone', () async {
+      final ref = DateTime.utc(2026, 6, 1, 12);
+      final rows = [
+        {
+          'appointmentDate': DateTime.utc(2026, 6, 1, 10).toIso8601String(),
+          'clientPhone': '+2250700000094',
+          'clientDisplayName': 'Awa Koné',
+          'salonClientId': 'sc1',
+        },
+        {
+          'appointmentDate': DateTime.utc(2026, 6, 8, 10).toIso8601String(),
+          'clientPhone': '+2250700000094',
+          'clientDisplayName': 'Awa Koné',
+          'salonClientId': 'sc1',
+        },
+      ];
+
+      final masked = ClientsService.maskContactsOffDay(rows, now: ref);
+
+      // Today: the Collaborateur is working, so they may call the client.
+      expect(masked[0]['clientDisplayName'], 'Awa Koné');
+      expect(masked[0]['clientPhone'], isNotNull);
+      // A week out: neither.
+      expect(masked[1].containsKey('clientDisplayName'), isFalse);
+      expect(masked[1].containsKey('clientPhone'), isFalse);
+      // …but the booking is still legible — ids and counters are not contact
+      // data, and the schedule has to stay usable.
+      expect(masked[1]['salonClientId'], 'sc1');
+      expect(masked[1]['appointmentDate'], isNotNull);
     });
   });
 }
