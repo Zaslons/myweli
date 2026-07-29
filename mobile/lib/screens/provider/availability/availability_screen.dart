@@ -4,6 +4,7 @@ import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -13,6 +14,7 @@ import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class AvailabilityScreen extends StatefulWidget {
@@ -248,11 +250,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   ) async {
     // A blocked date is the ACTIVE SALON's calendar day (salon_time.dart).
     final tz = context.read<ProAuthProvider>().salonTimezone;
-    final selectedDate = await showDatePicker(
+    final selectedDate = await showMyweliDatePicker(
       context: context,
       initialDate: salonToday(tz: tz),
       firstDate: salonToday(tz: tz),
-      lastDate: salonToday(tz: tz).add(const Duration(days: 365)),
+      lastDate: salonToday(tz: tz).add(kBookingHorizon),
     );
 
     if (selectedDate != null && context.mounted) {

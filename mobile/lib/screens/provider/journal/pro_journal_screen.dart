@@ -5,6 +5,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -18,6 +19,7 @@ import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
 
 /// « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
@@ -116,11 +118,14 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
 
   Future<void> _pickDate() async {
     final journal = context.read<ProJournalProvider>();
-    final picked = await showDatePicker(
+    // A14: the only past-facing picker in the app. The bounds were
+    // `DateTime.utc(2024)`..`utc(2030)` — two magic years, one of which
+    // eventually arrives. A span around the selected day cannot expire.
+    final picked = await showMyweliDatePicker(
       context: context,
       initialDate: journal.selectedDate,
-      firstDate: DateTime.utc(2024),
-      lastDate: DateTime.utc(2030),
+      firstDate: journal.selectedDate.subtract(kJournalPastHorizon),
+      lastDate: journal.selectedDate.add(kBookingHorizon),
     );
     if (picked != null) {
       journal.setDate(DateTime.utc(picked.year, picked.month, picked.day));
@@ -416,11 +421,11 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     // Picker seeds + result are the ACTIVE SALON's wall-clock
     // (salon_time.dart) — never the device's zone.
     final tz = context.read<ProAuthProvider>().salonTimezone;
-    final date = await showDatePicker(
+    final date = await showMyweliDatePicker(
       context: context,
       initialDate: toSalonTime(a.appointmentDate, tz: tz),
       firstDate: salonToday(tz: tz),
-      lastDate: salonToday(tz: tz).add(const Duration(days: 365)),
+      lastDate: salonToday(tz: tz).add(kBookingHorizon),
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(

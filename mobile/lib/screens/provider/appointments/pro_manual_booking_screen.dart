@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -20,6 +21,7 @@ import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
   const ProManualBookingScreen({
@@ -110,11 +112,11 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
 
   Future<void> _pickDate() async {
     final today = salonToday(tz: _tz);
-    final picked = await showDatePicker(
+    final picked = await showMyweliDatePicker(
       context: context,
       initialDate: _date ?? today,
       firstDate: today,
-      lastDate: today.add(const Duration(days: 90)),
+      lastDate: today.add(kManualBookingHorizon),
     );
     if (picked != null) setState(() => _date = picked);
   }

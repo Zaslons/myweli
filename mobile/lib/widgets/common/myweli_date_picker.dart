@@ -346,7 +346,12 @@ class _DayCell extends StatelessWidget {
         child: Container(
           height: _cellHeight(context),
           alignment: Alignment.center,
-          margin: const EdgeInsets.all(AppTheme.spacingXS / 2),
+          // `spacingXS`, and the arithmetic is tight enough to state: it takes
+          // 8dp off a 46.9dp column, leaving ~38.9 for a two-digit day that
+          // needs ~31.7 at 2×. The first version wrote `spacingXS / 2` and the
+          // §5 pin caught it — a literal `2` in an `EdgeInsets` is a numeric
+          // one however it is spelled, which is the rule working.
+          margin: const EdgeInsets.all(AppTheme.spacingXS),
           decoration: BoxDecoration(
             color: selected ? AppColors.primary : null,
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
