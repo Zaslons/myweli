@@ -158,7 +158,7 @@ const TAB_STRIPS: {
     name: "strip #2 — the agenda's four status tabs",
     url: '/pro/rendez-vous',
     auth: 'pro',
-    tab: "Aujourd'hui",
+    tab: 'Aujourd’hui',
     setup: async (page) => {
       await page.getByRole('button', { name: 'Liste' }).click();
     },
