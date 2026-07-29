@@ -277,6 +277,15 @@ drift, and four are fixed here:
 - **Watched red before anything is fixed.** The deliverable of that step is a
   *named list per route*, not "it passes".
 
+**A limit found the hard way: the local run is not authoritative.** CI caught a
+320px overflow on `/pro/disponibilites` that passed on every local run — two
+`<input type="time">` elements in a `nowrap` row, needing **332px of 291**. A UA
+time input's intrinsic width is font- and platform-dependent, and Linux renders
+it wider than macOS. So for reflow specifically, **green locally means "not yet
+disproved", and CI is the measurement**. This is the one defect in the slice that
+no amount of local iteration would have surfaced, and it is a good argument for
+`retries: 0`: with a retry it would have been a `flaky` line nobody read.
+
 **A stated limit of the method:** there is no screenshot harness on the web
 (`type-overflow.spec.ts:10` says so). Mobile found SYSTEM.md §21 rows 62 and 69
 by *looking at* the 2× goldens. Every finding here comes from computed geometry,
