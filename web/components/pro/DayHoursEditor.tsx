@@ -34,12 +34,16 @@ export function DayHoursEditor({
             {onLabel}
           </label>
           {d.open ? (
-            {/* B11: two `type="time"` inputs and « à » in a row that could not
-                wrap. Measured 332px of the 291 available at 320 — **on CI, not
-                locally**: a UA time input's intrinsic width is font- and
-                platform-dependent, and Linux renders it wider than macOS, so
-                the local suite reported green on a page that scrolls sideways.
-                The parent row already wraps; this one now does too. */}
+            // B11: two `type="time"` inputs and « à » in a row that could not
+            // wrap. Measured 332px of the 291 available at 320 — **on CI, not
+            // locally**: a UA time input's intrinsic width is font- and
+            // platform-dependent, and Linux renders it wider than macOS, so the
+            // local suite reported green on a page that scrolls sideways. The
+            // parent row already wraps; this one now does too.
+            //
+            // (A `//` comment, not `{/* */}` — inside a ternary's parentheses
+            // this is an expression position and a JSX comment is a syntax
+            // error. Third time in this slice.)
             <span className="flex flex-wrap items-center gap-s">
               <input
                 type="time"
