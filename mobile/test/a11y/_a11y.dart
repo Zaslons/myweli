@@ -642,7 +642,14 @@ void expectNoUndeclaredTruncation(
   );
 }
 
-/// **Every day number renders whole** (A14, SYSTEM.md §21 row 73).
+/// **Every named token renders whole** (A14, SYSTEM.md §21 row 73).
+///
+/// **Renamed from `expectTokensWhole` in A14b**, because the mechanism was
+/// never about days: it takes arbitrary strings and asserts each one's paragraph
+/// is at least as wide as the glyphs it must paint. A14b's time picker needs
+/// exactly that for « 09 » and « 23 », and a second near-identical helper is how
+/// A13 found four spellings of one plural rule coexisting. One predicate, one
+/// name, two callers.
 ///
 /// The defect this exists for was found on hardware, not by any of the six
 /// assertions above: at `accessibility-large` (≈1.95×) on a 360×780pt iPhone,
@@ -664,23 +671,24 @@ void expectNoUndeclaredTruncation(
 ///   gate. For a two-character token that hand-off goes nowhere.
 ///
 /// So the predicate is borrowed and the skip is deliberately dropped: a day
-/// number is a **single unbreakable token**, so `maxLines: 1` does not save it —
-/// there is no second line for the digit to move to, and the excess is simply
-/// not painted.
+/// number — or an hour, or a minute — is a **single unbreakable token**, so
+/// `maxLines: 1` does not save it: there is no second line for the digit to move
+/// to, and the excess is simply not painted.
 ///
 /// Applied **by name**, like [expectNoMidWordBreak] and for the same reason: it
 /// asserts about a value the user reads as one token, and a sweep would have no
 /// way to tell a day number from a heading.
-void expectDayNumbersWhole(
+void expectTokensWhole(
   WidgetTester tester,
-  Iterable<String> days,
+  Iterable<String> tokens,
   String at,
 ) {
   var checked = 0;
-  for (final day in days) {
+  for (final token in tokens) {
     final paragraphs = tester
         .renderObjectList<RenderParagraph>(
-          find.descendant(of: find.text(day), matching: find.byType(RichText)),
+          find.descendant(
+              of: find.text(token), matching: find.byType(RichText)),
         )
         .toList();
     for (final p in paragraphs) {
@@ -689,9 +697,9 @@ void expectDayNumbersWhole(
       expect(
         p.size.width + _kWidthEpsilon,
         greaterThanOrEqualTo(needs),
-        reason: 'the day « $day » has ${p.size.width.toStringAsFixed(1)}dp and '
+        reason: '« $token » has ${p.size.width.toStringAsFixed(1)}dp and '
             'needs ${needs.toStringAsFixed(1)} at $at — it renders clipped, '
-            'which is §21 row 73',
+            'which is the shape of §21 row 73',
       );
     }
   }
@@ -701,6 +709,6 @@ void expectDayNumbersWhole(
   expect(
     checked,
     greaterThan(0),
-    reason: 'C: none of $days is on screen at $at, so this asserted nothing',
+    reason: 'C: none of $tokens is on screen at $at, so this asserted nothing',
   );
 }

@@ -23,7 +23,7 @@ import '_a11y.dart';
 /// `expectNoUndeclaredTruncation` is guarded against firing on wrapped prose,
 /// `expectNoLegibilityCrush` has an 8-character floor a two-digit day is under,
 /// and `expectNoMidWordBreak` skips the `maxLines: 1` paragraphs that a day
-/// number is. `expectDayNumbersWhole` exists for this and is proven falsifiable
+/// number is. `expectTokensWhole` exists for this and is proven falsifiable
 /// in `primitives_test.dart`.
 ///
 /// **Two mechanical hazards, both of which would produce a green gate that
@@ -87,7 +87,7 @@ void main() {
               'assertion below is about the wrong month or no month',
         );
 
-        expectDayNumbersWhole(tester, namedDays, at);
+        expectTokensWhole(tester, namedDays, at);
         expectNoUndeclaredTruncation(tester, context: 'date picker at $at');
         expectNoLegibilityCrush(tester, context: 'date picker at $at');
         expectNoVerticalClip(tester, context: 'date picker at $at');

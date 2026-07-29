@@ -170,7 +170,7 @@ Two gaps make this more than adding a subject:
    is the wrong instrument — a day is one token, not a wrapped word, and the
    defect is a clipped glyph rather than a break.
 
-So A14a adds `expectDayNumbersWhole` (working name), and — because §21 **row 67**
+So A14a adds `expectTokensWhole` (working name), and — because §21 **row 67**
 records **six helpers that shipped unable to fail** — it is proven falsifiable in
 `primitives_test.dart` against a subject built to break it, exactly as every
 other primitive is.
@@ -278,7 +278,7 @@ follows §16's microcopy rules and is stated at implementation.
 
 - **a11y** — the new route-dialog subject at `{360, 375, 390} × {1×, 2×}`, one
   `testWidgets` per combination, on `kFloorPhone`.
-- **primitives** — `expectDayNumbersWhole` proven falsifiable, per row 67.
+- **primitives** — `expectTokensWhole` proven falsifiable, per row 67.
 - **golden** — the **first picker golden in the repo**, at 1× and 2×. Regenerated
   with `./tool/update_goldens.sh` (Linux-only — a Mac-authored golden fails CI
   forever), ledger from `git status --short`, **every changed PNG opened**.
@@ -430,7 +430,7 @@ The dial is a `CustomPaint` (`:1702`) driven by `_DialPainter` (`:1000`), inside
 
 Every helper in `test/a11y/_a11y.dart` — `expectNoVerticalClip`,
 `expectNoUndeclaredTruncation`, `expectNoLegibilityCrush`, A14a's own
-`expectDayNumbersWhole` — walks `tester.allRenderObjects.whereType<RenderParagraph>()`.
+`expectTokensWhole` — walks `tester.allRenderObjects.whereType<RenderParagraph>()`.
 **The dial contains zero `RenderParagraph`s and zero semantics nodes.**
 
 A gate pointed at `showTimePicker` reports green unconditionally. This is the

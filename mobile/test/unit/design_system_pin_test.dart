@@ -554,6 +554,82 @@ void main() {
       );
     });
 
+    // ── A14b: nothing in `lib/` opts out of the OS text scale (§13.3).
+    //
+    // Named so the falsifiability case below can point at the same object the
+    // rule uses. A pin proven able to fire by a *copy* of its pattern proves
+    // nothing about the pattern that ships.
+    final noScalingPattern = RegExp(r'TextScaler\.noScaling|withNoTextScaling');
+
+    test('no widget opts out of the OS text scale (§13.3, A14b)', () {
+      // This is the rule Flutter breaks, and the reason A14b exists.
+      // `time_picker.dart:387` passes `textScaler: TextScaler.noScaling` to the
+      // hour and the minute — the dialog's largest text, displayLarge at 57sp —
+      // so the field is the same size at 100% and at 200%, forever. :528 does it
+      // to the separator and :2263 wraps the input mode in
+      // `MediaQuery.withNoTextScaling`.
+      //
+      // That is worse than a clip, and it is worse for a specific reason: a clip
+      // is visible. A control that silently ignores the accessibility setting
+      // looks correct in every screenshot and every golden, at every scale.
+      //
+      // §13.3 says 200% is a first-class input. These two APIs are the only way
+      // to say "not for this widget" — so the app should be unable to grow its
+      // own copy, in a picker or anywhere else. A genuine exception (a fixed-
+      // geometry canvas overlay, say) declares `// ds-ignore` and says why.
+      expect(
+        dartFiles.length,
+        greaterThan(100),
+        reason: 'this pin is scanning an empty or truncated set',
+      );
+      expect(
+        offenders(noScalingPattern),
+        isEmpty,
+        reason: 'this widget renders the same size at 100% and 200% text. The '
+            'user turned the setting on and the app decided not to listen — '
+            'which no golden, no clip gate and no `takeException` can see.',
+      );
+    });
+
+    test('…and that rule is able to fail (§21 row 67)', () {
+      // **Green from birth is row 67's exact trap:** six helpers shipped unable
+      // to fail, and the count above is legitimately zero today, so `isEmpty`
+      // passing proves nothing about the pattern. The corpus guard shows it is
+      // reading files; this shows it would recognise the thing if it were in
+      // one. Both halves are needed.
+      //
+      // And the whole rule was **watched go red end-to-end**, not just proven
+      // here: `textScaler: TextScaler.noScaling` was planted on the day cell at
+      // `myweli_date_picker.dart:521` and the sweep reported
+      //
+      //   Expected: empty
+      //     Actual: ['lib/widgets/common/myweli_date_picker.dart:521  …']
+      //
+      // before it was reverted. A regex proven to match a string in this file is
+      // not the same evidence as the sweep finding it in `lib/`.
+      expect(
+        noScalingPattern.hasMatch(
+            '      child: Text(t, textScaler: TextScaler.noScaling),'),
+        isTrue,
+        reason: 'the pin cannot see the literal it exists to forbid — this is '
+            'the line copied from time_picker.dart:387',
+      );
+      expect(
+        noScalingPattern.hasMatch('      child: MediaQuery.withNoTextScaling('),
+        isTrue,
+        reason: 'the pin sees only one of the two opt-outs',
+      );
+      // And the other side: it must not fire on the CORRECT idiom, or the fix
+      // for a hit would be to stop scaling properly.
+      expect(
+        noScalingPattern.hasMatch(
+            '      final s = MediaQuery.textScalerOf(context).scale(line);'),
+        isFalse,
+        reason: 'the pin flags the right way to read the scale, so obeying it '
+            'would mean removing the scaling this rule exists to protect',
+      );
+    });
+
     test('every form dropdown sets isExpanded (A11 C8, §13.3)', () {
       // A `DropdownButtonFormField` sizes its button to the WIDEST item's
       // intrinsic width unless told otherwise, so the field overflows the
