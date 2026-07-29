@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Module** | Design system (cross-cutting) — [MODULES.md](MODULES.md) |
+| **Module** | Design system (cross-cutting) — [MODULES.md](../MODULES.md) |
 | **Status** | Shipped D0→D9 (2026-07-28) |
 | **Governs** | `test/a11y/` · `lib/widgets/common/label_value_row.dart` · SYSTEM.md §13.3, §21 rows 60, 62, 66, 68 |
 | **Predecessor** | [mobile-a11-width.md](mobile-a11-width.md) |
@@ -31,12 +31,12 @@ one contradiction resolved below.
 ## 2. What the census got wrong
 
 Every figure re-derived and checked against three known data points —
-`layout_test.dart:105`'s recorded 72.2dp for « Aujourd'hui » in Roboto, and the
+`layout_test.dart`'s recorded 72.2dp for « Aujourd'hui » in Roboto (cited by content, not line — the line was wrong when written and had moved again by the review), and the
 device's measured 16px / 2.6px `_StatCard` overflows.
 
 | row 68 said | measured |
 |---|---|
-| `_StatCard` wants **165dp** of a 126dp tile | **~141dp** including the unscaled 20dp icon. Computed at the wrong font size — `bodySmall` is 12, not 14. The 126dp tile is exact. The gate now says **19px over** at a clean 2×, against the device's 16px at ≈1.95× |
+| `_StatCard` wants **165dp** of a 126dp tile | **~141dp** including the unscaled 20dp icon. Computed at the wrong font size — `bodySmall` is 12, not 14. The 126dp tile is exact. That model predicts ~15dp over; the **gate measured 19px** at a clean 2× and the **device 16px** at ≈1.95×. The three do not subtract to each other, and that is the point of the ±10% calibration note below: the model is what corrects 165 to the right order of magnitude, and the gate is what is true |
 | booking confirmation is **~190px** over | worst single row is **~123px**. No arrangement produces 190 |
 | `NotificationTile`'s title crushed to **~30dp** | **~86dp** — still unreadable, but not a fix budget |
 | the 80×48 slot box needs **80.4dp** at 2× | **~72dp** — it *fits* at 2× and bites at ≈2.2× |
@@ -143,7 +143,7 @@ pin that gets `ds-ignore`d into meaninglessness is not a pin.
 | `provider_list` grid | `childAspectRatio: 0.75` | `ProviderCard.gridHeight` — `carouselHeight`'s twin, and it needs its own constant because a grid card is *compact*: the image absorbs a shorter box, so the **text** is what cannot shrink |
 | `_StatCard` header | **19px** over — an icon does not text-scale | `Wrap`. « Aujourd'hui » is one word, so `Flexible` would trade an overflow for a crush |
 | `EmptyState` | **46px** vertical at 360×780×2 | `LayoutBuilder` + scroll + `ConstrainedBox(minHeight:)`, with a `!hasBoundedHeight` branch five admin screens force |
-| nine money rows | up to **~150dp** over | `LabelValueRow`, a shared `Wrap` |
+| nine money rows | up to **~150dp** over | `LabelValueRow`, a shared `Wrap` — eleven call sites by the end, the last found by the review |
 | `provider_list` filter row | **122px** on device | `Flexible` at the call site — the pill's own `Flexible` never bound while it was a non-flex child |
 | `service_list`, `availability` | ~36dp, ~20dp | `Wrap`, `Flexible` |
 | three form dropdowns | menu items clipped to 48dp | `itemHeight: null` |
@@ -195,14 +195,20 @@ less than a measured one, and three of these were mine.
 
 ## 8. Testing plan
 
-`test/a11y/` is now **14 files**, all pinning a phone. New: `primitives_test.dart`
+`test/a11y/` is now **14 `*_test.dart` files** (plus three shared `_`-prefixed
+helpers). Eleven of the fourteen pin a phone — §21 row 60's target, and what
+§9's DoD line counts. The three that do not are the ones that must not:
+`content_width_test.dart` pins 1024 and 1200 **because the cap it tests is
+about wide surfaces**, and pinning it to a phone would delete the test. A12's
+first draft of this section said "14 files, all pinning a phone", which was two
+claims welded into one wrong one. New: `primitives_test.dart`
 (the gate's own gates — six subjects built to break each primitive and to be
 ignored by it), `vertical_fit_test.dart` (the fold), `label_value_row_test.dart`
 (42 tests over the real money pairs).
 
 Every fix mutation-proven. The instruments too — that is what `primitives_test`
 is for: everywhere else these helpers run across the width matrix where green is
-the right answer and a useless one, and §21 row 41 records four unfailable pins
+the right answer and a useless one, and §21 row 67 records six unfailable gates
 shipped in a single commit.
 
 ## 9. Definition of done

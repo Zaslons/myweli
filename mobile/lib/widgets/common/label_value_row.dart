@@ -6,9 +6,11 @@ import '../../core/theme/text_styles.dart';
 /// A label on the left and its value on the right — « Total » · « 25 000 FCFA »
 /// (A12).
 ///
-/// ## Why this is a widget and not nine `Row`s
+/// ## Why this is a widget and not eleven `Row`s
 ///
-/// It was nine `Row`s, every one of them
+/// It was eleven `Row`s — nine found by the census, one more when the widget
+/// landed, and an eleventh the adversarial review found on the booking
+/// confirmation screen — every one of them
 /// `Row(mainAxisAlignment: spaceBetween, children: [Text(label), Text(value)])`
 /// with **neither child flexed**, so a `RenderFlex` hands each its full
 /// intrinsic width and the row overflows rather than either side giving way.
@@ -28,7 +30,8 @@ import '../../core/theme/text_styles.dart';
 /// The census that found them is §21 row 68's, and it named three; a sweep for
 /// the shape found **twenty**. The count is why this is a component: the same
 /// two-line fix applied nine times is the eighth copy §11 calls a review
-/// failure, and it leaves the tenth site to be written wrong.
+/// failure, and it leaves the tenth site to be written wrong. Two more have
+/// arrived since, which is the argument rather than an exception to it.
 ///
 /// ## The shape
 ///

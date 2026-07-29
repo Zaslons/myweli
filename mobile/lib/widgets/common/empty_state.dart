@@ -72,8 +72,13 @@ class EmptyState extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // **Already inside a scroller.** `AdminDataTable` returns an
-        // `EmptyState` inside a `SingleChildScrollView > Column` on five admin
-        // screens, so the incoming height is unbounded — and a second viewport
+        // `EmptyState` under a `SingleChildScrollView` on SIX admin screens —
+        // five of them via a `Column`, and `admin_kyc_queue_screen.dart:47`
+        // with the table directly under the scroller, which is the same
+        // unbounded host by a shorter path. (A12 said five; the adversarial
+        // review counted six, and the sixth is the one that shows the shape
+        // does not depend on the `Column` at all.) The incoming height is
+        // therefore unbounded — and a second viewport
         // there is *"Vertical viewport was given unbounded height"*, while a
         // `minHeight: constraints.maxHeight` of infinity is an assert. There is
         // also nothing to fix: the parent scroller IS the escape.

@@ -10,7 +10,7 @@ import '_a11y.dart';
 /// Every assertion in `_a11y.dart` is applied across the width matrix, where it
 /// is expected to be **green**. Green is the right answer there and a useless
 /// one here: a helper that cannot fail is indistinguishable from a helper that
-/// passes, and this repo has shipped four of those in one commit (§21 row 41).
+/// passes, and this repo shipped six of those in a single slice (§21 row 67).
 ///
 /// So each primitive gets one subject built to break it and one built not to.
 /// A11's mutations proved the *fixes*; these prove the *instruments*.
