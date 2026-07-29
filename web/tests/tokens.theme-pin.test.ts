@@ -307,7 +307,7 @@ describe('every arbitrary value is DECLARED (WEB-SYSTEM §2)', () => {
   });
 });
 
-describe('every truncation is DECLARED (WEB-SYSTEM §9.4, B11)', () => {
+describe('every truncation is DECLARED (WEB-SYSTEM §9 — Text scale & reflow, B11)', () => {
   // WCAG 1.4.10 asks for content "without loss of information". A `truncate` is
   // a deliberate loss, and whether it is an ACCEPTABLE one depends entirely on
   // something no machine can read: is the clipped string the only copy of that

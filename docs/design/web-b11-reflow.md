@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Built |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-07-29 |
 | **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 29 (the reflow half) · row 26 (folded in) |
@@ -97,9 +97,12 @@ looking for:
   — **`lg:`, inert below 1024px**
 
 Of **12** hard minimum widths in `web/{app,components,lib}`, **9 are live at
-320** and **exactly one is uncontained** — `pro/AvisClient.tsx:108` `min-w-56`
-(224px) on the rating-distribution list. The other eight already sit inside
-`overflow-x-auto` or `max-h` boxes.
+320**. The census called `pro/AvisClient.tsx:108`'s `min-w-56` (224px) the one
+*uncontained* floor — **measured, that is wrong**: its parent `Card` is `flex
+flex-wrap`, so the list wraps onto its own line and 224 fits the ~240 a 320
+viewport leaves. `/pro/avis` was added to the matrix to settle it rather than
+argue it, and passes. The census read the child and not the parent; all nine are
+contained.
 
 **The real cost is not the viewport.** It is the truncation clause, and those
 defects are **width-independent** — four of them are live today at 1440px.
@@ -108,14 +111,14 @@ defects are **width-independent** — four of them are live today at 1440px.
 
 ## 4. The gates
 
-Four assertions per (route × viewport). Three exist; two are new.
+**Five** assertions per (route × viewport). Three existed; two are new.
 
 | gate | status | what it proves |
 |---|---|---|
 | `noHorizontalScroll` | exists (`:77`) | the document does not scroll sideways |
 | `overflowingText` | exists (`:88`) | an element's own text does not spill its box |
 | `overflowingFlexRows` | exists (`:135`, B9) | a `nowrap` flex row's children fit their container |
-| **`overflowingVertical`** | **new** | an element's content is not cut off the bottom of its own box |
+| **`verticalClipping`** | **new** | an element's content is not cut off the bottom of its own box |
 | **`truncationLosses`** | **new** | nothing is *actually* clipping text unless it is declared |
 
 ### 4.1 What the new gates can and cannot see
@@ -123,8 +126,18 @@ Four assertions per (route × viewport). Three exist; two are new.
 The honesty section. B9's and B10's specs both carry one, and both times the
 list was the most useful part of the document.
 
-**`overflowingVertical`** is `scrollHeight > clientHeight + 1`, filtered to
-`overflow-y: visible`.
+**`verticalClipping`** is `scrollHeight > clientHeight + 1`, filtered to
+`overflow-y: hidden|clip`.
+
+- **`visible` is deliberately NOT a finding**, and this is where the web parts
+  company with mobile: a web box paints its excess *outside* itself, so nothing
+  is destroyed. Only `hidden`/`clip` loses information; `auto`/`scroll` leaves it
+  reachable. Porting Flutter's predicate literally would have fired on every long
+  page in the product.
+- It skips boxes ≤1px in either dimension. That is `sr-only` — the
+  visually-hidden pattern is a 1px box with `overflow: hidden` around real text,
+  and the skip link matched on **every** route (24 of 1) the first time this ran.
+  Keyed on geometry, not the class name.
 
 - It is **vertical only, and that is not an oversight.** Mobile's twin
   (`mobile/test/a11y/_a11y.dart:551`) says why: the horizontal equivalent is
@@ -243,7 +256,8 @@ drift, and four are fixed here:
   per viewport with `test.use` inside it (the idiom already in this repo at
   `z-layers.spec.ts:35` and `booking.spec.ts:37`; `test.use` is a declaration and
   cannot be called inside a `test()` body or a bare loop). `VIEWPORTS` =
-  `375×812` — kept as the regression guard — plus `320×512`.
+  `375×812` (kept as the regression guard), `320×512` (the width 1.4.10 names)
+  and `320×256` (deliberately beyond the SC — see §2).
 - The `"375px"` literals baked into test names and assertion messages
   (`:187`, `:203`, `:284`, `:296`) become the viewport's own name. **A test name
   that lies is worse than no name.**
@@ -260,6 +274,70 @@ by *looking at* the 2× goldens. Every finding here comes from computed geometry
 so anything that is ugly-but-not-clipped is outside what this gate can say.
 
 ---
+
+## 7.1 What the gate actually found
+
+Watched red before anything was fixed. **18 routes × 3 viewports + the journal
+line-height test = 55 tests**, then 166 across the whole suite.
+
+**Round one — the two extra viewports, on the routes the file already had:**
+
+| route | assertion | measurement |
+|---|---|---|
+| `/pro/rendez-vous` | page scrolls sideways | the journal's date navigator — `‹`, a 16px `type="date"`, `›`, « Aujourd'hui » — needed **312px of 272**. Its *parent* row already wrapped; this one did not |
+| `/mon-compte` | `nowrap` flex row | **2 items need 262 of 254** — `justify-between` with no wrap and **no gap at all**. Both identity rows; only one fired, because the seeded name is shorter than the phone number |
+
+**Round two — and this is the finding that matters.** Both new
+loss-of-information gates were **green on their first run**, and that was not
+reassurance: the four sites where a truncated string is the only copy of its
+information live on routes this file **had never opened**. A gate is blind to a
+page it does not visit. Six routes were added — every one already scanned by
+`axe.spec.ts` with the same auth helpers, so reachability was never the obstacle
+— including the **booking funnel**, the flow the product exists for, which this
+gate had never rendered at any width.
+
+| route | assertion | measurement |
+|---|---|---|
+| `/pro` | text spills its box | the three stat tiles are `grid-cols-3`: **46px each at 320, 64 at 375**, for labels like « Demandes en attente » (63) and « Revenus cette semaine ». **Broken at both widths, for as long as the route has existed** |
+| `/pro/equipe` | truncation loss | the member's e-mail — the row's only on-screen identity — cut **213 → 108 at every viewport including 375**: « proprietaire@beaute-div… » |
+| `/pro/clients` | truncation loss | « Koffi » cut at **28 of 32**; the avatar, gap and MyWeli chip had eaten the column so a five-letter name did not fit |
+| `/pro/verification` | text spills its box | « Pièce d'identité (CNI / passeport) » needed **73 of 64** — the action buttons are `shrink-0`, so they took their width first |
+
+**Round three — the source pin**, red on six undeclared sites. Two were further
+losses and were fixed (the KYC filename, which appears nowhere else in the
+product; the catalogue's service name, which the table view showed nowhere
+else). Six were declared, each with a reason **checked rather than assumed** —
+the census's justification for the sidebar's salon name ("it is also the
+dashboard `h1`") is **false**: that heading reads « Aujourd'hui » for an owner
+and only names the salon in the staff branch.
+
+**Latent, fixed anyway:** four title toolbars (heading + French button, no wrap)
+that all pass at 320 with the seeded copy. B9 shipped five byte-identical tab
+strips of which exactly one was live; latent-and-identical is a shape this
+codebase has already been bitten by.
+
+## 7.2 The slow-run red, sighted a second time
+
+B10 recorded one red in 17 runs — `axe.spec.ts:86`, a test it did not touch, on
+the single run whose wall-clock was 2.7× the median — and left it **named rather
+than retried**, without claiming a cause it had not captured.
+
+B11 saw the same shape once: **1 red in 5 runs**, `locator.click` timing out at
+30s, on a run that took **1.2 min against a 40–50 s median**. Four runs either
+side were clean at 166/166.
+
+What that adds up to, stated at the strength the evidence supports: two
+sightings, two different tests, both on runs that took ≈2.5× the median. That is
+consistent with a host-level stall against the per-test budget rather than a
+defect in either slice — and *inconsistent* with B10 §3.2's finding that uniform
+CPU load does **not** break the suite, because a transient stall is not uniform
+load. It is **not** proof: neither sighting captured the failure text, and I did
+not identify which test B11's was.
+
+The instruction stands and is followed: no retry, no raised timeout, no
+`test.slow()`. With `retries: 0` a recurrence fails CI loudly, and the next step
+when it does is to **capture the failure text before theorising** — which is the
+step both sightings skipped.
 
 ## 8. What stays open
 

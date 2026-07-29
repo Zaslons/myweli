@@ -148,7 +148,7 @@ async function verticalClipping(page: import('@playwright/test').Page) {
 /// **What it cannot do:** decide whether the clipped string is the only copy of
 /// that information. No machine can. That judgement is made once per site, by a
 /// human, and written down as `// clip-ok:` — enforced by
-/// `tests/truncation.pin.test.ts`, which is the other half of this gate.
+/// `tests/tokens.theme-pin.test.ts`, which is the other half of this gate.
 ///
 /// It is also blind to data it never sees: a name that fits with the stub's
 /// « Awa » and clips with a real user's is invisible here. Named, not solved.
@@ -169,7 +169,7 @@ async function truncationLosses(page: import('@playwright/test').Page) {
   });
 }
 
-/// B11 — the reflow matrix (WCAG 1.4.10; WEB-SYSTEM §9.4).
+/// B11 — the reflow matrix (WCAG 1.4.10; WEB-SYSTEM §9 — Text scale & reflow).
 ///
 /// **320 is the number the standard names**, and it is 55px narrower than
 /// anything this suite had ever rendered. It is below every breakpoint
