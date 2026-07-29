@@ -220,4 +220,114 @@ void main() {
       expectNoLegibilityCrush(tester);
     });
   });
+  group('expectNoMidWordBreak', () {
+    // A13. This helper took `tester.renderObject`, which throws
+    // "Bad state: Too many elements" the moment its string renders twice — and
+    // A13's own subject, « Salon Excellence », renders in the salon header AND
+    // in every appointment tile on the same page. A11 C8 had dodged the same
+    // edge by picking a string that appears once.
+    //
+    // Both renderings are here, and they are deliberately opposite: a WIDE
+    // one-line tile that truncates, and a NARROW wrapping header that breaks.
+    // If the helper checked only the first match it would pass; if it did not
+    // skip one-line paragraphs it would red on the tile for the wrong reason.
+    testWidgets('checks every rendering, not just the first', (tester) async {
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 1,
+        home: const Scaffold(
+          body: Column(
+            children: [
+              // Renders first, cannot break (maxLines: 1), and is wide enough
+              // to pass anyway — the decoy.
+              SizedBox(
+                width: 300,
+                child: Text(
+                  'Salon Excellence',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySmall,
+                ),
+              ),
+              // Renders second, wraps, and its box is far narrower than
+              // « Excellence » — the real defect.
+              SizedBox(
+                width: 60,
+                child: Text(
+                  'Salon Excellence',
+                  maxLines: 2,
+                  style: AppTextStyles.headlineMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      expect(
+        () => expectNoMidWordBreak(tester, 'Salon Excellence', '360dp × 1×'),
+        throwsA(isA<TestFailure>()),
+      );
+    });
+
+    // The mirror: a one-line label narrower than its longest word is NOT a
+    // mid-word break — it truncates. Reporting it here would duplicate
+    // `expectNoLegibilityCrush` and make this helper unusable as a by-name gate.
+    testWidgets('ignores a one-line label that truncates instead of breaking',
+        (tester) async {
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 1,
+        home: const Scaffold(
+          body: Row(
+            children: [
+              SizedBox(
+                width: 60,
+                child: Text(
+                  'Salon Excellence',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.headlineMedium,
+                ),
+              ),
+              SizedBox(
+                width: 200,
+                child: Text('Salon Excellence',
+                    maxLines: 2, style: AppTextStyles.bodySmall),
+              ),
+            ],
+          ),
+        ),
+      );
+      // The 60dp one-liner is skipped; the 200dp wrapping one fits.
+      expectNoMidWordBreak(tester, 'Salon Excellence', '360dp × 1×');
+    });
+
+    // ...and if EVERY rendering is one-line, the call measured nothing. A
+    // helper that returns quietly in that case is §21 row 67's failure mode.
+    testWidgets('fails loudly when every rendering is one-line',
+        (tester) async {
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 1,
+        home: const Scaffold(
+          body: SizedBox(
+            width: 60,
+            child: Text(
+              'Salon Excellence',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.headlineMedium,
+            ),
+          ),
+        ),
+      );
+      expect(
+        () => expectNoMidWordBreak(tester, 'Salon Excellence', '360dp × 1×'),
+        throwsA(isA<TestFailure>()),
+      );
+    });
+  });
 }

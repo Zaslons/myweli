@@ -186,7 +186,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 // below 100%.
                 expandedHeight: AppTheme.textScaledBound(
                   context,
-                  constant: _headerChrome,
+                  constant: _headerStacked(context)
+                      ? _headerChromeStacked
+                      : _headerChrome,
                   text: _headerTextBlock,
                 ),
                 pinned: true,
@@ -264,12 +266,40 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           AppTheme.spacingL,
                           AppTheme.spacingM,
                         ),
-                        child: Row(
+                        // A13, §21 row 62 — **the salon's name is its
+                        // identity, and « Salon Ex / cellence » is not a name.**
+                        // §13.3 used to name "a salon name" as a permitted
+                        // mid-word break; A13 decides otherwise and amends it.
+                        //
+                        // Beside a hard 72×72 logo the name gets 224dp at 360
+                        // while « Excellence » wants 269.7 at 2×. Shrinking the
+                        // logo cannot reach the contract point — measured at
+                        // 56/48/40dp it still breaks, and **deleting it outright
+                        // only just clears 2×** — so the fix is the one §13.3
+                        // mandates and this file already uses for « Appeler »
+                        // twelve hundred lines down: more width, by stacking.
+                        child: Flex(
+                          direction: _headerStacked(context)
+                              ? Axis.vertical
+                              : Axis.horizontal,
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             _SalonLogo(logoUrl: p.logoUrl),
-                            const SizedBox(width: AppTheme.spacingM),
-                            Expanded(
+                            SizedBox(
+                              width: _headerStacked(context)
+                                  ? 0
+                                  : AppTheme.spacingM,
+                              height: _headerStacked(context)
+                                  ? AppTheme.spacingS
+                                  : 0,
+                            ),
+                            // Stacked, the Flex is vertical and an `Expanded`
+                            // would fight the `SliverAppBar`'s bounded height;
+                            // beside the logo it is what gives the name the rest
+                            // of the row. So the wrapper differs by axis.
+                            _HeaderTextBlock(
+                              stacked: _headerStacked(context),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
@@ -1203,6 +1233,58 @@ class PageViewIndicator extends StatelessWidget {
 /// 1×. Derived from the measured 92dp overflow at 200% — see `expandedHeight`.
 const double _headerChrome = 68;
 const double _headerTextBlock = 92;
+
+/// Above this text scale the header **stacks** the logo above the name (A13,
+/// §21 row 62).
+///
+/// **1.6, not the 1.3 this file already uses twelve hundred lines down.** The
+/// action bar's threshold is 1.3 because « Appeler » crosses there; the salon
+/// NAME crosses at **1.66× / 1.77× / 1.88×** on §10's three widths — the box is
+/// `W − 24 − 72 (logo) − 16 − 24`, so 224dp at 360, and « Excellence » wants
+/// 269.7 at 2×. The crossing therefore moves with the screen, which is the
+/// situation `ProviderCard.minGridCellWidth` says makes a scale constant wrong.
+///
+/// We take the **worst case** rather than computing a width-dependent branch,
+/// and the trade is stated instead of hidden: a 390dp phone stacks about 0.2×
+/// earlier than it strictly must. That is one layout, slightly early, on the
+/// widest supported phone — against a second bespoke width rule on a header
+/// with one call site.
+const double _headerStacksAbove = 1.6;
+
+/// The stacked header's chrome — the logo and its gap move from *beside* the
+/// text to *above* it, so they stop sharing the text's rows.
+///
+/// **Re-measured, not assumed, because there was no room to guess with.** At 2×
+/// the un-stacked header's content is 144 (two name lines) + 8 + 32 + 4 + 32 +
+/// 32 of padding = **252**, and `textScaledBound(68, 92)` at 2× is **252 exactly
+/// — zero slack**. Adding the 72dp logo and its 8dp gap to a header with no
+/// margin is what turns a mid-word break into a `RenderFlex` overflow, which is
+/// why `maxLines: 3` was rejected outright.
+const double _headerChromeStacked = _headerChrome + 72 + AppTheme.spacingS;
+
+/// The header's text column, wrapped for whichever axis the [Flex] is on.
+///
+/// A `Flexible`/`Expanded` is legal in either direction, but it means different
+/// things: horizontally it hands the name the rest of the row (which is the
+/// point); vertically it would make the column fight the `SliverAppBar`'s
+/// bounded height, and the header has **zero slack at 2×**. Stacked, the block
+/// simply takes the full padded width — 312dp at 360 — which is what clears
+/// « Excellence » to 2.31×.
+class _HeaderTextBlock extends StatelessWidget {
+  const _HeaderTextBlock({required this.stacked, required this.child});
+
+  final bool stacked;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => stacked
+      ? SizedBox(width: double.infinity, child: child)
+      : Expanded(child: child);
+}
+
+/// Whether the header stacks at the current OS text scale.
+bool _headerStacked(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(1) > _headerStacksAbove;
 
 class _SectionCard extends StatelessWidget {
   final String title;

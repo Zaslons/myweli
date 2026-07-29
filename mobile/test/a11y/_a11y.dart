@@ -222,35 +222,75 @@ Future<void> pumpAtWidth(
 ///
 /// **Applied by name, never as a sweep.** §13.3 says a *value the user reads as
 /// one token* and a *control's label* may not break; a heading may. A blanket
-/// walk would red on « Salon Ex/cellence » and « Prom/o W… », which §21 row 62
-/// deliberately leaves to the slice that decides them.
+/// walk would red on the headings the rule allows.
+///
+/// **EVERY match is checked, and A13 is why.** This took `tester.renderObject`,
+/// which throws *"Bad state: Too many elements"* the moment a string renders
+/// twice — and the subject A13 needed, « Salon Excellence », renders in the
+/// salon header AND in every `CompactAppointmentTile` on the same page. A11 C8
+/// dodged the same edge by narrowing « Rendez-vous » to « Disponibilité »;
+/// here the repeated string IS the subject, so the helper had to grow up. A
+/// string that renders three times must not break in any of the three.
+///
+/// **Paragraphs that cannot wrap are skipped, and that is exactness not
+/// leniency.** `maxLines: 1` (or `softWrap: false`) truncates — it never breaks
+/// a word across lines, so the box-vs-widest-word predicate is a FALSE POSITIVE
+/// there. That case is [expectNoLegibilityCrush]'s, and conflating the two would
+/// have made this helper red on every ellipsised one-line label narrower than
+/// its longest word. Without this, A13's own subject reds on the tile it is not
+/// about.
 void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
-  final p = tester.renderObject<RenderParagraph>(
-    find.descendant(of: find.text(text), matching: find.byType(RichText)),
+  final paragraphs = tester
+      .renderObjectList<RenderParagraph>(
+        find.descendant(of: find.text(text), matching: find.byType(RichText)),
+      )
+      .toList();
+  expect(
+    paragraphs,
+    isNotEmpty,
+    reason: 'C: « $text » is not on screen at $at, so this asserts nothing',
   );
-  final style = p.text.style;
-  var widest = 0.0;
-  var widestWord = '';
-  for (final word in text.split(RegExp(r'\s+'))) {
-    if (word.isEmpty) continue;
-    final tp = TextPainter(
-      text: TextSpan(text: word, style: style),
-      textDirection: TextDirection.ltr,
-      textScaler: p.textScaler,
-    )..layout();
-    if (tp.width > widest) {
-      widest = tp.width;
-      widestWord = word;
+
+  var checked = 0;
+  for (final p in paragraphs) {
+    // A one-line paragraph truncates; it cannot break inside a word.
+    if (p.maxLines == 1 || !p.softWrap) continue;
+    checked += 1;
+
+    final style = p.text.style;
+    var widest = 0.0;
+    var widestWord = '';
+    for (final word in text.split(RegExp(r'\s+'))) {
+      if (word.isEmpty) continue;
+      final tp = TextPainter(
+        text: TextSpan(text: word, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: p.textScaler,
+      )..layout();
+      if (tp.width > widest) {
+        widest = tp.width;
+        widestWord = word;
+      }
+      tp.dispose();
     }
+
+    expect(
+      p.size.width + _kWidthEpsilon,
+      greaterThanOrEqualTo(widest),
+      reason: '« $text » has ${p.size.width.toStringAsFixed(1)}dp at $at and its '
+          'longest word « $widestWord » needs ${widest.toStringAsFixed(1)} — so it '
+          'is being broken mid-word. §13.3: a value the user reads as one token, '
+          'and a control\'s label, may wrap between words but never inside one.',
+    );
   }
 
+  // C — if every rendering of the string was one-line, this call measured
+  // nothing at all and should not be read as a pass.
   expect(
-    p.size.width + _kWidthEpsilon,
-    greaterThanOrEqualTo(widest),
-    reason: '« $text » has ${p.size.width.toStringAsFixed(1)}dp at $at and its '
-        'longest word « $widestWord » needs ${widest.toStringAsFixed(1)} — so it '
-        'is being broken mid-word. §13.3: a value the user reads as one token, '
-        'and a control\'s label, may wrap between words but never inside one.',
+    checked,
+    greaterThan(0),
+    reason: 'every rendering of « $text » at $at is maxLines:1, so '
+        'expectNoMidWordBreak asserted nothing — use expectNoLegibilityCrush',
   );
 }
 
