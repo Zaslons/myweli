@@ -70,15 +70,89 @@ const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   // guard this file's own header demands — a wrong URL scans the 404 page,
   // which also does not overflow.
   ['the account-deletion page — the one a reviewer opens on a phone', '/suppression-compte', /Supprimer votre compte/i],
+  // B11: **this row runs before every authed row for a reason.** `signInPro`
+  // drives this exact UI, so if the pro login breaks at 320 the authed half
+  // fails at sign-in and every failure is misattributed to the page under test.
+  // Measured here, first, where the failure names itself.
+  ['the pro connexion — every authed row is standing on it', '/pro/connexion', 'Espace Pro'],
 ];
+
+/// B11 — the reflow matrix (WCAG 1.4.10; WEB-SYSTEM §9.4).
+///
+/// **320 is the number the standard names**, and it is 55px narrower than
+/// anything this suite had ever rendered. It is below every breakpoint
+/// (`sm: 640px`), so it renders the *same* mobile-first layout as 375 with less
+/// room — there is no new layout here, only an existing one under pressure.
+///
+/// The third entry is **deliberately beyond the SC**, and the distinction is
+/// worth stating rather than blurring: 1.4.10 asks for 256 CSS px of height for
+/// *horizontally* scrolling content, and these pages scroll vertically, so the
+/// clause does not bind them. A short viewport is still where sticky and fixed
+/// chrome fails, and it costs one array entry to find out.
+const VIEWPORTS = [
+  { name: '375×812', size: { width: 375, height: 812 } },
+  { name: '320×512', size: { width: 320, height: 512 } },
+  { name: '320×256', size: { width: 320, height: 256 } },
+] as const;
 
 /// The document must not scroll sideways. This is the blunt, honest check: if any
 /// string got wide enough to push the layout, the body reports it here.
-async function noHorizontalScroll(page: import('@playwright/test').Page) {
+///
+/// **B11 made it name the culprit.** It used to return a bare boolean, and its
+/// two siblings both return a list of offenders — so the one assertion most
+/// likely to fire on a new viewport was the one that said only *"the page
+/// scrolls sideways"* about a document with several hundred elements. That is a
+/// gate you cannot act on without re-deriving its finding by hand, which is how
+/// a red run starts costing more than it saves.
+///
+/// It reports the elements that **start** the overflow: those whose own right
+/// edge is past the viewport while their parent's is not. With `overflow:
+/// visible` a parent's box does not stretch around a too-wide child, so the
+/// child is the origin and the parent is innocent — walking down to the
+/// outermost *overflowing* node would name the page shell every time.
+///
+/// The element walk only runs once the cheap document-level check has already
+/// failed, so the cost is paid on failures and never on green runs — the
+/// performance constraint `overflowingFlexRows` documents below is real.
+async function horizontalOverflow(page: import('@playwright/test').Page) {
   return page.evaluate(() => {
     const d = document.documentElement;
     // +1 for sub-pixel rounding; we are hunting real overflow, not 0.5px.
-    return d.scrollWidth <= d.clientWidth + 1;
+    const limit = d.clientWidth;
+    if (d.scrollWidth <= limit + 1) return [] as string[];
+
+    const past = (el: Element) => el.getBoundingClientRect().right > limit + 1;
+
+    /// Inside a scroll/clip container, a wide box is **contained** — it is the
+    /// declared 2D exception, not a document overflow. `getBoundingClientRect`
+    /// reports the full untruncated box either way, so without this the journal
+    /// grid (`min-w-fit`, 56 + 168 per artist) reads as a page-level failure on
+    /// every pro route while the page it sits on is perfectly fine. Same opt-out
+    /// the other two helpers grant, applied to ancestors instead of self.
+    const contained = (el: Element) => {
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        if (getComputedStyle(p).overflowX !== 'visible') return true;
+      }
+      return false;
+    };
+
+    const bad: string[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || !past(el)) continue;
+      if (contained(el)) continue;
+      if (el.parentElement && past(el.parentElement)) continue; // ancestor owns it
+      bad.push(
+        `<${el.tagName.toLowerCase()} class="${el.className}"> ` +
+          `right ${Math.round(r.right)} > ${limit} (width ${Math.round(r.width)})`,
+      );
+    }
+    // A document can be wider than its elements (a stray margin, a transform).
+    // Say so rather than returning [] on a page that demonstrably scrolls.
+    if (bad.length === 0) {
+      bad.push(`the document is ${d.scrollWidth} wide in a ${limit} viewport, but no single element is past the edge`);
+    }
+    return bad;
   });
 }
 
@@ -183,32 +257,53 @@ async function overflowingFlexRows(page: import('@playwright/test').Page) {
   });
 }
 
-for (const [name, url, anchor] of PUBLIC_ROUTES) {
-  test(`${name} — no horizontal overflow at 375px`, async ({ page }) => {
-    await page.goto(url);
-    // The content anchor is BOTH the "page rendered" signal AND the vacuity
-    // guard — waiting on it beats `networkidle`, which never fires on the
-    // image-bearing routes (the stub's salon photos point at an unresolvable
-    // `cdn.stub`, so `next/image` keeps the network busy past the 30s
-    // timeout). B8 found the salon route had been silently scanning the 404
-    // page for months (a slug rename left it 404, and the 404 page doesn't
-    // overflow either — a green gate measuring nothing); a heading unique to
-    // the REAL page makes that vacuity loud.
-    // `.first()`: some routes carry a responsive heading twin (a visible h1 +
-    // an sr-only lg:hidden one); one is enough to prove the DOM is right.
-    await expect(
-      page.getByRole('heading', { name: anchor }).first(),
-      `${url} did not render its own page (wrong DOM — vacuous scan)`,
-    ).toBeVisible();
-    expect(await noHorizontalScroll(page), `the page scrolls sideways at 375px`).toBe(true);
-    expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
-    // The third check belongs here too. B9 first wired it into the authed loop
-    // only, which would have left the five public routes measured by two of the
-    // three defect classes with nothing saying so.
-    expect(
-      await overflowingFlexRows(page),
-      'a nowrap flex row does not fit its own container',
-    ).toEqual([]);
+/// One `describe` per viewport, and it is not a stylistic choice: `test.use` is
+/// a **declaration**, legal at file scope or inside a `describe` callback and
+/// nowhere else. Called from a bare `for` at file scope it re-declares the
+/// file-level option — last write wins for the whole file — so the viewport
+/// dimension cannot be a loop around `test()`. This is the shape the repo
+/// already uses at `z-layers.spec.ts:35` and `booking.spec.ts:37`.
+///
+/// The file-level `test.use` above is deliberately kept: it is what the journal
+/// line-height test at the bottom still runs under, unchanged.
+for (const vp of VIEWPORTS) {
+  test.describe(vp.name, () => {
+    test.use({ viewport: vp.size });
+
+    for (const [name, url, anchor] of PUBLIC_ROUTES) {
+      test(`${name} — no overflow at ${vp.name}`, async ({ page }) => {
+        await page.goto(url);
+        // The content anchor is BOTH the "page rendered" signal AND the vacuity
+        // guard — waiting on it beats `networkidle`, which never fires on the
+        // image-bearing routes (the stub's salon photos point at an
+        // unresolvable `cdn.stub`, so `next/image` keeps the network busy past
+        // the 30s timeout). B8 found the salon route had been silently scanning
+        // the 404 page for months (a slug rename left it 404, and the 404 page
+        // doesn't overflow either — a green gate measuring nothing); a heading
+        // unique to the REAL page makes that vacuity loud.
+        // `.first()`: some routes carry a responsive heading twin (a visible h1
+        // + an sr-only lg:hidden one); one is enough to prove the DOM is right.
+        await expect(
+          page.getByRole('heading', { name: anchor }).first(),
+          `${url} did not render its own page (wrong DOM — vacuous scan)`,
+        ).toBeVisible();
+        expect(
+          await horizontalOverflow(page),
+          `the page scrolls sideways at ${vp.name}`,
+        ).toEqual([]);
+        expect(
+          await overflowingText(page),
+          `text spills out of its own box at ${vp.name}`,
+        ).toEqual([]);
+        // The third check belongs here too. B9 first wired it into the authed
+        // loop only, which would have left the five public routes measured by
+        // two of the three defect classes with nothing saying so.
+        expect(
+          await overflowingFlexRows(page),
+          `a nowrap flex row does not fit its own container at ${vp.name}`,
+        ).toEqual([]);
+      });
+    }
   });
 }
 
@@ -280,25 +375,37 @@ const AUTHED_ROUTES: Route[] = [
   },
 ];
 
-for (const route of AUTHED_ROUTES) {
-  test(`${route.name} — no horizontal overflow at 375px`, async ({ page }) => {
-    if (route.auth === 'pro') await signInPro(page);
-    else await signInConsumer(page);
+for (const vp of VIEWPORTS) {
+  test.describe(vp.name, () => {
+    test.use({ viewport: vp.size });
 
-    await page.goto(route.url);
-    await expect(
-      (route.ready?.(page) ??
-        page.getByRole('heading', { name: route.anchor })).first(),
-      `${route.url} did not render its own page (wrong DOM — vacuous scan)`,
-    ).toBeVisible();
-    await route.setup?.(page);
+    for (const route of AUTHED_ROUTES) {
+      test(`${route.name} — no overflow at ${vp.name}`, async ({ page }) => {
+        if (route.auth === 'pro') await signInPro(page);
+        else await signInConsumer(page);
 
-    expect(await noHorizontalScroll(page), 'the page scrolls sideways at 375px').toBe(true);
-    expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
-    expect(
-      await overflowingFlexRows(page),
-      'a nowrap flex row does not fit its own container',
-    ).toEqual([]);
+        await page.goto(route.url);
+        await expect(
+          (route.ready?.(page) ??
+            page.getByRole('heading', { name: route.anchor })).first(),
+          `${route.url} did not render its own page (wrong DOM — vacuous scan)`,
+        ).toBeVisible();
+        await route.setup?.(page);
+
+        expect(
+          await horizontalOverflow(page),
+          `the page scrolls sideways at ${vp.name}`,
+        ).toEqual([]);
+        expect(
+          await overflowingText(page),
+          `text spills out of its own box at ${vp.name}`,
+        ).toEqual([]);
+        expect(
+          await overflowingFlexRows(page),
+          `a nowrap flex row does not fit its own container at ${vp.name}`,
+        ).toEqual([]);
+      });
+    }
   });
 }
 
