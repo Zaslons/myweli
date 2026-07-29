@@ -131,6 +131,24 @@ class Formatters {
     return DateFormat('HH:mm', 'fr_FR').format(time);
   }
 
+  /// « 14:30 » from an hour and a minute, with no date and no clock (A14b).
+  ///
+  /// [formatTime] needs a `DateTime`, and a wall-clock time the user is *picking*
+  /// has no date yet — inventing one to format it is how `DateTime(2000, 1, 1,
+  /// h, m)` ends up in a widget. This takes the two numbers.
+  ///
+  /// It lives here because it is the **third** spelling of one job:
+  /// `weekly_hours_editor.dart` had a private `_fmt` doing exactly this with two
+  /// `padLeft`s, and `formatTimeShort` renders the other house style («&nbsp;9h00&nbsp;»).
+  /// A13 found four spellings of the plural rule coexisting and disagreeing at
+  /// one value; two spellings of zero-padding is the same shape, earlier.
+  ///
+  /// 24-hour, always, with no AM/PM branch — `french_test.dart` asserts fr
+  /// resolves to `TimeOfDayFormat.HH_colon_mm`, and §18's salon clock is the
+  /// only clock this app displays.
+  static String formatHourMinute(int hour, int minute) =>
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
   /// Format date and time: "Lundi 15 janvier 2024 à 14:30"
   static String formatDateTime(DateTime dateTime) {
     return '${formatDate(dateTime)} à ${formatTime(dateTime)}';
