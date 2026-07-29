@@ -258,7 +258,12 @@ Every gate watched red before its fix.
       `consumer_provider_detail.png` never moved. Every changed PNG opened
 - [x] device run at both sides of the branch — 1× unchanged, and at ≈1.95×
       « Promo / Week-End » and a stacked header both confirmed on hardware
-- [ ] adversarial review, every finding hand-verified
+- [x] adversarial review — **14 findings, every one hand-verified.** Two were
+      real defects: the stacking threshold measured on unverified salons only
+      (live 1.45×–1.60× at 360, and the gate blind twice over), and the
+      « Client » fix stopping at the app while five web pro components still
+      showed the placeholder. Seven were wrong claims in A13's own prose,
+      including a non-existent French string shipped into the API contract
 
 ### The regeneration caught a regression the arithmetic did not
 
