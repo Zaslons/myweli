@@ -281,6 +281,28 @@ The proxy is what let this through: it guarded the bound dipping **below** 260
 at 0.85× and said nothing about a smaller bound crossing it going **up**. It now
 asserts the thing itself, the image the card actually drew.
 
+### What the run found that A12 does not own
+
+Two things, recorded rather than absorbed, because both are decisions and not
+patches:
+
+- **Flutter's own date picker cannot show a date at 200%** — §21 row 73. On the
+  booking flow at ≈1.95× the calendar renders « 2 21 2 2 2 2 2 » where 20–26
+  should be. Not our widget, not our theme, and **more width is not available**
+  (Material caps the dialog near 328dp; seven columns of ~46dp cannot hold two
+  digits at that scale), so §13.3's standing fix does not apply. An input-mode
+  fallback or a bespoke picker is a UX decision, and the standing rule is that
+  those get signed off before they get built.
+- **The booking hub's pinned summary takes ~2/3 of the viewport at ≈1.95×**,
+  leaving a ~185dp scroll window for the four steps. It scrolls and nothing
+  overflows, so no rule is broken — but the flow is tight enough to be worth a
+  look on its own terms.
+
+And one correction the device **confirmed**: §21 row 68 claimed the reschedule
+picker's 80×48 slot box needed 80.4dp at 2×. A12 re-derived it at ~72dp and said
+it *fits*. On the device at ≈1.95× the chips — « 09:00 » through « 11:30 » —
+render whole, three to a row, with room to spare.
+
 ## 11. Open
 
 - **Two screens are fixed but not gated.** Booking confirmation and the booking

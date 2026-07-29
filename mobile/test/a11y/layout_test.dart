@@ -17,6 +17,7 @@ import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/appointments/my_bookings_screen.dart';
 import 'package:myweli/screens/auth/otp_verify_screen.dart';
 import 'package:myweli/screens/home/home_screen.dart';
+import 'package:myweli/screens/notifications/notifications_screen.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_otp_verify_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
@@ -26,6 +27,7 @@ import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/screens/providers/provider_list_screen.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:myweli/widgets/common/legal_consent_text.dart';
+import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -161,6 +163,7 @@ void main() {
         _expectOtpRowFitsTheFloor(tester, width: width, at: at);
         expectNoUndeclaredTruncation(tester,
             context: 'the consumer OTP at $at');
+        expectNoLegibilityCrush(tester, context: 'the consumer OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
 
         await _disposeTimers(tester);
@@ -242,6 +245,10 @@ void main() {
           tester,
           context: 'the pro appointment list at $at',
         );
+        expectNoLegibilityCrush(
+          tester,
+          context: 'the pro appointment list at $at',
+        );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -279,6 +286,10 @@ void main() {
           expectNoMidWordBreak(tester, d, at);
         }
         expectNoUndeclaredTruncation(
+          tester,
+          context: 'consumer bookings at $at',
+        );
+        expectNoLegibilityCrush(
           tester,
           context: 'consumer bookings at $at',
         );
@@ -449,7 +460,7 @@ void main() {
           reason: 'C: the pill is the subject',
         );
         expect(
-          find.text('Aucun salon'),
+          find.text('Aucun salon trouvé'),
           findsNothing,
           reason: 'C: the count label only renders once providers arrive, and '
               'it is half of what overflows',
@@ -509,6 +520,46 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'salon grid at $at');
         expectNoLegibilityCrush(tester, context: 'salon grid at $at');
         expectNoVerticalClip(tester, context: 'salon grid at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the notification centre ---------------------------------------
+      //
+      // The thirteenth subject, and the one this file most owed. §21 row 68
+      // named `NotificationTile`'s crushed title; A12 built
+      // `expectNoLegibilityCrush` **for it** and cites it in the primitive's
+      // own docstring; and then the slice fixed everything around it and never
+      // made the screen a subject, so the register row was about to close over
+      // a defect still shipping. The adversarial review caught that.
+      //
+      // The subject is the SCREEN, not the tile, for the `CommunePill` reason:
+      // a tile pumped alone gets whatever width the fixture hands it, and the
+      // crush is a fact about the 240dp row the list actually leaves it.
+      testWidgets('the notification centre fits $at', (tester) async {
+        final auth = await signInConsumer(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+            ChangeNotifierProvider.value(value: auth),
+          ],
+          home: const NotificationsScreen(),
+          rounds: 5,
+        );
+
+        // C — an empty feed would measure the padding around « Aucune
+        // notification », which is §20's named vacuity and the exact trap two
+        // other subjects in this file fell into.
+        expect(
+          find.byType(NotificationTile),
+          findsWidgets,
+          reason: 'C: no tile is on screen — this would measure an empty state',
+        );
+        expectNoUndeclaredTruncation(tester, context: 'notifications at $at');
+        expectNoLegibilityCrush(tester, context: 'notifications at $at');
+        expectNoVerticalClip(tester, context: 'notifications at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
