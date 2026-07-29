@@ -3,8 +3,10 @@ import { type Page, expect, test } from '@playwright/test';
 import { signInPro } from './_auth';
 
 /// Team access R5a — the owner surfaces on the web (docs/design/
-/// web-team-access-r5.md). Hermetic against the stub's team layer; every test
-/// leaves a live offer so the shared go-live/abonnement journeys are unaffected.
+/// web-team-access-r5.md). Hermetic against the stub's team layer: since B10
+/// no test in this file writes the salon's offer at all, so the shared
+/// go-live/abonnement journeys cannot be disturbed from here. What these tests
+/// do mutate is `teamMembers`, which no other spec file writes.
 
 
 test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
@@ -69,32 +71,10 @@ test('Équipe: roster, invite, gates, resend & revoke (full arc)', async ({
   await expect(page.getByText('Accès révoqué')).toBeVisible();
 });
 
-test('Abonnement: the live-trial banner, the cards & switching offer', async ({
-  page,
-}) => {
-  await signInPro(page);
-  await page.getByRole('link', { name: 'Abonnement' }).click();
-  await expect(page).toHaveURL(/\/pro\/abonnement/);
-
-  await expect(page.getByText(/Essai gratuit/)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Pro' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Business' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Réseau' })).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Offre actuelle' }),
-  ).toBeVisible();
-  // The kept-trial reassurance.
-  await expect(
-    page.getByText('Le changement d’offre conserve votre période d’essai.'),
-  ).toBeVisible();
-
-  // Switch to Business → the seat cap grows to 15 and Business becomes current.
-  const business = page
-    .locator('section')
-    .filter({ has: page.getByRole('heading', { name: 'Business' }) });
-  await business.getByRole('button', { name: 'Passer à cette offre' }).click();
-  await expect(page.getByText(/\/ 15 places/)).toBeVisible();
-});
+// The « Abonnement » arc lived here until B10 and now lives in
+// `salons.spec.ts`, next to the only other test that writes the salon's offer.
+// Two files switching one stub singleton in opposite directions is not a
+// timing bug and no wait fixes it — docs/design/web-b10-flake.md §4.2.
 
 test('Login bridge: an invited email joins from « Invitations »', async ({
   page,

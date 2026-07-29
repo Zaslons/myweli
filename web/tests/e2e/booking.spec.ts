@@ -92,7 +92,23 @@ test('time-first: l’heure choisie survit ou se libère selon la durée', async
   await page.getByRole('button', { name: '10:30' }).click();
 
   // Ordering → Prestations. Tresses (Moyen, 120 min) still fits 10:30.
+  //
+  // The wait is load-bearing and was absent until B10: `onToggleService`
+  // enables « Confirmer » *synchronously*, so asserting straight after the
+  // click passed before `revalidateSlot` had even been called — and would have
+  // stayed green if revalidation cleared the slot, which is the exact
+  // behaviour this test exists to check.
+  //
+  // The wait has to be on the DOM, not on the network. `page.waitForResponse`
+  // resolves in the Node process on a CDP event and imposes no ordering on the
+  // renderer's `setS` and React commit, so it narrows the window without
+  // closing it. « Spécialiste » expanding is a state only `settle`'s trailing
+  // `setS(advance(...))` can produce — it is the auto-advance itself — so it
+  // cannot be observed before revalidation has been applied.
   await page.getByRole('checkbox').first().click();
+  await expect(
+    page.getByRole('button', { name: /^Spécialiste/ }),
+  ).toHaveAttribute('aria-expanded', 'true');
   await expect(
     page.getByRole('button', { name: 'Confirmer', exact: true }),
   ).toBeEnabled();
