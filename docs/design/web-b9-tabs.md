@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | Design system — web (cross-cutting) — [MODULES.md](../MODULES.md) |
-| **Status** | Draft |
+| **Status** | Shipped (2026-07-29) |
 | **Governs** | `web/components/Tabs.tsx` · `web/tests/e2e/` · WEB-SYSTEM §10, §15 rows 7h + 28 · SYSTEM.md §21 row 54 |
 | **Predecessor** | [web-b8-reading-text.md](web-b8-reading-text.md) · [mobile-a11-width.md](mobile-a11-width.md) (C4, the same defect on mobile) |
 | **Skills checked** | myweli-web-guardrails |
@@ -190,16 +190,20 @@ runs after.
 
 ## 8. Definition of done
 
-- [ ] the gate red first, with the live/latent split measured rather than assumed
-- [ ] `<Tabs>` built, in §10's inventory
-- [ ] all five converted; `grep "flex gap-s border-b border-divider" web/components`
-      returns **zero**
-- [ ] the 48px floor met and gated
-- [ ] the four login helpers deduplicated
-- [ ] both registers corrected — the count, and the false `PUBLIC_ROUTES` claim
-- [ ] row 7h's "0 remaining" corrected
-- [ ] the missing web text-scale contract opened as its own row
-- [ ] lint · typecheck · `next build` · vitest · e2e · Lighthouse green
+- [x] the gate red first — **5 red**: one overflow (340 of 327) and four 38px
+      targets; the live/latent split measured, not assumed
+- [x] `<Tabs>` built, in §10's inventory and in its "to build" table as closed
+- [x] all five converted; `grep "flex gap-s border-b border-divider" web/components`
+      returns **zero** outside the component's own docstring
+- [x] the 48px floor met and gated — including the strip that passed at 56px
+      *because* it was broken
+- [x] **nine** login helpers deduplicated (the census said four)
+- [x] both registers corrected — the count, **and the false `PUBLIC_ROUTES`
+      claim, which was the more important error**
+- [x] row 7h's "0 remaining" corrected for the fourth time
+- [x] the missing web text-scale contract opened as WEB-SYSTEM row 29 → B10
+- [x] lint · typecheck · `next build` · 503 vitest · 119 e2e green (three
+      consecutive full runs, after a real flake was diagnosed rather than retried)
 - [ ] adversarial review, every finding hand-verified
 
 ## 9. Open
