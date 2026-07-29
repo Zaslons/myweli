@@ -462,11 +462,20 @@ void main() {
           findsOneWidget,
           reason: 'C: the pill is the subject',
         );
+        // **A POSITIVE guard, and the adversarial review is why.** This was
+        // `find.text('Aucun salon')` — a string `ProviderListScreen` cannot
+        // render (its empty state says « Aucun salon trouvé »; the bare form
+        // exists only in `admin_providers_screen.dart`), so it passed in all
+        // four states. Correcting the string closes the EMPTY hole and not the
+        // LOADING one, which is the state this guard's own reason names: while
+        // the provider is still loading there is no count label and no empty
+        // state, and a negative guard is green about a half-built row. Only
+        // asserting the cards are there bites in every degenerate state.
         expect(
-          find.text('Aucun salon trouvé'),
-          findsNothing,
-          reason: 'C: the count label only renders once providers arrive, and '
-              'it is half of what overflows',
+          find.byType(ProviderCard),
+          findsWidgets,
+          reason: 'C: no salon has loaded, so the count label — half of what '
+              'overflows — is not built and the row cannot overflow',
         );
         expectNoUndeclaredTruncation(tester, context: 'salon list at $at');
         expectNoLegibilityCrush(tester, context: 'salon list at $at');

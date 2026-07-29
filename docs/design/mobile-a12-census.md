@@ -66,9 +66,26 @@ a defect, and only `didExceedMaxLines` — a runtime signal — separates the tw
 That is why the census for it had to be a report-only run of the new primitive
 rather than a grep, and why the primitive had to exist first.
 
-**Final triage: 20 hits → 13 defects fixed, 7 refuted.** The seven are rating
-rows (★ + « 4.8 » + « (89) », a few glyphs in a 280dp budget) and blocks the
-matcher mis-attributed — `provider_card:220` is already `Flexible`.
+**Final triage: 13 defects fixed, and 7 of shape 1's hits refuted.** The seven
+are rating rows (★ + « 4.8 » + « (89) », a few glyphs in a 280dp budget) and
+blocks the matcher mis-attributed — `provider_card:220` is already `Flexible`.
+
+**Those two numbers do not sum to 20, and the first draft said they did.** The
+adversarial review caught it, and it is the same error class this whole slice
+exists to correct, committed in the correction itself: `20 → 13 + 7` reads as a
+partition of shape 1's hits and is not one. At least two of the 13 fixes hold a
+single `Text` — `provider_list`'s filter row and availability's section title —
+so they are hits of **shape 4** (`Icon(size:)` beside an unflexed `Text`),
+silently reassigned into shape 1's triage. The 13 is a count across all four
+shapes; the 7 belongs to shape 1 alone.
+
+And 13 is no longer the total. Five more defects arrived after the sweep closed
+— two the device found in the salon grid, three the adversarial review found
+(`AppointmentCard`, `NotificationTile`, the booking-confirmation service row) —
+plus one regression A12 introduced and repaired (`CompactAppointmentTile`'s
+pill alignment). **18 defects fixed**, and the shape of the tail is the finding:
+**every one of the five was reachable only by an instrument the sweep did not
+have** — a real device, a toggle no test tapped, a screen no subject pumped.
 
 ## 4. The two new primitives
 

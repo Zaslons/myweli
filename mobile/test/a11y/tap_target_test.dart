@@ -111,6 +111,26 @@ void main() {
     testWidgets('TabBar — ${bar.key}', (tester) async {
       final handle = await pumpForA11y(tester, bar.value());
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      // **The guideline above cannot see the thing this subject is about**, and
+      // the comment says so four paragraphs up: it evaluates semantics nodes,
+      // not the `Tab`'s box. So until A12's review, both subjects asserted a
+      // property their own documentation records as blind — a measured 46.0
+      // written in prose beside an assertion that would pass at any height.
+      //
+      // Pinned here instead. 46.0 is `_kTabHeight` (tabs.dart:30), 2dp under
+      // §13.2's floor, and it is the framework's with no override short of
+      // `Tab(height:)` at every call site. Asserting it is not blessing it —
+      // it makes the shortfall a number the suite holds, so a framework change
+      // or a stray `height:` is visible rather than silent.
+      for (final tab in find.byType(Tab).evaluate()) {
+        expect(
+          tester.getSize(find.byWidget(tab.widget)).height,
+          46.0,
+          reason:
+              '§13.2 wants 48; a Tab measures `_kTabHeight`. If this moved, '
+              'the register and the comment above both need re-deriving.',
+        );
+      }
       handle.dispose();
     });
   }

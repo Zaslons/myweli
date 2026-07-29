@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 
@@ -173,6 +174,19 @@ void main() {
       // The false positive this primitive shipped with for one commit: the
       // predicate measured a SINGLE line, so a `maxLines: 2` header showing ~14
       // characters across two was reported as showing 7 and called a crush.
+      //
+      // **270, not 40** — and the adversarial review is why. At 40 the label
+      // gets a 320dp box, « Salon Excellence » fits on one line inside it, so
+      // `didExceedMaxLines` is false and `expectNoLegibilityCrush` skips the
+      // subject at its first guard: `_prefixFits` was never called, and this
+      // test was green against the BUGGY predicate as happily as against the
+      // fixed one. A regression test for a predicate that never runs the
+      // predicate is §21 row 67's failure with a self-test's name on it.
+      //
+      // 270 leaves a 90dp box, which is the window that discriminates:
+      // « Salon Ex… » is ~112dp on ONE line, so a single-line measurement
+      // calls this a crush — and it wraps to « Salon » / « Ex… » well inside
+      // 90dp, so the maxLines-aware one correctly does not.
       await pumpAtWidth(
         tester,
         width: 360,
@@ -188,10 +202,20 @@ void main() {
                   style: AppTextStyles.headlineMedium,
                 ),
               ),
-              SizedBox(width: 40, child: Icon(Icons.verified)),
+              SizedBox(width: 270, child: Icon(Icons.verified)),
             ],
           ),
         ),
+      );
+      // C — without this the subject may simply not truncate, which is exactly
+      // how the 40dp version passed.
+      expect(
+        tester
+            .renderObject<RenderParagraph>(find.text('Salon Excellence Beauté'))
+            .didExceedMaxLines,
+        isTrue,
+        reason: 'the fixture does not truncate, so expectNoLegibilityCrush '
+            'skips it before `_prefixFits` is ever called',
       );
       expectNoLegibilityCrush(tester);
     });
