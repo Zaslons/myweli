@@ -167,6 +167,7 @@ void main() {
         expectNoUndeclaredTruncation(tester,
             context: 'the consumer OTP at $at');
         expectNoLegibilityCrush(tester, context: 'the consumer OTP at $at');
+        expectNoVerticalClip(tester, context: 'the consumer OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
 
         await _disposeTimers(tester);
@@ -252,6 +253,8 @@ void main() {
           tester,
           context: 'the pro appointment list at $at',
         );
+        expectNoVerticalClip(tester,
+            context: 'the pro appointment list at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -296,6 +299,7 @@ void main() {
           tester,
           context: 'consumer bookings at $at',
         );
+        expectNoVerticalClip(tester, context: 'consumer bookings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -607,6 +611,7 @@ void main() {
         );
         expectNoUndeclaredTruncation(tester, context: 'booking hub at $at');
         expectNoLegibilityCrush(tester, context: 'booking hub at $at');
+        expectNoVerticalClip(tester, context: 'booking hub at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -644,6 +649,7 @@ void main() {
           tester,
           context: 'booking confirmation at $at',
         );
+        expectNoVerticalClip(tester, context: 'booking confirmation at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 

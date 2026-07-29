@@ -90,12 +90,24 @@ class Formatters {
         '${formatCurrency(max, currency: currency)}';
   }
 
-  /// Format date: "Lundi 15 janvier 2024"
+  /// Format date: « lundi 15 janvier 2024 ».
+  ///
+  /// **Lowercase**, and this docstring said « Lundi » for three years while the
+  /// function produced « lundi ». French does not capitalise weekday or month
+  /// names, so the code was right and the comment was wrong — found by A14b
+  /// writing the first test this helper has ever had, which is the argument for
+  /// having written it. It is now **every day cell's accessibility label** in the
+  /// house calendar (`myweli_month_grid.dart`), so what it returns is what a
+  /// screen-reader user hears.
   static String formatDate(DateTime date) {
     return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date);
   }
 
-  /// Format date short: "15/01/2024"
+  /// Format date short: « 15/01/2024 » — **day first**, both parts padded.
+  ///
+  /// Day-first is not cosmetic: `03/11/2026` is a different date to a French
+  /// reader than to an English one, which is what §21 row 29 was about on the
+  /// input side.
   static String formatDateShort(DateTime date) {
     return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
   }

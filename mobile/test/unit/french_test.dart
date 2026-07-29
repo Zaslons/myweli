@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:myweli/core/utils/app_locale.dart';
+import 'package:myweli/widgets/common/myweli_date_picker.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../support/pump_app.dart';
@@ -28,11 +29,17 @@ import '../support/pump_app.dart';
 ///   3. `Intl.defaultLocale` — which `table_calendar` reads instead of
 ///      `Localizations`, so the delegates do nothing for it.
 ///
-/// **What this gate does NOT reach.** The 5 `showDatePicker` and 6
-/// `showTimePicker` call sites are not each pumped — one representative picker
-/// is. An earlier version of this comment claimed the rest were "covered by the
-/// source pin"; the review measured that and it is **false** — the pin only
-/// reads files containing a `MaterialApp`, and not one picker site does. The
+/// **What this gate does NOT reach.** As of A14b there are **zero**
+/// `showDatePicker` and **zero** `showTimePicker` call sites in `lib/` — A14a
+/// and A14b replaced all eleven with house widgets, which format through
+/// `Formatters` rather than through `MaterialLocalizations`. So the sentence
+/// that used to be here — *"the 5 showDatePicker and 6 showTimePicker call
+/// sites are not each pumped"* — now describes call sites that do not exist.
+///
+/// What is still not pumped is every *screen*. An earlier version of this
+/// comment claimed the unpumped ones were "covered by the source pin"; the
+/// review measured that and it is **false** — the pin only reads files
+/// containing a `MaterialApp`, and no screen that opens a picker does. The
 /// honest argument is that the delegates are app-wide, and the pin contributes
 /// nothing to it. Claiming coverage a gate does not have is the A8 failure mode
 /// restated in prose, so it is corrected here rather than softened.
@@ -63,50 +70,47 @@ void main() {
   group(
       '§21 row 29 — the booking date, which is the reason this is not a '
       'copy slice', () {
-    testWidgets('typing 07/01/2026 books 7 janvier, not 1 July',
+    testWidgets(
+        'the house picker renders a French month, and has no input mode',
         (tester) async {
+      // **This test used to pump a live `showDatePicker` in input mode**, typing
+      // `07/01/2026` and asserting it booked 7 January rather than 1 July —
       // `DefaultMaterialLocalizations.parseCompactDate`
       // (`material_localizations.dart:903-929`) reads `inputParts[0]` as the
-      // month, under its own comment « Assumes US mm/dd/yyyy format ». It is
-      // not overridable by any `showDatePicker` parameter, and the field's hint
-      // even says `mm/dd/yyyy`.
+      // month under its own comment « Assumes US mm/dd/yyyy format ».
       //
-      // Reachable at `booking_hub_screen.dart:743` — the consumer funnel — and
-      // at `pro_manual_booking_screen.dart:111`. Both leave `initialEntryMode`
-      // at its default, so keyboard entry is one tap away.
-      DateTime? picked;
+      // **A14a made that defect unreachable from the product, and A14b removed
+      // the pump.** `showMyweliDatePicker` has no `initialEntryMode` and
+      // `MyweliDatePickerScreen` has no text-entry mode at all — no `TextField`,
+      // no keyboard icon — so there is no way to type a date into this app.
+      // Three claims in the deleted comment had rotted with it: it cited
+      // `booking_hub_screen.dart:743` and `pro_manual_booking_screen.dart:111`
+      // (both moved, and both now calling the house picker), and it said *"Both
+      // leave `initialEntryMode` at its default, so keyboard entry is one tap
+      // away"* — which no line-number fix repairs.
+      //
+      // The parser assertion below survives and is the real gate: it proves the
+      // **delegates** are wired, which is mechanism 1 and is what would break if
+      // someone dropped `GlobalMaterialLocalizations`. What is pumped here is
+      // what the product actually shows.
       await pumpApp(
         tester,
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime(2026, 1, 5),
-                firstDate: DateTime(2026),
-                lastDate: DateTime(2026, 12, 31),
-                initialEntryMode: DatePickerEntryMode.input,
-              );
-            },
-            child: const Text('ouvrir'),
-          ),
+        home: MyweliDatePickerScreen(
+          initialDate: DateTime(2026, 1, 5),
+          firstDate: DateTime(2026),
+          lastDate: DateTime(2026, 12, 31),
         ),
       );
-
-      await tester.tap(find.text('ouvrir'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
 
-      await tester.enterText(find.byType(TextField), '07/01/2026');
-      await tester.pump();
-      await tester.tap(find.text('OK'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(picked, DateTime(2026, 1, 7),
-          reason: 'a date typed in a French app must be read as French. '
-              'Today this books 1 July — silently, with no error, on the '
-              'consumer booking funnel.');
+      expect(find.text('janvier 2026'), findsOneWidget,
+          reason: 'the month the user reads, in French, from '
+              'Formatters.formatMonthYear');
+      expect(find.byType(TextField), findsNothing,
+          reason: 'no input mode means the mm/dd/yyyy parse defect cannot be '
+              'reached from this app — which is WHY the pump above is gone. If '
+              'a text field ever returns to the picker, this fails and the '
+              'parser gate below stops being sufficient.');
     });
 
     testWidgets('…and the parser itself agrees', (tester) async {
@@ -126,16 +130,27 @@ void main() {
         (tester) async {
       final l10n = await read(tester, MaterialLocalizations.of);
 
+      // **All three reasons here described Material's date dialog, and A14a
+      // routed around every one of them.** They are re-stated as what they now
+      // guard rather than deleted, because the delegates are still app-wide and
+      // still reachable from dozens of Material widgets we do use.
       expect(l10n.formatMonthYear(DateTime(2026, 1, 15)), 'janvier 2026',
-          reason: 'the month/year toggle — prominent, and not overridable by '
-              'any showDatePicker parameter');
+          reason: 'no longer the picker — its month bar is '
+              'Formatters.formatMonthYear (myweli_month_grid.dart). This is the '
+              'delegate itself, which every remaining Material widget reads.');
       expect(l10n.formatMediumDate(DateTime(2026, 9, 27)), contains('sept'),
-          reason: 'the dialog headline reads « Wed, Sep 27 » today');
+          reason:
+              'the claim that "the dialog headline reads « Wed, Sep 27 »" is '
+              'dead — the house picker has an AppBar reading « Choisir une '
+              'date » and never calls formatMediumDate. Kept as a delegate '
+              'assertion, not a picker one.');
       expect(l10n.firstDayOfWeekIndex, 1,
-          reason: 'a French calendar starts on Monday. Today the weekday row '
-              'reads S M T W T F S and the grid starts on Sunday — structural, '
-              'not a string, and nothing about it is a label anyone could '
-              'override.');
+          reason: 'a French calendar starts on Monday. This no longer guards '
+              'the house grid, which derives Monday-first from DateTime.weekday '
+              'and Formatters.weekdayInitials — see formatters_test.dart, which '
+              'asserts « L M M J V S D » directly. So « S M T W T F S » can no '
+              'longer happen, and this now only guards Material widgets that '
+              'still read the delegate.');
     });
 
     testWidgets('the highest-frequency English string in the product',
