@@ -67,16 +67,30 @@ the exact inversion of mobile's `TabBar`, which clipped silently behind
 
 Content boxes measured from source: pro pages get **327px** at a 375px viewport
 (`ProShell`'s `p-l` inside a non-flex parent below `lg`), the account page
-**343px**. Only strip #2 (`LIST_TABS`) exceeds that, at ≈368px. **The pattern is
-defective at all five; the overflow is live at one.** Claiming five reds would be
-the kind of number this campaign keeps having to correct.
+**343px**. **The pattern is defective at all five; the overflow is live at one.**
+Claiming five reds would be the kind of number this campaign keeps having to
+correct.
+
+**Then the gate measured it, and corrected the estimate.** The arithmetic above
+predicted ≈368px for strip #2 from Arial-class metrics; Chromium's real
+`system-ui` is narrower and the browser reports **4 items need 340 of 327** — a
+**13px** overflow, not 41. The direction was right and the magnitude was not,
+which is the whole reason the gate goes first.
 
 ### A second defect in the same five elements
 
-Every button is `py-s` around a 20px line — **36px tall**, under §13.2's 48px
-floor, with no `min-h`. `tap-targets.spec.ts` does not measure them, and
-WEB-SYSTEM §15 **row 7h claims "0 remaining"**. Fixed here, because they are the
-elements this slice is already editing.
+Every button is `py-s` around a 20px line — **38px** as measured (36 plus the
+active tab's 2px underline), under §13.2's 48px floor, with no `min-h`.
+`tap-targets.spec.ts` does not measure them, and WEB-SYSTEM §15 **row 7h claims
+"0 remaining"**. Fixed here, because they are the elements this slice is already
+editing.
+
+**And the fifth strip passed that check while being the most broken.** It
+measured **56px** — above the floor — *because* the row overflows: flexbox
+shrinks the items, `min-width: auto` stops « En attente » at its longest word, the
+label wraps to two lines, and `align-items: stretch` grows all four buttons to
+match. Fixing the overflow alone would have turned a green subject red. The wrap
+and the floor are one change, and the component carries both.
 
 ## 3. Why there are five copies
 
@@ -112,10 +126,12 @@ Tokens only: `flex-wrap`, `min-h-12`, `gap-s` are first-class utilities, so
 
 ### 4.2 The gate — extended *before* the component exists
 
-- **Factor the four copy-pasted login helpers** (`pro.spec.ts`,
-  `type-overflow.spec.ts`, `tap-targets.spec.ts`, `axe.spec.ts`,
-  `pro-mobile-nav.spec.ts`) into one module. Four copies is *why* the matrix
-  stayed a public-route array with authed exceptions bolted on by hand.
+- **Factor the copy-pasted login helpers into one module.** The census said
+  four; there are **nine** — `pro.spec.ts`, `type-overflow.spec.ts`,
+  `tap-targets.spec.ts`, `axe.spec.ts`, `pro-mobile-nav.spec.ts`,
+  `salons.spec.ts`, `z-layers.spec.ts`, `team.spec.ts` and inline in
+  `booking.spec.ts`. Nine copies is *why* the matrix stayed a public-route array
+  with authed exceptions bolted on by hand: extending it meant writing a tenth.
 - **Make the authed routes matrix entries**, each with an optional `setup` step:
   `/pro/rendez-vous` (+ a « Liste » click — strip #2 is behind `view === 'list'`
   and the default is `journal`, so a test that only loads the page never sees
@@ -152,9 +168,25 @@ credentials or fixtures enter the repo.
 | `axe.spec.ts` | unchanged; it already scans these routes and has no overflow rule |
 | unit | a `Tabs` render/selection test beside the other component tests |
 
-Every gate watched red before its fix. The red count and each strip's measured
-overflow are recorded here when they are taken — replacing the arithmetic above,
-which is computed from source and not from a browser.
+Every gate watched red before its fix. **Measured red: 5** — one overflow
+(strip #2, 340 of 327) and four tap targets at 38px. Strip #2's tap-target
+subject was green for the wrong reason, above.
+
+**One gate iteration is worth recording, because the first version was wrong.**
+The obvious way to make `overflowingText` see a container overflow is to add
+`div` to its selector. That reds on **five public routes** — an absolutely
+positioned child, a close glyph — because any `div` whose child sticks out
+reports, and out-of-flow children are not an overflow. The helper is therefore a
+new, separately named one that matches the mechanism: sum the **in-flow**
+children of a `nowrap` flex row and compare with the row.
+
+Its first draft also called `getComputedStyle` on every node of a pro page,
+which cost enough to push **sibling spec files** past the 30s timeout — visible
+as two unrelated tests flaking on two consecutive full runs, each passing alone.
+Confirmed against the pre-change tree (109/109 green) rather than assumed, and
+fixed by filtering on `childElementCount >= 2` first — which is also the correct
+filter, since a row needs two items to be a strip. Three consecutive green full
+runs after.
 
 ## 8. Definition of done
 

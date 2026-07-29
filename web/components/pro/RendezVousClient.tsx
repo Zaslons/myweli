@@ -25,8 +25,17 @@ import { JournalGrid } from './JournalGrid';
 import { ManualBookingDialog } from './ManualBookingDialog';
 import { MonthCalendar } from './MonthCalendar';
 import { ProAppointmentRow } from './ProAppointmentRow';
+import { Tabs } from '../Tabs';
 
 type View = 'journal' | 'calendar' | 'list';
+
+/// The view switcher's labels. Tabled rather than built from a ternary inside
+/// the map, which is what the hand-rolled strip did (B9).
+const VIEW_TABS: { key: View; label: string }[] = [
+  { key: 'journal', label: 'Journée' },
+  { key: 'calendar', label: 'Calendrier' },
+  { key: 'list', label: 'Liste' },
+];
 
 // Midday anchors the key inside its salon day at any wave offset (±11 h).
 const dayLabel = (key: string, tz?: string) =>
@@ -171,22 +180,13 @@ export function RendezVousClient() {
         ) : null}
       </div>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(['journal', 'calendar', 'list'] as View[]).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`px-m py-s text-bodyMedium ${
-              view === v
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {v === 'journal' ? 'Journée' : v === 'calendar' ? 'Calendrier' : 'Liste'}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Vue de l’agenda"
+        className="mt-l"
+        value={view}
+        onChange={setView}
+        items={VIEW_TABS}
+      />
 
       {view === 'journal' ? (
         <div className="mt-m">
@@ -305,22 +305,12 @@ export function RendezVousClient() {
         </div>
       ) : (
         <div className="mt-m">
-          <div className="flex gap-s border-b border-divider">
-            {LIST_TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setListTab(t.key)}
-                className={`px-m py-s text-bodyMedium ${
-                  listTab === t.key
-                    ? 'border-b-2 border-primary text-textPrimary'
-                    : 'text-textTertiary'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            label="Filtrer les rendez-vous"
+            value={listTab}
+            onChange={setListTab}
+            items={LIST_TABS}
+          />
           <div className="mt-m space-y-s">
             {list.length === 0 ? (
               <EmptyState icon="event" title="Aucun rendez-vous" description="Les réservations de vos clients apparaîtront ici." />

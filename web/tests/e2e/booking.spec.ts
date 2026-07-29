@@ -1,15 +1,11 @@
 import { type Page, expect, test } from '@playwright/test';
 
+import { submitOtpLogin } from './_auth';
+
 /// The K2 booking HUB (docs/design/booking-capacity-web-hub.md §4): the app's
 /// order-free flow on web — all three entry orders, the capability rule,
 /// variant re-validation, the pay-later deposit proof, rebook prefill.
 
-async function loginInline(page: Page) {
-  await page.locator('input[type=email]').fill('awa@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.locator('input[type=text]').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-}
 
 test('services-first: prestations → spécialiste → heure → confirmée', async ({
   page,
@@ -29,7 +25,7 @@ test('services-first: prestations → spécialiste → heure → confirmée', as
 
   // Sticky summary gates on services + time; stylist stays optional.
   await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
-  await loginInline(page);
+  await submitOtpLogin(page, 'awa@example.com');
   // Parity 2.10 — the app's booking note rides along.
   await page
     .getByLabel('Notes (optionnelles)')
@@ -134,7 +130,7 @@ test('acompte: la preuve de paiement se joint dans le flux', async ({
   await page.getByRole('radio', { name: /Pas de préférence/ }).click();
   await page.getByRole('button', { name: /^\d{2}:\d{2}$/ }).first().click();
   await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
-  await loginInline(page);
+  await submitOtpLogin(page, 'awa@example.com');
   await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
 
   // The done step becomes the deposit sheet (server-derived amount).

@@ -42,8 +42,14 @@ import { uploadGalleryImage } from '../../lib/pro/upload';
 import { focusOnMount } from '../../lib/focusOnMount';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
+import { Tabs } from '../Tabs';
 
 type Tab = 'services' | 'equipe';
+
+const CATALOGUE_TABS: { key: Tab; label: string }[] = [
+  { key: 'services', label: 'Services' },
+  { key: 'equipe', label: 'Employés' },
+];
 // `open` = which form shows: null · 'new' · an item id (edit).
 type Open = null | 'new' | string;
 
@@ -103,27 +109,13 @@ export function CatalogueClient() {
         ) : null}
       </div>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(
-          [
-            { key: 'services', label: 'Services' },
-            { key: 'equipe', label: 'Employés' },
-          ] as { key: Tab; label: string }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => switchTab(t.key)}
-            className={`px-m py-s text-bodyMedium ${
-              tab === t.key
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Catégorie du catalogue"
+        className="mt-l"
+        value={tab}
+        onChange={switchTab}
+        items={CATALOGUE_TABS}
+      />
 
       {open === 'new' ? (
         <div className="mt-m">

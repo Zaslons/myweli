@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { signInConsumer, signInPro } from './_auth';
+
 /// B4 — §13.2's 48px floor, pinned (WEB-SYSTEM §15 row 7h).
 ///
 /// Before B4, NOT ONE interactive control on the web reached 48px: `Button` —
@@ -29,14 +31,6 @@ async function assertBox(
   expect(box!.width, `${what} width ${box!.width} < ${minW}`).toBeGreaterThanOrEqual(minW);
 }
 
-async function proLogin(page: import('@playwright/test').Page) {
-  await page.goto('/pro/connexion');
-  await page.getByLabel('Votre e-mail').fill('salon@example.com');
-  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
-  await page.getByLabel('Code à 6 chiffres').fill('123456');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/pro(\/)?$/);
-}
 
 test('public: buttons, links, chips and fields all reach the floor', async ({
   page,
@@ -101,7 +95,7 @@ test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
 });
 
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
-  await proLogin(page);
+  await signInPro(page);
 
   // The hamburger (24px svg, unmoved) and the top-bar wordmark link (28px
   // before the review measured it).
@@ -141,3 +135,47 @@ test('account: the switch and the review stars', async ({ page }) => {
     await assertBox(switches.nth(i), `switch #${i}`);
   }
 });
+
+/// B9 — the five tab strips, which row 7h's "0 remaining" never counted.
+///
+/// Each button is `px-m py-s` around a 20px line: **36px tall**, 12 under the
+/// floor, at every one of the five. Nothing measured them because this file
+/// asserts an explicit list of controls and no entry named a tab — the same
+/// shape of miss as the strips' overflow, in the same elements, found in the
+/// same slice.
+///
+/// One entry per strip, and each names the state it needs: strip #2 is behind a
+/// « Liste » click, and the two-tab bars are on their own routes.
+const TAB_STRIPS: {
+  name: string;
+  url: string;
+  auth: 'pro' | 'consumer';
+  tab: string;
+  setup?: (page: import('@playwright/test').Page) => Promise<void>;
+}[] = [
+  { name: 'strip #1 — the agenda view switcher', url: '/pro/rendez-vous', auth: 'pro', tab: 'Journée' },
+  {
+    name: "strip #2 — the agenda's four status tabs",
+    url: '/pro/rendez-vous',
+    auth: 'pro',
+    tab: "Aujourd'hui",
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Liste' }).click();
+    },
+  },
+  { name: 'strip #3 — catalogue', url: '/pro/catalogue', auth: 'pro', tab: 'Services' },
+  { name: 'strip #4 — médias', url: '/pro/medias', auth: 'pro', tab: 'Photos' },
+  { name: 'strip #5 — the account booking tabs', url: '/mon-compte', auth: 'consumer', tab: 'À venir' },
+];
+
+for (const strip of TAB_STRIPS) {
+  test(`tabs: ${strip.name} reaches the floor`, async ({ page }) => {
+    if (strip.auth === 'pro') await signInPro(page);
+    else await signInConsumer(page);
+    await page.goto(strip.url);
+    await strip.setup?.(page);
+    const tab = page.getByRole('button', { name: strip.tab, exact: true }).first();
+    await expect(tab, `${strip.name}: « ${strip.tab} » never rendered`).toBeVisible();
+    await assertBox(tab, `${strip.name} — « ${strip.tab} »`, { minW: 0 });
+  });
+}
