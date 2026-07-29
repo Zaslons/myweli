@@ -105,7 +105,8 @@ className="h-[calc(100dvh-6.5rem)]"
 
 The reason goes **above** the directive (`-next-line` binds to the line that
 follows), and `tokens.theme-pin.test.ts` fails an `eslint-disable` that has no
-`ds-ignore:` reason within 6 lines. An undocumented disable is not a decision, it is
+`ds-ignore:` reason within 10 lines (6 until B11, which hit that limit twice in one
+slice with reasons that were already true). An undocumented disable is not a decision, it is
 a silencer. B2a left **17**.
 
 ### What is closed, and what is not
@@ -133,7 +134,7 @@ sizing scale would be the **fourth** mirror divergence after `gold`, `sm`/`xxxl`
 
 > ⚠️ **And know what unit you are leaving open (B11).** These keys are
 > `defaultTheme.spacing`, which is **`rem`** — while the type scale and the
-> `spacing` scale above are **`px`**. So `min-h-12` is `3rem`, not 48px, at **83
+> `spacing` scale above are **`px`**. So `min-h-12` is `3rem`, not 48px, at **84
 > call sites** including the §13.2 tap floor, and under a large browser font the
 > boxes grow while the words do not. Nobody chose that: the paragraph above
 > discusses these keys' *literals* at length and never mentions their unit. The
@@ -625,7 +626,7 @@ web converts, the app deepens:
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |
 | The whole of §4–§8, on real pages | **`@axe-core/playwright`** over **13 routes + 2 stateful scans** (an open Modal, a visible toast) inside the **already-blocking** e2e job (`tests/e2e/axe.spec.ts`, B5; proof-red at base: 11 violations / 5 rules / 8 routes — 3 rules were new finds) |
 | Regression | Lighthouse a11y ≥ **0.95** as an **error** on `/` + `/connexion` (B5; SEO ≥ 0.9 errors on `/` — `/connexion` is deliberately noindex, so its SEO score gates nothing) |
-| **Reflow — WCAG 1.4.10 (§9)** | **`tests/e2e/type-overflow.spec.ts`** (B11) — every route at **375×812, 320×512 and 320×256**, one `describe` per viewport (`test.use` is a declaration; it cannot be a loop around `test()`). Five assertions per subject: no document-level sideways scroll **naming the elements that start it**, no element spilling its own box, no `nowrap` flex row overflowing its container, **nothing cut off the bottom of a `hidden`/`clip` box**, and **nothing actually truncating**. `/pro/connexion` runs before every authed row, because `signInPro` drives that UI and a login broken at 320 would misattribute every authed failure |
+| **Reflow — WCAG 1.4.10 (§9)** | **`tests/e2e/type-overflow.spec.ts`** (B11) — every route **in its matrix** (19 today, not every route in the app) at **375×812, 320×512 and 320×256**, one `describe` per viewport (`test.use` is a declaration; it cannot be a loop around `test()`). Five assertions per subject: no document-level sideways scroll **naming the elements that start it**, no element spilling its own box, no `nowrap` flex row overflowing its container, **nothing cut off the bottom of a `hidden`/`clip` box**, and **nothing actually truncating**. `/pro/connexion` runs before every authed row, because `signInPro` drives that UI and a login broken at 320 would misattribute every authed failure |
 | **Truncation is declared (§9)** | **`tokens.theme-pin.test.ts`** (B11) — every `truncate` / `line-clamp-*` / `text-ellipsis` carries `// clip-ok: <why the clipped text is not the only copy>`. Reads the TypeScript AST's string literals, so prose *about* truncation is never flagged. The browser half proves nothing is being cut; this proves every class that could cut was thought about |
 | Type does not overflow (§3) | `tests/e2e/type-overflow.spec.ts` — the same file, and it predates the reflow work (B2b). **Listed here for the first time in B11**: it and the tap-target gate below have existed for several slices and appeared nowhere in this table, which is how an enforcement inventory quietly stops being one |
 | Tap targets ≥ 48 (SYSTEM.md §13.2) | `tests/e2e/tap-targets.spec.ts` — an explicit named list of controls, so it sees nothing it was not told about. Row 26 (`Faq.tsx`'s `<summary>` at ≈35px) is exactly what that costs |

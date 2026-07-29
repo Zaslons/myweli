@@ -114,7 +114,7 @@ async function verticalClipping(page: import('@playwright/test').Page) {
       // predicate on every single route (24 of 1). Keyed on the geometry rather
       // than the class name, because the pattern is universal and any
       // hand-rolled copy of it is equally correct.
-      if (el.clientHeight <= 1 || el.clientWidth <= 1) continue;
+      if (el.clientHeight <= 1 && el.clientWidth <= 1) continue;
       const o = getComputedStyle(el).overflowY;
       if (o !== 'hidden' && o !== 'clip') continue;
       bad.push(
@@ -478,7 +478,7 @@ const AUTHED_ROUTES: Route[] = [
   },
   // ---- B11 -----------------------------------------------------------------
   //
-  // Five routes this file had never visited, added because the reflow gate's
+  // Six routes this file had never visited, added because the reflow gate's
   // loss-of-information half is **blind to a page it does not open**. Three of
   // the four sites where a truncated string is the ONLY copy of its information
   // — the team member's e-mail, the uploaded document's filename, the client
@@ -546,6 +546,37 @@ for (const vp of VIEWPORTS) {
           `${route.url} did not render its own page (wrong DOM — vacuous scan)`,
         ).toBeVisible();
         await route.setup?.(page);
+
+        // **The anchor alone is not enough, and the adversarial review proved
+        // it.** Every authed client hands `ErrorState` its own page title, and
+        // `ErrorState` renders that title as an `<h1>` (`ErrorState.tsx:31`) —
+        // so a failed stub fetch produces a page whose heading matches the
+        // anchor *exactly*, and all five assertions below then scan an error
+        // page: one heading, one sentence, one button. Nothing overflows,
+        // nothing clips, nothing truncates. **Green, about nothing.**
+        //
+        // That is the vacuity this file's own header memorialises about the 404
+        // page, reintroduced on 11 of 12 authed rows — including all six added
+        // because "the gate is blind to a page it does not open". `ready` was
+        // the documented escape hatch and only `/mon-compte` used it.
+        //
+        // One structural check covers every row instead of eleven bespoke ones:
+        // a page-level `ErrorState` always renders `<p role="alert">` carrying
+        // its message, whatever its title.
+        //
+        // **The text filter is load-bearing, not tidiness.** Next.js renders
+        // `<div id="__next-route-announcer__" role="alert">` on every page for
+        // SPA navigation announcements — always present, empty on load. Keying
+        // on the role alone reddened all 11 authed rows on framework chrome,
+        // which is the "gate that is red on correct behaviour" failure this file
+        // keeps warning about. An error state is an alert **with something to
+        // say**.
+        expect(
+          (await page.getByRole('alert').allTextContents())
+            .map((t) => t.trim())
+            .filter(Boolean),
+          `${route.url} rendered an error state — every assertion below would be vacuous`,
+        ).toEqual([]);
 
         expect(
           await horizontalOverflow(page),

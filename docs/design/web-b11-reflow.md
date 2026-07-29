@@ -17,7 +17,9 @@ The web has **no text-scale or reflow contract at all**. `WEB.md`,
 `WEB-SYSTEM.md` and `WEB-DESIGN-STANDARDS.md` contain zero occurrences of 200%,
 reflow, WCAG 1.4.10 or zoom; no web test has ever rendered below **375px**,
 varied a root font size, or zoomed. Mobile's twin — SYSTEM.md §13.3 — is gated
-at 13 subjects × 3 widths × 2 scales.
+at **15** subjects × 3 widths × 2 scales. (Row 29 says 9 and an early draft of
+this spec said 13; `layout_test.dart` carries 16 `testWidgets`, 15 of them inside
+the width×scale loop.)
 
 **In scope:** a real WCAG 1.4.10 gate (320 CSS px wide **and** 256 CSS px tall
 **and** without loss of information **and** with declared 2D-layout exceptions),
@@ -49,7 +51,8 @@ scale (`styles/tokens.ts:138-162`) and the spacing scale (`:81-93`) are **px**.
 
 So under a large browser font the **boxes grow and the type does not**. The
 product does not ignore the preference; it **distorts** under it. `min-h-12` —
-the SYSTEM.md §13.2 48px tap floor, at **83 call sites** — is already `3rem`,
+the SYSTEM.md §13.2 48px tap floor, at **84 call sites** (83 before this slice
+added one to `Faq.tsx`) — is already `3rem`,
 and nobody decided that: `defaultTheme.spacing` did.
 
 ---
@@ -96,8 +99,12 @@ looking for:
 - `discovery/RechercheClient.tsx:148` `lg:grid-cols-[minmax(0,55%)_minmax(0,1fr)]`
   — **`lg:`, inert below 1024px**
 
-Of **12** hard minimum widths in `web/{app,components,lib}`, **9 are live at
-320**. The census called `pro/AvisClient.tsx:108`'s `min-w-56` (224px) the one
+The planning census counted **12** hard minimum widths with **9 live at 320**; a
+review re-count found **13** and disputed which are breakpoint-gated. The
+category is fuzzy — `min-w-*`, arbitrary widths, inline `style={{width}}` and
+fixed grid tracks are not one thing — so the exact number is not load-bearing and
+is not asserted here. What is measured is the outcome: the matrix is green at
+320 on all 19 routes. The census called `pro/AvisClient.tsx:108`'s `min-w-56` (224px) the one
 *uncontained* floor — **measured, that is wrong**: its parent `Card` is `flex
 flex-wrap`, so the list wraps onto its own line and 224 fits the ~240 a 320
 viewport leaves. `/pro/avis` was added to the matrix to settle it rather than
@@ -134,10 +141,12 @@ list was the most useful part of the document.
   is destroyed. Only `hidden`/`clip` loses information; `auto`/`scroll` leaves it
   reachable. Porting Flutter's predicate literally would have fired on every long
   page in the product.
-- It skips boxes ≤1px in either dimension. That is `sr-only` — the
-  visually-hidden pattern is a 1px box with `overflow: hidden` around real text,
-  and the skip link matched on **every** route (24 of 1) the first time this ran.
-  Keyed on geometry, not the class name.
+- It skips boxes ≤1px in **both** dimensions. That is `sr-only` — the
+  visually-hidden pattern is a 1px×1px box with `overflow: hidden` around real
+  text, and the skip link matched on **every** route (24 of 1) the first time
+  this ran. Keyed on geometry, not the class name. The first version used `||`,
+  which exempted any zero-width text box too; the review caught that it was wider
+  than the pattern it named.
 
 - It is **vertical only, and that is not an oversight.** Mobile's twin
   (`mobile/test/a11y/_a11y.dart:551`) says why: the horizontal equivalent is
@@ -193,7 +202,7 @@ Two complementary mechanisms, because neither alone works:
   *now*, at this viewport, including markup no source scan can attribute.
 - **Source pin** (Vitest, modelled on `tests/tokens.theme-pin.test.ts:278-296`)
   — every `truncate` / `line-clamp-*` / `text-ellipsis` in `web/{app,components}`
-  must carry a written reason within 6 lines:
+  must carry a written reason within 10 lines:
 
 ```
 // clip-ok: <why the clipped text is not the only copy of this information>
@@ -245,7 +254,7 @@ drift, and four are fixed here:
 |---|---|
 | `account/NotificationsClient.tsx:242` | the switch knob's travel is `left-[22px]`, inside a track that is `w-11` (2.75rem) with a `w-5` (1.25rem) knob. The `ds-ignore` states the arithmetic **in px** — 44 − 20 − 2 = 22 — which is true only at a 16px root. At 24px the correct travel is 33px and the knob **stops mid-track**. |
 | `pro/JournalGrid.tsx:252,270,303,335` | four `style={{ top: 32 + … }}` offsets against a `sticky h-8` header, where `h-8` is **2rem**. At a 24px root the header is 48px and every block sits 16px too high. |
-| `booking/BookingFlow.tsx:479` | `lg:grid-cols-[…_320px]` duplicates the rail `tailwind.config.ts:131` already defines as `desk: 'minmax(0,1fr) 20rem'` and that `AujourdhuiClient.tsx:148` uses — **two names for one rail, one px and one rem**, which is exactly the drift the `desk` token was added to prevent. |
+| `booking/BookingFlow.tsx:479` | `lg:grid-cols-[…_320px]` duplicates the rail `tailwind.config.ts:151` already defines as `desk: 'minmax(0,1fr) 20rem'` and that `AujourdhuiClient.tsx:148` uses — **two names for one rail, one px and one rem**, which is exactly the drift the `desk` token was added to prevent. |
 | `styles/globals.css:58` | `min-height: 48px` with a comment claiming *"the same floor as `TextField`'s `min-h-12`"*. `min-h-12` is `3rem`: identical at a 16px root, divergent at every other. |
 
 ---
@@ -277,8 +286,10 @@ so anything that is ugly-but-not-clipped is outside what this gate can say.
 
 ## 7.1 What the gate actually found
 
-Watched red before anything was fixed. **18 routes × 3 viewports + the journal
-line-height test = 55 tests**, then 166 across the whole suite.
+Watched red before anything was fixed. **19 routes × 3 viewports + the journal
+line-height test = 58 tests**, and 166 across the whole suite. (An earlier draft
+said 18 and 55 — that was the count before `/pro/avis` was added to settle the
+`min-w-56` question, and only 58 reconciles with the 166 total.)
 
 **Round one — the two extra viewports, on the routes the file already had:**
 
@@ -303,7 +314,7 @@ gate had never rendered at any width.
 | `/pro/clients` | truncation loss | « Koffi » cut at **28 of 32**; the avatar, gap and MyWeli chip had eaten the column so a five-letter name did not fit |
 | `/pro/verification` | text spills its box | « Pièce d'identité (CNI / passeport) » needed **73 of 64** — the action buttons are `shrink-0`, so they took their width first |
 
-**Round three — the source pin**, red on six undeclared sites. Two were further
+**Round three — the source pin**, red on **eight** undeclared sites. Two were further
 losses and were fixed (the KYC filename, which appears nowhere else in the
 product; the catalogue's service name, which the table view showed nowhere
 else). Six were declared, each with a reason **checked rather than assumed** —
@@ -338,6 +349,63 @@ The instruction stands and is followed: no retry, no raised timeout, no
 `test.slow()`. With `retries: 0` a recurrence fails CI loudly, and the next step
 when it does is to **capture the failure text before theorising** — which is the
 step both sightings skipped.
+
+## 7.3 What the adversarial review changed
+
+It found a **shipped regression** and a **vacuity hole**, both fixed here, plus a
+long tail of my own wrong numbers.
+
+**The regression.** Row 26's fix gave `Faq.tsx`'s `<summary>` `flex
+items-center` to centre the label in a 48px box. A `<summary>`'s disclosure
+triangle is its `::marker`, and a marker only renders while the element is
+`display: list-item` — so `flex` **deleted the triangle** on every public salon
+page, trading the affordance that says "this opens" for vertical centring. The
+comment I wrote even stated the trade without noticing its cost. Now `min-h-12
+py-s`: the label sits at the top of a box that clears the floor, and the
+triangle stays.
+
+**The vacuity hole, and it is the one that matters.** Every authed client hands
+`ErrorState` its own page title, and `ErrorState` renders that title as an
+`<h1>`. So the anchor — *the vacuity guard itself* — matches on a failed page,
+and all five assertions then scan a heading, a sentence and a button: nothing
+overflows, nothing clips, nothing truncates. **Green, about nothing**, on 11 of
+12 authed rows including all six added *because the gate was blind to pages it
+did not open*. `ready` was the documented escape hatch and only `/mon-compte`
+used it.
+
+Fixed with one structural check rather than eleven bespoke ones: a page-level
+`ErrorState` renders `<p role="alert">` carrying its message. The **text filter**
+in that check is load-bearing — Next.js ships
+`<div id="__next-route-announcer__" role="alert">` on every page, always present
+and empty, and keying on the role alone reddened all 11 rows on framework
+chrome. An error state is an alert *with something to say*.
+
+**Also fixed:** the fifth and sixth copies of the "heading beside a control, no
+wrap" toolbar — and they are the two that matter most, because their heading is
+a **salon name**, unbounded user data, where the four found earlier all hold
+fixed page titles. The census had filed them under "button clusters".
+
+**Recorded, not fixed** — each is real and each is out of this slice's scope:
+
+- **Nothing enforces the 2D-exception list.** The four exceptions live in §5 of
+  this document and in no gate, so a fifth could be added tomorrow with no
+  declaration. `clip-ok` shows the shape a fix would take; doing the same for 2D
+  layout needs a marker convention that does not exist yet.
+- **The matrix is 19 routes, not every route.** Several — `/pro/abonnement`,
+  `/pro/profil`, `/pro/salons`, `/mon-compte/[id]` among them — are in neither
+  this matrix nor `axe.spec.ts`. §14's row now says *"every route in its matrix
+  (19 today, not every route in the app)"*, because the first draft said "every
+  route" and that was an overclaim.
+- **The `clip-ok` pin scans `app` and `components` only.** A truncating class
+  written in `web/lib` or `globals.css` is invisible to it.
+
+**My own numbers, corrected:** 18 routes → **19**; 55 tests → **58**; "six
+undeclared sites" → **eight**; mobile's twin at 13 subjects → **15**;
+`min-h-12` at 83 call sites → **84**; `tailwind.config.ts:131` → **:151**; the
+switch knob stopped at *two-thirds* of its travel, not a third; and both pin
+failure messages still said "within 6 lines" after B11 widened the window to 10,
+which is a gate lying about its own rule in the sentence a reader sees when it
+fires.
 
 ## 8. What stays open
 
