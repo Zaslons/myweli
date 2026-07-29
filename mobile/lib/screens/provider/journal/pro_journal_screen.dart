@@ -126,6 +126,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
       initialDate: journal.selectedDate,
       firstDate: journal.selectedDate.subtract(kJournalPastHorizon),
       lastDate: journal.selectedDate.add(kBookingHorizon),
+      today: salonToday(tz: context.read<ProAuthProvider>().salonTimezone),
     );
     if (picked != null) {
       journal.setDate(DateTime.utc(picked.year, picked.month, picked.day));
@@ -426,6 +427,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
       initialDate: toSalonTime(a.appointmentDate, tz: tz),
       firstDate: salonToday(tz: tz),
       lastDate: salonToday(tz: tz).add(kBookingHorizon),
+      today: salonToday(tz: tz),
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(

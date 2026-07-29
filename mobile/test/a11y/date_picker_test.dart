@@ -47,8 +47,9 @@ void main() {
   const widths = <double>[360, 375, 390];
   const scales = <double>[1, 2];
 
-  /// The days row 73 named. March 2026 contains all of them, and the frozen
-  /// clock (`kFixedNow`, a Wednesday mid-month) puts the picker there.
+  /// The days row 73 named. March 2026 contains all of them, and the picker is
+  /// there because `initialDate` is a **literal** — it reads no clock, so
+  /// `kFixedNow` is not what puts it there (an earlier draft said it was).
   ///
   /// 21 is deliberately included even though row 73 records it as the one that
   /// survived: if a fix ever narrows the cell to exactly one narrow glyph, 21

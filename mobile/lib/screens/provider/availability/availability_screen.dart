@@ -14,6 +14,7 @@ import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
@@ -255,9 +256,33 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       initialDate: salonToday(tz: tz),
       firstDate: salonToday(tz: tz),
       lastDate: salonToday(tz: tz).add(kBookingHorizon),
+      today: salonToday(tz: tz),
     );
 
-    if (selectedDate != null && context.mounted) {
+    if (selectedDate == null || !context.mounted) return;
+
+    // **A14a restores a confirmation the picker change had removed.**
+    //
+    // Material's OK was doing two jobs here, and only one of them was about
+    // seeing the selection: it was also the **commit gesture for a server
+    // write**. The house picker pops on the first tap, which is right for the
+    // four flows where the date lands in a form — and wrong for this one, where
+    // it closes the salon for a day immediately, with no confirmation, no
+    // success feedback and no undo (§15: undo stops at the client boundary).
+    //
+    // So the confirmation moves out of the picker and to the mutation, which is
+    // where it belonged.
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Bloquer cette date ?',
+      message: 'Le ${Formatters.formatDate(selectedDate)}, votre salon '
+          'n’acceptera aucune réservation.',
+      confirmLabel: 'Bloquer',
+      icon: Icons.block,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    {
       final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
         ..add(salonDateTime(
             selectedDate.year, selectedDate.month, selectedDate.day,

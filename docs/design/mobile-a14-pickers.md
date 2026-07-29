@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Built (A14a) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-07-29 |
 | **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 |
@@ -14,14 +14,15 @@
 
 ## 1. Goal & scope
 
-**Row 73, verbatim on the part that matters:** *"at `accessibility-large`
+**Row 73, verbatim on the part that matters** (see §2.2 for the one claim in it that does not hold): *"at `accessibility-large`
 (≈1.95×) on a 360×780pt iPhone, Material's `showDatePicker` calendar renders
 **20, 22, 23, 24, 25, 26 as a single digit** — « 2 21 2 2 2 2 2 ». Only 21
 survives, because « 1 » is narrow."*
 
-Found on hardware during A12's device run. **Row 73 is one of the accurate
-ones** — its cause, its exoneration of our theme, and its five call sites all
-check out, which is unusual enough in this register to say out loud.
+Found on hardware during A12's device run. **Row 73 is mostly accurate** — its
+day list, its arithmetic and its five call sites all check out, which is unusual
+enough in this register to say out loud. Its *exoneration of our theme* does
+not: see §2.2.
 
 **In scope for A14a:** a house date picker that is correct across §10's compact
 range at 1× and 2×, gated before it is built, and all five `showDatePicker` call
@@ -81,12 +82,32 @@ That is the whole design constraint, and it is arithmetic rather than taste:
 - **the cell is a rounded rectangle, not a circle.** Width = the column (46.9dp),
   height = `max(48, scaledLine + spacingS)`. The selection indicator fills the
   cell instead of being a square inscribed in it.
-- **two digits fit the width comfortably.** At 2× `bodyMedium` is 28px; Roboto's
-  digit advance is ≈0.5566 em, so « 28 » is ≈31.2dp of glyph plus 0.5 of
-  tracking — under 32dp inside a 46.9dp cell.
+- **two digits fit the width.** The day is drawn at `bodyLarge` — the same size
+  Material uses (§2.2) — so at 2× the gate's own measurement applies: **36.9dp**
+  of glyph inside the **38.86dp** the cell leaves after its 8dp margin. Two dp of
+  slack, which is why the margin is `spacingXS` and not `spacingS`.
 
 So the month grid is expected to **survive** at 360 × 2×. The list reflow stays
 specified because §3's measurement, not this arithmetic, decides.
+
+### 2.2 Row 73's one claim that does not hold
+
+Row 73 says the defect *"is not our widget and not our theme"* because
+`AppTheme.datePickerTheme` *"never sets a `dayStyle`"*. The description is
+accurate; the **implication is false**. `calendar_date_picker.dart:1174` reads
+`datePickerTheme.dayStyle ?? defaults.dayStyle`, so `dayStyle` **is** reachable,
+and one line in `AppTheme` would have cleared the 1.5dp.
+
+It would have cleared it **by shrinking the day number** — M3's default is
+`bodyLarge` (16sp, `date_picker_theme.dart:1315`), which is exactly why « 20 »
+needed 36.9dp. So the only theme-level fix is a smaller font: the one remedy
+§13.3 forbids in terms, and the one row 73's own sentence rules out.
+
+**A14a's first draft took that forbidden route by accident.** It drew the day at
+`bodyMedium` (14sp) while crediting geometry, making the dominant term of the
+"fix" a 12.5% reduction of the day number at every scale — inside an
+accessibility slice. The review caught it; the cell uses `bodyLarge` now, the
+same size Material used, and still fits (36.9 needed, 38.86 available).
 
 ### 2.3 The gate's first run — measured, and tighter than row 73 records
 
@@ -113,7 +134,7 @@ Row 73 was found on *"a 360×780pt iPhone"*, and 360 is exactly where this fires
 That is the register being right about the device it was found on, and slightly
 loose about the mechanism.
 
-### 2.2 The tap-target floor is unreachable horizontally, and that is not new
+### 2.4 The tap-target floor is unreachable horizontally, and that is not new
 
 §13.2 requires ≥48×48. **Seven 48dp targets need 336dp plus padding — more than
 a 360dp screen has.** No 7-column month grid on any phone can satisfy the floor
@@ -243,7 +264,7 @@ follows §16's microcopy rules and is stated at implementation.
 
 | pin | the natural thing it bans | what A14 does instead |
 |---|---|---|
-| **`childAspectRatio` — prohibited outright, no allowlist** (`design_system_pin_test.dart:517-555`): *"a tile height derived from its WIDTH cannot grow with the text inside it"* | the obvious way to make square day cells | `mainAxisExtent`, computed from the scaled line |
+| **`childAspectRatio` — prohibited outright, no allowlist** (`design_system_pin_test.dart:517-555`): *"a tile height derived from its WIDTH cannot grow with the text inside it"* | the obvious way to make square day cells | **no `GridView` at all** — a `Column` of `Row`s of `Expanded`, the shape `_WeekStrip` reached for the same 7-across problem. (This cell said `mainAxisExtent` until the review noticed the spec was describing a design that was never shipped.) |
 | numeric `crossAxisSpacing`/`mainAxisSpacing` (`:195`) | `crossAxisSpacing: 4` | `AppTheme.spacing*` |
 | numeric `EdgeInsets` (`:219`), `BorderRadius.circular(N)` (`:229`), `fontSize:` (`:237`), icon `size:` (`:246`) | every one of them is on the path of least resistance for a calendar | tokens only |
 | `Duration(milliseconds:)` / `Curves.` (`:318`, `:328`) | a month-slide transition | `AppMotion.*` |
@@ -261,10 +282,13 @@ follows §16's microcopy rules and is stated at implementation.
 - **golden** — the **first picker golden in the repo**, at 1× and 2×. Regenerated
   with `./tool/update_goldens.sh` (Linux-only — a Mac-authored golden fails CI
   forever), ledger from `git status --short`, **every changed PNG opened**.
-- **unit** — `Formatters.formatDate`/`formatDateShort` have **no test today**
-  (`formatters_test.dart` covers six other formatters); the new weekday helper
-  arrives with one, and the two existing gaps get filled since the calendar
-  stands on them.
+- **unit** — `weekdayInitials()` is tested in
+  `test/widget/myweli_date_picker_test.dart`, along with the picker's *behaviour*:
+  tapping a day returns that day, dismissing returns null, a disabled day is
+  inert, an out-of-range `initialDate` clamps, and the year list jumps a year in
+  two taps. **`Formatters.formatDate`/`formatDateShort` still have no test** —
+  the spec promised them and A14a did not deliver, so it is recorded rather than
+  quietly dropped.
 - **device** — `accessibility-large` on the simulator that found row 73. A
   computed gate is not the same evidence as the screenshot the row is about.
 
@@ -289,17 +313,19 @@ Worth recording as a second observation from the same run: the salon page's
 header renders **stacked** at 1.95×, which is A13's row 62 fix holding on
 hardware. That was gated but never re-photographed on a device.
 
-**One more hole this slice stands on:** the booking-hub subject
-(`layout_test.dart:588`) — the screen the picker launches from — is one of four
-missing `expectNoVerticalClip`. A14a adds it.
+**One more hole this slice stands on, and A14a did NOT close it:** the
+booking-hub subject in `layout_test.dart` — the screen the picker launches from
+— is one of four missing `expectNoVerticalClip`. The spec claimed A14a adds it;
+the review found `layout_test.dart` is not in the diff at all. Left open, said so.
 
 ---
 
 ## 7. Open questions
 
-- Does `_WeekStrip` itself overflow at 360 × 2×? Its pill is 48dp at 2× in a
-  slot of ≈46.9dp, which is the same arithmetic that forces this spec's
-  rounded-rect cell. **To be measured** — if it does, it is a defect in the
-  precedent this design copies, and gets its own row rather than a silent fix.
+- ~~Does `_WeekStrip` itself overflow at 360 × 2×?~~ **No, and the question's
+  premise was wrong.** The strip pads by `spacingS` (8), not `spacingM`, so its
+  slot is (360 − 16)/7 = **49.14dp** and the 48dp pill fits with 1.1dp to spare.
+  The 46.9 belongs to *this* picker's grid. An open question that a two-line read
+  closes should not have shipped as one.
 - Multi-select for `availability` (blocking a week is five dialogs today) — a
   product question, deliberately out of A14a.

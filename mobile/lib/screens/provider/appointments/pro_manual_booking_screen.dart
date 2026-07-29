@@ -117,6 +117,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       initialDate: _date ?? today,
       firstDate: today,
       lastDate: today.add(kManualBookingHorizon),
+      today: today,
     );
     if (picked != null) setState(() => _date = picked);
   }

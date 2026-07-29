@@ -749,6 +749,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   firstDate: salonToday(tz: _tz),
                                   lastDate:
                                       salonToday(tz: _tz).add(kBookingHorizon),
+                                  today: salonToday(tz: _tz),
                                 );
                                 if (!mounted || picked == null) return;
                                 setState(() => _selectedDate = picked);

@@ -20,8 +20,11 @@ import '../support/surface.dart';
 /// - **`w360_x2`** is §13.3's contract point, and the one that would have
 ///   caught « 2 21 2 2 2 2 2 » on sight.
 ///
-/// The clock is frozen by `goldenApp`, so the month is deterministic — March
-/// 2026, which contains every day row 73 named.
+/// The month is deterministic because it is a **literal** — `DateTime(2026,3,11)`
+/// — not because a clock is frozen. The picker reads no clock at all; its
+/// « today » marker is passed in by the call site, which is the only place that
+/// knows the salon's timezone. An earlier draft credited `goldenApp`'s frozen
+/// clock, which this widget never consults.
 void main() {
   group('goldens', () {
     setUpAll(loadRealFonts);

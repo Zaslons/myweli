@@ -100,7 +100,6 @@ class Formatters {
     return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
   }
 
-  /// Format month + year: "juin 2026" (used for visit-history headers).
   /// The narrow weekday initials, **Monday first** — « L M M J V S D ».
   ///
   /// §17: a French calendar starts on Monday, and `french_test.dart` asserts
@@ -122,6 +121,7 @@ class Formatters {
     );
   }
 
+  /// Format month + year: « juin 2026 ».
   static String formatMonthYear(DateTime date) {
     return DateFormat('MMMM yyyy', 'fr_FR').format(date);
   }
