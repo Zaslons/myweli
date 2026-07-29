@@ -9,6 +9,17 @@ import { signInPro } from './_auth';
 /// p3 (« Institut Belle Vue », draft SETUP).
 
 
+/// **This file is an ordered chain, and says so.**
+///
+/// Its tests establish each other's preconditions on the stub's single
+/// `salonOffers` entry: the no-Réseau test must see the seeded Pro trial, the
+/// Abonnement test leaves Business, the Réseau arc leaves Réseau. That was
+/// already true before B10 and was held up only by the global
+/// `fullyParallel: false` — a flag in another file that nothing here declared a
+/// dependency on. Stating it locally means flipping that flag can no longer
+/// silently shuffle these four into a race.
+test.describe.configure({ mode: 'serial' });
+
 async function openSwitcher(page: Page) {
   const trigger = page.getByRole('button', { name: 'Changer de salon' });
   await expect(trigger).toBeVisible();
@@ -67,6 +78,50 @@ test('without a live Réseau offer: no CTA on /pro/abonnement and the '
   ).toBeVisible();
 });
 
+/// Moved here from `team.spec.ts` by B10 (docs/design/web-b10-flake.md §4.2).
+///
+/// `salonOffers['p1']` is a singleton in the stub and this test and the Réseau
+/// arc below were its only two writers — one switching to Business, the other
+/// to Réseau, from two files that run on different workers. When the Business
+/// write landed between the Réseau write and the create POST, the server
+/// answered 403 `reseau_required` and the arc failed on a *stable* wrong URL:
+/// a 403, not a slow redirect, so no wait would ever have fixed it (measured
+/// 2 failures in 29 runs).
+///
+/// `fullyParallel: false` serialises tests **within** a file, so co-locating
+/// the two writers makes the conflict structurally impossible rather than
+/// merely unlikely. Order matters and is load-bearing: the no-offer test above
+/// must see the seeded Pro trial, this one leaves Business, and the arc below
+/// switches to Réseau — each precondition is established by the test before it.
+test('Abonnement: the live-trial banner, the cards & switching offer',
+  async ({ page }) => {
+    await signInPro(page);
+    await page.getByRole('link', { name: 'Abonnement' }).click();
+    await expect(page).toHaveURL(/\/pro\/abonnement/);
+
+    await expect(page.getByText(/Essai gratuit/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pro' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Business' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Réseau' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Offre actuelle' }),
+    ).toBeVisible();
+    // The kept-trial reassurance.
+    await expect(
+      page.getByText('Le changement d’offre conserve votre période d’essai.'),
+    ).toBeVisible();
+
+    // Switch to Business → the seat cap grows to 15 and Business becomes
+    // current.
+    const business = page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Business' }) });
+    await business
+      .getByRole('button', { name: 'Passer à cette offre' })
+      .click();
+    await expect(page.getByText(/\/ 15 places/)).toBeVisible();
+  });
+
 test('the Réseau arc: switch the offer → the CTA appears → create → land '
   + 'on the new draft, switched', async ({ page }) => {
   await signInPro(page);
@@ -78,9 +133,12 @@ test('the Réseau arc: switch the offer → the CTA appears → create → land 
     .filter({ has: page.getByRole('heading', { name: 'Réseau' }) });
   await reseau.getByRole('button', { name: 'Passer à cette offre' }).click();
 
-  // The add-salon door opens on the abonnement page — the CTA appearing IS
-  // the gate assertion (seat copy can double-match when a parallel test
-  // already moved the cap to 15).
+  // The add-salon door opens on the abonnement page — the CTA appearing IS the
+  // gate assertion. The seat copy cannot serve as one: the stub's caps are
+  // `business: 15, reseau: 15`, so « / 15 places » renders on two cards at
+  // once. B10 corrected the reason recorded here — it read "when a parallel
+  // test already moved the cap", which blamed a race for what is simply two
+  // tiers sharing a number.
   const cta = page.getByRole('link', { name: 'Ajouter un salon' });
   await expect(cta).toBeVisible();
   await cta.click();
