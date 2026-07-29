@@ -22,6 +22,7 @@ import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_time_picker.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
   const ProManualBookingScreen({
@@ -110,6 +111,17 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   });
   final _phoneFocus = FocusNode();
 
+  /// The salon's now, as a wall-clock time, for the past-time floor.
+  TimeOfDay get _floorNow {
+    final now = salonNow(tz: _tz);
+    return TimeOfDay(hour: now.hour, minute: now.minute);
+  }
+
+  bool _isToday(DateTime d) {
+    final today = salonToday(tz: _tz);
+    return d.year == today.year && d.month == today.month && d.day == today.day;
+  }
+
   Future<void> _pickDate() async {
     final today = salonToday(tz: _tz);
     final picked = await showMyweliDatePicker(
@@ -119,13 +131,34 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       lastDate: today.add(kManualBookingHorizon),
       today: today,
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked == null) return;
+    setState(() {
+      _date = picked;
+      // **The floor is a property of the DAY, so changing the day re-applies
+      // it.** These are two independent fields — this is the one site of the six
+      // where date and time are not a chain — so the user can pick tomorrow at
+      // 09:00 and *then* move the date to today, stranding the time in the past.
+      // Lifting it here is what makes the invalid combination unreachable from
+      // either order of filling the form.
+      final t = _time;
+      if (t != null && _isToday(picked)) {
+        final floor = _floorNow;
+        if (t.hour * 60 + t.minute < floor.hour * 60 + floor.minute) {
+          _time = floor;
+        }
+      }
+    });
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-        context: context,
-        initialTime: _time ?? TimeOfDay.fromDateTime(salonNow(tz: _tz)));
+    final d = _date;
+    final picked = await showMyweliTimePicker(
+      context: context,
+      initialTime: _time ?? _floorNow,
+      // Bounded only when the chosen day is today. With no date chosen yet there
+      // is nothing to bound against, and `_pickDate` covers that order.
+      minTime: d != null && _isToday(d) ? _floorNow : null,
+    );
     if (picked != null) setState(() => _time = picked);
   }
 
@@ -140,9 +173,17 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       return;
     }
     if (dt.isBefore(AppClock.now())) {
-      // Reachable, unlike the two above were: the time picker has no past-time
-      // constraint, so today + an earlier hour lands here. It was a bar about
-      // the date/time row.
+      // **A14b demoted this from validation to drift backstop, and did NOT
+      // delete it.** Its old comment said it was reachable *"because the time
+      // picker has no past-time constraint"*, and A14b gave the picker one
+      // (`minTime`), plus a re-lift in `_pickDate` for the other fill order — so
+      // no sequence of taps can now produce a past time.
+      //
+      // But the spec for this slice claimed the error state disappears, and that
+      // was wrong: **the wall clock moves while the form is open.** Pick today at
+      // 14:05 at 14:00, submit at 14:10, and this fires. A guard that is nearly
+      // unreachable is still reachable, and deleting it would have traded a rare
+      // field-level message for a server round-trip.
       setState(
           () => _selectionError = 'Choisissez une date et une heure à venir.');
       return;

@@ -474,22 +474,45 @@ already records that the house API keeps that affordance; here it becomes
 load-bearing, because in chain B the two dialogs carry **no** `helpText` and are
 therefore visually identical with nothing on screen saying which one you are in.
 
-### 10.1 Three error states that exist only because the picker is blind
+### 10.1 Error states that exist only because the picker is blind
 
 Each is a round-trip or a message standing in for a constraint the control could
-have expressed. A14b deletes all three by making the invalid state unreachable,
-rather than restyling the message.
+have expressed. Where the constraint can be expressed, A14b makes the invalid
+state **unreachable** rather than restyling the message.
 
-| where | what it says | why it exists |
+| where | what it says | outcome |
 |---|---|---|
-| `weekly_hours_editor.dart:75` | **nothing** — `if (end <= start) return;`, a bare silent `return` | two modals, then the row simply does not change. An invalid answer is indistinguishable from a cancel. **The worst of the three, and the highest-value deletion in A14b.** |
-| `availability_screen.dart:670-678` | « L'heure de fin doit être après l'heure de début » + a snackbar, losing both answers | dialog 2 cannot be given a lower bound of `pickedStart` |
-| `pro_manual_booking_screen.dart:142-149` | « Choisissez une date et une heure à venir. » | the time picker has no past-time constraint, so *today + an earlier hour* is submittable. The source comment already names the cause. |
+| `weekly_hours_editor.dart:75` | **nothing** — `if (end <= start) return;`, a bare silent `return`. Two modals, then the row simply does not change: an invalid answer indistinguishable from a cancel. | **Deleted.** The range picker will not offer an end at or before the start. The highest-value deletion in A14b. |
+| `availability_screen.dart:670-678` | « L'heure de fin doit être après l'heure de début » + a snackbar, losing both answers, because dialog 2 could not be given a lower bound of `pickedStart` | **Deleted**, same constraint. |
+| `pro_manual_booking_screen.dart:142-149` | « Choisissez une date et une heure à venir. » | **Kept, and demoted** — see below. |
 
-**A fourth message is not deleted, and should not be.**
+#### ⚠️ The third one does not die, and this spec said it would
+
+Every earlier draft of §8–§13 — and A14a's §4 before it — said A14b *"deletes the
+error state rather than restyling it"*. **That is wrong, and it was wrong for a
+reason worth keeping.**
+
+`minTime` does close every path a *tap* can take: the time picker floors at the
+salon's now when the chosen day is today, and `_pickDate` re-applies the floor
+when the day changes, which covers the other fill order (these are two
+independent fields, not a chain — site 2 is the one site of the six where either
+may be filled first).
+
+But **the wall clock moves while the form is open.** Pick today at 14:05 at
+14:00, take five minutes over the phone number, submit at 14:10 — and
+`dt.isBefore(AppClock.now())` is true. A guard that is nearly unreachable is
+still reachable, and deleting it would have traded a rare field-level message
+for a server round-trip.
+
+So the count is **two deleted, one demoted to a drift backstop** with its comment
+rewritten to say which it is. The original comment claimed it was reachable
+*"because the time picker has no past-time constraint"*; that clause is now
+false, and leaving it would have been a second wrong claim replacing the first.
+
+**A fourth message is not touched at all.**
 `pro_manual_booking_screen.dart:138-141`'s « Choisissez une date et une heure. »
-guards two *independent optional fields*, which is site 2's deliberate shape
-(§10). It is a real empty-field validation, not a blindness artefact.
+guards two independent *optional* fields. It is a real empty-field validation,
+not a blindness artefact.
 
 ### 10.2 What must survive the conversion
 

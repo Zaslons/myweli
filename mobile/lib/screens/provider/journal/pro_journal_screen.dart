@@ -20,6 +20,7 @@ import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_date_time_picker.dart';
 
 /// « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
@@ -418,30 +419,47 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     );
   }
 
+  /// Reschedule, in **one** route (A14b).
+  ///
+  /// **This was two modals, and the second one's Cancel undid the first one's
+  /// answer.** The old shape opened the date picker, then opened
+  /// `showTimePicker` the instant it popped, then hit
+  /// `if (time == null || !mounted) return;` — so a user who chose a day and
+  /// then backed out of the time lost the day too, with no message and no way
+  /// back to it. `MyweliDateTimePicker` makes back a *step*: the date is one
+  /// widget's state instead of one route's return value.
+  ///
+  /// **`minTimeOnToday` is why « Créneau indisponible. » is now a backstop
+  /// rather than the first feedback.** Material's picker could not express *"not
+  /// before now"*, so today-plus-an-earlier-hour was submittable and the server
+  /// round-trip was the validation.
   Future<void> _reschedule(ProJournalProvider journal, Appointment a) async {
     // Picker seeds + result are the ACTIVE SALON's wall-clock
     // (salon_time.dart) — never the device's zone.
     final tz = context.read<ProAuthProvider>().salonTimezone;
-    final date = await showMyweliDatePicker(
+    final now = salonNow(tz: tz);
+    final picked = await showMyweliDateTimePicker(
       context: context,
       initialDate: toSalonTime(a.appointmentDate, tz: tz),
+      initialTime:
+          TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate, tz: tz)),
       firstDate: salonToday(tz: tz),
       lastDate: salonToday(tz: tz).add(kBookingHorizon),
       today: salonToday(tz: tz),
+      minTimeOnToday: TimeOfDay(hour: now.hour, minute: now.minute),
+      helpText: 'Reprogrammer',
     );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime:
-          TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate, tz: tz)),
-    );
-    if (time == null || !mounted) return;
+    if (picked == null || !mounted) return;
+    // The control returns the PARTS, not a `DateTime`, so this recombination
+    // through `salonDateTime` stays where the timezone is known (§18). Returning
+    // a composed `DateTime` would have made `DateTime(y, m, d, h, min)` — the
+    // device-local shape §18 forbids — the convenient call.
     final newDt = salonDateTime(
-      date.year,
-      date.month,
-      date.day,
-      hour: time.hour,
-      minute: time.minute,
+      picked.date.year,
+      picked.date.month,
+      picked.date.day,
+      hour: picked.time.hour,
+      minute: picked.time.minute,
       tz: tz,
     );
     final ok = await journal.reschedule(a.id, newDt);

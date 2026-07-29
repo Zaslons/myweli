@@ -16,6 +16,7 @@ import '../../../providers/pro_availability_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_time_picker.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class AvailabilityScreen extends StatefulWidget {
@@ -630,20 +631,25 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
       endTime = TimeOfDay.fromDateTime(slot.endTime);
     }
 
-    final pickedStart = await showTimePicker(
+    // **One screen, not two identical modals** (A14b). This was two
+    // `showTimePicker`s with **no `helpText` on either**, so they were visually
+    // identical with nothing on screen saying which one you were in — and the
+    // second one's seed had to be derived arithmetically
+    // (`pickedStart.hour + 1`) precisely because the two dialogs could not see
+    // each other. The range picker shows both halves at once and drags the end
+    // forward itself.
+    final picked = await showMyweliTimeRangePicker(
       context: context,
-      initialTime: startTime ?? const TimeOfDay(hour: 9, minute: 0),
+      initialStart: startTime ?? const TimeOfDay(hour: 9, minute: 0),
+      initialEnd: endTime ??
+          TimeOfDay(
+              hour: startTime?.hour ?? 10, minute: startTime?.minute ?? 0),
+      helpText: index == null ? 'Nouveau créneau' : 'Modifier le créneau',
     );
 
-    if (pickedStart == null || !mounted) return;
-
-    final pickedEnd = await showTimePicker(
-      context: context,
-      initialTime: endTime ??
-          TimeOfDay(hour: pickedStart.hour + 1, minute: pickedStart.minute),
-    );
-
-    if (pickedEnd == null || !mounted) return;
+    if (picked == null || !mounted) return;
+    final pickedStart = picked.start;
+    final pickedEnd = picked.end;
 
     // §18 — a wall-clock the user picked IS salon time, so it becomes a UTC
     // instant through `salonDateTime`, exactly as the blocked-date picker at
@@ -670,15 +676,14 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
       tz: tz,
     );
 
-    if (endDateTime.isBefore(startDateTime) ||
-        endDateTime.isAtSameMomentAs(startDateTime)) {
-      if (mounted) {
-        AppSnackBar.show(
-            context, 'L’heure de fin doit être après l’heure de début',
-            kind: SnackKind.error);
-      }
-      return;
-    }
+    // **The « L'heure de fin doit être après l'heure de début » snackbar used to
+    // be here, and A14b deleted it rather than restyling it.** It existed only
+    // because dialog 2 could not be given a lower bound of `pickedStart`, and it
+    // cost the user both answers to say so. `MyweliTimeRangePicker` will not
+    // offer an end at or before the start, so the state this caught is now
+    // unreachable — which is the difference between a validation and a
+    // constraint. `myweli_time_picker_test.dart` asserts the guarantee this
+    // deletion now relies on.
 
     final newSlot = TimeSlot(
       startTime: startDateTime,

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../models/availability.dart';
+import '../common/myweli_time_picker.dart';
 
 const _dayNames = [
   'Lundi',
@@ -56,28 +58,50 @@ class WeeklyHoursEditor extends StatelessWidget {
         isAvailable: true,
       );
 
+  /// One screen for the whole range (A14b).
+  ///
+  /// **This was two modals and a bare silent `return`.** The old shape asked
+  /// « Heure de début », then « Heure de fin », then:
+  ///
+  /// ```dart
+  /// if (end.hour * 60 + end.minute <= start.hour * 60 + start.minute) return;
+  /// ```
+  ///
+  /// — no snackbar, no message, nothing. Pick 17:00 then 09:00 and both dialogs
+  /// closed and the row simply did not change, which is **indistinguishable from
+  /// having cancelled**. It was the worst of the three chains: the other two at
+  /// least said why.
+  ///
+  /// `MyweliTimeRangePicker` puts both halves on one screen and will not offer
+  /// an end at or before the start, so the invalid state is unreachable rather
+  /// than caught. The two `helpText`s become the two field labels — these were
+  /// the only localised strings any picker call in the app passed, and without
+  /// them the two dialogs of chain B were visually identical.
+  ///
+  /// `onChanged` still fires **exactly once, on confirm**. That is load-bearing:
+  /// `availability_screen.dart` wires it straight to `updateAvailability`, so a
+  /// control that emitted per edit would write to the server on every tap.
   Future<void> _editRange(
       BuildContext context, int day, TimeSlot current) async {
-    final start = await showTimePicker(
+    final range = await showMyweliTimeRangePicker(
       context: context,
-      helpText: 'Heure de début',
-      initialTime: TimeOfDay(
+      initialStart: TimeOfDay(
           hour: current.startTime.hour, minute: current.startTime.minute),
-    );
-    if (start == null || !context.mounted) return;
-    final end = await showTimePicker(
-      context: context,
-      helpText: 'Heure de fin',
-      initialTime:
+      initialEnd:
           TimeOfDay(hour: current.endTime.hour, minute: current.endTime.minute),
+      startLabel: 'Heure de début',
+      endLabel: 'Heure de fin',
+      helpText: '${_dayNames[day]} — horaires',
     );
-    if (end == null) return;
-    if (end.hour * 60 + end.minute <= start.hour * 60 + start.minute) return;
-    _setDay(day, _slot(start, end));
+    if (range == null) return;
+    _setDay(day, _slot(range.start, range.end));
   }
 
-  String _fmt(DateTime t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  // `_fmt` used to live here as a private pair of `padLeft`s — the third
+  // spelling of « 14:30 » in the repo. It is `Formatters.formatHourMinute` now,
+  // for the reason A13 gave about the plural rule: four spellings of one job
+  // disagreed at exactly one value, and nobody had noticed.
+  String _fmt(DateTime t) => Formatters.formatHourMinute(t.hour, t.minute);
 
   @override
   Widget build(BuildContext context) {
