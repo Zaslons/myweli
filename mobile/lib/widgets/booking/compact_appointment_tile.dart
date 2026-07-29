@@ -99,37 +99,49 @@ class CompactAppointmentTile extends StatelessWidget {
                     // other visible; the answer is C5's answer — a pill whose
                     // own label doubles cannot shrink, so it drops to its own
                     // line rather than squeezing the name it belongs to.
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: AppTheme.spacingS,
-                      runSpacing: AppTheme.spacingXS,
-                      children: [
-                        Text(
-                          providerName,
-                          style: AppTextStyles.titleSmall.copyWith(
-                            color: AppColors.textPrimary,
+                    //
+                    // The `SizedBox` + `spaceBetween` are not decoration: a
+                    // `Wrap` shrink-wraps, so without them the pill stops being
+                    // at the tile's trailing edge and slides up against the
+                    // name at 1× — a silent restyle of every tile at the scale
+                    // almost everyone uses. That is the idiom at all four sites
+                    // (`SectionHeading`, `ReviewTile`, `LabelValueRow`,
+                    // `AppointmentCard`), and this one shipped without it.
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: AppTheme.spacingS,
+                        runSpacing: AppTheme.spacingXS,
+                        children: [
+                          Text(
+                            providerName,
+                            style: AppTextStyles.titleSmall.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppTheme.spacingS,
-                            vertical: AppTheme.spacingXS,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.14),
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusPill),
-                          ),
-                          child: Text(
-                            StatusLabels.of(appointment.status),
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: statusColor,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTheme.spacingS,
+                              vertical: AppTheme.spacingXS,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.14),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusPill),
+                            ),
+                            child: Text(
+                              StatusLabels.of(appointment.status),
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: statusColor,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: AppTheme.spacingS),
                     Builder(builder: (context) {

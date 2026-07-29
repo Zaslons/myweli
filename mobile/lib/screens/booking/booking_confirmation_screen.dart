@@ -245,24 +245,31 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       ...selectedServices.map((service) => Padding(
                             padding: const EdgeInsets.only(
                                 bottom: AppTheme.spacingS),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    service.name,
-                                    style: AppTextStyles.bodyMedium,
-                                  ),
-                                ),
-                                Text(
-                                  Formatters.formatPriceRange(
-                                      service.price, service.priceMax,
-                                      currency: p.currency),
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
+                            // A12, found by the adversarial review after the
+                            // money rows below had already become
+                            // `LabelValueRow`s. **The static sweep could not
+                            // have found this one** — it has a flexed child, so
+                            // it is not the "Row with ≥2 unflexed Text" shape
+                            // the census counted; it is the crush, and the spec
+                            // says in writing that the crush is not statically
+                            // decidable. What it needed was a gate on this
+                            // screen, and A12 argued its way out of one.
+                            //
+                            // For a service with a `priceMax` the value is a
+                            // RANGE — « À partir de 15 000 FCFA » — which is
+                            // wide enough that `Expanded` hands the name 0dp
+                            // and the price still runs over: **81px at 360×2×**,
+                            // 66 at 375, 51 at 390, on the screen immediately
+                            // before payment.
+                            child: LabelValueRow(
+                              label: service.name,
+                              value: Formatters.formatPriceRange(
+                                  service.price, service.priceMax,
+                                  currency: p.currency),
+                              labelStyle: AppTextStyles.bodyMedium,
+                              valueStyle: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           )),
                       // Artist

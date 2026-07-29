@@ -7,6 +7,7 @@ import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
+import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -16,6 +17,8 @@ import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/appointments/my_bookings_screen.dart';
 import 'package:myweli/screens/auth/otp_verify_screen.dart';
+import 'package:myweli/screens/booking/booking_confirmation_screen.dart';
+import 'package:myweli/screens/booking/booking_hub_screen.dart';
 import 'package:myweli/screens/home/home_screen.dart';
 import 'package:myweli/screens/notifications/notifications_screen.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
@@ -520,6 +523,85 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'salon grid at $at');
         expectNoLegibilityCrush(tester, context: 'salon grid at $at');
         expectNoVerticalClip(tester, context: 'salon grid at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the two booking screens ----------------------------------------
+      //
+      // A12 shipped `LabelValueRow` and then wrote, in its own spec, that the
+      // component test "proves the widget and not the wiring" because neither
+      // screen is a subject and "two of them need a booking in progress to
+      // reach". **That justification is false** — `consumer_screens_golden_test`
+      // already pumps `BookingHubScreen(providerId: 'provider1')` standalone,
+      // and the confirmation screen takes plain ids and a `DateTime`. The
+      // adversarial review caught it, and the cost of the wrong excuse was a
+      // live defect on the screen immediately before payment.
+      //
+      // **provider2 and `service4`, deliberately.** « Tissage » is the only
+      // seeded service with a `priceMax`, so it is the only one that renders
+      // « À partir de 15 000 FCFA » — the price-RANGE string, which is what
+      // makes the service row's unflexed price wide enough to starve the
+      // flexed name beside it. Seeding provider1 would gate the narrow case
+      // and pass.
+      testWidgets('the booking hub fits $at', (tester) async {
+        final auth = await signInConsumer(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider(create: (_) => ProviderProvider()),
+            ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+            ChangeNotifierProvider.value(value: auth),
+          ],
+          home: const BookingHubScreen(providerId: 'provider2'),
+          rounds: 5,
+        );
+
+        expect(
+          find.text('Total'),
+          findsWidgets,
+          reason: 'C: the pinned summary bar is the subject',
+        );
+        expectNoUndeclaredTruncation(tester, context: 'booking hub at $at');
+        expectNoLegibilityCrush(tester, context: 'booking hub at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      testWidgets('the booking confirmation fits $at', (tester) async {
+        final auth = await signInConsumer(tester);
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          providers: [
+            ChangeNotifierProvider(create: (_) => ProviderProvider()),
+            ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+            ChangeNotifierProvider(create: (_) => LocalityProvider()),
+            ChangeNotifierProvider.value(value: auth),
+          ],
+          home: BookingConfirmationScreen(
+            providerId: 'provider2',
+            serviceIds: const ['service4'],
+            appointmentDateTime: kFixedNow.add(const Duration(days: 3)),
+          ),
+          rounds: 5,
+        );
+
+        expect(
+          find.text('Tissage'),
+          findsWidgets,
+          reason: 'C: the service row is the subject, and it only renders '
+              'once the provider has loaded',
+        );
+        expectNoUndeclaredTruncation(
+          tester,
+          context: 'booking confirmation at $at',
+        );
+        expectNoLegibilityCrush(
+          tester,
+          context: 'booking confirmation at $at',
+        );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
