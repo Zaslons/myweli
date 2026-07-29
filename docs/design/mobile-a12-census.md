@@ -230,15 +230,26 @@ shipped in a single commit.
 
 ## 9. Definition of done
 
-- [x] the sweep run and **every hit triaged** — 20 → 13 fixed, 7 refuted
-- [x] both new primitives, calibrated from measurement and self-tested
-- [x] all **11** `test/a11y/` files pin a phone (§21 row 60 closed)
+- [x] the sweep run and **every hit triaged** — 13 fixed from it, 7 of shape 1
+      refuted; **18 fixed** in total once the device and the review had run
+- [x] both new primitives, calibrated from measurement and self-tested — and one
+      self-test **mutation-proven a second time** after the review showed it
+      never ran the predicate it guards
+- [x] all **11** `test/a11y/` files pin a phone (§21 row 60 closed); 14
+      `*_test.dart` files in the directory, the other three pinning wide
+      surfaces on purpose
 - [x] the dead screen deleted
 - [x] row 68's four wrong figures corrected; the row 66 contradiction resolved
-- [x] goldens only where the fix is invisible at 390×1× — **1 added, 3 moved**,
-      every changed PNG eye-reviewed, ledger from `git diff --name-status`
-- [x] adversarial review, every finding hand-verified
-- [x] the device re-run — the pro app on a 360×780pt iPhone at `accessibility-large` (≈1.95×), after the fixes
+- [x] goldens only where the fix is invisible at 390×1× — **1 added, 4 moved**,
+      every changed PNG eye-reviewed, ledger from `git status --short` each time
+- [x] adversarial review — 28 agents, **29 findings, 15 confirmed** by its own
+      verify pass, every one hand-verified again before anything was changed;
+      13 fixed, and the two left open are named in §11
+- [x] **A12's own prose audited the way it audited row 68** — eight wrong claims,
+      all corrected (§11 lists what they were)
+- [x] the device re-run, **both apps**, on a 360×780pt iPhone at
+      `accessibility-large` (≈1.95×) — and it found two defects the gates could
+      not, in a widget A12 had already fixed
 
 ## 10. The device run
 
@@ -328,13 +339,34 @@ render whole, three to a row, with room to spare.
 
 ## 11. Open
 
-- **Two screens are fixed but not gated.** Booking confirmation and the booking
-  hub carry four of the money rows; both need a booking in progress to reach, so
-  `LabelValueRow` is gated as a component. That proves the widget, not the
-  wiring.
+- ~~**Two screens are fixed but not gated.**~~ **Closed, and it was never true.**
+  The claim was that booking confirmation and the hub "need a booking in
+  progress to reach"; a golden already pumped the hub standalone, and the
+  confirmation screen takes plain ids and a `DateTime`. Both are subjects now —
+  and the cost of the excuse was an 81px overflow on the screen immediately
+  before payment, live for the whole slice.
+- **Two review findings are recorded rather than fixed**, both left deliberately:
+  `client_detail_screen`'s visit-history row is the crush shape with **no
+  `maxLines`**, which `expectNoLegibilityCrush` skips by construction (the gap
+  `_a11y.dart` already documents), and the dashboard action grid's
+  single-column branch keys off a text scale where `provider_list`'s now keys
+  off the cell width. Both were **refuted by the review's own verify pass**, so
+  they are named here rather than acted on — a fix applied to a phantom is
+  worse than the phantom.
 - **§21 row 62's two mid-word headings.** A12 found that « Prom/o W… » is a
   `Container(width: 92)` in `announcement_stories.dart` — a *fixed-width box*,
   not a design decision. « Salon Ex/cellence » remains a genuine one.
 - **The §5 pin cannot see `crossAxisSpacing: 12`** — its `\b` cannot fire inside
-  the compound name. Two raw literals were fixed here in passing; the pin gap
-  is its own row.
+  the compound name. Two raw literals were fixed here in passing; **four more
+  exist** (§21 row 71, corrected by the review), two of them live in the pin's
+  own corpus at a value that is not a token at all. Left with the pin that
+  would catch them, because converting `10` moves a photo grid.
+- **A12's own prose was wrong eight times**, and the register it was correcting
+  is the reason that matters: §21 row 41 cited three times for something it
+  does not say (it is row 67), a line number that had already rotted twice, a
+  broken `MODULES.md` link, "nine `Row`s" for a widget at eleven call sites,
+  "five admin screens" for six, "14 files all pinning a phone" contradicting
+  "11 files" three sections later, an undercounted spacing sweep, and a
+  `_StatCard` correction whose numbers did not subtract. All corrected. **The
+  lesson is not that the prose was sloppy — it is that a slice written to prove
+  registers rot could not keep its own straight for one branch.**
