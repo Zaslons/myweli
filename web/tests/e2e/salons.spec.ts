@@ -9,15 +9,27 @@ import { signInPro } from './_auth';
 /// p3 (« Institut Belle Vue », draft SETUP).
 
 
-/// **This file is an ordered chain, and says so.**
+/// **These tests must run in order, and the file now says so.**
 ///
-/// Its tests establish each other's preconditions on the stub's single
-/// `salonOffers` entry: the no-Réseau test must see the seeded Pro trial, the
-/// Abonnement test leaves Business, the Réseau arc leaves Réseau. That was
-/// already true before B10 and was held up only by the global
+/// They share the stub's single `salonOffers` entry. Exactly **one** ordering
+/// dependency predates B10: the no-Réseau test (2nd) asserts there is no
+/// add-salon CTA, and the Réseau arc (4th) switches the offer to Réseau, so 2
+/// must precede 4. The other pairs are **not** chained — test 1 writes no offer
+/// state at all, and tests 3 and 4 each only need the tier to differ from the
+/// one they select, which the seed (`liveOffer()`, tier `pro`) already gives
+/// them. An earlier version of this comment described a four-link chain in
+/// which each test set up the next; that was wrong, and so was calling it two.
+///
+/// Until B10 even the 2-before-4 order was held up only by the global
 /// `fullyParallel: false` — a flag in another file that nothing here declared a
-/// dependency on. Stating it locally means flipping that flag can no longer
-/// silently shuffle these four into a race.
+/// dependency on. Declaring it locally means flipping that flag can no longer
+/// silently shuffle these into a race.
+///
+/// **The cost, stated because this slice is about reporting honestly:**
+/// `mode: 'serial'` skips every later test in the file once one fails. A
+/// failure in test 1 — which touches no shared state — now removes three tests
+/// from the run, reported as « 3 skipped » on a line nobody reads. That is the
+/// accepted price of a declared order, not a free win.
 test.describe.configure({ mode: 'serial' });
 
 async function openSwitcher(page: Page) {
@@ -134,11 +146,18 @@ test('the Réseau arc: switch the offer → the CTA appears → create → land 
   await reseau.getByRole('button', { name: 'Passer à cette offre' }).click();
 
   // The add-salon door opens on the abonnement page — the CTA appearing IS the
-  // gate assertion. The seat copy cannot serve as one: the stub's caps are
-  // `business: 15, reseau: 15`, so « / 15 places » renders on two cards at
-  // once. B10 corrected the reason recorded here — it read "when a parallel
-  // test already moved the cap", which blamed a race for what is simply two
-  // tiers sharing a number.
+  // gate assertion, because `AbonnementClient` renders it only for a live
+  // `reseau` offer, which makes it the sole DOM proof that the switch landed.
+  //
+  // The seat copy cannot serve as one — but for neither reason previously
+  // recorded here. It does **not** double-match: the three tier cards render
+  // the static strings « 5 places », « 15 places » and « 15 places par salon »,
+  // none of which contains a slash, so `/\/ 15 places/` matches exactly one
+  // element, the current-offer seats bar. It is unusable because it is
+  // **tier-blind**: `business` and `reseau` share a cap of 15 and the
+  // Abonnement test above leaves this salon on Business, so « 1 / 15 places »
+  // is already on screen before the Réseau click and would pass whether or not
+  // that click landed.
   const cta = page.getByRole('link', { name: 'Ajouter un salon' });
   await expect(cta).toBeVisible();
   await cta.click();

@@ -97,13 +97,18 @@ test('time-first: l’heure choisie survit ou se libère selon la durée', async
   // enables « Confirmer » *synchronously*, so asserting straight after the
   // click passed before `revalidateSlot` had even been called — and would have
   // stayed green if revalidation cleared the slot, which is the exact
-  // behaviour this test exists to check. Waiting for the round trip is what
-  // makes this assert survival rather than the initial render.
-  const revalidated = page.waitForResponse((r) =>
-    r.url().includes('/api/availability'),
-  );
+  // behaviour this test exists to check.
+  //
+  // The wait has to be on the DOM, not on the network. `page.waitForResponse`
+  // resolves in the Node process on a CDP event and imposes no ordering on the
+  // renderer's `setS` and React commit, so it narrows the window without
+  // closing it. « Spécialiste » expanding is a state only `settle`'s trailing
+  // `setS(advance(...))` can produce — it is the auto-advance itself — so it
+  // cannot be observed before revalidation has been applied.
   await page.getByRole('checkbox').first().click();
-  await revalidated;
+  await expect(
+    page.getByRole('button', { name: /^Spécialiste/ }),
+  ).toHaveAttribute('aria-expanded', 'true');
   await expect(
     page.getByRole('button', { name: 'Confirmer', exact: true }),
   ).toBeEnabled();

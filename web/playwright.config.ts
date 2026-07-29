@@ -42,6 +42,15 @@ export default defineConfig({
   /// previous build of whatever you just edited and reports green about code
   /// that is not under test. Paying ~60 s per run is the price of a gate that
   /// answers the question it was asked.
+  ///
+  /// **The footgun, and its remedy.** An occupied port is now a hard error
+  /// before any test runs — and `npm run dev` uses this same port 3000, so the
+  /// suite will refuse to start while a dev server is up. A hard-killed run can
+  /// also orphan one of these. Playwright's own error advises setting
+  /// `reuseExistingServer: true`; **do not** — that is the defect, not the fix.
+  /// Free the ports instead:
+  ///
+  ///     lsof -ti:3000 -ti:8787 | xargs kill
   webServer: [
     {
       command: `node tests/e2e/stub-api.mjs`,

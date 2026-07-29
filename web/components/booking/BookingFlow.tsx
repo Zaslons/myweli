@@ -103,19 +103,31 @@ export function BookingFlow({
   });
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  /// One generation for every asynchronous write in this component.
+  // The app's slotsRequestId pattern — stale slot responses are dropped. This
+  // guards a CACHE (`slots`), which is always safe to discard.
+  const slotsReq = useRef(0);
+
+  /// Two generations, because an async pipeline decides two unrelated things
+  /// and they must not share a fate (docs/design/web-b10-flake.md §4.1).
   ///
-  /// Each user action bumps it *before* touching state; every write that lands
-  /// after an `await` is dropped once the counter has moved, because the value
-  /// it carries was computed from a snapshot the user has since left behind.
+  /// - `selectionReq` — bumped by anything that changes **what is being
+  ///   booked**. A verdict computed for an older selection describes services
+  ///   the user has since changed, so it is dropped.
+  /// - `navReq` — bumped by anything that changes **where the user is**. A
+  ///   pipeline that started before the user opened another card must not drag
+  ///   them back, but its verdict on the chosen time is still true and is
+  ///   merged onto wherever they now are.
   ///
-  /// This is the app's `slotsRequestId` pattern, widened from slot responses to
-  /// the whole pipeline. Until B10 only `loadSlots` was guarded, while `settle`
-  /// and `onVariant` also write `s` after a round trip — so a click on
-  /// « Prestations » landing between `onToggleService`'s synchronous `setS` and
-  /// `settle`'s trailing one was silently reverted, collapsing the card and
-  /// unmounting the variant chips (docs/design/web-b10-flake.md §4.1).
-  const intentReq = useRef(0);
+  /// B10's first attempt used one counter for both and returned early on any
+  /// mismatch. That discarded `revalidateSlot`'s answer along with the
+  /// auto-advance — so tapping a header during the round trip kept a time the
+  /// salon can no longer honour, with « Confirmer » still enabled. On the
+  /// variant path the server does not catch it either (the booking payload
+  /// carries no hair length), so the booking is accepted and the chair is
+  /// under-blocked. `clearSlot`/`autoPickSlot` and `advance` touch disjoint
+  /// fields; conflating them was the mistake.
+  const selectionReq = useRef(0);
+  const navReq = useRef(0);
 
   // Auth overhaul P2: confirming requires a signed-in account + a REQUIRED
   // contact phone. undefined = probing the session; null = signed out.
@@ -159,13 +171,10 @@ export function BookingFlow({
   }
 
   async function loadSlots(state: HubState) {
-    // Reads the generation rather than bumping it: the handler that started
-    // this intent has already done so, and `settle` calls us as its own last
-    // step. Bumping here would invalidate the pipeline we belong to.
-    const req = intentReq.current;
+    const req = ++slotsReq.current;
     setSlotsLoading(true);
     const r = await fetchSlotsFor(state, state.date);
-    if (req !== intentReq.current) return;
+    if (req !== slotsReq.current) return;
     setSlots(r);
     setSlotsLoading(false);
   }
@@ -192,18 +201,39 @@ export function BookingFlow({
   /// The shared post-mutation pipeline (mirrors the app's handler sequence):
   /// re-validate the chosen time → maybe auto-pick the earliest → advance to
   /// the next section for this entry point → refresh slots if landing on time.
+  /// The half of a pipeline's result that belongs to the server: whether the
+  /// chosen time still stands. `clearSlot`/`autoPickSlot` touch exactly these
+  /// three fields and `advance` touches only `activeSection`, so the verdict
+  /// can always be merged onto the user's latest state without disturbing
+  /// where they are.
+  function withSlotVerdict(prev: HubState, verdict: HubState): HubState {
+    return {
+      ...prev,
+      slot: verdict.slot,
+      date: verdict.date,
+      autoPicked: verdict.autoPicked,
+    };
+  }
+
   async function settle(state: HubState) {
-    const req = intentReq.current;
+    const sel = selectionReq.current;
+    const nav = navReq.current;
     let next = await revalidateSlot(state);
-    if (req !== intentReq.current) return;
+    if (sel !== selectionReq.current) return;
     if (shouldAutoPickEarliest(next)) {
       const earliest = await findEarliestSlot(next);
-      if (req !== intentReq.current) return;
+      if (sel !== selectionReq.current) return;
       if (earliest) next = autoPickSlot(next, earliest);
     }
-    next = advance(next, hasArtists);
-    setS(next);
-    if (next.activeSection === 'time') await loadSlots(next);
+    if (nav !== navReq.current) {
+      // The user opened another card while we were in flight. Their navigation
+      // wins — but the verdict on the time is not theirs to lose.
+      setS((prev) => withSlotVerdict(prev, next));
+      return;
+    }
+    const advanced = advance(next, hasArtists);
+    setS(advanced);
+    if (advanced.activeSection === 'time') await loadSlots(advanced);
   }
 
   // Rebook prefill lands on the time section → load its slots on mount.
@@ -213,18 +243,26 @@ export function BookingFlow({
   }, []);
 
   async function onToggleService(id: string) {
-    intentReq.current += 1;
+    selectionReq.current += 1;
     const next = toggleService(s, provider, id);
     setS(next);
     await settle(next);
   }
 
   async function onVariant(variant: string) {
-    const req = (intentReq.current += 1);
+    const sel = (selectionReq.current += 1);
+    const nav = navReq.current;
     let next = setVariant(s, variant);
     setS(next);
     next = await revalidateSlot(next);
-    if (req !== intentReq.current) return;
+    if (sel !== selectionReq.current) return;
+    if (nav !== navReq.current) {
+      // Same rule as `settle`: the user has opened another card, so keep them
+      // there, but a longer hair length that no longer fits the chosen time
+      // must still clear it.
+      setS((prev) => withSlotVerdict(prev, next));
+      return;
+    }
     setS(next);
     if (next.activeSection === 'time') await loadSlots(next);
   }
@@ -234,13 +272,15 @@ export function BookingFlow({
     if (next === s) return; // incompatible stylist — row is disabled anyway
     // Bumped after the no-op return, so a disabled row cannot cancel a
     // pipeline the user is still waiting on.
-    intentReq.current += 1;
+    selectionReq.current += 1;
     setS(next);
     await settle(next);
   }
 
   async function onOpenSection(section: Section) {
-    intentReq.current += 1;
+    // Navigation only. This must outrank the auto-advance that would drag the
+    // user back, and must NOT discard the verdict travelling with it.
+    navReq.current += 1;
     const next = openSection(s, section);
     setS(next);
     if (section === 'time') await loadSlots(next);
@@ -248,16 +288,20 @@ export function BookingFlow({
 
   async function onDate(date: string) {
     if (!date) return;
-    intentReq.current += 1;
+    selectionReq.current += 1;
     const next = setDate(s, date);
     setS(next);
     await loadSlots(next);
   }
 
   function onPickSlot(iso: string) {
-    // Synchronous, but it still bumps: an in-flight `settle` started before
-    // the tap would otherwise land afterwards and revert the chosen time.
-    intentReq.current += 1;
+    // Choosing a time outranks any verdict still in flight about the previous
+    // one, which `withSlotVerdict` would otherwise merge over this pick.
+    // **Not reachable in today's markup** — the slot buttons are unmounted
+    // while a pipeline runs — so this states the invariant rather than fixing
+    // an observed bug. It is one line, and the mounting rule that makes it
+    // unreachable is written down nowhere.
+    selectionReq.current += 1;
     setS(advance(pickSlot(s, iso), hasArtists));
   }
 
