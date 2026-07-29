@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:myweli/widgets/common/myweli_date_time_picker.dart';
 import 'package:myweli/widgets/common/myweli_time_picker.dart';
 
 import '../support/fonts.dart';
@@ -81,42 +82,78 @@ void main() {
   /// to.
   const namedTokens = <String>['00', '01', '02'];
 
-  Widget host() => const MyweliTimePickerScreen(
-        initialTime: TimeOfDay(hour: 0, minute: 0),
-      );
+  /// **All three controls, not just the leaf.** The first version of this file
+  /// pumped `MyweliTimePickerScreen` alone, and the two it skipped were the two
+  /// with a defect: at 360 × 2× the combined picker's date chip rendered
+  /// « 11/03/2 » on one line and « 026 » on the next — a **mid-token break**,
+  /// which is the thing `expectNoMidWordBreak` exists for. The goldens caught
+  /// it; the gate could not, because the gate was not looking at that screen.
+  ///
+  /// A family of three controls needs three subjects. That is the whole lesson,
+  /// and it is A8's restated: gating one representative and calling the family
+  /// covered is how three defects shipped in five untouched call sites.
+  final subjects = <String, Widget>{
+    'the time picker': const MyweliTimePickerScreen(
+      initialTime: TimeOfDay(hour: 0, minute: 0),
+    ),
+    'the range picker': const MyweliTimeRangePickerScreen(
+      initialStart: TimeOfDay(hour: 9, minute: 0),
+      initialEnd: TimeOfDay(hour: 17, minute: 0),
+      startLabel: 'Heure de début',
+      endLabel: 'Heure de fin',
+    ),
+    'the combined picker': MyweliDateTimePickerScreen(
+      initialDate: DateTime(2026, 3, 11),
+      initialTime: const TimeOfDay(hour: 14, minute: 30),
+      firstDate: DateTime(2026, 3),
+      lastDate: DateTime(2027, 3, 11),
+      today: DateTime(2026, 3, 11),
+    ),
+  };
 
-  for (final width in widths) {
-    for (final scale in scales) {
-      final at = '${width.toInt()}dp × ${scale.toInt()}× text';
+  for (final entry in subjects.entries) {
+    for (final width in widths) {
+      for (final scale in scales) {
+        final at = '${width.toInt()}dp × ${scale.toInt()}× text';
+        final name = entry.key;
 
-      testWidgets('the time picker holds its digits at $at', (tester) async {
-        pinSurface(tester, size: Size(width, kFloorPhone.height));
-        tester.platformDispatcher.textScaleFactorTestValue = scale;
-        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        testWidgets('$name holds its digits at $at', (tester) async {
+          pinSurface(tester, size: Size(width, kFloorPhone.height));
+          tester.platformDispatcher.textScaleFactorTestValue = scale;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-        await tester.pumpWidget(wrapApp(home: host()));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
+          await tester.pumpWidget(wrapApp(home: entry.value));
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
 
-        expect(
-          find.text('Heures'),
-          findsOneWidget,
-          reason: 'C: the picker is not on screen at $at, so every assertion '
-              'below would be about nothing',
-        );
-        expect(
-          find.text('00:00'),
-          findsOneWidget,
-          reason: 'C: the headline is missing at $at — it is the only place '
-              'the chosen value is legible without decoding two columns',
-        );
+          if (name == 'the combined picker') {
+            // C: it opens on the DATE step, so the month is the anchor.
+            expect(find.text('mars 2026'), findsOneWidget,
+                reason: 'C: the combined picker is not showing its date step '
+                    'at $at, so every assertion below is about nothing');
+            // **The defect the goldens found and this file used to miss.**
+            // « 11/03/2026 » has no space to break at, so a chip too narrow
+            // for it splits the number itself.
+            expectNoMidWordBreak(tester, '11/03/2026', at);
+          } else {
+            expect(find.text('Heures'), findsOneWidget,
+                reason: 'C: $name is not on screen at $at, so every assertion '
+                    'below would be about nothing');
+            expectTokensWhole(tester, namedTokens, at);
+          }
 
-        expectTokensWhole(tester, namedTokens, at);
-        expectNoUndeclaredTruncation(tester, context: 'time picker at $at');
-        expectNoLegibilityCrush(tester, context: 'time picker at $at');
-        expectNoVerticalClip(tester, context: 'time picker at $at');
-        expect(tester.takeException(), isNull, reason: 'A: $at');
-      });
+          if (name == 'the range picker') {
+            // Both halves visible at once is the reason this control exists.
+            expectNoMidWordBreak(tester, 'Heure de début', at);
+            expectNoMidWordBreak(tester, 'Heure de fin', at);
+          }
+
+          expectNoUndeclaredTruncation(tester, context: '$name at $at');
+          expectNoLegibilityCrush(tester, context: '$name at $at');
+          expectNoVerticalClip(tester, context: '$name at $at');
+          expect(tester.takeException(), isNull, reason: 'A: $at');
+        });
+      }
     }
   }
 }

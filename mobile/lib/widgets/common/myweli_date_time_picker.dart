@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import 'app_button.dart';
 import 'myweli_date_picker.dart';
@@ -197,18 +196,23 @@ class _MyweliDateTimePickerScreenState
               ? () => setState(() => _onTimeStep = false)
               : () => Navigator.of(context).pop(),
         ),
-        title: Text(widget.helpText ?? 'Choisir la date et l’heure'),
+        // **Short on purpose.** Flutter clamps an `AppBar` title's scale and
+        // never wraps it, so a long one ellipsises: the golden at 2× showed
+        // « Choisir la date et… ». « Date et heure » fits at both scales, and a
+        // title the user cannot finish reading is the same defect §13.3 names
+        // everywhere else.
+        title: Text(widget.helpText ?? 'Date et heure'),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            _StepSummary(
-              date: _date,
-              hour: _hour,
-              minute: _minute,
-              onTimeStep: _onTimeStep,
-              onEditDate: () => setState(() => _onTimeStep = false),
-              onEditTime: () => setState(() => _onTimeStep = true),
+            MyweliPickerChipPair(
+              leftLabel: 'Date',
+              leftValue: Formatters.formatDateShort(_date),
+              rightLabel: 'Heure',
+              rightValue: Formatters.formatHourMinute(_hour, _minute),
+              rightActive: _onTimeStep,
+              onPick: (time) => setState(() => _onTimeStep = time),
             ),
             if (!_onTimeStep)
               Expanded(
@@ -251,112 +255,6 @@ class _MyweliDateTimePickerScreenState
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The two answers so far, either of which is one tap from being changed.
-class _StepSummary extends StatelessWidget {
-  const _StepSummary({
-    required this.date,
-    required this.hour,
-    required this.minute,
-    required this.onTimeStep,
-    required this.onEditDate,
-    required this.onEditTime,
-  });
-
-  final DateTime date;
-  final int hour;
-  final int minute;
-  final bool onTimeStep;
-  final VoidCallback onEditDate;
-  final VoidCallback onEditTime;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      child: Row(
-        children: [
-          Expanded(
-            child: _StepChip(
-              label: 'Date',
-              value: Formatters.formatDateShort(date),
-              active: !onTimeStep,
-              onTap: onEditDate,
-            ),
-          ),
-          const SizedBox(width: AppTheme.spacingS),
-          Expanded(
-            child: _StepChip(
-              label: 'Heure',
-              value: Formatters.formatHourMinute(hour, minute),
-              active: onTimeStep,
-              onTap: onEditTime,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepChip extends StatelessWidget {
-  const _StepChip({
-    required this.label,
-    required this.value,
-    required this.active,
-    required this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: active,
-      label: '$label, $value',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          // Padding, never a height: the two lines inside grow with the scale
-          // and the chip has to grow with them (§13.3).
-          padding: const EdgeInsets.all(AppTheme.spacingSM),
-          decoration: BoxDecoration(
-            color: active ? AppColors.primary : AppColors.secondary,
-            border: Border.all(
-              color: active ? AppColors.primary : AppColors.borderStrong,
-            ),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-          child: ExcludeSemantics(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color:
-                        active ? AppColors.secondary : AppColors.textTertiary,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: active ? AppColors.secondary : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

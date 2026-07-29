@@ -398,13 +398,19 @@ class _MyweliTimeRangePickerScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _RangeChips(
-              startLabel: widget.startLabel,
-              endLabel: widget.endLabel,
-              startMinutes: _startMinutes,
-              endMinutes: _endMinutes,
-              editingEnd: _editingEnd,
-              onEdit: _setEditing,
+            _PickerChipPair(
+              leftLabel: widget.startLabel,
+              leftValue: Formatters.formatHourMinute(
+                _startMinutes ~/ TimeOfDay.minutesPerHour,
+                _startMinutes % TimeOfDay.minutesPerHour,
+              ),
+              rightLabel: widget.endLabel,
+              rightValue: Formatters.formatHourMinute(
+                _endMinutes ~/ TimeOfDay.minutesPerHour,
+                _endMinutes % TimeOfDay.minutesPerHour,
+              ),
+              rightActive: _editingEnd,
+              onPick: _setEditing,
             ),
             Expanded(
               child: MyweliTimeWheels(
@@ -445,72 +451,88 @@ TimeOfDay _toTimeOfDay(int minutes) => TimeOfDay(
       minute: minutes % TimeOfDay.minutesPerHour,
     );
 
-/// « Début 09:00 » | « Fin 17:00 » — both values visible, one of them active.
-class _RangeChips extends StatelessWidget {
-  const _RangeChips({
-    required this.startLabel,
-    required this.endLabel,
-    required this.startMinutes,
-    required this.endMinutes,
-    required this.editingEnd,
-    required this.onEdit,
+/// Two labelled values side by side, one of them active — « Début 09:00 » next
+/// to « Fin 17:00 », or « Date 11/03/2026 » next to « Heure 14:30 ».
+///
+/// **Shared, because the range picker and the combined picker had written it
+/// twice**, in two files, identically. Two copies of a control is how A13's
+/// plural rule ended up with four spellings that disagreed at one value.
+///
+/// **It is a `Wrap`, not a `Row` of `Expanded`s, and the goldens are why.**
+/// Half a 360dp screen is ~156dp. « 11/03/2026 » at `titleMedium` × 2× needs
+/// **172.3dp** and has no space to break at, so the chip split the number
+/// itself: « 11/03/2 » on one line and « 026 » on the next. §13.3 forbids a
+/// mid-word break outright, and a date is one token.
+///
+/// A `Wrap` sizes each chip to its content and drops the second onto a new row
+/// when both no longer fit — *wrap, not scroll*, the same answer B9 and B11
+/// took. It also removes a second defect the pictures showed: with `Expanded`,
+/// a label that wrapped made one chip taller than its neighbour.
+class _PickerChipPair extends StatelessWidget {
+  const _PickerChipPair({
+    required this.leftLabel,
+    required this.leftValue,
+    required this.rightLabel,
+    required this.rightValue,
+    required this.rightActive,
+    required this.onPick,
   });
 
-  final String startLabel;
-  final String endLabel;
-  final int startMinutes;
-  final int endMinutes;
-  final bool editingEnd;
-  final ValueChanged<bool> onEdit;
+  final String leftLabel;
+  final String leftValue;
+  final String rightLabel;
+  final String rightValue;
+  final bool rightActive;
+  final ValueChanged<bool> onPick;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(AppTheme.spacingM),
-      child: Row(
-        children: [
-          Expanded(
-            child: _RangeChip(
-              label: startLabel,
-              minutes: startMinutes,
-              active: !editingEnd,
-              onTap: () => onEdit(false),
+      // `Align` so the pair fills the row and starts at the left edge. Without
+      // it the `Wrap` shrink-wraps and the enclosing `Column` centres it, which
+      // the 2× golden showed as two stacked chips floating in the middle of the
+      // screen while every other element was left-aligned.
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: AppTheme.spacingS,
+          runSpacing: AppTheme.spacingS,
+          children: [
+            _PickerChip(
+              label: leftLabel,
+              value: leftValue,
+              active: !rightActive,
+              onTap: () => onPick(false),
             ),
-          ),
-          const SizedBox(width: AppTheme.spacingS),
-          Expanded(
-            child: _RangeChip(
-              label: endLabel,
-              minutes: endMinutes,
-              active: editingEnd,
-              onTap: () => onEdit(true),
+            _PickerChip(
+              label: rightLabel,
+              value: rightValue,
+              active: rightActive,
+              onTap: () => onPick(true),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _RangeChip extends StatelessWidget {
-  const _RangeChip({
+class _PickerChip extends StatelessWidget {
+  const _PickerChip({
     required this.label,
-    required this.minutes,
+    required this.value,
     required this.active,
     required this.onTap,
   });
 
   final String label;
-  final int minutes;
+  final String value;
   final bool active;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final value = Formatters.formatHourMinute(
-      minutes ~/ TimeOfDay.minutesPerHour,
-      minutes % TimeOfDay.minutesPerHour,
-    );
     return Semantics(
       button: true,
       selected: active,
@@ -519,12 +541,9 @@ class _RangeChip extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          // No fixed height: the column below grows with the scale and so does
-          // this. `padding` is the whole vertical dimension on purpose.
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingSM,
-            vertical: AppTheme.spacingSM,
-          ),
+          // No fixed height and no fixed width: both dimensions come from the
+          // text, which is what lets the `Wrap` above make the reflow decision.
+          padding: const EdgeInsets.all(AppTheme.spacingSM),
           decoration: BoxDecoration(
             color: active ? AppColors.primary : AppColors.secondary,
             border: Border.all(
@@ -556,6 +575,40 @@ class _RangeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The chip pair, for the combined picker in the sibling file.
+///
+/// A thin public alias rather than making `_PickerChipPair` public directly:
+/// the two callers pass different things (times vs a date and a time), and the
+/// shared widget takes strings so neither has to know about the other's types.
+class MyweliPickerChipPair extends StatelessWidget {
+  const MyweliPickerChipPair({
+    super.key,
+    required this.leftLabel,
+    required this.leftValue,
+    required this.rightLabel,
+    required this.rightValue,
+    required this.rightActive,
+    required this.onPick,
+  });
+
+  final String leftLabel;
+  final String leftValue;
+  final String rightLabel;
+  final String rightValue;
+  final bool rightActive;
+  final ValueChanged<bool> onPick;
+
+  @override
+  Widget build(BuildContext context) => _PickerChipPair(
+        leftLabel: leftLabel,
+        leftValue: leftValue,
+        rightLabel: rightLabel,
+        rightValue: rightValue,
+        rightActive: rightActive,
+        onPick: onPick,
+      );
 }
 
 /// « 14:30 », so the value is legible without decoding two highlighted rows.
