@@ -183,10 +183,19 @@ children of a `nowrap` flex row and compare with the row.
 Its first draft also called `getComputedStyle` on every node of a pro page,
 which cost enough to push **sibling spec files** past the 30s timeout — visible
 as two unrelated tests flaking on two consecutive full runs, each passing alone.
-Confirmed against the pre-change tree (109/109 green) rather than assumed, and
-fixed by filtering on `childElementCount >= 2` first — which is also the correct
-filter, since a row needs two items to be a strip. Three consecutive green full
-runs after.
+Fixed by filtering on `childElementCount >= 2` first — which is also the correct
+filter, since a row needs two items to be a strip.
+
+**And the flakes that remained are NOT this slice's**, which took three baselines
+to establish rather than one. The first comparison was invalid (a `git stash`
+after B9 was already committed reverts nothing), the second measured the branch
+against itself. Restoring `web/` to `main` and running three times gives
+**1 failed · 1 failed · 109 passed** — a *different* error (`toHaveURL`) from the
+branch's (`toHaveAttribute`), at the same rate. **The e2e suite is pre-existing
+flaky at roughly 2-in-3**, and `retries: process.env.CI ? 1 : 0` is why that has
+never been visible: CI retries once and the second attempt usually passes.
+Recorded as a new row rather than absorbed here — a flaky suite is a gate that
+reports on the weather, and it deserves its own slice.
 
 ## 8. Definition of done
 
