@@ -469,14 +469,21 @@ export function BookingFlow({
   // ---- HUB ---------------------------------------------------------------
   return (
     <div
+      // B11 removed the SECOND arbitrary value that used to sit on this line.
+      // The comment below claimed the grid template was "not a token either" —
+      // but `grid-cols-desk` is precisely that rail (`minmax(0, 1fr) 20rem`),
+      // added to stop this exact duplication, and `AujourdhuiClient.tsx:148`
+      // was already using it. Two names for one layout, one written `320px` and
+      // one `20rem`, is the drift the token exists to prevent — and the px half
+      // stopped tracking the root font size while the content beside it did.
+      //
       // ds-ignore: clears the pinned bottom bar. 6rem, NOT 96px — `pb-24` was
       // 6rem, and the bar it clears is TEXT-driven, so a px clearance stops
       // tracking the root font size: raise it and the bar grows while the gap
-      // does not, and the bar covers the content (SYSTEM.md §13.3 — A5's lesson,
-      // on the web). 96 is off the rhythm scale, hence the exception. The grid
-      // template is a layout ratio + a fixed side panel — not a token either.
+      // does not, and the bar covers the content (SYSTEM.md §13.3 — A5's
+      // lesson, on the web). 96 is off the rhythm scale, hence the exception.
       // eslint-disable-next-line tailwindcss/no-arbitrary-value
-      className="pb-[6rem] lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-l lg:pb-0"
+      className="pb-[6rem] lg:grid lg:grid-cols-desk lg:items-start lg:gap-l lg:pb-0"
     >
       <div className="space-y-s">
         {/* PRESTATIONS */}

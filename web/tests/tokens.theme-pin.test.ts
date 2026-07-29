@@ -287,7 +287,16 @@ describe('every arbitrary value is DECLARED (WEB-SYSTEM §2)', () => {
         // The reason sits ABOVE the directive, because `-next-line` binds to the
         // line that follows it — a reason on the same line would push the
         // directive away from the class it exempts.
-        const window = lines.slice(Math.max(0, i - 6), i + 1).join('\n');
+        //
+        // **10 lines, widened from 6 by B11**, which hit the old limit twice in
+        // one slice: correcting the switch knob's arithmetic (it was stated in
+        // px against three rem operands) and retiring a duplicated grid rail
+        // both took more than six lines to explain honestly. The rule's purpose
+        // is that an exception carries a REASON; a window that rejects a reason
+        // for being thorough teaches people to write shorter ones, not better
+        // ones. Widening is strictly more permissive, so nothing already
+        // declared can break.
+        const window = lines.slice(Math.max(0, i - 10), i + 1).join('\n');
         if (!/ds-ignore:\s*\S/.test(window)) offenders.push(`${f.rel}:${i + 1}`);
       });
     }

@@ -517,6 +517,17 @@ const AUTHED_ROUTES: Route[] = [
     anchor: 'Notifications',
     auth: 'consumer',
   },
+  {
+    // The planning census called `AvisClient.tsx:108`'s `min-w-56` (224px) the
+    // ONE uncontained hard floor in the product. Measured here rather than
+    // argued: its parent `Card` is `flex flex-wrap`, so the list wraps onto its
+    // own line and 224 fits the ~240 a 320 viewport leaves. The census read the
+    // child and not the parent.
+    name: 'the pro reviews — the 224px distribution list the census flagged',
+    url: '/pro/avis',
+    anchor: 'Avis',
+    auth: 'pro',
+  },
 ];
 
 for (const vp of VIEWPORTS) {

@@ -14,7 +14,11 @@ export function Faq({
       <div className="mt-m divide-y divide-divider">
         {items.map((it) => (
           <details key={it.question} className="py-s">
-            <summary className="cursor-pointer font-medium text-textPrimary">
+            {/* B11 closes §15 row 26: this `<summary>` measured ≈35px against
+                SYSTEM.md §13.2's 48px floor — a survivor of row 7h's "0
+                remaining", which is now wrong for the fifth time. `flex` because
+                a bare `min-h` on a `<summary>` does not centre its marker. */}
+            <summary className="flex min-h-12 cursor-pointer items-center font-medium text-textPrimary">
               {it.question}
             </summary>
             <p className="mt-xs text-bodyLarge text-textSecondary">{it.answer}</p>

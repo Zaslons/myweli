@@ -117,7 +117,13 @@ export function ClientsClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Clients</h1>
         <Button onClick={() => setAdding(true)}>+ Ajouter un client</Button>
       </div>
