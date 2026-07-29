@@ -157,7 +157,13 @@ export function EquipeClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Équipe</h1>
         <Button onClick={() => setInviteOpen(true)}>+ Inviter un membre</Button>
       </div>
@@ -229,7 +235,13 @@ export function EquipeClient() {
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surfaceVariant text-labelMedium font-medium text-textSecondary">
                     {initials(m.email)}
                   </span>
-                  <span className="min-w-0 truncate text-textPrimary">{m.email}</span>
+                  {/* B11: this e-mail is the row's ONLY identity — the ⋯ menu
+                      repeats it in an `aria-label` and nowhere on screen. It was
+                      being cut from 213px to 108 at every viewport including
+                      375, so the roster showed « proprietaire@beaute-div… » and
+                      called it a name. `break-all` because an address has no
+                      spaces to wrap on. */}
+                  <span className="min-w-0 break-all text-textPrimary">{m.email}</span>
                 </div>,
                 <TeamRoleChip key="role" role={m.role as TeamRole} />,
                 <span key="artist" className="text-textSecondary">

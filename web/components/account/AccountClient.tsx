@@ -155,7 +155,14 @@ export function AccountClient() {
   return (
     <div>
       <section className="rounded-xl border border-border bg-secondary p-m">
-        <div className="flex items-center justify-between">
+        {/* B11: both identity rows in this section are `justify-between` with a
+            value on the left and « Modifier » on the right, and neither could
+            wrap or had ANY gap — so at 320 the phone row measured 262 of 254
+            and the two items could touch at any width. `gap-s` is also
+            SYSTEM.md §13.2's ≥8px adjacency floor, which a bare
+            `justify-between` never guaranteed. This row is the latent twin: it
+            did not fire, because the seeded name is shorter than the phone. */}
+        <div className="flex flex-wrap items-center justify-between gap-s">
           <div>
             {editingName ? (
               <div className="flex flex-wrap items-center gap-s">
@@ -243,7 +250,7 @@ export function AccountClient() {
               ) : null}
             </div>
           ) : (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-s">
               <div>
                 <p className="text-bodyMedium text-textPrimary">
                   {me?.phoneNumber ?? 'Aucun numéro de contact'}

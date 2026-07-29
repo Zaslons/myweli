@@ -102,7 +102,13 @@ export function CatalogueClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Catalogue</h1>
         {open !== 'new' ? (
           <Button onClick={() => setOpen('new')}>{addLabel}</Button>
@@ -151,7 +157,10 @@ export function CatalogueClient() {
                 { label: 'Actions', flex: 1, align: 'right' },
               ],
               (sv) => [
-                <span key="n" className="min-w-0 truncate font-medium text-textPrimary">
+                // B11: the service name is what the row IS, and the table view
+                // shows it nowhere else — you had to open the inline editor to
+                // read a name the table had cut. It wraps.
+                <span key="n" className="min-w-0 break-words font-medium text-textPrimary">
                   {sv.name}
                 </span>,
                 <span key="d" className="text-textSecondary">

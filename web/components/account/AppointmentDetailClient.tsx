@@ -161,7 +161,13 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ← Mes rendez-vous
       </Link>
       <section className="mt-m rounded-xl border border-border bg-secondary p-l">
-        <div className="flex items-center justify-between gap-m">
+        {/* B11: the fifth and sixth copies of this shape, and the two that
+            matter most — the heading here is a SALON NAME, unbounded user
+            data, sitting beside a status chip with nothing allowed to
+            wrap. The four fixed earlier all hold fixed page titles. The
+            review caught these; the census had listed them under "button
+            clusters" rather than title toolbars. */}
+        <div className="flex flex-wrap items-center justify-between gap-m">
           <h1 className="text-titleLarge font-semibold text-textPrimary">
             {appt.providerName ?? 'Salon'}
           </h1>

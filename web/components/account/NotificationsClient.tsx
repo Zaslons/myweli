@@ -134,7 +134,13 @@ export function NotificationsClient() {
       <Link href="/mon-compte" className="text-bodyMedium text-textTertiary">
         ← Mon compte
       </Link>
-      <div className="mt-s flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="mt-s flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">
           Notifications
         </h1>
@@ -234,12 +240,18 @@ export function NotificationsClient() {
                   }`}
                 >
                   <span
-                    // ds-ignore: the knob's travel is exact geometry, not spacing: track w-11 (44) − knob
-                    // w-5 (20) − left-0.5 (2) = 22. Any token snap misplaces it. (The switch stays
-                    // hand-rolled — §10 specs no Switch primitive; B4 fixed its target + label in place.)
+                    // ds-ignore: the knob's travel is exact geometry, not spacing — and B11 had to
+                    // fix the ARITHMETIC, not just the unit. It read "track w-11 (44) − knob w-5 (20)
+                    // − left-0.5 (2) = 22" and wrote `left-[22px]`, but all three of those operands
+                    // are REM (`tailwind.config.ts` sources the sizing keys from Tailwind's default
+                    // scale). The sum is only 22px at a 16px root; at Chrome's "Very large" (24px)
+                    // the correct travel is 33 and the knob stopped a third of the way across a
+                    // track that had grown around it. In rem the identity holds at every root:
+                    // 2.75 − 1.25 − 0.125 = 1.375rem. (The switch stays hand-rolled — §10 specs no
+                    // Switch primitive; B4 fixed its target + label in place.)
                     // eslint-disable-next-line tailwindcss/no-arbitrary-value
                     className={`absolute top-0.5 h-5 w-5 rounded-pill bg-secondary shadow transition-all ${
-                      prefs[row.key] ? 'left-[22px]' : 'left-0.5'
+                      prefs[row.key] ? 'left-[1.375rem]' : 'left-0.5'
                     }`}
                   />
                 </span>

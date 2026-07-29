@@ -731,6 +731,27 @@ sets 200% has told the system they cannot read the default; a layout that clips 
   overflow — **and across §10's whole compact range**, not at one width
   (`test/a11y/layout_test.dart`).
 
+**On the web, the same rule has a different unit and a different number**
+([WEB-SYSTEM §9 — Text scale & reflow](WEB-SYSTEM.md#text-scale--reflow-wcag-1410)).
+A browser has two independent inputs where the OS has one: a **font-size
+preference**, which moves text only, and **page zoom**, which scales the CSS
+pixel and therefore the viewport too. So the web standard is **WCAG 1.4.10
+Reflow** and it is stated as a width — **320 CSS px** — rather than as a
+multiplier, because a multiplier cannot describe zoom. Three differences worth
+knowing before porting a rule across:
+
+- **`overflow: visible` does not clip.** A web box paints its excess *outside*
+  itself, so the vertical-clip predicate is `overflow-y: hidden|clip`, not
+  "content taller than box". Porting this section's twin literally would fire on
+  every long page.
+- **Declared truncation is still a loss.** Flutter's ellipsis and CSS's are the
+  same decision, and 1.4.10 does not care that it was intentional — so the web
+  requires a written reason per site (`// clip-ok:`) rather than treating an
+  ellipsis as an opt-out.
+- **There is no golden harness on the web.** §20.1's "look at the 2× pictures" —
+  which is how rows 62 and 69 were found — has no web equivalent; every web
+  finding comes from computed geometry.
+
 ### 13.4 Semantics (screen readers)
 
 TalkBack and VoiceOver read the **semantics tree**, not the pixels. Today the

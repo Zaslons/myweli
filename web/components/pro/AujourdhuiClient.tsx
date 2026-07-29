@@ -182,7 +182,11 @@ export function AujourdhuiClient() {
               across ALL dates from DashboardStats — a salon with Monday
               requests must not read « 0 » on Friday. Today-only fallback
               while the best-effort stats call is out (or failed). */}
-          <div className="mt-l grid grid-cols-3 gap-m xl:grid-cols-1">
+          {/* B11: `grid-cols-3` gave each tile ~46px of the 320 viewport (and 64
+              of 375) for French labels like « Demandes en attente » — measured
+              spilling at BOTH widths, on a route this gate had never opened.
+              Stacked below `sm`; three across once there is room. */}
+          <div className="mt-l grid grid-cols-1 gap-m sm:grid-cols-3 xl:grid-cols-1">
             <Stat
               label="Demandes en attente"
               value={stats?.pendingRequests ?? counts.pending}
@@ -194,7 +198,7 @@ export function AujourdhuiClient() {
           {/* The money row needs finances.view — the server drops the revenue
               fields for other roles, so rendering it would show a lying 0 F. */}
           {hasCap(m, 'finances.view') ? (
-            <div className="mt-m grid grid-cols-3 gap-m xl:grid-cols-1">
+            <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-3 xl:grid-cols-1">
               <Stat
                 label="Revenus aujourd’hui"
                 value={stats ? formatFcfa(stats.todayRevenue ?? 0, currency) : '—'}

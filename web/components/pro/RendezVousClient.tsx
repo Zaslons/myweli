@@ -191,7 +191,13 @@ export function RendezVousClient() {
       {view === 'journal' ? (
         <div className="mt-m">
           <div className="flex flex-wrap items-center justify-between gap-s">
-            <div className="flex items-center gap-s">
+            {/* B11: `flex-wrap` is the reflow fix. Four controls — ‹, a 16px
+                `type="date"` field whose intrinsic width the UA owns, ›, and
+                « Aujourd'hui » — measured 312px of the 272 available at 320,
+                pushing the whole page sideways. The parent row already wraps;
+                this one did not, so it spilled instead. Wrapping is the same
+                answer B9 gave the tab strips, one level down. */}
+            <div className="flex flex-wrap items-center gap-s">
               <button
                 type="button"
                 aria-label="Jour précédent"
