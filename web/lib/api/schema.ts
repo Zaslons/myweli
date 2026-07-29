@@ -3817,7 +3817,7 @@ export interface paths {
         };
         /**
          * The journal day view in ONE payload (module journal J1)
-         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientNoShowCount / arrivedAt. OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a) receive their own artist's column and bookings only, and `clientPhone` is masked on any day other than today (the same-day contact rule). The `date` names a calendar day in the SALON's timezone (multi-pays MP1). Design: docs/design/journal-j1-grid.md.
+         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientDisplayName / clientNoShowCount / arrivedAt. OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a) receive their own artist's column and bookings only, and BOTH `clientPhone` AND `clientDisplayName` are masked on any day other than today (the same-day contact rule; A13 widened it to the name, because a member browsing days they do not work would otherwise rebuild the salon's client list one date at a time). The `date` names a calendar day in the SALON's timezone (multi-pays MP1). Design: docs/design/journal-j1-grid.md.
          */
         get: {
             parameters: {
@@ -3919,7 +3919,7 @@ export interface paths {
         };
         /**
          * List the caller's appointments (B-appt)
-         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it acts in (owner link or active membership). OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access R4a) get their own artist's bookings only, with `clientPhone` masked off-day. A provider account with no salon and no active membership gets 403. R6: a provider `?salonId=` selects among the caller's ACTIVE memberships (invalid → uniform 403, T55).
+         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it acts in (owner link or active membership). OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access R4a) get their own artist's bookings only, with `clientPhone` and `clientDisplayName` (A13) masked off-day. A provider account with no salon and no active membership gets 403. R6: a provider `?salonId=` selects among the caller's ACTIVE memberships (invalid → uniform 403, T55).
          */
         get: {
             parameters: {
@@ -6047,7 +6047,10 @@ export interface components {
             depositAmount?: number;
             balanceDue?: number;
             cancellationWindowHours?: number;
+            /** @description The name the SALON typed, on a manually-created booking. NULL for every app-originated booking — the app already knows who the user is. The CONSUMER booking list gates its « Réservé par votre salon » badge on this being non-null, so it must not be repurposed as "the client's name"; `clientDisplayName` is that. */
             clientName?: string | null;
+            /** @description Who the booking is for, as the salon should see it — resolved from the salon's own client record (`salon_clients.display_name`), which is written at booking time and anonymised to « Client » when the user erases their account. Provider-facing reads only. **Masked together with `clientPhone` on off-day bookings for an own-scope Collaborateur** (BACKEND.md T40/R4a), so a restricted member cannot reconstruct the client base by browsing dates. */
+            clientDisplayName?: string | null;
             clientPhone?: string | null;
             notes?: string | null;
             depositScreenshotUrl?: string | null;

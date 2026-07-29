@@ -715,7 +715,7 @@ class _TimelineCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        appt.clientName ?? 'Client',
+                        appt.clientDisplayName ?? appt.clientName ?? 'Client',
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodyLarge.copyWith(
                           color: AppColors.textPrimary,
@@ -744,7 +744,11 @@ class _TimelineCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${appt.serviceIds.length} prestation(s)',
+                  Formatters.count(
+                    appt.serviceIds.length,
+                    'prestation',
+                    'prestations',
+                  ),
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),

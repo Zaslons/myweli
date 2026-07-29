@@ -43,8 +43,8 @@ Future<String?> showMockImagePicker(BuildContext context) {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
+            mainAxisSpacing: AppTheme.spacingSM,
+            crossAxisSpacing: AppTheme.spacingSM,
             children: _sampleImages.map((url) {
               return GestureDetector(
                 onTap: () => Navigator.pop(ctx, url),

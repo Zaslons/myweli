@@ -150,7 +150,7 @@ class _Pager extends StatelessWidget {
       padding: const EdgeInsets.only(top: AppTheme.spacingM),
       child: Row(
         children: [
-          Text('${provider.total} entrée(s)',
+          Text(Formatters.count(provider.total, 'entrée', 'entrées'),
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textTertiary)),
           const Spacer(),

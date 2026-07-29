@@ -196,7 +196,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           Expanded(
             child: _summaryMetric(
               '${visits.length}',
-              visits.length == 1 ? 'visite' : 'visites',
+              // A13 — `== 1` printed « 0 visites »; French puts zero in
+              // the singular. The number renders separately here, so this is
+              // the noun-only helper.
+              Formatters.plural(visits.length, 'visite', 'visites'),
             ),
           ),
           const SizedBox(width: AppTheme.spacingM),

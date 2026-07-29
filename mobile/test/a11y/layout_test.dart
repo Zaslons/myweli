@@ -337,6 +337,29 @@ void main() {
         _expectHeadingIsWhole(tester, 'Mes favoris', at);
         _expectActionIsTappable(tester, 'Voir tout', at);
         _expectActionIsTappable(tester, 'Voir la carte', at);
+        // A13, §21 row 62 — **the story-card titles are CONTROL labels.** Each
+        // card is `Semantics(button: true)` + `InkWell(onTap:)` and the title is
+        // the control's accessible name (`announcement_stories.dart:133-137`),
+        // so §13.3's "any control's label" already forbade the break. Row 62
+        // filed both open items as "headings" and left them to a slice that
+        // would decide whether a heading may break — one of them was never that
+        // question.
+        //
+        // All three are named, not just the one C7 photographed: measured
+        // against the SDK's Roboto, the 64dp unseen box loses `Week‑End` above
+        // **1.20×**, `Nouveau` above 1.38× and `Dernière` above 1.43×. So a
+        // 1.3× branch would arrive late, and replacing the U+2011 in
+        // « Promo Week‑End » would fix one of three.
+        //
+        // The hyphen is U+2011 (NON-BREAKING) and `expectNoMidWordBreak` splits
+        // on `\s+`, so `Week‑End` is correctly one 8-glyph token to the gate.
+        for (final title in const [
+          'Promo Week\u2011End',
+          'Nouveau salon',
+          'Dernière minute',
+        ]) {
+          expectNoMidWordBreak(tester, title, at);
+        }
         expectNoUndeclaredTruncation(tester, context: 'consumer home at $at');
         expectNoLegibilityCrush(tester, context: 'consumer home at $at');
         expectNoVerticalClip(tester, context: 'consumer home at $at');
@@ -380,6 +403,16 @@ void main() {
         // §13.3, A11 C8: « Appeler » is one word and a 1:2 split left it 81dp
         // against the ~105 it wants at 2×, so the button read « Appel » / « er ».
         expectNoMidWordBreak(tester, 'Appeler', at);
+        // A13, §21 row 62's other open item — and the one that IS the heading
+        // question the row deferred. §13.3 named "a salon name" as a permitted
+        // mid-word break; A13 decides otherwise, because a salon's name is what
+        // identifies the business and « Salon Ex / cellence » is not a name.
+        //
+        // The header gives it `W − 24 − 72 (logo) − 16 − 24` = **224dp at 360**
+        // and `Excellence` wants **270.3 at 2×**, so it breaks above 1.66× /
+        // 1.77× / 1.88× at the three widths — the ≈1.95× device photo is that
+        // arithmetic, not a coincidence.
+        expectNoMidWordBreak(tester, 'Salon Excellence', at);
         expectNoUndeclaredTruncation(tester, context: 'the salon page at $at');
         expectNoLegibilityCrush(tester, context: 'the salon page at $at');
         expectNoVerticalClip(tester, context: 'the salon page at $at');

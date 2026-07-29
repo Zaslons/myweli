@@ -568,6 +568,18 @@ class MockData {
   // [resetTeam]: clear the list, refill it from the seed.
   static final List<Appointment> appointments = _seedAppointments();
 
+  /// A13. These four seeded **no client name at all**, which is why
+  /// `pro_journal_day.png` and `pro_appointment_list_w360.png` both photograph
+  /// four rows reading « Client » — the mock faithfully reproduced the backend
+  /// bug (`booking_service.dart` writes `clientName: null` for every
+  /// app-originated booking) and the goldens recorded it as if it were the
+  /// design.
+  ///
+  /// `clientDisplayName` is what the backend now resolves from the salon's own
+  /// client record, so the mock sets the same thing: the name of the user who
+  /// actually made the booking. `clientName` stays null — these are app
+  /// bookings, not salon-entered ones, and the « Réservé par votre salon » badge
+  /// must keep meaning what it says.
   static List<Appointment> _seedAppointments() => [
         Appointment(
           id: 'appointment1',
@@ -577,6 +589,7 @@ class MockData {
           appointmentDate: AppClock.now().add(const Duration(days: 2)),
           status: AppointmentStatus.confirmed,
           totalPrice: 5000,
+          clientDisplayName: 'Jean Kouassi',
           createdAt: AppClock.now().subtract(const Duration(days: 1)),
         ),
         Appointment(
@@ -587,6 +600,7 @@ class MockData {
           appointmentDate: AppClock.now().add(const Duration(days: 5)),
           status: AppointmentStatus.pending,
           totalPrice: 15000,
+          clientDisplayName: 'Jean Kouassi',
           createdAt: AppClock.now().subtract(const Duration(hours: 2)),
         ),
         // Completed booking so user1 can see "Donner mon avis" on Salon Excellence (provider1)
@@ -598,6 +612,7 @@ class MockData {
           appointmentDate: AppClock.now().subtract(const Duration(days: 10)),
           status: AppointmentStatus.completed,
           totalPrice: 5000,
+          clientDisplayName: 'Jean Kouassi',
           createdAt: AppClock.now().subtract(const Duration(days: 15)),
         ),
         // Completed booking so user2 can see "Donner mon avis" on Beauté Divine (provider2)
@@ -609,6 +624,7 @@ class MockData {
           appointmentDate: AppClock.now().subtract(const Duration(days: 7)),
           status: AppointmentStatus.completed,
           totalPrice: 15000,
+          clientDisplayName: 'Marie Diallo',
           createdAt: AppClock.now().subtract(const Duration(days: 10)),
         ),
       ];

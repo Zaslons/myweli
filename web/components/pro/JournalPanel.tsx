@@ -10,7 +10,7 @@ import {
   proAction,
   rescheduleAppointment,
 } from '../../lib/api/pro';
-import { formatDateTimeFr, formatFcfa } from '../../lib/format';
+import { countFr, formatDateTimeFr, formatFcfa } from '../../lib/format';
 import type { SalonClientCard } from '../../lib/pro/clients';
 import { maskPhone, noShowBadge, noShowLabel } from '../../lib/pro/clients';
 import { hhmm, minutesOfDay, statusKey } from '../../lib/pro/journal';
@@ -117,7 +117,7 @@ export function JournalPanel({
         {/* Client */}
         <div>
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientName ?? 'Client'}
+            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
               <Chip
                 variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
@@ -136,9 +136,9 @@ export function JournalPanel({
           {card ? (
             <div className="mt-s rounded-lg bg-surface p-s text-bodySmall text-textSecondary">
               <div className="flex justify-between">
-                <span>{card.stats.visits} visites</span>
+                <span>{countFr(card.stats.visits, 'visite', 'visites')}</span>
                 <span>{formatFcfa(card.stats.spentFcfa, currency)}</span>
-                <span>{card.stats.noShows} absences</span>
+                <span>{countFr(card.stats.noShows, 'absence', 'absences')}</span>
               </div>
               {card.notes[0] ? (
                 <p className="mt-xs truncate text-textTertiary">

@@ -177,12 +177,42 @@ void main() {
       //
       // `\b` keeps this off `letterSpacing:`/`wordSpacing:` twice over — those
       // capitalise the S, and there is no word boundary before it either.
+      //
+      // **A13, §21 row 71 — and the same `\b` was the hole.** It cannot fire
+      // inside `crossAxisSpacing`/`mainAxisSpacing` either, so a grid's gaps
+      // were invisible to a sweep §20 called complete. A12 converted the pro
+      // dashboard's two in passing; a proper sweep returns **six**, and four of
+      // them are `10` — not a token at all (the scale is 4/8/12/16/24/32/48/64).
+      //
+      // **The obvious widening is a trap.** `[A-Za-z]*[Ss]pacing:` reds on
+      // **seven `letterSpacing:` lines** inside this very corpus — i.e. it
+      // "closes" the gap by reintroducing the exact bug the `\b` was written
+      // against. So the pattern names the compounds explicitly instead.
+      //
+      // `\s*` rather than a literal space closes a second hole while we are
+      // here: a wrapped argument (`spacing:\n    10`) evaded the old form too.
+      // Measured: zero sites exploit it today, so this is prevention, not a fix.
       expect(
-        offenders(RegExp(r'\b(?:run)?[Ss]pacing: \d')),
+        offenders(RegExp(r'(?:\b(?:run)?|(?:cross|main)Axis)[Ss]pacing:\s*\d')),
         isEmpty,
         reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64) for Wrap and '
             'Flex gaps too. A gap is spacing whether it is written as a '
-            'SizedBox between children or as the parent’s `spacing:`.',
+            'SizedBox between children or as the parent’s `spacing:`, or as a '
+            'grid delegate’s crossAxisSpacing/mainAxisSpacing.',
+      );
+    });
+
+    // A13. The §5 spacing sweep above had **no non-empty guard of its own** —
+    // it borrowed the credibility of the `childAspectRatio` and animation pins,
+    // which do have one, from the same `group`. A pin that silently scans an
+    // empty corpus is §21 row 67's failure mode, and the two tests that would
+    // have caught it are not this test.
+    test('the §5 spacing sweep is scanning a real corpus', () {
+      expect(
+        dartFiles.length,
+        greaterThan(100),
+        reason: 'the spacing pin is scanning an empty or truncated file set, '
+            'so its green means nothing',
       );
     });
 
@@ -613,6 +643,37 @@ void main() {
         reason: "use ’ (U+2019), not \\'. Both shipped, sometimes in adjacent "
             'files. It also removes the escape, which is why the strings get '
             'shorter rather than longer.',
+      );
+    });
+
+    // §17.1's third rule (A13, §21 row 41).
+    //
+    // « 1 prestation(s) » is an ENGLISH habit. French writes « 1 prestation »
+    // and « 2 prestations », and the choice is not stylistic — the parenthetical
+    // is simply not a French form.
+    //
+    // **Why this belongs in §17.1 and not in a style guide**, using §17.1's own
+    // test: A9 added the ellipsis and apostrophe rules because *the app
+    // contradicted itself* — the same word spelled two ways in adjacent files —
+    // and explicitly declined to invent conventions (guillemets, the narrow
+    // no-break space) that were merely absent. This is the first kind: the app
+    // renders `(s)` in seven places and a correct plural in seventeen.
+    //
+    // **`invité(e)` is deliberately NOT in scope.** It is gender, not count; it
+    // is a French administrative habit rather than an English one; and it is
+    // asserted verbatim by `pro_login_invitations_test.dart`. A sweep that
+    // quietly changed it would be inventing a convention, which is the thing
+    // §17.1 says to take as its own decision.
+    test(
+        'no parenthetical plural — « 1 prestation » never « 1 prestation(s) » '
+        '(§17.1)', () {
+      expect(
+        stringOffenders((s) => s.contains('(s)')),
+        isEmpty,
+        reason: 'French does not use the English « (s) » form. Use '
+            'Formatters.count(n, singular, plural), which asks CLDR and gets '
+            'n = 0 right — French puts zero in the SINGULAR, which is exactly '
+            'where the app’s four hand-rolled idioms disagreed.',
       );
     });
   });

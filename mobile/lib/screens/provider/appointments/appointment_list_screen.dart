@@ -291,7 +291,9 @@ class _AppointmentCard extends StatelessWidget {
               children: [
                 Flexible(
                   child: Text(
-                    appointment.clientName ?? 'Client',
+                    appointment.clientDisplayName ??
+                        appointment.clientName ??
+                        'Client',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -310,7 +312,11 @@ class _AppointmentCard extends StatelessWidget {
                 ],
               ],
             ),
-            Text('${appointment.serviceIds.length} service(s)'),
+            Text(Formatters.count(
+              appointment.serviceIds.length,
+              'service',
+              'services',
+            )),
             Text(Formatters.formatCurrency(
               appointment.totalPrice,
               currency: context.read<ProAuthProvider>().salonCurrency,

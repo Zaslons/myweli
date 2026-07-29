@@ -321,7 +321,7 @@ function JournalColumn({
               draggingAppt = null;
             }}
             onClick={() => onSelect(a)}
-            aria-label={`${a.clientName ?? 'Client'}, ${statusLabelFr(
+            aria-label={`${a.clientDisplayName ?? a.clientName ?? 'Client'}, ${statusLabelFr(
               statusKey(a),
             )}`}
             // ds-ignore: py-[2px] is below the 4px grid floor — a 15-min block
@@ -338,7 +338,7 @@ function JournalColumn({
               {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
                 new Date(a.appointmentDate),
               )}{' '}
-              {a.clientName ?? 'Client'}
+              {a.clientDisplayName ?? a.clientName ?? 'Client'}
             </span>
             {box.height > 34 ? (
               <span className="block text-textSecondary">

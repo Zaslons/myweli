@@ -113,7 +113,9 @@ class _ProAppointmentDetailScreenState
                           children: [
                             Expanded(
                               child: Text(
-                                appointment.clientName ?? 'Client',
+                                appointment.clientDisplayName ??
+                                    appointment.clientName ??
+                                    'Client',
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTextStyles.titleMedium.copyWith(
                                   color: AppColors.textPrimary,

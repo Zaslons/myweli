@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_moderation_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
@@ -133,7 +134,11 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: StatusChip(
-                  label: '${r['reportCount'] ?? 1} signalement(s)',
+                  label: Formatters.count(
+                    (r['reportCount'] as int?) ?? 1,
+                    'signalement',
+                    'signalements',
+                  ),
                   kind: ((r['reportCount'] as num?) ?? 1) >= 2
                       ? AdminChipKind.danger
                       : AdminChipKind.pending,

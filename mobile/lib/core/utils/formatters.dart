@@ -1,8 +1,51 @@
 import 'package:intl/intl.dart';
 
 import 'app_clock.dart';
+import 'app_locale.dart';
 
 class Formatters {
+  /// « 0 salon » · « 1 salon » · « 2 salons » — a count and its noun, in French
+  /// (A13, SYSTEM.md §17.1).
+  ///
+  /// **French puts 0 in the SINGULAR**, and that one fact is the whole reason
+  /// this exists. The app had grown four idioms for the same job — `== 1`,
+  /// `<= 1`, `> 1`, and a hard-coded plural — and they disagree at exactly one
+  /// value: `n == 1 ? 'visite' : 'visites'` prints « 0 visites », where French
+  /// wants « 0 visite ».
+  ///
+  /// **Six sites already had it right** — `provider_list_screen.dart` via
+  /// `<= 1`, and five more via `> 1` (`provider_detail_screen`,
+  /// `client_list_screen`, `pro_subscription_screen`, `team_screen`,
+  /// `submit_review_sheet`). An earlier draft of this docstring said one, which
+  /// contradicted the same slice's claim that web is correct *because* it uses
+  /// `> 1`. The problem was never that nobody knew the rule; it was that four
+  /// spellings of it coexisted and only one value distinguishes them.
+  ///
+  /// **`locale:` is not defensive clutter.** `Intl.plural` without it resolves
+  /// through `Intl.getCurrentLocale()`, which falls back to `en_US` — and
+  /// English differs from French *only at n = 0*. So an unlocalised call is
+  /// correct in every test that checks 1 and 2, and wrong at the single value
+  /// this helper was written for. `initAppLocale()` does set
+  /// `Intl.defaultLocale` in all three app roots and in `wrapApp`, but a unit
+  /// test that constructs neither would silently measure the English rule.
+  ///
+  /// The CLDR data has been wired since A9 and had **zero callers** until now.
+  static String count(int n, String one, String other) => Intl.plural(
+        n,
+        one: '$n $one',
+        other: '$n $other',
+        locale: kAppLocale,
+      );
+
+  /// The noun alone, for the sites that render the number separately (a big
+  /// figure above a small label, e.g. `my_bookings_screen`'s summary metrics).
+  static String plural(int n, String one, String other) => Intl.plural(
+        n,
+        one: one,
+        other: other,
+        locale: kAppLocale,
+      );
+
   /// Format a phone number for display. Côte d'Ivoire (+225) numbers are grouped
   /// in pairs — both the current 10-digit and legacy 8-digit formats; any other
   /// country (or unexpected length) is returned as-is.
