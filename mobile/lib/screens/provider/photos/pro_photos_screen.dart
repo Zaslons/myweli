@@ -138,8 +138,8 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
                 crossAxisCount: 3,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
+                mainAxisSpacing: AppTheme.spacingSM,
+                crossAxisSpacing: AppTheme.spacingSM,
                 children: [
                   for (var i = 0; i < gallery.photos.length; i++)
                     _PhotoTile(
