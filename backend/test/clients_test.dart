@@ -750,7 +750,7 @@ void main() {
     });
 
     // The load-bearing one. `clientName` means "the name the SALON typed", and
-    // `appointment_card.dart` gates its « saisi par le salon » badge on it —
+    // `appointment_card.dart` gates its « Réservé par votre salon » badge on it —
     // so filling THAT field would have fired the badge on every booking.
     test('it does not touch clientName, which means something else', () async {
       final uid = await makeUser('+2250700000092', name: 'Awa Koné');

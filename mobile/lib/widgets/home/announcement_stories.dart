@@ -256,12 +256,24 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
   /// unseen and 72dp when seen**. The title's width depended on whether the user
   /// had opened the story.
   static double _cardWidth(BuildContext context, double ringWidth) {
-    final chrome = _titleInset * 2 + ringWidth * 4;
-    return AppTheme.textScaledBound(
+    // **The scaling term uses the UNSEEN ring, always**, and the review is why.
+    // Computing `chrome` from the card's own ring made a seen card 8dp wider
+    // than an unseen one above 1× — in the same row, and changing the instant
+    // `_markSeen` fired. The old fixed 92 had one width for both; moving the
+    // asymmetry from the text box into the card outline would have traded one
+    // defect for a subtler one.
+    //
+    // The unseen ring is the correct basis because it is the tighter box: a
+    // card sized for it clears the title whatever ring it ends up drawing.
+    const worstChrome = _titleInset * 2 + _unseenRingWidth * 4;
+    final scaled = AppTheme.textScaledBound(
       context,
-      constant: chrome,
-      text: _baseCardWidth - chrome,
+      constant: worstChrome,
+      text: _baseCardWidth - worstChrome,
     );
+    // `ringWidth` still matters for the card's own geometry, not its width.
+    assert(ringWidth > 0);
+    return scaled;
   }
 
   /// The card at 1×, unchanged from the constant it replaces.

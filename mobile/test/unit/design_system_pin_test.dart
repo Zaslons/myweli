@@ -664,7 +664,8 @@ void main() {
     // asserted verbatim by `pro_login_invitations_test.dart`. A sweep that
     // quietly changed it would be inventing a convention, which is the thing
     // §17.1 says to take as its own decision.
-    test('no parenthetical plural — « 1 prestation » never « 1 prestation(s) » '
+    test(
+        'no parenthetical plural — « 1 prestation » never « 1 prestation(s) » '
         '(§17.1)', () {
       expect(
         stringOffenders((s) => s.contains('(s)')),

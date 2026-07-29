@@ -277,7 +277,8 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
     expect(
       p.size.width + _kWidthEpsilon,
       greaterThanOrEqualTo(widest),
-      reason: '« $text » has ${p.size.width.toStringAsFixed(1)}dp at $at and its '
+      reason:
+          '« $text » has ${p.size.width.toStringAsFixed(1)}dp at $at and its '
           'longest word « $widestWord » needs ${widest.toStringAsFixed(1)} — so it '
           'is being broken mid-word. §13.3: a value the user reads as one token, '
           'and a control\'s label, may wrap between words but never inside one.',

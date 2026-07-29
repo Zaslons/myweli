@@ -174,7 +174,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
       <Card as="section" className="mt-m">
         <div className="flex items-center justify-between gap-m">
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientName ?? 'Client'}
+            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
               <Chip
                 variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}

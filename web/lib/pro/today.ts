@@ -7,7 +7,16 @@ export type ProAppointment = {
   status: string;
   appointmentDate: string;
   serviceIds?: string[];
+  /// The name the SALON typed, on a manually-created booking. NULL for every
+  /// app-originated booking.
   clientName?: string | null;
+  /// PROVIDER VIEW (A13): who the booking is FOR, resolved from the salon's own
+  /// client record. Prefer this over `clientName` when rendering — without it
+  /// the web pro surface shows the literal « Client » for every booking made
+  /// through the consumer app, which is the defect SYSTEM.md row 74 closes.
+  /// Absent on off-day bookings for an own-scope Collaborateur (masked with
+  /// `clientPhone`).
+  clientDisplayName?: string | null;
   clientPhone?: string | null;
   totalPrice?: number;
   depositAmount?: number;

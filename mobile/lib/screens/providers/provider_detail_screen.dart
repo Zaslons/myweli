@@ -186,7 +186,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 // below 100%.
                 expandedHeight: AppTheme.textScaledBound(
                   context,
-                  constant: _headerStacked(context)
+                  constant: _headerStacked(context, verified: p.verified)
                       ? _headerChromeStacked
                       : _headerChrome,
                   text: _headerTextBlock,
@@ -279,27 +279,31 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         // mandates and this file already uses for « Appeler »
                         // twelve hundred lines down: more width, by stacking.
                         child: Flex(
-                          direction: _headerStacked(context)
-                              ? Axis.vertical
-                              : Axis.horizontal,
+                          direction:
+                              _headerStacked(context, verified: p.verified)
+                                  ? Axis.vertical
+                                  : Axis.horizontal,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _SalonLogo(logoUrl: p.logoUrl),
                             SizedBox(
-                              width: _headerStacked(context)
-                                  ? 0
-                                  : AppTheme.spacingM,
-                              height: _headerStacked(context)
-                                  ? AppTheme.spacingS
-                                  : 0,
+                              width:
+                                  _headerStacked(context, verified: p.verified)
+                                      ? 0
+                                      : AppTheme.spacingM,
+                              height:
+                                  _headerStacked(context, verified: p.verified)
+                                      ? AppTheme.spacingS
+                                      : 0,
                             ),
                             // Stacked, the Flex is vertical and an `Expanded`
                             // would fight the `SliverAppBar`'s bounded height;
                             // beside the logo it is what gives the name the rest
                             // of the row. So the wrapper differs by axis.
                             _HeaderTextBlock(
-                              stacked: _headerStacked(context),
+                              stacked:
+                                  _headerStacked(context, verified: p.verified),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
@@ -1251,6 +1255,22 @@ const double _headerTextBlock = 92;
 /// with one call site.
 const double _headerStacksAbove = 1.6;
 
+/// …and the threshold for a **verified** salon, which is lower (A13, found by
+/// the adversarial review).
+///
+/// The verified badge is a SIBLING of the name's `Flexible` in the same `Row`,
+/// and a `RenderFlex` lays its non-flex children out first — so `spacingS` (8)
+/// plus `iconS` (20) come off the name's box before it gets anything.
+/// **196dp at 360, not 224.** « Excellence » is 134.85dp at 1× (`letterSpacing`
+/// is 0 on `headlineMedium`, so the width scales exactly linearly), which puts
+/// the crossing at **1.453× / 1.565× / 1.676×** on §10's three widths.
+///
+/// 1.6 would therefore have left « Salon Ex / cellence » live from 1.45× to
+/// 1.60× on a 360dp phone — the exact string row 62 exists to kill, on the
+/// salons the marketplace most wants to promote. The first version of this
+/// constant took the worst case of the wrong population.
+const double _headerStacksAboveVerified = 1.45;
+
 /// The stacked header's chrome — the logo and its gap move from *beside* the
 /// text to *above* it, so they stop sharing the text's rows.
 ///
@@ -1283,8 +1303,12 @@ class _HeaderTextBlock extends StatelessWidget {
 }
 
 /// Whether the header stacks at the current OS text scale.
-bool _headerStacked(BuildContext context) =>
-    MediaQuery.textScalerOf(context).scale(1) > _headerStacksAbove;
+///
+/// [verified] is not a detail: the badge costs the name 28dp, which moves the
+/// crossing down by ~0.2×.
+bool _headerStacked(BuildContext context, {required bool verified}) =>
+    MediaQuery.textScalerOf(context).scale(1) >
+    (verified ? _headerStacksAboveVerified : _headerStacksAbove);
 
 class _SectionCard extends StatelessWidget {
   final String title;

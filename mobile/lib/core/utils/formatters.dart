@@ -11,8 +11,15 @@ class Formatters {
   /// this exists. The app had grown four idioms for the same job — `== 1`,
   /// `<= 1`, `> 1`, and a hard-coded plural — and they disagree at exactly one
   /// value: `n == 1 ? 'visite' : 'visites'` prints « 0 visites », where French
-  /// wants « 0 visite ». `provider_list_screen.dart` was the only site in the
-  /// app that had it right.
+  /// wants « 0 visite ».
+  ///
+  /// **Six sites already had it right** — `provider_list_screen.dart` via
+  /// `<= 1`, and five more via `> 1` (`provider_detail_screen`,
+  /// `client_list_screen`, `pro_subscription_screen`, `team_screen`,
+  /// `submit_review_sheet`). An earlier draft of this docstring said one, which
+  /// contradicted the same slice's claim that web is correct *because* it uses
+  /// `> 1`. The problem was never that nobody knew the rule; it was that four
+  /// spellings of it coexisted and only one value distinguishes them.
   ///
   /// **`locale:` is not defensive clutter.** `Intl.plural` without it resolves
   /// through `Intl.getCurrentLocale()`, which falls back to `en_US` — and

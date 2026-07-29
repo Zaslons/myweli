@@ -32,7 +32,7 @@ class Appointment extends Equatable {
   ///
   /// **Not the same field as [clientName], deliberately.** `clientName` is the
   /// name the SALON typed on a manually-created booking — the pro app gates its
-  /// « saisi par le salon » badge on it being non-null — and the backend writes
+  /// « Réservé par votre salon » badge on it being non-null — and the backend writes
   /// it as `null` for every app-originated booking. So the pro app rendered the
   /// literal « Client » for every booking made through the consumer app.
   ///

@@ -578,7 +578,7 @@ class MockData {
   /// `clientDisplayName` is what the backend now resolves from the salon's own
   /// client record, so the mock sets the same thing: the name of the user who
   /// actually made the booking. `clientName` stays null — these are app
-  /// bookings, not salon-entered ones, and the « saisi par le salon » badge
+  /// bookings, not salon-entered ones, and the « Réservé par votre salon » badge
   /// must keep meaning what it says.
   static List<Appointment> _seedAppointments() => [
         Appointment(

@@ -466,7 +466,7 @@ class ClientsService {
   /// **`clientDisplayName` comes from `salon_clients`, deliberately, and not
   /// from a `users` join.** `booking_service.dart` writes `clientName: null`
   /// for every app-originated booking — that field means "the name the SALON
-  /// typed", and `appointment_card.dart` gates its « saisi par le salon » badge
+  /// typed", and `appointment_card.dart` gates its « Réservé par votre salon » badge
   /// on it — so the pro app fell back to the literal « Client » for every
   /// booking made through the consumer app. This is a second field, not a
   /// reinterpretation of the first.
@@ -475,11 +475,14 @@ class ClientsService {
   /// writes `user?.name ?? 'Client'` at booking time. And it is **already
   /// anonymised by erasure** — `UserErasureService` sets it to
   /// `anonymousClientLabel`, which is the same « Client » literal the app was
-  /// showing anyway. So an erased user reads identically before and after this
-  /// change, and the safety rests on two mechanisms rather than one: the
-  /// `users` row is hard-deleted AND this column is anonymised.
+  /// showing anyway.
   ///
-  /// A `users` join would have had only the first of those.
+  /// **Three mechanisms, and the test found the third.** The `users` row is
+  /// hard-deleted; this column is anonymised; and `anonymizeUser` also **nulls
+  /// `salon_clients.user_id`**, so after erasure the booking cannot resolve to
+  /// the client row at all — which is the one that actually fires, as
+  /// `clients_test.dart` asserts by checking the field is ABSENT rather than
+  /// anonymised. A `users` join would have had only the first.
   Future<Map<String, dynamic>> _identityOf(
     String providerId,
     Map<String, dynamic> appointment,

@@ -70,10 +70,12 @@ text     = 92 − constant
 byte-identical**, which is the property a threshold was chosen for — obtained
 here without the 1.20×–1.3× hole. Clears every token to 3× with ≥23% headroom.
 
-The `height: 126` goes the same way: a fixed height around text, and the strip
-has three items with nothing to virtualise, so it does not need a computed bound
-at all — the same argument `CategoryChips`, `client_list_screen` and
-`pro_journal_screen` each used when they removed theirs.
+The `height: 126` goes the same way — but **computed, not intrinsic**, and §8
+records why the first attempt was wrong. The tempting argument (three items,
+nothing to virtualise, so drop the bound as `CategoryChips` and
+`client_list_screen` did) collapses these cards to a bare ring: their content is
+a `Stack` of `Positioned.fill` children, which contribute nothing to intrinsic
+height. Those precedents work because their chips wrap real text.
 
 ## 3. Row 62 — the salon header
 
@@ -129,10 +131,16 @@ test has been borrowing their credibility.
 
 ## 5. Row 41 — the plurals
 
-**The true count is 12**, not 1: 7 literal `(s)`, 4 hard-coded plurals, and one
-n=0 bug — plus a latent `== 1` and a gender `(e)`. Web has **zero** (every web
-site already uses `> 1`, the n=0-correct form) — the same parity asymmetry §21
-row 34 records.
+**The true count is 11 conversions**, not 1 — and the first draft said 12 by
+counting the sweep's *sites* rather than its *edits*. Honestly decomposed: 7
+literal `(s)`, **3** hard-coded plural nouns (two in `pro_onboarding_screen`,
+one in `message_templates`), and one n=0 bug — plus a latent `== 1` and a gender `(e)`.
+
+**And the first draft said web had zero, which the review disproved.**
+`JournalPanel.tsx` hard-coded « visites » and « absences » unguarded — « 1
+visites » for a one-visit client — and `lib/pro/clients.ts` used `=== 1` rather
+than `> 1`. Both fixed here with a `countFr` twin over `Intl.PluralRules('fr')`,
+so the claim now true is: web had **two**, mobile had twelve.
 
 **One helper.** `Formatters.count(n, one, other)` wrapping `Intl.plural` with an
 **explicit `locale: kAppLocale`**. That argument is load-bearing:
@@ -166,7 +174,7 @@ asserted at `me_erasure_test.dart:428`). There is no foreign key from
 
 **But the fix is neither a `users` join nor `clientName`:**
 
-1. `appointment_card.dart:265` gates the **« saisi par le salon »** badge on
+1. `appointment_card.dart:265` gates the **« Réservé par votre salon »** badge on
    `clientName != null` (pinned by `appointment_card_test.dart:35`). Filling
    that field would fire the badge on every booking.
 2. `salon_clients.display_name` **already holds the real name**, written at
@@ -190,6 +198,34 @@ off-day masking now covers **name + phone**.
 `salon_clients` row exists (`:340`), so a later profile rename does not
 propagate to `display_name`.
 
+### 3.1 The threshold was taken from the wrong population
+
+Found by the adversarial review, and it is the sharpest finding in the slice.
+
+**The verified badge is a SIBLING of the name's `Flexible`**, and a `RenderFlex`
+lays its non-flex children out first — so `spacingS` (8) + `iconS` (20) come off
+the name's box before it gets anything. **196dp at 360, not 224.** Since
+`headlineMedium` has `letterSpacing: 0`, « Excellence » scales exactly linearly
+from 134.85dp at 1×, which puts the real crossings at:
+
+| | unverified | **verified** |
+|---|---|---|
+| 360 | 1.661× | **1.453×** |
+| 375 | 1.772× | **1.565×** |
+| 390 | 1.884× | **1.676×** |
+
+A single 1.6 threshold therefore left « Salon Ex / cellence » live from **1.45×
+to 1.60×** on a 360dp phone — on the salons the marketplace most wants to
+promote. `_headerStacksAboveVerified = 1.45` covers it, rather than dragging
+every unverified salon to an early stack.
+
+**And the gate was blind twice over**: `MockData` sets `verified` on no provider
+at all, and `layout_test`'s `scales = [1, 2]` skips the entire defective band.
+`salon_header_test.dart` closes both — it reproduces the header's `Row`
+arithmetic and asserts the un-stacked geometry breaks at each width's *own*
+crossing (1.5 / 1.6 / 1.7), plus that an unverified salon at 1.5× does not,
+which is what makes two constants right rather than one conservative one.
+
 ## 7. Testing
 
 | | |
@@ -204,8 +240,12 @@ Every gate watched red before its fix.
 ## 8. Definition of done
 
 - [x] every gate red first — story titles **3 of 6** (64.0dp box, « Week‑End »
-      needs 104.1); salon name **6 of 6** once the finder was fixed (224.0 /
-      239.0 / 254.0 against 269.7); §5 pin **4**; §17.1 pin **7**
+      needs 104.1); salon name **3 of 6** (224.0 / 239.0 / 254.0 against 269.7,
+      at 2× only — the box does not scale, so 1× was never red); §5 pin **4**;
+      §17.1 pin **7**. *The salon subject did fail 6 of 6 on its first run, but
+      for a different reason — `tester.renderObject` threw «Too many elements»
+      at every configuration, which is the instrument bug §7 records, not the
+      defect.*
 - [x] the three story titles and the salon name whole at 2× on all three widths
 - [x] §5 pin widened without the 7 `letterSpacing` false positives; the 4
       literals converted; the sweep gained the non-empty guard it lacked
