@@ -103,8 +103,19 @@ export function BookingFlow({
   });
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  // The app's slotsRequestId pattern — stale slot responses are dropped.
-  const slotsReq = useRef(0);
+  /// One generation for every asynchronous write in this component.
+  ///
+  /// Each user action bumps it *before* touching state; every write that lands
+  /// after an `await` is dropped once the counter has moved, because the value
+  /// it carries was computed from a snapshot the user has since left behind.
+  ///
+  /// This is the app's `slotsRequestId` pattern, widened from slot responses to
+  /// the whole pipeline. Until B10 only `loadSlots` was guarded, while `settle`
+  /// and `onVariant` also write `s` after a round trip — so a click on
+  /// « Prestations » landing between `onToggleService`'s synchronous `setS` and
+  /// `settle`'s trailing one was silently reverted, collapsing the card and
+  /// unmounting the variant chips (docs/design/web-b10-flake.md §4.1).
+  const intentReq = useRef(0);
 
   // Auth overhaul P2: confirming requires a signed-in account + a REQUIRED
   // contact phone. undefined = probing the session; null = signed out.
@@ -148,10 +159,13 @@ export function BookingFlow({
   }
 
   async function loadSlots(state: HubState) {
-    const req = ++slotsReq.current;
+    // Reads the generation rather than bumping it: the handler that started
+    // this intent has already done so, and `settle` calls us as its own last
+    // step. Bumping here would invalidate the pipeline we belong to.
+    const req = intentReq.current;
     setSlotsLoading(true);
     const r = await fetchSlotsFor(state, state.date);
-    if (req !== slotsReq.current) return;
+    if (req !== intentReq.current) return;
     setSlots(r);
     setSlotsLoading(false);
   }
@@ -179,9 +193,12 @@ export function BookingFlow({
   /// re-validate the chosen time → maybe auto-pick the earliest → advance to
   /// the next section for this entry point → refresh slots if landing on time.
   async function settle(state: HubState) {
+    const req = intentReq.current;
     let next = await revalidateSlot(state);
+    if (req !== intentReq.current) return;
     if (shouldAutoPickEarliest(next)) {
       const earliest = await findEarliestSlot(next);
+      if (req !== intentReq.current) return;
       if (earliest) next = autoPickSlot(next, earliest);
     }
     next = advance(next, hasArtists);
@@ -196,15 +213,18 @@ export function BookingFlow({
   }, []);
 
   async function onToggleService(id: string) {
+    intentReq.current += 1;
     const next = toggleService(s, provider, id);
     setS(next);
     await settle(next);
   }
 
   async function onVariant(variant: string) {
+    const req = (intentReq.current += 1);
     let next = setVariant(s, variant);
     setS(next);
     next = await revalidateSlot(next);
+    if (req !== intentReq.current) return;
     setS(next);
     if (next.activeSection === 'time') await loadSlots(next);
   }
@@ -212,11 +232,15 @@ export function BookingFlow({
   async function onChooseArtist(id: string | null) {
     const next = chooseArtist(s, provider, id);
     if (next === s) return; // incompatible stylist — row is disabled anyway
+    // Bumped after the no-op return, so a disabled row cannot cancel a
+    // pipeline the user is still waiting on.
+    intentReq.current += 1;
     setS(next);
     await settle(next);
   }
 
   async function onOpenSection(section: Section) {
+    intentReq.current += 1;
     const next = openSection(s, section);
     setS(next);
     if (section === 'time') await loadSlots(next);
@@ -224,12 +248,16 @@ export function BookingFlow({
 
   async function onDate(date: string) {
     if (!date) return;
+    intentReq.current += 1;
     const next = setDate(s, date);
     setS(next);
     await loadSlots(next);
   }
 
   function onPickSlot(iso: string) {
+    // Synchronous, but it still bumps: an in-flight `settle` started before
+    // the tap would otherwise land afterwards and revert the chosen time.
+    intentReq.current += 1;
     setS(advance(pickSlot(s, iso), hasArtists));
   }
 

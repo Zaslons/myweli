@@ -92,7 +92,18 @@ test('time-first: l’heure choisie survit ou se libère selon la durée', async
   await page.getByRole('button', { name: '10:30' }).click();
 
   // Ordering → Prestations. Tresses (Moyen, 120 min) still fits 10:30.
+  //
+  // The wait is load-bearing and was absent until B10: `onToggleService`
+  // enables « Confirmer » *synchronously*, so asserting straight after the
+  // click passed before `revalidateSlot` had even been called — and would have
+  // stayed green if revalidation cleared the slot, which is the exact
+  // behaviour this test exists to check. Waiting for the round trip is what
+  // makes this assert survival rather than the initial render.
+  const revalidated = page.waitForResponse((r) =>
+    r.url().includes('/api/availability'),
+  );
   await page.getByRole('checkbox').first().click();
+  await revalidated;
   await expect(
     page.getByRole('button', { name: 'Confirmer', exact: true }),
   ).toBeEnabled();
