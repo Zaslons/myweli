@@ -641,3 +641,66 @@ void expectNoUndeclaredTruncation(
         'label):\n${cut.join('\n')}',
   );
 }
+
+/// **Every day number renders whole** (A14, SYSTEM.md §21 row 73).
+///
+/// The defect this exists for was found on hardware, not by any of the six
+/// assertions above: at `accessibility-large` (≈1.95×) on a 360×780pt iPhone,
+/// Material's `showDatePicker` rendered **20, 22, 23, 24, 25 and 26 as a single
+/// digit** — « 2 21 2 2 2 2 2 ». Only 21 survived, because « 1 » is narrow.
+///
+/// **Why nothing in this file could see it.**
+///
+/// - [expectNoUndeclaredTruncation] flags `didExceedMaxLines`, or a `!softWrap`
+///   paragraph narrower than its intrinsic width. A day number has no
+///   `maxLines` to exceed, and the general `size.width < intrinsicWidth` test is
+///   true of every correctly-wrapping sentence — which is why that helper is
+///   guarded and cannot be pointed here.
+/// - [expectNoLegibilityCrush] has an **8-character floor**. A two-character
+///   label is below it by construction.
+/// - [expectNoMidWordBreak] has the right predicate — *a paragraph whose box is
+///   narrower than its widest word cannot render that word* — but skips
+///   `maxLines == 1 || !softWrap` paragraphs, handing that case to the crush
+///   gate. For a two-character token that hand-off goes nowhere.
+///
+/// So the predicate is borrowed and the skip is deliberately dropped: a day
+/// number is a **single unbreakable token**, so `maxLines: 1` does not save it —
+/// there is no second line for the digit to move to, and the excess is simply
+/// not painted.
+///
+/// Applied **by name**, like [expectNoMidWordBreak] and for the same reason: it
+/// asserts about a value the user reads as one token, and a sweep would have no
+/// way to tell a day number from a heading.
+void expectDayNumbersWhole(
+  WidgetTester tester,
+  Iterable<String> days,
+  String at,
+) {
+  var checked = 0;
+  for (final day in days) {
+    final paragraphs = tester
+        .renderObjectList<RenderParagraph>(
+          find.descendant(of: find.text(day), matching: find.byType(RichText)),
+        )
+        .toList();
+    for (final p in paragraphs) {
+      checked += 1;
+      final needs = p.getMaxIntrinsicWidth(double.infinity);
+      expect(
+        p.size.width + _kWidthEpsilon,
+        greaterThanOrEqualTo(needs),
+        reason: 'the day « $day » has ${p.size.width.toStringAsFixed(1)}dp and '
+            'needs ${needs.toStringAsFixed(1)} at $at — it renders clipped, '
+            'which is §21 row 73',
+      );
+    }
+  }
+  // The vacuity guard every assertion in this file carries: a picker that never
+  // opened, or a month that does not contain these days, would otherwise report
+  // a clean sweep of nothing.
+  expect(
+    checked,
+    greaterThan(0),
+    reason: 'C: none of $days is on screen at $at, so this asserted nothing',
+  );
+}

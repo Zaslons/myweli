@@ -330,4 +330,69 @@ void main() {
       );
     });
   });
+
+  group('expectDayNumbersWhole', () {
+    testWidgets('fails when a two-digit day is wider than its box',
+        (tester) async {
+      // 20dp around « 20 » at 2×: the shape row 73 measured, reproduced with a
+      // `SizedBox` so the failure is arithmetic rather than Material's.
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        home: const Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 20,
+              child: Text('20', style: AppTextStyles.bodyMedium),
+            ),
+          ),
+        ),
+      );
+      expect(
+        () => expectDayNumbersWhole(tester, const ['20'], 'the falsifier'),
+        throwsA(isA<TestFailure>()),
+        reason: 'a 20dp box cannot hold « 20 » at 2×. If this passes, the '
+            'primitive is measuring nothing and row 67 has a seventh member',
+      );
+    });
+
+    testWidgets(
+        'ignores a day that FITS — the assertion is not "any narrow box"',
+        (tester) async {
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        home: const Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 80,
+              child: Text('20', style: AppTextStyles.bodyMedium),
+            ),
+          ),
+        ),
+      );
+      expectDayNumbersWhole(tester, const ['20'], 'the control');
+    });
+
+    testWidgets('fails LOUDLY when the day is not on screen at all',
+        (tester) async {
+      // The vacuity guard. A picker that never opened would otherwise sweep
+      // nothing and report clean — which is the failure mode `layout_test.dart`
+      // calls "the assertion most likely to be deleted".
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 1,
+        home: const Scaffold(body: SizedBox.shrink()),
+      );
+      expect(
+        () => expectDayNumbersWhole(tester, const ['20'], 'the empty screen'),
+        throwsA(isA<TestFailure>()),
+        reason: 'asserting about days that are not rendered must be an error, '
+            'not a pass',
+      );
+    });
+  });
 }

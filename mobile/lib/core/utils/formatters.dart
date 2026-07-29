@@ -100,7 +100,28 @@ class Formatters {
     return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
   }
 
-  /// Format month + year: "juin 2026" (used for visit-history headers).
+  /// The narrow weekday initials, **Monday first** — « L M M J V S D ».
+  ///
+  /// §17: a French calendar starts on Monday, and `french_test.dart` asserts
+  /// `firstDayOfWeekIndex == 1` under the reason *"structural, not a string"*.
+  ///
+  /// It lives here because a calendar widget may not build its own — the
+  /// `salon_time_pin_test.dart` pin keeps every `DateFormat(` in this file, so
+  /// that a French app cannot grow an English label in a corner nobody reads.
+  ///
+  /// The reference week is a fixed Monday (2026-01-05). It is used to *name*
+  /// the weekdays and never to mean a date, so no clock is involved and the
+  /// §18 salon-time rule does not apply.
+  static List<String> weekdayInitials() {
+    final monday = DateTime.utc(2026, 1, 5);
+    final narrow = DateFormat('EEEEE', kAppLocale);
+    return List<String>.generate(
+      7,
+      (i) => narrow.format(monday.add(Duration(days: i))),
+    );
+  }
+
+  /// Format month + year: « juin 2026 ».
   static String formatMonthYear(DateTime date) {
     return DateFormat('MMMM yyyy', 'fr_FR').format(date);
   }
