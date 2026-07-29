@@ -118,18 +118,23 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
         // A13, §21 row 62 — **the fixed height goes with the fixed width.**
         // `SizedBox(height: 126)` is a box that contains text, which §13.3
         // forbids outright; it survived only because the title is `maxLines: 2`
-        // and 2 lines of `labelSmall` at 2× still fit 126. The strip has THREE
-        // items and nothing to virtualise, so it never needed a bounded height
-        // in the first place — the same argument `CategoryChips`,
-        // `client_list_screen` and `pro_journal_screen` each made when they
-        // dropped theirs. An intrinsic `Row` in a scroll view takes the height
-        // its cards ask for, at every scale.
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
-          child: IntrinsicHeight(
+        // and two lines of `labelSmall` at 2× still fit 126.
+        //
+        // **It is a COMPUTED height, not an intrinsic one, and the golden
+        // ledger is why.** The obvious move — drop the bound and let the row
+        // size itself, as `CategoryChips` and `client_list_screen` each did —
+        // collapses these cards to a bare gold ring: the card's content is a
+        // `Stack` whose children are all `Positioned.fill`, and positioned
+        // children contribute **nothing** to intrinsic height. So the strip has
+        // no intrinsic height to take. Those precedents work because their chips
+        // wrap real text; this one does not, and the regeneration showed it as
+        // three thin bars before anything else did.
+        SizedBox(
+          height: _stripHeight(context),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (var index = 0; index < stories.length; index++) ...[
                   if (index > 0) const SizedBox(width: AppTheme.spacingS),
@@ -261,6 +266,25 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
 
   /// The card at 1×, unchanged from the constant it replaces.
   static const double _baseCardWidth = 92.0;
+
+  /// The strip at 1×, unchanged from the constant it replaces.
+  static const double _baseStripHeight = 126.0;
+
+  /// Two lines of `labelSmall` plus the title's bottom inset — the only part of
+  /// the card that grows with the font. `labelSmall` is 11px on a 16px line
+  /// (`text_styles.dart`), so 32 + 8.
+  static const double _titleBlock = 16.0 * 2 + _titleInset;
+
+  /// The strip's height at the current OS text scale.
+  ///
+  /// Same shape as the width, and same property: `textScaledBound` returns
+  /// **exactly 126.0 at 1×** and below, so the 1× golden does not move, while
+  /// the image keeps its share and only the title block grows.
+  static double _stripHeight(BuildContext context) => AppTheme.textScaledBound(
+        context,
+        constant: _baseStripHeight - _titleBlock,
+        text: _titleBlock,
+      );
 
   /// The title's inset inside the clipped image (`Positioned(left/right/bottom)`).
   static const double _titleInset = AppTheme.spacingS;
