@@ -268,6 +268,27 @@ follows §16's microcopy rules and is stated at implementation.
 - **device** — `accessibility-large` on the simulator that found row 73. A
   computed gate is not the same evidence as the screenshot the row is about.
 
+### 6.1 The device run — row 73, closed where it was opened
+
+Same device (`A11 360dp`, iPhone 13 mini, 360×780pt), same setting
+(`content_size accessibility-large`, ≈1.95×), same route: home → Beauté Divine →
+« Réserver » → « Date et heure » → the date row.
+
+| | |
+|---|---|
+| row 73 recorded | « 2 21 2 2 2 2 2 » — only 21 survived, because « 1 » is narrow |
+| measured after A14a | **20 21 22 23 24 25 26** |
+
+Every day number whole and legible. Also confirmed on the same screen, none of
+which a computed gate asserts: « juillet 2026 » in French, the weekday row
+Monday-first, days before today correctly disabled, the left chevron disabled at
+the range start, and the selected day a filled rounded rectangle rather than a
+circle — the shape the 1.5dp bought.
+
+Worth recording as a second observation from the same run: the salon page's
+header renders **stacked** at 1.95×, which is A13's row 62 fix holding on
+hardware. That was gated but never re-photographed on a device.
+
 **One more hole this slice stands on:** the booking-hub subject
 (`layout_test.dart:588`) — the screen the picker launches from — is one of four
 missing `expectNoVerticalClip`. A14a adds it.

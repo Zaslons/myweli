@@ -357,7 +357,8 @@ void main() {
       );
     });
 
-    testWidgets('ignores a day that FITS — the assertion is not "any narrow box"',
+    testWidgets(
+        'ignores a day that FITS — the assertion is not "any narrow box"',
         (tester) async {
       await pumpAtWidth(
         tester,

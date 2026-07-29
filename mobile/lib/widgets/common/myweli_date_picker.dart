@@ -261,7 +261,8 @@ class _MonthGrid extends StatelessWidget {
 
     final cells = <DateTime?>[
       ...List<DateTime?>.filled(leading, null),
-      for (var d = 1; d <= daysInMonth; d++) DateTime(month.year, month.month, d),
+      for (var d = 1; d <= daysInMonth; d++)
+        DateTime(month.year, month.month, d),
     ];
     while (cells.length % 7 != 0) {
       cells.add(null);

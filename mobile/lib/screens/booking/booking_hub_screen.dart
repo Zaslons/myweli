@@ -747,8 +747,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   context: context,
                                   initialDate: initial,
                                   firstDate: salonToday(tz: _tz),
-                                  lastDate: salonToday(tz: _tz)
-                                      .add(kBookingHorizon),
+                                  lastDate:
+                                      salonToday(tz: _tz).add(kBookingHorizon),
                                 );
                                 if (!mounted || picked == null) return;
                                 setState(() => _selectedDate = picked);
