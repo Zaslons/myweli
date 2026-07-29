@@ -192,37 +192,15 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
         child: Column(
           children: [
             _TimeHeadline(hour: _hour, minute: _minute),
-            const _ColumnHeadings(),
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _WheelColumn(
-                      values: [
-                        for (var h = 0; h < TimeOfDay.hoursPerDay; h++) h,
-                      ],
-                      selected: _hour,
-                      isEnabled: _hourEnabled,
-                      semanticLabel: (h) => '${h}h',
-                      onPick: _pickHour,
-                    ),
-                  ),
-                  Expanded(
-                    child: _WheelColumn(
-                      values: [
-                        for (var m = 0;
-                            m < TimeOfDay.minutesPerHour;
-                            m += widget.minuteStep)
-                          m,
-                      ],
-                      selected: _minute,
-                      isEnabled: (m) => !_isBelowMin(_hour, m),
-                      semanticLabel: (m) => '$m minutes',
-                      onPick: _pickMinute,
-                    ),
-                  ),
-                ],
+              child: MyweliTimeWheels(
+                hour: _hour,
+                minute: _minute,
+                minuteStep: widget.minuteStep,
+                isHourEnabled: _hourEnabled,
+                isMinuteEnabled: (m) => !_isBelowMin(_hour, m),
+                onHour: _pickHour,
+                onMinute: _pickMinute,
               ),
             ),
             Padding(
@@ -237,6 +215,343 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A start and an end, on **one** surface (A14b, §11.2).
+///
+/// **This replaces two identical modals in a row.** Chain B
+/// (`availability_screen.dart:633` + `:640`) opened two `showTimePicker`s with
+/// no `helpText` on either — *visually identical, with nothing on screen saying
+/// which one you were in*. Chain C (`weekly_hours_editor.dart:61` + `:68`)
+/// labelled them, and those labels are the only localised strings any picker
+/// call in this app has ever passed.
+///
+/// **And it deletes two error states by construction, not by restyling them.**
+/// The end column cannot offer a time at or before the start, so:
+///
+/// - `availability_screen.dart:670-678`'s « L'heure de fin doit être après
+///   l'heure de début » — a snackbar that also threw away both answers — has
+///   nothing left to catch;
+/// - `weekly_hours_editor.dart:75`'s `if (end <= start) return;` — a **bare
+///   silent return**, after two modals, indistinguishable from a cancel — has
+///   nothing left to swallow.
+///
+/// Returns null on cancel and calls back **once**, on confirm. That is not a
+/// detail: `availability_screen.dart:113` wires `WeeklyHoursEditor.onChanged`
+/// straight to `provider.updateAvailability`, so a control that emitted per edit
+/// would write to the server on every tap.
+Future<({TimeOfDay start, TimeOfDay end})?> showMyweliTimeRangePicker({
+  required BuildContext context,
+  required TimeOfDay initialStart,
+  required TimeOfDay initialEnd,
+  int minuteStep = 5,
+  String startLabel = 'Début',
+  String endLabel = 'Fin',
+  String? helpText,
+}) {
+  return Navigator.of(context).push<({TimeOfDay start, TimeOfDay end})>(
+    MaterialPageRoute<({TimeOfDay start, TimeOfDay end})>(
+      fullscreenDialog: true,
+      builder: (_) => MyweliTimeRangePickerScreen(
+        initialStart: initialStart,
+        initialEnd: initialEnd,
+        minuteStep: minuteStep,
+        startLabel: startLabel,
+        endLabel: endLabel,
+        helpText: helpText,
+      ),
+    ),
+  );
+}
+
+/// The range picker's screen. Public so tests can pump it without a route.
+class MyweliTimeRangePickerScreen extends StatefulWidget {
+  const MyweliTimeRangePickerScreen({
+    super.key,
+    required this.initialStart,
+    required this.initialEnd,
+    this.minuteStep = 5,
+    this.startLabel = 'Début',
+    this.endLabel = 'Fin',
+    this.helpText,
+  });
+
+  final TimeOfDay initialStart;
+  final TimeOfDay initialEnd;
+  final int minuteStep;
+  final String startLabel;
+  final String endLabel;
+  final String? helpText;
+
+  @override
+  State<MyweliTimeRangePickerScreen> createState() =>
+      _MyweliTimeRangePickerScreenState();
+}
+
+class _MyweliTimeRangePickerScreenState
+    extends State<MyweliTimeRangePickerScreen> {
+  late int _startMinutes;
+  late int _endMinutes;
+
+  /// Which half the two columns below are editing. Both values stay visible in
+  /// the chips, which is the whole reason this is one screen and not two.
+  bool _editingEnd = false;
+
+  static const int _minutesPerDay =
+      TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;
+
+  /// The last time the grid can represent — 23:55 at a step of 5.
+  int get _lastGridMinute => _minutesPerDay - widget.minuteStep;
+
+  int _snap(TimeOfDay t) {
+    final raw = t.hour * TimeOfDay.minutesPerHour + t.minute;
+    return (raw ~/ widget.minuteStep) * widget.minuteStep;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _startMinutes = _snap(widget.initialStart).clamp(0, _lastGridMinute - 1);
+    _endMinutes = _snap(widget.initialEnd);
+    if (_endMinutes <= _startMinutes) _endMinutes = _afterStart(_startMinutes);
+  }
+
+  /// Where the end goes when the start has invalidated it: one hour later,
+  /// capped at the end of the grid.
+  ///
+  /// This is the behaviour `availability_screen.dart:642` faked with
+  /// `TimeOfDay(hour: pickedStart.hour + 1, …)` — arithmetic standing in for
+  /// two dialogs being unable to see each other. Here the two halves are on one
+  /// screen, so it is just a default the user can immediately change.
+  int _afterStart(int start) =>
+      math.min(start + TimeOfDay.minutesPerHour, _lastGridMinute);
+
+  void _setEditing(bool end) => setState(() => _editingEnd = end);
+
+  void _pickHour(int hour) => setState(() {
+        if (_editingEnd) {
+          _endMinutes = _clampEnd(hour * TimeOfDay.minutesPerHour +
+              _endMinutes % TimeOfDay.minutesPerHour);
+        } else {
+          _setStart(hour * TimeOfDay.minutesPerHour +
+              _startMinutes % TimeOfDay.minutesPerHour);
+        }
+      });
+
+  void _pickMinute(int minute) => setState(() {
+        if (_editingEnd) {
+          _endMinutes = _clampEnd((_endMinutes ~/ TimeOfDay.minutesPerHour) *
+                  TimeOfDay.minutesPerHour +
+              minute);
+        } else {
+          _setStart((_startMinutes ~/ TimeOfDay.minutesPerHour) *
+                  TimeOfDay.minutesPerHour +
+              minute);
+        }
+      });
+
+  void _setStart(int value) {
+    _startMinutes = value.clamp(0, _lastGridMinute - 1);
+    // Moving the start past the end drags the end with it rather than refusing
+    // the tap — refusing would make the start column's disabled rows depend on
+    // the end, which is the kind of mutual constraint a user cannot see.
+    if (_endMinutes <= _startMinutes) _endMinutes = _afterStart(_startMinutes);
+  }
+
+  int _clampEnd(int value) =>
+      value <= _startMinutes ? _startMinutes + widget.minuteStep : value;
+
+  int get _active => _editingEnd ? _endMinutes : _startMinutes;
+
+  bool _hourEnabled(int hour) {
+    if (!_editingEnd) {
+      // A start with no room after it cannot begin a range.
+      return hour * TimeOfDay.minutesPerHour < _lastGridMinute;
+    }
+    return (hour + 1) * TimeOfDay.minutesPerHour > _startMinutes;
+  }
+
+  bool _minuteEnabled(int minute) {
+    final hour = _active ~/ TimeOfDay.minutesPerHour;
+    final candidate = hour * TimeOfDay.minutesPerHour + minute;
+    return _editingEnd
+        ? candidate > _startMinutes
+        : candidate < _lastGridMinute;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close, size: AppTheme.iconM),
+          tooltip: 'Fermer',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(widget.helpText ?? 'Choisir un horaire'),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _RangeChips(
+              startLabel: widget.startLabel,
+              endLabel: widget.endLabel,
+              startMinutes: _startMinutes,
+              endMinutes: _endMinutes,
+              editingEnd: _editingEnd,
+              onEdit: _setEditing,
+            ),
+            Expanded(
+              child: MyweliTimeWheels(
+                // Keyed on which half is being edited, so switching chips
+                // rebuilds the columns and each one re-opens scrolled to the
+                // value it is now showing. Without the key the wheels keep the
+                // scroll position of the half the user just left.
+                key: ValueKey(_editingEnd),
+                hour: _active ~/ TimeOfDay.minutesPerHour,
+                minute: _active % TimeOfDay.minutesPerHour,
+                minuteStep: widget.minuteStep,
+                isHourEnabled: _hourEnabled,
+                isMinuteEnabled: _minuteEnabled,
+                onHour: _pickHour,
+                onMinute: _pickMinute,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              child: AppButton(
+                text: 'Confirmer',
+                isFullWidth: true,
+                onPressed: () => Navigator.of(context).pop((
+                  start: _toTimeOfDay(_startMinutes),
+                  end: _toTimeOfDay(_endMinutes),
+                )),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+TimeOfDay _toTimeOfDay(int minutes) => TimeOfDay(
+      hour: minutes ~/ TimeOfDay.minutesPerHour,
+      minute: minutes % TimeOfDay.minutesPerHour,
+    );
+
+/// « Début 09:00 » | « Fin 17:00 » — both values visible, one of them active.
+class _RangeChips extends StatelessWidget {
+  const _RangeChips({
+    required this.startLabel,
+    required this.endLabel,
+    required this.startMinutes,
+    required this.endMinutes,
+    required this.editingEnd,
+    required this.onEdit,
+  });
+
+  final String startLabel;
+  final String endLabel;
+  final int startMinutes;
+  final int endMinutes;
+  final bool editingEnd;
+  final ValueChanged<bool> onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      child: Row(
+        children: [
+          Expanded(
+            child: _RangeChip(
+              label: startLabel,
+              minutes: startMinutes,
+              active: !editingEnd,
+              onTap: () => onEdit(false),
+            ),
+          ),
+          const SizedBox(width: AppTheme.spacingS),
+          Expanded(
+            child: _RangeChip(
+              label: endLabel,
+              minutes: endMinutes,
+              active: editingEnd,
+              onTap: () => onEdit(true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RangeChip extends StatelessWidget {
+  const _RangeChip({
+    required this.label,
+    required this.minutes,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final int minutes;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = Formatters.formatHourMinute(
+      minutes ~/ TimeOfDay.minutesPerHour,
+      minutes % TimeOfDay.minutesPerHour,
+    );
+    return Semantics(
+      button: true,
+      selected: active,
+      label: '$label, $value',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          // No fixed height: the column below grows with the scale and so does
+          // this. `padding` is the whole vertical dimension on purpose.
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingSM,
+            vertical: AppTheme.spacingSM,
+          ),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primary : AppColors.secondary,
+            border: Border.all(
+              color: active ? AppColors.primary : AppColors.borderStrong,
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          ),
+          child: ExcludeSemantics(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color:
+                        active ? AppColors.secondary : AppColors.textTertiary,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: active ? AppColors.secondary : AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -262,6 +577,73 @@ class _TimeHeadline extends StatelessWidget {
         textAlign: TextAlign.center,
         style: AppTextStyles.headlineMedium,
       ),
+    );
+  }
+}
+
+/// « Heures » · « Minutes » over two columns of numbers.
+///
+/// Public and `Scaffold`-free so all three controls in this family — and
+/// `MyweliDateTimePickerScreen`, which lives in another file — render the same
+/// wheels rather than three copies that drift. The state stays with the caller:
+/// each control has a different idea of what is selectable (a floor, a start,
+/// or nothing), and folding that in here would mean one widget with three modes.
+class MyweliTimeWheels extends StatelessWidget {
+  const MyweliTimeWheels({
+    super.key,
+    required this.hour,
+    required this.minute,
+    required this.minuteStep,
+    required this.onHour,
+    required this.onMinute,
+    this.isHourEnabled,
+    this.isMinuteEnabled,
+  });
+
+  final int hour;
+  final int minute;
+  final int minuteStep;
+  final ValueChanged<int> onHour;
+  final ValueChanged<int> onMinute;
+  final bool Function(int)? isHourEnabled;
+  final bool Function(int)? isMinuteEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _ColumnHeadings(),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _WheelColumn(
+                  values: [for (var h = 0; h < TimeOfDay.hoursPerDay; h++) h],
+                  selected: hour,
+                  isEnabled: isHourEnabled ?? (_) => true,
+                  semanticLabel: (h) => '${h}h',
+                  onPick: onHour,
+                ),
+              ),
+              Expanded(
+                child: _WheelColumn(
+                  values: [
+                    for (var m = 0;
+                        m < TimeOfDay.minutesPerHour;
+                        m += minuteStep)
+                      m,
+                  ],
+                  selected: minute,
+                  isEnabled: isMinuteEnabled ?? (_) => true,
+                  semanticLabel: (m) => '$m minutes',
+                  onPick: onMinute,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
