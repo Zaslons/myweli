@@ -23,11 +23,24 @@ import '../support/surface.dart';
 /// handle.dispose();
 /// ```
 /// The caller disposes the returned handle after the expect.
+///
+/// **It pins a phone (A12).** Until this slice it pinned nothing, so every
+/// subject of `contrast_test`, `label_test` and `tap_target_test` was measured on
+/// `flutter_test`'s default **800×600** — wider than any device this app ships
+/// to, and the same defect A11 C8d found in `pumpAtTextScale`. §21 row 60 filed
+/// it; this closes it. A tap target that is 48dp on a 800dp desktop and 44 on a
+/// 360dp phone was green, and the guideline it was asserting is §13.2's floor.
+///
+/// 1600 tall, not 780, for `pumpAtWidth`'s reason: an overflow is reported from
+/// **paint**, so a row scrolled out of a short viewport is a row the gate cannot
+/// see. The short-surface question is `vertical_fit_test.dart`'s, deliberately
+/// separate.
 Future<SemanticsHandle> pumpForA11y(
   WidgetTester tester,
   Widget child, {
   List<SingleChildWidget>? providers,
 }) async {
+  pinSurface(tester, size: const Size(360, 1600));
   final handle = tester.ensureSemantics();
   await pumpApp(tester, home: Scaffold(body: child), providers: providers);
   await tester.pumpAndSettle();
@@ -241,6 +254,164 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
   );
 }
 
+/// How many characters a squeezed label must still show (§13.3, A12).
+///
+/// **8, and the two numbers either side of it are the whole justification.**
+/// Measured by shipping this file report-only first (`0` prints the table and
+/// asserts nothing) and running the width gate's six configurations:
+///
+/// | | shows | verdict |
+/// |---|---|---|
+/// | « Salon Excellence », salon page @360×2× | **0** | nothing but an ellipsis |
+/// | « Beauté Divine », consumer home @360×2× | **2** | |
+/// | « Salon Excellence », salon page app bar @390×2× | **7** | worst defect |
+/// | « avec Kouassi Jean », review tile @360×2× | **9** | best legitimate |
+/// | « Rechercher un salon… » @360×2× | 13 | declared, §21 row 56 |
+///
+/// So the data separates at **7 / 9** and 8 is the only value strictly between
+/// them. **That is a one-character margin, which is tighter than a threshold
+/// should be**, and it is recorded rather than smoothed over: if a future
+/// legitimate site lands on 8, the answer is to re-measure and move the number,
+/// not to widen `_kWidthEpsilon`.
+///
+/// The 7-char case is caught deliberately — a screen title showing 7 of 16
+/// characters is a defect, not a tight fit. An earlier design pass proposed 12
+/// without measuring; that would have reddened the review tile at 9.
+///
+/// Set to `0` to return to report-only mode when re-calibrating.
+const int kMinLegibleChars = 8;
+
+/// Is [o] flexed by its nearest enclosing `Flex`?
+///
+/// `Expanded` and `Flexible` create **no render object** — they are
+/// `ParentDataWidget`s that write `FlexParentData.flex` onto the child's. So
+/// this is a parent walk, not a widget lookup.
+///
+/// It stops at the FIRST `FlexParentData`, and that is the point: a paragraph
+/// inside `Expanded(child: Column(child: Row(child: Text)))` is **unflexed**
+/// with respect to the Row that actually squeezes it, and the Row is the
+/// subject.
+bool _isFlexed(RenderObject o) {
+  for (RenderObject? n = o; n != null; n = n.parent) {
+    final pd = n.parentData;
+    if (pd is FlexParentData) return (pd.flex ?? 0) > 0;
+  }
+  return false;
+}
+
+/// Does `prefix…` fit [p]'s real box — its width AND its `maxLines`?
+///
+/// **`maxLines` is load-bearing, and leaving it out was a bug this gate caught
+/// in itself.** The first version compared a single-line prefix width against
+/// `p.size.width`, which silently treats every paragraph as one line. It is
+/// right for the crush case (`maxLines: 1`) and wrong for anything taller: the
+/// salon page's header is `maxLines: 2` at `headlineMedium`, so it shows ~14
+/// characters across two lines while a one-line measure reported 7 and called
+/// it a crush. The red was a false positive, and the fix is to ask the question
+/// the way the framework answers it.
+bool _prefixFits(RenderParagraph p, String text, int n) {
+  final painter = TextPainter(
+    text: TextSpan(text: '${text.substring(0, n)}…', style: p.text.style),
+    textDirection: TextDirection.ltr,
+    textScaler: p.textScaler,
+    maxLines: p.maxLines,
+  )..layout(maxWidth: p.size.width);
+  final fits = !painter.didExceedMaxLines;
+  painter.dispose();
+  return fits;
+}
+
+/// Fails if a FLEXED label has been squeezed below legibility (§13.3, A12).
+///
+/// **The truncating twin of [expectNoMidWordBreak].** That one asks whether a
+/// *wrapping* paragraph was given a box narrower than its widest word; this asks
+/// whether a *truncating* one was given a box narrower than a readable prefix.
+/// Between them they cover both ways a flex slot collapses — and neither can be
+/// expressed by [expectNoUndeclaredTruncation], which skips a declared ellipsis
+/// **by design** (`ellipsisIsFine`). That is why `NotificationTile`'s title,
+/// crushed to ~86dp of a 240dp row by an unflexed timestamp, passed every
+/// assertion this repo had (§21 row 68).
+///
+/// ## Two preconditions, and the second is the whole design
+///
+/// A subject must be **flexed** ([_isFlexed]) *and* have **`didExceedMaxLines`**.
+/// Without the second, every framing of this rule fires on `CommunePill`: a
+/// `Flexible` in a `mainAxisSize: min` row lays out at `min(intrinsic,
+/// available)`, so « Cocody » is narrow and entirely correct. The question is
+/// not "is this label narrow" but "did this label spend an ellipsis on a squeeze
+/// it did not choose".
+///
+/// ⚠️ `didExceedMaxLines` is false whenever `maxLines` is null, and that is
+/// right here — a flexed paragraph with no `maxLines` wraps rather than
+/// truncates, and its crush belongs to [expectNoMidWordBreak]. It does mean a
+/// site like `client_list_screen.dart`'s name (ellipsis, no `maxLines`) is out
+/// of this sweep's reach. Said rather than assumed.
+///
+/// ## Applied as a SWEEP, unlike [expectNoMidWordBreak]
+///
+/// That one is applied by name because §13.3 gives it a **role exception** — a
+/// date may not break, a heading may. Legibility has none: three characters and
+/// an ellipsis is illegible in a heading too. [except] exists for a different
+/// reason — a shape where the ellipsis *is* the design, e.g. `AppSearchBar`'s
+/// placeholder in a fixed-shape pill (§21 row 56) — and each entry should cite
+/// its register row on the line.
+void expectNoLegibilityCrush(
+  WidgetTester tester, {
+  int minChars = kMinLegibleChars,
+  String? context,
+  Iterable<String> except = const <String>[],
+}) {
+  final crushed = <String>[];
+  final report = <String>[];
+
+  for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!p.didExceedMaxLines) continue;
+    if (!_isFlexed(p)) continue;
+    final text = p.text.toPlainText();
+    if (text.isEmpty || except.contains(text)) continue;
+
+    if (minChars <= 0) {
+      // Report mode: how many characters DO fit?
+      var fits = 0;
+      for (var n = 1; n <= text.length; n++) {
+        if (_prefixFits(p, text, n)) {
+          fits = n;
+        } else {
+          break;
+        }
+      }
+      report.add('    « $text »  ${p.size.width.toStringAsFixed(1)}dp '
+          '→ $fits chars + …');
+      continue;
+    }
+
+    final n = minChars < text.length ? minChars : text.length;
+    if (!_prefixFits(p, text, n)) {
+      crushed.add('    « $text » has ${p.size.width.toStringAsFixed(1)}dp × '
+          '${p.maxLines ?? 1} line(s) and cannot show $n characters');
+    }
+  }
+
+  if (minChars <= 0) {
+    if (report.isNotEmpty) {
+      // ignore: avoid_print
+      print('LEGIBILITY${context == null ? '' : ' ($context)'}:\n'
+          '${report.join('\n')}');
+    }
+    return;
+  }
+
+  expect(
+    crushed,
+    isEmpty,
+    reason: 'a flexed label was squeezed below $minChars characters'
+        '${context == null ? '' : ' at $context'}:\n${crushed.join('\n')}\n'
+        'The ellipsis is declared, so nothing else in this suite can see it — '
+        'but a label showing three characters says nothing. §13.3: the fix is '
+        'more width (flex the sibling, or wrap the row), never a smaller font.',
+  );
+}
+
 /// Half a logical pixel — below anything a reader can see, above the rounding
 /// noise between two `TextPainter` passes.
 ///
@@ -250,6 +421,114 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
 /// disagreement is a failure. The defects this gate exists to catch overrun by
 /// tens of pixels.
 const double _kWidthEpsilon = 0.5;
+
+/// The vertical twin of [_kWidthEpsilon], and deliberately its own constant.
+///
+/// Sharing one is how a tolerance chosen for two `TextPainter` passes silently
+/// becomes the tolerance for a line-height comparison. Same value today, same
+/// reasoning, separate name so either can move without the other.
+const double _kHeightEpsilon = 0.5;
+
+/// Is [o] on a branch that actually gets PAINTED?
+///
+/// `tester.allRenderObjects` walks everything that was laid out, and layout is
+/// not visibility. `DropdownButton` is the case that found this: it builds
+/// **every** item so the button can show the selected one, inside an
+/// `IndexedStack`. So the three form dropdowns reported « Institut de
+/// manucure » clipped into a 48dp box — true of a copy no user can see, and
+/// false of the one they can.
+///
+/// **Two questions, because one is not enough.** `RenderObject.paintsChild`
+/// (`rendering/object.dart:3512`) is the framework's own answer and is
+/// overridden by `RenderOpacity`, `RenderOffstage` and `RenderFittedBox` — but
+/// **not** by the `_RenderVisibility` that `IndexedStack` actually uses
+/// (`basic.dart:4813` wraps each child in `Visibility(maintainSize: true)`, and
+/// `visibility.dart:269` builds a `_Visibility` that simply skips `paint`).
+/// Asking only `paintsChild` finds nothing here; asking only the widget misses
+/// opacity and offstage. Both, then.
+///
+/// The widget half reads `debugCreator`, which is debug-only — fine, because
+/// every test runs in debug, and stated so the next reader does not reach for
+/// it in product code.
+bool _isPainted(RenderObject o) {
+  var child = o;
+  for (RenderObject? n = o.parent; n != null; child = n, n = n.parent) {
+    if (!n.paintsChild(child)) return false;
+  }
+
+  // The widget half. It walks ELEMENTS, not render objects, because the render
+  // object `Visibility` creates is the private `_Visibility` — its
+  // `debugCreator` never names the public widget whose `visible` flag is the
+  // thing worth reading. `visitAncestorElements` sees the `Visibility` itself.
+  final creator = o.debugCreator;
+  if (creator is DebugCreator) {
+    var visible = true;
+    creator.element.visitAncestorElements((e) {
+      final w = e.widget;
+      if (w is Visibility && !w.visible) {
+        visible = false;
+        return false;
+      }
+      return true;
+    });
+    if (!visible) return false;
+  }
+  return true;
+}
+
+/// Fails if any text is being CLIPPED VERTICALLY by a bound (§13.3, A12).
+///
+/// §13.3 has said *"a box that contains text may not have a fixed height"* since
+/// A5 and has never had an expression. [expectGrowsWithTextScale] is the
+/// hand-applied, two-pump form of the same idea, wired per widget; this is its
+/// sweep, and it needs only one pump because the question is not "did the box
+/// move between 1× and 2×" but "does the box give the text less than it needs".
+///
+/// The predicate is the framework's own arithmetic:
+///
+/// ```
+/// getMaxIntrinsicHeight(size.width) > size.height   ⟺  text is cut off the
+///                                                      bottom of its own box
+/// ```
+///
+/// **Vertical only, and that is not an oversight.** The horizontal twin —
+/// intrinsic width against laid-out width — is true of almost every sentence on
+/// a 360dp phone, because wrapping is *how the layout succeeds*. That is the
+/// rejected first draft [expectNoUndeclaredTruncation] records. Height has no
+/// such escape: a paragraph that needs three lines and is given two loses the
+/// third, silently, with nothing thrown.
+///
+/// **Few false positives by construction.** `RenderParagraph` lays out at the
+/// given width *with its own `maxLines`*, so a `maxLines: 1` ellipsised label
+/// reports one line and equals its size — the 47 declared-ellipsis sites in
+/// `lib/` are silent. A paragraph that fits reports what it occupies.
+///
+/// **Its gap, stated:** it is paragraph-local, so a box clipping a *group*
+/// (icon + label) rather than a paragraph is invisible to it. That case
+/// generally throws, and assertion A owns it. The two together cover the class;
+/// neither alone does.
+void expectNoVerticalClip(WidgetTester tester, {String? context}) {
+  final cut = <String>[];
+  for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!_isPainted(p)) continue;
+    final need = p.getMaxIntrinsicHeight(p.size.width);
+    if (need <= p.size.height + _kHeightEpsilon) continue;
+    final text = p.text.toPlainText();
+    cut.add('    « ${text.length > 40 ? '${text.substring(0, 40)}…' : text} » '
+        'needs ${need.toStringAsFixed(1)}dp in a '
+        '${p.size.height.toStringAsFixed(1)}dp box');
+  }
+  expect(
+    cut,
+    isEmpty,
+    reason: 'text is clipped by a fixed height'
+        '${context == null ? '' : ' at $context'}:\n${cut.join('\n')}\n'
+        '§13.3: a box that contains text may not have a fixed height — use '
+        '`minHeight`, or let it grow. A clip inside a bounded box throws '
+        'nothing and truncates nothing declared, so this is the only assertion '
+        'that can see it.',
+  );
+}
 
 /// Fails if any text in the tree is being CUT OFF without saying so (§13.3).
 ///

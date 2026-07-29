@@ -19,6 +19,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/label_value_row.dart';
 
 class BookingDraft {
   final String providerId;
@@ -841,17 +842,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Total', style: AppTextStyles.titleMedium),
-                          Text(
-                            Formatters.formatCurrency(totalPrice,
-                                currency: p.currency),
-                            style: AppTextStyles.titleLarge
-                                .copyWith(color: AppColors.primary),
-                          ),
-                        ],
+                      LabelValueRow(
+                        label: 'Total',
+                        value: Formatters.formatCurrency(totalPrice,
+                            currency: p.currency),
+                        labelStyle: AppTextStyles.titleMedium,
+                        valueStyle: AppTextStyles.titleLarge
+                            .copyWith(color: AppColors.primary),
                       ),
                       if (totalDuration > 0) ...[
                         const SizedBox(height: AppTheme.spacingXS),

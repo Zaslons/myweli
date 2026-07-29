@@ -17,6 +17,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
 class DepositSettingsScreen extends StatefulWidget {
@@ -197,15 +198,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Pourcentage de l’acompte',
-                      style: AppTextStyles.bodyMedium,
-                    ),
-                    Text('$pct %', style: AppTextStyles.titleMedium),
-                  ],
+                LabelValueRow(
+                  label: 'Pourcentage de l’acompte',
+                  value: '$pct %',
+                  valueStyle: AppTextStyles.titleMedium,
                 ),
                 Slider(
                   value: provider.depositPercentage.clamp(0.05, 0.80),
@@ -235,41 +231,25 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingS),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Acompte payé en ligne',
-                        style: AppTextStyles.bodyMedium),
-                    Text(
-                      Formatters.formatCurrency(
-                        deposit,
-                        currency: context.read<ProAuthProvider>().salonCurrency,
-                      ),
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ],
+                LabelValueRow(
+                  label: 'Acompte payé en ligne',
+                  value: Formatters.formatCurrency(
+                    deposit,
+                    currency: context.read<ProAuthProvider>().salonCurrency,
+                  ),
+                  valueStyle: AppTextStyles.bodyMedium
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: AppTheme.spacingXS),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Solde au salon',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      Formatters.formatCurrency(
-                        balance,
-                        currency: context.read<ProAuthProvider>().salonCurrency,
-                      ),
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                LabelValueRow(
+                  label: 'Solde au salon',
+                  value: Formatters.formatCurrency(
+                    balance,
+                    currency: context.read<ProAuthProvider>().salonCurrency,
+                  ),
+                  labelStyle: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),

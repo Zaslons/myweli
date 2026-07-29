@@ -18,6 +18,7 @@ import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
@@ -303,21 +304,16 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 maxLines: 2,
               ),
               const SizedBox(height: AppTheme.spacingM),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Total',
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(color: AppColors.textSecondary)),
-                  Text(
-                    Formatters.formatCurrency(
-                      total,
-                      currency: context.read<ProAuthProvider>().salonCurrency,
-                    ),
-                    style: AppTextStyles.titleMedium
-                        .copyWith(color: AppColors.primary),
-                  ),
-                ],
+              LabelValueRow(
+                label: 'Total',
+                value: Formatters.formatCurrency(
+                  total,
+                  currency: context.read<ProAuthProvider>().salonCurrency,
+                ),
+                labelStyle: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textSecondary),
+                valueStyle: AppTextStyles.titleMedium
+                    .copyWith(color: AppColors.primary),
               ),
               const SizedBox(height: AppTheme.spacingL),
               InlineFeedback(_selectionError),

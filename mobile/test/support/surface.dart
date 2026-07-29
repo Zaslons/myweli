@@ -44,3 +44,17 @@ void pinSurface(WidgetTester tester, {required Size size, double scale = 1.0}) {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   }
 }
+
+/// §10's floor, at a real phone's HEIGHT (A12).
+///
+/// Every other surface in this suite is 1600 tall so that everything below the
+/// fold is built and painted — an overflow is reported from `paint`, so a row
+/// scrolled out of a short viewport is a row the gate cannot see. That choice
+/// is right for horizontal defects and it is exactly why no test in this repo
+/// had ever seen a VERTICAL one: 1600dp of height means every `Column` fits.
+///
+/// 780, not 800: both were measured on real hardware — the iPhone 13 mini is
+/// 360×780pt and the Android emulator 360×800 logical — and 780 is the stricter
+/// of the two, and the one that produced `EmptyState`'s 3px
+/// (`mobile-a11-width.md` §6.4).
+const Size kFloorPhone = Size(360, 780);

@@ -7,7 +7,6 @@ import '../../screens/booking/artist_selection_screen.dart';
 import '../../screens/booking/booking_confirmation_screen.dart';
 import '../../screens/booking/booking_hub_screen.dart';
 import '../../screens/booking/date_time_selection_screen.dart';
-import '../../screens/booking/service_selection_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/map/map_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
@@ -75,26 +74,6 @@ class AppRouter {
             providerId: providerId,
             initialServiceIds: initialServiceIds,
             initialArtistId: state.uri.queryParameters['artistId'],
-          );
-        },
-      ),
-      GoRoute(
-        path: '/booking/service',
-        name: 'service-selection',
-        builder: (context, state) {
-          final providerId = state.uri.queryParameters['providerId']!;
-          final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
-          final selectedParam = state.uri.queryParameters['selectedServiceIds'];
-          final initialSelectedServiceIds =
-              selectedParam == null || selectedParam.isEmpty
-                  ? const <String>[]
-                  : selectedParam.split(',');
-          final artistId = state.uri.queryParameters['artistId'];
-          return ServiceSelectionScreen(
-            providerId: providerId,
-            returnToHub: returnToHub,
-            initialSelectedServiceIds: initialSelectedServiceIds,
-            artistId: artistId,
           );
         },
       ),

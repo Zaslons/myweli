@@ -340,15 +340,27 @@ class _BufferSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // A12 — §21 row 68's finding #10, and the same mechanism as the pro
+          // dashboard's `_StatCard`: **an icon does not text-scale.** The
+          // theme sets no `applyTextScaling`, so the glyph stays 20dp while
+          // « Temps de battement » goes from ~144 to ~288 in a 296dp card —
+          // ~20dp over at 200%.
+          //
+          // `Flexible` rather than a `Wrap` here: unlike the stat card's
+          // « Aujourd'hui », this title is three words and CAN wrap its way
+          // out, so it takes the space it needs and the icon stays beside it.
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Icon(Icons.hourglass_bottom,
                   size: AppTheme.iconS, color: AppColors.textSecondary),
               const SizedBox(width: AppTheme.spacingS),
-              Text(
-                'Temps de battement',
-                style: AppTextStyles.titleMedium
-                    .copyWith(color: AppColors.textPrimary),
+              Flexible(
+                child: Text(
+                  'Temps de battement',
+                  style: AppTextStyles.titleMedium
+                      .copyWith(color: AppColors.textPrimary),
+                ),
               ),
             ],
           ),

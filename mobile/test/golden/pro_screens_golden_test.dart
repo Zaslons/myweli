@@ -356,6 +356,50 @@ void main() {
       await expectGolden(tester, 'pro_reviews_w360');
     });
 
+    // ---- A12: the dashboard at the floor, at 200% -----------------------
+    //
+    // The first picture of this screen anywhere but 390 × 1×, and it exists
+    // because **regenerating every baseline after A12's dashboard fixes moved
+    // nothing** — both are the identity at 390 × 1×, which is the definition of
+    // the class §20.1's condition suffixes were introduced for.
+    //
+    // Two fixes in one frame: the `_StatCard` header, where an icon that does
+    // not text-scale sat beside a label that doubles (19px over at 360×2×
+    // before), and the action grid, whose `childAspectRatio: 1.1` froze the
+    // tile at 143.6dp at every scale.
+    testWidgets('the pro dashboard at the floor, at 200% text', (tester) async {
+      await _pumpPro(
+        tester,
+        const DashboardScreen(),
+        extra: [
+          ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
+          // The service is passed EXPLICITLY, as the 1× dashboard golden does
+          // twelve tests above: this file hand-assigns the locator rather than
+          // calling `setupDependencyInjection()`, and `notificationService` is
+          // not among the fields it assigns. The default constructor reads it
+          // and a `late final` throws — which is what happened here first, and
+          // it surfaced as a 99688px AppBar overflow, because the Consumer died
+          // during build and left the bar without its actions.
+          ChangeNotifierProvider(
+            create: (_) => NotificationsProvider(
+              service: serviceLocator.proNotificationService,
+            ),
+          ),
+        ],
+        // Tall: at 2× the stat cards and both grids run well past a phone, and
+        // a golden photographs what is painted.
+        size: const Size(360, 2600),
+        scale: 2,
+        rounds: 5,
+      );
+      expect(
+        find.text('Opérations quotidiennes'),
+        findsOneWidget,
+        reason: 'the action grid is half the subject',
+      );
+      await expectGolden(tester, 'pro_dashboard_w360_x2');
+    });
+
     // ---- A11 C8: the screen every pro sees first ------------------------
     //
     // There was no picture of the pro login at ANY width — the goldens hold a
@@ -449,9 +493,10 @@ Future<void> _pumpPro(
   // THAT type and the screen's `read<ProTeamProvider>()` would find nothing.
   required List<SingleChildWidget> extra,
   Size size = kGoldenPhone,
+  double scale = 1,
   int rounds = 3,
 }) async {
-  goldenSurface(tester, size: size);
+  goldenSurface(tester, size: size, scale: scale);
 
   // Sign the salon owner in for real BEFORE pumping: the provider session is
   // restored through async storage, which the fake clock can't drive — so it
