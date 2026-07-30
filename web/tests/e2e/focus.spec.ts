@@ -23,6 +23,23 @@ const RING = {
   outlineOffset: '2px',
 };
 
+/// **A snapshot read, and every caller must POLL it.**
+///
+/// `locator.evaluate` resolves once and does not retry — unlike
+/// `expect(locator).toHaveCSS(...)`, which Playwright re-queries until it
+/// matches or the `expect` budget runs out. This file read it bare at all three
+/// call sites, so each assertion was a single sample of a value the browser is
+/// still settling.
+///
+/// It survived for months and then went red **three runs in a row** the moment
+/// B12 turned `trace: 'retain-on-failure'` on: tracing instruments every action,
+/// and the extra latency was enough to move the sample. The trace did not break
+/// the test — **it exposed a test that was always sampling a race**, which is
+/// the job it was added to do.
+///
+/// The four properties have to be read together, in one `evaluate`, because
+/// `toHaveCSS` takes one property at a time and the ring is a set. So the shape
+/// stays; the callers wrap it in `expect.poll`.
 async function outlineOf(locator: import('@playwright/test').Locator) {
   return locator.evaluate((el) => {
     const s = getComputedStyle(el);
@@ -44,7 +61,7 @@ test('the first Tab on a public page is the skip link, wearing the ring', async 
   const skip = page.getByRole('link', { name: 'Aller au contenu' });
   await expect(skip).toBeFocused();
   await expect(skip).toBeVisible(); // sr-only until focused — focus must reveal it
-  expect(await outlineOf(skip)).toEqual(RING);
+  await expect.poll(() => outlineOf(skip)).toEqual(RING);
 
   // Activating it moves the subsequent tab order into the content.
   await page.keyboard.press('Enter');
@@ -66,17 +83,22 @@ test('keyboard focus wears the ring; a clicked button does not', async ({
     if (await search.evaluate((el) => el === document.activeElement)) break;
   }
   await expect(search).toBeFocused();
-  expect(await outlineOf(search)).toEqual(RING);
+  await expect.poll(() => outlineOf(search)).toEqual(RING);
 
   // Mouse: the same button, clicked — :focus-visible must NOT match. (Text
   // fields legitimately DO show the ring on click; buttons must not.)
   await page.mouse.click(5, 400); // drop focus somewhere inert
   const box = await search.boundingBox();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  const clicked = await outlineOf(search);
-  expect(clicked.outlineStyle === 'none' || clicked.outlineWidth === '0px').toBe(
-    true,
-  );
+  await expect
+      .poll(async () => {
+        const o = await outlineOf(search);
+        return o.outlineStyle === 'none' || o.outlineWidth === '0px';
+      }, {
+        message:
+            'a button reached by MOUSE must not wear the :focus-visible ring',
+      })
+      .toBe(true);
 });
 
 test('a focused text field shows BOTH indicators — the border swap and the ring', async ({
