@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
 
 import '../../../core/config/feature_flags.dart';
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
+import '../../../widgets/common/myweli_month_grid.dart';
 
 class BookingJournalScreen extends StatelessWidget {
   const BookingJournalScreen({super.key});
@@ -38,25 +40,27 @@ class BookingJournalScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppTheme.radiusXL),
                 boxShadow: AppTheme.elevation1,
               ),
-              child: TableCalendar(
-                firstDay: DateTime.now(),
-                lastDay: DateTime.now().add(const Duration(days: 90)),
-                focusedDay: DateTime.now(),
-                calendarStyle: const CalendarStyle(
-                  selectedDecoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  todayDecoration: BoxDecoration(
-                    color: AppColors.surface,
-                    shape: BoxShape.circle,
-                  ),
-                  outsideDaysVisible: false,
-                ),
-                headerStyle: const HeaderStyle(
-                  formatButtonVisible: false,
-                  titleCentered: true,
-                ),
+              // **Converted although the screen is dead** (A14c §18.2). It sits
+              // behind `FeatureFlags.futureProviderFeatures`, a `const false`,
+              // with zero references outside its own declaration — so the
+              // branch below is unreachable under every build config. It is
+              // converted anyway because the alternative is not "leave it": the
+              // dependency it used is being removed, so the choice was convert
+              // or delete, and a V2 screen someone will un-shelve is worth more
+              // converted than gutted.
+              //
+              // Its three `DateTime.now()` reads go with it. They were
+              // allow-listed in `salon_time_pin_test.dart` with the note
+              // *"Shelved, not swept: converting dead code would shorten this
+              // list and leave the app no more deterministic"* — true when it
+              // was written, and no longer a choice once the package goes.
+              child: MyweliMonthNavigator(
+                shrinkWrap: true,
+                initialMonth: salonToday(),
+                firstDate: salonToday(),
+                lastDate: salonToday().add(kBookingHorizon),
+                today: salonToday(),
+                onDayTap: (_) {},
               ),
             ),
             const SizedBox(height: 24),

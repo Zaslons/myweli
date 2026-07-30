@@ -30,14 +30,60 @@ void main() {
     return out;
   }
 
+  /// **Comments are not code, and this pin read them as code until A14c.**
+  ///
+  /// It flagged `booking_journal_screen.dart` for a `DateTime.now()` that
+  /// existed only inside the comment explaining that the file's three real ones
+  /// had just been removed. A gate that reddens when you *document* fixing it
+  /// is a gate people learn to route around.
+  ///
+  /// The mirror on the web side had the identical hole and records the identical
+  /// lesson — `scripts/dart-tokens.mjs`'s `stripDartComments` exists because
+  /// *"every parser hole below traced back to reading comments as code"*: a
+  /// commented-out declaration kept a removed token alive, and a prose TODO
+  /// mentioning an idiom turned a self-check permanently red. Same defect, same
+  /// answer, two languages apart.
+  ///
+  /// It cuts both ways, and the other way is worse: a **commented-out**
+  /// `DateTime.now()` would have kept a file looking like an offender forever,
+  /// so the allow-list entry justifying it could never be retired.
+  String stripDartComments(String src) => src
+      .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+      .replaceAll(RegExp('//[^\n]*'), '');
+
   List<String> offenders({
     required List<String> roots,
     required String token,
     List<String> allow = const [],
   }) => [
     for (final f in sources(roots, allow: allow))
-      if (f.readAsStringSync().contains(token)) f.path,
+      if (stripDartComments(f.readAsStringSync()).contains(token)) f.path,
   ];
+
+  group('the pin\'s own parser', () {
+    // **Green-from-birth is §21 row 67's trap** — six helpers shipped unable to
+    // fail. A comment stripper that stripped too much would silently disarm
+    // every assertion below it, and every one of them would stay green.
+    test('a real call survives stripping; a commented one does not', () {
+      const src = '''
+// DateTime.now() in a line comment
+/* DateTime.now() in a block comment */
+void f() {
+  final a = DateTime.now(); // and a trailing comment
+}
+''';
+      final stripped = stripDartComments(src);
+      expect(
+        RegExp('DateTime.now').allMatches(stripped).length,
+        1,
+        reason:
+            'exactly the one real call — three of the four occurrences are '
+            'prose, and a stripper that kept them is the defect this fixes '
+            'while a stripper that ate the fourth is a pin that cannot fail',
+      );
+      expect(stripped, contains('final a = DateTime.now();'));
+    });
+  });
 
   group('salon-time sweep pins', () {
     test('no `.toLocal(` outside the allowlisted ops console — device-tz '
@@ -111,17 +157,20 @@ void main() {
   });
 
   group('A10 — the clock seam (§18, §20.1, §21 row 23)', () {
-    // The seven `lib/` files that may read the wall clock directly, each with
+    // The six `lib/` files that may read the wall clock directly, each with
     // the reason it is not a render path. This list is the pin's whole content:
     // a new entry is a claim that a clock read never reaches a pixel, and it has
     // to be argued in review rather than added quietly.
+    //
+    // **It was seven until A14c.** `booking_journal_screen.dart` held three
+    // render-path reads and was allow-listed as *"shelved, not swept: converting
+    // dead code would shorten this list and leave the app no more
+    // deterministic"* — sound at the time, and overtaken by events: the package
+    // its calendar used is being retired, so the file had to be touched anyway
+    // and the three reads went with it.
     const libAllow = <String>[
       // The seam itself.
       'core/utils/app_clock.dart',
-      // §22 — three render-path reads, but ZERO references outside its own
-      // declaration. Shelved, not swept: converting dead code would shorten this
-      // list and leave the app no more deterministic.
-      'screens/provider/features/booking_journal_screen.dart',
       // Cache expiry and session expiry. Freezing these would make a frozen test
       // believe its session never expires — worse than non-determinism, because
       // it is a test that can no longer express the thing it exists to test.
