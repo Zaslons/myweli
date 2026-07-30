@@ -1,4 +1,4 @@
-import { salonDayKey, salonMinutesOfDay } from '../time';
+import { salonDayKey, salonMinutesOfDay, salonWallClockToUtc } from '../time';
 import type { ProAppointment } from './today';
 
 /// Module `journal` J1 (docs/design/journal-j1-grid.md) — pure geometry +
@@ -39,8 +39,8 @@ export function hhmm(minutes: number): string {
 }
 
 /// Minutes past SALON midnight of an ISO instant.
-export function minutesOfDay(iso: string): number {
-  return salonMinutesOfDay(new Date(iso));
+export function minutesOfDay(iso: string, tz?: string): number {
+  return salonMinutesOfDay(new Date(iso), tz);
 }
 
 export function snapToQuarter(minutes: number): number {
@@ -56,8 +56,9 @@ export function topFor(minute: number, openMin: number): number {
 export function blockBox(
   appt: ProAppointment,
   openMin: number,
+  tz?: string,
 ): { top: number; height: number } {
-  const start = minutesOfDay(appt.appointmentDate);
+  const start = minutesOfDay(appt.appointmentDate, tz);
   const dur = appt.durationMinutes && appt.durationMinutes > 0 ? appt.durationMinutes : 30;
   return {
     top: topFor(start, openMin),
@@ -71,9 +72,10 @@ export function nowLineTop(
   now: Date,
   dayKey: string,
   hours: JournalHours,
+  tz?: string,
 ): number | null {
-  if (salonDayKey(now) !== dayKey) return null;
-  const minute = salonMinutesOfDay(now);
+  if (salonDayKey(now, tz) !== dayKey) return null;
+  const minute = salonMinutesOfDay(now, tz);
   const openMin = parseHhmm(hours.open);
   const closeMin = parseHhmm(hours.close);
   if (minute < openMin || minute > closeMin) return null;
@@ -110,13 +112,10 @@ export function axisHeight(hours: JournalHours): number {
 }
 
 /// The ISO instant for a snapped drop at [minute] on [dayKey] — a SALON
-/// wall-clock (Africa/Abidjan = UTC+0, hence the literal Z; Wave 2 swaps
-/// this to an offset-aware builder in lib/time.ts).
-export function isoAt(dayKey: string, minute: number): string {
-  const snapped = snapToQuarter(minute);
-  const h = Math.floor(snapped / 60);
-  const m = snapped % 60;
-  return `${dayKey}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00.000Z`;
+/// wall-clock, built offset-aware through the seam (multi-pays MP3:
+/// salonWallClockToUtc replaced the old hardcoded-Z construction).
+export function isoAt(dayKey: string, minute: number, tz?: string): string {
+  return salonWallClockToUtc(dayKey, snapToQuarter(minute), tz).toISOString();
 }
 
 /// Which artist column an appointment belongs to (or '' = « Sans artiste »).

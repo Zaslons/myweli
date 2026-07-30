@@ -9,6 +9,7 @@ import {
   salonMidnight,
   salonOffsetDiffers,
   salonToday,
+  salonWallClockToUtc,
   tzOffsetMinutes,
 } from '../lib/time';
 
@@ -121,6 +122,36 @@ describe('salonDayRange', () => {
     const r = salonDayRange('today', new Date('2026-07-13T23:30:00Z'), GABON)!;
     expect(r.startDate).toBe('2026-07-13T23:00:00.000Z'); // 00:00 on the 14th, Libreville
     expect(r.endDate).toBe('2026-07-14T23:00:00.000Z');
+  });
+});
+
+describe('salonWallClockToUtc (multi-pays MP3 — the offset-aware builder)', () => {
+  it('a salon wall-clock becomes ITS UTC instant', () => {
+    expect(
+      salonWallClockToUtc('2026-07-20', 10 * 60 + 30).toISOString(),
+    ).toBe('2026-07-20T10:30:00.000Z'); // Abidjan ≡ UTC
+    expect(
+      salonWallClockToUtc('2026-07-20', 10 * 60 + 30, GABON).toISOString(),
+    ).toBe('2026-07-20T09:30:00.000Z'); // 10:30 Libreville = 09:30Z
+  });
+
+  it('round-trips with salonDayKey at the day edges', () => {
+    // 00:00 Libreville on the 14th is 23:00Z on the 13th — and keys back
+    // to the 14th in the salon zone.
+    const midnight = salonWallClockToUtc('2026-07-14', 0, GABON);
+    expect(midnight.toISOString()).toBe('2026-07-13T23:00:00.000Z');
+    expect(salonDayKey(midnight, GABON)).toBe('2026-07-14');
+  });
+
+  it('handles a DST zone (future-proofing — none in the launch markets)', () => {
+    // Paris summer (UTC+2): 09:00 wall = 07:00Z.
+    expect(
+      salonWallClockToUtc('2026-07-20', 9 * 60, 'Europe/Paris').toISOString(),
+    ).toBe('2026-07-20T07:00:00.000Z');
+    // Paris winter (UTC+1): 09:00 wall = 08:00Z.
+    expect(
+      salonWallClockToUtc('2026-01-20', 9 * 60, 'Europe/Paris').toISOString(),
+    ).toBe('2026-01-20T08:00:00.000Z');
   });
 });
 

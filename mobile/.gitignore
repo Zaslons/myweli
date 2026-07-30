@@ -33,6 +33,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+# A9: the CI APK-size job stages its analysis JSON here before upload.
+/size-report/
 
 # Symbolication related
 app.*.symbols
@@ -47,3 +49,7 @@ app.*.map.json
 
 
 
+
+# Golden diffs written by a failing run — artifacts, never committed
+# (CI uploads them; see .github/workflows/ci.yml).
+test/golden/failures/

@@ -736,6 +736,12 @@ class ApiAuthService implements AuthServiceInterface {
 
   String _messageFor(String? code) {
     switch (code) {
+      // L2: the one error on this surface the user can actually resolve — so it
+      // says WHAT to do. A bare « échec » leaves them with an account they
+      // cannot close and no idea why.
+      case 'future_bookings':
+        return 'Annulez vos rendez-vous à venir avant de supprimer votre '
+            'compte.';
       case 'otp_none':
         return 'Aucun code actif. Demandez un nouveau code.';
       case 'otp_expired':

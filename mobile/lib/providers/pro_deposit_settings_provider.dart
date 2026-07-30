@@ -100,7 +100,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
         _error = null;
         return true;
       }
-      _error = response.error ?? "Erreur lors de l'enregistrement";
+      _error = response.error ?? 'Erreur lors de l’enregistrement';
       return false;
     } catch (e) {
       _error = e.toString();

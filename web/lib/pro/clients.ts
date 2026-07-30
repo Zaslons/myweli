@@ -2,6 +2,8 @@
 /// (docs/design/clients-c1.md §6). Types mirror the OpenAPI SalonClient*
 /// schemas (docs/api/openapi.yaml).
 
+import { countFr } from '../format';
+
 export type SalonClient = {
   id: string;
   displayName: string;

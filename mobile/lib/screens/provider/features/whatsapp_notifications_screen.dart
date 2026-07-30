@@ -75,21 +75,21 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Automatisez les notifications et rappelez aux clients leur visite à l\'avance. Les notifications push gratuites via WhatsApp vous aideront à économiser.',
+              'Automatisez les notifications et rappelez aux clients leur visite à l’avance. Les notifications push gratuites via WhatsApp vous aideront à économiser.',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Économisez sur les SMS et chatbots à partir de 3,500 FCFA par mois*. Envoyez gratuitement des rappels de rendez-vous, invitations de retour et messages d\'anniversaire.',
+              'Économisez sur les SMS et chatbots à partir de 3,500 FCFA par mois*. Envoyez gratuitement des rappels de rendez-vous, invitations de retour et messages d’anniversaire.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textTertiary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              '* Lors de l\'envoi de 140 SMS par semaine',
+              '* Lors de l’envoi de 140 SMS par semaine',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textTertiary,
                 fontStyle: FontStyle.italic,
@@ -123,8 +123,8 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const _NotificationSettingItem(
-              title: 'Message d\'anniversaire',
-              description: 'Envoyer le jour de l\'anniversaire',
+              title: 'Message d’anniversaire',
+              description: 'Envoyer le jour de l’anniversaire',
               isEnabled: false,
             ),
             const SizedBox(height: 24),
@@ -146,7 +146,7 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
             const _MessageTemplateCard(
               title: 'Offre promotionnelle',
               message:
-                  'Complexe classique pour seulement 3,000 FCFA. Manicure 💅, pédicure 🦶, vernis...',
+                  'Complexe classique pour seulement 3,000 FCFA. Manicure 💅, pédicure 🦶, vernis…',
               time: '11:00',
             ),
             const SizedBox(height: 24),

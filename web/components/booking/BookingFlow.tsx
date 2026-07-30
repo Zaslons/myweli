@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { chipLinkClasses } from '../Chip';
+import { Loading } from '../Loading';
+import { SkeletonRows } from '../Skeleton';
 import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import { type Me, getMe } from '../../lib/api/account';
 import type { Provider } from '../../lib/api/providers';
@@ -50,16 +53,20 @@ import { SalonTimeHint } from '../SalonTimeHint';
 import { LoginOptions } from '../auth/LoginOptions';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
+import { TextField } from '../TextField';
 import { DepositProof } from './DepositProof';
 
-const slotTime = (iso: string) =>
-  salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+const slotTime = (iso: string, tz?: string) =>
+  salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
+    new Date(iso),
+  );
 
 function totalLabel(p: Provider, ids: string[]): string {
   const t = priceTotal(p, ids);
+  const cur = p.currency ?? undefined;
   return t.max > t.min
-    ? `${formatFcfa(t.min)} – ${formatFcfa(t.max)}`
-    : formatFcfa(t.min);
+    ? `${formatFcfa(t.min, cur)} – ${formatFcfa(t.max, cur)}`
+    : formatFcfa(t.min, cur);
 }
 
 /// The booking HUB (K2 — docs/design/booking-capacity-web-hub.md §4): the
@@ -73,23 +80,54 @@ export function BookingFlow({
   provider,
   prefillServiceIds,
   prefillArtistId,
+  countryLabel,
 }: {
   provider: Provider;
   prefillServiceIds?: string[];
   prefillArtistId?: string | null;
+  /// The salon country's display name (tree lookup by the reserver page) —
+  /// feeds the salon-time hint (multi-pays MP3).
+  countryLabel?: string | null;
 }) {
+  // The viewed SALON's market (multi-pays): its clock shapes every day/time
+  // rendered here; its currency labels every price.
+  const tz = provider.timezone ?? undefined;
+  const currency = provider.currency ?? undefined;
   const [s, setS] = useState<HubState>(() => {
     const clean = sanitizeRebookSelection(
       provider,
       prefillServiceIds ?? [],
       prefillArtistId ?? null,
     );
-    return initialHubState(clean);
+    return initialHubState(clean, tz);
   });
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  // The app's slotsRequestId pattern — stale slot responses are dropped.
+  // The app's slotsRequestId pattern — stale slot responses are dropped. This
+  // guards a CACHE (`slots`), which is always safe to discard.
   const slotsReq = useRef(0);
+
+  /// Two generations, because an async pipeline decides two unrelated things
+  /// and they must not share a fate (docs/design/web-b10-flake.md §4.1).
+  ///
+  /// - `selectionReq` — bumped by anything that changes **what is being
+  ///   booked**. A verdict computed for an older selection describes services
+  ///   the user has since changed, so it is dropped.
+  /// - `navReq` — bumped by anything that changes **where the user is**. A
+  ///   pipeline that started before the user opened another card must not drag
+  ///   them back, but its verdict on the chosen time is still true and is
+  ///   merged onto wherever they now are.
+  ///
+  /// B10's first attempt used one counter for both and returned early on any
+  /// mismatch. That discarded `revalidateSlot`'s answer along with the
+  /// auto-advance — so tapping a header during the round trip kept a time the
+  /// salon can no longer honour, with « Confirmer » still enabled. On the
+  /// variant path the server does not catch it either (the booking payload
+  /// carries no hair length), so the booking is accepted and the chair is
+  /// under-blocked. `clearSlot`/`autoPickSlot` and `advance` touch disjoint
+  /// fields; conflating them was the mistake.
+  const selectionReq = useRef(0);
+  const navReq = useRef(0);
 
   // Auth overhaul P2: confirming requires a signed-in account + a REQUIRED
   // contact phone. undefined = probing the session; null = signed out.
@@ -151,9 +189,9 @@ export function BookingFlow({
 
   /// Artist-first rule: auto-pick the earliest slot within 14 days.
   async function findEarliestSlot(state: HubState): Promise<string | null> {
-    const start = Date.parse(`${todayYmd()}T00:00:00Z`);
+    const start = Date.parse(`${todayYmd(tz)}T00:00:00Z`);
     for (let i = 0; i <= 14; i++) {
-      const day = salonDayKey(new Date(start + i * 86_400_000));
+      const day = salonDayKey(new Date(start + i * 86_400_000), tz);
       const r = await fetchSlotsFor(state, day);
       if (r.length > 0) return r[0];
     }
@@ -163,15 +201,39 @@ export function BookingFlow({
   /// The shared post-mutation pipeline (mirrors the app's handler sequence):
   /// re-validate the chosen time → maybe auto-pick the earliest → advance to
   /// the next section for this entry point → refresh slots if landing on time.
+  /// The half of a pipeline's result that belongs to the server: whether the
+  /// chosen time still stands. `clearSlot`/`autoPickSlot` touch exactly these
+  /// three fields and `advance` touches only `activeSection`, so the verdict
+  /// can always be merged onto the user's latest state without disturbing
+  /// where they are.
+  function withSlotVerdict(prev: HubState, verdict: HubState): HubState {
+    return {
+      ...prev,
+      slot: verdict.slot,
+      date: verdict.date,
+      autoPicked: verdict.autoPicked,
+    };
+  }
+
   async function settle(state: HubState) {
+    const sel = selectionReq.current;
+    const nav = navReq.current;
     let next = await revalidateSlot(state);
+    if (sel !== selectionReq.current) return;
     if (shouldAutoPickEarliest(next)) {
       const earliest = await findEarliestSlot(next);
+      if (sel !== selectionReq.current) return;
       if (earliest) next = autoPickSlot(next, earliest);
     }
-    next = advance(next, hasArtists);
-    setS(next);
-    if (next.activeSection === 'time') await loadSlots(next);
+    if (nav !== navReq.current) {
+      // The user opened another card while we were in flight. Their navigation
+      // wins — but the verdict on the time is not theirs to lose.
+      setS((prev) => withSlotVerdict(prev, next));
+      return;
+    }
+    const advanced = advance(next, hasArtists);
+    setS(advanced);
+    if (advanced.activeSection === 'time') await loadSlots(advanced);
   }
 
   // Rebook prefill lands on the time section → load its slots on mount.
@@ -181,15 +243,26 @@ export function BookingFlow({
   }, []);
 
   async function onToggleService(id: string) {
+    selectionReq.current += 1;
     const next = toggleService(s, provider, id);
     setS(next);
     await settle(next);
   }
 
   async function onVariant(variant: string) {
+    const sel = (selectionReq.current += 1);
+    const nav = navReq.current;
     let next = setVariant(s, variant);
     setS(next);
     next = await revalidateSlot(next);
+    if (sel !== selectionReq.current) return;
+    if (nav !== navReq.current) {
+      // Same rule as `settle`: the user has opened another card, so keep them
+      // there, but a longer hair length that no longer fits the chosen time
+      // must still clear it.
+      setS((prev) => withSlotVerdict(prev, next));
+      return;
+    }
     setS(next);
     if (next.activeSection === 'time') await loadSlots(next);
   }
@@ -197,11 +270,17 @@ export function BookingFlow({
   async function onChooseArtist(id: string | null) {
     const next = chooseArtist(s, provider, id);
     if (next === s) return; // incompatible stylist — row is disabled anyway
+    // Bumped after the no-op return, so a disabled row cannot cancel a
+    // pipeline the user is still waiting on.
+    selectionReq.current += 1;
     setS(next);
     await settle(next);
   }
 
   async function onOpenSection(section: Section) {
+    // Navigation only. This must outrank the auto-advance that would drag the
+    // user back, and must NOT discard the verdict travelling with it.
+    navReq.current += 1;
     const next = openSection(s, section);
     setS(next);
     if (section === 'time') await loadSlots(next);
@@ -209,12 +288,20 @@ export function BookingFlow({
 
   async function onDate(date: string) {
     if (!date) return;
+    selectionReq.current += 1;
     const next = setDate(s, date);
     setS(next);
     await loadSlots(next);
   }
 
   function onPickSlot(iso: string) {
+    // Choosing a time outranks any verdict still in flight about the previous
+    // one, which `withSlotVerdict` would otherwise merge over this pick.
+    // **Not reachable in today's markup** — the slot buttons are unmounted
+    // while a pipeline runs — so this states the invariant rather than fixing
+    // an observed bug. It is one line, and the mounting rule that makes it
+    // unreachable is written down nowhere.
+    selectionReq.current += 1;
     setS(advance(pickSlot(s, iso), hasArtists));
   }
 
@@ -253,10 +340,10 @@ export function BookingFlow({
     const deposit = created?.depositAmount ?? 0;
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-xl font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Réservation envoyée ✓
         </h2>
-        <p className="mt-s text-textSecondary">
+        <p className="mt-s text-bodyLarge text-textSecondary">
           {provider.name} va confirmer votre rendez-vous. Vous recevrez une
           notification.
         </p>
@@ -267,6 +354,7 @@ export function BookingFlow({
               amount={deposit}
               operator={provider.depositMobileMoneyOperator}
               number={provider.depositMobileMoneyNumber}
+              currency={currency}
             />
           </div>
         ) : null}
@@ -281,8 +369,8 @@ export function BookingFlow({
   if (s.phase === 'confirm') {
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-xl font-semibold text-textPrimary">Confirmation</h2>
-        <dl className="mt-m space-y-xs text-sm">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Confirmation</h2>
+        <dl className="mt-m space-y-xs text-bodyMedium">
           <Recap label="Salon" value={provider.name} />
           <Recap
             label="Prestations"
@@ -302,24 +390,34 @@ export function BookingFlow({
           {s.slot ? (
             <Recap
               label="Date"
-              value={`${formatDateFr(s.slot)} à ${slotTime(s.slot)}`}
+              value={`${formatDateFr(s.slot, tz)} à ${slotTime(s.slot, tz)}`}
             />
           ) : null}
-          {s.slot ? <SalonTimeHint date={s.slot} className="text-xs text-textTertiary" /> : null}
+          {s.slot ? (
+            <SalonTimeHint
+              date={s.slot}
+              tz={provider.timezone}
+              countryLabel={countryLabel}
+              className="text-bodySmall text-textTertiary"
+            />
+          ) : null}
           <Recap label="Total" value={totalLabel(provider, s.serviceIds)} />
           {provider.depositRequired ? (
             <Recap
               label="Acompte estimé"
-              value={formatFcfa(estimatedDeposit(provider, s.serviceIds))}
+              value={formatFcfa(
+                estimatedDeposit(provider, s.serviceIds),
+                currency,
+              )}
             />
           ) : null}
         </dl>
 
         {me === undefined ? (
-          <p className="mt-m text-sm text-textSecondary">Chargement…</p>
+          <Loading className="mt-m" />
         ) : me === null ? (
           <div className="mt-m">
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyLarge text-textSecondary">
               Connectez-vous pour confirmer votre réservation.
             </p>
             <div className="mt-s">
@@ -330,24 +428,23 @@ export function BookingFlow({
           </div>
         ) : (
           <div className="mt-m flex flex-col gap-s">
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               Numéro pour que le salon vous contacte :
             </p>
             <PhoneField
               onChange={setPhone}
               initialValue={me.phoneNumber ?? undefined}
             />
-            <label className="mt-s block text-sm text-textSecondary">
-              Notes (optionnel)
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                maxLength={500}
-                placeholder="Précisions pour le salon (allergies, préférences…)"
-                className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
-              />
-            </label>
+            <TextField
+              className="mt-s"
+              label="Notes (optionnelles)"
+              multiline
+              rows={3}
+              maxLength={500}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              hint="Précisions pour le salon (allergies, préférences…)"
+            />
             <Button
               disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
               onClick={confirm}
@@ -356,7 +453,7 @@ export function BookingFlow({
             </Button>
           </div>
         )}
-        {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
         <div className="mt-l">
           <Button
             variant="secondary"
@@ -371,7 +468,23 @@ export function BookingFlow({
 
   // ---- HUB ---------------------------------------------------------------
   return (
-    <div className="pb-24 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-l lg:pb-0">
+    <div
+      // B11 removed the SECOND arbitrary value that used to sit on this line.
+      // The comment below claimed the grid template was "not a token either" —
+      // but `grid-cols-desk` is precisely that rail (`minmax(0, 1fr) 20rem`),
+      // added to stop this exact duplication, and `AujourdhuiClient.tsx:148`
+      // was already using it. Two names for one layout, one written `320px` and
+      // one `20rem`, is the drift the token exists to prevent — and the px half
+      // stopped tracking the root font size while the content beside it did.
+      //
+      // ds-ignore: clears the pinned bottom bar. 6rem, NOT 96px — `pb-24` was
+      // 6rem, and the bar it clears is TEXT-driven, so a px clearance stops
+      // tracking the root font size: raise it and the bar grows while the gap
+      // does not, and the bar covers the content (SYSTEM.md §13.3 — A5's
+      // lesson, on the web). 96 is off the rhythm scale, hence the exception.
+      // eslint-disable-next-line tailwindcss/no-arbitrary-value
+      className="pb-[6rem] lg:grid lg:grid-cols-desk lg:items-start lg:gap-l lg:pb-0"
+    >
       <div className="space-y-s">
         {/* PRESTATIONS */}
         <SectionCard
@@ -387,7 +500,7 @@ export function BookingFlow({
           onHeaderTap={() => onOpenSection('services')}
         >
           {services.length === 0 ? (
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               Aucun service disponible
             </p>
           ) : (
@@ -404,14 +517,15 @@ export function BookingFlow({
                     <label className="flex cursor-pointer items-center justify-between gap-m py-s">
                       <span>
                         <span className="text-textPrimary">{svc.name}</span>
-                        <span className="block text-sm text-textTertiary">
+                        <span className="block text-bodyMedium text-textTertiary">
                           {hasVariants
-                            ? `${priceRange(svc.price, svc.priceMax)} · durée selon la longueur`
-                            : `${formatDuration(svc.durationMinutes)} · ${priceRange(svc.price, svc.priceMax)}`}
+                            ? `${priceRange(svc.price, svc.priceMax, currency)} · durée selon la longueur`
+                            : `${formatDuration(svc.durationMinutes)} · ${priceRange(svc.price, svc.priceMax, currency)}`}
                         </span>
                       </span>
                       <input
                         type="checkbox"
+                        className="h-5 w-5 shrink-0 accent-primary"
                         checked={on}
                         onChange={() => onToggleService(svc.id)}
                       />
@@ -423,7 +537,7 @@ export function BookingFlow({
           )}
           {bookingHasVariants(selection) ? (
             <div className="mt-m">
-              <p className="text-sm text-textSecondary">Longueur de cheveux :</p>
+              <p className="text-bodyMedium text-textSecondary">Longueur de cheveux :</p>
               <div
                 role="group"
                 aria-label="Longueur de cheveux"
@@ -435,11 +549,7 @@ export function BookingFlow({
                     type="button"
                     onClick={() => onVariant(k)}
                     aria-pressed={s.lengthVariant === k}
-                    className={`rounded-full border px-m py-xs text-sm ${
-                      s.lengthVariant === k
-                        ? 'border-primary bg-primary text-secondary'
-                        : 'border-border bg-surface text-textPrimary'
-                    }`}
+                    className={chipLinkClasses(s.lengthVariant === k)}
                   >
                     {lengthVariantLabel(k)} ·{' '}
                     {formatDuration(totalDuration(provider, s.serviceIds, k))}
@@ -463,21 +573,22 @@ export function BookingFlow({
           onHeaderTap={() => onOpenSection('artist')}
         >
           {!hasArtists ? (
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyMedium text-textSecondary">
               Aucun spécialiste à sélectionner
             </p>
           ) : (
             <div className="space-y-s">
-              <label className="flex cursor-pointer items-center gap-s">
+              <label className="flex min-h-12 cursor-pointer items-center gap-s">
                 <input
                   type="radio"
                   name="artist"
+                  className="h-5 w-5 shrink-0 accent-primary"
                   checked={s.artistChosen && s.artistId === null}
                   onChange={() => onChooseArtist(null)}
                 />
                 <span>
                   <span className="text-textPrimary">Pas de préférence</span>
-                  <span className="block text-sm text-textTertiary">
+                  <span className="block text-bodyMedium text-textTertiary">
                     Le salon choisit pour vous
                   </span>
                 </span>
@@ -489,20 +600,21 @@ export function BookingFlow({
                 return (
                   <label
                     key={a.id}
-                    className={`flex items-center gap-s ${
+                    className={`flex min-h-12 items-center gap-s ${
                       canDo ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'
                     }`}
                   >
                     <input
                       type="radio"
                       name="artist"
+                      className="h-5 w-5 shrink-0 accent-primary"
                       disabled={!canDo}
                       checked={s.artistChosen && s.artistId === a.id}
                       onChange={() => onChooseArtist(a.id)}
                     />
                     <span>
                       <span className="text-textPrimary">{a.name}</span>
-                      <span className="block text-sm text-textTertiary">
+                      <span className="block text-bodyMedium text-textTertiary">
                         {a.specialization ?? 'Spécialiste'}
                       </span>
                     </span>
@@ -517,23 +629,25 @@ export function BookingFlow({
         <SectionCard
           title="Date et heure"
           value={
-            s.slot ? `${formatDateFr(s.slot)} · ${slotTime(s.slot)}` : 'Choisir'
+            s.slot
+              ? `${formatDateFr(s.slot, tz)} · ${slotTime(s.slot, tz)}`
+              : 'Choisir'
           }
           expanded={s.activeSection === 'time'}
           onHeaderTap={() => onOpenSection('time')}
         >
-          <input
+          <TextField
+            label="Date"
+            hideLabel
             type="date"
-            aria-label="Date"
-            min={todayYmd()}
+            min={todayYmd(tz)}
             value={s.date}
             onChange={(e) => onDate(e.target.value)}
-            className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
           />
           {slotsLoading ? (
-            <p className="mt-m text-textSecondary">Chargement des créneaux…</p>
+            <Loading label="Chargement des créneaux…" className="mt-m" />
           ) : slots.length === 0 ? (
-            <p className="mt-m text-textSecondary">Aucun créneau disponible</p>
+            <p className="mt-m text-bodyMedium text-textSecondary">Aucun créneau disponible</p>
           ) : (
             <div className="mt-m flex flex-wrap gap-s">
               {slots.map((iso) => (
@@ -541,13 +655,9 @@ export function BookingFlow({
                   key={iso}
                   type="button"
                   onClick={() => onPickSlot(iso)}
-                  className={`rounded-full border px-m py-xs text-sm ${
-                    s.slot === iso
-                      ? 'border-primary bg-primary text-secondary'
-                      : 'border-border bg-surface text-textPrimary'
-                  }`}
+                  className={chipLinkClasses(s.slot === iso)}
                 >
-                  {slotTime(iso)}
+                  {slotTime(iso, tz)}
                 </button>
               ))}
             </div>
@@ -556,11 +666,16 @@ export function BookingFlow({
           s.artistChosen &&
           s.serviceIds.length > 0 &&
           s.slot ? (
-            <p className="mt-s text-sm text-textSecondary">
-              Prochain créneau : {formatDateFr(s.slot)} · {slotTime(s.slot)}
+            <p className="mt-s text-bodyMedium text-textSecondary">
+              Prochain créneau : {formatDateFr(s.slot, tz)} ·{' '}
+              {slotTime(s.slot, tz)}
             </p>
           ) : null}
-          <SalonTimeHint date={s.slot ?? undefined} />
+          <SalonTimeHint
+            date={s.slot ?? undefined}
+            tz={provider.timezone}
+            countryLabel={countryLabel}
+          />
         </SectionCard>
       </div>
 
@@ -569,17 +684,17 @@ export function BookingFlow({
       <aside className="hidden rounded-xl border border-border bg-secondary p-m lg:sticky lg:top-24 lg:block">
         <div className="flex items-center justify-between gap-m">
           <span className="font-semibold text-textPrimary">Total</span>
-          <span className="text-lg font-semibold text-primary">
+          <span className="text-titleLarge font-semibold text-primary">
             {totalLabel(provider, s.serviceIds)}
           </span>
         </div>
         {duration > 0 ? (
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Durée : {formatDuration(duration)}
           </p>
         ) : null}
         {!s.artistChosen && hasArtists ? (
-          <p className="mt-xs text-sm text-textSecondary">
+          <p className="mt-xs text-bodyMedium text-textSecondary">
             Spécialiste optionnel (vous pouvez laisser « Pas de préférence »)
           </p>
         ) : null}
@@ -595,14 +710,14 @@ export function BookingFlow({
 
       {/* Mobile-web pinned bottom bar (parity 2.11 — the app's fixed
           Total + « Confirmer »). */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-divider bg-secondary px-m py-s lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-sticky border-t border-divider bg-secondary px-m py-s lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-m">
           <div>
             <p className="font-semibold text-textPrimary">
               {totalLabel(provider, s.serviceIds)}
             </p>
             {duration > 0 ? (
-              <p className="text-xs text-textSecondary">
+              <p className="text-bodySmall text-textSecondary">
                 Durée : {formatDuration(duration)}
               </p>
             ) : null}
@@ -645,7 +760,7 @@ function SectionCard({
         className="flex w-full items-center justify-between gap-m text-left"
       >
         <span className="font-semibold text-textPrimary">{title}</span>
-        <span className="text-sm text-textSecondary">{value}</span>
+        <span className="text-bodyMedium text-textSecondary">{value}</span>
       </button>
       {expanded ? <div className="mt-m">{children}</div> : null}
     </section>

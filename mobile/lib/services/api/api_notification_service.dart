@@ -12,26 +12,35 @@ import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [NotificationServiceInterface] (backend
 /// FR-NOTIF-002). The feed is per-account + server-scoped (the user is the
-/// token's `sub`), so calls just go through the consumer [RefreshingHttpClient]
-/// (silent refresh on a 401). Wired in by DI when `AppConfig.useApiBackend` is
-/// true. Design: docs/design/notification-center.md.
+/// token's `sub`), so calls just go through a [RefreshingHttpClient] (silent
+/// refresh on a 401). Wired in by DI when `AppConfig.useApiBackend` is true.
+///
+/// The endpoints are role-agnostic, so the PRO app runs the same service on
+/// its own session ([sessionStore] = the provider store, [refreshPath] =
+/// `/auth/provider/refresh`) and reads the salon-team feed
+/// (docs/design/push-notifications-fcm.md §10).
+/// Design: docs/design/notification-center.md.
 class ApiNotificationService implements NotificationServiceInterface {
   ApiNotificationService({
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
+    String refreshPath = '/auth/refresh',
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _sessionStore = sessionStore ?? InMemorySessionStore();
+        _sessionStore = sessionStore ?? InMemorySessionStore(),
+        _refreshPath = refreshPath;
 
   final http.Client _client;
   final String _baseUrl;
   final SessionStore _sessionStore;
+  final String _refreshPath;
 
   late final RefreshingHttpClient _authed = RefreshingHttpClient(
     client: _client,
     baseUrl: _baseUrl,
     store: _sessionStore,
+    refreshPath: _refreshPath,
   );
 
   @override

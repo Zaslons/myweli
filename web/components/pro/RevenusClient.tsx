@@ -1,6 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Card } from '../Card';
+import { DataTable } from '../DataTable';
+import { ChipButton } from '../Chip';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
+import { SkeletonRows } from '../Skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import { getEarnings, getMyProvider } from '../../lib/api/pro';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
@@ -10,7 +16,6 @@ import {
   PERIODS,
   periodRange,
 } from '../../lib/pro/earnings';
-import { Button } from '../Button';
 
 /// « Revenus » (parity 9.1 — the app's earnings_screen, web-adapted): period
 /// tabs → realized total (completed bookings only) → transaction ledger.
@@ -18,23 +23,33 @@ import { Button } from '../Button';
 export function RevenusClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
+  // The ACTIVE salon's market (multi-pays MP3): its timezone shapes the
+  // period boundaries; its currency labels the ledger (earnings.currency is
+  // the backend-stamped authority, this is the fallback).
+  const [salonTz, setSalonTz] = useState<string | undefined>(undefined);
+  const [salonCurrency, setSalonCurrency] = useState<string | undefined>(
+    undefined,
+  );
   const [period, setPeriod] = useState<PeriodKey>('all');
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const loadPeriod = useCallback(async (pid: string, key: PeriodKey) => {
-    setLoading(true);
-    setError(false);
-    const r = await getEarnings(pid, periodRange(key));
-    if (r.status !== 200 || !r.earnings) {
-      setError(true);
+  const loadPeriod = useCallback(
+    async (pid: string, key: PeriodKey, tz?: string) => {
+      setLoading(true);
+      setError(false);
+      const r = await getEarnings(pid, periodRange(key, new Date(), tz));
+      if (r.status !== 200 || !r.earnings) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+      setEarnings(r.earnings);
       setLoading(false);
-      return;
-    }
-    setEarnings(r.earnings);
-    setLoading(false);
-  }, []);
+    },
+    [],
+  );
 
   const init = useCallback(async () => {
     setLoading(true);
@@ -50,8 +65,11 @@ export function RevenusClient() {
       return;
     }
     const pid = me.profile.provider.id;
+    const tz = me.profile.provider.timezone ?? undefined;
     setProviderId(pid);
-    await loadPeriod(pid, 'all');
+    setSalonTz(tz);
+    setSalonCurrency(me.profile.provider.currency ?? undefined);
+    await loadPeriod(pid, 'all', tz);
   }, [router, loadPeriod]);
 
   useEffect(() => {
@@ -60,74 +78,85 @@ export function RevenusClient() {
 
   function pick(key: PeriodKey) {
     setPeriod(key);
-    if (providerId) loadPeriod(providerId, key);
+    if (providerId) loadPeriod(providerId, key, salonTz);
   }
 
+  const currency = earnings?.currency ?? salonCurrency;
+
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Revenus</h1>
-      <p className="mt-xs text-sm text-textSecondary">
+    <div>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Revenus</h1>
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         Vos revenus réalisés (rendez-vous terminés).
       </p>
 
+      {/* Was px-m py-xs with NO 48px floor — a row-7h leak the B4 sweep
+          missed; ChipButton carries the floor and §16's borderStrong. */}
       <div className="mt-m flex flex-wrap gap-s">
         {PERIODS.map((p) => (
-          <button
+          <ChipButton
             key={p.key}
-            type="button"
+            selected={period === p.key}
             onClick={() => pick(p.key)}
-            className={`rounded-full border px-m py-xs text-sm ${
-              period === p.key
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-secondary text-textPrimary'
-            }`}
           >
             {p.label}
-          </button>
+          </ChipButton>
         ))}
       </div>
 
       {loading ? (
-        <p className="mt-l text-textSecondary">Chargement…</p>
+        <SkeletonRows count={5} className="mt-l" />
       ) : error ? (
         <div className="mt-l">
-          <p className="text-error">Chargement impossible.</p>
-          <div className="mt-s">
-            <Button variant="secondary" onClick={init}>
-              Réessayer
-            </Button>
-          </div>
+          <ErrorState
+            message="Chargement impossible."
+            // Retry the PERIOD the user picked — init() hard-codes 'all' and
+            // the review watched « Semaine » stay selected over all-time
+            // figures after a retry.
+            onRetry={() =>
+              providerId ? loadPeriod(providerId, period, salonTz) : init()
+            }
+          />
         </div>
       ) : earnings ? (
         <>
-          <div className="mt-l rounded-xl border border-border bg-secondary p-l text-center">
-            <p className="text-sm text-textSecondary">Total</p>
-            <p className="mt-xs text-3xl font-semibold text-textPrimary">
-              {formatFcfa(earnings.totalEarnings)}
+          <Card className="mt-l text-center">
+            <p className="text-bodyMedium text-textSecondary">Total</p>
+            <p className="mt-xs text-headlineMedium font-semibold text-textPrimary">
+              {formatFcfa(earnings.totalEarnings, currency)}
             </p>
-          </div>
+          </Card>
 
-          {earnings.transactions.length === 0 ? (
-            <p className="mt-l rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-              Aucune transaction sur cette période.
-            </p>
-          ) : (
-            <ul className="mt-l space-y-s">
-              {earnings.transactions.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
-                >
-                  <span className="text-sm text-textPrimary">
-                    {formatDateTimeFr(t.date)}
-                  </span>
-                  <span className="text-sm font-semibold text-textPrimary">
-                    {formatFcfa(t.amount)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* B7: the ledger as a DataTable — Date · Montant (right-aligned).
+              The empty state lives inside the table's own four-state contract. */}
+          <div className="mt-l">
+            <DataTable
+              columns={[
+                { label: 'Date', flex: 2 },
+                { label: 'Montant', flex: 1, align: 'right' },
+              ]}
+              emptyTitle="Aucune transaction"
+              emptyIcon="depositReceived"
+              emptyDescription="Les encaissements de la période choisie apparaîtront ici."
+              minWidthClassName="min-w-0"
+              rows={earnings.transactions.map((t) => ({
+                key: t.id,
+                // The spec's « Rendez-vous » column, honestly: the payload
+                // carries only appointmentId (no name to print), so the row
+                // LINKS to the appointment instead of faking a column.
+                href: `/pro/rendez-vous/${t.appointmentId}`,
+                rowLabel: `Ouvrir le rendez-vous du ${formatDateTimeFr(t.date, salonTz)}`,
+                cells: [
+                  <span key="d" className="text-textPrimary">
+                    {formatDateTimeFr(t.date, salonTz)}
+                  </span>,
+                  <span key="a" className="font-semibold text-textPrimary">
+                    {formatFcfa(t.amount, t.currency ?? currency)}
+                  </span>,
+                ],
+              }))}
+            />
+          </div>
         </>
       ) : null}
     </div>

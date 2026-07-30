@@ -4,13 +4,16 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/provider.dart' as models;
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_salon_profile_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
@@ -42,6 +45,32 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   static const LatLng _defaultCenter = LatLng(5.336, -4.026);
 
   final _name = TextEditingController();
+
+  // A7/§14 — the salon's contact numbers reach real clients, and nothing
+  // checked them.
+  //
+  // **E.164, not local digits.** The review caught this as a LOCKOUT: these
+  // controllers are prefilled from the stored value, which openapi.yaml:1334-5
+  // specifies as E.164 (`+225 …`). A 10-digit rule can never match it, so the
+  // salon could not save its profile again — the rule would have failed on data
+  // the app itself had just loaded.
+  late final _errors = FieldErrors({
+    'name': Validators.requiredField('le nom du salon'),
+    'phone': Validators.phoneNumber,
+    'whatsapp': _optionalPhone,
+  });
+  final _nameFocus = FocusNode();
+  final _phoneFocus = FocusNode();
+  final _whatsappFocus = FocusNode();
+  late final _focusNodes = {
+    'name': _nameFocus,
+    'phone': _phoneFocus,
+    'whatsapp': _whatsappFocus,
+  };
+
+  /// WhatsApp is optional — blank passes, anything typed must be a real number.
+  static String? _optionalPhone(String value) =>
+      value.trim().isEmpty ? null : Validators.phoneNumber(value);
   final _description = TextEditingController();
   final _address = TextEditingController();
   final _phone = TextEditingController();
@@ -84,6 +113,9 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     ]) {
       c.dispose();
     }
+    for (final f in [_nameFocus, _phoneFocus, _whatsappFocus]) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -106,10 +138,14 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   }
 
   Future<void> _useMyPosition() async {
+    // Captured BEFORE the geolocator awaits — the correct idiom, and the one
+    // the deleted `_toast` wrapper was hiding behind a `mounted` guard.
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _locating = true);
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        _toast('Localisation désactivée');
+        AppSnackBar.showOn(messenger, 'Localisation désactivée',
+            kind: SnackKind.error);
         return;
       }
       var permission = await Geolocator.checkPermission();
@@ -118,14 +154,17 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        _toast('Autorisez la localisation pour vous placer');
+        AppSnackBar.showOn(
+            messenger, 'Autorisez la localisation pour vous placer',
+            kind: SnackKind.error);
         return;
       }
       final pos = await Geolocator.getCurrentPosition();
       if (!mounted) return;
       setState(() => _pin = LatLng(pos.latitude, pos.longitude));
     } catch (_) {
-      _toast('Position indisponible');
+      AppSnackBar.showOn(messenger, 'Position indisponible',
+          kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -144,19 +183,19 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     });
   }
 
-  void _toast(String message, {bool error = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? AppColors.error : null,
-      ),
-    );
-  }
-
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) {
-      return _toast('Le nom est requis', error: true);
+    // A7/§14 rule 3: « Le nom est requis » was a SNACKBAR — a field-level fault
+    // in a bar that vanishes on a timer, without saying which field or
+    // scrolling to it. The phone and WhatsApp numbers had no rule at all.
+    final valid = _errors.validate({
+      'name': _name.text,
+      'phone': _phone.text,
+      'whatsapp': _whatsapp.text,
+    });
+    setState(() {});
+    if (!valid) {
+      focusFirstError(_errors, _focusNodes);
+      return;
     }
     final profile = context.read<ProSalonProfileProvider>();
     final ok = await profile.save(_providerId!, {
@@ -176,10 +215,11 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     });
     if (!mounted) return;
     if (ok) {
-      _toast('Profil enregistré');
+      AppSnackBar.show(context, 'Profil enregistré', kind: SnackKind.success);
       Navigator.of(context).pop();
     } else {
-      _toast(profile.error ?? 'Enregistrement impossible', error: true);
+      AppSnackBar.show(context, profile.error ?? 'Enregistrement impossible',
+          kind: SnackKind.error);
     }
   }
 
@@ -215,7 +255,13 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppTheme.spacingM),
             children: [
-              AppTextField(label: 'Nom du salon', controller: _name),
+              AppTextField(
+                label: 'Nom du salon',
+                controller: _name,
+                focusNode: _nameFocus,
+                errorText: _errors['name'],
+                onChanged: (v) => setState(() => _errors.revalidate('name', v)),
+              ),
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'Description',
@@ -256,12 +302,20 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
               AppTextField(
                 label: 'Téléphone',
                 controller: _phone,
+                focusNode: _phoneFocus,
+                errorText: _errors['phone'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('phone', v)),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: AppTheme.spacingS),
               AppTextField(
                 label: 'WhatsApp (optionnel)',
                 controller: _whatsapp,
+                focusNode: _whatsappFocus,
+                errorText: _errors['whatsapp'],
+                onChanged: (v) =>
+                    setState(() => _errors.revalidate('whatsapp', v)),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: AppTheme.spacingM),
@@ -272,21 +326,34 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                   letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               DropdownButtonFormField<String>(
+                // A11 C8 — see pro_register_screen.dart: without this the
+                // button takes its WIDEST item's intrinsic width and overflows
+                // the field at 200% text.
+                isExpanded: true,
+                // A12: `itemHeight` defaults to `kMinInteractiveDimension`
+                // (48), a FIXED height around text — so at 200% « Salon de
+                // beauté » wraps to two lines, needs 96dp and is clipped to 48
+                // the moment the menu opens. A11 C8 fixed the BUTTON with
+                // `isExpanded`; the items it lists were still frozen one level
+                // down, and nothing could see it until `expectNoVerticalClip`.
+                // `null` lets each item take its intrinsic height (§13.3).
+                itemHeight: null,
                 initialValue: _category,
                 items: [
                   for (final c in salonCategories)
                     DropdownMenuItem(value: c.$1, child: Text(c.$2)),
                 ],
                 onChanged: (v) => setState(() => _category = v ?? _category),
-                decoration: InputDecoration(
+                // Borders come from the theme (borderStrong + the focus ring).
+                // It used to set only `border:` — which InputDecorator uses as a
+                // FALLBACK, so the theme's `enabledBorder` won at rest anyway and
+                // the custom radius silently applied to nothing. Inheriting makes
+                // it match every other field on this screen.
+                decoration: const InputDecoration(
                   filled: true,
                   fillColor: AppColors.secondary,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
                 ),
               ),
               const SizedBox(height: AppTheme.spacingM),
@@ -297,27 +364,27 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
                   letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               _LocationField(
                 pin: _pin,
                 defaultCenter: _defaultCenter,
                 onPick: (latLng) => setState(() => _pin = latLng),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Row(
                 children: [
                   OutlinedButton.icon(
                     onPressed: _locating ? null : _useMyPosition,
-                    icon: const Icon(Icons.my_location, size: 18),
+                    icon: const Icon(Icons.my_location, size: AppTheme.iconS),
                     label: Text(
                       _locating ? 'Recherche…' : 'Utiliser ma position',
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.border),
+                      side: const BorderSide(color: AppColors.borderStrong),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppTheme.spacingSM),
                   Expanded(
                     child: Text(
                       _pin == null
@@ -396,7 +463,7 @@ class _LocationField extends StatelessWidget {
                       child: const Icon(
                         Icons.location_on,
                         color: AppColors.primary,
-                        size: 22,
+                        size: AppTheme.iconM,
                       ),
                     ),
                   ),

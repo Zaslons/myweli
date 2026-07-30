@@ -10,7 +10,13 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
+import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
+import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/push/push_provider.dart';
+import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/appointments.dart' as manual;
@@ -25,11 +31,26 @@ void main() {
   final tokens = TokenService(secret: 'test-secret');
   late String token; // provider linked to provider1
   final at = DateTime.utc(2030, 6, 25, 9);
+  // The salon-notification guard (design §10): a salon never notifies itself
+  // about its OWN manual entry. The context provides a live notifier — the
+  // route simply must not use it.
+  late InMemoryMembershipRepository members;
+  late InMemoryNotificationsRepository salonFeed;
+  late SalonNotifier salonNotifier;
 
   setUp(() async {
     providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     booking = BookingService(providers, appts, SlotService(providers, appts));
+    members = InMemoryMembershipRepository();
+    salonFeed = InMemoryNotificationsRepository();
+    salonNotifier = SalonNotifier(
+      members,
+      PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),
+      salonFeed,
+      InMemoryNotificationPrefsRepository(),
+      providers,
+    );
     providerAuth = InMemoryProviderAuthRepository(
       tokens: tokens,
       isProd: false,
@@ -120,6 +141,7 @@ void main() {
       when(() => context.read<MembershipService>()).thenReturn(
         MembershipService(InMemoryMembershipRepository(), providerAuth),
       );
+      when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
       return context;
     }
 
@@ -138,6 +160,31 @@ void main() {
       'clientName': 'Awa',
       'clientPhone': '+2250700000000',
     };
+
+    test('a salon-entered booking never notifies the salon itself '
+        '(design §10 — the guard)', () async {
+      await members.ensureOwner(
+        providerId: 'provider1',
+        accountId: 'acc-owner',
+        email: 'owner@salon.test',
+      );
+
+      final res = await manual.onRequest(
+        ctx(
+          post(
+            '/providers/provider1/appointments',
+            bearer: token,
+            body: validBody(),
+          ),
+        ),
+        'provider1',
+      );
+      expect(res.statusCode, HttpStatus.created);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      // Client-driven events notify the team; the salon's own entry does not.
+      expect(await salonFeed.listForUser('acc-owner'), isEmpty);
+    });
 
     test('valid manual booking → 201 confirmed', () async {
       final res = await manual.onRequest(

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../models/api_response.dart';
+import '../../models/appointment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
@@ -48,7 +50,7 @@ class MockAuthService implements AuthServiceInterface {
 
   Future<void> _persistSession(User user) async {
     final session = Session(
-      token: 'mock_${user.id}_${DateTime.now().millisecondsSinceEpoch}',
+      token: 'mock_${user.id}_${AppClock.now().millisecondsSinceEpoch}',
       user: user,
     );
     await _sessionStore.save(jsonEncode(session.toJson()));
@@ -70,7 +72,7 @@ class MockAuthService implements AuthServiceInterface {
         : existing.resendsLeft - 1;
     _otpStates[phoneNumber] = _OtpState(
       code: demoOtp,
-      expiresAt: DateTime.now().add(_otpValidity),
+      expiresAt: AppClock.now().add(_otpValidity),
       attemptsLeft: AppConstants.otpMaxAttempts,
       resendsLeft: resendsLeft,
     );
@@ -89,7 +91,7 @@ class MockAuthService implements AuthServiceInterface {
         code: 'otp_none',
       );
     }
-    if (DateTime.now().isAfter(state.expiresAt)) {
+    if (AppClock.now().isAfter(state.expiresAt)) {
       _otpStates.remove(phoneNumber);
       return ApiResponse.error(
         'Code expiré. Demandez un nouveau code.',
@@ -119,11 +121,23 @@ class MockAuthService implements AuthServiceInterface {
 
     final user = MockData.users.firstWhere(
       (u) => u.phoneNumber == phoneNumber,
-      orElse: () => User(
-        id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-        phoneNumber: phoneNumber,
-        createdAt: DateTime.now(),
-      ),
+      orElse: () {
+        // **This path never registered the user it created**, unlike the e-mail
+        // and social ones twenty lines below, which both `MockData.users.add`.
+        // So a phone sign-in on an unknown number produced a live session for
+        // an account that was not in the mock database: `deleteAccount`'s
+        // `removeWhere` was a no-op on it, and any screen reading the user list
+        // could not see them. Found by L2's gate asserting that a REFUSED
+        // deletion leaves the account intact — it could not, because the
+        // account was never there.
+        final created = User(
+          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          phoneNumber: phoneNumber,
+          createdAt: AppClock.now(),
+        );
+        MockData.users.add(created);
+        return created;
+      },
     );
     _currentUser = user;
     _otpStates.remove(phoneNumber);
@@ -156,10 +170,10 @@ class MockAuthService implements AuthServiceInterface {
       (u) => u.email?.toLowerCase() == email,
       orElse: () {
         final created = User(
-          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
           email: email,
           authProvider: provider,
-          createdAt: DateTime.now(),
+          createdAt: AppClock.now(),
         );
         MockData.users.add(created);
         return created;
@@ -176,7 +190,7 @@ class MockAuthService implements AuthServiceInterface {
     final key = email.trim().toLowerCase();
     final existing = _emailOtpStates[key];
     final expired =
-        existing != null && DateTime.now().isAfter(existing.expiresAt);
+        existing != null && AppClock.now().isAfter(existing.expiresAt);
     if (existing != null && !expired && existing.resendsLeft <= 0) {
       return ApiResponse.error(
         'Trop de demandes de code. Réessayez plus tard.',
@@ -188,7 +202,7 @@ class MockAuthService implements AuthServiceInterface {
         : existing.resendsLeft - 1;
     _emailOtpStates[key] = _OtpState(
       code: demoOtp,
-      expiresAt: DateTime.now().add(_otpValidity),
+      expiresAt: AppClock.now().add(_otpValidity),
       attemptsLeft: AppConstants.otpMaxAttempts,
       resendsLeft: resendsLeft,
     );
@@ -206,7 +220,7 @@ class MockAuthService implements AuthServiceInterface {
         code: 'otp_none',
       );
     }
-    if (DateTime.now().isAfter(state.expiresAt)) {
+    if (AppClock.now().isAfter(state.expiresAt)) {
       _emailOtpStates.remove(key);
       return ApiResponse.error(
         'Code expiré. Demandez un nouveau code.',
@@ -230,10 +244,10 @@ class MockAuthService implements AuthServiceInterface {
       (u) => u.email?.toLowerCase() == key,
       orElse: () {
         final created = User(
-          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
           email: key,
           authProvider: 'email',
-          createdAt: DateTime.now(),
+          createdAt: AppClock.now(),
         );
         MockData.users.add(created);
         return created;
@@ -260,7 +274,7 @@ class MockAuthService implements AuthServiceInterface {
     if (raw == null) return null;
     try {
       final session = Session.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-      if (session.isExpired(DateTime.now())) {
+      if (session.isExpired(AppClock.now())) {
         await _sessionStore.clear();
         return null;
       }
@@ -322,6 +336,25 @@ class MockAuthService implements AuthServiceInterface {
       return ApiResponse.error('Utilisateur non connecté');
     }
 
+    // L2 — settle the agenda first, exactly as the API does (409
+    // `future_bookings`). The mock refuses the same way so the app behaves
+    // identically off-network: a mock that only ever succeeds would let this
+    // whole flow ship untested against its own failure mode.
+    final now = AppClock.now();
+    final hasFuture = MockData.appointments.any(
+      (a) =>
+          a.userId == user.id &&
+          (a.status == AppointmentStatus.confirmed ||
+              a.status == AppointmentStatus.pending) &&
+          a.appointmentDate.isAfter(now),
+    );
+    if (hasFuture) {
+      return ApiResponse.error(
+        'Annulez vos rendez-vous à venir avant de supprimer votre compte.',
+        code: 'future_bookings',
+      );
+    }
+
     MockData.users.removeWhere((u) => u.id == user.id);
     _otpStates.remove(user.phoneNumber);
     _currentUser = null;
@@ -352,11 +385,11 @@ class MockAuthService implements AuthServiceInterface {
     var providerUser = MockData.providerUsers.firstWhere(
       (p) => p.phoneNumber == phoneNumber,
       orElse: () => ProviderUser(
-        id: 'provider_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'provider_${AppClock.now().millisecondsSinceEpoch}',
         phoneNumber: phoneNumber,
         businessName: 'Business',
         businessType: BusinessType.other,
-        createdAt: DateTime.now(),
+        createdAt: AppClock.now(),
       ),
     );
 
@@ -386,7 +419,7 @@ class MockAuthService implements AuthServiceInterface {
         const <TeamInvitation>[];
     return cards
         .where(
-            (c) => c.expiresAt == null || c.expiresAt!.isAfter(DateTime.now()))
+            (c) => c.expiresAt == null || c.expiresAt!.isAfter(AppClock.now()))
         .toList();
   }
 
@@ -476,7 +509,7 @@ class MockAuthService implements AuthServiceInterface {
     if (card == null) {
       return ApiResponse.error('Invitation introuvable.', code: 'not_found');
     }
-    if (card.expiresAt != null && card.expiresAt!.isBefore(DateTime.now())) {
+    if (card.expiresAt != null && card.expiresAt!.isBefore(AppClock.now())) {
       return ApiResponse.error(
         'Cette invitation a expiré. Demandez au salon de la renvoyer.',
         code: 'invitation_expired',
@@ -488,12 +521,12 @@ class MockAuthService implements AuthServiceInterface {
     var account = _providerByEmail(email);
     if (account == null) {
       account = ProviderUser(
-        id: 'member_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'member_${AppClock.now().millisecondsSinceEpoch}',
         phoneNumber: '',
         businessName: '',
         businessType: BusinessType.other,
         email: email,
-        createdAt: DateTime.now(),
+        createdAt: AppClock.now(),
       );
       MockData.providerUsers.add(account);
     }
@@ -506,7 +539,7 @@ class MockAuthService implements AuthServiceInterface {
       MockData.teamMembers[i] = MockData.teamMembers[i].copyWith(
         status: TeamMemberStatus.active,
         accountId: account.id,
-        acceptedAt: DateTime.now(),
+        acceptedAt: AppClock.now(),
       );
     }
     MockData.teamInvitations[email]?.removeWhere((c) => c.id == invitationId);
@@ -542,7 +575,7 @@ class MockAuthService implements AuthServiceInterface {
     // Mirror salon provisioning (pro-salon-lifecycle/R1): registration links
     // a DRAFT salon so the account is a real OWNER (providerId set) — the
     // R4b role plumbing depends on it.
-    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ts = AppClock.now().millisecondsSinceEpoch;
     final salonId = 'provider_reg_$ts';
     MockData.providers.add(
       MockData.providers.first.copyWith(
@@ -558,7 +591,7 @@ class MockAuthService implements AuthServiceInterface {
       businessType: businessType,
       email: email.trim().toLowerCase(),
       address: address,
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
       providerId: salonId,
     );
     MockData.providerUsers.add(providerUser);

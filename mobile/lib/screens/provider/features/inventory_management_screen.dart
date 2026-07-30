@@ -31,7 +31,7 @@ class InventoryManagementScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Gérez les stocks de produits et consommables 10 fois plus rapidement. Vous ne manquerez pas le moment d\'acheter le nécessaire. Les pertes et surconsommation seront réduites.',
+              'Gérez les stocks de produits et consommables 10 fois plus rapidement. Vous ne manquerez pas le moment d’acheter le nécessaire. Les pertes et surconsommation seront réduites.',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -63,7 +63,7 @@ class InventoryManagementScreen extends StatelessWidget {
             // Search Bar
             TextField(
               decoration: InputDecoration(
-                hintText: 'Rechercher un produit...',
+                hintText: 'Rechercher un produit…',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusLarge),

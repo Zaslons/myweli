@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import type { RefObject } from 'react';
+import { useState } from 'react';
 import { changeMemberRole, createArtistReturning } from '../../lib/api/pro';
 import type { Artist } from '../../lib/pro/catalogue';
 import {
@@ -10,6 +11,7 @@ import {
   teamErrorMessage,
 } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 
 const ROLE_ORDER: TeamRoleInput[] = ['manager', 'reception', 'staff'];
 const ROLE_LABELS: Record<TeamRoleInput, string> = {
@@ -26,6 +28,7 @@ export function ChangeRoleDialog({
   artists,
   onArtistCreated,
   onClose,
+  returnFocusRef,
   onChanged,
 }: {
   member: TeamMember;
@@ -33,6 +36,8 @@ export function ChangeRoleDialog({
   artists: Artist[];
   onArtistCreated: (a: Artist) => void;
   onClose: () => void;
+  /** See Modal.returnFocusRef — the ⋯ menu item that opens this unmounts. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
   onChanged: (member: TeamMember) => void;
 }) {
   const initialRole =
@@ -44,13 +49,6 @@ export function ChangeRoleDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   async function createFiche() {
     const name = newFicheName.trim();
@@ -94,23 +92,15 @@ export function ChangeRoleDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Changer le rôle"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-m"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">
-          Changer le rôle
-        </h2>
-        <p className="mt-xs text-sm text-textTertiary">{member.email}</p>
+    <Modal title="Changer le rôle" onClose={onClose} returnFocusRef={returnFocusRef}>
+        <p className="mt-xs text-bodyMedium text-textTertiary">{member.email}</p>
 
         <div className="mt-m flex flex-col gap-s">
           {ROLE_ORDER.map((r) => (
             <button
               key={r}
               type="button"
+              aria-pressed={role === r}
               onClick={() => {
                 setRole(r);
                 setError(undefined);
@@ -121,10 +111,15 @@ export function ChangeRoleDialog({
                   : 'border-border bg-surface'
               }`}
             >
-              <span className="block text-sm font-medium text-textPrimary">
+              <span className="block text-labelLarge font-medium text-textPrimary">
                 {ROLE_LABELS[r]}
               </span>
-              <span className="mt-[2px] block text-xs text-textTertiary">
+              <span
+                // ds-ignore: 2px optical nudge; below the 4px grid floor. Hand to B6's shared
+                // <Chip>/role-row rather than redesign here.
+                // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                className="mt-[2px] block text-bodySmall text-textTertiary"
+              >
                 {ROLE_SUMMARIES[r]}
               </span>
             </button>
@@ -133,14 +128,20 @@ export function ChangeRoleDialog({
 
         {role === 'staff' ? (
           <div className="mt-m">
-            <p className="text-sm text-textSecondary">Fiche employé</p>
+            <label
+              htmlFor="changerole-fiche"
+              className="text-bodyMedium text-textSecondary"
+            >
+              Fiche employé
+            </label>
             {creatingFiche ? (
               <div className="mt-xs flex gap-s">
                 <input
+                  id="changerole-fiche"
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <Button
                   onClick={createFiche}
@@ -152,9 +153,10 @@ export function ChangeRoleDialog({
             ) : (
               <div className="mt-xs flex gap-s">
                 <select
+                  id="changerole-fiche"
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (
@@ -174,7 +176,7 @@ export function ChangeRoleDialog({
           </div>
         ) : null}
 
-        {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
@@ -184,7 +186,6 @@ export function ChangeRoleDialog({
             Enregistrer
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -7,6 +7,8 @@ import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 /// « Aperçu de ma page » in the pro app (docs/design/pro-salon-lifecycle.md
 /// B5): the consumer detail screen in preview mode renders the LOGGED-OUT
 /// client view with ONLY ProviderProvider registered — pumping without any
@@ -18,13 +20,12 @@ void main() {
     serviceLocator.providerService = MockProviderService();
   });
 
-  Widget wrap() => MultiProvider(
+  Widget wrap() => wrapApp(
         providers: [
           ChangeNotifierProvider(create: (_) => ProviderProvider()),
         ],
-        child: const MaterialApp(
-          home: ProviderDetailScreen(providerId: 'provider1', preview: true),
-        ),
+        home:
+            const ProviderDetailScreen(providerId: 'provider1', preview: true),
       );
 
   testWidgets('preview renders the salon with the owner banner + disabled CTA',

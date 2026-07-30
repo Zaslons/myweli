@@ -14,6 +14,8 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/team/team_role_chip.dart';
 
@@ -94,7 +96,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                             ],
                           ),
                           if (provider.email != null) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppTheme.spacingS),
                             Text(
                               provider.email!,
                               style: AppTextStyles.bodyLarge.copyWith(
@@ -102,13 +104,13 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppTheme.spacingM),
                           Text(
                             'Salon',
                             style: AppTextStyles.titleMedium
                                 .copyWith(color: AppColors.textPrimary),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppTheme.spacingS),
                           Text(
                             authProvider.salonName,
                             style: AppTextStyles.bodyLarge
@@ -126,49 +128,49 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Nom de l\'entreprise',
+                            'Nom de l’entreprise',
                             style: AppTextStyles.titleMedium
                                 .copyWith(color: AppColors.textPrimary),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppTheme.spacingS),
                           Text(
                             provider.businessName,
                             style: AppTextStyles.bodyLarge
                                 .copyWith(color: AppColors.textSecondary),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppTheme.spacingM),
                           Text(
-                            'Type d\'entreprise',
+                            'Type d’entreprise',
                             style: AppTextStyles.titleMedium
                                 .copyWith(color: AppColors.textPrimary),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppTheme.spacingS),
                           Text(
                             _getBusinessTypeLabel(provider.businessType),
                             style: AppTextStyles.bodyLarge
                                 .copyWith(color: AppColors.textSecondary),
                           ),
                           if (provider.address != null) ...[
-                            const SizedBox(height: 16),
+                            const SizedBox(height: AppTheme.spacingM),
                             Text(
                               'Adresse',
                               style: AppTextStyles.titleMedium
                                   .copyWith(color: AppColors.textPrimary),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppTheme.spacingS),
                             Text(
                               provider.address!,
                               style: AppTextStyles.bodyLarge
                                   .copyWith(color: AppColors.textSecondary),
                             ),
                           ],
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppTheme.spacingM),
                           Text(
                             'Téléphone',
                             style: AppTextStyles.titleMedium
                                 .copyWith(color: AppColors.textPrimary),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppTheme.spacingS),
                           Text(
                             provider.phoneNumber,
                             style: AppTextStyles.bodyLarge
@@ -178,7 +180,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       ),
                     ),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 // « Mes salons » (R6): every membership + the switcher — for
                 // ALL roles (a member can belong to several salons too).
                 Card(
@@ -197,7 +199,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     onTap: _openSalonPicker,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
                 // Role-gated rows (access R4b) — UI hiding is convenience;
                 // the routes 403 server-side regardless.
                 if (authProvider.can(ProCap.salonPublish)) ...[
@@ -209,7 +211,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/onboarding'),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.profileManage)) ...[
                   Card(
@@ -221,7 +223,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/salon-profile'),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.salonPublish)) ...[
                   Card(
@@ -239,7 +241,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/verification'),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.membersManage)) ...[
                   Card(
@@ -251,13 +253,14 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/team'),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 Consumer<ProTeamProvider>(
                   builder: (context, team, _) => team.invitationCount == 0
                       ? const SizedBox.shrink()
                       : Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
+                          padding:
+                              const EdgeInsets.only(bottom: AppTheme.spacingS),
                           child: Card(
                             child: ListTile(
                               leading: const Icon(Icons.mail_outline),
@@ -267,8 +270,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
+                                      horizontal: AppTheme.spacingS,
+                                      vertical: AppTheme.spacingXS,
                                     ),
                                     decoration: BoxDecoration(
                                       color: AppColors.primary,
@@ -300,18 +303,18 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/subscription'),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.depositManage)) ...[
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.payments_outlined),
-                      title: const Text('Paramètres d\'acompte'),
+                      title: const Text('Paramètres d’acompte'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/pro/deposit-settings'),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.catalogueManage)) ...[
                   Card(
@@ -322,7 +325,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/photos'),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.compare_outlined),
@@ -331,7 +334,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/before-after'),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.salonPublish))
                   Card(
@@ -342,7 +345,26 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       onTap: () => context.push('/pro/data-export'),
                     ),
                   ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
+                // L1 — legal is NOT capability-gated: every role, and a signed-out store
+                // reviewer, must reach the privacy policy. Above « Déconnexion » so
+                // `pro_profile_role_test`'s existing scroll ladder still reaches it.
+                // Hand-written in this file's own `Card { ListTile }` idiom rather
+                // than `SettingsTile`: its thirteen rows are all built this way, and
+                // unifying them is a refactor that does not belong in a
+                // store-submission change.
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('À propos'),
+                    subtitle:
+                        const Text('Confidentialité, CGU, mentions légales'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/a-propos'),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+
                 AppButton(
                   text: 'Déconnexion',
                   type: AppButtonType.secondary,
@@ -353,7 +375,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppTheme.spacingSM),
                 // Audit 11.5 (AUTH-004 pros): definitive account deletion.
                 AppButton(
                   text: 'Supprimer mon compte',
@@ -376,42 +398,30 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer votre compte ?'),
-        content: const Text(
-          'Cette action est définitive. Votre salon sera retiré de MyWeli. '
-          'Pensez à exporter vos données avant.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer votre compte ?',
+      message: 'Cette action est définitive. Votre salon sera retiré de '
+          'MyWeli. Pensez à exporter vos données avant.',
+      confirmLabel: 'Supprimer définitivement',
+      icon: Icons.warning_amber_rounded,
+      // A6 closes the ladder's asymmetry: the CONSUMER account delete has
+      // asked you to type SUPPRIMER since it shipped, while the PRO salon
+      // delete — the same irreversible + high-value rung, and a whole salon —
+      // asked for one tap. §15 says both get type-to-confirm.
+      confirmWord: 'SUPPRIMER',
     );
-    if (confirmed != true || !context.mounted) return;
+    if (!confirmed || !context.mounted) return;
 
     final res = await serviceLocator.proService.deleteProviderAccount();
     if (!res.success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            res.code == 'future_bookings'
-                ? 'Terminez ou annulez vos rendez-vous à venir avant de '
-                    'supprimer votre compte.'
-                : res.error ?? 'La suppression a échoué. Réessayez.',
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger,
+          res.code == 'future_bookings'
+              ? 'Terminez ou annulez vos rendez-vous à venir avant de '
+                  'supprimer votre compte.'
+              : res.error ?? 'La suppression a échoué.',
+          kind: SnackKind.error);
       return;
     }
     await authProvider.logout();

@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/models/app_notification.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   AppNotification note({bool read = false}) => AppNotification(
         id: '1',

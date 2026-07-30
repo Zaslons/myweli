@@ -1,6 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { ErrorState } from '../ErrorState';
+import { Chip } from '../Chip';
+import { StatusChip } from '../StatusChip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -20,9 +24,12 @@ import {
 } from '../../lib/pro/lifecycle';
 import { hasCap } from '../../lib/pro/team';
 import { rescheduleAppointment } from '../../lib/api/pro';
+import { hhmm, minutesOfDay } from '../../lib/pro/journal';
+import { combineDateTime } from '../../lib/pro/manual-booking';
 import type { ProAppointment } from '../../lib/pro/today';
-import { isSameSalonDay, salonFormatter } from '../../lib/time';
+import { isSameSalonDay, salonDayKey, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -30,12 +37,16 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const [appt, setAppt] = useState<ProAppointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<LifecycleAction | null>(null);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(false);
+    setNotFound(false);
+    setLoading(true);
     const me = await getMyProvider();
     if (me.status === 401) {
       router.replace('/pro/connexion');
@@ -48,7 +59,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     }
     setProfile(me.profile ?? null);
     if (r.status !== 200 || !r.appt) {
-      setNotFound(true);
+      // The API wrapper DISTINGUISHES: 404 = a loaded list without this id
+      // (terminal); anything else is a transient failure — the review proved
+      // a stub restart told the pro their appointment "n'existe pas".
+      if (r.status === 404) setNotFound(true);
+      else setLoadError(true);
       setLoading(false);
       return;
     }
@@ -71,9 +86,15 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     if (!reprogDate || !reprogTime) return;
     setBusy(true);
     setReprogError(null);
+    // The picked wall-clock IS salon time — offset-aware build through the
+    // seam (multi-pays MP3).
     const r = await rescheduleAppointment(
       id,
-      `${reprogDate}T${reprogTime}:00.000Z`,
+      combineDateTime(
+        reprogDate,
+        reprogTime,
+        profile?.provider.timezone ?? undefined,
+      ) ?? '',
     );
     setBusy(false);
     if (!r.ok) {
@@ -105,11 +126,31 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     await load();
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
+  if (loadError) {
+    return <ErrorState title="Rendez-vous" onRetry={load} />;
+  }
   if (notFound || !appt) {
-    return <p className="text-error">Rendez-vous introuvable.</p>;
+    return (
+      <div>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
+          Rendez-vous
+        </h1>
+        <p role="alert" className="mt-m text-bodyMedium text-error">
+          Rendez-vous introuvable.
+        </p>
+        <p className="mt-m">
+          <Link href="/pro/rendez-vous" className="text-bodyMedium underline">
+            ← Rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
   }
 
+  // The ACTIVE salon's market (multi-pays MP3).
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
   const serviceName = (sid: string) =>
     profile?.provider.services?.find((s) => s.id === sid)?.name;
   const services =
@@ -123,53 +164,60 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
   return (
     <div>
-      <Link href="/pro/rendez-vous" className="text-sm text-textTertiary">
+      <Link href="/pro/rendez-vous" className="text-bodyMedium text-textTertiary">
         ← Rendez-vous
       </Link>
-      <h1 className="mt-m text-2xl font-semibold text-textPrimary">
+      <h1 className="mt-m text-headlineSmall font-semibold text-textPrimary">
         Détails du rendez-vous
       </h1>
 
-      <section className="mt-m rounded-xl border border-border bg-secondary p-l">
-        <div className="flex items-center justify-between gap-m">
+      <Card as="section" className="mt-m">
+        {/* B11: the fifth and sixth copies of this shape, and the two that
+            matter most — the heading here is a SALON NAME, unbounded user
+            data, sitting beside a status chip with nothing allowed to
+            wrap. The four fixed earlier all hold fixed page titles. The
+            review caught these; the census had listed them under "button
+            clusters" rather than title toolbars. */}
+        <div className="flex flex-wrap items-center justify-between gap-m">
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientName ?? 'Client'}
+            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
-              <span
-                className={`rounded-full px-s py-xs text-xs font-normal ${
-                  noShowBadge(appt.clientNoShowCount) === 'red'
-                    ? 'bg-error/10 text-error'
-                    : 'bg-surface text-textSecondary'
-                }`}
+              <Chip
+                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
-              </span>
+              </Chip>
             ) : null}
             {appt.salonClientId && canViewClients ? (
               <Link
                 href={`/pro/clients/${appt.salonClientId}`}
-                className="text-xs font-normal text-textTertiary underline"
+                className="text-bodySmall font-normal text-textTertiary underline"
               >
                 Voir la fiche
               </Link>
             ) : null}
           </p>
-          <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
-            {statusLabelFr(appt.status)}
-          </span>
+          <StatusChip status={appt.status} />
         </div>
 
-        <dl className="mt-m space-y-xs text-sm">
-          <Row label="Date" value={formatDateTimeFr(appt.appointmentDate)} />
+        <dl className="mt-m space-y-xs text-bodyMedium">
+          <Row
+            label="Date"
+            value={formatDateTimeFr(appt.appointmentDate, tz)}
+          />
           {appt.clientPhone ? (
             <Row label="Téléphone" value={appt.clientPhone} />
           ) : null}
           <Row label="Prestations" value={services} />
           {typeof appt.totalPrice === 'number' ? (
-            <Row label="Total" value={formatFcfa(appt.totalPrice)} />
+            <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
           {appt.depositAmount ? (
-            <Row label="Acompte annoncé" value={formatFcfa(appt.depositAmount)} />
+            <Row
+              label="Acompte annoncé"
+              value={formatFcfa(appt.depositAmount, currency)}
+            />
           ) : null}
         </dl>
 
@@ -192,12 +240,12 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             )}
           </div>
         ) : appt.depositAmount ? (
-          <p className="mt-s text-xs text-textTertiary">
+          <p className="mt-s text-bodySmall text-textTertiary">
             Justificatif d’acompte non reçu.
           </p>
         ) : null}
 
-        {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
         {actions.length > 0 ? (
           <div className="mt-l flex flex-wrap gap-s">
@@ -207,7 +255,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                   key={a.action}
                   className="w-full rounded-lg bg-surface p-m"
                 >
-                  <p className="text-sm text-textSecondary">{a.confirm}</p>
+                  <p className="text-bodyMedium text-textSecondary">{a.confirm}</p>
                   <div className="mt-s flex gap-s">
                     <Button variant="secondary" onClick={() => setConfirm(null)}>
                       Annuler
@@ -235,15 +283,15 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
 
         {/* Parity 1.10 (J1b §4.2 debt): arrival from the detail page too. */}
         {appt.arrivedAt ? (
-          <p className="mt-m text-sm text-textSecondary">
+          <p className="mt-m text-bodyMedium text-textSecondary">
             Arrivé à{' '}
-            {salonFormatter({ hour: '2-digit', minute: '2-digit' }).format(
+            {salonFormatter({ hour: '2-digit', minute: '2-digit' }, tz).format(
               new Date(appt.arrivedAt),
             )}
           </p>
         ) : appt.status === 'confirmed' &&
           canManageAll &&
-          isSameSalonDay(new Date(appt.appointmentDate), new Date()) ? (
+          isSameSalonDay(new Date(appt.appointmentDate), new Date(), tz) ? (
           <div className="mt-m">
             <Button
               variant="secondary"
@@ -274,15 +322,18 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                 onClick={() => {
                   setReprog(true);
                   setReprogError(null);
-                  setReprogDate(appt.appointmentDate.slice(0, 10));
-                  setReprogTime(appt.appointmentDate.slice(11, 16));
+                  // Prefill with the SALON wall-clock (multi-pays MP3).
+                  setReprogDate(
+                    salonDayKey(new Date(appt.appointmentDate), tz),
+                  );
+                  setReprogTime(hhmm(minutesOfDay(appt.appointmentDate, tz)));
                 }}
               >
                 Reprogrammer
               </Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-sm text-textPrimary">
+                <p className="text-bodyMedium text-textPrimary">
                   Nouvelle date et heure
                 </p>
                 <div className="mt-s flex flex-wrap gap-s">
@@ -291,7 +342,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     aria-label="Nouvelle date"
                     value={reprogDate}
                     onChange={(e) => setReprogDate(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                   <input
                     type="time"
@@ -299,11 +350,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     step={900}
                     value={reprogTime}
                     onChange={(e) => setReprogTime(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
+                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                 </div>
                 {reprogError ? (
-                  <p className="mt-s text-sm text-error">{reprogError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">{reprogError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button variant="secondary" onClick={() => setReprog(false)}>
@@ -320,7 +371,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             )}
           </div>
         ) : null}
-      </section>
+      </Card>
     </div>
   );
 }

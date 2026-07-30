@@ -32,8 +32,10 @@ import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
+import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
@@ -74,6 +76,7 @@ Handler middleware(Handler handler) {
       )
       .use(provider<ProAppointmentService>((_) => proAppointmentService))
       .use(provider<ClientsService>((_) => clientsService))
+      .use(provider<UserErasureService>((_) => userErasureService))
       .use(provider<JournalService>((_) => journalService))
       .use(provider<ProviderCatalogService>((_) => providerCatalogService))
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
@@ -85,6 +88,7 @@ Handler middleware(Handler handler) {
       .use(provider<DepositService>((_) => depositService))
       .use(provider<MessagingService>((_) => messagingService))
       .use(provider<BookingNotifier>((_) => bookingNotifier))
+      .use(provider<SalonNotifier>((_) => salonNotifier))
       .use(provider<ReminderScheduler>((_) => reminderScheduler))
       .use(provider<PushService>((_) => pushService))
       .use(provider<NotificationsRepository>((_) => notificationsRepository))

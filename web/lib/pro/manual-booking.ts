@@ -3,6 +3,8 @@
 /// `ProManualBookingScreen` rules, unit-tested. Services are the pro
 /// profile's (looser) shape — only id + price matter here.
 
+import { salonWallClockToUtc } from '../time';
+
 /// The app's running total: sum of the selected services' MIN prices (the
 /// server re-prices authoritatively on create).
 export function manualBookingTotal(
@@ -15,14 +17,19 @@ export function manualBookingTotal(
 }
 
 /// Combine the dialog's date (YYYY-MM-DD) + time (HH:MM) inputs into the
-/// booking ISO instant. The picked wall-clock IS salon time (multi-pays §3;
-/// Africa/Abidjan = UTC+0, hence the literal Z — Wave 2 swaps this to an
-/// offset-aware builder in lib/time.ts). Null when incomplete.
-export function combineDateTime(ymd: string, hm: string): string | null {
+/// booking ISO instant. The picked wall-clock IS salon time (multi-pays §3),
+/// built offset-aware through the seam (MP3: salonWallClockToUtc replaced
+/// the old hardcoded-Z construction). Null when incomplete.
+export function combineDateTime(
+  ymd: string,
+  hm: string,
+  tz?: string,
+): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !/^\d{2}:\d{2}$/.test(hm)) {
     return null;
   }
-  return `${ymd}T${hm}:00.000Z`;
+  const [h, m] = hm.split(':').map(Number);
+  return salonWallClockToUtc(ymd, h * 60 + m, tz).toISOString();
 }
 
 /// The app's future-only guard (« Choisissez une date et une heure à venir »).

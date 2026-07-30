@@ -7,17 +7,17 @@ import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
   setUpAll(() {
     initializeDateFormatting('fr_FR', null);
     setupDependencyInjection();
   });
 
-  Widget wrap(Widget child) => MaterialApp(
-        home: ChangeNotifierProvider(
-          create: (_) => ProviderProvider(),
-          child: Scaffold(body: child),
-        ),
+  Widget wrap(Widget child) => wrapApp(
+        providers: [ChangeNotifierProvider(create: (_) => ProviderProvider())],
+        home: Scaffold(body: child),
       );
 
   Appointment appt({String? clientName}) => Appointment(

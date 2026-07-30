@@ -114,11 +114,11 @@ class _ActionFilter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingSM),
       decoration: BoxDecoration(
         color: AppColors.secondary,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderStrong),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
@@ -126,7 +126,7 @@ class _ActionFilter extends StatelessWidget {
           isDense: true,
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           style: AppTextStyles.bodyMedium,
-          icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+          icon: const Icon(Icons.keyboard_arrow_down, size: AppTheme.iconS),
           items: [
             const DropdownMenuItem(
                 value: null, child: Text('Toutes les actions')),
@@ -150,13 +150,13 @@ class _Pager extends StatelessWidget {
       padding: const EdgeInsets.only(top: AppTheme.spacingM),
       child: Row(
         children: [
-          Text('${provider.total} entrée(s)',
+          Text(Formatters.count(provider.total, 'entrée', 'entrées'),
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textTertiary)),
           const Spacer(),
           IconButton(
             tooltip: 'Précédent',
-            icon: const Icon(Icons.chevron_left, size: 20),
+            icon: const Icon(Icons.chevron_left, size: AppTheme.iconS),
             onPressed: provider.hasPrev
                 ? () => context.read<AdminAuditProvider>().prevPage()
                 : null,
@@ -164,7 +164,7 @@ class _Pager extends StatelessWidget {
           Text('Page ${provider.page}', style: AppTextStyles.bodyMedium),
           IconButton(
             tooltip: 'Suivant',
-            icon: const Icon(Icons.chevron_right, size: 20),
+            icon: const Icon(Icons.chevron_right, size: AppTheme.iconS),
             onPressed: provider.hasNext
                 ? () => context.read<AdminAuditProvider>().nextPage()
                 : null,

@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import PhoneInput, { isPossiblePhoneNumber } from 'react-phone-number-input';
+import { isPossiblePhoneNumber } from 'react-phone-number-input';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
+import { PhoneField } from '../PhoneField';
+import { TextField } from '../TextField';
 import {
   addSalon,
   getMyProvider,
@@ -11,6 +14,7 @@ import {
 } from '../../lib/api/pro';
 import { teamErrorCta, teamErrorMessage } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { LocalityPicker } from './LocalityPicker';
 
 const BUSINESS_TYPES = [
   { value: 'salon', label: 'Salon de beauté' },
@@ -34,9 +38,19 @@ export function AddSalonClient() {
   const [businessType, setBusinessType] = useState('salon');
   const [phone, setPhone] = useState<string | undefined>(undefined);
   const [address, setAddress] = useState('');
+  // Multi-pays MP3: the locality area — optional here, the publish gate
+  // enforces it (T57).
+  const [areaId, setAreaId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorCode, setErrorCode] = useState<string | undefined>();
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  // §14 rules 1/2/5 (web-b4-controls.md): the old fieldError <p> named the
+  // failing field in a form-level message — it now renders under the field.
+  const fields = useFieldErrors({
+    businessName: (v: string) =>
+      v.trim() !== '' ? null : 'Saisissez le nom du salon.',
+    phone: (v: string) =>
+      !v || isPossiblePhoneNumber(v) ? null : 'Saisissez un numéro de téléphone valide.',
+  });
 
   useEffect(() => {
     let active = true;
@@ -58,22 +72,15 @@ export function AddSalonClient() {
   }, [router]);
 
   async function submit() {
-    if (businessName.trim() === '') {
-      setFieldError('Le nom du salon est requis.');
-      return;
-    }
-    if (phone && !isPossiblePhoneNumber(phone)) {
-      setFieldError('Numéro de téléphone invalide.');
-      return;
-    }
-    setFieldError(null);
+    if (!fields.validate({ businessName, phone })) return;
     setErrorCode(undefined);
     setBusy(true);
     const r = await addSalon({
       businessName: businessName.trim(),
       businessType,
-      phoneNumber: phone,
+      phoneNumber: phone || undefined,
       address: address.trim() === '' ? undefined : address.trim(),
+      areaId: areaId ?? undefined,
     });
     if (!r.ok || !r.salon) {
       setBusy(false);
@@ -91,29 +98,31 @@ export function AddSalonClient() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">
         Ajouter un salon
       </h1>
-      <p className="mt-xs text-sm text-textSecondary">
+      <p className="mt-xs text-bodyMedium text-textSecondary">
         Le nouveau salon démarre en brouillon avec sa propre configuration :
         fiche, catalogue, équipe, offre et période d’essai.
       </p>
 
-      <label className="mt-l block text-sm text-textSecondary">
-        Nom du salon
-        <input
-          value={businessName}
-          onChange={(e) => setBusinessName(e.target.value)}
-          placeholder="Ex : Salon Excellence Yopougon"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
-        />
-      </label>
-      <label className="mt-m block text-sm text-textSecondary">
+      <TextField
+        className="mt-l"
+        label="Nom du salon"
+        value={businessName}
+        onChange={(e) => {
+          setBusinessName(e.target.value);
+          fields.revalidate('businessName', e.target.value);
+        }}
+        placeholder="Ex : Salon Excellence Yopougon"
+        error={fields.errors.businessName}
+      />
+      <label className="mt-m block text-labelMedium text-textSecondary">
         Type d’entreprise
         <select
           value={businessType}
           onChange={(e) => setBusinessType(e.target.value)}
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+          className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
         >
           {BUSINESS_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -122,36 +131,38 @@ export function AddSalonClient() {
           ))}
         </select>
       </label>
-      <label className="mt-m block text-sm text-textSecondary">
-        Téléphone du salon
-        <PhoneInput
-          international
-          defaultCountry="CI"
-          value={phone}
-          onChange={setPhone}
-          className="mt-xs rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+      <div className="mt-m">
+        <PhoneField
+          label="Téléphone du salon"
+          initialValue={phone}
+          onChange={(v) => {
+            setPhone(v);
+            fields.revalidate('phone', v);
+          }}
+          error={fields.errors.phone}
         />
-      </label>
-      <label className="mt-m block text-sm text-textSecondary">
-        Adresse (optionnelle)
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Quartier, commune…"
-          className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
-        />
-      </label>
+      </div>
+      <TextField
+        className="mt-m"
+        label="Adresse (optionnelle)"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        placeholder="Quartier, commune…"
+      />
 
-      {fieldError ? (
-        <p className="mt-s text-sm text-error">{fieldError}</p>
-      ) : null}
+      {/* Multi-pays MP3: où se trouve le salon (recommandé — requis pour la
+          mise en ligne). */}
+      <div className="mt-m">
+        <LocalityPicker areaId={areaId} onChange={setAreaId} />
+      </div>
+
       {errorCode ? (
-        <p className="mt-s text-sm text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           {teamErrorMessage(errorCode)}
         </p>
       ) : null}
       {cta ? (
-        <Link href={cta.href} className="mt-xs inline-block text-sm underline">
+        <Link href={cta.href} className="mt-xs inline-block text-bodyMedium underline">
           {cta.label}
         </Link>
       ) : null}
@@ -162,7 +173,7 @@ export function AddSalonClient() {
         </Button>
       </div>
 
-      <p className="mt-m text-xs text-textTertiary">
+      <p className="mt-m text-bodySmall text-textTertiary">
         Réservé à l’offre Réseau. Le badge « Vérifié » de votre compte
         s’applique automatiquement au nouveau salon.
       </p>

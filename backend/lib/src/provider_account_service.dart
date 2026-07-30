@@ -3,7 +3,9 @@ import 'package:http/http.dart' as http;
 import 'access/membership_repository.dart';
 import 'appointments/appointment_repository.dart';
 import 'auth/provider_auth_repository.dart';
+import 'notifications/notifications_repository.dart';
 import 'providers_repository.dart';
+import 'push/device_token_repository.dart';
 import 'storage/storage_service.dart';
 
 /// Provider ACCOUNT lifecycle (audit 11.5 — threat T53): the deletion flow
@@ -17,14 +19,23 @@ class ProviderAccountService {
     this._appointments,
     this._storage,
     this._memberships, {
+    DeviceTokenRepository? devices,
+    NotificationsRepository? notifications,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+  }) : _devices = devices,
+       _notifications = notifications,
+       _client = client ?? http.Client();
 
   final ProviderAuthRepository _auth;
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final StorageService _storage;
   final MembershipRepository _memberships;
+
+  /// L1/T59: optional so the existing constructions in tests keep compiling —
+  /// but wired in `dependencies.dart`, so production always has them.
+  final DeviceTokenRepository? _devices;
+  final NotificationsRepository? _notifications;
   final http.Client _client;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
@@ -73,6 +84,13 @@ class ProviderAccountService {
         // Tolerated: uuid-named + private + rows deleted ⇒ unreachable.
       }
     }
+
+    // L1/T59: the SAME defect the consumer side had. This flow settled the
+    // agenda, unpublished the salons and erased the KYC documents, and never
+    // touched either of these — so a deleted salon owner's phone kept ringing.
+    // Before the identity delete, like everything else here.
+    await _devices?.deleteForUser(accountId);
+    await _notifications?.deleteForUser(accountId);
 
     // Module `access` (drift §2.3-2): the identity's memberships die with it
     // — a member row must never outlive its account.

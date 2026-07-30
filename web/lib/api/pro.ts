@@ -56,6 +56,13 @@ export type ProProfile = {
     address?: string;
     commune?: string | null;
     city?: string | null;
+    /// Multi-pays MP1 salon market fields (server-derived from the area —
+    /// T57): the pro surfaces render THIS salon's clock + currency.
+    areaId?: string | null;
+    citySlug?: string | null;
+    countryCode?: string | null;
+    timezone?: string | null;
+    currency?: string | null;
     phoneNumber?: string;
     whatsapp?: string | null;
     services?: Service[];
@@ -135,6 +142,8 @@ export async function addSalon(fields: {
   businessType: string;
   phoneNumber?: string;
   address?: string;
+  /// Multi-pays MP3 — optional; the publish gate enforces (T57).
+  areaId?: string | null;
 }): Promise<{ ok: boolean; status: number; salon?: SalonMembership; error?: string }> {
   const res = await fetch('/api/pro/salons', {
     method: 'POST',
@@ -870,6 +879,9 @@ export type ProRegisterFields = {
   businessType: string;
   phoneNumber: string;
   address?: string;
+  /// Multi-pays MP3: the picked locality area — optional at registration
+  /// (the publish gate enforces a valid area, T57).
+  areaId?: string | null;
 };
 
 /// Identity + business fields in ONE submit (201 → pro cookies set by the

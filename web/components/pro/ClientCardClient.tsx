@@ -1,8 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { Chip, chipLinkClasses } from '../Chip';
+import { StatusChip } from '../StatusChip';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import { statusLabelFr } from '../../lib/account/appointments';
 import {
   type ProProfile,
@@ -24,6 +30,8 @@ import {
   waHref,
 } from '../../lib/pro/clients';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
+import { TextField } from '../TextField';
 import { ManualBookingDialog } from './ManualBookingDialog';
 
 /// Module `clients` C1b — the client card at /pro/clients/[id]
@@ -36,7 +44,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [providerId, setProviderId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [booking, setBooking] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [visits, setVisits] = useState<ProAppointment[]>([]);
   const [visitsTotal, setVisitsTotal] = useState(0);
@@ -86,25 +94,24 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  // The ACTIVE salon's market (multi-pays MP3).
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
+
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (notFound) {
     return (
       <div>
-        <Link href="/pro/clients" className="text-sm text-textTertiary">
+        <Link href="/pro/clients" className="text-bodyMedium text-textTertiary">
           ← Clients
         </Link>
-        <p className="mt-m text-textSecondary">Client introuvable.</p>
+        <p className="mt-m text-bodyLarge text-textSecondary">Client introuvable.</p>
       </div>
     );
   }
   if (error || !card || !providerId) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Fiche client" onRetry={() => { setError(false); setLoading(true); void load(); }} />;
   }
 
   async function saveTags(next: string[]) {
@@ -150,33 +157,39 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
 
   return (
     <div>
-      <Link href="/pro/clients" className="text-sm text-textTertiary">
+      <Link href="/pro/clients" className="text-bodyMedium text-textTertiary">
         ← Clients
       </Link>
 
       <div className="mt-m grid gap-l lg:grid-cols-2">
         {/* Identity + notes */}
         <div>
-          <div className="rounded-xl border border-border bg-secondary p-l">
+          <Card>
             <div className="flex items-center gap-m">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-lg font-medium text-textPrimary">
+              <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-surface text-titleLarge font-medium text-textPrimary">
                 {card.displayName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0">
-                <h1 className="flex items-center gap-xs text-xl font-semibold text-textPrimary">
+                <h1 className="flex items-center gap-xs text-titleLarge font-semibold text-textPrimary">
+                  {/* clip-ok: this is the page's own `<h1>`, so the bar is
+                      higher — and it clears it because the record identifies
+                      itself again immediately below, by phone number and visit
+                      history, and the name is the document title. Recorded as
+                      the weakest of the six: if this page ever loses the phone
+                      row, the declaration stops being true. */}
                   <span className="truncate">{card.displayName}</span>
                   {card.linked ? (
-                    <span className="rounded-full bg-surface px-xs text-[10px] uppercase text-textTertiary">
+                    <Chip dense className="uppercase text-textTertiary">
                       MyWeli
-                    </span>
+                    </Chip>
                   ) : null}
                 </h1>
                 {card.phone ? (
-                  <p className="mt-xs flex items-center gap-s text-sm text-textSecondary">
+                  <p className="mt-xs flex items-center gap-s text-bodyMedium text-textSecondary">
                     {card.phone}
                     <a
                       href={telHref(card.phone)}
-                      className="underline"
+                      className="-my-sm inline-flex min-h-12 items-center underline"
                       aria-label="Appeler"
                     >
                       Appeler
@@ -185,7 +198,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       href={waHref(card.phone)}
                       target="_blank"
                       rel="noreferrer"
-                      className="underline"
+                      className="-my-sm inline-flex min-h-12 items-center underline"
                       aria-label="WhatsApp"
                     >
                       WhatsApp
@@ -201,7 +214,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               </Button>
             </div>
 
-            <div className="mt-m flex flex-wrap items-center gap-xs">
+            <div className="mt-m flex flex-wrap items-center gap-s">
               {(editingTags ? tagChoices : card.tags).map((t) => {
                 const active = card.tags.includes(t);
                 return editingTags ? (
@@ -213,27 +226,20 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       const next = toggleTag(card.tags, t);
                       if (next) saveTags(next);
                     }}
-                    className={`rounded-full border px-s py-xs text-xs ${
-                      active
-                        ? 'border-primary bg-primary text-secondary'
-                        : 'border-border bg-surface text-textSecondary'
-                    }`}
+                    className={chipLinkClasses(active)}
                   >
                     {t}
                   </button>
                 ) : (
-                  <span
-                    key={t}
-                    className="rounded-full border border-border px-s py-xs text-xs text-textSecondary"
-                  >
+                  <Chip variant="outlined" key={t}>
                     {t}
-                  </span>
+                  </Chip>
                 );
               })}
               <button
                 type="button"
                 onClick={() => setEditingTags((v) => !v)}
-                className="text-xs text-textTertiary underline"
+                className="inline-flex min-h-12 items-center text-bodySmall text-textTertiary underline"
               >
                 {editingTags ? 'Terminé' : 'Modifier les tags'}
               </button>
@@ -250,35 +256,37 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                   setCustomTag('');
                 }}
               >
-                <input
+                <TextField
+                  label="Nouveau tag"
+                  hideLabel
                   value={customTag}
                   onChange={(e) => setCustomTag(e.target.value)}
                   maxLength={30}
                   placeholder="Nouveau tag…"
-                  aria-label="Nouveau tag"
-                  className="rounded-lg border border-border bg-surface px-s py-xs text-xs text-textPrimary"
                 />
                 <Button variant="secondary" disabled={busy || !customTag.trim()}>
                   Ajouter le tag
                 </Button>
               </form>
             ) : null}
-          </div>
+          </Card>
 
-          <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-            <h2 className="font-semibold text-textPrimary">Notes</h2>
-            <p className="mt-xs text-xs text-textTertiary">
+          <Card as="section" className="mt-l">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">Notes</h2>
+            <p className="mt-xs text-bodySmall text-textTertiary">
               Visible uniquement par votre équipe.
             </p>
             <div className="mt-m flex gap-s">
-              <textarea
+              <TextField
+                className="flex-1"
+                label="Ajouter une note"
+                hideLabel
+                multiline
                 value={noteDraft}
                 onChange={(e) => setNoteDraft(e.target.value)}
                 maxLength={MAX_NOTE_LENGTH}
                 rows={2}
                 placeholder="Ajouter une note…"
-                aria-label="Ajouter une note"
-                className="w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
               />
               <Button
                 onClick={submitNote}
@@ -288,7 +296,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               </Button>
             </div>
             {card.notes.length === 0 ? (
-              <p className="mt-m text-sm text-textSecondary">
+              <p className="mt-m text-bodyMedium text-textSecondary">
                 Aucune note pour l’instant.
               </p>
             ) : (
@@ -296,18 +304,18 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 {card.notes.map((n) => (
                   <li
                     key={n.id}
-                    className="rounded-lg bg-surface p-s text-sm text-textPrimary"
+                    className="rounded-lg bg-surface p-s text-bodyMedium text-textPrimary"
                   >
                     <p>{n.body}</p>
-                    <p className="mt-xs flex items-center justify-between text-xs text-textTertiary">
+                    <p className="mt-xs flex items-center justify-between text-bodySmall text-textTertiary">
                       <span>
-                        {n.authorName} · {formatDateFr(n.createdAt)}
+                        {n.authorName} · {formatDateFr(n.createdAt, tz)}
                       </span>
                       <button
                         type="button"
                         onClick={() => removeNote(n.id)}
                         disabled={busy}
-                        className="underline"
+                        className="-my-m inline-flex min-h-12 items-center underline"
                       >
                         Supprimer
                       </button>
@@ -316,14 +324,17 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 ))}
               </ul>
             )}
-          </section>
+          </Card>
         </div>
 
         {/* Stats + history */}
         <div>
           <div className="grid grid-cols-2 gap-s">
             <Stat label="Visites" value={String(card.stats.visits)} />
-            <Stat label="Dépensé" value={formatFcfa(card.stats.spentFcfa)} />
+            <Stat
+              label="Dépensé"
+              value={formatFcfa(card.stats.spentFcfa, currency)}
+            />
             <Stat
               label="Absences"
               value={String(card.stats.noShows)}
@@ -331,7 +342,9 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             />
             <Stat
               label="Dernière visite"
-              value={card.lastVisitAt ? formatDateFr(card.lastVisitAt) : '—'}
+              value={
+                card.lastVisitAt ? formatDateFr(card.lastVisitAt, tz) : '—'
+              }
             />
           </div>
 
@@ -340,22 +353,22 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
               href={`/pro/rendez-vous/${card.upcoming.id}`}
               className="mt-l block rounded-xl border border-border bg-secondary p-l hover:bg-surface"
             >
-              <p className="text-xs uppercase text-textTertiary">
+              <p className="text-bodySmall uppercase text-textTertiary">
                 Prochain rendez-vous
               </p>
-              <p className="mt-xs text-sm font-medium text-textPrimary">
-                {formatDateTimeFr(card.upcoming.appointmentDate)} ·{' '}
+              <p className="mt-xs text-labelLarge font-medium text-textPrimary">
+                {formatDateTimeFr(card.upcoming.appointmentDate, tz)} ·{' '}
                 {statusLabelFr(card.upcoming.status)}
               </p>
             </Link>
           ) : null}
 
-          <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-            <h2 className="font-semibold text-textPrimary">
+          <Card as="section" className="mt-l">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">
               Historique des visites
             </h2>
             {visits.length === 0 ? (
-              <p className="mt-m text-sm text-textSecondary">
+              <p className="mt-m text-bodyMedium text-textSecondary">
                 Aucune visite enregistrée.
               </p>
             ) : (
@@ -363,20 +376,18 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 {visits.map((v) => (
                   <li
                     key={v.id}
-                    className="flex items-center justify-between py-s text-sm"
+                    className="flex items-center justify-between py-s text-bodyMedium"
                   >
                     <span className="text-textPrimary">
-                      {formatDateTimeFr(v.appointmentDate)}
+                      {formatDateTimeFr(v.appointmentDate, tz)}
                     </span>
                     <span className="flex items-center gap-s">
                       {typeof v.totalPrice === 'number' ? (
                         <span className="text-textSecondary">
-                          {formatFcfa(v.totalPrice)}
+                          {formatFcfa(v.totalPrice, currency)}
                         </span>
                       ) : null}
-                      <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
-                        {statusLabelFr(v.status)}
-                      </span>
+                      <StatusChip status={v.status} />
                     </span>
                   </li>
                 ))}
@@ -389,7 +400,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 </Button>
               </div>
             ) : null}
-          </section>
+          </Card>
         </div>
       </div>
 
@@ -404,17 +415,12 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           onClose={() => setBooking(false)}
           onCreated={() => {
             setBooking(false);
-            setToast('Rendez-vous créé');
+            show('Rendez-vous créé', 'success');
             load();
           }}
-          onToast={setToast}
         />
       ) : null}
-      {toast ? (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }
@@ -430,9 +436,9 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl border border-border bg-secondary p-m">
-      <p className="text-xs uppercase text-textTertiary">{label}</p>
+      <p className="text-bodySmall uppercase text-textTertiary">{label}</p>
       <p
-        className={`mt-xs text-lg font-semibold ${
+        className={`mt-xs text-titleLarge font-semibold ${
           alert ? 'text-error' : 'text-textPrimary'
         }`}
       >

@@ -1,19 +1,26 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_date_time_picker.dart';
 
 /// « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
@@ -27,14 +34,6 @@ class ProJournalScreen extends StatefulWidget {
 }
 
 class _ProJournalScreenState extends State<ProJournalScreen> {
-  static const _statusFr = {
-    AppointmentStatus.pending: 'En attente',
-    AppointmentStatus.confirmed: 'Confirmé',
-    AppointmentStatus.completed: 'Terminé',
-    AppointmentStatus.cancelled: 'Annulé',
-    AppointmentStatus.noShow: 'Non présenté',
-  };
-
   String get _providerId => context.read<ProAuthProvider>().activeSalonId ?? '';
 
   /// Collaborateur own-mode (access R4b §5.3): « Ma journée » shows the
@@ -120,11 +119,15 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
 
   Future<void> _pickDate() async {
     final journal = context.read<ProJournalProvider>();
-    final picked = await showDatePicker(
+    // A14: the only past-facing picker in the app. The bounds were
+    // `DateTime.utc(2024)`..`utc(2030)` — two magic years, one of which
+    // eventually arrives. A span around the selected day cannot expire.
+    final picked = await showMyweliDatePicker(
       context: context,
       initialDate: journal.selectedDate,
-      firstDate: DateTime.utc(2024),
-      lastDate: DateTime.utc(2030),
+      firstDate: journal.selectedDate.subtract(kJournalPastHorizon),
+      lastDate: journal.selectedDate.add(kBookingHorizon),
+      today: salonToday(tz: context.read<ProAuthProvider>().salonTimezone),
     );
     if (picked != null) {
       journal.setDate(DateTime.utc(picked.year, picked.month, picked.day));
@@ -153,7 +156,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
       child: items.isEmpty
           ? ListView(
               children: [
-                const SizedBox(height: 80),
+                const SizedBox(height: AppTheme.spacingXXXL),
                 EmptyState(
                   icon: Icons.event_available,
                   title: 'Aucun rendez-vous ce jour',
@@ -202,45 +205,50 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final artistFilter = context.read<ProJournalProvider>().artistFilter;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
-      child: InkWell(
-        // Own-mode: gaps are informational only (booking = manage.all).
-        onTap: _ownMode
-            ? null
-            : () => context.push(
-                  '/pro/appointment/new',
-                  extra: {
-                    'dateTime': start.toIso8601String(),
-                    if (artistFilter != null && artistFilter.isNotEmpty)
-                      'artistId': artistFilter,
-                  },
-                ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingM,
-            vertical: AppTheme.spacingS,
-          ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: AppColors.divider,
-              style: BorderStyle.solid,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+        child: InkWell(
+          // Own-mode: gaps are informational only (booking = manage.all).
+          onTap: _ownMode
+              ? null
+              : () => context.push(
+                    '/pro/appointment/new',
+                    extra: {
+                      'dateTime': start.toIso8601String(),
+                      if (artistFilter != null && artistFilter.isNotEmpty)
+                        'artistId': artistFilter,
+                    },
+                  ),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM,
+              vertical: AppTheme.spacingS,
             ),
-            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.add, size: 16, color: AppColors.textTertiary),
-              const SizedBox(width: AppTheme.spacingS),
-              Text(
-                'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: AppColors.borderStrong,
+                style: BorderStyle.solid,
               ),
-              const Spacer(),
-              const Icon(Icons.chevron_right,
-                  size: 16, color: AppColors.textTertiary),
-            ],
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.add,
+                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+                const SizedBox(width: AppTheme.spacingS),
+                Text(
+                  'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.chevron_right,
+                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+              ],
+            ),
           ),
         ),
       ),
@@ -264,7 +272,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           child: _TimelineCard(
             appt: a,
             arrived: arrived,
-            statusLabel: arrived ? 'Arrivé' : (_statusFr[a.status] ?? ''),
+            statusLabel: arrived ? 'Arrivé' : StatusLabels.of(a.status),
           ),
         ),
       ),
@@ -411,36 +419,53 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     );
   }
 
+  /// Reschedule, in **one** route (A14b).
+  ///
+  /// **This was two modals, and the second one's Cancel undid the first one's
+  /// answer.** The old shape opened the date picker, then opened
+  /// `showTimePicker` the instant it popped, then hit
+  /// `if (time == null || !mounted) return;` — so a user who chose a day and
+  /// then backed out of the time lost the day too, with no message and no way
+  /// back to it. `MyweliDateTimePicker` makes back a *step*: the date is one
+  /// widget's state instead of one route's return value.
+  ///
+  /// **`minTimeOnToday` is why « Créneau indisponible. » is now a backstop
+  /// rather than the first feedback.** Material's picker could not express *"not
+  /// before now"*, so today-plus-an-earlier-hour was submittable and the server
+  /// round-trip was the validation.
   Future<void> _reschedule(ProJournalProvider journal, Appointment a) async {
     // Picker seeds + result are the ACTIVE SALON's wall-clock
     // (salon_time.dart) — never the device's zone.
     final tz = context.read<ProAuthProvider>().salonTimezone;
-    final date = await showDatePicker(
+    final now = salonNow(tz: tz);
+    final picked = await showMyweliDateTimePicker(
       context: context,
       initialDate: toSalonTime(a.appointmentDate, tz: tz),
-      firstDate: salonToday(tz: tz),
-      lastDate: salonToday(tz: tz).add(const Duration(days: 365)),
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
       initialTime:
           TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate, tz: tz)),
+      firstDate: salonToday(tz: tz),
+      lastDate: salonToday(tz: tz).add(kBookingHorizon),
+      today: salonToday(tz: tz),
+      minTimeOnToday: TimeOfDay(hour: now.hour, minute: now.minute),
+      helpText: 'Reprogrammer',
     );
-    if (time == null || !mounted) return;
+    if (picked == null || !mounted) return;
+    // The control returns the PARTS, not a `DateTime`, so this recombination
+    // through `salonDateTime` stays where the timezone is known (§18). Returning
+    // a composed `DateTime` would have made `DateTime(y, m, d, h, min)` — the
+    // device-local shape §18 forbids — the convenient call.
     final newDt = salonDateTime(
-      date.year,
-      date.month,
-      date.day,
-      hour: time.hour,
-      minute: time.minute,
+      picked.date.year,
+      picked.date.month,
+      picked.date.day,
+      hour: picked.time.hour,
+      minute: picked.time.minute,
       tz: tz,
     );
     final ok = await journal.reschedule(a.id, newDt);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(journal.error ?? 'Créneau indisponible.')),
-      );
+      AppSnackBar.show(context, journal.error ?? 'Créneau indisponible.',
+          kind: SnackKind.error);
     }
   }
 
@@ -448,9 +473,8 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final journal = context.read<ProJournalProvider>();
     final ok = await future;
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(journal.error ?? 'Action impossible.')),
-      );
+      AppSnackBar.show(context, journal.error ?? 'Action impossible.',
+          kind: SnackKind.error);
     }
   }
 }
@@ -475,29 +499,40 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               IconButton(
+                tooltip: 'Jour précédent',
                 icon: const Icon(Icons.chevron_left),
                 onPressed: () => journal.setDate(
                   date.subtract(const Duration(days: 1)),
                 ),
               ),
               Expanded(
-                child: GestureDetector(
-                  onTap: onPick,
-                  child: Text(
-                    isToday
-                        ? "Aujourd'hui"
-                        : Formatters.formatDate(toSalonTime(
-                            date,
-                            tz: context.read<ProAuthProvider>().salonTimezone,
-                          )),
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: AppColors.textPrimary,
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(minHeight: 48), // §13.2 touch target
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onPick,
+                    child: Center(
+                      child: Text(
+                        isToday
+                            ? 'Aujourd’hui'
+                            : Formatters.formatDate(toSalonTime(
+                                date,
+                                tz: context
+                                    .read<ProAuthProvider>()
+                                    .salonTimezone,
+                              )),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
               IconButton(
+                tooltip: 'Jour suivant',
                 icon: const Icon(Icons.chevron_right),
                 onPressed: () => journal.setDate(
                   date.add(const Duration(days: 1)),
@@ -528,10 +563,12 @@ class _WeekStrip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingS),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           for (var i = 0; i < 7; i++)
-            _dayPill(context, monday.add(Duration(days: i)), _labels[i]),
+            Expanded(
+              child:
+                  _dayPill(context, monday.add(Duration(days: i)), _labels[i]),
+            ),
         ],
       ),
     );
@@ -541,34 +578,48 @@ class _WeekStrip extends StatelessWidget {
     final key = journal.keyOf(d);
     final isSel = key == journal.keyOf(journal.selectedDate);
     final count = journal.weekCounts[key] ?? 0;
+    // §13.2: fills its Expanded 1/7 slot (≥48 on normal widths; opaque makes the
+    // whole slot tappable). A fixed minWidth:48 × 7 overflowed narrow phones.
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => journal.setDate(d),
       child: Column(
         children: [
           Text(
             label,
-            style: AppTextStyles.bodySmall.copyWith(
+            style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.textTertiary,
-              fontSize: 10,
             ),
           ),
-          const SizedBox(height: 2),
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isSel ? AppColors.primary : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '${d.day}',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: isSel ? AppColors.secondary : AppColors.textPrimary,
+          const SizedBox(height: AppTheme.spacingXS),
+          Builder(builder: (context) {
+            // A tight 32×32 around the day number clipped it at 200% (the
+            // bodyMedium line is 20 at 1× but 40 at 2×). The pill is a CIRCLE,
+            // so it has to stay square: diameter = the scaled line + breathing
+            // room, floored at the 32 the design draws at 1× (§13.3).
+            const style = AppTextStyles.bodyMedium;
+            final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
+            final d0 = math.max(
+              32.0,
+              MediaQuery.textScalerOf(context).scale(line) + AppTheme.spacingS,
+            );
+            return Container(
+              width: d0,
+              height: d0,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSel ? AppColors.primary : Colors.transparent,
+                shape: BoxShape.circle,
               ),
-            ),
-          ),
-          const SizedBox(height: 2),
+              child: Text(
+                '${d.day}',
+                style: style.copyWith(
+                  color: isSel ? AppColors.secondary : AppColors.textPrimary,
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: AppTheme.spacingXS),
           Container(
             width: count == 0 ? 0 : (3 + count.clamp(0, 5)).toDouble(),
             height: 4,
@@ -591,11 +642,16 @@ class _ArtistChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artists = journal.day!.artists;
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+    // A horizontal ListView demands a BOUNDED height, and that bound was the
+    // constant 48 — so the chips clipped the moment the OS text scale grew
+    // (§13.3): the strip measured 48 at 1× and still 48 at 2×. The children were
+    // already built eagerly, so there is nothing to virtualise; a scroll view
+    // over a Row lets the strip take its INTRINSIC height and grow with the
+    // text, while the FilterChips keep their own 48 tap target (§13.2).
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+      child: Row(
         children: [
           _chip(context, 'Tous', journal.artistFilter == null, null),
           for (final a in artists)
@@ -684,7 +740,7 @@ class _TimelineCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        appt.clientName ?? 'Client',
+                        appt.clientDisplayName ?? appt.clientName ?? 'Client',
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodyLarge.copyWith(
                           color: AppColors.textPrimary,
@@ -708,12 +764,16 @@ class _TimelineCard extends StatelessWidget {
                     if (appt.depositAmount > 0) ...[
                       const SizedBox(width: AppTheme.spacingXS),
                       const Icon(Icons.savings_outlined,
-                          size: 14, color: AppColors.textTertiary),
+                          size: AppTheme.iconXS, color: AppColors.textTertiary),
                     ],
                   ],
                 ),
                 Text(
-                  '${appt.serviceIds.length} prestation(s)',
+                  Formatters.count(
+                    appt.serviceIds.length,
+                    'prestation',
+                    'prestations',
+                  ),
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -729,14 +789,15 @@ class _TimelineCard extends StatelessWidget {
 
   Widget _badge(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
       ),
       child: Text(
         label,
-        style: AppTextStyles.bodySmall.copyWith(color: color, fontSize: 10),
+        style: AppTextStyles.labelSmall.copyWith(color: color),
       ),
     );
   }

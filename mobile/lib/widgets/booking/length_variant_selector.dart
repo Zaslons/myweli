@@ -34,8 +34,8 @@ class LengthVariantSelector extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.spacingS),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: AppTheme.spacingS,
+          runSpacing: AppTheme.spacingS,
           children: available.map((length) {
             return ChoiceChip(
               label: Text(
@@ -47,7 +47,7 @@ class LengthVariantSelector extends StatelessWidget {
             );
           }).toList(),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppTheme.spacingXS),
         Text(
           'Les créneaux sont calculés selon cette durée. '
           'Le prix final est confirmé par le salon.',

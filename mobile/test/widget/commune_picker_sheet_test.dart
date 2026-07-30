@@ -5,6 +5,8 @@ import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/widgets/common/commune_picker_sheet.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 /// The commune picker renders the LOCALITY TREE (multi-pays MP2) and returns
 /// both the display name (the consumer filter contract) and the areaId (the
 /// pro write paths).
@@ -16,21 +18,19 @@ void main() {
     void Function(CommuneChoice?) onResult, {
     bool allowAll = true,
   }) =>
-      ChangeNotifierProvider(
-        create: (_) => LocalityProvider(),
-        child: MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () async {
-                  onResult(await showCommunePicker(
-                    context,
-                    selected: null,
-                    allowAll: allowAll,
-                  ));
-                },
-                child: const Text('open'),
-              ),
+      wrapApp(
+        providers: [ChangeNotifierProvider(create: (_) => LocalityProvider())],
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                onResult(await showCommunePicker(
+                  context,
+                  selected: null,
+                  allowAll: allowAll,
+                ));
+              },
+              child: const Text('open'),
             ),
           ),
         ),

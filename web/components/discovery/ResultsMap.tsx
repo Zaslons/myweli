@@ -1,6 +1,7 @@
 'use client';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { Rating } from '../Rating';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -11,13 +12,13 @@ import {
   Popup,
 } from '@vis.gl/react-maplibre';
 import {
-  ABIDJAN_CENTER,
   DEFAULT_ZOOM,
+  FALLBACK_CENTER,
   type MappableProvider,
   boundsFor,
 } from '../../lib/discovery/map';
 import { formatFcfa } from '../../lib/format';
-import { MAP_STYLE, SalonPin } from '../map/salon-pin';
+import { MAP_STYLE, SalonPin, presentationalMarkerRef } from '../map/salon-pin';
 
 const FIT_OPTS = { padding: 40, maxZoom: 15 };
 
@@ -31,11 +32,15 @@ export function ResultsMap({
   hoveredId,
   selectedId,
   onSelect,
+  center = FALLBACK_CENTER,
 }: {
   items: MappableProvider[];
   hoveredId: string | null;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /// Empty-result center — the searched city's centroid from the locality
+  /// tree (multi-pays MP3); results themselves auto-fit via bounds.
+  center?: [number, number];
 }) {
   const mapRef = useRef<MapRef>(null);
   const bounds = useMemo(() => boundsFor(items), [items]);
@@ -56,8 +61,8 @@ export function ResultsMap({
       <Map
         ref={mapRef}
         initialViewState={{
-          longitude: ABIDJAN_CENTER[0],
-          latitude: ABIDJAN_CENTER[1],
+          longitude: center[0],
+          latitude: center[1],
           zoom: DEFAULT_ZOOM,
         }}
         mapStyle={MAP_STYLE}
@@ -82,7 +87,7 @@ export function ResultsMap({
         })}
         {userPos ? (
           <Marker longitude={userPos[0]} latitude={userPos[1]} anchor="center">
-            <span className="myweli-user-dot" />
+            <span ref={presentationalMarkerRef} className="myweli-user-dot" />
           </Marker>
         ) : null}
         {selected ? (
@@ -109,8 +114,8 @@ export function ResultsMap({
         }}
       />
       {items.length === 0 ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <p className="rounded-lg bg-secondary px-m py-s text-sm text-textSecondary shadow">
+        <div className="pointer-events-none absolute inset-0 z-sticky flex items-center justify-center">
+          <p className="rounded-lg bg-secondary px-m py-s text-bodyMedium text-textSecondary shadow">
             Aucun salon à afficher sur la carte
           </p>
         </div>
@@ -125,16 +130,20 @@ function MiniCard({ provider: p }: { provider: MappableProvider }) {
   return (
     <div className="min-w-44">
       <p className="font-medium text-textPrimary">{p.name}</p>
-      <p className="mt-xs text-xs text-textSecondary">
-        {p.reviewCount > 0 ? `★ ${p.rating.toFixed(1)} · ` : ''}
+      <p className="mt-xs text-bodySmall text-textSecondary">
+        {p.reviewCount > 0 ? (
+          <>
+            <Rating value={p.rating} /> ·{' '}
+          </>
+        ) : null}
         {p.commune ?? ''}
       </p>
       {min != null ? (
-        <p className="mt-xs text-xs text-textTertiary">
-          à partir de {formatFcfa(min)}
+        <p className="mt-xs text-bodySmall text-textTertiary">
+          à partir de {formatFcfa(min, p.currency ?? undefined)}
         </p>
       ) : null}
-      <p className="mt-s flex gap-m text-sm">
+      <p className="mt-s flex gap-m text-bodyMedium">
         <Link href={`/${p.slug}`} className="underline">
           Voir le salon
         </Link>
@@ -173,19 +182,24 @@ function LocateButton({
   }
 
   return (
-    <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-xs">
+    <div className="absolute right-sm top-sm z-sticky flex flex-col items-end gap-xs">
       <button
         type="button"
         onClick={locate}
-        className="rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary shadow hover:bg-surfaceVariant"
+        className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-secondary px-m text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
       >
         Autour de moi
       </button>
-      {note ? (
-        <p className="rounded-lg bg-secondary px-s py-xs text-xs text-textSecondary shadow">
-          {note}
-        </p>
-      ) : null}
+      <p
+        role="status"
+        className={
+          note
+            ? 'rounded-lg bg-secondary px-s py-xs text-bodySmall text-textSecondary shadow'
+            : 'sr-only'
+        }
+      >
+        {note ?? ''}
+      </p>
     </div>
   );
 }

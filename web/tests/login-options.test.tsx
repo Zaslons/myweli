@@ -49,12 +49,12 @@ afterEach(() => {
 });
 
 async function loginByEmail() {
-  fireEvent.change(screen.getByPlaceholderText('Votre e-mail'), {
+  fireEvent.change(screen.getByLabelText('Votre e-mail'), {
     target: { value: 'awa@x.com' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continuer avec e-mail' }));
-  await screen.findByPlaceholderText('Code à 6 chiffres');
-  fireEvent.change(screen.getByPlaceholderText('Code à 6 chiffres'), {
+  await screen.findByLabelText('Code à 6 chiffres');
+  fireEvent.change(screen.getByLabelText('Code à 6 chiffres'), {
     target: { value: '123456' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
@@ -96,15 +96,23 @@ describe('LoginOptions', () => {
     await screen.findByText('Code incorrect ou expiré.');
   });
 
-  it('invalid email keeps the button disabled', () => {
+  it('invalid email: the button stays ENABLED and submit answers with a field error (§14 rule 5)', () => {
     mockFetch({ verifyUserPhone: null });
     render(<LoginOptions onSuccess={vi.fn()} />);
-    fireEvent.change(screen.getByPlaceholderText('Votre e-mail'), {
-      target: { value: 'not-an-email' },
-    });
-    expect(
-      screen.getByRole('button', { name: 'Continuer avec e-mail' }),
-    ).toBeDisabled();
+    const email = screen.getByLabelText('Votre e-mail');
+    fireEvent.change(email, { target: { value: 'not-an-email' } });
+    const submit = screen.getByRole('button', { name: 'Continuer avec e-mail' });
+    // The old pattern was `disabled={!emailValid}` — a dead end with no
+    // explanation. §14 rule 5: disable only WHILE submitting.
+    expect(submit).not.toBeDisabled();
+    fireEvent.click(submit);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Saisissez une adresse e-mail valide.');
+    expect(email).toHaveAttribute('aria-invalid', 'true');
+    expect(email.getAttribute('aria-describedby')).toBe(alert.id);
+    // §14 rule 2: once errored, a change re-validates — a good value clears it.
+    fireEvent.change(email, { target: { value: 'ok@exemple.ci' } });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('Google/Apple render only when configured (env-gated)', () => {
@@ -112,6 +120,6 @@ describe('LoginOptions', () => {
     render(<LoginOptions onSuccess={vi.fn()} />);
     // No NEXT_PUBLIC_* ids in tests → email-only.
     expect(screen.queryByRole('button', { name: 'Continuer avec Apple' })).toBeNull();
-    expect(screen.getByPlaceholderText('Votre e-mail')).toBeInTheDocument();
+    expect(screen.getByLabelText('Votre e-mail')).toBeInTheDocument();
   });
 });

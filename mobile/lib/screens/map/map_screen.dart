@@ -179,7 +179,8 @@ class _MapScreenState extends State<MapScreen> {
                       height: 5,
                       decoration: BoxDecoration(
                         color: AppColors.divider,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusPill),
                       ),
                     ),
                   ),
@@ -208,18 +209,19 @@ class _MapScreenState extends State<MapScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppTheme.spacingXS),
                             Row(
                               children: [
                                 const Icon(Icons.star,
-                                    size: 16, color: AppColors.starRating),
-                                const SizedBox(width: 4),
+                                    size: AppTheme.iconXS,
+                                    color: AppColors.starRating),
+                                const SizedBox(width: AppTheme.spacingXS),
                                 Text(
                                   p.rating.toStringAsFixed(1),
                                   style: AppTextStyles.bodySmall
                                       .copyWith(color: AppColors.textSecondary),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: AppTheme.spacingS),
                                 Text(
                                   '(${p.reviewCount})',
                                   style: AppTextStyles.bodySmall
@@ -227,7 +229,7 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppTheme.spacingXS),
                             Text(
                               p.city ?? p.address,
                               style: AppTextStyles.bodySmall
@@ -244,6 +246,9 @@ class _MapScreenState extends State<MapScreen> {
                               ? favorites.isFavorite(p.id)
                               : false;
                           return IconButton(
+                            tooltip: isFav
+                                ? 'Retirer des favoris'
+                                : 'Ajouter aux favoris',
                             onPressed: () async {
                               if (!auth.isAuthenticated || auth.user == null) {
                                 Navigator.of(sheetCtx).pop();
@@ -251,8 +256,23 @@ class _MapScreenState extends State<MapScreen> {
                                     '/login?returnTo=${Uri.encodeComponent('/favorites')}');
                                 return;
                               }
-                              await favorites.toggleFavorite(
+                              final ok = await favorites.toggleFavorite(
                                   auth.user!.id, p.id);
+                              if (sheetCtx.mounted) {
+                                // A snackbar here would be pruned by the
+                                // sheet's ModalBarrier (§15/§10), so this one
+                                // stays an announcement — but it must not
+                                // announce a success that did not happen.
+                                Helpers.announce(
+                                  sheetCtx,
+                                  ok
+                                      ? (isFav
+                                          ? 'Retiré des favoris'
+                                          : 'Ajouté aux favoris')
+                                      : (favorites.error ??
+                                          'Une erreur est survenue. Réessayez.'),
+                                );
+                              }
                             },
                             icon: Icon(
                               isFav ? Icons.favorite : Icons.favorite_border,
@@ -278,7 +298,7 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                   if (p.latitude != null && p.longitude != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppTheme.spacingSM),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -325,18 +345,22 @@ class _MapScreenState extends State<MapScreen> {
 
       return Marker(
         point: LatLng(lat, lng),
-        width: 44,
-        height: 44,
-        child: GestureDetector(
-          onTap: () {
-            // Subtle “smooth” behavior: center the tapped salon and show details.
-            _mapController.move(LatLng(lat, lng), 14);
-            _openProviderSheet(p);
-          },
-          child: _SalonMarker(
-            icon: icon,
-            color: color,
-            isFavorite: isFav,
+        width: 48,
+        height: 48,
+        child: Semantics(
+          button: true,
+          label: p.name, // §13.4: each pin names its salon, not a bare icon
+          child: GestureDetector(
+            onTap: () {
+              // Subtle “smooth” behavior: center the tapped salon, show details.
+              _mapController.move(LatLng(lat, lng), 14);
+              _openProviderSheet(p);
+            },
+            child: _SalonMarker(
+              icon: icon,
+              color: color,
+              isFavorite: isFav,
+            ),
           ),
         ),
       );
@@ -421,7 +445,7 @@ class _MapScreenState extends State<MapScreen> {
                     children: [
                       const Icon(Icons.info_outline,
                           color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppTheme.spacingS),
                       Expanded(
                         child: Text(
                           _locationError!,
@@ -447,6 +471,7 @@ class _MapScreenState extends State<MapScreen> {
               children: [
                 FloatingActionButton(
                   heroTag: 'center_me',
+                  tooltip: 'Me localiser',
                   onPressed:
                       (_position != null) ? _centerOnUser : _initLocation,
                   backgroundColor: AppColors.primary,
@@ -455,8 +480,8 @@ class _MapScreenState extends State<MapScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child:
-                              BrandLoader(size: 20, fast: true, onDark: true),
+                          child: BrandLoader(
+                              size: AppTheme.iconS, fast: true, onDark: true),
                         )
                       : const Icon(Icons.my_location),
                 ),
@@ -519,7 +544,7 @@ class _SalonMarker extends StatelessWidget {
             boxShadow: AppTheme.elevation2,
           ),
           child: Center(
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: AppTheme.iconS),
           ),
         ),
         if (isFavorite)
@@ -534,7 +559,8 @@ class _SalonMarker extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: const Icon(Icons.favorite, size: 9, color: Colors.white),
+              child: const Icon(Icons.favorite,
+                  size: AppTheme.iconXS, color: Colors.white),
             ),
           ),
       ],
