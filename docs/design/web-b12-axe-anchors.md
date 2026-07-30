@@ -5,7 +5,7 @@
 | **Status** | Built |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-07-30 |
-| **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 30 (reopened) · row 31 |
+| **Register row** | [WEB-SYSTEM.md](WEB-SYSTEM.md) §15 row 30 (reopened) · row 33 |
 | **Skills checked** | `myweli-web-guardrails` |
 | **Preceded by** | [B10 — the flake](web-b10-flake.md) · [B11 — the reflow contract](web-b11-reflow.md) |
 
@@ -164,6 +164,33 @@ and the focus ring is a set.
 **Recorded rather than reverted.** Turning the trace back off would have hidden
 this, and the trace is exactly what turned a rare CI-only red into a
 reproducible three-in-a-row that could be diagnosed.
+
+## Correction: this row was filed as 31, and 31 was already taken
+
+Shipped as **row 31**, directly under row 30 — narratively right, since B12
+reopened row 30, and wrong on the only thing a row number has to be. **B11 had
+already taken 31 and 32**, so the register carried two row 31s for an hour: the
+axe anchor here, and *"the type and spacing scales are `px`"* three lines below.
+
+Renumbered to **33** and moved below row 32, restoring 30 · 30h · 31 · 32 · 33.
+**This row yielded, not B11's** — rows 31 and 32 are still **open**, and
+renumbering a row that the slice which closes it will cite is how you
+manufacture the confusion this fixes. The newcomer moves.
+
+Written down rather than quietly renumbered, for the same reason row 30 keeps
+B9's superseded 30h verbatim: **the register's own errors are part of what it
+records.** A number silently corrected leaves no evidence that a number can be
+wrong — and every claim in this file is cited by number.
+
+And it is now a **gate rather than a habit**: `web/tests/register-pin.test.ts`
+reads both registers from disk and fails on a repeated row id — §21's 78 rows
+and §15's 44. Watched red by reinstating the duplicate (it named `"31"`), then
+green. It carries a falsifiability case as well, because the real-file
+assertions are green from birth and §21 row 67 is the record of six helpers
+shipped unable to fail.
+
+A lettered variant (`30h`, `7b`) is a distinct id, not a repeat of its stem —
+that is asserted, since the register uses them deliberately.
 
 ## Verification
 
