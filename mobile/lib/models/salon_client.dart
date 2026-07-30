@@ -27,32 +27,40 @@ class SalonClient extends Equatable {
   final int noShows;
 
   factory SalonClient.fromJson(Map<String, dynamic> json) => SalonClient(
-        id: json['id'] as String,
-        displayName: json['displayName'] as String? ?? 'Client',
-        phone: json['phone'] as String?,
-        tags: ((json['tags'] as List?) ?? const []).cast<String>(),
-        lastVisitAt: json['lastVisitAt'] == null
-            ? null
-            : DateTime.tryParse(json['lastVisitAt'] as String),
-        linked: json['linked'] as bool? ?? false,
-        visits: (json['visits'] as num?)?.toInt() ?? 0,
-        noShows: (json['noShows'] as num?)?.toInt() ?? 0,
-      );
+    id: json['id'] as String,
+    displayName: json['displayName'] as String? ?? 'Client',
+    phone: json['phone'] as String?,
+    tags: ((json['tags'] as List?) ?? const []).cast<String>(),
+    lastVisitAt: json['lastVisitAt'] == null
+        ? null
+        : DateTime.tryParse(json['lastVisitAt'] as String),
+    linked: json['linked'] as bool? ?? false,
+    visits: (json['visits'] as num?)?.toInt() ?? 0,
+    noShows: (json['noShows'] as num?)?.toInt() ?? 0,
+  );
 
   SalonClient copyWith({List<String>? tags}) => SalonClient(
-        id: id,
-        displayName: displayName,
-        phone: phone,
-        tags: tags ?? this.tags,
-        lastVisitAt: lastVisitAt,
-        linked: linked,
-        visits: visits,
-        noShows: noShows,
-      );
+    id: id,
+    displayName: displayName,
+    phone: phone,
+    tags: tags ?? this.tags,
+    lastVisitAt: lastVisitAt,
+    linked: linked,
+    visits: visits,
+    noShows: noShows,
+  );
 
   @override
-  List<Object?> get props =>
-      [id, displayName, phone, tags, lastVisitAt, linked, visits, noShows];
+  List<Object?> get props => [
+    id,
+    displayName,
+    phone,
+    tags,
+    lastVisitAt,
+    linked,
+    visits,
+    noShows,
+  ];
 }
 
 /// Salon-scoped aggregates on the client card.
@@ -100,7 +108,8 @@ class SalonClientNote extends Equatable {
         id: json['id'] as String,
         authorName: json['authorName'] as String? ?? 'Équipe',
         body: json['body'] as String? ?? '',
-        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+        createdAt:
+            DateTime.tryParse(json['createdAt'] as String? ?? '') ??
             DateTime.now(),
       );
 
@@ -140,13 +149,12 @@ class SalonClientCard extends Equatable {
   SalonClientCard copyWith({
     SalonClient? client,
     List<SalonClientNote>? notes,
-  }) =>
-      SalonClientCard(
-        client: client ?? this.client,
-        stats: stats,
-        notes: notes ?? this.notes,
-        upcoming: upcoming,
-      );
+  }) => SalonClientCard(
+    client: client ?? this.client,
+    stats: stats,
+    notes: notes ?? this.notes,
+    upcoming: upcoming,
+  );
 
   @override
   List<Object?> get props => [client, stats, notes, upcoming];
@@ -175,8 +183,8 @@ class SalonClientsPage extends Equatable {
             .toList(),
         page: (json['page'] as num?)?.toInt() ?? 1,
         total: (json['total'] as num?)?.toInt() ?? 0,
-        availableTags:
-            ((json['availableTags'] as List?) ?? const []).cast<String>(),
+        availableTags: ((json['availableTags'] as List?) ?? const [])
+            .cast<String>(),
       );
 
   @override

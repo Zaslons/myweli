@@ -41,10 +41,16 @@ void main() {
 
     test('required vs optional are different rules, deliberately', () {
       expect(Validators.email(''), 'Saisissez une adresse e-mail.');
-      expect(Validators.optionalEmail(''), isNull,
-          reason: 'the consumer profile may leave it blank');
-      expect(Validators.optionalEmail('pas-un-email'), isNotNull,
-          reason: 'blank is allowed; wrong is not');
+      expect(
+        Validators.optionalEmail(''),
+        isNull,
+        reason: 'the consumer profile may leave it blank',
+      );
+      expect(
+        Validators.optionalEmail('pas-un-email'),
+        isNotNull,
+        reason: 'blank is allowed; wrong is not',
+      );
     });
 
     test('trims — a pasted address with a trailing space is valid', () {
@@ -85,19 +91,27 @@ void main() {
     });
 
     test('nine or eleven digits fail', () {
-      expect(Validators.localPhoneNumber('070712345'), isNotNull,
-          reason: 'CI moved to 10 digits in 2021');
+      expect(
+        Validators.localPhoneNumber('070712345'),
+        isNotNull,
+        reason: 'CI moved to 10 digits in 2021',
+      );
       expect(Validators.localPhoneNumber('07071234567'), isNotNull);
       expect(
-          Validators.localPhoneNumber(''), 'Saisissez un numéro de téléphone.');
+        Validators.localPhoneNumber(''),
+        'Saisissez un numéro de téléphone.',
+      );
     });
   });
 
   group('the factories that replace the inline copies', () {
     test('requiredField names itself in the message (§14 rule 4)', () {
       final rule = Validators.requiredField('le nom du salon');
-      expect(rule('  '), 'Indiquez le nom du salon.',
-          reason: 'say what to do, and which field to do it in');
+      expect(
+        rule('  '),
+        'Indiquez le nom du salon.',
+        reason: 'say what to do, and which field to do it in',
+      );
       expect(rule('Beauté Divine'), isNull);
     });
 
@@ -120,7 +134,9 @@ void main() {
   test('Validators.name — required, then at least 2 characters', () {
     expect(Validators.name(''), 'Saisissez un nom.');
     expect(
-        Validators.name('A'), 'Le nom doit comporter au moins 2 caractères.');
+      Validators.name('A'),
+      'Le nom doit comporter au moins 2 caractères.',
+    );
     expect(Validators.name('Awa'), isNull);
   });
 }

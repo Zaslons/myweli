@@ -10,7 +10,8 @@ class MockProKycService implements ProKycServiceInterface {
   @override
   Future<ApiResponse<KycStatus>> getKycStatus(String providerUserId) async {
     await Future.delayed(AppConstants.mockDelay);
-    final status = _byUser[providerUserId] ??
+    final status =
+        _byUser[providerUserId] ??
         const KycStatus(status: VerificationStatus.pending);
     return ApiResponse.success(status);
   }

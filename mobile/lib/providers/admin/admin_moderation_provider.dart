@@ -7,7 +7,7 @@ import '../../services/admin/admin_service.dart';
 /// queues + hide/dismiss/restore actions. Design: docs/design/admin-console-ui.md §3.
 class AdminModerationProvider extends ChangeNotifier {
   AdminModerationProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

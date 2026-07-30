@@ -57,15 +57,17 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
     if (p == null || p.artists.isEmpty) return [];
 
     // Get all services that are selected
-    final selectedServices =
-        p.services.where((s) => widget.serviceIds.contains(s.id)).toList();
+    final selectedServices = p.services
+        .where((s) => widget.serviceIds.contains(s.id))
+        .toList();
 
     // If no services chosen yet, show all artists (user can pick artist first).
     if (selectedServices.isEmpty) return p.artists;
 
     // If any service has no artistIds (empty list), all artists are available
-    final hasUnrestrictedService =
-        selectedServices.any((s) => s.artistIds.isEmpty);
+    final hasUnrestrictedService = selectedServices.any(
+      (s) => s.artistIds.isEmpty,
+    );
 
     if (hasUnrestrictedService) {
       // All artists are available
@@ -87,8 +89,9 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
         // If a service has no restrictions, all artists are available
         return p.artists;
       }
-      availableArtistIds
-          .removeWhere((artistId) => !service.artistIds.contains(artistId));
+      availableArtistIds.removeWhere(
+        (artistId) => !service.artistIds.contains(artistId),
+      );
     }
 
     // Return only the artists that are available for all services
@@ -98,7 +101,8 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
   }
 
   Future<void> _loadArtistsAvailableForSelectedTime(
-      List<Artist> candidates) async {
+    List<Artist> candidates,
+  ) async {
     final selected = widget.initialDateTime;
     if (selected == null) return;
     if (_artistIdsAvailableForSelectedTime != null || _loadingTimeFilter) {
@@ -106,8 +110,10 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
     }
 
     setState(() => _loadingTimeFilter = true);
-    final apptProvider =
-        Provider.of<AppointmentProvider>(context, listen: false);
+    final apptProvider = Provider.of<AppointmentProvider>(
+      context,
+      listen: false,
+    );
     final duration = widget.durationMinutes ?? 30;
     final day = DateTime(selected.year, selected.month, selected.day);
 
@@ -120,12 +126,14 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
         artistId: artist.id,
         durationMinutes: duration,
       );
-      final has = slots.any((dt) =>
-          dt.year == selected.year &&
-          dt.month == selected.month &&
-          dt.day == selected.day &&
-          dt.hour == selected.hour &&
-          dt.minute == selected.minute);
+      final has = slots.any(
+        (dt) =>
+            dt.year == selected.year &&
+            dt.month == selected.month &&
+            dt.day == selected.day &&
+            dt.hour == selected.hour &&
+            dt.minute == selected.minute,
+      );
       if (has) available.add(artist.id);
     }
 
@@ -143,19 +151,19 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
     }
 
     final serviceIds = widget.serviceIds.join(',');
-    final artistParam =
-        _selectedArtistId != null ? '&artistId=$_selectedArtistId' : '';
+    final artistParam = _selectedArtistId != null
+        ? '&artistId=$_selectedArtistId'
+        : '';
     context.push(
-        '/booking/date-time?providerId=${widget.providerId}&serviceIds=$serviceIds$artistParam');
+      '/booking/date-time?providerId=${widget.providerId}&serviceIds=$serviceIds$artistParam',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Choisir un artiste'),
-      ),
+      appBar: AppBar(title: const Text('Choisir un artiste')),
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.selectedProvider == null) {
@@ -178,9 +186,10 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
           final filteredArtists = (_artistIdsAvailableForSelectedTime == null)
               ? availableArtists
               : availableArtists
-                  .where(
-                      (a) => _artistIdsAvailableForSelectedTime!.contains(a.id))
-                  .toList();
+                    .where(
+                      (a) => _artistIdsAvailableForSelectedTime!.contains(a.id),
+                    )
+                    .toList();
 
           if (availableArtists.isEmpty) {
             return Center(
@@ -211,10 +220,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: AppTheme.spacingL),
-                    AppButton(
-                      text: 'Retour',
-                      onPressed: () => context.pop(),
-                    ),
+                    AppButton(text: 'Retour', onPressed: () => context.pop()),
                   ],
                 ),
               ),
@@ -232,8 +238,9 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       padding: const EdgeInsets.all(AppTheme.spacingM),
                       decoration: BoxDecoration(
                         color: AppColors.secondary,
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusLarge),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusLarge,
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -257,15 +264,18 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                     const SizedBox(height: AppTheme.spacingM),
                     if (_loadingTimeFilter)
                       Padding(
-                        padding:
-                            const EdgeInsets.only(bottom: AppTheme.spacingM),
+                        padding: const EdgeInsets.only(
+                          bottom: AppTheme.spacingM,
+                        ),
                         child: Row(
                           children: [
                             const SizedBox(
                               width: 18,
                               height: 18,
-                              child:
-                                  BrandLoader(size: AppTheme.iconS, fast: true),
+                              child: BrandLoader(
+                                size: AppTheme.iconS,
+                                fast: true,
+                              ),
                             ),
                             const SizedBox(width: AppTheme.spacingSM),
                             Expanded(
@@ -312,10 +322,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                   color: AppColors.secondary,
                   boxShadow: AppTheme.elevation3,
                 ),
-                child: AppButton(
-                  text: 'Continuer',
-                  onPressed: _handleContinue,
-                ),
+                child: AppButton(text: 'Continuer', onPressed: _handleContinue),
               ),
             ],
           );
@@ -363,50 +370,48 @@ class _ArtistCard extends StatelessWidget {
                       width: 60,
                       height: 60,
                       color: AppColors.surface,
-                      child: const Icon(Icons.shuffle,
-                          size: AppTheme.iconM, color: AppColors.textTertiary),
+                      child: const Icon(
+                        Icons.shuffle,
+                        size: AppTheme.iconM,
+                        color: AppColors.textTertiary,
+                      ),
                     )
                   : artist.imageUrl != null && artist.imageUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: artist.imageUrl!,
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            width: 60,
-                            height: 60,
-                            color: AppColors.surface,
-                            // `fast` is the inline cut, and a 60px avatar
-                            // placeholder is exactly what it documents.
-                            child: const Center(
-                              child:
-                                  BrandLoader(size: AppTheme.iconL, fast: true),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            width: 60,
-                            height: 60,
-                            color: AppColors.surface,
-                            child:
-                                const Icon(Icons.person, size: AppTheme.iconL),
-                          ),
-                        )
-                      : Container(
-                          width: 60,
-                          height: 60,
-                          color: AppColors.surface,
-                          child: const Icon(Icons.person, size: AppTheme.iconL),
+                  ? CachedNetworkImage(
+                      imageUrl: artist.imageUrl!,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        width: 60,
+                        height: 60,
+                        color: AppColors.surface,
+                        // `fast` is the inline cut, and a 60px avatar
+                        // placeholder is exactly what it documents.
+                        child: const Center(
+                          child: BrandLoader(size: AppTheme.iconL, fast: true),
                         ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        width: 60,
+                        height: 60,
+                        color: AppColors.surface,
+                        child: const Icon(Icons.person, size: AppTheme.iconL),
+                      ),
+                    )
+                  : Container(
+                      width: 60,
+                      height: 60,
+                      color: AppColors.surface,
+                      child: const Icon(Icons.person, size: AppTheme.iconL),
+                    ),
             ),
             const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    artist.name,
-                    style: AppTextStyles.titleMedium,
-                  ),
+                  Text(artist.name, style: AppTextStyles.titleMedium),
                   if (!isNoPreference && artist.specialization != null) ...[
                     const SizedBox(height: AppTheme.spacingXS),
                     Text(
@@ -420,8 +425,11 @@ class _ArtistCard extends StatelessWidget {
                     const SizedBox(height: AppTheme.spacingXS),
                     Row(
                       children: [
-                        const Icon(Icons.star,
-                            size: AppTheme.iconXS, color: AppColors.starRating),
+                        const Icon(
+                          Icons.star,
+                          size: AppTheme.iconXS,
+                          color: AppColors.starRating,
+                        ),
                         const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           artist.rating!.toStringAsFixed(1),

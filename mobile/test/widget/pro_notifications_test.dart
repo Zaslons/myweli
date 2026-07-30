@@ -45,18 +45,16 @@ void main() {
     NotificationsProvider provider, {
     Widget? child,
     void Function(BuildContext, String)? onOpenRoute,
-  }) =>
-      wrapApp(
-        providers: [ChangeNotifierProvider.value(value: provider)],
-        home: child ??
-            Scaffold(body: NotificationsList(onOpenRoute: onOpenRoute)),
-      );
+  }) => wrapApp(
+    providers: [ChangeNotifierProvider.value(value: provider)],
+    home: child ?? Scaffold(body: NotificationsList(onOpenRoute: onOpenRoute)),
+  );
 
-  testWidgets(
-      'the provider runs the INJECTED service (the pro session), '
+  testWidgets('the provider runs the INJECTED service (the pro session), '
       'never the locator', (tester) async {
-    when(() => service.getNotifications())
-        .thenAnswer((_) async => ApiResponse.success([note('n1')]));
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([note('n1')]));
 
     await tester.pumpWidget(host(NotificationsProvider(service: service)));
     await tester.pumpAndSettle();
@@ -80,8 +78,9 @@ void main() {
   });
 
   testWidgets('state: error → « Réessayer » reloads', (tester) async {
-    when(() => service.getNotifications())
-        .thenAnswer((_) async => ApiResponse.error('boom'));
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.error('boom'));
 
     await tester.pumpWidget(host(NotificationsProvider(service: service)));
     await tester.pumpAndSettle();
@@ -105,16 +104,16 @@ void main() {
     expect(provider.unreadCount, 1);
   });
 
-  testWidgets(
-      'a tap marks the row read AND follows its route — the salon '
+  testWidgets('a tap marks the row read AND follows its route — the salon '
       'rides in it (?salon=)', (tester) async {
     when(() => service.getNotifications()).thenAnswer(
       (_) async => ApiResponse.success([
         note('n1', route: '/pro/appointment/a1?salon=p2'),
       ]),
     );
-    when(() => service.markRead(any()))
-        .thenAnswer((_) async => ApiResponse.success(true));
+    when(
+      () => service.markRead(any()),
+    ).thenAnswer((_) async => ApiResponse.success(true));
 
     final opened = <String>[];
     await tester.pumpWidget(
@@ -132,11 +131,11 @@ void main() {
     expect(opened, ['/pro/appointment/a1?salon=p2']);
   });
 
-  testWidgets(
-      'the PRO screen: its own chrome (no consumer bottom nav) and '
+  testWidgets('the PRO screen: its own chrome (no consumer bottom nav) and '
       'its own empty copy', (tester) async {
-    when(() => service.getNotifications())
-        .thenAnswer((_) async => ApiResponse.success([]));
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([]));
 
     await tester.pumpWidget(
       host(
@@ -159,13 +158,14 @@ void main() {
     expect(find.text('Tout lire'), findsNothing); // nothing unread
   });
 
-  testWidgets(
-      '« Tout lire » appears only when something is unread, and '
+  testWidgets('« Tout lire » appears only when something is unread, and '
       'clears the badge', (tester) async {
-    when(() => service.getNotifications())
-        .thenAnswer((_) async => ApiResponse.success([note('n1')]));
-    when(() => service.markAllRead())
-        .thenAnswer((_) async => ApiResponse.success(true));
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([note('n1')]));
+    when(
+      () => service.markAllRead(),
+    ).thenAnswer((_) async => ApiResponse.success(true));
 
     final provider = NotificationsProvider(service: service);
     await tester.pumpWidget(

@@ -6,7 +6,7 @@ import '../../services/admin/admin_service.dart';
 /// KYC approval queue + detail state. Design: docs/design/admin-console-ui.md.
 class AdminKycProvider extends ChangeNotifier {
   AdminKycProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

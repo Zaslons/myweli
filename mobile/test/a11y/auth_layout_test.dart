@@ -97,7 +97,8 @@ void main() {
           expect(
             find.text(entry.value.proof),
             findsOneWidget,
-            reason: '« ${entry.value.proof} » is not on ${entry.key} at $at, '
+            reason:
+                '« ${entry.value.proof} » is not on ${entry.key} at $at, '
                 'so whatever this measured, it was not the screen',
           );
 
@@ -116,8 +117,7 @@ void main() {
   // ---- the prompt itself, where the defect lived -------------------------
 
   for (final width in widths) {
-    testWidgets(
-        'the auth prompt keeps both halves and stays tappable at '
+    testWidgets('the auth prompt keeps both halves and stays tappable at '
         '${width.toInt()}dp × 2× text', (tester) async {
       await pumpAtWidth(
         tester,

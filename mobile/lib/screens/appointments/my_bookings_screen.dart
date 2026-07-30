@@ -40,16 +40,22 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       if (!authProvider.isAuthenticated) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           AppSnackBar.show(
-              context, 'Veuillez vous connecter pour voir vos rendez-vous');
+            context,
+            'Veuillez vous connecter pour voir vos rendez-vous',
+          );
           context.go('/login?returnTo=${Uri.encodeComponent('/bookings')}');
         });
         return;
       }
 
-      final appointmentProvider =
-          Provider.of<AppointmentProvider>(context, listen: false);
-      final providerProvider =
-          Provider.of<ProviderProvider>(context, listen: false);
+      final appointmentProvider = Provider.of<AppointmentProvider>(
+        context,
+        listen: false,
+      );
+      final providerProvider = Provider.of<ProviderProvider>(
+        context,
+        listen: false,
+      );
 
       // Load appointments and providers
       appointmentProvider.loadAppointments();
@@ -96,10 +102,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 provider.upcomingAppointments,
                 provider.isLoading,
               ),
-              _buildHistory(
-                provider.visitHistory,
-                provider.isLoading,
-              ),
+              _buildHistory(provider.visitHistory, provider.isLoading),
               _buildAppointmentsList(
                 provider.cancelledAppointments,
                 provider.isLoading,
@@ -116,14 +119,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           if (index == 3) context.push('/notifications');
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Carte',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Carte'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Rendez-vous',
@@ -138,7 +135,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   }
 
   Widget _buildAppointmentsList(
-      List<Appointment> appointments, bool isLoading) {
+    List<Appointment> appointments,
+    bool isLoading,
+  ) {
     if (isLoading && appointments.isEmpty) {
       return const Center(child: LoadingIndicator());
     }
@@ -153,8 +152,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
     return BrandRefresh(
       onRefresh: () async {
-        final provider =
-            Provider.of<AppointmentProvider>(context, listen: false);
+        final provider = Provider.of<AppointmentProvider>(
+          context,
+          listen: false,
+        );
         await provider.loadAppointments();
       },
       child: ListView.builder(
@@ -240,8 +241,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             child: Column(
               children: [
                 AppointmentCard(
-                  appointment:
-                      visit.copyWith(status: AppointmentStatus.completed),
+                  appointment: visit.copyWith(
+                    status: AppointmentStatus.completed,
+                  ),
                   onTap: () => context.push('/appointment/${visit.id}'),
                 ),
                 const SizedBox(height: AppTheme.spacingS),
@@ -263,8 +265,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
     return BrandRefresh(
       onRefresh: () async {
-        final provider =
-            Provider.of<AppointmentProvider>(context, listen: false);
+        final provider = Provider.of<AppointmentProvider>(
+          context,
+          listen: false,
+        );
         await provider.loadAppointments();
       },
       child: ListView(
@@ -275,12 +279,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   }
 
   void _rebook(Appointment appointment) {
-    final uri = Uri(path: '/booking', queryParameters: {
-      'providerId': appointment.providerId,
-      if (appointment.serviceIds.isNotEmpty)
-        'serviceIds': appointment.serviceIds.join(','),
-      if (appointment.artistId != null) 'artistId': appointment.artistId!,
-    });
+    final uri = Uri(
+      path: '/booking',
+      queryParameters: {
+        'providerId': appointment.providerId,
+        if (appointment.serviceIds.isNotEmpty)
+          'serviceIds': appointment.serviceIds.join(','),
+        if (appointment.artistId != null) 'artistId': appointment.artistId!,
+      },
+    );
     context.push(uri.toString());
   }
 

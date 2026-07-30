@@ -46,8 +46,9 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('options step: Google + email visible, Apple hidden (flag off)',
-      (tester) async {
+  testWidgets('options step: Google + email visible, Apple hidden (flag off)', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await settle(tester);
 
@@ -58,8 +59,9 @@ void main() {
     expect(find.text('Continuer avec Apple'), findsNothing);
   });
 
-  testWidgets('email login: code step → verify → MANDATORY phone step → home',
-      (tester) async {
+  testWidgets('email login: code step → verify → MANDATORY phone step → home', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await settle(tester);
 
@@ -113,8 +115,7 @@ void main() {
   /// every funnel test in this repo should hold: **the press answers, under the
   /// field · no `SnackBar` (rule 3) · the flow does not advance · fixing it
   /// clears the message without a second submit (rule 2)**.
-  testWidgets(
-      'the MANDATORY phone step answers an empty submit — it does not '
+  testWidgets('the MANDATORY phone step answers an empty submit — it does not '
       'let it through', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
@@ -129,12 +130,21 @@ void main() {
     await settle(tester);
     await settle(tester);
 
-    expect(find.text('Saisissez un numéro de téléphone.'), findsOneWidget,
-        reason: 'the fault renders under the field it belongs to (§14 rule 1)');
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
-    expect(find.text('HOME'), findsNothing,
-        reason: 'and above all it must not walk through the mandatory step');
+    expect(
+      find.text('Saisissez un numéro de téléphone.'),
+      findsOneWidget,
+      reason: 'the fault renders under the field it belongs to (§14 rule 1)',
+    );
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
+    expect(
+      find.text('HOME'),
+      findsNothing,
+      reason: 'and above all it must not walk through the mandatory step',
+    );
 
     // Rule 2: fixing it clears the message without another submit.
     await tester.enterText(find.byType(TextField).first, '0700000001');
@@ -142,8 +152,9 @@ void main() {
     expect(find.text('Saisissez un numéro de téléphone.'), findsNothing);
   });
 
-  testWidgets('google login also lands on the phone step (no phone yet)',
-      (tester) async {
+  testWidgets('google login also lands on the phone step (no phone yet)', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await settle(tester);
 

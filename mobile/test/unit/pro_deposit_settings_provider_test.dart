@@ -39,8 +39,9 @@ void main() {
   });
 
   test('load marks loadFailed on error', () async {
-    when(() => service.getDepositPolicy(any()))
-        .thenAnswer((_) async => ApiResponse.error('boom'));
+    when(
+      () => service.getDepositPolicy(any()),
+    ).thenAnswer((_) async => ApiResponse.error('boom'));
 
     final provider = ProDepositSettingsProvider();
     await provider.load('p1');

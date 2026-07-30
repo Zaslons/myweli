@@ -84,8 +84,12 @@ class _ClientListScreenState extends State<ClientListScreen> {
       context: context,
       isScrollControlled: true,
       builder: (_) => _AddClientSheet(
-        onSubmit: (name, phone, note) => clients.addClient(_providerId,
-            name: name, phone: phone, note: note),
+        onSubmit: (name, phone, note) => clients.addClient(
+          _providerId,
+          name: name,
+          phone: phone,
+          note: note,
+        ),
       ),
     );
     // A7: the duplicate notice used to be raised HERE — on the list, after the
@@ -276,9 +280,7 @@ class _ClientRow extends StatelessWidget {
       ),
       subtitle: Text(
         subtitleParts.join(' · '),
-        style: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.textSecondary,
-        ),
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
       ),
       trailing: client.tags.isEmpty
           ? null
@@ -303,7 +305,9 @@ class _MiniBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+        horizontal: AppTheme.spacingS,
+        vertical: AppTheme.spacingXS,
+      ),
       decoration: BoxDecoration(
         border: Border.all(color: color.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
@@ -320,7 +324,7 @@ class _AddClientSheet extends StatefulWidget {
   const _AddClientSheet({required this.onSubmit});
 
   final Future<String?> Function(String name, String phone, String? note)
-      onSubmit;
+  onSubmit;
 
   @override
   State<_AddClientSheet> createState() => _AddClientSheetState();

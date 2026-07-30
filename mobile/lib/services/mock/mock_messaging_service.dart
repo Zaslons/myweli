@@ -42,14 +42,15 @@ class MockMessagingService implements MessagingServiceInterface {
     if (template.category == MessageCategory.promotional &&
         isOptedOut(recipientPhone)) {
       return ApiResponse.error(
-          'Destinataire désinscrit des messages marketing');
+        'Destinataire désinscrit des messages marketing',
+      );
     }
 
     // WhatsApp-first, with SMS fallback when WhatsApp isn't available.
     final channel =
         (preferred == MessageChannel.whatsApp && !_hasWhatsApp(recipientPhone))
-            ? MessageChannel.sms
-            : preferred;
+        ? MessageChannel.sms
+        : preferred;
 
     final message = OutboundMessage(
       id: 'msg_${AppClock.now().microsecondsSinceEpoch}',

@@ -25,15 +25,17 @@ Map<String, dynamic> buildUserDataExport({
       'memberSince': user.createdAt.toIso8601String(),
     },
     'appointments': appointments
-        .map((a) => {
-              'id': a.id,
-              'providerId': a.providerId,
-              'date': a.appointmentDate.toIso8601String(),
-              'status': a.status.name,
-              'totalPrice': a.totalPrice,
-              'depositAmount': a.depositAmount,
-              'serviceIds': a.serviceIds,
-            })
+        .map(
+          (a) => {
+            'id': a.id,
+            'providerId': a.providerId,
+            'date': a.appointmentDate.toIso8601String(),
+            'status': a.status.name,
+            'totalPrice': a.totalPrice,
+            'depositAmount': a.depositAmount,
+            'serviceIds': a.serviceIds,
+          },
+        )
         .toList(),
     'favorites': favoriteProviderNames,
   };

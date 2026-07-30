@@ -73,8 +73,9 @@ class _SalonPickerSheetState extends State<_SalonPickerSheet> {
               ),
             ),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingM,
+              ),
               child: InlineFeedback(_error),
             ),
             Padding(
@@ -161,8 +162,9 @@ class _SalonTile extends StatelessWidget {
     ];
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor:
-            isActive ? AppColors.primary : AppColors.surfaceVariant,
+        backgroundColor: isActive
+            ? AppColors.primary
+            : AppColors.surfaceVariant,
         foregroundColor: isActive ? AppColors.secondary : AppColors.textPrimary,
         child: Text(
           salon.salonName.isEmpty
@@ -184,8 +186,11 @@ class _SalonTile extends StatelessWidget {
           ),
           if (salon.verified) ...[
             const SizedBox(width: AppTheme.spacingXS),
-            const Icon(Icons.verified,
-                size: AppTheme.iconXS, color: AppColors.info),
+            const Icon(
+              Icons.verified,
+              size: AppTheme.iconXS,
+              color: AppColors.info,
+            ),
           ],
         ],
       ),
@@ -208,8 +213,10 @@ class _SalonTile extends StatelessWidget {
         }
         final ok = await auth.switchSalon(salon.salonId);
         if (!ok) {
-          onFailed('Changement impossible — votre accès à ce salon a '
-              'peut-être été retiré.');
+          onFailed(
+            'Changement impossible — votre accès à ce salon a '
+            'peut-être été retiré.',
+          );
           return;
         }
         navigator.pop(salon.salonId);

@@ -21,18 +21,21 @@ class AppColors {
   /// No mobile caller yet — the web consumes it, and A3's component themes will.
   static const Color primaryHover = Color(0xFF333333);
 
-  static const Color secondary =
-      Color(0xFFFFFFFF); // card surface; 21:1 on primary
-  static const Color secondaryVariant =
-      Color(0xFFF5F5F5); // pressed tint on white
+  static const Color secondary = Color(
+    0xFFFFFFFF,
+  ); // card surface; 21:1 on primary
+  static const Color secondaryVariant = Color(
+    0xFFF5F5F5,
+  ); // pressed tint on white
 
   // ---- Surfaces --------------------------------------------------------------
   // Cards are `secondary` on `background` — a deliberate, low-contrast lift that
   // carries the layout without borders or shadows.
   static const Color background = Color(0xFFF6F7F9); // the scaffold
   static const Color surface = Color(0xFFFAFAFA);
-  static const Color surfaceVariant =
-      Color(0xFFF5F5F5); // input fills, skeletons
+  static const Color surfaceVariant = Color(
+    0xFFF5F5F5,
+  ); // input fills, skeletons
 
   // ---- Text (the ink) --------------------------------------------------------
   static const Color textPrimary = Color(0xFF1A1A1A); // 16.24:1 — AAA
@@ -52,8 +55,9 @@ class AppColors {
 
   // ---- Borders — three roles, three weights (SYSTEM.md §3.3) -----------------
   // One token doing three jobs got tuned for the softest and failed the strictest.
-  static const Color divider =
-      Color(0xFFE0E0E0); // decorative rules between rows
+  static const Color divider = Color(
+    0xFFE0E0E0,
+  ); // decorative rules between rows
   static const Color border = Color(0xFFD0D0D0); // passive container hairlines
 
   /// **The sole boundary of any INTERACTIVE control** — text inputs, unselected
@@ -68,8 +72,9 @@ class AppColors {
   static const Color borderFocus = Color(0xFF000000);
 
   // ---- Semantic (status only — never `Colors.green`/`Colors.red`) ------------
-  static const Color success =
-      Color(0xFF2D5016); // 8.63:1 · white on it: 9.25:1
+  static const Color success = Color(
+    0xFF2D5016,
+  ); // 8.63:1 · white on it: 9.25:1
 
   /// ⚠️ A FOREGROUND — 4.66:1 **on white**, not a fill. A6's review found it
   /// used as a callout background, where it left [success] ink at 1.85:1 and
@@ -107,8 +112,9 @@ class AppColors {
   /// uses [gold], which actually clears the 3:1 non-text floor.
   static const Color starRating = Color(0xFFFFB800);
 
-  static const Color favorite =
-      Color(0xFFE53935); // 3.94:1 — heart GLYPH; not text
+  static const Color favorite = Color(
+    0xFFE53935,
+  ); // 3.94:1 — heart GLYPH; not text
   static const Color gold =
       // 3.10:1 on surfaceVariant (the worst surface) — gold-as-state, not text.
       // Darkened from #B8860B, which read 2.98:1 there (WEB-SYSTEM §15 row 23);

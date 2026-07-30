@@ -24,34 +24,33 @@ void main() {
   });
 
   Map<String, dynamic> invitationJson() => {
-        'id': 'mem_x',
-        'providerId': 'p1',
-        'salonName': 'Chez Awa',
-        'role': 'manager',
-        'roleLabel': 'Manager',
-        'expiresAt': '2026-07-19T00:00:00.000Z',
-      };
+    'id': 'mem_x',
+    'providerId': 'p1',
+    'salonName': 'Chez Awa',
+    'role': 'manager',
+    'roleLabel': 'Manager',
+    'expiresAt': '2026-07-19T00:00:00.000Z',
+  };
 
   Map<String, dynamic> bareSessionJson() => {
-        'provider': {
-          'id': 'member_1',
-          'phoneNumber': '',
-          'businessName': '',
-          'businessType': 'other',
-          'email': 'ama@b.com',
-          'verificationStatus': 'pending',
-          'kycDocs': const <Map<String, dynamic>>[],
-          'createdAt': DateTime(2026).toIso8601String(),
-          'providerId': null,
-        },
-        'accessToken': 'access-1',
-        'refreshToken': 'refresh-1',
-        'expiresAt': DateTime(2027).toIso8601String(),
-      };
+    'provider': {
+      'id': 'member_1',
+      'phoneNumber': '',
+      'businessName': '',
+      'businessType': 'other',
+      'email': 'ama@b.com',
+      'verificationStatus': 'pending',
+      'kycDocs': const <Map<String, dynamic>>[],
+      'createdAt': DateTime(2026).toIso8601String(),
+      'providerId': null,
+    },
+    'accessToken': 'access-1',
+    'refreshToken': 'refresh-1',
+    'expiresAt': DateTime(2027).toIso8601String(),
+  };
 
   group('ApiAuthService — the 202 bridge + public accept/decline', () {
-    test(
-        'email verify 202 → invited outcome carrying the UNCONSUMED code '
+    test('email verify 202 → invited outcome carrying the UNCONSUMED code '
         'as proof', () async {
       final svc = ApiAuthService(
         client: MockClient((req) async {
@@ -75,74 +74,77 @@ void main() {
       expect((proof! as EmailOtpInvitationProof).code, '123456');
     });
 
-    test('email verify 404 stays provider_not_found (no invitations)',
-        () async {
-      final svc = ApiAuthService(
-        client: MockClient(
-          (_) async => http.Response(
-            jsonEncode({'error': 'provider_not_found'}),
-            404,
+    test(
+      'email verify 404 stays provider_not_found (no invitations)',
+      () async {
+        final svc = ApiAuthService(
+          client: MockClient(
+            (_) async =>
+                http.Response(jsonEncode({'error': 'provider_not_found'}), 404),
           ),
-        ),
-        baseUrl: 'http://x',
-        providerSessionStore: InMemorySessionStore(),
-      );
-      final res = await svc.verifyProviderEmailOtp('ama@b.com', '123456');
-      expect(res.signedIn, isFalse);
-      expect(res.hasInvitations, isFalse);
-      expect(res.code, 'provider_not_found');
-    });
+          baseUrl: 'http://x',
+          providerSessionStore: InMemorySessionStore(),
+        );
+        final res = await svc.verifyProviderEmailOtp('ama@b.com', '123456');
+        expect(res.signedIn, isFalse);
+        expect(res.hasInvitations, isFalse);
+        expect(res.code, 'provider_not_found');
+      },
+    );
 
     for (final status in [200, 201]) {
-      test('public accept $status persists a WORKING provider session',
-          () async {
-        final store = InMemorySessionStore();
+      test(
+        'public accept $status persists a WORKING provider session',
+        () async {
+          final store = InMemorySessionStore();
+          final svc = ApiAuthService(
+            client: MockClient((req) async {
+              expect(req.url.path, '/auth/provider/invitations/accept');
+              final body = jsonDecode(req.body) as Map<String, dynamic>;
+              expect(body['invitationId'], 'mem_x');
+              expect(body['email'], 'ama@b.com');
+              expect(body['code'], '123456');
+              return http.Response(jsonEncode(bareSessionJson()), status);
+            }),
+            baseUrl: 'http://x',
+            providerSessionStore: store,
+          );
+          final res = await svc.acceptProviderInvitation(
+            'mem_x',
+            const EmailOtpInvitationProof('ama@b.com', '123456'),
+          );
+          expect(res.success, isTrue);
+          expect(res.data!.providerId, isNull); // bare member account
+          // The session persisted like a login.
+          final saved =
+              jsonDecode((await store.read())!) as Map<String, dynamic>;
+          expect(saved['token'], 'access-1');
+          expect(saved['refreshToken'], 'refresh-1');
+          expect((await svc.getCurrentProvider())!.email, 'ama@b.com');
+        },
+      );
+    }
+
+    test(
+      'public accept surfaces invitation_expired with French copy',
+      () async {
         final svc = ApiAuthService(
-          client: MockClient((req) async {
-            expect(req.url.path, '/auth/provider/invitations/accept');
-            final body = jsonDecode(req.body) as Map<String, dynamic>;
-            expect(body['invitationId'], 'mem_x');
-            expect(body['email'], 'ama@b.com');
-            expect(body['code'], '123456');
-            return http.Response(jsonEncode(bareSessionJson()), status);
-          }),
+          client: MockClient(
+            (_) async =>
+                http.Response(jsonEncode({'error': 'invitation_expired'}), 409),
+          ),
           baseUrl: 'http://x',
-          providerSessionStore: store,
+          providerSessionStore: InMemorySessionStore(),
         );
         final res = await svc.acceptProviderInvitation(
           'mem_x',
-          const EmailOtpInvitationProof('ama@b.com', '123456'),
+          const GoogleInvitationProof('id-token'),
         );
-        expect(res.success, isTrue);
-        expect(res.data!.providerId, isNull); // bare member account
-        // The session persisted like a login.
-        final saved = jsonDecode((await store.read())!) as Map<String, dynamic>;
-        expect(saved['token'], 'access-1');
-        expect(saved['refreshToken'], 'refresh-1');
-        expect((await svc.getCurrentProvider())!.email, 'ama@b.com');
-      });
-    }
-
-    test('public accept surfaces invitation_expired with French copy',
-        () async {
-      final svc = ApiAuthService(
-        client: MockClient(
-          (_) async => http.Response(
-            jsonEncode({'error': 'invitation_expired'}),
-            409,
-          ),
-        ),
-        baseUrl: 'http://x',
-        providerSessionStore: InMemorySessionStore(),
-      );
-      final res = await svc.acceptProviderInvitation(
-        'mem_x',
-        const GoogleInvitationProof('id-token'),
-      );
-      expect(res.success, isFalse);
-      expect(res.code, 'invitation_expired');
-      expect(res.error, contains('expiré'));
-    });
+        expect(res.success, isFalse);
+        expect(res.code, 'invitation_expired');
+        expect(res.error, contains('expiré'));
+      },
+    );
 
     test('public decline posts the proof and returns true on 200', () async {
       final svc = ApiAuthService(
@@ -189,15 +191,11 @@ void main() {
       final provider = await bridgedProvider();
       expect(provider.error, isNull);
       expect(provider.errorCode, isNull);
-      expect(
-        provider.pendingInvitations.single.salonName,
-        'Salon Excellence',
-      );
+      expect(provider.pendingInvitations.single.salonName, 'Salon Excellence');
       expect(provider.isAuthenticated, isFalse);
     });
 
-    test(
-        'accept authenticates under the retained proof (the code was NOT '
+    test('accept authenticates under the retained proof (the code was NOT '
         'consumed by the bridge) and clears the step state', () async {
       final provider = await bridgedProvider();
       final invitationId = provider.pendingInvitations.single.id;
@@ -218,8 +216,7 @@ void main() {
       );
     });
 
-    test(
-        'declining the LAST card falls back to provider_not_found (the '
+    test('declining the LAST card falls back to provider_not_found (the '
         '« Créer un compte » path)', () async {
       final provider = await bridgedProvider();
       final ok = await provider.declinePendingInvitation(

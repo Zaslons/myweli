@@ -25,13 +25,15 @@ void main() {
     String? method;
     String? auth;
     Map<String, dynamic>? sent;
-    final s = svc(MockClient((req) async {
-      method = req.method;
-      auth = req.headers['Authorization'];
-      sent = jsonDecode(req.body) as Map<String, dynamic>;
-      expect(req.url.path, '/me/devices');
-      return http.Response('{}', 200);
-    }));
+    final s = svc(
+      MockClient((req) async {
+        method = req.method;
+        auth = req.headers['Authorization'];
+        sent = jsonDecode(req.body) as Map<String, dynamic>;
+        expect(req.url.path, '/me/devices');
+        return http.Response('{}', 200);
+      }),
+    );
     final res = await s.register('fcm-123', 'android');
     expect(res.success, isTrue);
     expect(method, 'POST');
@@ -42,12 +44,14 @@ void main() {
   test('unregister DELETEs /me/devices with the token', () async {
     String? method;
     Map<String, dynamic>? sent;
-    final s = svc(MockClient((req) async {
-      method = req.method;
-      sent = jsonDecode(req.body) as Map<String, dynamic>;
-      expect(req.url.path, '/me/devices');
-      return http.Response('{}', 200);
-    }));
+    final s = svc(
+      MockClient((req) async {
+        method = req.method;
+        sent = jsonDecode(req.body) as Map<String, dynamic>;
+        expect(req.url.path, '/me/devices');
+        return http.Response('{}', 200);
+      }),
+    );
     final res = await s.unregister('fcm-123');
     expect(res.success, isTrue);
     expect(method, 'DELETE');

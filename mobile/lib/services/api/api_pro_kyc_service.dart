@@ -21,9 +21,9 @@ class ApiProKycService implements ProKycServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -66,19 +66,23 @@ class ApiProKycService implements ProKycServiceInterface {
     }
 
     // 1. Presign a private, single-use upload to the KYC bucket.
-    final signRes = await _authed.send((t) => _client.post(
-          _uri('/uploads/sign'),
-          headers: {..._bearer(t), 'Content-Type': 'application/json'},
-          body: jsonEncode({'contentType': contentType, 'purpose': 'kyc'}),
-        ));
+    final signRes = await _authed.send(
+      (t) => _client.post(
+        _uri('/uploads/sign'),
+        headers: {..._bearer(t), 'Content-Type': 'application/json'},
+        body: jsonEncode({'contentType': contentType, 'purpose': 'kyc'}),
+      ),
+    );
     if (signRes == null) return _networkError();
     if (signRes.statusCode != 200) return _errorFrom(signRes);
     final ticket = _decode(signRes.body);
     final key = ticket['key'] as String;
 
     // 2. Upload the bytes straight to private storage (presign is the auth).
-    final req =
-        http.MultipartRequest('POST', Uri.parse(ticket['uploadUrl'] as String));
+    final req = http.MultipartRequest(
+      'POST',
+      Uri.parse(ticket['uploadUrl'] as String),
+    );
     (ticket['fields'] as Map).forEach((k, v) {
       req.fields[k as String] = v as String;
     });
@@ -103,16 +107,18 @@ class ApiProKycService implements ProKycServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((t) => _client.post(
-          _uri('/me/kyc'),
-          headers: {..._bearer(t), 'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'documents': [
-              for (final d in documents)
-                {'type': d.type.name, 'fileName': d.fileName, 'key': d.key},
-            ],
-          }),
-        ));
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri('/me/kyc'),
+        headers: {..._bearer(t), 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'documents': [
+            for (final d in documents)
+              {'type': d.type.name, 'fileName': d.fileName, 'key': d.key},
+          ],
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(

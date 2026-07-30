@@ -82,7 +82,7 @@ class MyweliMonthBar extends StatelessWidget {
               label: pickingYear
                   ? 'Choisir un mois'
                   : 'Choisir une année — '
-                      '${Formatters.formatMonthYear(month)}',
+                        '${Formatters.formatMonthYear(month)}',
               child: InkWell(
                 onTap: onToggleYear,
                 // **A 48dp floor, because this was 40.** `spacingS` twice
@@ -93,8 +93,9 @@ class MyweliMonthBar extends StatelessWidget {
                 // control. A minimum, not a height: the box still grows with the
                 // text (§13.3).
                 child: Container(
-                  constraints:
-                      const BoxConstraints(minHeight: AppTheme.spacingXXL),
+                  constraints: const BoxConstraints(
+                    minHeight: AppTheme.spacingXXL,
+                  ),
                   alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(
                     vertical: AppTheme.spacingS,
@@ -276,7 +277,8 @@ class MyweliMonthGrid extends StatelessWidget {
                       ? SizedBox(height: _cellHeight(context))
                       : _DayCell(
                           day: day,
-                          selected: selectedDay != null &&
+                          selected:
+                              selectedDay != null &&
                               isSameDay(day, selectedDay!),
                           isToday: today != null && isSameDay(day, today!),
                           enabled: _enabled(day),
@@ -353,8 +355,8 @@ class _MyweliMonthNavigatorState extends State<MyweliMonthNavigator> {
       DateTime(widget.lastDate.year, widget.lastDate.month);
 
   void _shift(int months) => setState(() {
-        _month = DateTime(_month.year, _month.month + months);
-      });
+    _month = DateTime(_month.year, _month.month + months);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -452,8 +454,8 @@ class _DayCell extends StatelessWidget {
     final Color fg = !enabled
         ? AppColors.textTertiary
         : selected
-            ? AppColors.secondary
-            : AppColors.textPrimary;
+        ? AppColors.secondary
+        : AppColors.textPrimary;
 
     return Semantics(
       button: true,

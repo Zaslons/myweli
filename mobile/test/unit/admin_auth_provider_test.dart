@@ -8,15 +8,15 @@ import 'package:myweli/services/admin/admin_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
 AdminService _svc(int status) => AdminService(
-      client: MockClient(
-        (_) async => http.Response(
-          jsonEncode({'accessToken': 't', 'refreshToken': 'r'}),
-          status,
-        ),
-      ),
-      baseUrl: 'http://x',
-      store: InMemorySessionStore(),
-    );
+  client: MockClient(
+    (_) async => http.Response(
+      jsonEncode({'accessToken': 't', 'refreshToken': 'r'}),
+      status,
+    ),
+  ),
+  baseUrl: 'http://x',
+  store: InMemorySessionStore(),
+);
 
 void main() {
   test('login success → authenticated', () async {

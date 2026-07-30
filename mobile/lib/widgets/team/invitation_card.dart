@@ -44,8 +44,10 @@ class InvitationCard extends StatelessWidget {
                   children: [
                     const CircleAvatar(
                       backgroundColor: AppColors.surfaceVariant,
-                      child: Icon(Icons.storefront_outlined,
-                          color: AppColors.textSecondary),
+                      child: Icon(
+                        Icons.storefront_outlined,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(width: AppTheme.spacingM),
                     Expanded(

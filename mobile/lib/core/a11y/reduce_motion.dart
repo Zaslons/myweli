@@ -28,15 +28,18 @@ import 'package:flutter/material.dart';
 ///     rather than the user (`Scrollable.ensureVisible`, `PageController`).
 bool reduceMotionOf(BuildContext context) {
   if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return true;
-  final scope =
-      context.dependOnInheritedWidgetOfExactType<_ReduceMotionScope>();
+  final scope = context
+      .dependOnInheritedWidgetOfExactType<_ReduceMotionScope>();
   // No scope above us — a bare `MaterialApp` in a widget test, or an app root
   // that has not been wrapped. Read the value straight from the dispatcher:
   // correct, just not reactive. **Fail-safe, never fail-broken** — a missing
   // scope must cost a rebuild, not the behaviour itself.
   return scope?.reduceMotion ??
       WidgetsBinding
-          .instance.platformDispatcher.accessibilityFeatures.reduceMotion;
+          .instance
+          .platformDispatcher
+          .accessibilityFeatures
+          .reduceMotion;
 }
 
 /// Makes the **iOS** half of [reduceMotionOf] reactive. Install once per app
@@ -64,7 +67,10 @@ class ReduceMotionObserver extends StatefulWidget {
 class _ReduceMotionObserverState extends State<ReduceMotionObserver>
     with WidgetsBindingObserver {
   static bool _read() => WidgetsBinding
-      .instance.platformDispatcher.accessibilityFeatures.reduceMotion;
+      .instance
+      .platformDispatcher
+      .accessibilityFeatures
+      .reduceMotion;
 
   late bool _reduceMotion = _read();
 
@@ -91,10 +97,8 @@ class _ReduceMotionObserverState extends State<ReduceMotionObserver>
   }
 
   @override
-  Widget build(BuildContext context) => _ReduceMotionScope(
-        reduceMotion: _reduceMotion,
-        child: widget.child,
-      );
+  Widget build(BuildContext context) =>
+      _ReduceMotionScope(reduceMotion: _reduceMotion, child: widget.child);
 }
 
 class _ReduceMotionScope extends InheritedWidget {

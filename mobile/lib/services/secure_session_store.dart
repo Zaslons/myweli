@@ -7,8 +7,8 @@ import 'interfaces/session_store.dart';
 /// `shared_preferences` or logs.
 class SecureSessionStore implements SessionStore {
   SecureSessionStore({FlutterSecureStorage? storage, String? key})
-      : _storage = storage ?? const FlutterSecureStorage(),
-        _key = key ?? 'myweli_session';
+    : _storage = storage ?? const FlutterSecureStorage(),
+      _key = key ?? 'myweli_session';
 
   final FlutterSecureStorage _storage;
 

@@ -7,7 +7,7 @@ import '../../services/admin/admin_service.dart';
 /// ban / unban actions. Design: docs/design/admin-console-ui.md §3.
 class AdminUserDetailProvider extends ChangeNotifier {
   AdminUserDetailProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

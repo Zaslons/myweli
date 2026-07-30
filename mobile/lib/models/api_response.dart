@@ -17,11 +17,7 @@ class ApiResponse<T> {
   });
 
   factory ApiResponse.success(T data, {String? message}) {
-    return ApiResponse(
-      success: true,
-      data: data,
-      message: message,
-    );
+    return ApiResponse(success: true, data: data, message: message);
   }
 
   factory ApiResponse.error(String error, {String? message, String? code}) {

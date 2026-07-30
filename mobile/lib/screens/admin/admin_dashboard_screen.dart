@@ -114,7 +114,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 value: '${bookings['total'] ?? 0}',
               ),
               StatCard(
-                  label: 'Terminés', value: '${bookings['completed'] ?? 0}'),
+                label: 'Terminés',
+                value: '${bookings['completed'] ?? 0}',
+              ),
               StatCard(
                 label: 'Taux de no-show',
                 value: pct(guard['noShowRate']),
@@ -136,9 +138,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 value: '${providers['suspended'] ?? 0}',
               ),
               StatCard(
-                  label: 'Clients actifs', value: '${users['active'] ?? 0}'),
+                label: 'Clients actifs',
+                value: '${users['active'] ?? 0}',
+              ),
               StatCard(
-                  label: 'Clients bannis', value: '${users['banned'] ?? 0}'),
+                label: 'Clients bannis',
+                value: '${users['banned'] ?? 0}',
+              ),
             ],
           ),
         ],

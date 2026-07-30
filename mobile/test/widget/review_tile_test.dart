@@ -12,23 +12,24 @@ void main() {
   Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   Review review({bool verified = false, String? artistName}) => Review(
-        id: 'r1',
-        providerId: 'p1',
-        userId: 'u1',
-        userName: 'Marie Diallo',
-        rating: 5,
-        text: 'Super service',
-        verified: verified,
-        artistName: artistName,
-        createdAt: DateTime(2025, 2, 4),
-      );
+    id: 'r1',
+    providerId: 'p1',
+    userId: 'u1',
+    userName: 'Marie Diallo',
+    rating: 5,
+    text: 'Super service',
+    verified: verified,
+    artistName: artistName,
+    createdAt: DateTime(2025, 2, 4),
+  );
 
-  testWidgets('shows the verified badge and stylist when present',
-      (tester) async {
+  testWidgets('shows the verified badge and stylist when present', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      wrap(ReviewTile(
-        review: review(verified: true, artistName: 'Kouassi Jean'),
-      )),
+      wrap(
+        ReviewTile(review: review(verified: true, artistName: 'Kouassi Jean')),
+      ),
     );
 
     expect(find.text('Réservation vérifiée'), findsOneWidget);
@@ -42,8 +43,9 @@ void main() {
     expect(find.text('Réservation vérifiée'), findsNothing);
   });
 
-  testWidgets('« Signaler » shows only with the callback and taps through',
-      (tester) async {
+  testWidgets('« Signaler » shows only with the callback and taps through', (
+    tester,
+  ) async {
     // Read-only (pro Avis screen): no action.
     await tester.pumpWidget(wrap(ReviewTile(review: review())));
     expect(find.text('Signaler'), findsNothing);

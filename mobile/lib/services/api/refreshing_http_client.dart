@@ -26,9 +26,9 @@ class RefreshingHttpClient {
     required String baseUrl,
     required SessionStore store,
     this.refreshPath = '/auth/refresh',
-  })  : _client = client,
-        _baseUrl = baseUrl,
-        _store = store;
+  }) : _client = client,
+       _baseUrl = baseUrl,
+       _store = store;
 
   final http.Client _client;
   final String _baseUrl;
@@ -94,11 +94,13 @@ class RefreshingHttpClient {
       await _store.clear();
       return null;
     }
-    final res = await _guard(() => _client.post(
-          Uri.parse('$_baseUrl$refreshPath'),
-          headers: const {'content-type': 'application/json'},
-          body: jsonEncode({'refreshToken': refreshToken}),
-        ));
+    final res = await _guard(
+      () => _client.post(
+        Uri.parse('$_baseUrl$refreshPath'),
+        headers: const {'content-type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      ),
+    );
     if (res == null) return null; // transport failure → keep the session
     if (res.statusCode != 200) {
       await _store.clear(); // refresh rejected (revoked/expired) → end session

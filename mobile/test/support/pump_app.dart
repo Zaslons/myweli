@@ -91,12 +91,11 @@ Future<void> pumpApp(
   RouterConfig<Object>? routerConfig,
   List<SingleChildWidget>? providers,
   ThemeData? theme,
-}) =>
-    tester.pumpWidget(
-      wrapApp(
-        home: home,
-        routerConfig: routerConfig,
-        providers: providers,
-        theme: theme,
-      ),
-    );
+}) => tester.pumpWidget(
+  wrapApp(
+    home: home,
+    routerConfig: routerConfig,
+    providers: providers,
+    theme: theme,
+  ),
+);

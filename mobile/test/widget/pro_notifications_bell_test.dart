@@ -51,13 +51,13 @@ void main() {
   });
 
   AppNotification note(String id, {bool read = false}) => AppNotification(
-        id: id,
-        type: AppNotificationType.general,
-        title: 'Nouvelle réservation',
-        body: 'Nouvelle demande de réservation.',
-        createdAt: DateTime(2026, 6, 28),
-        read: read,
-      );
+    id: id,
+    type: AppNotificationType.general,
+    title: 'Nouvelle réservation',
+    body: 'Nouvelle demande de réservation.',
+    createdAt: DateTime(2026, 6, 28),
+    read: read,
+  );
 
   Future<ProAuthProvider> signedIn(WidgetTester tester) async {
     late ProAuthProvider authProvider;
@@ -68,12 +68,14 @@ void main() {
         MockAuthService.demoOtp,
       );
       authProvider = ProAuthProvider();
-      for (var i = 0;
-          i < 60 &&
-              (authProvider.isLoading ||
-                  (authProvider.isAuthenticated &&
-                      authProvider.membership == null));
-          i++) {
+      for (
+        var i = 0;
+        i < 60 &&
+            (authProvider.isLoading ||
+                (authProvider.isAuthenticated &&
+                    authProvider.membership == null));
+        i++
+      ) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     });
@@ -117,9 +119,9 @@ void main() {
   }
 
   testWidgets('nothing unread → a bare bell, no badge', (tester) async {
-    when(() => notifications.getNotifications()).thenAnswer(
-      (_) async => ApiResponse.success([note('n1', read: true)]),
-    );
+    when(
+      () => notifications.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([note('n1', read: true)]));
 
     final authProvider = await signedIn(tester);
     await pumpDashboard(tester, authProvider, []);
@@ -129,9 +131,9 @@ void main() {
   });
 
   testWidgets('unread rows → the badge shows the count', (tester) async {
-    when(() => notifications.getNotifications()).thenAnswer(
-      (_) async => ApiResponse.success([note('n1'), note('n2')]),
-    );
+    when(
+      () => notifications.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([note('n1'), note('n2')]));
 
     final authProvider = await signedIn(tester);
     await pumpDashboard(tester, authProvider, []);
@@ -140,10 +142,12 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('tapping the bell opens the salon’s notification centre',
-      (tester) async {
-    when(() => notifications.getNotifications())
-        .thenAnswer((_) async => ApiResponse.success([]));
+  testWidgets('tapping the bell opens the salon’s notification centre', (
+    tester,
+  ) async {
+    when(
+      () => notifications.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([]));
 
     final pushed = <String>[];
     final authProvider = await signedIn(tester);

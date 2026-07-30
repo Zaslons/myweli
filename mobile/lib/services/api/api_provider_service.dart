@@ -15,8 +15,8 @@ import '../interfaces/provider_service_interface.dart';
 /// are unchanged — the swap is purely in DI.
 class ApiProviderService implements ProviderServiceInterface {
   ApiProviderService({http.Client? client, String? baseUrl})
-      : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
+    : _client = client ?? http.Client(),
+      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _client;
   final String _baseUrl;

@@ -38,20 +38,20 @@ class Review extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        appointmentId,
-        providerId,
-        userId,
-        userName,
-        rating,
-        text,
-        verified,
-        artistId,
-        artistName,
-        serviceName,
-        photoUrls,
-        createdAt,
-      ];
+    id,
+    appointmentId,
+    providerId,
+    userId,
+    userName,
+    rating,
+    text,
+    verified,
+    artistId,
+    artistName,
+    serviceName,
+    photoUrls,
+    createdAt,
+  ];
 
   Map<String, dynamic> toJson() {
     return {
@@ -86,7 +86,7 @@ class Review extends Equatable {
       serviceName: json['serviceName'] as String? ?? '',
       photoUrls:
           (json['photoUrls'] as List?)?.map((e) => e as String).toList() ??
-              const [],
+          const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }

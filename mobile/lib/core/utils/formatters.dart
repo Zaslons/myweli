@@ -30,21 +30,13 @@ class Formatters {
   /// test that constructs neither would silently measure the English rule.
   ///
   /// The CLDR data has been wired since A9 and had **zero callers** until now.
-  static String count(int n, String one, String other) => Intl.plural(
-        n,
-        one: '$n $one',
-        other: '$n $other',
-        locale: kAppLocale,
-      );
+  static String count(int n, String one, String other) =>
+      Intl.plural(n, one: '$n $one', other: '$n $other', locale: kAppLocale);
 
   /// The noun alone, for the sites that render the number separately (a big
   /// figure above a small label, e.g. `my_bookings_screen`'s summary metrics).
-  static String plural(int n, String one, String other) => Intl.plural(
-        n,
-        one: one,
-        other: other,
-        locale: kAppLocale,
-      );
+  static String plural(int n, String one, String other) =>
+      Intl.plural(n, one: one, other: other, locale: kAppLocale);
 
   /// Format a phone number for display. Côte d'Ivoire (+225) numbers are grouped
   /// in pairs — both the current 10-digit and legacy 8-digit formats; any other

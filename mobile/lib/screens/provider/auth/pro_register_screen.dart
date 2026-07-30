@@ -187,9 +187,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
     final auth = context.watch<ProAuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Inscription Pro'),
-      ),
+      appBar: AppBar(title: const Text('Inscription Pro')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppTheme.spacingL),
@@ -271,10 +269,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                       label = 'Autre';
                       break;
                   }
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(label),
-                  );
+                  return DropdownMenuItem(value: type, child: Text(label));
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -309,8 +304,9 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 onTap: _pickCommune,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 child: InputDecorator(
-                  decoration:
-                      const InputDecoration(labelText: 'Commune (optionnel)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Commune (optionnel)',
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -325,8 +321,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                           ),
                         ),
                       ),
-                      const Icon(Icons.expand_more,
-                          color: AppColors.textTertiary),
+                      const Icon(
+                        Icons.expand_more,
+                        color: AppColors.textTertiary,
+                      ),
                     ],
                   ),
                 ),
@@ -434,8 +432,9 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   // with maxLength 6 — a four-digit code walked through.
                   // Rule 5: disabled only while submitting; the code's own
                   // rule now answers with a message under the field.
-                  onPressed:
-                      auth.isLoading ? null : _handleEmailRegisterChecked,
+                  onPressed: auth.isLoading
+                      ? null
+                      : _handleEmailRegisterChecked,
                   isLoading: auth.isLoading,
                 ),
                 const SizedBox(height: AppTheme.spacingS),
@@ -452,8 +451,9 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                 const SizedBox(height: AppTheme.spacingSM),
                 Text(
                   auth.error!,
-                  style:
-                      AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.error,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],

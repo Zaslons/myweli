@@ -54,9 +54,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Profil'),
-      ),
+      appBar: AppBar(title: const Text('Profil')),
       body: Consumer<ProAuthProvider>(
         builder: (context, authProvider, _) {
           if (!authProvider.isAuthenticated || authProvider.provider == null) {
@@ -107,14 +105,16 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                           const SizedBox(height: AppTheme.spacingM),
                           Text(
                             'Salon',
-                            style: AppTextStyles.titleMedium
-                                .copyWith(color: AppColors.textPrimary),
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingS),
                           Text(
                             authProvider.salonName,
-                            style: AppTextStyles.bodyLarge
-                                .copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -129,52 +129,60 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                         children: [
                           Text(
                             'Nom de l’entreprise',
-                            style: AppTextStyles.titleMedium
-                                .copyWith(color: AppColors.textPrimary),
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingS),
                           Text(
                             provider.businessName,
-                            style: AppTextStyles.bodyLarge
-                                .copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingM),
                           Text(
                             'Type d’entreprise',
-                            style: AppTextStyles.titleMedium
-                                .copyWith(color: AppColors.textPrimary),
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingS),
                           Text(
                             _getBusinessTypeLabel(provider.businessType),
-                            style: AppTextStyles.bodyLarge
-                                .copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           if (provider.address != null) ...[
                             const SizedBox(height: AppTheme.spacingM),
                             Text(
                               'Adresse',
-                              style: AppTextStyles.titleMedium
-                                  .copyWith(color: AppColors.textPrimary),
+                              style: AppTextStyles.titleMedium.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                             const SizedBox(height: AppTheme.spacingS),
                             Text(
                               provider.address!,
-                              style: AppTextStyles.bodyLarge
-                                  .copyWith(color: AppColors.textSecondary),
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                           const SizedBox(height: AppTheme.spacingM),
                           Text(
                             'Téléphone',
-                            style: AppTextStyles.titleMedium
-                                .copyWith(color: AppColors.textPrimary),
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingS),
                           Text(
                             provider.phoneNumber,
-                            style: AppTextStyles.bodyLarge
-                                .copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -190,7 +198,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     subtitle: Text(
                       authProvider.hasMultipleSalons
                           ? '${authProvider.salons.length} salons — '
-                              'actif : ${authProvider.salonName}'
+                                'actif : ${authProvider.salonName}'
                           : authProvider.salonName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -233,8 +241,9 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                       subtitle: Text(
                         _verificationLabel(provider.verificationStatus),
                         style: AppTextStyles.bodySmall.copyWith(
-                          color:
-                              _verificationColor(provider.verificationStatus),
+                          color: _verificationColor(
+                            provider.verificationStatus,
+                          ),
                         ),
                       ),
                       trailing: const Icon(Icons.chevron_right),
@@ -259,8 +268,9 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   builder: (context, team, _) => team.invitationCount == 0
                       ? const SizedBox.shrink()
                       : Padding(
-                          padding:
-                              const EdgeInsets.only(bottom: AppTheme.spacingS),
+                          padding: const EdgeInsets.only(
+                            bottom: AppTheme.spacingS,
+                          ),
                           child: Card(
                             child: ListTile(
                               leading: const Icon(Icons.mail_outline),
@@ -357,8 +367,9 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.info_outline),
                     title: const Text('À propos'),
-                    subtitle:
-                        const Text('Confidentialité, CGU, mentions légales'),
+                    subtitle: const Text(
+                      'Confidentialité, CGU, mentions légales',
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.push('/a-propos'),
                   ),
@@ -401,7 +412,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Supprimer votre compte ?',
-      message: 'Cette action est définitive. Votre salon sera retiré de '
+      message:
+          'Cette action est définitive. Votre salon sera retiré de '
           'MyWeli. Pensez à exporter vos données avant.',
       confirmLabel: 'Supprimer définitivement',
       icon: Icons.warning_amber_rounded,
@@ -416,12 +428,13 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
     final res = await serviceLocator.proService.deleteProviderAccount();
     if (!res.success) {
       AppSnackBar.showOn(
-          messenger,
-          res.code == 'future_bookings'
-              ? 'Terminez ou annulez vos rendez-vous à venir avant de '
+        messenger,
+        res.code == 'future_bookings'
+            ? 'Terminez ou annulez vos rendez-vous à venir avant de '
                   'supprimer votre compte.'
-              : res.error ?? 'La suppression a échoué.',
-          kind: SnackKind.error);
+            : res.error ?? 'La suppression a échoué.',
+        kind: SnackKind.error,
+      );
       return;
     }
     await authProvider.logout();

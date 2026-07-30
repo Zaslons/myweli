@@ -90,71 +90,73 @@ void main() {
       expect(teamRoleFrom(null), TeamRole.staff);
     });
 
-    test('ProviderSession round-trips the R6 selection; legacy JSON parses',
-        () {
-      final user = ProviderUser(
-        id: 'acc1',
-        phoneNumber: '',
-        businessName: '',
-        businessType: BusinessType.other,
-        email: 'x@y.test',
-        createdAt: DateTime(2026),
-      );
-      final session = ProviderSession(
-        token: 't',
-        refreshToken: 'r',
-        provider: user,
-        selectedSalonId: 'p2',
-      );
-      final back = ProviderSession.fromJson(session.toJson());
-      expect(back.selectedSalonId, 'p2');
-      // copyWith keeps, replaces and clears.
-      expect(back.copyWith().selectedSalonId, 'p2');
-      expect(back.copyWith(selectedSalonId: 'p9').selectedSalonId, 'p9');
-      expect(
-        back.copyWith(clearSelectedSalon: true).selectedSalonId,
-        isNull,
-      );
-      // Legacy (pre-R6) sessions simply have no selection.
-      final legacy = ProviderSession.fromJson({
-        'token': 't',
-        'provider': user.toJson(),
-      });
-      expect(legacy.selectedSalonId, isNull);
-    });
+    test(
+      'ProviderSession round-trips the R6 selection; legacy JSON parses',
+      () {
+        final user = ProviderUser(
+          id: 'acc1',
+          phoneNumber: '',
+          businessName: '',
+          businessType: BusinessType.other,
+          email: 'x@y.test',
+          createdAt: DateTime(2026),
+        );
+        final session = ProviderSession(
+          token: 't',
+          refreshToken: 'r',
+          provider: user,
+          selectedSalonId: 'p2',
+        );
+        final back = ProviderSession.fromJson(session.toJson());
+        expect(back.selectedSalonId, 'p2');
+        // copyWith keeps, replaces and clears.
+        expect(back.copyWith().selectedSalonId, 'p2');
+        expect(back.copyWith(selectedSalonId: 'p9').selectedSalonId, 'p9');
+        expect(back.copyWith(clearSelectedSalon: true).selectedSalonId, isNull);
+        // Legacy (pre-R6) sessions simply have no selection.
+        final legacy = ProviderSession.fromJson({
+          'token': 't',
+          'provider': user.toJson(),
+        });
+        expect(legacy.selectedSalonId, isNull);
+      },
+    );
   });
 
   group('« Mes salons » (mock world)', () {
-    test('the seeded owner sees BOTH salons, owned first, no add gate yet',
-        () async {
-      final auth = await signInOwner();
-      expect(auth.salons.map((s) => s.salonId), ['provider2', 'provider1']);
-      expect(auth.salons.every((s) => s.isOwner), isTrue);
-      expect(auth.hasMultipleSalons, isTrue);
-      // No offer anywhere → the server-computed gate stays closed.
-      expect(auth.canAddSalon, isFalse);
-    });
-
-    test('switchSalon: reshapes, persists, resets the per-salon fleet',
-        () async {
-      final auth = await signInOwner();
-      expect(auth.activeSalonId, 'provider1');
-      final spy = ProSalonScope.track(_ResetSpy());
-
-      final ok = await auth.switchSalon('provider2');
-      expect(ok, isTrue);
-      expect(auth.activeSalonId, 'provider2');
-      expect(auth.salonName, 'Beauté Divine');
-      expect(auth.membership!.role, TeamRole.owner);
-      expect(spy.resets, 1);
-      expect(
-        await serviceLocator.authService.getSelectedProviderSalon(),
-        'provider2',
-      );
-    });
+    test(
+      'the seeded owner sees BOTH salons, owned first, no add gate yet',
+      () async {
+        final auth = await signInOwner();
+        expect(auth.salons.map((s) => s.salonId), ['provider2', 'provider1']);
+        expect(auth.salons.every((s) => s.isOwner), isTrue);
+        expect(auth.hasMultipleSalons, isTrue);
+        // No offer anywhere → the server-computed gate stays closed.
+        expect(auth.canAddSalon, isFalse);
+      },
+    );
 
     test(
-        'switchSalon refetches the salon MARKET facts — timezone + currency '
+      'switchSalon: reshapes, persists, resets the per-salon fleet',
+      () async {
+        final auth = await signInOwner();
+        expect(auth.activeSalonId, 'provider1');
+        final spy = ProSalonScope.track(_ResetSpy());
+
+        final ok = await auth.switchSalon('provider2');
+        expect(ok, isTrue);
+        expect(auth.activeSalonId, 'provider2');
+        expect(auth.salonName, 'Beauté Divine');
+        expect(auth.membership!.role, TeamRole.owner);
+        expect(spy.resets, 1);
+        expect(
+          await serviceLocator.authService.getSelectedProviderSalon(),
+          'provider2',
+        );
+      },
+    );
+
+    test('switchSalon refetches the salon MARKET facts — timezone + currency '
         '(multi-pays MP2)', () async {
       // Move provider2 to Gabon for this test only (the committed seeds stay
       // CI — demo realism); restore after.
@@ -192,8 +194,7 @@ void main() {
       expect(restarted.salonName, 'Beauté Divine');
     });
 
-    test(
-        'a salon the account does NOT belong to is refused; the session '
+    test('a salon the account does NOT belong to is refused; the session '
         'stays put', () async {
       final auth = await signInOwner();
       final ok = await auth.switchSalon('provider3');
@@ -202,8 +203,7 @@ void main() {
       expect(auth.isAuthenticated, isTrue);
     });
 
-    test(
-        'revoked from the SELECTED salon → silent fallback to the default '
+    test('revoked from the SELECTED salon → silent fallback to the default '
         '(never a sign-out)', () async {
       final auth = await signInOwner();
       await auth.switchSalon('provider2');
@@ -244,57 +244,68 @@ void main() {
       expect(auth.errorCode, 'reseau_required');
     });
 
-    test('with Réseau live: creates the draft, switches to it, lists it',
-        () async {
-      final auth = await signInOwner();
-      final chosen = await serviceLocator.subscriptionService
-          .chooseOffer('provider1', SalonTier.reseau);
-      expect(chosen.success, isTrue);
+    test(
+      'with Réseau live: creates the draft, switches to it, lists it',
+      () async {
+        final auth = await signInOwner();
+        final chosen = await serviceLocator.subscriptionService.chooseOffer(
+          'provider1',
+          SalonTier.reseau,
+        );
+        expect(chosen.success, isTrue);
 
-      final created = await auth.addSalon(
-        businessName: 'Salon Trois',
-        businessType: BusinessType.spa,
-      );
-      expect(created, isNotNull);
-      expect(created!.salonStatus, 'draft');
-      expect(created.role, TeamRole.owner);
-      // Switched to the new salon; the list carries all three.
-      expect(auth.activeSalonId, created.salonId);
-      expect(auth.salons.length, 3);
-      // Its own SETUP state: no offer on the new salon yet.
-      final offer = await serviceLocator.subscriptionService
-          .getSalonSubscription(created.salonId);
-      expect(offer.code, 'no_offer');
-    });
+        final created = await auth.addSalon(
+          businessName: 'Salon Trois',
+          businessType: BusinessType.spa,
+        );
+        expect(created, isNotNull);
+        expect(created!.salonStatus, 'draft');
+        expect(created.role, TeamRole.owner);
+        // Switched to the new salon; the list carries all three.
+        expect(auth.activeSalonId, created.salonId);
+        expect(auth.salons.length, 3);
+        // Its own SETUP state: no offer on the new salon yet.
+        final offer = await serviceLocator.subscriptionService
+            .getSalonSubscription(created.salonId);
+        expect(offer.code, 'no_offer');
+      },
+    );
 
-    test('per-salon trials: salon 2 gets a FRESH trial after salon 1 chose',
-        () async {
-      final subs = serviceLocator.subscriptionService;
-      await subs.chooseOffer('provider1', SalonTier.pro);
-      final second = await subs.chooseOffer('provider2', SalonTier.business);
-      expect(second.success, isTrue);
-      expect(second.data!.status, SalonOfferStatus.trial);
-    });
+    test(
+      'per-salon trials: salon 2 gets a FRESH trial after salon 1 chose',
+      () async {
+        final subs = serviceLocator.subscriptionService;
+        await subs.chooseOffer('provider1', SalonTier.pro);
+        final second = await subs.chooseOffer('provider2', SalonTier.business);
+        expect(second.success, isTrue);
+        expect(second.data!.status, SalonOfferStatus.trial);
+      },
+    );
   });
 
   group('the sweep pin', () {
-    test('no screen reads provider?.providerId anymore (activeSalonId only)',
-        () {
-      final offenders = <String>[];
-      for (final entity in Directory('lib/screens').listSync(recursive: true)) {
-        if (entity is! File || !entity.path.endsWith('.dart')) continue;
-        final content = entity.readAsStringSync();
-        if (content.contains('provider?.providerId') ||
-            content.contains('provider!.providerId')) {
-          offenders.add(entity.path);
+    test(
+      'no screen reads provider?.providerId anymore (activeSalonId only)',
+      () {
+        final offenders = <String>[];
+        for (final entity in Directory(
+          'lib/screens',
+        ).listSync(recursive: true)) {
+          if (entity is! File || !entity.path.endsWith('.dart')) continue;
+          final content = entity.readAsStringSync();
+          if (content.contains('provider?.providerId') ||
+              content.contains('provider!.providerId')) {
+            offenders.add(entity.path);
+          }
         }
-      }
-      expect(
-        offenders,
-        isEmpty,
-        reason: 'screens must resolve the salon via activeSalonId (R6): '
-            '$offenders',
-      );
-    });
+        expect(
+          offenders,
+          isEmpty,
+          reason:
+              'screens must resolve the salon via activeSalonId (R6): '
+              '$offenders',
+        );
+      },
+    );
   });
 }

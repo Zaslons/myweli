@@ -89,23 +89,23 @@ class BrandLoader extends StatelessWidget {
             ? LayoutBuilder(
                 builder: (context, constraints) =>
                     _captionFitsIn(context, constraints)
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              mark,
-                              const SizedBox(height: AppTheme.spacingS),
-                              Text(
-                                semanticsLabel,
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: onDark
-                                      ? AppColors.surface
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          )
-                        : mark,
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          mark,
+                          const SizedBox(height: AppTheme.spacingS),
+                          Text(
+                            semanticsLabel,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: onDark
+                                  ? AppColors.surface
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      )
+                    : mark,
               )
             : mark,
       ),
@@ -127,8 +127,10 @@ class BrandLoader extends StatelessWidget {
   /// including 2×.
   bool _captionFitsIn(BuildContext context, BoxConstraints constraints) {
     if (!constraints.hasBoundedHeight) return true;
-    final line = MediaQuery.textScalerOf(context)
-            .scale(AppTextStyles.bodySmall.fontSize!) *
+    final line =
+        MediaQuery.textScalerOf(
+          context,
+        ).scale(AppTextStyles.bodySmall.fontSize!) *
         AppTextStyles.bodySmall.height!;
     return constraints.maxHeight >= size + AppTheme.spacingS + line;
   }

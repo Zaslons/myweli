@@ -66,28 +66,27 @@ class MockProClientsService implements ProClientsServiceInterface {
     await Future.delayed(AppConstants.mockDelay);
     final q = (query ?? '').trim().toLowerCase();
     final qDigits = _digits(q);
-    final filtered = _clients
-        .where((c) => tag == null || tag.isEmpty || c.tags.contains(tag))
-        .where((c) {
-      if (q.isEmpty) return true;
-      if (c.displayName.toLowerCase().contains(q)) return true;
-      return qDigits.length >= 2 &&
-          c.phone != null &&
-          _digits(c.phone!).contains(qDigits);
-    }).toList()
-      ..sort((a, b) {
-        if (a.lastVisitAt == null && b.lastVisitAt == null) return 0;
-        if (a.lastVisitAt == null) return 1;
-        if (b.lastVisitAt == null) return -1;
-        return b.lastVisitAt!.compareTo(a.lastVisitAt!);
-      });
+    final filtered =
+        _clients
+            .where((c) => tag == null || tag.isEmpty || c.tags.contains(tag))
+            .where((c) {
+              if (q.isEmpty) return true;
+              if (c.displayName.toLowerCase().contains(q)) return true;
+              return qDigits.length >= 2 &&
+                  c.phone != null &&
+                  _digits(c.phone!).contains(qDigits);
+            })
+            .toList()
+          ..sort((a, b) {
+            if (a.lastVisitAt == null && b.lastVisitAt == null) return 0;
+            if (a.lastVisitAt == null) return 1;
+            if (b.lastVisitAt == null) return -1;
+            return b.lastVisitAt!.compareTo(a.lastVisitAt!);
+          });
     final start = (page - 1) * pageSize;
     final items = start >= filtered.length
         ? <SalonClient>[]
-        : filtered.sublist(
-            start,
-            (start + pageSize).clamp(0, filtered.length),
-          );
+        : filtered.sublist(start, (start + pageSize).clamp(0, filtered.length));
     return ApiResponse.success(
       SalonClientsPage(
         items: items,

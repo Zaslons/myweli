@@ -38,28 +38,30 @@ void main() {
       expect(byTag.data!.items.single.displayName, 'Aïcha Koné');
     });
 
-    test('addClient dedupes by phone → client_exists + the EXISTING id',
-        () async {
-      final service = MockProClientsService();
-      final dup = await service.addClient(
-        'p1',
-        name: 'Doublon',
-        phone: '+2250700000001', // Aïcha's number
-      );
-      expect(dup.success, isFalse);
-      expect(dup.code, 'client_exists');
-      expect(dup.data, 'sc1');
+    test(
+      'addClient dedupes by phone → client_exists + the EXISTING id',
+      () async {
+        final service = MockProClientsService();
+        final dup = await service.addClient(
+          'p1',
+          name: 'Doublon',
+          phone: '+2250700000001', // Aïcha's number
+        );
+        expect(dup.success, isFalse);
+        expect(dup.code, 'client_exists');
+        expect(dup.data, 'sc1');
 
-      final ok = await service.addClient(
-        'p1',
-        name: 'Nouvelle',
-        phone: '+2250700000099',
-        note: 'Vient de l’immeuble d’en face',
-      );
-      expect(ok.success, isTrue);
-      final card = await service.getCard('p1', ok.data!);
-      expect(card.data!.notes.single.body, 'Vient de l’immeuble d’en face');
-    });
+        final ok = await service.addClient(
+          'p1',
+          name: 'Nouvelle',
+          phone: '+2250700000099',
+          note: 'Vient de l’immeuble d’en face',
+        );
+        expect(ok.success, isTrue);
+        final card = await service.getCard('p1', ok.data!);
+        expect(card.data!.notes.single.body, 'Vient de l’immeuble d’en face');
+      },
+    );
 
     test('tags validated; notes capped at 500', () async {
       final service = MockProClientsService();
@@ -130,20 +132,22 @@ void main() {
   group('ApiProClientsService', () {
     ApiProClientsService linked(MockClient client) {
       final store = InMemorySessionStore();
-      store.save(jsonEncode({
-        'token': 'tok',
-        'refreshToken': 'r1',
-        'provider': {
-          'id': 'acc1',
-          'phoneNumber': '+2250500000000',
-          'businessName': 'Salon',
-          'businessType': 'salon',
-          'verificationStatus': 'pending',
-          'kycDocs': <Map<String, dynamic>>[],
-          'createdAt': '2026-01-01T00:00:00.000Z',
-          'providerId': 'provider1',
-        },
-      }));
+      store.save(
+        jsonEncode({
+          'token': 'tok',
+          'refreshToken': 'r1',
+          'provider': {
+            'id': 'acc1',
+            'phoneNumber': '+2250500000000',
+            'businessName': 'Salon',
+            'businessType': 'salon',
+            'verificationStatus': 'pending',
+            'kycDocs': <Map<String, dynamic>>[],
+            'createdAt': '2026-01-01T00:00:00.000Z',
+            'providerId': 'provider1',
+          },
+        }),
+      );
       return ApiProClientsService(
         client: client,
         baseUrl: 'http://x',
@@ -152,16 +156,16 @@ void main() {
     }
 
     Map<String, dynamic> clientJson() => {
-          'id': 'sc1',
-          'displayName': 'Aïcha',
-          'phone': '+2250700000001',
-          'tags': ['VIP'],
-          'lastVisitAt': '2026-07-01T10:00:00.000Z',
-          'linked': true,
-          'createdAt': '2026-06-01T10:00:00.000Z',
-          'visits': 4,
-          'noShows': 1,
-        };
+      'id': 'sc1',
+      'displayName': 'Aïcha',
+      'phone': '+2250700000001',
+      'tags': ['VIP'],
+      'lastVisitAt': '2026-07-01T10:00:00.000Z',
+      'linked': true,
+      'createdAt': '2026-06-01T10:00:00.000Z',
+      'visits': 4,
+      'noShows': 1,
+    };
 
     test('listClients GETs with query params and parses the page', () async {
       final client = MockClient((req) async {
@@ -180,24 +184,25 @@ void main() {
           headers: {'content-type': 'application/json'},
         );
       });
-      final res =
-          await linked(client).listClients('provider1', query: 'ami', page: 2);
+      final res = await linked(
+        client,
+      ).listClients('provider1', query: 'ami', page: 2);
       expect(res.success, isTrue);
       expect(res.data!.items.single.visits, 4);
       expect(res.data!.total, 21);
     });
 
     test('addClient 409 carries the existing card id', () async {
-      final client = MockClient((req) async => http.Response(
-            jsonEncode({'error': 'client_exists', 'clientId': 'sc9'}),
-            409,
-            headers: {'content-type': 'application/json'},
-          ));
-      final res = await linked(client).addClient(
-        'provider1',
-        name: 'X',
-        phone: '+2250700000001',
+      final client = MockClient(
+        (req) async => http.Response(
+          jsonEncode({'error': 'client_exists', 'clientId': 'sc9'}),
+          409,
+          headers: {'content-type': 'application/json'},
+        ),
       );
+      final res = await linked(
+        client,
+      ).addClient('provider1', name: 'X', phone: '+2250700000001');
       expect(res.success, isFalse);
       expect(res.code, 'client_exists');
       expect(res.data, 'sc9');

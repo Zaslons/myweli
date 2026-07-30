@@ -18,9 +18,11 @@ void main() {
       const noCaption = BeforeAfterPair(before: 'b.jpg', after: 'a.jpg');
       expect(noCaption.toJson().containsKey('caption'), isFalse);
       // A blank caption decodes to null (not '').
-      final blank = BeforeAfterPair.fromJson(
-        const {'before': 'b.jpg', 'after': 'a.jpg', 'caption': '   '},
-      );
+      final blank = BeforeAfterPair.fromJson(const {
+        'before': 'b.jpg',
+        'after': 'a.jpg',
+        'caption': '   ',
+      });
       expect(blank.caption, isNull);
     });
   });

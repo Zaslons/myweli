@@ -27,9 +27,9 @@ void main() {
       // any un-wrapped root get.
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(
-        disableAnimations: true,
-        reduceMotion: true,
-      );
+            disableAnimations: true,
+            reduceMotion: true,
+          );
       addTearDown(tester.platformDispatcher.clearAllTestValues);
 
       await pumpGolden(

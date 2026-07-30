@@ -47,9 +47,9 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncLock();
       context.read<ProJournalProvider>().load(
-            _providerId,
-            tz: context.read<ProAuthProvider>().salonTimezone,
-          );
+        _providerId,
+        tz: context.read<ProAuthProvider>().salonTimezone,
+      );
     });
   }
 
@@ -212,13 +212,13 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           onTap: _ownMode
               ? null
               : () => context.push(
-                    '/pro/appointment/new',
-                    extra: {
-                      'dateTime': start.toIso8601String(),
-                      if (artistFilter != null && artistFilter.isNotEmpty)
-                        'artistId': artistFilter,
-                    },
-                  ),
+                  '/pro/appointment/new',
+                  extra: {
+                    'dateTime': start.toIso8601String(),
+                    if (artistFilter != null && artistFilter.isNotEmpty)
+                      'artistId': artistFilter,
+                  },
+                ),
           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
           child: Container(
             alignment: Alignment.center,
@@ -235,8 +235,11 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.add,
-                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+                const Icon(
+                  Icons.add,
+                  size: AppTheme.iconXS,
+                  color: AppColors.textTertiary,
+                ),
                 const SizedBox(width: AppTheme.spacingS),
                 Text(
                   'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
@@ -245,8 +248,11 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
                   ),
                 ),
                 const Spacer(),
-                const Icon(Icons.chevron_right,
-                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+                const Icon(
+                  Icons.chevron_right,
+                  size: AppTheme.iconXS,
+                  color: AppColors.textTertiary,
+                ),
               ],
             ),
           ),
@@ -373,17 +379,30 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           children: [
             if (!ownMode && a.status == AppointmentStatus.pending) ...[
               _sheetAction(Icons.check, 'Accepter', () => journal.accept(a.id)),
-              _sheetAction(Icons.close, 'Refuser', () => journal.noShow(a.id),
-                  destructive: false),
+              _sheetAction(
+                Icons.close,
+                'Refuser',
+                () => journal.noShow(a.id),
+                destructive: false,
+              ),
             ],
             if (a.status == AppointmentStatus.confirmed) ...[
               if (!ownMode && !arrived)
                 _sheetAction(
-                    Icons.login, 'Client arrivé', () => journal.arrive(a.id)),
+                  Icons.login,
+                  'Client arrivé',
+                  () => journal.arrive(a.id),
+                ),
               _sheetAction(
-                  Icons.done_all, 'Terminé', () => journal.complete(a.id)),
+                Icons.done_all,
+                'Terminé',
+                () => journal.complete(a.id),
+              ),
               _sheetAction(
-                  Icons.person_off, 'Non présenté', () => journal.noShow(a.id)),
+                Icons.person_off,
+                'Non présenté',
+                () => journal.noShow(a.id),
+              ),
             ],
             if (!ownMode &&
                 a.status != AppointmentStatus.cancelled &&
@@ -441,8 +460,9 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final picked = await showMyweliDateTimePicker(
       context: context,
       initialDate: toSalonTime(a.appointmentDate, tz: tz),
-      initialTime:
-          TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate, tz: tz)),
+      initialTime: TimeOfDay.fromDateTime(
+        toSalonTime(a.appointmentDate, tz: tz),
+      ),
       firstDate: salonToday(tz: tz),
       lastDate: salonToday(tz: tz).add(kBookingHorizon),
       today: salonToday(tz: tz),
@@ -464,8 +484,11 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     );
     final ok = await journal.reschedule(a.id, newDt);
     if (!ok && mounted) {
-      AppSnackBar.show(context, journal.error ?? 'Créneau indisponible.',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        journal.error ?? 'Créneau indisponible.',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -473,8 +496,11 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final journal = context.read<ProJournalProvider>();
     final ok = await future;
     if (!ok && mounted) {
-      AppSnackBar.show(context, journal.error ?? 'Action impossible.',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        journal.error ?? 'Action impossible.',
+        kind: SnackKind.error,
+      );
     }
   }
 }
@@ -501,14 +527,14 @@ class _Header extends StatelessWidget {
               IconButton(
                 tooltip: 'Jour précédent',
                 icon: const Icon(Icons.chevron_left),
-                onPressed: () => journal.setDate(
-                  date.subtract(const Duration(days: 1)),
-                ),
+                onPressed: () =>
+                    journal.setDate(date.subtract(const Duration(days: 1))),
               ),
               Expanded(
                 child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(minHeight: 48), // §13.2 touch target
+                  constraints: const BoxConstraints(
+                    minHeight: 48,
+                  ), // §13.2 touch target
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: onPick,
@@ -516,12 +542,14 @@ class _Header extends StatelessWidget {
                       child: Text(
                         isToday
                             ? 'Aujourd’hui'
-                            : Formatters.formatDate(toSalonTime(
-                                date,
-                                tz: context
-                                    .read<ProAuthProvider>()
-                                    .salonTimezone,
-                              )),
+                            : Formatters.formatDate(
+                                toSalonTime(
+                                  date,
+                                  tz: context
+                                      .read<ProAuthProvider>()
+                                      .salonTimezone,
+                                ),
+                              ),
                         textAlign: TextAlign.center,
                         style: AppTextStyles.titleMedium.copyWith(
                           color: AppColors.textPrimary,
@@ -534,9 +562,8 @@ class _Header extends StatelessWidget {
               IconButton(
                 tooltip: 'Jour suivant',
                 icon: const Icon(Icons.chevron_right),
-                onPressed: () => journal.setDate(
-                  date.add(const Duration(days: 1)),
-                ),
+                onPressed: () =>
+                    journal.setDate(date.add(const Duration(days: 1))),
               ),
             ],
           ),
@@ -566,8 +593,11 @@ class _WeekStrip extends StatelessWidget {
         children: [
           for (var i = 0; i < 7; i++)
             Expanded(
-              child:
-                  _dayPill(context, monday.add(Duration(days: i)), _labels[i]),
+              child: _dayPill(
+                context,
+                monday.add(Duration(days: i)),
+                _labels[i],
+              ),
             ),
         ],
       ),
@@ -592,33 +622,36 @@ class _WeekStrip extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppTheme.spacingXS),
-          Builder(builder: (context) {
-            // A tight 32×32 around the day number clipped it at 200% (the
-            // bodyMedium line is 20 at 1× but 40 at 2×). The pill is a CIRCLE,
-            // so it has to stay square: diameter = the scaled line + breathing
-            // room, floored at the 32 the design draws at 1× (§13.3).
-            const style = AppTextStyles.bodyMedium;
-            final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
-            final d0 = math.max(
-              32.0,
-              MediaQuery.textScalerOf(context).scale(line) + AppTheme.spacingS,
-            );
-            return Container(
-              width: d0,
-              height: d0,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSel ? AppColors.primary : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                '${d.day}',
-                style: style.copyWith(
-                  color: isSel ? AppColors.secondary : AppColors.textPrimary,
+          Builder(
+            builder: (context) {
+              // A tight 32×32 around the day number clipped it at 200% (the
+              // bodyMedium line is 20 at 1× but 40 at 2×). The pill is a CIRCLE,
+              // so it has to stay square: diameter = the scaled line + breathing
+              // room, floored at the 32 the design draws at 1× (§13.3).
+              const style = AppTextStyles.bodyMedium;
+              final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
+              final d0 = math.max(
+                32.0,
+                MediaQuery.textScalerOf(context).scale(line) +
+                    AppTheme.spacingS,
+              );
+              return Container(
+                width: d0,
+                height: d0,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSel ? AppColors.primary : Colors.transparent,
+                  shape: BoxShape.circle,
                 ),
-              ),
-            );
-          }),
+                child: Text(
+                  '${d.day}',
+                  style: style.copyWith(
+                    color: isSel ? AppColors.secondary : AppColors.textPrimary,
+                  ),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: AppTheme.spacingXS),
           Container(
             width: count == 0 ? 0 : (3 + count.clamp(0, 5)).toDouble(),
@@ -718,7 +751,8 @@ class _TimelineCard extends StatelessWidget {
             children: [
               Text(
                 Formatters.formatTime(
-                    toSalonTime(appt.appointmentDate, tz: tz)),
+                  toSalonTime(appt.appointmentDate, tz: tz),
+                ),
                 style: AppTextStyles.titleMedium.copyWith(
                   color: AppColors.textPrimary,
                 ),
@@ -745,8 +779,9 @@ class _TimelineCard extends StatelessWidget {
                         style: AppTextStyles.bodyLarge.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w500,
-                          decoration:
-                              cancelled ? TextDecoration.lineThrough : null,
+                          decoration: cancelled
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                     ),
@@ -763,8 +798,11 @@ class _TimelineCard extends StatelessWidget {
                     ],
                     if (appt.depositAmount > 0) ...[
                       const SizedBox(width: AppTheme.spacingXS),
-                      const Icon(Icons.savings_outlined,
-                          size: AppTheme.iconXS, color: AppColors.textTertiary),
+                      const Icon(
+                        Icons.savings_outlined,
+                        size: AppTheme.iconXS,
+                        color: AppColors.textTertiary,
+                      ),
                     ],
                   ],
                 ),
@@ -790,7 +828,9 @@ class _TimelineCard extends StatelessWidget {
   Widget _badge(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+        horizontal: AppTheme.spacingS,
+        vertical: AppTheme.spacingXS,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

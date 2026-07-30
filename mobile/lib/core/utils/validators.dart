@@ -38,8 +38,9 @@ class Validators {
         : 'Saisissez une adresse e-mail valide.';
   }
 
-  static final RegExp _emailFormat =
-      RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+  static final RegExp _emailFormat = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+  );
 
   /// The verification code. **Six digits** — the number the field's own label
   /// (« Code à 6 chiffres »), its `maxLength`, and the golden baseline all
@@ -96,19 +97,19 @@ class Validators {
 
   /// A price or deposit in FCFA — digits only, strictly positive.
   static FieldValidator amount(String what) => (value) {
-        final text = value.trim();
-        if (text.isEmpty) return 'Indiquez $what.';
-        final parsed = int.tryParse(text.replaceAll(RegExp(r'[^\d]'), ''));
-        if (parsed == null) return 'Indiquez $what en chiffres.';
-        return parsed <= 0 ? 'Indiquez $what supérieur à 0.' : null;
-      };
+    final text = value.trim();
+    if (text.isEmpty) return 'Indiquez $what.';
+    final parsed = int.tryParse(text.replaceAll(RegExp(r'[^\d]'), ''));
+    if (parsed == null) return 'Indiquez $what en chiffres.';
+    return parsed <= 0 ? 'Indiquez $what supérieur à 0.' : null;
+  };
 
   /// A duration in whole minutes, strictly positive.
   static FieldValidator minutes(String what) => (value) {
-        final text = value.trim();
-        if (text.isEmpty) return 'Indiquez $what.';
-        final parsed = int.tryParse(text);
-        if (parsed == null) return 'Indiquez $what en minutes.';
-        return parsed <= 0 ? 'Indiquez $what supérieure à 0.' : null;
-      };
+    final text = value.trim();
+    if (text.isEmpty) return 'Indiquez $what.';
+    final parsed = int.tryParse(text);
+    if (parsed == null) return 'Indiquez $what en minutes.';
+    return parsed <= 0 ? 'Indiquez $what supérieure à 0.' : null;
+  };
 }

@@ -7,9 +7,9 @@ import '../theme/colors.dart';
 /// literals). Use this everywhere a status is colored, so the pro calendar,
 /// list, and detail stay consistent. Design: docs/design/DESIGN-STANDARDS.md.
 Color appointmentStatusColor(AppointmentStatus status) => switch (status) {
-      AppointmentStatus.pending => AppColors.warning,
-      AppointmentStatus.confirmed => AppColors.info,
-      AppointmentStatus.completed => AppColors.success,
-      AppointmentStatus.cancelled => AppColors.error,
-      AppointmentStatus.noShow => AppColors.warning,
-    };
+  AppointmentStatus.pending => AppColors.warning,
+  AppointmentStatus.confirmed => AppColors.info,
+  AppointmentStatus.completed => AppColors.success,
+  AppointmentStatus.cancelled => AppColors.error,
+  AppointmentStatus.noShow => AppColors.warning,
+};

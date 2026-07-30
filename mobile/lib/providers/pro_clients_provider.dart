@@ -185,11 +185,7 @@ class ProClientsProvider extends ChangeNotifier implements SalonScoped {
     return false;
   }
 
-  Future<bool> addNote(
-    String providerId,
-    String clientId,
-    String body,
-  ) async {
+  Future<bool> addNote(String providerId, String clientId, String body) async {
     final r = await _service.addNote(providerId, clientId, body);
     if (r.success && r.data != null && _card != null) {
       _card = _card!.copyWith(notes: [r.data!, ..._card!.notes]);

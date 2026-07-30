@@ -90,38 +90,38 @@ class Provider extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        description,
-        address,
-        city,
-        commune,
-        areaId,
-        citySlug,
-        countryCode,
-        timezone,
-        currency,
-        latitude,
-        longitude,
-        imageUrls,
-        beforeAfters,
-        logoUrl,
-        rating,
-        reviewCount,
-        services,
-        artists,
-        availability,
-        phoneNumber,
-        whatsapp,
-        category,
-        verified,
-        depositRequired,
-        depositPercentage,
-        depositMobileMoneyOperator,
-        depositMobileMoneyNumber,
-        cancellationWindowHours,
-        reviews,
-      ];
+    id,
+    name,
+    description,
+    address,
+    city,
+    commune,
+    areaId,
+    citySlug,
+    countryCode,
+    timezone,
+    currency,
+    latitude,
+    longitude,
+    imageUrls,
+    beforeAfters,
+    logoUrl,
+    rating,
+    reviewCount,
+    services,
+    artists,
+    availability,
+    phoneNumber,
+    whatsapp,
+    category,
+    verified,
+    depositRequired,
+    depositPercentage,
+    depositMobileMoneyOperator,
+    depositMobileMoneyNumber,
+    cancellationWindowHours,
+    reviews,
+  ];
 
   Provider copyWith({
     String? id,
@@ -257,11 +257,12 @@ class Provider extends Equatable {
           .toList(),
       artists: json['artists'] != null
           ? (json['artists'] as List)
-              .map((a) => Artist.fromJson(a as Map<String, dynamic>))
-              .toList()
+                .map((a) => Artist.fromJson(a as Map<String, dynamic>))
+                .toList()
           : [],
-      availability:
-          Availability.fromJson(json['availability'] as Map<String, dynamic>),
+      availability: Availability.fromJson(
+        json['availability'] as Map<String, dynamic>,
+      ),
       phoneNumber: json['phoneNumber'] as String,
       whatsapp: json['whatsapp'] as String?,
       category: json['category'] as String,
@@ -274,8 +275,8 @@ class Provider extends Equatable {
       cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       reviews: json['reviews'] != null
           ? (json['reviews'] as List)
-              .map((r) => Review.fromJson(r as Map<String, dynamic>))
-              .toList()
+                .map((r) => Review.fromJson(r as Map<String, dynamic>))
+                .toList()
           : [],
     );
   }

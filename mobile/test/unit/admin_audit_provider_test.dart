@@ -20,19 +20,21 @@ void main() {
 
   test('loads entries + total; hasNext when more pages exist', () async {
     final p = AdminAuditProvider(
-      service: svc(MockClient((req) async {
-        return http.Response(
-          jsonEncode({
-            'items': [
-              {'id': 'a1', 'action': 'kyc.approve', 'actorAdminId': 'adm'},
-            ],
-            'page': 1,
-            'pageSize': 50,
-            'total': 120,
-          }),
-          200,
-        );
-      })),
+      service: svc(
+        MockClient((req) async {
+          return http.Response(
+            jsonEncode({
+              'items': [
+                {'id': 'a1', 'action': 'kyc.approve', 'actorAdminId': 'adm'},
+              ],
+              'page': 1,
+              'pageSize': 50,
+              'total': 120,
+            }),
+            200,
+          );
+        }),
+      ),
     );
 
     await p.load();
@@ -46,14 +48,13 @@ void main() {
     final pages = <String?>[];
     final actions = <String?>[];
     final p = AdminAuditProvider(
-      service: svc(MockClient((req) async {
-        pages.add(req.url.queryParameters['page']);
-        actions.add(req.url.queryParameters['action']);
-        return http.Response(
-          jsonEncode({'items': [], 'total': 0}),
-          200,
-        );
-      })),
+      service: svc(
+        MockClient((req) async {
+          pages.add(req.url.queryParameters['page']);
+          actions.add(req.url.queryParameters['action']);
+          return http.Response(jsonEncode({'items': [], 'total': 0}), 200);
+        }),
+      ),
     );
 
     await p.load();
@@ -66,12 +67,11 @@ void main() {
 
   test('next/prev page navigation moves the window', () async {
     final p = AdminAuditProvider(
-      service: svc(MockClient((req) async {
-        return http.Response(
-          jsonEncode({'items': [], 'total': 200}),
-          200,
-        );
-      })),
+      service: svc(
+        MockClient((req) async {
+          return http.Response(jsonEncode({'items': [], 'total': 200}), 200);
+        }),
+      ),
     );
     await p.load();
     expect(p.page, 1);

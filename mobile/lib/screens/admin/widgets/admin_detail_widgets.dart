@@ -49,9 +49,12 @@ class AdminProfileCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textTertiary)),
+                  Text(
+                    label,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
                   Text(value, style: AppTextStyles.bodyMedium),
                 ],
               ),
@@ -81,9 +84,12 @@ class AdminBookingsCard extends StatelessWidget {
         Text('Derniers rendez-vous', style: AppTextStyles.titleSmall),
         const SizedBox(height: AppTheme.spacingS),
         if (items.isEmpty)
-          Text('Aucun rendez-vous.',
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textTertiary))
+          Text(
+            'Aucun rendez-vous.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          )
         else
           Container(
             decoration: BoxDecoration(
@@ -107,7 +113,9 @@ class AdminBookingsCard extends StatelessWidget {
     final price = a['totalPrice'] as num?;
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM, vertical: AppTheme.spacingSM),
+        horizontal: AppTheme.spacingM,
+        vertical: AppTheme.spacingSM,
+      ),
       decoration: BoxDecoration(
         border: last
             ? null
@@ -134,8 +142,9 @@ class AdminBookingsCard extends StatelessWidget {
             child: Text(
               // Platform console — platform currency by design (multi-pays).
               price == null ? '—' : Formatters.formatCurrency(price.toDouble()),
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
           Expanded(
@@ -144,8 +153,9 @@ class AdminBookingsCard extends StatelessWidget {
               '${a['clientName'] ?? '—'}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
           if (onOpenDispute != null)
@@ -189,8 +199,10 @@ class AdminEvidenceImage extends StatelessWidget {
                 ? const ColoredBox(
                     color: AppColors.surfaceVariant,
                     child: Center(
-                      child: Icon(Icons.receipt_long_outlined,
-                          color: AppColors.textTertiary),
+                      child: Icon(
+                        Icons.receipt_long_outlined,
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   )
                 : GestureDetector(
@@ -236,8 +248,11 @@ class AdminActionBar extends StatelessWidget {
 
 /// Centered error + retry for a detail screen that failed to load.
 class AdminDetailError extends StatelessWidget {
-  const AdminDetailError(
-      {super.key, required this.message, required this.onRetry});
+  const AdminDetailError({
+    super.key,
+    required this.message,
+    required this.onRetry,
+  });
 
   final String message;
   final VoidCallback onRetry;

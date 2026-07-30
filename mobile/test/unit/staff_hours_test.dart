@@ -6,17 +6,13 @@ import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 TimeSlot _ts(int startHour, int endHour) => TimeSlot(
-      startTime: DateTime(2000, 1, 1, startHour),
-      endTime: DateTime(2000, 1, 1, endHour),
-      isAvailable: true,
-    );
+  startTime: DateTime(2000, 1, 1, startHour),
+  endTime: DateTime(2000, 1, 1, endHour),
+  isAvailable: true,
+);
 
-Artist _artist(Map<int, List<TimeSlot>> hours) => Artist(
-      id: 'a',
-      name: 'a',
-      providerId: 'p',
-      workingHours: hours,
-    );
+Artist _artist(Map<int, List<TimeSlot>> hours) =>
+    Artist(id: 'a', name: 'a', providerId: 'p', workingHours: hours);
 
 void main() {
   group('Artist.workingHours model', () {
@@ -42,13 +38,16 @@ void main() {
     final tue = DateTime(2026, 6, 23); // a Tuesday
     final dayIdx = tue.weekday - 1;
     final artist = _artist({
-      dayIdx: [_ts(10, 17)]
+      dayIdx: [_ts(10, 17)],
     });
 
     test('inherits salon hours when no working hours set', () {
       expect(
-        artistWorksDuring(_artist(const {}), DateTime(2026, 6, 23, 8),
-            DateTime(2026, 6, 23, 9)),
+        artistWorksDuring(
+          _artist(const {}),
+          DateTime(2026, 6, 23, 8),
+          DateTime(2026, 6, 23, 9),
+        ),
         isTrue,
       );
     });
@@ -56,7 +55,10 @@ void main() {
     test('true when the window is within the day range', () {
       expect(
         artistWorksDuring(
-            artist, DateTime(2026, 6, 23, 10), DateTime(2026, 6, 23, 11)),
+          artist,
+          DateTime(2026, 6, 23, 10),
+          DateTime(2026, 6, 23, 11),
+        ),
         isTrue,
       );
     });
@@ -64,12 +66,18 @@ void main() {
     test('false before opening or after closing', () {
       expect(
         artistWorksDuring(
-            artist, DateTime(2026, 6, 23, 9), DateTime(2026, 6, 23, 10)),
+          artist,
+          DateTime(2026, 6, 23, 9),
+          DateTime(2026, 6, 23, 10),
+        ),
         isFalse,
       );
       expect(
-        artistWorksDuring(artist, DateTime(2026, 6, 23, 16, 30),
-            DateTime(2026, 6, 23, 17, 30)),
+        artistWorksDuring(
+          artist,
+          DateTime(2026, 6, 23, 16, 30),
+          DateTime(2026, 6, 23, 17, 30),
+        ),
         isFalse,
       );
     });
@@ -77,8 +85,11 @@ void main() {
     test('false on a day with no range (day off)', () {
       final off = tue.add(const Duration(days: 1)); // different weekday
       expect(
-        artistWorksDuring(artist, DateTime(off.year, off.month, off.day, 11),
-            DateTime(off.year, off.month, off.day, 12)),
+        artistWorksDuring(
+          artist,
+          DateTime(off.year, off.month, off.day, 11),
+          DateTime(off.year, off.month, off.day, 12),
+        ),
         isFalse,
       );
     });
@@ -101,8 +112,7 @@ void main() {
             date: d,
             serviceIds: serviceIds,
             artistId: artistId,
-          ))
-              .data!;
+          )).data!;
 
       // Find a day where the full-hours artist has an early (<10:00) slot and
       // the part-time artist also works (so the difference is observable).
@@ -116,8 +126,11 @@ void main() {
           break;
         }
       }
-      expect(day, isNotNull,
-          reason: 'expected a day with early salon slots and artist5 working');
+      expect(
+        day,
+        isNotNull,
+        reason: 'expected a day with early salon slots and artist5 working',
+      );
 
       final artist5Slots = await slots(day!, 'artist5');
       // Part-timer never offered before 10:00...

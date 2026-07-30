@@ -38,7 +38,8 @@ class NotificationPreferencesScreen extends StatefulWidget {
 }
 
 class _NotificationPreferencesScreenState
-    extends State<NotificationPreferencesScreen> with WidgetsBindingObserver {
+    extends State<NotificationPreferencesScreen>
+    with WidgetsBindingObserver {
   bool _osDenied = false;
 
   @override
@@ -65,7 +66,8 @@ class _NotificationPreferencesScreenState
   }
 
   Future<void> _refreshOsPermission() async {
-    final read = widget.permissionStatus ??
+    final read =
+        widget.permissionStatus ??
         serviceLocator.pushNotificationService.permissionStatus;
     final status = await read();
     if (!mounted) return;
@@ -78,8 +80,10 @@ class _NotificationPreferencesScreenState
     final ok = await action();
     if (!ok && mounted) {
       AppSnackBar.showOn(
-          messenger, provider.error ?? 'Impossible d’enregistrer. Réessayez.',
-          kind: SnackKind.error);
+        messenger,
+        provider.error ?? 'Impossible d’enregistrer. Réessayez.',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -99,8 +103,11 @@ class _NotificationPreferencesScreenState
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: AppTheme.iconXL, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: AppTheme.iconXL,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(height: AppTheme.spacingM),
                     Text(
                       provider.error ?? 'Erreur lors du chargement',
@@ -162,8 +169,11 @@ class _NotificationPreferencesScreenState
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline,
-                      size: AppTheme.iconS, color: AppColors.textTertiary),
+                  const Icon(
+                    Icons.info_outline,
+                    size: AppTheme.iconS,
+                    color: AppColors.textTertiary,
+                  ),
                   const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(

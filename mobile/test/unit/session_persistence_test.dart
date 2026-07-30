@@ -19,8 +19,9 @@ void main() {
     await login(MockAuthService(sessionStore: store));
 
     // Simulate an app restart: a fresh service over the same store.
-    final restored =
-        await MockAuthService(sessionStore: store).getCurrentUser();
+    final restored = await MockAuthService(
+      sessionStore: store,
+    ).getCurrentUser();
     expect(restored, isNotNull);
     expect(restored!.phoneNumber, phone);
   });

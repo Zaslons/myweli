@@ -32,11 +32,7 @@ class EmptyState extends StatelessWidget {
         // it re-fills the box and the scroll view has nothing to scroll.
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: AppTheme.iconXL,
-            color: AppColors.textTertiary,
-          ),
+          Icon(icon, size: AppTheme.iconXL, color: AppColors.textTertiary),
           const SizedBox(height: AppTheme.spacingL),
           Text(
             title,

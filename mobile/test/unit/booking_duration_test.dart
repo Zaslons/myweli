@@ -6,16 +6,15 @@ Service _svc(
   String id, {
   int duration = 30,
   DurationVariants variants = const DurationVariants(),
-}) =>
-    Service(
-      id: id,
-      name: id,
-      description: '',
-      price: 1000,
-      durationMinutes: duration,
-      durationVariants: variants,
-      providerId: 'p1',
-    );
+}) => Service(
+  id: id,
+  name: id,
+  description: '',
+  price: 1000,
+  durationMinutes: duration,
+  durationVariants: variants,
+  providerId: 'p1',
+);
 
 void main() {
   const tissage = DurationVariants(court: 120, moyen: 180, long: 240);
@@ -58,7 +57,9 @@ void main() {
   test('bookingHasVariants detects any variant service', () {
     expect(bookingHasVariants([_svc('a'), _svc('b')]), isFalse);
     expect(
-        bookingHasVariants([_svc('a'), _svc('b', variants: tissage)]), isTrue);
+      bookingHasVariants([_svc('a'), _svc('b', variants: tissage)]),
+      isTrue,
+    );
   });
 
   test('availableLengthVariants returns the ordered union', () {
@@ -75,8 +76,9 @@ void main() {
     });
     test('else first available', () {
       expect(
-        defaultLengthVariant(
-            [_svc('a', variants: const DurationVariants(long: 200))]),
+        defaultLengthVariant([
+          _svc('a', variants: const DurationVariants(long: 200)),
+        ]),
         'long',
       );
     });

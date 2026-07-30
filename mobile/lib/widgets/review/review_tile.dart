@@ -48,8 +48,9 @@ class ReviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
+    final initial = review.userName.isNotEmpty
+        ? review.userName[0].toUpperCase()
+        : '?';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -170,8 +171,9 @@ class ReviewTile extends StatelessWidget {
                       return GestureDetector(
                         onTap: () => _openPhoto(context, url),
                         child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusMedium),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
                           child: TimedCachedImage(
                             imageUrl: url,
                             width: 64,
@@ -219,7 +221,9 @@ class _VerifiedBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+        horizontal: AppTheme.spacingS,
+        vertical: AppTheme.spacingXS,
+      ),
       decoration: BoxDecoration(
         color: AppColors.success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppTheme.radiusPill),
@@ -227,8 +231,11 @@ class _VerifiedBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified,
-              size: AppTheme.iconXS, color: AppColors.success),
+          const Icon(
+            Icons.verified,
+            size: AppTheme.iconXS,
+            color: AppColors.success,
+          ),
           const SizedBox(width: AppTheme.spacingXS),
           // A11 C5: « Réservation vérifiée » is 20 characters inside a pill, and
           // at 200% it wants 225dp in the 212dp the tile can offer. `Flexible`
@@ -238,8 +245,9 @@ class _VerifiedBadge extends StatelessWidget {
           Flexible(
             child: Text(
               'Réservation vérifiée',
-              style:
-                  AppTextStyles.labelSmall.copyWith(color: AppColors.success),
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.success,
+              ),
             ),
           ),
         ],

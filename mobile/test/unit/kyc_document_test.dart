@@ -29,13 +29,15 @@ void main() {
   });
 
   test('a freelancer (other) does not need the business registration', () {
-    expect(
-      requiredKycDocuments(BusinessType.other),
-      [KycDocumentType.idCard, KycDocumentType.selfie],
-    );
+    expect(requiredKycDocuments(BusinessType.other), [
+      KycDocumentType.idCard,
+      KycDocumentType.selfie,
+    ]);
     expect(
       isKycDocumentRequired(
-          KycDocumentType.businessRegistration, BusinessType.other),
+        KycDocumentType.businessRegistration,
+        BusinessType.other,
+      ),
       isFalse,
     );
   });

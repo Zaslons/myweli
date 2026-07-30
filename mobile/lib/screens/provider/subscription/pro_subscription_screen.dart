@@ -52,11 +52,12 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
   }
 
   Future<void> _contact([String? message]) => openWhatsApp(
-        context,
-        number: AppConfig.supportWhatsApp,
-        message: message ??
-            'Bonjour Myweli, je souhaite activer mon offre pour mon salon.',
-      );
+    context,
+    number: AppConfig.supportWhatsApp,
+    message:
+        message ??
+        'Bonjour Myweli, je souhaite activer mon offre pour mon salon.',
+  );
 
   Future<void> _choose(String providerId, SalonTier tier) async {
     final provider = context.read<ProSubscriptionProvider>();
@@ -66,15 +67,19 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     if (!mounted) return;
     if (ok) {
       AppSnackBar.showOn(
-          messenger,
-          wasSetup
-              ? 'Offre ${salonTierLabel(tier)} choisie — '
+        messenger,
+        wasSetup
+            ? 'Offre ${salonTierLabel(tier)} choisie — '
                   '${SubscriptionPlans.trialMonths} mois offerts !'
-              : 'Vous êtes maintenant sur l’offre ${salonTierLabel(tier)}.',
-          kind: SnackKind.success);
+            : 'Vous êtes maintenant sur l’offre ${salonTierLabel(tier)}.',
+        kind: SnackKind.success,
+      );
     } else if (provider.chooseErrorCode != 'trial_used') {
-      AppSnackBar.showOn(messenger, provider.chooseError ?? 'Choix impossible.',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        provider.chooseError ?? 'Choix impossible.',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -201,8 +206,11 @@ class _Body extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.info_outline,
-                size: AppTheme.iconS, color: AppColors.textTertiary),
+            const Icon(
+              Icons.info_outline,
+              size: AppTheme.iconS,
+              color: AppColors.textTertiary,
+            ),
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
@@ -239,47 +247,47 @@ class _StatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final (bg, fg, icon, title, subtitle, urgent) = switch (salon.status) {
       SalonOfferStatus.trial => (
-          AppColors.successLight.withValues(alpha: 0.12),
-          AppColors.success,
-          Icons.card_giftcard,
-          'Essai gratuit — ${salon.trialDaysLeft} jour'
-              '${salon.trialDaysLeft > 1 ? 's' : ''} restant'
-              '${salon.trialDaysLeft > 1 ? 's' : ''}',
-          'Offre ${salon.tierLabel} · se termine le '
-              '${Formatters.formatDate(salon.trialEndsAt)}',
-          false,
-        ),
+        AppColors.successLight.withValues(alpha: 0.12),
+        AppColors.success,
+        Icons.card_giftcard,
+        'Essai gratuit — ${salon.trialDaysLeft} jour'
+            '${salon.trialDaysLeft > 1 ? 's' : ''} restant'
+            '${salon.trialDaysLeft > 1 ? 's' : ''}',
+        'Offre ${salon.tierLabel} · se termine le '
+            '${Formatters.formatDate(salon.trialEndsAt)}',
+        false,
+      ),
       SalonOfferStatus.paid => (
-          AppColors.successLight.withValues(alpha: 0.12),
-          AppColors.success,
-          Icons.verified,
-          'Offre ${salon.tierLabel} active',
-          salon.paidUntil != null
-              ? 'Jusqu’au ${Formatters.formatDate(salon.paidUntil!)}'
-              : 'Paiement à jour',
-          false,
-        ),
+        AppColors.successLight.withValues(alpha: 0.12),
+        AppColors.success,
+        Icons.verified,
+        'Offre ${salon.tierLabel} active',
+        salon.paidUntil != null
+            ? 'Jusqu’au ${Formatters.formatDate(salon.paidUntil!)}'
+            : 'Paiement à jour',
+        false,
+      ),
       SalonOfferStatus.grace => (
-          AppColors.warningLight.withValues(alpha: 0.16),
-          AppColors.warning,
-          Icons.warning_amber,
-          'Votre offre a expiré',
-          'Jusqu’au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
-              'dépublication de votre salon. Contactez-nous pour régler.',
-          true,
-        ),
+        AppColors.warningLight.withValues(alpha: 0.16),
+        AppColors.warning,
+        Icons.warning_amber,
+        'Votre offre a expiré',
+        'Jusqu’au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
+            'dépublication de votre salon. Contactez-nous pour régler.',
+        true,
+      ),
       SalonOfferStatus.expired => (
-          AppColors.error.withValues(alpha: 0.08),
-          AppColors.error,
-          Icons.error_outline,
-          salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
-          salon.unpublishedForBilling
-              ? 'Votre salon n’est plus visible des clients. '
+        AppColors.error.withValues(alpha: 0.08),
+        AppColors.error,
+        Icons.error_outline,
+        salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
+        salon.unpublishedForBilling
+            ? 'Votre salon n’est plus visible des clients. '
                   'Contactez-nous pour réactiver — vos données sont '
                   'intactes.'
-              : 'Contactez-nous pour réactiver votre offre.',
-          true,
-        ),
+            : 'Contactez-nous pour réactiver votre offre.',
+        true,
+      ),
     };
 
     return Container(
@@ -347,8 +355,11 @@ class _SeatsBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.group_outlined,
-                  size: AppTheme.iconS, color: AppColors.textSecondary),
+              const Icon(
+                Icons.group_outlined,
+                size: AppTheme.iconS,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 '${seats.used} / ${seats.cap} places',
@@ -363,8 +374,9 @@ class _SeatsBar extends StatelessWidget {
               value: ratio.clamp(0.0, 1.0),
               minHeight: 6,
               backgroundColor: AppColors.surfaceVariant,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
             ),
           ),
         ],
@@ -512,15 +524,16 @@ class _OfferCard extends StatelessWidget {
             Text('Sur devis', style: AppTextStyles.titleMedium),
           Text(
             '${SubscriptionPlans.trialMonths} mois offerts',
-            style: AppTextStyles.titleSmall.copyWith(
-              color: AppColors.success,
-            ),
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.success),
           ),
           const SizedBox(height: AppTheme.spacingS),
           Row(
             children: [
-              const Icon(Icons.group_outlined,
-                  size: AppTheme.iconXS, color: AppColors.textSecondary),
+              const Icon(
+                Icons.group_outlined,
+                size: AppTheme.iconXS,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 seatsLine,
@@ -537,8 +550,11 @@ class _OfferCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.check,
-                      size: AppTheme.iconXS, color: AppColors.success),
+                  const Icon(
+                    Icons.check,
+                    size: AppTheme.iconXS,
+                    color: AppColors.success,
+                  ),
                   const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(

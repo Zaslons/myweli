@@ -29,8 +29,11 @@ void main() {
   group('goldens', () {
     setUpAll(loadRealFonts);
 
-    Future<void> pump(WidgetTester tester, Widget home,
-        {double scale = 1}) async {
+    Future<void> pump(
+      WidgetTester tester,
+      Widget home, {
+      double scale = 1,
+    }) async {
       goldenSurface(tester, size: Size(360, kFloorPhone.height));
       tester.platformDispatcher.textScaleFactorTestValue = scale;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -74,8 +77,9 @@ void main() {
       await expectGolden(tester, 'components_time_range_picker_w360');
     });
 
-    testWidgets('the range picker at 200% — both chips still readable',
-        (tester) async {
+    testWidgets('the range picker at 200% — both chips still readable', (
+      tester,
+    ) async {
       // The two chips are the whole reason this is one screen: at 2× they must
       // still both fit the row, or the control is back to hiding half its state.
       await pump(tester, range, scale: 2);

@@ -20,11 +20,15 @@ AppointmentStatus effectiveAppointmentStatus(Appointment a, DateTime now) {
 
 /// Completed past visits (effective status), newest first.
 List<Appointment> visitHistory(List<Appointment> appointments, DateTime now) {
-  final visits = appointments
-      .where((a) =>
-          effectiveAppointmentStatus(a, now) == AppointmentStatus.completed)
-      .toList()
-    ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
+  final visits =
+      appointments
+          .where(
+            (a) =>
+                effectiveAppointmentStatus(a, now) ==
+                AppointmentStatus.completed,
+          )
+          .toList()
+        ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
   return visits;
 }
 
@@ -59,8 +63,7 @@ List<VisitMonthGroup> groupVisitsByMonth(List<Appointment> visits) {
       month: DateTime(first.year, first.month),
       visits: sorted,
     );
-  }).toList()
-    ..sort((a, b) => b.month.compareTo(a.month));
+  }).toList()..sort((a, b) => b.month.compareTo(a.month));
 
   return groups;
 }

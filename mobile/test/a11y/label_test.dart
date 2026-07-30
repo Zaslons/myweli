@@ -21,20 +21,22 @@ void main() {
   });
 
   Widget card({bool isGrid = false}) => ProviderCard(
-        provider: MockData.providers.first,
-        isGrid: isGrid,
-        onTap: () {},
-      );
+    provider: MockData.providers.first,
+    isGrid: isGrid,
+    onTap: () {},
+  );
 
-  testWidgets('ProviderCard (list) — the favourite heart is labelled',
-      (tester) async {
+  testWidgets('ProviderCard (list) — the favourite heart is labelled', (
+    tester,
+  ) async {
     final handle = await pumpForA11y(tester, card(), providers: favProviders());
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     handle.dispose();
   });
 
-  testWidgets('ProviderCard (grid) — the favourite heart is labelled',
-      (tester) async {
+  testWidgets('ProviderCard (grid) — the favourite heart is labelled', (
+    tester,
+  ) async {
     final handle = await pumpForA11y(
       tester,
       card(isGrid: true),
@@ -53,8 +55,9 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('AdminSegmentedControl — the segments are labelled',
-      (tester) async {
+  testWidgets('AdminSegmentedControl — the segments are labelled', (
+    tester,
+  ) async {
     final handle = await pumpForA11y(
       tester,
       AdminSegmentedControl(

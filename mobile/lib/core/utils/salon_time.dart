@@ -96,8 +96,7 @@ DateTime salonWallClockToUtc(
   int hour = 0,
   int minute = 0,
   String? tz,
-}) =>
-    tzdb.TZDateTime(locationOf(tz), year, month, day, hour, minute).toUtc();
+}) => tzdb.TZDateTime(locationOf(tz), year, month, day, hour, minute).toUtc();
 
 /// Whether two instants fall on the same SALON calendar day.
 bool isSameSalonDay(DateTime a, DateTime b, {String? tz}) {
@@ -124,8 +123,7 @@ DateTime salonDateTime(
   int hour = 0,
   int minute = 0,
   String? tz,
-}) =>
-    tzdb.TZDateTime(locationOf(tz), year, month, day, hour, minute).toUtc();
+}) => tzdb.TZDateTime(locationOf(tz), year, month, day, hour, minute).toUtc();
 
 /// Whether the device clock disagrees with the salon's at [at] — drives the
 /// « Heures affichées : heure du salon » hint. Injectable offset for tests.
@@ -135,7 +133,8 @@ bool deviceOffsetDiffersFromSalon({
   DateTime? at,
 }) {
   final instant = at ?? AppClock.now();
-  final salonOffset =
-      locationOf(tz).timeZone(instant.millisecondsSinceEpoch).offset;
+  final salonOffset = locationOf(
+    tz,
+  ).timeZone(instant.millisecondsSinceEpoch).offset;
   return (deviceOffset ?? instant.timeZoneOffset) != salonOffset;
 }

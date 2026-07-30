@@ -2,20 +2,9 @@ import 'package:equatable/equatable.dart';
 
 import 'kyc_document.dart';
 
-enum BusinessType {
-  salon,
-  barber,
-  spa,
-  nailSalon,
-  massage,
-  other,
-}
+enum BusinessType { salon, barber, spa, nailSalon, massage, other }
 
-enum VerificationStatus {
-  pending,
-  verified,
-  rejected,
-}
+enum VerificationStatus { pending, verified, rejected }
 
 class ProviderUser extends Equatable {
   final String id;
@@ -52,19 +41,19 @@ class ProviderUser extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        phoneNumber,
-        name,
-        businessName,
-        businessType,
-        email,
-        address,
-        verificationStatus,
-        rejectionReason,
-        kycDocs,
-        createdAt,
-        providerId,
-      ];
+    id,
+    phoneNumber,
+    name,
+    businessName,
+    businessType,
+    email,
+    address,
+    verificationStatus,
+    rejectionReason,
+    kycDocs,
+    createdAt,
+    providerId,
+  ];
 
   ProviderUser copyWith({
     String? id,
@@ -132,8 +121,8 @@ class ProviderUser extends Equatable {
       rejectionReason: json['rejectionReason'] as String?,
       kycDocs: json['kycDocs'] != null
           ? (json['kycDocs'] as List)
-              .map((d) => KycDocument.fromJson(d as Map<String, dynamic>))
-              .toList()
+                .map((d) => KycDocument.fromJson(d as Map<String, dynamic>))
+                .toList()
           : const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
       providerId: json['providerId'] as String?,

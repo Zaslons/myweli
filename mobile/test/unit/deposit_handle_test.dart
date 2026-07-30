@@ -26,36 +26,41 @@ void main() {
   });
 
   group('models carry the deposit handle / proof', () {
-    test('Provider round-trips the deposit handle (default off when absent)',
-        () {
-      const p = models.Provider(
-        id: 'p1',
-        name: 'Salon',
-        description: '',
-        address: 'x',
-        imageUrls: [],
-        rating: 4.0,
-        reviewCount: 1,
-        services: [],
-        availability: Availability(
-            providerId: 'p1', weeklySchedule: {}, blockedDates: []),
-        phoneNumber: '+22500',
-        category: 'salon',
-        depositRequired: true,
-        depositMobileMoneyOperator: 'wave',
-        depositMobileMoneyNumber: '+2250707123456',
-      );
-      final back = models.Provider.fromJson(p.toJson());
-      expect(back.depositMobileMoneyOperator, 'wave');
-      expect(back.depositMobileMoneyNumber, '+2250707123456');
+    test(
+      'Provider round-trips the deposit handle (default off when absent)',
+      () {
+        const p = models.Provider(
+          id: 'p1',
+          name: 'Salon',
+          description: '',
+          address: 'x',
+          imageUrls: [],
+          rating: 4.0,
+          reviewCount: 1,
+          services: [],
+          availability: Availability(
+            providerId: 'p1',
+            weeklySchedule: {},
+            blockedDates: [],
+          ),
+          phoneNumber: '+22500',
+          category: 'salon',
+          depositRequired: true,
+          depositMobileMoneyOperator: 'wave',
+          depositMobileMoneyNumber: '+2250707123456',
+        );
+        final back = models.Provider.fromJson(p.toJson());
+        expect(back.depositMobileMoneyOperator, 'wave');
+        expect(back.depositMobileMoneyNumber, '+2250707123456');
 
-      final json = p.toJson()
-        ..remove('depositRequired')
-        ..remove('depositMobileMoneyOperator');
-      final defaulted = models.Provider.fromJson(json);
-      expect(defaulted.depositRequired, isFalse);
-      expect(defaulted.depositMobileMoneyOperator, isNull);
-    });
+        final json = p.toJson()
+          ..remove('depositRequired')
+          ..remove('depositMobileMoneyOperator');
+        final defaulted = models.Provider.fromJson(json);
+        expect(defaulted.depositRequired, isFalse);
+        expect(defaulted.depositMobileMoneyOperator, isNull);
+      },
+    );
 
     test('Appointment round-trips the deposit screenshot URL', () {
       final a = Appointment(
@@ -70,31 +75,35 @@ void main() {
         depositScreenshotUrl: 'asset:proof.png',
         createdAt: DateTime(2026),
       );
-      expect(Appointment.fromJson(a.toJson()).depositScreenshotUrl,
-          'asset:proof.png');
+      expect(
+        Appointment.fromJson(a.toJson()).depositScreenshotUrl,
+        'asset:proof.png',
+      );
     });
   });
 
-  test('a deposit booking is created pending, with the screenshot attached',
-      () async {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    SharedPreferences.setMockInitialValues({});
-    final service = MockAppointmentService();
+  test(
+    'a deposit booking is created pending, with the screenshot attached',
+    () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+      final service = MockAppointmentService();
 
-    final res = await service.bookAppointment(
-      providerId: 'provider2',
-      serviceIds: const ['service4'],
-      appointmentDateTime: DateTime.now().add(const Duration(days: 3)),
-      depositAmount: 6000,
-      depositScreenshotUrl: 'asset:proof.png',
-    );
+      final res = await service.bookAppointment(
+        providerId: 'provider2',
+        serviceIds: const ['service4'],
+        appointmentDateTime: DateTime.now().add(const Duration(days: 3)),
+        depositAmount: 6000,
+        depositScreenshotUrl: 'asset:proof.png',
+      );
 
-    expect(res.success, isTrue);
-    // Never auto-confirmed on payment — the salon confirms.
-    expect(res.data!.status, AppointmentStatus.pending);
-    expect(res.data!.depositAmount, 6000);
-    expect(res.data!.depositScreenshotUrl, 'asset:proof.png');
-  });
+      expect(res.success, isTrue);
+      // Never auto-confirmed on payment — the salon confirms.
+      expect(res.data!.status, AppointmentStatus.pending);
+      expect(res.data!.depositAmount, 6000);
+      expect(res.data!.depositScreenshotUrl, 'asset:proof.png');
+    },
+  );
 
   test('MockProService persists the deposit handle via the policy', () async {
     final service = MockProService();

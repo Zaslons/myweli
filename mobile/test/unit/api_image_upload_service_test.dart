@@ -15,11 +15,13 @@ ApiImageUploadService _service(
   String? refresh = 'r1',
 }) {
   final store = InMemorySessionStore();
-  store.save(jsonEncode({
-    'token': 'tok',
-    'refreshToken': refresh,
-    'provider': {'id': 'p1'},
-  }));
+  store.save(
+    jsonEncode({
+      'token': 'tok',
+      'refreshToken': refresh,
+      'provider': {'id': 'p1'},
+    }),
+  );
   return ApiImageUploadService(
     client: client,
     baseUrl: 'http://x',
@@ -42,7 +44,7 @@ void main() {
             'uploadUrl': 'http://storage.local/bucket',
             'fields': {
               'key': 'gallery/p1/abc.jpg',
-              'Content-Type': 'image/jpeg'
+              'Content-Type': 'image/jpeg',
             },
             'publicUrl': 'https://cdn/gallery/p1/abc.jpg',
             'maxBytes': 5242880,
@@ -58,10 +60,9 @@ void main() {
     });
 
     final progress = <double>[];
-    final res = await _service(client).uploadImage(
-      source: '/tmp/photo.jpg',
-      onProgress: progress.add,
-    );
+    final res = await _service(
+      client,
+    ).uploadImage(source: '/tmp/photo.jpg', onProgress: progress.add);
 
     expect(res.success, isTrue);
     expect(res.data, 'https://cdn/gallery/p1/abc.jpg');
@@ -70,8 +71,9 @@ void main() {
   });
 
   test('no provider session → fails fast without HTTP', () async {
-    final client =
-        MockClient((req) async => throw Exception('should not be called'));
+    final client = MockClient(
+      (req) async => throw Exception('should not be called'),
+    );
     final service = ApiImageUploadService(
       client: client,
       baseUrl: 'http://x',
@@ -95,10 +97,13 @@ void main() {
   });
 
   test('an empty/failed compression is rejected before any HTTP', () async {
-    final client =
-        MockClient((req) async => throw Exception('should not be called'));
-    final res = await _service(client, bytes: Uint8List(0))
-        .uploadImage(source: '/tmp/x.jpg');
+    final client = MockClient(
+      (req) async => throw Exception('should not be called'),
+    );
+    final res = await _service(
+      client,
+      bytes: Uint8List(0),
+    ).uploadImage(source: '/tmp/x.jpg');
     expect(res.success, isFalse);
   });
 

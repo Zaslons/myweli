@@ -57,8 +57,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final dashboardProvider =
-            Provider.of<ProDashboardProvider>(context, listen: false);
+        final dashboardProvider = Provider.of<ProDashboardProvider>(
+          context,
+          listen: false,
+        );
         _loadedForSalon = _resolvedProviderId(context);
         dashboardProvider.loadDashboardStats(_loadedForSalon!);
         // The bell's unread badge (the salon's notification feed).
@@ -75,7 +77,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await serviceLocator.proPushRegistration.maybePromptOnce(
       () => showPushPermissionSheet(
         context,
-        body: 'Soyez prévenu·e dès qu’un client réserve, annule ou modifie '
+        body:
+            'Soyez prévenu·e dès qu’un client réserve, annule ou modifie '
             'un rendez-vous, et ne manquez aucune demande.',
       ),
     );
@@ -123,9 +126,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _loadedForSalon = salonId;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
-                context
-                    .read<ProDashboardProvider>()
-                    .loadDashboardStats(salonId);
+                context.read<ProDashboardProvider>().loadDashboardStats(
+                  salonId,
+                );
               }
             });
           }
@@ -134,13 +137,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.lock_outline,
-                      size: AppTheme.iconXL, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.lock_outline,
+                    size: AppTheme.iconXL,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Veuillez vous connecter',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingM),
                   ElevatedButton(
@@ -161,8 +168,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Center(
               child: Text(
                 dashboardProvider.error ?? 'Aucune donnée disponible',
-                style: AppTextStyles.bodyLarge
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             );
           }
@@ -170,8 +178,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return BrandRefresh(
             onRefresh: () async {
               if (authProvider.provider != null) {
-                await dashboardProvider
-                    .loadDashboardStats(_resolvedProviderId(context));
+                await dashboardProvider.loadDashboardStats(
+                  _resolvedProviderId(context),
+                );
               }
             },
             child: SingleChildScrollView(
@@ -184,7 +193,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // account has several salons; « Mes salons » lives on the
                   // Profil screen too).
                   InkWell(
-                    onTap: authProvider.hasMultipleSalons ||
+                    onTap:
+                        authProvider.hasMultipleSalons ||
                             authProvider.canAddSalon
                         ? _openSalonPicker
                         : null,
@@ -195,8 +205,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Flexible(
                           child: Text(
                             'Bienvenue, ${authProvider.salonName}',
-                            style: AppTextStyles.headlineMedium
-                                .copyWith(color: AppColors.textPrimary),
+                            style: AppTextStyles.headlineMedium.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
                         if (authProvider.hasMultipleSalons ||
@@ -219,7 +230,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         leading: const Icon(Icons.checklist_rounded),
                         title: const Text('Configurer mon profil'),
                         subtitle: const Text(
-                            'Complétez les étapes pour aller en ligne'),
+                          'Complétez les étapes pour aller en ligne',
+                        ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => context.push('/pro/onboarding'),
                       ),
@@ -262,8 +274,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             title: 'Aujourd’hui',
                             value: Formatters.formatCurrency(
                               stats.todayRevenue!,
-                              currency:
-                                  context.read<ProAuthProvider>().salonCurrency,
+                              currency: context
+                                  .read<ProAuthProvider>()
+                                  .salonCurrency,
                             ),
                             subtitle: 'Revenus',
                             icon: Icons.attach_money,
@@ -276,8 +289,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             title: 'Ce mois',
                             value: Formatters.formatCurrency(
                               stats.monthRevenue!,
-                              currency:
-                                  context.read<ProAuthProvider>().salonCurrency,
+                              currency: context
+                                  .read<ProAuthProvider>()
+                                  .salonCurrency,
                             ),
                             subtitle: 'Revenus',
                             icon: Icons.trending_up,
@@ -401,8 +415,8 @@ const double _kActionGridSingleColumnAbove = 1.3;
 List<Widget> _actionRows(BuildContext context, List<Widget> cards) {
   final perRow =
       MediaQuery.textScalerOf(context).scale(1) > _kActionGridSingleColumnAbove
-          ? 1
-          : 2;
+      ? 1
+      : 2;
   if (perRow == 1) {
     final single = <Widget>[];
     for (var i = 0; i < cards.length; i++) {
@@ -428,8 +442,9 @@ List<Widget> _actionRows(BuildContext context, List<Widget> cards) {
             // An empty second slot rather than a centred single card: the odd
             // card keeps its column, so the grid stays a grid.
             Expanded(
-              child:
-                  i + 1 < cards.length ? cards[i + 1] : const SizedBox.shrink(),
+              child: i + 1 < cards.length
+                  ? cards[i + 1]
+                  : const SizedBox.shrink(),
             ),
           ],
         ),
@@ -493,8 +508,9 @@ class _StatCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Icon(icon, color: color, size: AppTheme.iconS),
               ],
@@ -503,13 +519,15 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: AppTheme.spacingS),
           Text(
             value,
-            style: AppTextStyles.headlineSmall
-                .copyWith(color: AppColors.textPrimary),
+            style: AppTextStyles.headlineSmall.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
           Text(
             subtitle,
-            style:
-                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
         ],
       ),
@@ -557,8 +575,9 @@ class _ActionCard extends StatelessWidget {
             const SizedBox(height: AppTheme.spacingS),
             Text(
               title,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: AppColors.textPrimary),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textPrimary,
+              ),
               textAlign: TextAlign.center,
             ),
           ],

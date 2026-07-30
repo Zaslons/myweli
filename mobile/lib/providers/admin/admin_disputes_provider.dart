@@ -6,7 +6,7 @@ import '../../services/admin/admin_service.dart';
 /// booking row in the support views). Design: docs/design/admin-console-ui.md §3.
 class AdminDisputesProvider extends ChangeNotifier {
   AdminDisputesProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

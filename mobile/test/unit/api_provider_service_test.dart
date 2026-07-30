@@ -30,29 +30,31 @@ Map<String, dynamic> _providerJson(
 }
 
 void main() {
-  test('getProviders parses items from the paged envelope + sends filters',
-      () async {
-    final client = MockClient((req) async {
-      expect(req.url.path, '/providers');
-      expect(req.url.queryParameters['category'], 'salon');
-      expect(req.url.queryParameters['pageSize'], '20');
-      return http.Response(
-        jsonEncode({
-          'items': [_providerJson('p1'), _providerJson('p2')],
-          'page': 1,
-          'pageSize': 20,
-          'total': 2,
-        }),
-        200,
-      );
-    });
-    final service = ApiProviderService(client: client, baseUrl: 'http://x');
+  test(
+    'getProviders parses items from the paged envelope + sends filters',
+    () async {
+      final client = MockClient((req) async {
+        expect(req.url.path, '/providers');
+        expect(req.url.queryParameters['category'], 'salon');
+        expect(req.url.queryParameters['pageSize'], '20');
+        return http.Response(
+          jsonEncode({
+            'items': [_providerJson('p1'), _providerJson('p2')],
+            'page': 1,
+            'pageSize': 20,
+            'total': 2,
+          }),
+          200,
+        );
+      });
+      final service = ApiProviderService(client: client, baseUrl: 'http://x');
 
-    final res = await service.getProviders(category: 'salon');
+      final res = await service.getProviders(category: 'salon');
 
-    expect(res.success, isTrue);
-    expect(res.data!.map((p) => p.id), ['p1', 'p2']);
-  });
+      expect(res.success, isTrue);
+      expect(res.data!.map((p) => p.id), ['p1', 'p2']);
+    },
+  );
 
   test('getProviderById returns the provider on 200', () async {
     final client = MockClient(

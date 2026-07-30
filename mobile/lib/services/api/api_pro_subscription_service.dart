@@ -19,9 +19,9 @@ class ApiProSubscriptionService implements SubscriptionServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,

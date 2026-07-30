@@ -7,7 +7,7 @@ import '../../services/admin/admin_service.dart';
 /// Design: docs/design/admin-console-ui.md §3.
 class AdminUsersProvider extends ChangeNotifier {
   AdminUsersProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 
@@ -70,7 +70,8 @@ class AdminUsersProvider extends ChangeNotifier {
       final res = await call;
       if (res.success && res.data != null) {
         final updated = res.data!;
-        final keep = _statuses[_filter] == null ||
+        final keep =
+            _statuses[_filter] == null ||
             updated['status'] == _statuses[_filter];
         final next = <Map<String, dynamic>>[];
         for (final r in _items) {

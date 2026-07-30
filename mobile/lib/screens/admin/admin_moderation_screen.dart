@@ -52,17 +52,20 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
     );
     if (reason == null || !mounted) return;
     await _run(
-        () => context.read<AdminModerationProvider>().hide(reviewId, reason),
-        'Avis masqué');
+      () => context.read<AdminModerationProvider>().hide(reviewId, reason),
+      'Avis masqué',
+    );
   }
 
   Future<void> _dismiss(String reviewId) => _run(
-      () => context.read<AdminModerationProvider>().dismiss(reviewId),
-      'Signalements ignorés');
+    () => context.read<AdminModerationProvider>().dismiss(reviewId),
+    'Signalements ignorés',
+  );
 
   Future<void> _restore(String reviewId) => _run(
-      () => context.read<AdminModerationProvider>().restore(reviewId),
-      'Avis restauré');
+    () => context.read<AdminModerationProvider>().restore(reviewId),
+    'Avis restauré',
+  );
 
   Future<void> _run(Future<bool> Function() action, String okMsg) async {
     final p = context.read<AdminModerationProvider>();
@@ -128,7 +131,8 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
               _reviewCell(
                 rating: (r['rating'] as num?)?.toInt() ?? 0,
                 text: '${r['text'] ?? ''}',
-                sub: 'par ${r['userName'] ?? 'Client'} · motif : '
+                sub:
+                    'par ${r['userName'] ?? 'Client'} · motif : '
                     '${r['lastReason'] ?? '—'}',
               ),
               Align(
@@ -146,8 +150,12 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
               ),
               _actions([
                 _btn('Masquer', () => _hide('${r['reviewId']}'), p.acting),
-                _btn('Ignorer', () => _dismiss('${r['reviewId']}'), p.acting,
-                    secondary: true),
+                _btn(
+                  'Ignorer',
+                  () => _dismiss('${r['reviewId']}'),
+                  p.acting,
+                  secondary: true,
+                ),
               ]),
             ],
           ),
@@ -187,8 +195,12 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
                 child: StatusChip.forStatus('hidden'),
               ),
               _actions([
-                _btn('Restaurer', () => _restore('${r['id']}'), p.acting,
-                    secondary: true),
+                _btn(
+                  'Restaurer',
+                  () => _restore('${r['id']}'),
+                  p.acting,
+                  secondary: true,
+                ),
               ]),
             ],
           ),
@@ -207,45 +219,59 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       children: [
         Row(
           children: [
-            const Icon(Icons.star,
-                size: AppTheme.iconXS, color: AppColors.starRating),
+            const Icon(
+              Icons.star,
+              size: AppTheme.iconXS,
+              color: AppColors.starRating,
+            ),
             const SizedBox(width: AppTheme.spacingXS),
-            Text('$rating/5',
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textSecondary)),
+            Text(
+              '$rating/5',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: AppTheme.spacingXS),
-        Text(text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodyMedium),
+        Text(
+          text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.bodyMedium,
+        ),
         const SizedBox(height: AppTheme.spacingXS),
-        Text(sub,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall
-                .copyWith(color: AppColors.textTertiary)),
+        Text(
+          sub,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
       ],
     );
   }
 
   Widget _actions(List<Widget> buttons) => Wrap(
-        spacing: AppTheme.spacingS,
-        runSpacing: AppTheme.spacingS,
-        children: buttons,
-      );
+    spacing: AppTheme.spacingS,
+    runSpacing: AppTheme.spacingS,
+    children: buttons,
+  );
 
-  Widget _btn(String label, VoidCallback onTap, bool acting,
-          {bool secondary = false}) =>
-      SizedBox(
-        width: 104,
-        child: AppButton(
-          text: label,
-          type: secondary ? AppButtonType.secondary : AppButtonType.primary,
-          onPressed: acting ? null : onTap,
-        ),
-      );
+  Widget _btn(
+    String label,
+    VoidCallback onTap,
+    bool acting, {
+    bool secondary = false,
+  }) => SizedBox(
+    width: 104,
+    child: AppButton(
+      text: label,
+      type: secondary ? AppButtonType.secondary : AppButtonType.primary,
+      onPressed: acting ? null : onTap,
+    ),
+  );
 }
 
 class _Segments extends StatelessWidget {
@@ -270,10 +296,7 @@ class _Segments extends StatelessWidget {
       padding: const EdgeInsets.all(AppTheme.spacingXS),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          _seg('Signalés', 0),
-          _seg('Masqués', 1),
-        ],
+        children: [_seg('Signalés', 0), _seg('Masqués', 1)],
       ),
     );
   }
@@ -294,22 +317,27 @@ class _Segments extends StatelessWidget {
             child: Container(
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
+                horizontal: AppTheme.spacingM,
+                vertical: AppTheme.spacingS,
+              ),
               decoration: BoxDecoration(
                 color: active ? AppColors.secondary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                border:
-                    active ? Border.all(color: AppColors.borderStrong) : null,
+                border: active
+                    ? Border.all(color: AppColors.borderStrong)
+                    : null,
               ),
               child: Text(
                 label,
-                style: (active
-                        ? AppTextStyles.titleSmall
-                        : AppTextStyles.bodyMedium)
-                    .copyWith(
-                  color:
-                      active ? AppColors.textPrimary : AppColors.textSecondary,
-                ),
+                style:
+                    (active
+                            ? AppTextStyles.titleSmall
+                            : AppTextStyles.bodyMedium)
+                        .copyWith(
+                          color: active
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
               ),
             ),
           ),

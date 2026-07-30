@@ -107,13 +107,19 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
     if (!mounted) return;
     setState(() => _submitting = false);
     if (created == null) {
-      AppSnackBar.show(context, auth.error ?? 'Création du salon impossible.',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        auth.error ?? 'Création du salon impossible.',
+        kind: SnackKind.error,
+      );
       return;
     }
     // Switched to the new draft — its setup checklist is the next step.
-    AppSnackBar.show(context, '« ${created.salonName} » créé.',
-        kind: SnackKind.success);
+    AppSnackBar.show(
+      context,
+      '« ${created.salonName} » créé.',
+      kind: SnackKind.success,
+    );
     context.go('/pro/onboarding');
   }
 
@@ -275,11 +281,11 @@ class _AddSalonScreenState extends State<AddSalonScreen> {
   }
 
   String _typeLabel(BusinessType type) => switch (type) {
-        BusinessType.salon => 'Salon de beauté',
-        BusinessType.barber => 'Barbier',
-        BusinessType.spa => 'Spa',
-        BusinessType.nailSalon => 'Institut de manucure',
-        BusinessType.massage => 'Massage',
-        BusinessType.other => 'Autre',
-      };
+    BusinessType.salon => 'Salon de beauté',
+    BusinessType.barber => 'Barbier',
+    BusinessType.spa => 'Spa',
+    BusinessType.nailSalon => 'Institut de manucure',
+    BusinessType.massage => 'Massage',
+    BusinessType.other => 'Autre',
+  };
 }

@@ -28,15 +28,15 @@ class Artist extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        imageUrl,
-        providerId,
-        specialization,
-        rating,
-        reviewCount,
-        workingHours,
-      ];
+    id,
+    name,
+    imageUrl,
+    providerId,
+    specialization,
+    rating,
+    reviewCount,
+    workingHours,
+  ];
 
   Artist copyWith({
     String? id,
@@ -87,12 +87,14 @@ class Artist extends Equatable {
       specialization: json['specialization'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       reviewCount: json['reviewCount'] as int?,
-      workingHours: (json['workingHours'] as Map?)?.map(
+      workingHours:
+          (json['workingHours'] as Map?)?.map(
             (key, value) => MapEntry(
               int.parse(key as String),
               (value as List)
                   .map(
-                      (slot) => TimeSlot.fromJson(slot as Map<String, dynamic>))
+                    (slot) => TimeSlot.fromJson(slot as Map<String, dynamic>),
+                  )
                   .toList(),
             ),
           ) ??

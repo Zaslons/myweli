@@ -8,18 +8,18 @@ enum TeamMemberStatus { active, invited, revoked }
 
 /// French display label for a role.
 String teamRoleLabel(TeamRole role) => switch (role) {
-      TeamRole.owner => 'Propriétaire',
-      TeamRole.manager => 'Manager',
-      TeamRole.reception => 'Réception',
-      TeamRole.staff => 'Collaborateur',
-    };
+  TeamRole.owner => 'Propriétaire',
+  TeamRole.manager => 'Manager',
+  TeamRole.reception => 'Réception',
+  TeamRole.staff => 'Collaborateur',
+};
 
 /// Wire string → role; unknown falls back to the MINIMAL staff shape
 /// (deny-by-default mirror — R6 shares this across the salon DTOs).
 TeamRole teamRoleFrom(String? raw) => TeamRole.values.firstWhere(
-      (r) => r.name == raw,
-      orElse: () => TeamRole.staff,
-    );
+  (r) => r.name == raw,
+  orElse: () => TeamRole.staff,
+);
 
 /// A salon team row — the owner, an active member, or a pending invitation.
 /// Mirrors the backend `TeamMember` DTO (team access R2b).
@@ -70,51 +70,51 @@ class TeamMember extends Equatable {
   String get roleLabel => teamRoleLabel(role);
 
   factory TeamMember.fromJson(Map<String, dynamic> json) => TeamMember(
-        id: json['id'] as String,
-        providerId: json['providerId'] as String? ?? '',
-        email: json['email'] as String? ?? '',
-        role: TeamRole.values.firstWhere(
-          (e) => e.name == json['role'],
-          orElse: () => TeamRole.staff,
-        ),
-        status: TeamMemberStatus.values.firstWhere(
-          (e) => e.name == json['status'],
-          orElse: () => TeamMemberStatus.revoked,
-        ),
-        invitedAt: DateTime.tryParse(json['invitedAt'] as String? ?? '') ??
-            DateTime.now(),
-        accountId: json['accountId'] as String?,
-        artistId: json['artistId'] as String?,
-        artistName: json['artistName'] as String?,
-        acceptedAt: json['acceptedAt'] == null
-            ? null
-            : DateTime.tryParse(json['acceptedAt'] as String),
-        revokedAt: json['revokedAt'] == null
-            ? null
-            : DateTime.tryParse(json['revokedAt'] as String),
-        expiresAt: json['expiresAt'] == null
-            ? null
-            : DateTime.tryParse(json['expiresAt'] as String),
-        resendsLeft: (json['resendsLeft'] as num?)?.toInt() ?? 0,
-        expired: json['expired'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    providerId: json['providerId'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    role: TeamRole.values.firstWhere(
+      (e) => e.name == json['role'],
+      orElse: () => TeamRole.staff,
+    ),
+    status: TeamMemberStatus.values.firstWhere(
+      (e) => e.name == json['status'],
+      orElse: () => TeamMemberStatus.revoked,
+    ),
+    invitedAt:
+        DateTime.tryParse(json['invitedAt'] as String? ?? '') ?? DateTime.now(),
+    accountId: json['accountId'] as String?,
+    artistId: json['artistId'] as String?,
+    artistName: json['artistName'] as String?,
+    acceptedAt: json['acceptedAt'] == null
+        ? null
+        : DateTime.tryParse(json['acceptedAt'] as String),
+    revokedAt: json['revokedAt'] == null
+        ? null
+        : DateTime.tryParse(json['revokedAt'] as String),
+    expiresAt: json['expiresAt'] == null
+        ? null
+        : DateTime.tryParse(json['expiresAt'] as String),
+    resendsLeft: (json['resendsLeft'] as num?)?.toInt() ?? 0,
+    expired: json['expired'] as bool? ?? false,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'providerId': providerId,
-        'email': email,
-        'role': role.name,
-        'status': status.name,
-        'invitedAt': invitedAt.toIso8601String(),
-        'accountId': accountId,
-        'artistId': artistId,
-        'artistName': artistName,
-        'acceptedAt': acceptedAt?.toIso8601String(),
-        'revokedAt': revokedAt?.toIso8601String(),
-        'expiresAt': expiresAt?.toIso8601String(),
-        'resendsLeft': resendsLeft,
-        'expired': expired,
-      };
+    'id': id,
+    'providerId': providerId,
+    'email': email,
+    'role': role.name,
+    'status': status.name,
+    'invitedAt': invitedAt.toIso8601String(),
+    'accountId': accountId,
+    'artistId': artistId,
+    'artistName': artistName,
+    'acceptedAt': acceptedAt?.toIso8601String(),
+    'revokedAt': revokedAt?.toIso8601String(),
+    'expiresAt': expiresAt?.toIso8601String(),
+    'resendsLeft': resendsLeft,
+    'expired': expired,
+  };
 
   TeamMember copyWith({
     TeamRole? role,
@@ -127,39 +127,38 @@ class TeamMember extends Equatable {
     DateTime? expiresAt,
     int? resendsLeft,
     bool? expired,
-  }) =>
-      TeamMember(
-        id: id,
-        providerId: providerId,
-        email: email,
-        role: role ?? this.role,
-        status: status ?? this.status,
-        invitedAt: invitedAt,
-        accountId: accountId ?? this.accountId,
-        artistId: artistId ?? this.artistId,
-        artistName: artistName ?? this.artistName,
-        acceptedAt: acceptedAt ?? this.acceptedAt,
-        revokedAt: revokedAt ?? this.revokedAt,
-        expiresAt: expiresAt ?? this.expiresAt,
-        resendsLeft: resendsLeft ?? this.resendsLeft,
-        expired: expired ?? this.expired,
-      );
+  }) => TeamMember(
+    id: id,
+    providerId: providerId,
+    email: email,
+    role: role ?? this.role,
+    status: status ?? this.status,
+    invitedAt: invitedAt,
+    accountId: accountId ?? this.accountId,
+    artistId: artistId ?? this.artistId,
+    artistName: artistName ?? this.artistName,
+    acceptedAt: acceptedAt ?? this.acceptedAt,
+    revokedAt: revokedAt ?? this.revokedAt,
+    expiresAt: expiresAt ?? this.expiresAt,
+    resendsLeft: resendsLeft ?? this.resendsLeft,
+    expired: expired ?? this.expired,
+  );
 
   @override
   List<Object?> get props => [
-        id,
-        providerId,
-        email,
-        role,
-        status,
-        invitedAt,
-        accountId,
-        artistId,
-        artistName,
-        acceptedAt,
-        revokedAt,
-        expiresAt,
-        resendsLeft,
-        expired,
-      ];
+    id,
+    providerId,
+    email,
+    role,
+    status,
+    invitedAt,
+    accountId,
+    artistId,
+    artistName,
+    acceptedAt,
+    revokedAt,
+    expiresAt,
+    resendsLeft,
+    expired,
+  ];
 }

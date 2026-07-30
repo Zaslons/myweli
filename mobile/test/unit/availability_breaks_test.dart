@@ -5,22 +5,25 @@ import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 TimeSlot _ts(int startHour, int endHour) => TimeSlot(
-      startTime: DateTime(2000, 1, 1, startHour),
-      endTime: DateTime(2000, 1, 1, endHour),
-      isAvailable: true,
-    );
+  startTime: DateTime(2000, 1, 1, startHour),
+  endTime: DateTime(2000, 1, 1, endHour),
+  isAvailable: true,
+);
 
 void main() {
   group('overlapsBreak', () {
     final tue = DateTime(2026, 6, 23); // a Tuesday
     final breaks = {
-      tue.weekday - 1: [_ts(13, 14)]
+      tue.weekday - 1: [_ts(13, 14)],
     };
 
     test('true when the window runs into the break', () {
       expect(
         overlapsBreak(
-            breaks, DateTime(2026, 6, 23, 13), DateTime(2026, 6, 23, 13, 30)),
+          breaks,
+          DateTime(2026, 6, 23, 13),
+          DateTime(2026, 6, 23, 13, 30),
+        ),
         isTrue,
       );
     });
@@ -28,12 +31,18 @@ void main() {
     test('false when it only touches the break edge', () {
       expect(
         overlapsBreak(
-            breaks, DateTime(2026, 6, 23, 12, 30), DateTime(2026, 6, 23, 13)),
+          breaks,
+          DateTime(2026, 6, 23, 12, 30),
+          DateTime(2026, 6, 23, 13),
+        ),
         isFalse,
       );
       expect(
         overlapsBreak(
-            breaks, DateTime(2026, 6, 23, 14), DateTime(2026, 6, 23, 14, 30)),
+          breaks,
+          DateTime(2026, 6, 23, 14),
+          DateTime(2026, 6, 23, 14, 30),
+        ),
         isFalse,
       );
     });
@@ -41,13 +50,19 @@ void main() {
     test('false on a different weekday / with no breaks', () {
       final wed = tue.add(const Duration(days: 1));
       expect(
-        overlapsBreak(breaks, DateTime(wed.year, wed.month, wed.day, 13),
-            DateTime(wed.year, wed.month, wed.day, 13, 30)),
+        overlapsBreak(
+          breaks,
+          DateTime(wed.year, wed.month, wed.day, 13),
+          DateTime(wed.year, wed.month, wed.day, 13, 30),
+        ),
         isFalse,
       );
       expect(
         overlapsBreak(
-            const {}, DateTime(2026, 6, 23, 13), DateTime(2026, 6, 23, 13, 30)),
+          const {},
+          DateTime(2026, 6, 23, 13),
+          DateTime(2026, 6, 23, 13, 30),
+        ),
         isFalse,
       );
     });
@@ -59,7 +74,7 @@ void main() {
       weeklySchedule: const {},
       blockedDates: const [],
       breaks: {
-        1: [_ts(13, 14)]
+        1: [_ts(13, 14)],
       },
     );
     final back = Availability.fromJson(availability.toJson());

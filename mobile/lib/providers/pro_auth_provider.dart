@@ -88,7 +88,9 @@ class ProAuthProvider extends ChangeNotifier {
         _canAddSalon = res.data!.canAddSalon;
         notifyListeners();
       }
-    } catch (_) {/* keep the cached list */} finally {
+    } catch (_) {
+      /* keep the cached list */
+    } finally {
       _loadingSalons = false;
     }
   }
@@ -104,8 +106,9 @@ class ProAuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final res =
-          await serviceLocator.proService.getMyProvider(salonId: salonId);
+      final res = await serviceLocator.proService.getMyProvider(
+        salonId: salonId,
+      );
       if (res.success && res.data != null) {
         _selectedSalonId = salonId;
         await _authService.setSelectedProviderSalon(salonId);
@@ -174,7 +177,9 @@ class ProAuthProvider extends ChangeNotifier {
     _selectedSalonId = null;
     try {
       await _authService.setSelectedProviderSalon(null);
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   /// The salon the session acts in: the switched-to salon first (R6), then
@@ -222,7 +227,9 @@ class ProAuthProvider extends ChangeNotifier {
         await _signOutRevoked();
       }
       // Network/other failures: keep the cached shape — server still guards.
-    } catch (_) {/* keep the cached shape */} finally {
+    } catch (_) {
+      /* keep the cached shape */
+    } finally {
       _refreshingMembership = false;
     }
   }
@@ -255,7 +262,9 @@ class ProAuthProvider extends ChangeNotifier {
         await _authService.cacheProviderMembership(_membership);
         notifyListeners();
       }
-    } catch (_) {/* transient — the next action retries */} finally {
+    } catch (_) {
+      /* transient — the next action retries */
+    } finally {
       _probing = false;
     }
   }
@@ -338,8 +347,10 @@ class ProAuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response =
-          await _authService.verifyOtpForProvider(phoneNumber, otp);
+      final response = await _authService.verifyOtpForProvider(
+        phoneNumber,
+        otp,
+      );
       if (response.success && response.data != null) {
         _provider = response.data;
         _error = null;
@@ -413,9 +424,7 @@ class ProAuthProvider extends ChangeNotifier {
   /// Login handling for the three bridged sign-ins: signed in → true;
   /// invitations → false with [pendingInvitations] set (the screen shows
   /// the « Invitations » step); failure → false with error/errorCode.
-  Future<bool> _bridgedLogin(
-    Future<ProviderLoginResult> Function() run,
-  ) async {
+  Future<bool> _bridgedLogin(Future<ProviderLoginResult> Function() run) async {
     _isLoading = true;
     _error = null;
     _errorCode = null;
@@ -440,8 +449,8 @@ class ProAuthProvider extends ChangeNotifier {
       _error = _errorCode == 'cancelled'
           ? null
           : (result.error?.isNotEmpty ?? false
-              ? result.error
-              : 'Connexion impossible.');
+                ? result.error
+                : 'Connexion impossible.');
       return false;
     } catch (e) {
       _error = e.toString();
@@ -462,8 +471,10 @@ class ProAuthProvider extends ChangeNotifier {
     _errorCode = null;
     notifyListeners();
     try {
-      final response =
-          await _authService.acceptProviderInvitation(invitationId, proof);
+      final response = await _authService.acceptProviderInvitation(
+        invitationId,
+        proof,
+      );
       if (response.success && response.data != null) {
         _provider = response.data;
         _pendingInvitations = const [];
@@ -495,8 +506,10 @@ class ProAuthProvider extends ChangeNotifier {
     _errorCode = null;
     notifyListeners();
     try {
-      final response =
-          await _authService.declineProviderInvitation(invitationId, proof);
+      final response = await _authService.declineProviderInvitation(
+        invitationId,
+        proof,
+      );
       if (!response.success) {
         _error = response.error ?? 'Refus impossible.';
         _errorCode = response.code;
@@ -543,8 +556,9 @@ class ProAuthProvider extends ChangeNotifier {
     try {
       final response = await _authService.requestProviderEmailOtp(email);
       if (response.success) {
-        _emailDevCode =
-            (response.data?.isNotEmpty ?? false) ? response.data : null;
+        _emailDevCode = (response.data?.isNotEmpty ?? false)
+            ? response.data
+            : null;
         return true;
       }
       _error = response.error ?? 'Envoi du code impossible.';
@@ -568,14 +582,15 @@ class ProAuthProvider extends ChangeNotifier {
     required BusinessType businessType,
     String? address,
     String? areaId,
-  }) =>
-      _login(() => _authService.registerProviderWithGoogle(
-            phoneNumber: phoneNumber,
-            businessName: businessName,
-            businessType: businessType,
-            address: address,
-            areaId: areaId,
-          ));
+  }) => _login(
+    () => _authService.registerProviderWithGoogle(
+      phoneNumber: phoneNumber,
+      businessName: businessName,
+      businessType: businessType,
+      address: address,
+      areaId: areaId,
+    ),
+  );
 
   Future<bool> registerWithEmail({
     required String email,
@@ -585,23 +600,26 @@ class ProAuthProvider extends ChangeNotifier {
     required BusinessType businessType,
     String? address,
     String? areaId,
-  }) =>
-      _login(() => _authService.registerProviderWithEmail(
-            email: email,
-            code: code,
-            phoneNumber: phoneNumber,
-            businessName: businessName,
-            businessType: businessType,
-            address: address,
-            areaId: areaId,
-          ));
+  }) => _login(
+    () => _authService.registerProviderWithEmail(
+      email: email,
+      code: code,
+      phoneNumber: phoneNumber,
+      businessName: businessName,
+      businessType: businessType,
+      address: address,
+      areaId: areaId,
+    ),
+  );
 
   /// Best-effort: register this device under the provider session if push
   /// permission is already granted. Never throws into the auth flow.
   void _syncPush() {
     try {
       unawaited(serviceLocator.proPushRegistration.registerIfGranted());
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   Future<void> logout() async {
@@ -612,7 +630,9 @@ class ProAuthProvider extends ChangeNotifier {
       // Unregister this device first — the call needs the live provider session.
       try {
         await serviceLocator.proPushRegistration.unregister();
-      } catch (_) {/* best-effort */}
+      } catch (_) {
+        /* best-effort */
+      }
       await _authService.logoutProvider();
       _provider = null;
       _membership = null;

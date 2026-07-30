@@ -37,9 +37,12 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
         ),
         if (pair.caption != null) ...[
           const SizedBox(height: AppTheme.spacingS),
-          Text(pair.caption!,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: AppColors.textSecondary)),
+          Text(
+            pair.caption!,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
         if (widget.pairs.length > 1) ...[
           const SizedBox(height: AppTheme.spacingM),
@@ -63,8 +66,9 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
                       child: Container(
                         width: 72,
                         decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusSmall),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusSmall,
+                          ),
                           border: Border.all(
                             color: active
                                 ? AppColors.primary
@@ -85,9 +89,12 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
           ),
         ],
         const SizedBox(height: AppTheme.spacingS),
-        Text('Glisser pour comparer · toucher pour agrandir',
-            style: AppTextStyles.bodySmall
-                .copyWith(color: AppColors.textTertiary)),
+        Text(
+          'Glisser pour comparer · toucher pour agrandir',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
       ],
     );
   }
@@ -108,10 +115,11 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
             ),
             if (pair.caption != null) ...[
               const SizedBox(height: AppTheme.spacingS),
-              Text(pair.caption!,
-                  textAlign: TextAlign.center,
-                  style:
-                      AppTextStyles.bodyMedium.copyWith(color: Colors.white)),
+              Text(
+                pair.caption!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
+              ),
             ],
             const SizedBox(height: AppTheme.spacingS),
             IconButton(
@@ -172,7 +180,9 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
                     ClipRect(
                       clipper: _LeftClipper(_pos),
                       child: TimedCachedImage(
-                          imageUrl: widget.before, fit: BoxFit.cover),
+                        imageUrl: widget.before,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                     const Positioned(bottom: 8, left: 8, child: _Tag('Avant')),
                     const Positioned(bottom: 8, right: 8, child: _Tag('Après')),
@@ -192,8 +202,11 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ).copyWith(boxShadow: AppTheme.elevation2),
-                        child: const Icon(Icons.compare_arrows,
-                            size: AppTheme.iconS, color: AppColors.primary),
+                        child: const Icon(
+                          Icons.compare_arrows,
+                          size: AppTheme.iconS,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -218,13 +231,17 @@ class _Tag extends StatelessWidget {
     return ExcludeSemantics(
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+          horizontal: AppTheme.spacingS,
+          vertical: AppTheme.spacingXS,
+        ),
         decoration: BoxDecoration(
           color: Colors.black54,
           borderRadius: BorderRadius.circular(AppTheme.radiusPill),
         ),
-        child: Text(label,
-            style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
+        child: Text(
+          label,
+          style: AppTextStyles.labelSmall.copyWith(color: Colors.white),
+        ),
       ),
     );
   }

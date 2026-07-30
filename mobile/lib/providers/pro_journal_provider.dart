@@ -90,8 +90,7 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
       }
       if (_artistFilter == null) return true;
       return (a.artistId ?? '') == _artistFilter;
-    }).toList()
-      ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+    }).toList()..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
   }
 
   bool get hasUnassigned =>
@@ -153,9 +152,8 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   Future<bool> noShow(String id) => _act(() => _service.markNoShow(id));
   Future<bool> arrive(String id) => _act(() => _service.markArrived(id));
 
-  Future<bool> reschedule(String id, DateTime newDateTime) => _act(
-        () => _service.rescheduleAppointment(id, newDateTime),
-      );
+  Future<bool> reschedule(String id, DateTime newDateTime) =>
+      _act(() => _service.rescheduleAppointment(id, newDateTime));
 
   Future<bool> _act(Future<ApiResponse<bool>> Function() run) async {
     try {
@@ -196,7 +194,9 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
         }
       }
       notifyListeners();
-    } catch (_) {/* best-effort — dots are non-critical */}
+    } catch (_) {
+      /* best-effort — dots are non-critical */
+    }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.

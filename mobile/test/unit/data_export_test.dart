@@ -17,16 +17,16 @@ void main() {
   );
 
   Appointment appointment(String id) => Appointment(
-        id: id,
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1', 's2'],
-        appointmentDate: DateTime(2026, 6, 21, 10),
-        status: AppointmentStatus.completed,
-        totalPrice: 20000,
-        depositAmount: 6000,
-        createdAt: DateTime(2026, 6, 1),
-      );
+    id: id,
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1', 's2'],
+    appointmentDate: DateTime(2026, 6, 21, 10),
+    status: AppointmentStatus.completed,
+    totalPrice: 20000,
+    depositAmount: 6000,
+    createdAt: DateTime(2026, 6, 1),
+  );
 
   test('includes the profile, appointments and favorites', () {
     final export = buildUserDataExport(

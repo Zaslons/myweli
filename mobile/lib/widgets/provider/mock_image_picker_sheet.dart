@@ -21,8 +21,9 @@ Future<String?> showMockImagePicker(BuildContext context) {
     context: context,
     backgroundColor: AppColors.secondary,
     shape: const RoundedRectangleBorder(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXL)),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppTheme.radiusXL),
+      ),
     ),
     builder: (ctx) => Padding(
       padding: const EdgeInsets.all(AppTheme.spacingL),
@@ -35,8 +36,9 @@ Future<String?> showMockImagePicker(BuildContext context) {
           Text(
             'Exemples (sélection simulée — l’appareil photo / la galerie '
             'arriveront avec le backend).',
-            style:
-                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
           const SizedBox(height: AppTheme.spacingM),
           GridView.count(
@@ -50,10 +52,7 @@ Future<String?> showMockImagePicker(BuildContext context) {
                 onTap: () => Navigator.pop(ctx, url),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  child: TimedCachedImage(
-                    imageUrl: url,
-                    fit: BoxFit.cover,
-                  ),
+                  child: TimedCachedImage(imageUrl: url, fit: BoxFit.cover),
                 ),
               );
             }).toList(),

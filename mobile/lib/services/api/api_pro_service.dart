@@ -45,9 +45,9 @@ class ApiProService implements ProServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -126,8 +126,9 @@ class ApiProService implements ProServiceInterface {
         .toList();
     // The backend has no date-range filter yet; honour it client-side.
     if (startDate != null) {
-      items =
-          items.where((a) => !a.appointmentDate.isBefore(startDate)).toList();
+      items = items
+          .where((a) => !a.appointmentDate.isBefore(startDate))
+          .toList();
     }
     if (endDate != null) {
       items = items.where((a) => !a.appointmentDate.isAfter(endDate)).toList();
@@ -143,8 +144,7 @@ class ApiProService implements ProServiceInterface {
   Future<ApiResponse<bool>> rejectAppointment(
     String appointmentId,
     String? reason,
-  ) =>
-      _transition(appointmentId, 'reject', 'Rendez-vous refusé');
+  ) => _transition(appointmentId, 'reject', 'Rendez-vous refusé');
 
   @override
   Future<ApiResponse<bool>> markAppointmentComplete(String appointmentId) =>
@@ -199,20 +199,25 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((token) => _client.post(
-          _uri('/providers/$providerId/publish'),
-          headers: _bearer(token),
-        ));
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/providers/$providerId/publish'),
+        headers: _bearer(token),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode == 409) {
       // The gate's `missing` keys — `offer` (pricing pivot) gets its own
       // code so the screen can CTA to the offer picker.
       List<dynamic> missing = const [];
       try {
-        missing = (jsonDecode(res.body) as Map<String, dynamic>)['missing']
+        missing =
+            (jsonDecode(res.body) as Map<String, dynamic>)['missing']
                 as List<dynamic>? ??
             const [];
-      } catch (_) {/* keep the generic message */}
+      } catch (_) {
+        /* keep the generic message */
+      }
       if (missing.contains('offer')) {
         return ApiResponse.error(
           'Choisissez votre offre avant la mise en ligne.',
@@ -239,9 +244,9 @@ class ApiProService implements ProServiceInterface {
     final day = salonDayKey(date);
     final res = await _authed.send(
       (token) => _client.get(
-        _uri('/providers/$providerId/journal').replace(
-          queryParameters: {'date': day},
-        ),
+        _uri(
+          '/providers/$providerId/journal',
+        ).replace(queryParameters: {'date': day}),
         headers: _bearer(token),
       ),
     );
@@ -260,10 +265,12 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((token) => _client.post(
-          _uri('/appointments/$id/$action'),
-          headers: _bearer(token),
-        ));
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/appointments/$id/$action'),
+        headers: _bearer(token),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(true, message: okMessage);
@@ -274,10 +281,12 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((token) => _client.get(
-          _uri('/appointments/$appointmentId/deposit-screenshot'),
-          headers: _bearer(token),
-        ));
+    final res = await _authed.send(
+      (token) => _client.get(
+        _uri('/appointments/$appointmentId/deposit-screenshot'),
+        headers: _bearer(token),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(_decode(res.body)['url'] as String);
@@ -394,15 +403,18 @@ class ApiProService implements ProServiceInterface {
     // Role-aware on the backend: the provider token reschedules inside its
     // acting salon (R6: the selection scopes it; the lifecycle service
     // cross-checks the appointment). Deposit/balance carry over server-side.
-    final rescheduleUri =
-        await _salonScopedUri('/appointments/$appointmentId/reschedule');
-    final res = await _authed.send((t) => _client.post(
-          rescheduleUri,
-          headers: _bearer(t),
-          body: jsonEncode({
-            'newDateTime': newDateTime.toUtc().toIso8601String(),
-          }),
-        ));
+    final rescheduleUri = await _salonScopedUri(
+      '/appointments/$appointmentId/reschedule',
+    );
+    final res = await _authed.send(
+      (t) => _client.post(
+        rescheduleUri,
+        headers: _bearer(t),
+        body: jsonEncode({
+          'newDateTime': newDateTime.toUtc().toIso8601String(),
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(true, message: 'Rendez-vous reporté');
@@ -561,11 +573,13 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((t) => _client.put(
-          _uri('/providers/$providerId/gallery'),
-          headers: _bearer(t),
-          body: jsonEncode({'imageUrls': imageUrls}),
-        ));
+    final res = await _authed.send(
+      (t) => _client.put(
+        _uri('/providers/$providerId/gallery'),
+        headers: _bearer(t),
+        body: jsonEncode({'imageUrls': imageUrls}),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(
@@ -680,17 +694,16 @@ class ApiProService implements ProServiceInterface {
         if (endDate != null) 'endDate': endDate.toUtc().toIso8601String(),
       },
     );
-    final res =
-        await _authed.send((t) => _client.get(uri, headers: _bearer(t)));
+    final res = await _authed.send(
+      (t) => _client.get(uri, headers: _bearer(t)),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(EarningsData.fromJson(_decode(res.body)));
   }
 
   @override
-  Future<ApiResponse<DepositPolicy>> getDepositPolicy(
-    String providerId,
-  ) async {
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -717,17 +730,19 @@ class ApiProService implements ProServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((t) => _client.put(
-          _uri('/providers/$providerId/deposit-policy'),
-          headers: _bearer(t),
-          body: jsonEncode({
-            'depositRequired': depositRequired,
-            'depositPercentage': depositPercentage,
-            'cancellationWindowHours': cancellationWindowHours,
-            'mobileMoneyOperator': mobileMoneyOperator,
-            'mobileMoneyNumber': mobileMoneyNumber,
-          }),
-        ));
+    final res = await _authed.send(
+      (t) => _client.put(
+        _uri('/providers/$providerId/deposit-policy'),
+        headers: _bearer(t),
+        body: jsonEncode({
+          'depositRequired': depositRequired,
+          'depositPercentage': depositPercentage,
+          'cancellationWindowHours': cancellationWindowHours,
+          'mobileMoneyOperator': mobileMoneyOperator,
+          'mobileMoneyNumber': mobileMoneyNumber,
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(
@@ -741,9 +756,9 @@ class ApiProService implements ProServiceInterface {
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
   Map<String, String> _bearer(String token) => {
-        'content-type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+    'content-type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;

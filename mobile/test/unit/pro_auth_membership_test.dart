@@ -73,8 +73,7 @@ void main() {
     expect(auth.can(ProCap.salonPublish), isTrue);
   });
 
-  test(
-      'legacy fallback without a membership: linked owner stays '
+  test('legacy fallback without a membership: linked owner stays '
       'owner-shaped; a bare member is minimal', () async {
     final auth = ProAuthProvider();
     // Not signed in: no provider → minimal.
@@ -82,8 +81,7 @@ void main() {
     expect(auth.role, TeamRole.owner); // label default, harmless signed-out
   });
 
-  test(
-      'the revoked flow: guard report → probe → sign-out + one-shot '
+  test('the revoked flow: guard report → probe → sign-out + one-shot '
       'notice (§5.3)', () async {
     final auth = await signIn('fatou.reception@myweli.test');
     expect(auth.isAuthenticated, isTrue);
@@ -107,8 +105,7 @@ void main() {
     expect(auth.consumeRevokedNotice(), isNull);
   });
 
-  test(
-      'a NON-forbidden code never probes; an active member surviving the '
+  test('a NON-forbidden code never probes; an active member surviving the '
       'probe stays signed in', () async {
     final auth = await signIn('awa.manager@myweli.test');
     ProAccessGuard.report('not_found'); // ignored

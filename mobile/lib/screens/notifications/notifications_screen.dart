@@ -44,14 +44,8 @@ class NotificationsScreen extends StatelessWidget {
           if (index == 2) context.push('/bookings');
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Carte',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Carte'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Rendez-vous',

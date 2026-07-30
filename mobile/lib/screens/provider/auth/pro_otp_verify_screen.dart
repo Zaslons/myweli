@@ -32,8 +32,10 @@ class ProOtpVerifyScreen extends StatefulWidget {
 }
 
 class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
@@ -135,12 +137,18 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
     if (!mounted) return;
 
     if (success) {
-      AppSnackBar.show(context, 'Code renvoyé avec succès',
-          kind: SnackKind.success);
+      AppSnackBar.show(
+        context,
+        'Code renvoyé avec succès',
+        kind: SnackKind.success,
+      );
       _startCooldown();
     } else {
-      AppSnackBar.show(context, authProvider.error ?? 'Erreur lors de l’envoi',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        authProvider.error ?? 'Erreur lors de l’envoi',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -148,9 +156,7 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Vérification'),
-      ),
+      appBar: AppBar(title: const Text('Vérification')),
       body: SafeArea(
         child: SingleChildScrollView(
           // spacingM, not spacingL, and it is load-bearing rather than

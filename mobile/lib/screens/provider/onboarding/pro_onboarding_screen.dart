@@ -48,8 +48,8 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
       ok
           ? '🎉 Votre profil est en ligne !'
           : offerRequired
-              ? 'Choisissez votre offre avant la mise en ligne.'
-              : (onboarding.error ?? 'La mise en ligne a échoué'),
+          ? 'Choisissez votre offre avant la mise en ligne.'
+          : (onboarding.error ?? 'La mise en ligne a échoué'),
       kind: ok ? SnackKind.success : SnackKind.error,
       // The product's only pre-A6 action — a NAVIGATION, not an undo. It ran
       // at Material's 4s default; §15 gives it the 10s it always needed,
@@ -103,8 +103,9 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           '${Formatters.count(progress.done, 'étape', 'étapes')} sur '
           '${progress.total} '
           '${Formatters.plural(progress.done, 'terminée', 'terminées')}',
-          style:
-              AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: AppTheme.spacingS),
         ClipRRect(
@@ -163,8 +164,10 @@ class _StepRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
       child: ListTile(
-        leading:
-            Icon(_statusIcon(step.status), color: _statusColor(step.status)),
+        leading: Icon(
+          _statusIcon(step.status),
+          color: _statusColor(step.status),
+        ),
         title: Text(_label(step.key)),
         subtitle: sublabel == null ? null : Text(sublabel),
         trailing: route != null

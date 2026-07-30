@@ -31,30 +31,33 @@ class Helpers {
 
     // --- Apple Maps (always available on iOS) ---
     if (Platform.isIOS) {
-      available.add(_NavApp(
-        name: 'Apple Plans',
-        icon: Icons.map,
-        uri: Uri.parse(
-          'https://maps.apple.com/?daddr=$latitude,$longitude&dirflg=d'
-          '${encodedLabel.isNotEmpty ? '&q=$encodedLabel' : ''}',
+      available.add(
+        _NavApp(
+          name: 'Apple Plans',
+          icon: Icons.map,
+          uri: Uri.parse(
+            'https://maps.apple.com/?daddr=$latitude,$longitude&dirflg=d'
+            '${encodedLabel.isNotEmpty ? '&q=$encodedLabel' : ''}',
+          ),
         ),
-      ));
+      );
     }
 
     // --- Google Maps ---
     final gmapsUri = Platform.isIOS
         ? Uri.parse(
-            'comgooglemaps://?daddr=$latitude,$longitude&directionsmode=driving')
+            'comgooglemaps://?daddr=$latitude,$longitude&directionsmode=driving',
+          )
         : Uri.parse(
-            'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
-    final gmapsProbe =
-        Platform.isIOS ? Uri.parse('comgooglemaps://') : gmapsUri;
+            'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude',
+          );
+    final gmapsProbe = Platform.isIOS
+        ? Uri.parse('comgooglemaps://')
+        : gmapsUri;
     if (await canLaunchUrl(gmapsProbe)) {
-      available.add(_NavApp(
-        name: 'Google Maps',
-        icon: Icons.directions_car,
-        uri: gmapsUri,
-      ));
+      available.add(
+        _NavApp(name: 'Google Maps', icon: Icons.directions_car, uri: gmapsUri),
+      );
     }
 
     // --- Waze ---
@@ -64,26 +67,22 @@ class Helpers {
     );
     final wazeProbe = Platform.isIOS ? Uri.parse('waze://') : wazeUri;
     if (await canLaunchUrl(wazeProbe)) {
-      available.add(_NavApp(
-        name: 'Waze',
-        icon: Icons.navigation,
-        uri: wazeUri,
-      ));
+      available.add(
+        _NavApp(name: 'Waze', icon: Icons.navigation, uri: wazeUri),
+      );
     }
 
     // --- 2GIS ---
     final dgisUri = Platform.isIOS
         ? Uri.parse(
-            'dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude')
+            'dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude',
+          )
         : Uri.parse(
-            'dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude');
+            'dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude',
+          );
     final dgisProbe = Uri.parse('dgis://');
     if (await canLaunchUrl(dgisProbe)) {
-      available.add(_NavApp(
-        name: '2GIS',
-        icon: Icons.explore,
-        uri: dgisUri,
-      ));
+      available.add(_NavApp(name: '2GIS', icon: Icons.explore, uri: dgisUri));
     }
 
     // --- Yandex Maps ---
@@ -92,37 +91,42 @@ class Helpers {
     );
     final yandexProbe = Uri.parse('yandexmaps://');
     if (await canLaunchUrl(yandexProbe)) {
-      available.add(_NavApp(
-        name: 'Yandex Maps',
-        icon: Icons.public,
-        uri: yandexUri,
-      ));
+      available.add(
+        _NavApp(name: 'Yandex Maps', icon: Icons.public, uri: yandexUri),
+      );
     }
 
     // --- Android fallback: geo: intent (opens any map app) ---
     if (Platform.isAndroid) {
-      available.add(_NavApp(
-        name: 'Autre application',
-        icon: Icons.open_in_new,
-        uri: Uri.parse(
-          'geo:$latitude,$longitude?q=$latitude,$longitude'
-          '${encodedLabel.isNotEmpty ? '($encodedLabel)' : ''}',
+      available.add(
+        _NavApp(
+          name: 'Autre application',
+          icon: Icons.open_in_new,
+          uri: Uri.parse(
+            'geo:$latitude,$longitude?q=$latitude,$longitude'
+            '${encodedLabel.isNotEmpty ? '($encodedLabel)' : ''}',
+          ),
         ),
-      ));
+      );
     }
 
     if (!context.mounted) return;
 
     if (available.isEmpty) {
-      AppSnackBar.show(context, 'Aucune application de navigation trouvée',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        'Aucune application de navigation trouvée',
+        kind: SnackKind.error,
+      );
       return;
     }
 
     // If only one option, launch directly.
     if (available.length == 1) {
-      await launchUrl(available.first.uri,
-          mode: LaunchMode.externalApplication);
+      await launchUrl(
+        available.first.uri,
+        mode: LaunchMode.externalApplication,
+      );
       return;
     }
 
@@ -131,8 +135,9 @@ class Helpers {
       context: context,
       backgroundColor: AppColors.secondary,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusXXL),
+        ),
       ),
       builder: (sheetContext) {
         return SafeArea(
@@ -154,24 +159,21 @@ class Helpers {
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingM),
-                const Text(
-                  'Ouvrir avec',
-                  style: AppTextStyles.titleMedium,
-                ),
+                const Text('Ouvrir avec', style: AppTextStyles.titleMedium),
                 const SizedBox(height: AppTheme.spacingS),
-                ...available.map((app) => ListTile(
-                      leading: Icon(app.icon, color: AppColors.primary),
-                      title: Text(app.name, style: AppTextStyles.bodyMedium),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusLarge),
-                      ),
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        launchUrl(app.uri,
-                            mode: LaunchMode.externalApplication);
-                      },
-                    )),
+                ...available.map(
+                  (app) => ListTile(
+                    leading: Icon(app.icon, color: AppColors.primary),
+                    title: Text(app.name, style: AppTextStyles.bodyMedium),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      launchUrl(app.uri, mode: LaunchMode.externalApplication);
+                    },
+                  ),
+                ),
                 const SizedBox(height: AppTheme.spacingS),
               ],
             ),
@@ -200,9 +202,7 @@ class Helpers {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: LoadingIndicator(),
-      ),
+      builder: (context) => const Center(child: LoadingIndicator()),
     );
   }
 

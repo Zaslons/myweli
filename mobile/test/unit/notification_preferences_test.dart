@@ -30,7 +30,9 @@ void main() {
     test('defaults all on, update persists', () async {
       final svc = MockNotificationService();
       expect(
-          (await svc.getPreferences()).data, const NotificationPreferences());
+        (await svc.getPreferences()).data,
+        const NotificationPreferences(),
+      );
       await svc.updatePreferences(marketing: false);
       expect((await svc.getPreferences()).data!.marketing, isFalse);
     });
@@ -49,7 +51,8 @@ void main() {
     test('load populates prefs', () async {
       when(() => service.getPreferences()).thenAnswer(
         (_) async => ApiResponse.success(
-            const NotificationPreferences(marketing: false)),
+          const NotificationPreferences(marketing: false),
+        ),
       );
       final p = NotificationPreferencesProvider();
       await p.load();
@@ -58,8 +61,9 @@ void main() {
     });
 
     test('load failure sets loadFailed', () async {
-      when(() => service.getPreferences())
-          .thenAnswer((_) async => ApiResponse.error('x'));
+      when(
+        () => service.getPreferences(),
+      ).thenAnswer((_) async => ApiResponse.error('x'));
       final p = NotificationPreferencesProvider();
       await p.load();
       expect(p.loadFailed, isTrue);
@@ -74,7 +78,8 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => ApiResponse.success(
-            const NotificationPreferences(reminders: false)),
+          const NotificationPreferences(reminders: false),
+        ),
       );
       final p = NotificationPreferencesProvider();
       final ok = await p.setReminders(false);

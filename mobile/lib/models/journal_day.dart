@@ -22,21 +22,17 @@ class JournalDay extends Equatable {
   final List<Appointment> appointments;
 
   factory JournalDay.fromJson(Map<String, dynamic> json) => JournalDay(
-        date: json['date'] as String,
-        hours: json['hours'] == null
-            ? null
-            : JournalHours.fromJson(
-                (json['hours'] as Map).cast<String, dynamic>(),
-              ),
-        artists: ((json['artists'] as List?) ?? const [])
-            .map((e) =>
-                JournalArtist.fromJson((e as Map).cast<String, dynamic>()))
-            .toList(),
-        appointments: ((json['appointments'] as List?) ?? const [])
-            .map(
-                (e) => Appointment.fromJson((e as Map).cast<String, dynamic>()))
-            .toList(),
-      );
+    date: json['date'] as String,
+    hours: json['hours'] == null
+        ? null
+        : JournalHours.fromJson((json['hours'] as Map).cast<String, dynamic>()),
+    artists: ((json['artists'] as List?) ?? const [])
+        .map((e) => JournalArtist.fromJson((e as Map).cast<String, dynamic>()))
+        .toList(),
+    appointments: ((json['appointments'] as List?) ?? const [])
+        .map((e) => Appointment.fromJson((e as Map).cast<String, dynamic>()))
+        .toList(),
+  );
 
   @override
   List<Object?> get props => [date, hours, artists, appointments];
@@ -54,13 +50,12 @@ class JournalHours extends Equatable {
   final List<JournalBreak> breaks;
 
   factory JournalHours.fromJson(Map<String, dynamic> json) => JournalHours(
-        open: json['open'] as String,
-        close: json['close'] as String,
-        breaks: ((json['breaks'] as List?) ?? const [])
-            .map((e) =>
-                JournalBreak.fromJson((e as Map).cast<String, dynamic>()))
-            .toList(),
-      );
+    open: json['open'] as String,
+    close: json['close'] as String,
+    breaks: ((json['breaks'] as List?) ?? const [])
+        .map((e) => JournalBreak.fromJson((e as Map).cast<String, dynamic>()))
+        .toList(),
+  );
 
   @override
   List<Object?> get props => [open, close, breaks];
@@ -72,10 +67,8 @@ class JournalBreak extends Equatable {
   final String start; // 'HH:mm'
   final String end;
 
-  factory JournalBreak.fromJson(Map<String, dynamic> json) => JournalBreak(
-        start: json['start'] as String,
-        end: json['end'] as String,
-      );
+  factory JournalBreak.fromJson(Map<String, dynamic> json) =>
+      JournalBreak(start: json['start'] as String, end: json['end'] as String);
 
   @override
   List<Object?> get props => [start, end];
@@ -89,10 +82,10 @@ class JournalArtist extends Equatable {
   final String? imageUrl;
 
   factory JournalArtist.fromJson(Map<String, dynamic> json) => JournalArtist(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? 'Artiste',
-        imageUrl: json['imageUrl'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? 'Artiste',
+    imageUrl: json['imageUrl'] as String?,
+  );
 
   @override
   List<Object?> get props => [id, name, imageUrl];

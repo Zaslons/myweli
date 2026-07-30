@@ -53,8 +53,11 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     if (!mounted) return;
     setState(() => _busyId = null);
     if (!ok) {
-      AppSnackBar.showOn(messenger, team.actionError ?? 'Refus impossible.',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        team.actionError ?? 'Refus impossible.',
+        kind: SnackKind.error,
+      );
     }
   }
 

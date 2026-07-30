@@ -51,10 +51,12 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   // (salon_time.dart) — tz from ProAuthProvider, seeded in initState.
   DateTime? _date;
   TimeOfDay? _time;
-  late final _phone =
-      TextEditingController(text: widget.initialClientPhone ?? '');
-  late final _name =
-      TextEditingController(text: widget.initialClientName ?? '');
+  late final _phone = TextEditingController(
+    text: widget.initialClientPhone ?? '',
+  );
+  late final _name = TextEditingController(
+    text: widget.initialClientName ?? '',
+  );
   final _note = TextEditingController();
   bool _anonymous = false;
   bool _sendSms = true;
@@ -93,8 +95,14 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
 
   DateTime? get _dateTime {
     if (_date == null || _time == null) return null;
-    return salonDateTime(_date!.year, _date!.month, _date!.day,
-        hour: _time!.hour, minute: _time!.minute, tz: _tz);
+    return salonDateTime(
+      _date!.year,
+      _date!.month,
+      _date!.day,
+      hour: _time!.hour,
+      minute: _time!.minute,
+      tz: _tz,
+    );
   }
 
   /// A7/§14 rule 5 — work in progress only. The three content clauses moved
@@ -197,7 +205,8 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       // unreachable is still reachable, and deleting it would have traded a rare
       // field-level message for a server round-trip.
       setState(
-          () => _selectionError = 'Choisissez une date et une heure à venir.');
+        () => _selectionError = 'Choisissez une date et une heure à venir.',
+      );
       return;
     }
     if (!_anonymous && !_errors.validate({'phone': _phone.text})) {
@@ -269,28 +278,31 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 Text(
                   'Ajoutez des services à votre profil pour pouvoir créer un '
                   'rendez-vous.',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textTertiary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 )
               else
-                ...services.map((s) => CheckboxListTile(
-                      value: _selected.contains(s.id),
-                      onChanged: (v) => setState(() {
-                        if (v == true) {
-                          _selected.add(s.id);
-                        } else {
-                          _selected.remove(s.id);
-                        }
-                      }),
-                      title: Text(s.name),
-                      subtitle: Text(
-                        '${Formatters.formatPriceRange(s.price, s.priceMax, currency: context.read<ProAuthProvider>().salonCurrency)} · '
-                        '${Formatters.formatDuration(s.durationMinutes)}',
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      dense: true,
-                    )),
+                ...services.map(
+                  (s) => CheckboxListTile(
+                    value: _selected.contains(s.id),
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _selected.add(s.id);
+                      } else {
+                        _selected.remove(s.id);
+                      }
+                    }),
+                    title: Text(s.name),
+                    subtitle: Text(
+                      '${Formatters.formatPriceRange(s.price, s.priceMax, currency: context.read<ProAuthProvider>().salonCurrency)} · '
+                      '${Formatters.formatDuration(s.durationMinutes)}',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    dense: true,
+                  ),
+                ),
               const SizedBox(height: AppTheme.spacingM),
               _label('DATE & HEURE'),
               Row(
@@ -349,7 +361,8 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                     : (v) => setState(() => _sendSms = v),
                 title: const Text('Envoyer la confirmation par SMS'),
                 subtitle: const Text(
-                    'Le client reçoit un lien vers l’app (bientôt disponible)'),
+                  'Le client reçoit un lien vers l’app (bientôt disponible)',
+                ),
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               ),
@@ -366,10 +379,12 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                   total,
                   currency: context.read<ProAuthProvider>().salonCurrency,
                 ),
-                labelStyle: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textSecondary),
-                valueStyle: AppTextStyles.titleMedium
-                    .copyWith(color: AppColors.primary),
+                labelStyle: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                valueStyle: AppTextStyles.titleMedium.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: AppTheme.spacingL),
               InlineFeedback(_selectionError),
@@ -386,13 +401,15 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   }
 
   Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
-        child: Text(
-          text,
-          style: AppTextStyles.labelSmall
-              .copyWith(color: AppColors.textTertiary, letterSpacing: 0.5),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+    child: Text(
+      text,
+      style: AppTextStyles.labelSmall.copyWith(
+        color: AppColors.textTertiary,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
 }
 
 class _PickerField extends StatelessWidget {
@@ -400,8 +417,11 @@ class _PickerField extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _PickerField(
-      {required this.icon, required this.label, required this.onTap});
+  const _PickerField({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -410,7 +430,9 @@ class _PickerField extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingM),
+          horizontal: AppTheme.spacingSM,
+          vertical: AppTheme.spacingM,
+        ),
         decoration: BoxDecoration(
           color: AppColors.secondary,
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),

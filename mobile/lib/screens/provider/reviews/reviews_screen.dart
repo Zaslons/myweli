@@ -30,8 +30,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final reviewsProvider =
-            Provider.of<ProReviewsProvider>(context, listen: false);
+        final reviewsProvider = Provider.of<ProReviewsProvider>(
+          context,
+          listen: false,
+        );
         reviewsProvider.loadReviews(_resolvedProviderId(context));
       }
     });
@@ -41,9 +43,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Avis'),
-      ),
+      appBar: AppBar(title: const Text('Avis')),
       body: Consumer2<ProAuthProvider, ProReviewsProvider>(
         builder: (context, authProvider, reviewsProvider, _) {
           if (!authProvider.isAuthenticated) {
@@ -61,7 +61,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           if (reviews.isNotEmpty) {
             averageRating =
                 reviews.map((r) => r.rating).reduce((a, b) => a + b) /
-                    reviews.length;
+                reviews.length;
           }
 
           if (reviews.isEmpty) {
@@ -69,19 +69,24 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.star_outline,
-                      size: AppTheme.iconXL, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.star_outline,
+                    size: AppTheme.iconXL,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Aucun avis',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingS),
                   Text(
                     'Les avis de vos clients apparaîtront ici',
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: AppColors.textTertiary),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
@@ -112,9 +117,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const Icon(Icons.star,
-                                  size: AppTheme.iconL,
-                                  color: AppColors.starRating),
+                              const Icon(
+                                Icons.star,
+                                size: AppTheme.iconL,
+                                color: AppColors.starRating,
+                              ),
                               const SizedBox(width: AppTheme.spacingS),
                               Text(
                                 averageRating.toStringAsFixed(1),
@@ -144,13 +151,16 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: List.generate(5, (index) {
                             final rating = 5 - index;
-                            final count =
-                                reviews.where((r) => r.rating == rating).length;
-                            final percentage =
-                                reviews.isEmpty ? 0.0 : count / reviews.length;
+                            final count = reviews
+                                .where((r) => r.rating == rating)
+                                .length;
+                            final percentage = reviews.isEmpty
+                                ? 0.0
+                                : count / reviews.length;
                             return Padding(
                               padding: const EdgeInsets.only(
-                                  bottom: AppTheme.spacingXS),
+                                bottom: AppTheme.spacingXS,
+                              ),
                               child: Row(
                                 children: [
                                   Text(
@@ -160,9 +170,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: AppTheme.spacingXS),
-                                  const Icon(Icons.star,
-                                      size: AppTheme.iconXS,
-                                      color: AppColors.starRating),
+                                  const Icon(
+                                    Icons.star,
+                                    size: AppTheme.iconXS,
+                                    color: AppColors.starRating,
+                                  ),
                                   const SizedBox(width: AppTheme.spacingS),
                                   // A11 C5. `SizedBox(width: 100)` was the only
                                   // hard-coded width among the app's four
@@ -179,14 +191,16 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                   Expanded(
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(
-                                          AppTheme.radiusSmall),
+                                        AppTheme.radiusSmall,
+                                      ),
                                       child: LinearProgressIndicator(
                                         value: percentage,
                                         minHeight: AppTheme.spacingS,
                                         backgroundColor: AppColors.surface,
                                         valueColor:
                                             const AlwaysStoppedAnimation<Color>(
-                                                AppColors.gold),
+                                              AppColors.gold,
+                                            ),
                                       ),
                                     ),
                                   ),
@@ -210,7 +224,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingM),
+                      horizontal: AppTheme.spacingM,
+                    ),
                     itemCount: reviews.length,
                     itemBuilder: (context, index) {
                       final review = reviews[index];
@@ -234,8 +249,9 @@ class _ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
+    final initial = review.userName.isNotEmpty
+        ? review.userName[0].toUpperCase()
+        : '?';
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
@@ -271,14 +287,13 @@ class _ReviewCard extends StatelessWidget {
                         ),
                       ),
                       ...List.generate(
-                          5,
-                          (i) => Icon(
-                                i < review.rating
-                                    ? Icons.star
-                                    : Icons.star_border,
-                                size: AppTheme.iconXS,
-                                color: AppColors.starRating,
-                              )),
+                        5,
+                        (i) => Icon(
+                          i < review.rating ? Icons.star : Icons.star_border,
+                          size: AppTheme.iconXS,
+                          color: AppColors.starRating,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: AppTheme.spacingXS),

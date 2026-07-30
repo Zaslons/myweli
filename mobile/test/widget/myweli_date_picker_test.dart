@@ -49,28 +49,31 @@ void main() {
     DateTime? today,
   }) async {
     final result = _Result();
-    await tester.pumpWidget(wrapApp(
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: ElevatedButton(
-              onPressed: () => showMyweliDatePicker(
-                context: context,
-                initialDate: initial,
-                firstDate: first,
-                lastDate: last,
-                today: today,
-              ).then((v) {
-                result
-                  ..popped = true
-                  ..value = v;
-              }),
-              child: const Text('ouvrir'),
+    await tester.pumpWidget(
+      wrapApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () =>
+                    showMyweliDatePicker(
+                      context: context,
+                      initialDate: initial,
+                      firstDate: first,
+                      lastDate: last,
+                      today: today,
+                    ).then((v) {
+                      result
+                        ..popped = true
+                        ..value = v;
+                    }),
+                child: const Text('ouvrir'),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('ouvrir'));
     await settleMocks(tester);
     return result;
@@ -125,8 +128,9 @@ void main() {
     expect(find.text('mars 2026'), findsOneWidget);
   });
 
-  testWidgets('an initialDate BEFORE the range opens on the first legal month',
-      (tester) async {
+  testWidgets('an initialDate BEFORE the range opens on the first legal month', (
+    tester,
+  ) async {
     // The dead end the review found: rescheduling a PAST appointment passes its
     // own date while `firstDate` is today. Unclamped, the picker opened on a
     // month with every day disabled and the back chevron off.
@@ -141,8 +145,9 @@ void main() {
     expect(find.text('novembre 2025'), findsNothing);
   });
 
-  testWidgets('the year list jumps a year in two taps, not twelve',
-      (tester) async {
+  testWidgets('the year list jumps a year in two taps, not twelve', (
+    tester,
+  ) async {
     final r = await open(
       tester,
       initial: DateTime(2026, 3, 11),
@@ -162,8 +167,9 @@ void main() {
     expect(r.value, DateTime(2027, 3, 19));
   });
 
-  testWidgets('today is announced, and only when it is passed in',
-      (tester) async {
+  testWidgets('today is announced, and only when it is passed in', (
+    tester,
+  ) async {
     await open(
       tester,
       initial: DateTime(2026, 3, 11),
@@ -178,7 +184,8 @@ void main() {
       // pins were silently disabled that way in one commit.
       find.bySemanticsLabel(RegExp('^aujourd\u2019hui, ')),
       findsOneWidget,
-      reason: 'the marker is a semantic label as well as a ring — §13 forbids '
+      reason:
+          'the marker is a semantic label as well as a ring — §13 forbids '
           'meaning carried by colour alone',
     );
   });
@@ -187,8 +194,15 @@ void main() {
     test('is French, Monday first', () {
       // §17 and `french_test.dart`'s `firstDayOfWeekIndex == 1`: a French
       // calendar starts on Monday, and this is the list the header renders.
-      expect(Formatters.weekdayInitials(),
-          <String>['L', 'M', 'M', 'J', 'V', 'S', 'D']);
+      expect(Formatters.weekdayInitials(), <String>[
+        'L',
+        'M',
+        'M',
+        'J',
+        'V',
+        'S',
+        'D',
+      ]);
     });
   });
 }

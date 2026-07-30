@@ -58,10 +58,10 @@ void main() {
       expect(reception, isNot(contains(ProCap.catalogueManage)));
       expect(reception, isNot(contains(ProCap.availabilityManage)));
 
-      expect(
-        presetCapabilitiesFor(TeamRole.staff),
-        {ProCap.journalViewOwn, ProCap.journalManageOwn},
-      );
+      expect(presetCapabilitiesFor(TeamRole.staff), {
+        ProCap.journalViewOwn,
+        ProCap.journalManageOwn,
+      });
     });
   });
 

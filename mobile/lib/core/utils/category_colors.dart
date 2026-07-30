@@ -8,8 +8,8 @@ import '../theme/colors.dart';
 /// Unknown categories fall back to [AppColors.primary]. Design:
 /// docs/design/DESIGN-STANDARDS.md §7.
 Color categoryColor(String category) => switch (category) {
-      'spa' => AppColors.categorySpa,
-      'barber' => AppColors.categoryBarber,
-      'salon' => AppColors.categorySalon,
-      _ => AppColors.primary,
-    };
+  'spa' => AppColors.categorySpa,
+  'barber' => AppColors.categoryBarber,
+  'salon' => AppColors.categorySalon,
+  _ => AppColors.primary,
+};

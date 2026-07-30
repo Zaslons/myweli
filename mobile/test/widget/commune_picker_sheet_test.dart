@@ -14,21 +14,20 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(setupDependencyInjection);
 
-  Widget host(
-    void Function(CommuneChoice?) onResult, {
-    bool allowAll = true,
-  }) =>
+  Widget host(void Function(CommuneChoice?) onResult, {bool allowAll = true}) =>
       wrapApp(
         providers: [ChangeNotifierProvider(create: (_) => LocalityProvider())],
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                onResult(await showCommunePicker(
-                  context,
-                  selected: null,
-                  allowAll: allowAll,
-                ));
+                onResult(
+                  await showCommunePicker(
+                    context,
+                    selected: null,
+                    allowAll: allowAll,
+                  ),
+                );
               },
               child: const Text('open'),
             ),
@@ -65,8 +64,9 @@ void main() {
     expect(find.text('Cocody'), findsNothing);
   });
 
-  testWidgets('allowAll: false hides « Toutes les communes » (pro editors)',
-      (tester) async {
+  testWidgets('allowAll: false hides « Toutes les communes » (pro editors)', (
+    tester,
+  ) async {
     await tester.pumpWidget(host((_) {}, allowAll: false));
 
     await tester.tap(find.text('open'));

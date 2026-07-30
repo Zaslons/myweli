@@ -34,15 +34,13 @@ void main() {
     required List<String> roots,
     required String token,
     List<String> allow = const [],
-  }) =>
-      [
-        for (final f in sources(roots, allow: allow))
-          if (f.readAsStringSync().contains(token)) f.path,
-      ];
+  }) => [
+    for (final f in sources(roots, allow: allow))
+      if (f.readAsStringSync().contains(token)) f.path,
+  ];
 
   group('salon-time sweep pins', () {
-    test(
-        'no `.toLocal(` outside the allowlisted ops console — device-tz '
+    test('no `.toLocal(` outside the allowlisted ops console — device-tz '
         'rendering is the leak this slice killed', () {
       expect(
         offenders(
@@ -50,19 +48,19 @@ void main() {
             'lib/screens',
             'lib/widgets',
             'lib/providers',
-            'lib/services'
+            'lib/services',
           ],
           token: '.toLocal(',
           allow: ['screens/admin/admin_audit_screen.dart'],
         ),
         isEmpty,
-        reason: 'render with toSalonTime()/Formatters instead '
+        reason:
+            'render with toSalonTime()/Formatters instead '
             '(core/utils/salon_time.dart)',
       );
     });
 
-    test(
-        'no direct `DateFormat(` outside core/utils/formatters.dart — the '
+    test('no direct `DateFormat(` outside core/utils/formatters.dart — the '
         'single display choke point', () {
       expect(
         offenders(
@@ -71,13 +69,13 @@ void main() {
           allow: ['core/utils/formatters.dart'],
         ),
         isEmpty,
-        reason: 'go through Formatters.* so salon time stays enforced in '
+        reason:
+            'go through Formatters.* so salon time stays enforced in '
             'one place',
       );
     });
 
-    test(
-        'no \'Africa/Abidjan\' STRING literal outside the seam (multi-pays '
+    test('no \'Africa/Abidjan\' STRING literal outside the seam (multi-pays '
         'MP2) — per-salon timezones come from the API, the fallback lives '
         'in kSalonTz', () {
       expect(
@@ -87,13 +85,13 @@ void main() {
           allow: ['core/utils/salon_time.dart'],
         ),
         isEmpty,
-        reason: 'use kSalonTz (or better: thread the salon tz) — '
+        reason:
+            'use kSalonTz (or better: thread the salon tz) — '
             'core/utils/salon_time.dart',
       );
     });
 
-    test(
-        'no `constants/communes.dart` import outside the mock locality seed '
+    test('no `constants/communes.dart` import outside the mock locality seed '
         '(multi-pays MP2) — the live tree comes from GET /localities', () {
       expect(
         offenders(
@@ -105,7 +103,8 @@ void main() {
           ],
         ),
         isEmpty,
-        reason: 'read localities via LocalityProvider '
+        reason:
+            'read localities via LocalityProvider '
             '(providers/locality_provider.dart)',
       );
     });
@@ -136,8 +135,7 @@ void main() {
       'models/kyc_document.dart',
     ];
 
-    test(
-        'no `DateTime.now()` in lib/ outside the seam — the app renders what '
+    test('no `DateTime.now()` in lib/ outside the seam — the app renders what '
         'the clock says, not what the machine says', () {
       // **Both spellings.** `DateTime.timestamp()` is Dart 3's UTC "now", and it
       // is the *likely* next offender precisely because §18 now tells authors to
@@ -147,20 +145,26 @@ void main() {
       expect(
         [
           ...offenders(
-              roots: ['lib'], token: 'DateTime.now()', allow: libAllow),
+            roots: ['lib'],
+            token: 'DateTime.now()',
+            allow: libAllow,
+          ),
           ...offenders(
-              roots: ['lib'], token: 'DateTime.timestamp()', allow: libAllow),
+            roots: ['lib'],
+            token: 'DateTime.timestamp()',
+            allow: libAllow,
+          ),
         ],
         isEmpty,
-        reason: 'call AppClock.now() (core/utils/app_clock.dart), or better a '
+        reason:
+            'call AppClock.now() (core/utils/app_clock.dart), or better a '
             'salon_time.dart helper — a direct read cannot be frozen, and an '
             'unfreezable read on a render path is a screen that cannot be '
             'photographed (§20.1)',
       );
     });
 
-    test(
-        'no `DateTime.now()` under test/golden/ — a golden built from the wall '
+    test('no `DateTime.now()` under test/golden/ — a golden built from the wall '
         'clock is a picture of the day it was taken', () {
       // **This is the pin that is red on arrival.** `pro_screens_golden_test`
       // builds four fixtures from the wall clock, `_FixedRoster` among them, and
@@ -172,13 +176,13 @@ void main() {
           ...offenders(roots: ['test/golden'], token: 'DateTime.timestamp()'),
         ],
         isEmpty,
-        reason: 'a golden fixture comes from the FROZEN clock — see '
+        reason:
+            'a golden fixture comes from the FROZEN clock — see '
             'test/support/frozen_clock.dart',
       );
     });
 
-    test(
-        'no file both freezes the clock and reads the wall clock — the silent '
+    test('no file both freezes the clock and reads the wall clock — the silent '
         'decoupling', () {
       // **The hazard here is invisible, which is why it needs a pin.** 12
       // subscription/trial fixtures and 3 slot generators in `test/` build dates
@@ -216,12 +220,16 @@ void main() {
                   src.contains('DateTime.now()'))
             f.path,
       ];
-      expect(mixed, isEmpty,
-          reason: 'this file freezes the clock, so its fixtures must come from '
-              'the frozen instant (kFixedNow, or whatever was passed to '
-              'freezeClock) — a fixture built from the wall clock is measured '
-              'against a clock that is no longer running, and the day counts go '
-              'wrong silently');
+      expect(
+        mixed,
+        isEmpty,
+        reason:
+            'this file freezes the clock, so its fixtures must come from '
+            'the frozen instant (kFixedNow, or whatever was passed to '
+            'freezeClock) — a fixture built from the wall clock is measured '
+            'against a clock that is no longer running, and the day counts go '
+            'wrong silently',
+      );
     });
 
     test('the sweep is not vacuous', () {

@@ -68,8 +68,8 @@ class AppRouter {
           final serviceIdsParam = state.uri.queryParameters['serviceIds'];
           final initialServiceIds =
               serviceIdsParam == null || serviceIdsParam.isEmpty
-                  ? const <String>[]
-                  : serviceIdsParam.split(',');
+              ? const <String>[]
+              : serviceIdsParam.split(',');
           return BookingHubScreen(
             providerId: providerId,
             initialServiceIds: initialServiceIds,
@@ -89,8 +89,9 @@ class AppRouter {
           final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
           final artistId = state.uri.queryParameters['artistId'];
           final dateTimeParam = state.uri.queryParameters['dateTime'];
-          final initialDateTime =
-              dateTimeParam == null ? null : DateTime.tryParse(dateTimeParam);
+          final initialDateTime = dateTimeParam == null
+              ? null
+              : DateTime.tryParse(dateTimeParam);
           final durationMinutes = int.tryParse(
             state.uri.queryParameters['durationMinutes'] ?? '',
           );
@@ -116,8 +117,9 @@ class AppRouter {
           final artistId = state.uri.queryParameters['artistId'];
           final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
           final dateTimeParam = state.uri.queryParameters['dateTime'];
-          final initialDateTime =
-              dateTimeParam == null ? null : DateTime.tryParse(dateTimeParam);
+          final initialDateTime = dateTimeParam == null
+              ? null
+              : DateTime.tryParse(dateTimeParam);
           final durationMinutes = int.tryParse(
             state.uri.queryParameters['durationMinutes'] ?? '',
           );
@@ -136,10 +138,12 @@ class AppRouter {
         name: 'booking-confirmation',
         builder: (context, state) {
           final providerId = state.uri.queryParameters['providerId']!;
-          final serviceIds =
-              state.uri.queryParameters['serviceIds']!.split(',');
-          final dateTime =
-              DateTime.parse(state.uri.queryParameters['dateTime']!);
+          final serviceIds = state.uri.queryParameters['serviceIds']!.split(
+            ',',
+          );
+          final dateTime = DateTime.parse(
+            state.uri.queryParameters['dateTime']!,
+          );
           final artistId = state.uri.queryParameters['artistId'];
           final lengthVariant = state.uri.queryParameters['lengthVariant'];
           return BookingConfirmationScreen(

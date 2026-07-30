@@ -71,8 +71,9 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         final services = await pro.getProviderServices(providerId);
         serviceCount = services.data?.length ?? 0;
 
-        final staff =
-            await serviceLocator.proArtistService.getArtists(providerId);
+        final staff = await serviceLocator.proArtistService.getArtists(
+          providerId,
+        );
         staffCount = staff.data?.length ?? 0;
 
         final avail = await pro.getProviderAvailability(providerId);
@@ -81,13 +82,15 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         final deposit = await pro.getDepositPolicy(providerId);
         depositConfigured = deposit.success && deposit.data != null;
 
-        final listing =
-            await serviceLocator.providerService.getProviderById(providerId);
+        final listing = await serviceLocator.providerService.getProviderById(
+          providerId,
+        );
         photoCount = listing.data?.imageUrls.length ?? 0;
         // Mirror the server's publish gate (pro-salon-lifecycle):
         // profile = description + address + commune; location = the map pin.
         final l = listing.data;
-        profileComplete = l != null &&
+        profileComplete =
+            l != null &&
             l.description.trim().isNotEmpty &&
             l.address.trim().isNotEmpty &&
             (l.commune ?? '').trim().isNotEmpty;
@@ -127,9 +130,10 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
-  bool _hasAvailableSlot(Availability availability) =>
-      availability.weeklySchedule.values
-          .any((slots) => slots.any((s) => s.isAvailable));
+  bool _hasAvailableSlot(Availability availability) => availability
+      .weeklySchedule
+      .values
+      .any((slots) => slots.any((s) => s.isAvailable));
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override

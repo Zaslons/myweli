@@ -18,11 +18,10 @@ Future<String?> showReasonDialog(
   String hint = '',
   bool reasonRequired = true,
   bool isDestructive = false,
-}) =>
-    showInputDialog(
-      context,
-      title: title,
-      confirmLabel: confirmLabel,
-      isDestructive: isDestructive,
-      field: ConfirmField(hint: hint, isRequired: reasonRequired),
-    );
+}) => showInputDialog(
+  context,
+  title: title,
+  confirmLabel: confirmLabel,
+  isDestructive: isDestructive,
+  field: ConfirmField(hint: hint, isRequired: reasonRequired),
+);

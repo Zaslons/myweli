@@ -10,10 +10,10 @@ enum SalonTier { pro, business, reseau }
 enum SalonOfferStatus { trial, paid, grace, expired }
 
 String salonTierLabel(SalonTier tier) => switch (tier) {
-      SalonTier.pro => 'Pro',
-      SalonTier.business => 'Business',
-      SalonTier.reseau => 'Réseau',
-    };
+  SalonTier.pro => 'Pro',
+  SalonTier.business => 'Business',
+  SalonTier.reseau => 'Réseau',
+};
 
 class SalonSeats extends Equatable {
   const SalonSeats({required this.cap, required this.used});
@@ -22,9 +22,9 @@ class SalonSeats extends Equatable {
   final int used;
 
   factory SalonSeats.fromJson(Map<String, dynamic> json) => SalonSeats(
-        cap: (json['cap'] as num?)?.toInt() ?? 0,
-        used: (json['used'] as num?)?.toInt() ?? 0,
-      );
+    cap: (json['cap'] as num?)?.toInt() ?? 0,
+    used: (json['used'] as num?)?.toInt() ?? 0,
+  );
 
   Map<String, dynamic> toJson() => {'cap': cap, 'used': used};
 
@@ -76,12 +76,14 @@ class SalonSubscription extends Equatable {
           (e) => e.name == json['status'],
           orElse: () => SalonOfferStatus.expired,
         ),
-        trialEndsAt: DateTime.tryParse(json['trialEndsAt'] as String? ?? '') ??
+        trialEndsAt:
+            DateTime.tryParse(json['trialEndsAt'] as String? ?? '') ??
             AppClock.now(),
         paidUntil: json['paidUntil'] == null
             ? null
             : DateTime.tryParse(json['paidUntil'] as String),
-        graceEndsAt: DateTime.tryParse(json['graceEndsAt'] as String? ?? '') ??
+        graceEndsAt:
+            DateTime.tryParse(json['graceEndsAt'] as String? ?? '') ??
             AppClock.now(),
         unpublishedForBilling: json['unpublishedForBilling'] as bool? ?? false,
         seats: SalonSeats.fromJson(
@@ -90,23 +92,23 @@ class SalonSubscription extends Equatable {
       );
 
   Map<String, dynamic> toJson() => {
-        'tier': tier.name,
-        'status': status.name,
-        'trialEndsAt': trialEndsAt.toIso8601String(),
-        'paidUntil': paidUntil?.toIso8601String(),
-        'graceEndsAt': graceEndsAt.toIso8601String(),
-        'unpublishedForBilling': unpublishedForBilling,
-        'seats': seats.toJson(),
-      };
+    'tier': tier.name,
+    'status': status.name,
+    'trialEndsAt': trialEndsAt.toIso8601String(),
+    'paidUntil': paidUntil?.toIso8601String(),
+    'graceEndsAt': graceEndsAt.toIso8601String(),
+    'unpublishedForBilling': unpublishedForBilling,
+    'seats': seats.toJson(),
+  };
 
   @override
   List<Object?> get props => [
-        tier,
-        status,
-        trialEndsAt,
-        paidUntil,
-        graceEndsAt,
-        unpublishedForBilling,
-        seats,
-      ];
+    tier,
+    status,
+    trialEndsAt,
+    paidUntil,
+    graceEndsAt,
+    unpublishedForBilling,
+    seats,
+  ];
 }

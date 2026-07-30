@@ -25,13 +25,13 @@ void stubSecureStorage() {
   const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(channel, (call) async {
-    switch (call.method) {
-      case 'readAll':
-        return <String, String>{};
-      case 'containsKey':
-        return false;
-      default:
-        return null; // read / write / delete
-    }
-  });
+        switch (call.method) {
+          case 'readAll':
+            return <String, String>{};
+          case 'containsKey':
+            return false;
+          default:
+            return null; // read / write / delete
+        }
+      });
 }

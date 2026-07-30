@@ -44,13 +44,17 @@ class _HomeScreenState extends State<HomeScreen> {
       // Load favorites if user is authenticated
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
-        final favoritesProvider =
-            Provider.of<FavoritesProvider>(context, listen: false);
+        final favoritesProvider = Provider.of<FavoritesProvider>(
+          context,
+          listen: false,
+        );
         favoritesProvider.loadFavorites(authProvider.user!.id);
 
         // Load appointments for “Derniers rendez-vous”
-        final appointmentProvider =
-            Provider.of<AppointmentProvider>(context, listen: false);
+        final appointmentProvider = Provider.of<AppointmentProvider>(
+          context,
+          listen: false,
+        );
         appointmentProvider.loadAppointments();
       }
     });
@@ -73,18 +77,24 @@ class _HomeScreenState extends State<HomeScreen> {
         bottom: false,
         child: BrandRefresh(
           onRefresh: () async {
-            final provider =
-                Provider.of<ProviderProvider>(context, listen: false);
+            final provider = Provider.of<ProviderProvider>(
+              context,
+              listen: false,
+            );
             final futures = <Future>[
               provider.loadFeaturedProviders(),
               provider.loadProviders(),
             ];
 
-            final authProvider =
-                Provider.of<AuthProvider>(context, listen: false);
+            final authProvider = Provider.of<AuthProvider>(
+              context,
+              listen: false,
+            );
             if (authProvider.isAuthenticated) {
-              final appointmentProvider =
-                  Provider.of<AppointmentProvider>(context, listen: false);
+              final appointmentProvider = Provider.of<AppointmentProvider>(
+                context,
+                listen: false,
+              );
               futures.add(appointmentProvider.loadAppointments());
             }
 
@@ -106,16 +116,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: AppTheme.spacingS),
                       InkWell(
                         onTap: () => context.push('/profile'),
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusPill),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusPill,
+                        ),
                         child: Container(
                           width: 48, // §13.2 touch target
                           height: 48, // §13.2 touch target
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: AppColors.secondary,
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusPill),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusPill,
+                            ),
                             border: Border.all(color: AppColors.border),
                           ),
                           child: const Icon(
@@ -149,15 +161,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               // Stories (announcements / promos)
+              const SliverToBoxAdapter(child: AnnouncementStories()),
               const SliverToBoxAdapter(
-                child: AnnouncementStories(),
+                child: SizedBox(height: AppTheme.spacingM),
               ),
-              const SliverToBoxAdapter(
-                  child: SizedBox(height: AppTheme.spacingM)),
               // Categories
-              const SliverToBoxAdapter(
-                child: CategoryChips(),
-              ),
+              const SliverToBoxAdapter(child: CategoryChips()),
               // Featured Section
               Consumer<ProviderProvider>(
                 builder: (context, provider, _) {
@@ -210,7 +219,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               final p = provider.featuredProviders[index];
                               return Padding(
                                 padding: const EdgeInsets.only(
-                                    right: AppTheme.spacingM),
+                                  right: AppTheme.spacingM,
+                                ),
                                 child: ProviderCard(
                                   provider: p,
                                   isGrid: true,
@@ -229,19 +239,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Recent bookings (only when authenticated) — placed AFTER “À la une”
               SliverToBoxAdapter(
-                child: Consumer3<AuthProvider, AppointmentProvider,
-                    ProviderProvider>(
-                  builder: (context, authProvider, appointmentProvider,
-                      providerProvider, _) {
+                child: Consumer3<AuthProvider, AppointmentProvider, ProviderProvider>(
+                  builder: (context, authProvider, appointmentProvider, providerProvider, _) {
                     if (!authProvider.isAuthenticated) {
                       return const SizedBox.shrink();
                     }
 
-                    final recent = appointmentProvider.appointments
-                        .where((a) => a.status != AppointmentStatus.cancelled)
-                        .toList()
-                      ..sort((a, b) =>
-                          b.appointmentDate.compareTo(a.appointmentDate));
+                    final recent =
+                        appointmentProvider.appointments
+                            .where(
+                              (a) => a.status != AppointmentStatus.cancelled,
+                            )
+                            .toList()
+                          ..sort(
+                            (a, b) =>
+                                b.appointmentDate.compareTo(a.appointmentDate),
+                          );
 
                     if (recent.isEmpty) return const SizedBox.shrink();
 
@@ -281,26 +294,31 @@ class _HomeScreenState extends State<HomeScreen> {
                                   for (final (i, a) in top.indexed) ...[
                                     if (i > 0)
                                       const SizedBox(width: AppTheme.spacingS),
-                                    Builder(builder: (context) {
-                                      final p = providerProvider.providers
-                                          .where((p) => p.id == a.providerId)
-                                          .firstOrNull;
-                                      final w =
-                                          MediaQuery.of(context).size.width;
-                                      return SizedBox(
-                                        width: (w * 0.86).clamp(280.0, 360.0),
-                                        child: CompactAppointmentTile(
-                                          appointment: a,
-                                          providerName: p?.name ?? 'Salon',
-                                          providerImageUrl: (p != null &&
-                                                  p.imageUrls.isNotEmpty)
-                                              ? p.imageUrls.first
-                                              : null,
-                                          onTap: () => context
-                                              .push('/appointment/${a.id}'),
-                                        ),
-                                      );
-                                    }),
+                                    Builder(
+                                      builder: (context) {
+                                        final p = providerProvider.providers
+                                            .where((p) => p.id == a.providerId)
+                                            .firstOrNull;
+                                        final w = MediaQuery.of(
+                                          context,
+                                        ).size.width;
+                                        return SizedBox(
+                                          width: (w * 0.86).clamp(280.0, 360.0),
+                                          child: CompactAppointmentTile(
+                                            appointment: a,
+                                            providerName: p?.name ?? 'Salon',
+                                            providerImageUrl:
+                                                (p != null &&
+                                                    p.imageUrls.isNotEmpty)
+                                                ? p.imageUrls.first
+                                                : null,
+                                            onTap: () => context.push(
+                                              '/appointment/${a.id}',
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ],
                                 ],
                               ),
@@ -314,20 +332,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SliverToBoxAdapter(
-                  child: SizedBox(height: AppTheme.spacingM)),
+                child: SizedBox(height: AppTheme.spacingM),
+              ),
               // Favorites Section
               Consumer3<FavoritesProvider, AuthProvider, ProviderProvider>(
-                builder: (context, favoritesProvider, authProvider,
-                    providerProvider, _) {
+                builder: (context, favoritesProvider, authProvider, providerProvider, _) {
                   if (!authProvider.isAuthenticated ||
                       authProvider.user == null) {
                     return const SliverToBoxAdapter(child: SizedBox.shrink());
                   }
 
-                  final favoriteProviders =
-                      favoritesProvider.getFavoriteProviders(
-                    providerProvider.providers,
-                  );
+                  final favoriteProviders = favoritesProvider
+                      .getFavoriteProviders(providerProvider.providers);
 
                   if (favoriteProviders.isEmpty) {
                     return const SliverToBoxAdapter(child: SizedBox.shrink());
@@ -369,7 +385,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               final p = favoriteProviders[index];
                               return Padding(
                                 padding: const EdgeInsets.only(
-                                    right: AppTheme.spacingM),
+                                  right: AppTheme.spacingM,
+                                ),
                                 child: ProviderCard(
                                   provider: p,
                                   isGrid: true,
@@ -410,33 +427,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   return SliverPadding(
                     padding: const EdgeInsets.all(AppTheme.spacingM),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          if (index == 0) {
-                            return Padding(
-                              padding: const EdgeInsets.only(
-                                  bottom: AppTheme.spacingM),
-                              child: Text(
-                                'Près de vous',
-                                style: AppTextStyles.titleLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            );
-                          }
-                          final p = provider.providers[index - 1];
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        if (index == 0) {
                           return Padding(
                             padding: const EdgeInsets.only(
-                                bottom: AppTheme.spacingM),
-                            child: ProviderCard(
-                              provider: p,
-                              isGrid: false,
-                              onTap: () => context.push('/provider/${p.id}'),
+                              bottom: AppTheme.spacingM,
+                            ),
+                            child: Text(
+                              'Près de vous',
+                              style: AppTextStyles.titleLarge.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           );
-                        },
-                        childCount: provider.providers.length + 1,
-                      ),
+                        }
+                        final p = provider.providers[index - 1];
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: AppTheme.spacingM,
+                          ),
+                          child: ProviderCard(
+                            provider: p,
+                            isGrid: false,
+                            onTap: () => context.push('/provider/${p.id}'),
+                          ),
+                        );
+                      }, childCount: provider.providers.length + 1),
                     ),
                   );
                 },
@@ -453,14 +469,8 @@ class _HomeScreenState extends State<HomeScreen> {
           if (index == 3) context.push('/notifications');
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Carte',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Carte'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Rendez-vous',

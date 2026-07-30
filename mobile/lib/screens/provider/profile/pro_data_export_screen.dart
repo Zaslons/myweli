@@ -55,16 +55,20 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         return;
       }
 
-      final salonRes =
-          await serviceLocator.providerService.getProviderById(providerId);
-      final services =
-          await serviceLocator.proService.getProviderServices(providerId);
-      final artists =
-          await serviceLocator.proArtistService.getArtists(providerId);
-      final appointments =
-          await serviceLocator.proService.getProviderAppointments(providerId);
-      final clients =
-          await serviceLocator.proClientsService.listClients(providerId);
+      final salonRes = await serviceLocator.providerService.getProviderById(
+        providerId,
+      );
+      final services = await serviceLocator.proService.getProviderServices(
+        providerId,
+      );
+      final artists = await serviceLocator.proArtistService.getArtists(
+        providerId,
+      );
+      final appointments = await serviceLocator.proService
+          .getProviderAppointments(providerId);
+      final clients = await serviceLocator.proClientsService.listClients(
+        providerId,
+      );
 
       final salon = salonRes.data;
       if (!mounted) return;
@@ -102,8 +106,11 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     final json = const JsonEncoder.withIndent('  ').convert(export);
     await Clipboard.setData(ClipboardData(text: json));
     if (!mounted) return;
-    AppSnackBar.show(context, 'Données copiées dans le presse-papiers',
-        kind: SnackKind.success);
+    AppSnackBar.show(
+      context,
+      'Données copiées dans le presse-papiers',
+      kind: SnackKind.success,
+    );
   }
 
   @override
@@ -114,47 +121,48 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
       body: _loading
           ? const LoadingIndicator()
           : _failed || _export == null
-              ? EmptyState(
-                  icon: Icons.wifi_off,
-                  title: 'Chargement impossible',
-                  description: 'Vérifiez votre connexion et réessayez.',
-                  actionText: 'Réessayer',
-                  onAction: _load,
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(AppTheme.spacingM),
-                  children: [
-                    Text(
-                      'Une copie des données de votre salon : compte, fiche, '
-                      'catalogue, rendez-vous et fichier clients.',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textTertiary),
-                    ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    _CountRow(
-                      label: 'Services',
-                      count: (_export!['services'] as List).length,
-                    ),
-                    _CountRow(
-                      label: 'Équipe',
-                      count: (_export!['artists'] as List).length,
-                    ),
-                    _CountRow(
-                      label: 'Rendez-vous',
-                      count: (_export!['appointments'] as List).length,
-                    ),
-                    _CountRow(
-                      label: 'Clients',
-                      count: (_export!['clients'] as List).length,
-                    ),
-                    const SizedBox(height: AppTheme.spacingL),
-                    AppButton(
-                      text: 'Copier mes données (JSON)',
-                      icon: Icons.copy_outlined,
-                      onPressed: _copy,
-                    ),
-                  ],
+          ? EmptyState(
+              icon: Icons.wifi_off,
+              title: 'Chargement impossible',
+              description: 'Vérifiez votre connexion et réessayez.',
+              actionText: 'Réessayer',
+              onAction: _load,
+            )
+          : ListView(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              children: [
+                Text(
+                  'Une copie des données de votre salon : compte, fiche, '
+                  'catalogue, rendez-vous et fichier clients.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
+                const SizedBox(height: AppTheme.spacingM),
+                _CountRow(
+                  label: 'Services',
+                  count: (_export!['services'] as List).length,
+                ),
+                _CountRow(
+                  label: 'Équipe',
+                  count: (_export!['artists'] as List).length,
+                ),
+                _CountRow(
+                  label: 'Rendez-vous',
+                  count: (_export!['appointments'] as List).length,
+                ),
+                _CountRow(
+                  label: 'Clients',
+                  count: (_export!['clients'] as List).length,
+                ),
+                const SizedBox(height: AppTheme.spacingL),
+                AppButton(
+                  text: 'Copier mes données (JSON)',
+                  icon: Icons.copy_outlined,
+                  onPressed: _copy,
+                ),
+              ],
+            ),
     );
   }
 }
@@ -172,8 +180,9 @@ class _CountRow extends StatelessWidget {
       child: LabelValueRow(
         label: label,
         value: '$count',
-        valueStyle:
-            AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+        valueStyle: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.textSecondary,
+        ),
       ),
     );
   }

@@ -129,8 +129,9 @@ void main() {
 
   // ---- L1: the consent this funnel never had --------------------------------
 
-  testWidgets('the pro funnel names the documents it is asking you to accept',
-      (tester) async {
+  testWidgets('the pro funnel names the documents it is asking you to accept', (
+    tester,
+  ) async {
     // **The sharpest store-review gap in the product.** A professional creates
     // an account here, then uploads identity documents (KYC) and publishes a
     // business listing — and until L1 this screen carried NO consent copy of any
@@ -151,73 +152,91 @@ void main() {
   // ---- Defect 3: the fault that rendered NOWHERE ---------------------------
 
   testWidgets(
-      'the empty « Type d’entreprise » answers UNDER the dropdown — the '
-      'press that used to do literally nothing', (tester) async {
-    await openForm(tester);
-    await fillBusinessBlock(tester, withType: false);
-    await type(tester, 'Votre e-mail', 'awa@salon.test');
+    'the empty « Type d’entreprise » answers UNDER the dropdown — the '
+    'press that used to do literally nothing',
+    (tester) async {
+      await openForm(tester);
+      await fillBusinessBlock(tester, withType: false);
+      await type(tester, 'Votre e-mail', 'awa@salon.test');
 
-    await tester.tap(find.text('Recevoir un code'));
-    await settle(tester);
+      await tester.tap(find.text('Recevoir un code'));
+      await settle(tester);
 
-    expect(
-      find.descendant(
-        of: find.byType(DropdownButtonFormField<BusinessType>),
-        matching: find.text('Indiquez le type d’entreprise.'),
-      ),
-      findsOneWidget,
-      reason: 'rule 1 — the fault renders under the field it belongs to; '
-          'before the fix it was computed, blocked the submit, and was '
-          'shown nowhere at all',
-    );
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
-    expect(find.text('Code à 6 chiffres'), findsNothing,
-        reason: 'the funnel must not advance to the code step');
-    expect(find.text('DASHBOARD'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(DropdownButtonFormField<BusinessType>),
+          matching: find.text('Indiquez le type d’entreprise.'),
+        ),
+        findsOneWidget,
+        reason:
+            'rule 1 — the fault renders under the field it belongs to; '
+            'before the fix it was computed, blocked the submit, and was '
+            'shown nowhere at all',
+      );
+      expect(
+        find.byType(SnackBar),
+        findsNothing,
+        reason: '§14 rule 3 — a field fault is never a bar',
+      );
+      expect(
+        find.text('Code à 6 chiffres'),
+        findsNothing,
+        reason: 'the funnel must not advance to the code step',
+      );
+      expect(find.text('DASHBOARD'), findsNothing);
 
-    // Rule 2: picking a type clears the message without a second submit.
-    await pickBusinessType(tester);
-    expect(find.text('Indiquez le type d’entreprise.'), findsNothing);
-  });
+      // Rule 2: picking a type clears the message without a second submit.
+      await pickBusinessType(tester);
+      expect(find.text('Indiquez le type d’entreprise.'), findsNothing);
+    },
+  );
 
   // ---- Defect 1: `email` declared, never validated -------------------------
 
   testWidgets(
-      'an invalid e-mail answers under the e-mail field — « Recevoir un '
-      'code » no longer fires on anything', (tester) async {
-    await openForm(tester);
-    await fillBusinessBlock(tester);
-    await type(tester, 'Votre e-mail', 'pas-un-email');
+    'an invalid e-mail answers under the e-mail field — « Recevoir un '
+    'code » no longer fires on anything',
+    (tester) async {
+      await openForm(tester);
+      await fillBusinessBlock(tester);
+      await type(tester, 'Votre e-mail', 'pas-un-email');
 
-    await tester.tap(find.text('Recevoir un code'));
-    await settle(tester);
+      await tester.tap(find.text('Recevoir un code'));
+      await settle(tester);
 
-    expect(
-      find.descendant(
-        of: fieldLabelled('Votre e-mail'),
-        matching: find.text('Saisissez une adresse e-mail valide.'),
-      ),
-      findsOneWidget,
-      reason: 'rule 1 — the message belongs under the e-mail field',
-    );
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
-    expect(
-      find.text('Code à 6 chiffres'),
-      findsNothing,
-      reason: 'no code was requested, so the code step must not open',
-    );
-    expect(find.textContaining('Code (dev)'), findsNothing,
-        reason: 'the dev code only exists once requestEmailOtp has run');
+      expect(
+        find.descendant(
+          of: fieldLabelled('Votre e-mail'),
+          matching: find.text('Saisissez une adresse e-mail valide.'),
+        ),
+        findsOneWidget,
+        reason: 'rule 1 — the message belongs under the e-mail field',
+      );
+      expect(
+        find.byType(SnackBar),
+        findsNothing,
+        reason: '§14 rule 3 — a field fault is never a bar',
+      );
+      expect(
+        find.text('Code à 6 chiffres'),
+        findsNothing,
+        reason: 'no code was requested, so the code step must not open',
+      );
+      expect(
+        find.textContaining('Code (dev)'),
+        findsNothing,
+        reason: 'the dev code only exists once requestEmailOtp has run',
+      );
 
-    // Rule 2: fixing it clears the message without another submit.
-    await type(tester, 'Votre e-mail', _email);
-    expect(find.text('Saisissez une adresse e-mail valide.'), findsNothing);
-  });
+      // Rule 2: fixing it clears the message without another submit.
+      await type(tester, 'Votre e-mail', _email);
+      expect(find.text('Saisissez une adresse e-mail valide.'), findsNothing);
+    },
+  );
 
-  testWidgets('an EMPTY e-mail gets the required message, not silence',
-      (tester) async {
+  testWidgets('an EMPTY e-mail gets the required message, not silence', (
+    tester,
+  ) async {
     await openForm(tester);
     await fillBusinessBlock(tester);
 
@@ -232,8 +251,11 @@ void main() {
       findsOneWidget,
       reason: 'rule 5 makes the button live, so an empty submit MUST answer',
     );
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
     expect(find.text('Code à 6 chiffres'), findsNothing);
   });
 
@@ -247,9 +269,13 @@ void main() {
 
     await tester.tap(find.text('Recevoir un code'));
     await settle(tester);
-    expect(find.text('Code à 6 chiffres'), findsOneWidget,
-        reason: 'a fully valid business block + e-mail must NOT be blocked — '
-            'the gates answer faults, they do not stonewall a good form');
+    expect(
+      find.text('Code à 6 chiffres'),
+      findsOneWidget,
+      reason:
+          'a fully valid business block + e-mail must NOT be blocked — '
+          'the gates answer faults, they do not stonewall a good form',
+    );
   }
 
   /// A7-fix — **the same defect, one button over, and now gated.**
@@ -264,8 +290,7 @@ void main() {
   /// Fixing it and not gating it is the mistake this branch exists to stop
   /// making, so: revert `pro_register_screen`'s resend to `_sendCode` and this
   /// goes red.
-  testWidgets(
-      '« Renvoyer le code » validates the e-mail it is about to '
+  testWidgets('« Renvoyer le code » validates the e-mail it is about to '
       're-send to', (tester) async {
     await reachCodeStep(tester);
 
@@ -280,45 +305,58 @@ void main() {
         matching: find.text('Saisissez une adresse e-mail valide.'),
       ),
       findsOneWidget,
-      reason: 'the resend answers under the e-mail field (§14 rule 1) — it '
+      reason:
+          'the resend answers under the e-mail field (§14 rule 1) — it '
           'used to fire against whatever the field now held',
     );
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
   });
 
   testWidgets(
-      'a FOUR-digit code is refused under the code field — the hole the '
-      'old « length < 4 » gate left open', (tester) async {
-    await reachCodeStep(tester);
+    'a FOUR-digit code is refused under the code field — the hole the '
+    'old « length < 4 » gate left open',
+    (tester) async {
+      await reachCodeStep(tester);
 
-    await type(tester, 'Code à 6 chiffres', '1234');
-    await tester.tap(find.text('S’inscrire'));
-    await settle(tester);
+      await type(tester, 'Code à 6 chiffres', '1234');
+      await tester.tap(find.text('S’inscrire'));
+      await settle(tester);
 
-    expect(
-      find.descendant(
-        of: fieldLabelled('Code à 6 chiffres'),
-        matching: find.text('Le code doit comporter 6 chiffres.'),
-      ),
-      findsOneWidget,
-      reason: 'rule 1 — under the code field; the label, the maxLength and '
-          'the backend all said six while the gate said four',
-    );
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
-    expect(find.text('DASHBOARD'), findsNothing,
-        reason: 'and above all the registration must not go through');
-    expect(
-      MockData.providerUsers.any((p) => p.email == _email),
-      isFalse,
-      reason: 'nothing was saved — no salon account exists',
-    );
+      expect(
+        find.descendant(
+          of: fieldLabelled('Code à 6 chiffres'),
+          matching: find.text('Le code doit comporter 6 chiffres.'),
+        ),
+        findsOneWidget,
+        reason:
+            'rule 1 — under the code field; the label, the maxLength and '
+            'the backend all said six while the gate said four',
+      );
+      expect(
+        find.byType(SnackBar),
+        findsNothing,
+        reason: '§14 rule 3 — a field fault is never a bar',
+      );
+      expect(
+        find.text('DASHBOARD'),
+        findsNothing,
+        reason: 'and above all the registration must not go through',
+      );
+      expect(
+        MockData.providerUsers.any((p) => p.email == _email),
+        isFalse,
+        reason: 'nothing was saved — no salon account exists',
+      );
 
-    // Rule 2: completing the code clears the message without another submit.
-    await type(tester, 'Code à 6 chiffres', MockAuthService.demoOtp);
-    expect(find.text('Le code doit comporter 6 chiffres.'), findsNothing);
-  });
+      // Rule 2: completing the code clears the message without another submit.
+      await type(tester, 'Code à 6 chiffres', MockAuthService.demoOtp);
+      expect(find.text('Le code doit comporter 6 chiffres.'), findsNothing);
+    },
+  );
 
   testWidgets('an EMPTY code answers instead of registering', (tester) async {
     await reachCodeStep(tester);
@@ -334,16 +372,18 @@ void main() {
       findsOneWidget,
       reason: 'rule 5 makes the button live, so an empty submit MUST answer',
     );
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
     expect(find.text('DASHBOARD'), findsNothing);
     expect(MockData.providerUsers.any((p) => p.email == _email), isFalse);
   });
 
   // ---- The gates must not stonewall a correct form -------------------------
 
-  testWidgets(
-      'the complete, valid funnel still registers and lands on the '
+  testWidgets('the complete, valid funnel still registers and lands on the '
       'dashboard', (tester) async {
     await reachCodeStep(tester);
 
@@ -355,7 +395,8 @@ void main() {
     expect(
       find.text('DASHBOARD'),
       findsOneWidget,
-      reason: 'the A7 gates answer faults — they must not block a form '
+      reason:
+          'the A7 gates answer faults — they must not block a form '
           'that is actually valid',
     );
     expect(MockData.providerUsers.any((p) => p.email == _email), isTrue);

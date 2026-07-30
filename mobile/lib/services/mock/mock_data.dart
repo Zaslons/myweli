@@ -400,9 +400,7 @@ class MockData {
       currency: 'XOF',
       latitude: 5.3200,
       longitude: -4.0800,
-      imageUrls: const [
-        'asset:assets/images/providers/spa_relax_photo.png',
-      ],
+      imageUrls: const ['asset:assets/images/providers/spa_relax_photo.png'],
       rating: 4.7,
       reviewCount: 156,
       services: getServicesForProvider('provider3'),
@@ -581,53 +579,53 @@ class MockData {
   /// bookings, not salon-entered ones, and the « Réservé par votre salon » badge
   /// must keep meaning what it says.
   static List<Appointment> _seedAppointments() => [
-        Appointment(
-          id: 'appointment1',
-          userId: 'user1',
-          providerId: 'provider1',
-          serviceIds: const ['service1'],
-          appointmentDate: AppClock.now().add(const Duration(days: 2)),
-          status: AppointmentStatus.confirmed,
-          totalPrice: 5000,
-          clientDisplayName: 'Jean Kouassi',
-          createdAt: AppClock.now().subtract(const Duration(days: 1)),
-        ),
-        Appointment(
-          id: 'appointment2',
-          userId: 'user1',
-          providerId: 'provider2',
-          serviceIds: const ['service4'],
-          appointmentDate: AppClock.now().add(const Duration(days: 5)),
-          status: AppointmentStatus.pending,
-          totalPrice: 15000,
-          clientDisplayName: 'Jean Kouassi',
-          createdAt: AppClock.now().subtract(const Duration(hours: 2)),
-        ),
-        // Completed booking so user1 can see "Donner mon avis" on Salon Excellence (provider1)
-        Appointment(
-          id: 'appointment_completed1',
-          userId: 'user1',
-          providerId: 'provider1',
-          serviceIds: const ['service1'],
-          appointmentDate: AppClock.now().subtract(const Duration(days: 10)),
-          status: AppointmentStatus.completed,
-          totalPrice: 5000,
-          clientDisplayName: 'Jean Kouassi',
-          createdAt: AppClock.now().subtract(const Duration(days: 15)),
-        ),
-        // Completed booking so user2 can see "Donner mon avis" on Beauté Divine (provider2)
-        Appointment(
-          id: 'appointment_completed2',
-          userId: 'user2',
-          providerId: 'provider2',
-          serviceIds: const ['service4'],
-          appointmentDate: AppClock.now().subtract(const Duration(days: 7)),
-          status: AppointmentStatus.completed,
-          totalPrice: 15000,
-          clientDisplayName: 'Marie Diallo',
-          createdAt: AppClock.now().subtract(const Duration(days: 10)),
-        ),
-      ];
+    Appointment(
+      id: 'appointment1',
+      userId: 'user1',
+      providerId: 'provider1',
+      serviceIds: const ['service1'],
+      appointmentDate: AppClock.now().add(const Duration(days: 2)),
+      status: AppointmentStatus.confirmed,
+      totalPrice: 5000,
+      clientDisplayName: 'Jean Kouassi',
+      createdAt: AppClock.now().subtract(const Duration(days: 1)),
+    ),
+    Appointment(
+      id: 'appointment2',
+      userId: 'user1',
+      providerId: 'provider2',
+      serviceIds: const ['service4'],
+      appointmentDate: AppClock.now().add(const Duration(days: 5)),
+      status: AppointmentStatus.pending,
+      totalPrice: 15000,
+      clientDisplayName: 'Jean Kouassi',
+      createdAt: AppClock.now().subtract(const Duration(hours: 2)),
+    ),
+    // Completed booking so user1 can see "Donner mon avis" on Salon Excellence (provider1)
+    Appointment(
+      id: 'appointment_completed1',
+      userId: 'user1',
+      providerId: 'provider1',
+      serviceIds: const ['service1'],
+      appointmentDate: AppClock.now().subtract(const Duration(days: 10)),
+      status: AppointmentStatus.completed,
+      totalPrice: 5000,
+      clientDisplayName: 'Jean Kouassi',
+      createdAt: AppClock.now().subtract(const Duration(days: 15)),
+    ),
+    // Completed booking so user2 can see "Donner mon avis" on Beauté Divine (provider2)
+    Appointment(
+      id: 'appointment_completed2',
+      userId: 'user2',
+      providerId: 'provider2',
+      serviceIds: const ['service4'],
+      appointmentDate: AppClock.now().subtract(const Duration(days: 7)),
+      status: AppointmentStatus.completed,
+      totalPrice: 15000,
+      clientDisplayName: 'Marie Diallo',
+      createdAt: AppClock.now().subtract(const Duration(days: 10)),
+    ),
+  ];
 
   /// Re-seed the appointments at the CURRENT [AppClock] instant.
   ///
@@ -665,11 +663,9 @@ class MockData {
         final isAvailable =
             totalMinutes % 13 != 0; // ~92% available, stable across runs
 
-        slots.add(TimeSlot(
-          startTime: start,
-          endTime: end,
-          isAvailable: isAvailable,
-        ));
+        slots.add(
+          TimeSlot(startTime: start, endTime: end, isAvailable: isAvailable),
+        );
       }
     }
 
@@ -682,121 +678,121 @@ class MockData {
   // [resetTeam] in test setUp to avoid cross-test bleed.
 
   static List<TeamMember> _seedTeamMembers() => [
-        TeamMember(
-          id: 'mem_owner1',
-          providerId: 'provider1',
-          email: 'jean@salon-excellence.test',
-          role: TeamRole.owner,
-          status: TeamMemberStatus.active,
-          invitedAt: DateTime(2024, 1, 1),
-          accountId: 'provider_user1',
-          acceptedAt: DateTime(2024, 1, 1),
-        ),
-        TeamMember(
-          id: 'mem_manager1',
-          providerId: 'provider1',
-          email: 'awa.manager@myweli.test',
-          role: TeamRole.manager,
-          status: TeamMemberStatus.active,
-          invitedAt: DateTime(2026, 6, 1),
-          accountId: 'member_awa',
-          acceptedAt: DateTime(2026, 6, 2),
-        ),
-        TeamMember(
-          id: 'mem_staff1',
-          providerId: 'provider1',
-          email: 'invitee@myweli.test',
-          role: TeamRole.staff,
-          status: TeamMemberStatus.invited,
-          invitedAt: AppClock.now().subtract(const Duration(days: 2)),
-          artistId: 'artist2',
-          artistName: 'Diallo Amadou',
-          expiresAt: AppClock.now().add(const Duration(days: 5)),
-          resendsLeft: 3,
-        ),
-        // ACTIVE members backing the R4b role demos (accounts seeded above).
-        TeamMember(
-          id: 'mem_reception2',
-          providerId: 'provider1',
-          email: 'fatou.reception@myweli.test',
-          role: TeamRole.reception,
-          status: TeamMemberStatus.active,
-          invitedAt: DateTime(2026, 6, 10),
-          accountId: 'member_fatou',
-          acceptedAt: DateTime(2026, 6, 11),
-        ),
-        TeamMember(
-          id: 'mem_staff2',
-          providerId: 'provider1',
-          email: 'sonia.staff@myweli.test',
-          role: TeamRole.staff,
-          status: TeamMemberStatus.active,
-          invitedAt: DateTime(2026, 6, 15),
-          accountId: 'member_sonia',
-          acceptedAt: DateTime(2026, 6, 16),
-          artistId: 'artist1',
-          artistName: 'Kouassi Jean',
-        ),
-        TeamMember(
-          id: 'mem_reception1',
-          providerId: 'provider1',
-          email: 'retard@myweli.test',
-          role: TeamRole.reception,
-          status: TeamMemberStatus.invited,
-          invitedAt: AppClock.now().subtract(const Duration(days: 9)),
-          expiresAt: AppClock.now().subtract(const Duration(days: 2)),
-          resendsLeft: 1,
-          expired: true,
-        ),
-        // R6 multi-salons: the demo owner ALSO owns provider2 (« Beauté
-        // Divine ») — the « Mes salons » switcher is demo-able offline.
-        // Per-salon rosters/seats filter by providerId, so provider1's
-        // counts are untouched.
-        TeamMember(
-          id: 'mem_owner2',
-          providerId: 'provider2',
-          email: 'jean@salon-excellence.test',
-          role: TeamRole.owner,
-          status: TeamMemberStatus.active,
-          invitedAt: DateTime(2024, 1, 1),
-          accountId: 'provider_user1',
-          acceptedAt: DateTime(2024, 1, 1),
-        ),
-      ];
+    TeamMember(
+      id: 'mem_owner1',
+      providerId: 'provider1',
+      email: 'jean@salon-excellence.test',
+      role: TeamRole.owner,
+      status: TeamMemberStatus.active,
+      invitedAt: DateTime(2024, 1, 1),
+      accountId: 'provider_user1',
+      acceptedAt: DateTime(2024, 1, 1),
+    ),
+    TeamMember(
+      id: 'mem_manager1',
+      providerId: 'provider1',
+      email: 'awa.manager@myweli.test',
+      role: TeamRole.manager,
+      status: TeamMemberStatus.active,
+      invitedAt: DateTime(2026, 6, 1),
+      accountId: 'member_awa',
+      acceptedAt: DateTime(2026, 6, 2),
+    ),
+    TeamMember(
+      id: 'mem_staff1',
+      providerId: 'provider1',
+      email: 'invitee@myweli.test',
+      role: TeamRole.staff,
+      status: TeamMemberStatus.invited,
+      invitedAt: AppClock.now().subtract(const Duration(days: 2)),
+      artistId: 'artist2',
+      artistName: 'Diallo Amadou',
+      expiresAt: AppClock.now().add(const Duration(days: 5)),
+      resendsLeft: 3,
+    ),
+    // ACTIVE members backing the R4b role demos (accounts seeded above).
+    TeamMember(
+      id: 'mem_reception2',
+      providerId: 'provider1',
+      email: 'fatou.reception@myweli.test',
+      role: TeamRole.reception,
+      status: TeamMemberStatus.active,
+      invitedAt: DateTime(2026, 6, 10),
+      accountId: 'member_fatou',
+      acceptedAt: DateTime(2026, 6, 11),
+    ),
+    TeamMember(
+      id: 'mem_staff2',
+      providerId: 'provider1',
+      email: 'sonia.staff@myweli.test',
+      role: TeamRole.staff,
+      status: TeamMemberStatus.active,
+      invitedAt: DateTime(2026, 6, 15),
+      accountId: 'member_sonia',
+      acceptedAt: DateTime(2026, 6, 16),
+      artistId: 'artist1',
+      artistName: 'Kouassi Jean',
+    ),
+    TeamMember(
+      id: 'mem_reception1',
+      providerId: 'provider1',
+      email: 'retard@myweli.test',
+      role: TeamRole.reception,
+      status: TeamMemberStatus.invited,
+      invitedAt: AppClock.now().subtract(const Duration(days: 9)),
+      expiresAt: AppClock.now().subtract(const Duration(days: 2)),
+      resendsLeft: 1,
+      expired: true,
+    ),
+    // R6 multi-salons: the demo owner ALSO owns provider2 (« Beauté
+    // Divine ») — the « Mes salons » switcher is demo-able offline.
+    // Per-salon rosters/seats filter by providerId, so provider1's
+    // counts are untouched.
+    TeamMember(
+      id: 'mem_owner2',
+      providerId: 'provider2',
+      email: 'jean@salon-excellence.test',
+      role: TeamRole.owner,
+      status: TeamMemberStatus.active,
+      invitedAt: DateTime(2024, 1, 1),
+      accountId: 'provider_user1',
+      acceptedAt: DateTime(2024, 1, 1),
+    ),
+  ];
 
   static Map<String, List<TeamInvitation>> _seedTeamInvitations() => {
-        'invitee@myweli.test': [
-          TeamInvitation(
-            id: 'mem_staff1',
-            providerId: 'provider1',
-            salonName: 'Salon Excellence',
-            role: TeamRole.staff,
-            roleLabel: 'Collaborateur',
-            expiresAt: AppClock.now().add(const Duration(days: 5)),
-          ),
-        ],
-        'mock.google@salon.test': [
-          TeamInvitation(
-            id: 'mem_google1',
-            providerId: 'provider2',
-            salonName: 'Beauté Divine',
-            role: TeamRole.manager,
-            roleLabel: 'Manager',
-            expiresAt: AppClock.now().add(const Duration(days: 6)),
-          ),
-        ],
-        // Expired card — the accept path's invitation_expired scenario.
-        'retard@myweli.test': [
-          TeamInvitation(
-            id: 'mem_reception1',
-            providerId: 'provider1',
-            salonName: 'Salon Excellence',
-            role: TeamRole.reception,
-            roleLabel: 'Réception',
-            expiresAt: AppClock.now().subtract(const Duration(days: 2)),
-          ),
-        ],
-      };
+    'invitee@myweli.test': [
+      TeamInvitation(
+        id: 'mem_staff1',
+        providerId: 'provider1',
+        salonName: 'Salon Excellence',
+        role: TeamRole.staff,
+        roleLabel: 'Collaborateur',
+        expiresAt: AppClock.now().add(const Duration(days: 5)),
+      ),
+    ],
+    'mock.google@salon.test': [
+      TeamInvitation(
+        id: 'mem_google1',
+        providerId: 'provider2',
+        salonName: 'Beauté Divine',
+        role: TeamRole.manager,
+        roleLabel: 'Manager',
+        expiresAt: AppClock.now().add(const Duration(days: 6)),
+      ),
+    ],
+    // Expired card — the accept path's invitation_expired scenario.
+    'retard@myweli.test': [
+      TeamInvitation(
+        id: 'mem_reception1',
+        providerId: 'provider1',
+        salonName: 'Salon Excellence',
+        role: TeamRole.reception,
+        roleLabel: 'Réception',
+        expiresAt: AppClock.now().subtract(const Duration(days: 2)),
+      ),
+    ],
+  };
 
   static final List<TeamMember> teamMembers = _seedTeamMembers();
 
@@ -811,9 +807,12 @@ class MockData {
   /// Seats in use — owner + active + unexpired pending (mirrors the
   /// backend), PER SALON (R6 multi-salons).
   static int teamSeatsUsed({String providerId = 'provider1'}) => teamMembers
-      .where((m) =>
-          m.providerId == providerId &&
-          (m.status == TeamMemberStatus.active || (m.isPending && !m.expired)))
+      .where(
+        (m) =>
+            m.providerId == providerId &&
+            (m.status == TeamMemberStatus.active ||
+                (m.isPending && !m.expired)),
+      )
       .length;
 
   /// Restore the seeded roster/cards (tests: call in setUp). Also re-seeds
@@ -833,14 +832,16 @@ class MockData {
     ]) {
       if (!providerUsers.any((p) => p.email == email)) {
         final id = 'member_${email.split('.').first}';
-        providerUsers.add(ProviderUser(
-          id: id,
-          phoneNumber: '',
-          businessName: '',
-          businessType: BusinessType.other,
-          email: email,
-          createdAt: DateTime(2026, 6, 1),
-        ));
+        providerUsers.add(
+          ProviderUser(
+            id: id,
+            phoneNumber: '',
+            businessName: '',
+            businessType: BusinessType.other,
+            email: email,
+            createdAt: DateTime(2026, 6, 1),
+          ),
+        );
       }
     }
   }

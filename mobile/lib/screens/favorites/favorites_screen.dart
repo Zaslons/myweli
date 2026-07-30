@@ -32,17 +32,23 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       if (!authProvider.isAuthenticated || authProvider.user == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           AppSnackBar.show(
-              context, 'Veuillez vous connecter pour voir vos favoris');
+            context,
+            'Veuillez vous connecter pour voir vos favoris',
+          );
           context.go('/login?returnTo=${Uri.encodeComponent('/favorites')}');
         });
         return;
       }
 
       // Load favorites and providers
-      final favoritesProvider =
-          Provider.of<FavoritesProvider>(context, listen: false);
-      final providerProvider =
-          Provider.of<ProviderProvider>(context, listen: false);
+      final favoritesProvider = Provider.of<FavoritesProvider>(
+        context,
+        listen: false,
+      );
+      final providerProvider = Provider.of<ProviderProvider>(
+        context,
+        listen: false,
+      );
 
       favoritesProvider.loadFavorites(authProvider.user!.id);
       providerProvider.loadProviders();
@@ -53,20 +59,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Mes favoris'),
-      ),
+      appBar: AppBar(title: const Text('Mes favoris')),
       body: Consumer3<FavoritesProvider, AuthProvider, ProviderProvider>(
-        builder:
-            (context, favoritesProvider, authProvider, providerProvider, _) {
+        builder: (context, favoritesProvider, authProvider, providerProvider, _) {
           // Check authentication
           if (!authProvider.isAuthenticated || authProvider.user == null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.favorite_border,
-                      size: AppTheme.iconXL, color: AppColors.textTertiary),
+                  const Icon(
+                    Icons.favorite_border,
+                    size: AppTheme.iconXL,
+                    color: AppColors.textTertiary,
+                  ),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Connectez-vous pour voir vos favoris',
@@ -78,7 +84,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   ElevatedButton(
                     onPressed: () {
                       context.go(
-                          '/login?returnTo=${Uri.encodeComponent('/favorites')}');
+                        '/login?returnTo=${Uri.encodeComponent('/favorites')}',
+                      );
                     },
                     child: const Text('Se connecter'),
                   ),
@@ -143,22 +150,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           if (index == 3) context.push('/profile');
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Favoris',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Favoris'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Rendez-vous',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );

@@ -82,56 +82,55 @@ class AppTheme {
     BuildContext context, {
     required double constant,
     required double text,
-  }) =>
-      constant + math.max(text, MediaQuery.textScalerOf(context).scale(text));
+  }) => constant + math.max(text, MediaQuery.textScalerOf(context).scale(text));
 
   // Elevation/Shadows
   static List<BoxShadow> get elevation1 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 2,
-          offset: const Offset(0, 1),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.05),
+      blurRadius: 2,
+      offset: const Offset(0, 1),
+    ),
+  ];
 
   static List<BoxShadow> get elevation2 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.1),
-          blurRadius: 3,
-          offset: const Offset(0, 1),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
-          blurRadius: 2,
-          offset: const Offset(0, 1),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.1),
+      blurRadius: 3,
+      offset: const Offset(0, 1),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.06),
+      blurRadius: 2,
+      offset: const Offset(0, 1),
+    ),
+  ];
 
   static List<BoxShadow> get elevation3 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.1),
-          blurRadius: 6,
-          offset: const Offset(0, 4),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
-          blurRadius: 4,
-          offset: const Offset(0, 2),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.1),
+      blurRadius: 6,
+      offset: const Offset(0, 4),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.06),
+      blurRadius: 4,
+      offset: const Offset(0, 2),
+    ),
+  ];
 
   static List<BoxShadow> get elevation4 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.1),
-          blurRadius: 15,
-          offset: const Offset(0, 10),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 6,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.1),
+      blurRadius: 15,
+      offset: const Offset(0, 10),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.05),
+      blurRadius: 6,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   /// The app's theme. Production passes no [fontFamily], so text renders in the
   /// platform's system font (SF Pro on iOS, Roboto on Android) — unchanged.
@@ -224,10 +223,7 @@ class AppTheme {
         titleTextStyle: f(
           AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),
         ),
-        iconTheme: const IconThemeData(
-          color: AppColors.textPrimary,
-          size: 24,
-        ),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary, size: 24),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: false,

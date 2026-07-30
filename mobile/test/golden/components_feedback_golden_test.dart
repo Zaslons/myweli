@@ -127,28 +127,26 @@ class _Rating extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          const Icon(Icons.star, size: 20, color: AppColors.starRating),
-          const SizedBox(width: AppTheme.spacingXS),
-          Text('4,8', style: AppTextStyles.titleMedium),
-          const SizedBox(width: AppTheme.spacingXS),
-          Text(
-            '(32 avis)',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(width: AppTheme.spacingL),
-          // The interactive star input: state by GLYPH (outline → filled), so it
-          // still reads with the colour removed.
-          for (var i = 0; i < 5; i++)
-            Icon(
-              i < 4 ? Icons.star : Icons.star_border,
-              size: 20,
-              color: AppColors.starRating,
-            ),
-        ],
-      );
+    children: [
+      const Icon(Icons.star, size: 20, color: AppColors.starRating),
+      const SizedBox(width: AppTheme.spacingXS),
+      Text('4,8', style: AppTextStyles.titleMedium),
+      const SizedBox(width: AppTheme.spacingXS),
+      Text(
+        '(32 avis)',
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+      ),
+      const SizedBox(width: AppTheme.spacingL),
+      // The interactive star input: state by GLYPH (outline → filled), so it
+      // still reads with the colour removed.
+      for (var i = 0; i < 5; i++)
+        Icon(
+          i < 4 ? Icons.star : Icons.star_border,
+          size: 20,
+          color: AppColors.starRating,
+        ),
+    ],
+  );
 }
 
 void _noop() {}

@@ -49,13 +49,17 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> updateAvailability(
-      String providerId, Availability availability) async {
+    String providerId,
+    Availability availability,
+  ) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final response =
-          await _proService.updateAvailability(providerId, availability);
+      final response = await _proService.updateAvailability(
+        providerId,
+        availability,
+      );
       if (response.success && response.data != null) {
         _availability = response.data;
         _error = null;

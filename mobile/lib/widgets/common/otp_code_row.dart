@@ -52,8 +52,8 @@ class OtpCodeRow extends StatelessWidget {
     required this.onChanged,
     this.enabled = true,
     this.hasError = false,
-  })  : assert(controllers.length == length, 'OtpCodeRow needs $length boxes'),
-        assert(focusNodes.length == length, 'OtpCodeRow needs $length nodes');
+  }) : assert(controllers.length == length, 'OtpCodeRow needs $length boxes'),
+       assert(focusNodes.length == length, 'OtpCodeRow needs $length nodes');
 
   /// The number of digits. Not a parameter: `Validators.otp` and every mock and
   /// backend agree on six, and a row that could be five would need a caller to
@@ -145,9 +145,7 @@ class OtpCodeRow extends StatelessWidget {
       // `Expanded` — the precedent this shape is copied from.
       child: Row(
         spacing: AppTheme.spacingS,
-        children: [
-          for (var i = 0; i < length; i++) Expanded(child: _box(i)),
-        ],
+        children: [for (var i = 0; i < length; i++) Expanded(child: _box(i))],
       ),
     );
   }
@@ -185,8 +183,9 @@ class OtpCodeRow extends StatelessWidget {
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         decoration: InputDecoration(
           counterText: '',
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: AppTheme.spacingM,
+          ),
           isDense: false,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusLarge),

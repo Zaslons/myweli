@@ -170,9 +170,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
   /// fallback) never depends on it.
   MomoOperatorInfo? _operatorInfo(BuildContext context) =>
       context.watch<LocalityProvider>().operatorInfo(
-            widget.depositOperator,
-            countryCode: widget.depositCountryCode,
-          );
+        widget.depositOperator,
+        countryCode: widget.depositCountryCode,
+      );
 
   Future<void> _payWithWave() async {
     final uri = waveDeepLink(
@@ -208,8 +208,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
     });
     // Upload to PRIVATE storage; we keep only the returned key (proof is never
     // public). Preview uses the local file we just picked.
-    final res = await serviceLocator.appointmentService
-        .uploadDepositScreenshot(source: source);
+    final res = await serviceLocator.appointmentService.uploadDepositScreenshot(
+      source: source,
+    );
     if (!mounted) return;
     setState(() {
       _uploading = false;
@@ -226,8 +227,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
     // The proof IS the submission in submit mode, so its absence is a fault,
     // not a reason to go inert (§14 rule 5).
     if (widget.isSubmitMode && _screenshotKey == null) {
-      setState(() =>
-          _error = 'Ajoutez la capture d’écran du paiement pour l’envoyer.');
+      setState(
+        () => _error = 'Ajoutez la capture d’écran du paiement pour l’envoyer.',
+      );
       return;
     }
     setState(() {
@@ -258,7 +260,8 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
     } else {
       setState(() {
         _booking = false;
-        _error = provider.error ??
+        _error =
+            provider.error ??
             (widget.isSubmitMode
                 ? 'Erreur lors de l’envoi de l’acompte'
                 : 'Erreur lors de la réservation');
@@ -271,8 +274,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.secondary,
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusXXL),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -294,8 +298,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
               const SizedBox(height: AppTheme.spacingXS),
               Text(
                 'Versé directement au salon. Myweli ne prélève rien.',
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textTertiary),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
               const SizedBox(height: AppTheme.spacingM),
               Container(
@@ -307,17 +312,24 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Acompte',
-                        style: AppTextStyles.bodySmall
-                            .copyWith(color: AppColors.textSecondary)),
                     Text(
-                        Formatters.formatCurrency(widget.depositAmount,
-                            currency: widget.currency),
-                        style: AppTextStyles.headlineMedium),
+                      'Acompte',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      Formatters.formatCurrency(
+                        widget.depositAmount,
+                        currency: widget.currency,
+                      ),
+                      style: AppTextStyles.headlineMedium,
+                    ),
                     Text(
                       'Solde ${Formatters.formatCurrency(widget.balanceDue, currency: widget.currency)} à régler au salon',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textTertiary),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -327,7 +339,8 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 InlineFeedback(_feedback!.$1, kind: _feedback!.$2),
               if (_hasHandle) ...[
                 if (deepLinkKindIsWave(
-                    _operatorInfo(context)?.deepLinkKind)) ...[
+                  _operatorInfo(context)?.deepLinkKind,
+                )) ...[
                   AppButton(text: 'Payer avec Wave', onPressed: _payWithWave),
                   const SizedBox(height: AppTheme.spacingS),
                 ],
@@ -348,17 +361,23 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                             children: [
                               Text(
                                 '${_operatorInfo(context)?.label ?? 'Mobile Money'} · ${widget.providerName}',
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(color: AppColors.textTertiary),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
-                              Text(widget.depositNumber!,
-                                  style: AppTextStyles.bodyMedium),
+                              Text(
+                                widget.depositNumber!,
+                                style: AppTextStyles.bodyMedium,
+                              ),
                             ],
                           ),
                         ),
-                        Text('Copier',
-                            style: AppTextStyles.bodySmall
-                                .copyWith(color: AppColors.primary)),
+                        Text(
+                          'Copier',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -367,8 +386,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 Text(
                   'Ce salon n’a pas encore configuré de compte pour l’acompte. '
                   'Contactez-le directement.',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textTertiary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               const SizedBox(height: AppTheme.spacingM),
               _screenshotRow(),
@@ -396,8 +416,9 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                     ? 'Le salon confirmera après réception de l’acompte.'
                     : 'Le salon confirmera après réception. Statut : en attente.',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textTertiary),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
             ],
           ),
@@ -453,16 +474,20 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 child: BrandLoader(size: AppTheme.iconS, fast: true),
               )
             else
-              const Icon(Icons.attachment,
-                  size: AppTheme.iconS, color: AppColors.textSecondary),
+              const Icon(
+                Icons.attachment,
+                size: AppTheme.iconS,
+                color: AppColors.textSecondary,
+              ),
             const SizedBox(width: AppTheme.spacingM),
             Expanded(
               child: Text(
                 widget.isSubmitMode
                     ? 'Joindre une capture du paiement'
                     : 'Joindre une capture du paiement (optionnel)',
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],

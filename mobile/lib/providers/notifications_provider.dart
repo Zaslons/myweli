@@ -11,7 +11,7 @@ class NotificationsProvider extends ChangeNotifier {
   /// is keyed by the token's subject, so a multi-salon owner sees one merged
   /// feed and a salon switch must not reset it.
   NotificationsProvider({NotificationServiceInterface? service})
-      : _service = service ?? serviceLocator.notificationService;
+    : _service = service ?? serviceLocator.notificationService;
 
   final NotificationServiceInterface _service;
 

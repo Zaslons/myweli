@@ -46,13 +46,15 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
     if (reason == null || !mounted) return;
     await _run(
-        () => context.read<AdminUserDetailProvider>().ban(widget.id, reason),
-        'Client banni');
+      () => context.read<AdminUserDetailProvider>().ban(widget.id, reason),
+      'Client banni',
+    );
   }
 
   Future<void> _unban() => _run(
-      () => context.read<AdminUserDetailProvider>().unban(widget.id),
-      'Client réactivé');
+    () => context.read<AdminUserDetailProvider>().unban(widget.id),
+    'Client réactivé',
+  );
 
   Future<void> _run(Future<bool> Function() action, String okMsg) async {
     final p = context.read<AdminUserDetailProvider>();
@@ -91,11 +93,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AdminUserDetailProvider>();
-    return AdminScaffold(
-      title: 'Client',
-      showBack: true,
-      child: _body(p),
-    );
+    return AdminScaffold(title: 'Client', showBack: true, child: _body(p));
   }
 
   Widget _body(AdminUserDetailProvider p) {
@@ -142,7 +140,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
         ('Téléphone', '${u['phoneNumber'] ?? '—'}'),
         (
           'Inscrit le',
-          joined == null ? '—' : Formatters.formatDateShort(joined)
+          joined == null ? '—' : Formatters.formatDateShort(joined),
         ),
       ],
     );

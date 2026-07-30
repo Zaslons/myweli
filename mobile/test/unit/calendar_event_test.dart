@@ -59,8 +59,7 @@ void main() {
     expect(noDeposit.description, isNot(contains('Acompte')));
   });
 
-  test(
-      'the deposit line renders the booking currency — XAF reads FCFA '
+  test('the deposit line renders the booking currency — XAF reads FCFA '
       '(multi-pays MP2)', () {
     final e = buildAppointmentCalendarEvent(
       providerName: 'Institut Libreville',

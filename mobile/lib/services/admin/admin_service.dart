@@ -15,9 +15,9 @@ import '../interfaces/session_store.dart';
 /// [RefreshingHttpClient] (silent refresh on 401 at `/admin/auth/refresh`).
 class AdminService {
   AdminService({http.Client? client, String? baseUrl, SessionStore? store})
-      : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _store = store ?? SecureSessionStore(key: 'myweli_admin_session') {
+    : _client = client ?? http.Client(),
+      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+      _store = store ?? SecureSessionStore(key: 'myweli_admin_session') {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -83,8 +83,7 @@ class AdminService {
   Future<ApiResponse<Map<String, dynamic>>> rejectKyc(
     String accountId,
     String reason,
-  ) =>
-      _post('/admin/kyc/$accountId/reject', body: {'reason': reason});
+  ) => _post('/admin/kyc/$accountId/reject', body: {'reason': reason});
 
   // --- review moderation -----------------------------------------------------
   Future<ApiResponse<Map<String, dynamic>>> reportedReviews({int page = 1}) =>
@@ -96,8 +95,7 @@ class AdminService {
   Future<ApiResponse<Map<String, dynamic>>> hideReview(
     String reviewId,
     String reason,
-  ) =>
-      _post('/admin/reviews/$reviewId/hide', body: {'reason': reason});
+  ) => _post('/admin/reviews/$reviewId/hide', body: {'reason': reason});
 
   Future<ApiResponse<Map<String, dynamic>>> dismissReports(String reviewId) =>
       _post('/admin/reviews/$reviewId/dismiss');
@@ -123,8 +121,7 @@ class AdminService {
   Future<ApiResponse<Map<String, dynamic>>> suspendProvider(
     String id,
     String reason,
-  ) =>
-      _post('/admin/providers/$id/suspend', body: {'reason': reason});
+  ) => _post('/admin/providers/$id/suspend', body: {'reason': reason});
 
   Future<ApiResponse<Map<String, dynamic>>> restoreProvider(String id) =>
       _post('/admin/providers/$id/restore');
@@ -132,17 +129,14 @@ class AdminService {
   Future<ApiResponse<Map<String, dynamic>>> featureProvider(
     String id,
     bool featured,
-  ) =>
-      _post('/admin/providers/$id/feature', body: {'featured': featured});
+  ) => _post('/admin/providers/$id/feature', body: {'featured': featured});
 
   /// Manual billing (T54): record a payment of [months] months.
   Future<ApiResponse<Map<String, dynamic>>> markSubscriptionPaid(
     String id,
     int months,
   ) =>
-      _post('/admin/providers/$id/subscription/paid', body: {
-        'months': months,
-      });
+      _post('/admin/providers/$id/subscription/paid', body: {'months': months});
 
   // --- consumer management ---------------------------------------------------
   Future<ApiResponse<Map<String, dynamic>>> users({
@@ -181,15 +175,15 @@ class AdminService {
   Future<ApiResponse<Map<String, dynamic>>> openDispute(
     String appointmentId,
     String reason,
-  ) =>
-      _post('/admin/disputes',
-          body: {'appointmentId': appointmentId, 'reason': reason});
+  ) => _post(
+    '/admin/disputes',
+    body: {'appointmentId': appointmentId, 'reason': reason},
+  );
 
   Future<ApiResponse<Map<String, dynamic>>> resolveDispute(
     String id,
     String resolution,
-  ) =>
-      _post('/admin/disputes/$id/resolve', body: {'resolution': resolution});
+  ) => _post('/admin/disputes/$id/resolve', body: {'resolution': resolution});
 
   // --- audit log -------------------------------------------------------------
   Future<ApiResponse<Map<String, dynamic>>> audit({
@@ -226,7 +220,7 @@ class AdminService {
         Uri.parse('$_baseUrl$path'),
         headers: {
           'Authorization': 'Bearer $t',
-          'content-type': 'application/json'
+          'content-type': 'application/json',
         },
         body: body == null ? null : jsonEncode(body),
       ),
@@ -236,12 +230,15 @@ class AdminService {
 
   ApiResponse<Map<String, dynamic>> _shape(http.Response? res) {
     if (res == null) {
-      return ApiResponse.error('Session expirée ou hors ligne',
-          code: 'unauthorized');
+      return ApiResponse.error(
+        'Session expirée ou hors ligne',
+        code: 'unauthorized',
+      );
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      final decoded =
-          res.body.isEmpty ? <String, dynamic>{} : jsonDecode(res.body);
+      final decoded = res.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(res.body);
       return ApiResponse.success((decoded as Map).cast<String, dynamic>());
     }
     String? code;
@@ -254,12 +251,12 @@ class AdminService {
   }
 
   String _messageFor(String? code) => switch (code) {
-        'forbidden' => 'Action non autorisée.',
-        'not_found' => 'Introuvable.',
-        'invalid_input' => 'Données invalides.',
-        'unauthorized' => 'Veuillez vous reconnecter.',
-        _ => 'Une erreur est survenue.',
-      };
+    'forbidden' => 'Action non autorisée.',
+    'not_found' => 'Introuvable.',
+    'invalid_input' => 'Données invalides.',
+    'unauthorized' => 'Veuillez vous reconnecter.',
+    _ => 'Une erreur est survenue.',
+  };
 }
 
 /// Process-wide instance for the admin console entrypoint.

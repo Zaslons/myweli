@@ -25,13 +25,14 @@ void main() {
 
   Future<void> loginAs(String email) async {
     await auth.requestProviderEmailOtp(email);
-    final res =
-        await auth.verifyProviderEmailOtp(email, MockAuthService.demoOtp);
+    final res = await auth.verifyProviderEmailOtp(
+      email,
+      MockAuthService.demoOtp,
+    );
     expect(res.signedIn, isTrue, reason: 'mock login as $email failed');
   }
 
-  test(
-      'getMyProvider: manager / réception / staff resolve their roster '
+  test('getMyProvider: manager / réception / staff resolve their roster '
       'role over provider1', () async {
     await loginAs('awa.manager@myweli.test');
     var info = (await pro.getMyProvider()).data!;
@@ -63,37 +64,38 @@ void main() {
     expect(res.code, 'not_a_member');
   });
 
-  test('the dashboard field-gates money for non-finance roles (R1 mirror)',
-      () async {
-    await loginAs('awa.manager@myweli.test');
-    final stats = (await pro.getDashboardStats('provider1')).data!;
-    expect(stats.hasRevenue, isFalse);
-    expect(stats.todayRevenue, isNull);
-    expect(stats.totalAppointments, greaterThanOrEqualTo(0));
-  });
+  test(
+    'the dashboard field-gates money for non-finance roles (R1 mirror)',
+    () async {
+      await loginAs('awa.manager@myweli.test');
+      final stats = (await pro.getDashboardStats('provider1')).data!;
+      expect(stats.hasRevenue, isFalse);
+      expect(stats.todayRevenue, isNull);
+      expect(stats.totalAppointments, greaterThanOrEqualTo(0));
+    },
+  );
 
   test('staff journal + list are own-artist filtered (T40 mirror)', () async {
     await loginAs('sonia.staff@myweli.test');
     final day = (await pro.getJournalDay('provider1', DateTime.now())).data!;
-    expect(
-      day.appointments.every((a) => a.artistId == 'artist1'),
-      isTrue,
-    );
+    expect(day.appointments.every((a) => a.artistId == 'artist1'), isTrue);
     final list = (await pro.getProviderAppointments('provider1')).data!;
     expect(list.every((a) => a.artistId == 'artist1'), isTrue);
   });
 
-  test('an OWNER session keeps the full world (no filters, revenue on)',
-      () async {
-    await auth.requestProviderEmailOtp('own2@r4b.test');
-    await auth.registerProviderWithEmail(
-      email: 'own2@r4b.test',
-      code: MockAuthService.demoOtp,
-      phoneNumber: '+2250700000098',
-      businessName: 'Salon R4b 2',
-      businessType: BusinessType.salon,
-    );
-    final stats = (await pro.getDashboardStats('provider1')).data!;
-    expect(stats.hasRevenue, isTrue);
-  });
+  test(
+    'an OWNER session keeps the full world (no filters, revenue on)',
+    () async {
+      await auth.requestProviderEmailOtp('own2@r4b.test');
+      await auth.registerProviderWithEmail(
+        email: 'own2@r4b.test',
+        code: MockAuthService.demoOtp,
+        phoneNumber: '+2250700000098',
+        businessName: 'Salon R4b 2',
+        businessType: BusinessType.salon,
+      );
+      final stats = (await pro.getDashboardStats('provider1')).data!;
+      expect(stats.hasRevenue, isTrue);
+    },
+  );
 }

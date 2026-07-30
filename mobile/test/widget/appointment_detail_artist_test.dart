@@ -37,29 +37,31 @@ void main() {
   });
 
   Appointment appt({String? artistId}) => Appointment(
-        id: 'a1',
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: DateTime.now().add(const Duration(days: 2)),
-        status: AppointmentStatus.confirmed,
-        totalPrice: 10000,
-        artistId: artistId,
-        createdAt: DateTime.now(),
-      );
+    id: 'a1',
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    appointmentDate: DateTime.now().add(const Duration(days: 2)),
+    status: AppointmentStatus.confirmed,
+    totalPrice: 10000,
+    artistId: artistId,
+    createdAt: DateTime.now(),
+  );
 
   Widget host() => wrapApp(
-        providers: [
-          ChangeNotifierProvider(create: (_) => AppointmentProvider()),
-          ChangeNotifierProvider(create: (_) => LocalityProvider()),
-        ],
-        home: const AppointmentDetailScreen(appointmentId: 'a1'),
-      );
+    providers: [
+      ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+      ChangeNotifierProvider(create: (_) => LocalityProvider()),
+    ],
+    home: const AppointmentDetailScreen(appointmentId: 'a1'),
+  );
 
-  testWidgets('shows « Spécialiste » resolved from the salon team',
-      (tester) async {
-    when(() => appointments.getAppointmentById('a1'))
-        .thenAnswer((_) async => ApiResponse.success(appt(artistId: 'ar1')));
+  testWidgets('shows « Spécialiste » resolved from the salon team', (
+    tester,
+  ) async {
+    when(
+      () => appointments.getAppointmentById('a1'),
+    ).thenAnswer((_) async => ApiResponse.success(appt(artistId: 'ar1')));
     when(() => providers.getProviderById('p1')).thenAnswer(
       (_) async => ApiResponse.success(
         const models.Provider(
@@ -93,8 +95,9 @@ void main() {
   });
 
   testWidgets('no artist on the booking → no row', (tester) async {
-    when(() => appointments.getAppointmentById('a1'))
-        .thenAnswer((_) async => ApiResponse.success(appt()));
+    when(
+      () => appointments.getAppointmentById('a1'),
+    ).thenAnswer((_) async => ApiResponse.success(appt()));
     when(() => providers.getProviderById('p1')).thenAnswer(
       (_) async => ApiResponse.error('hors ligne'), // facts stay null → OK
     );

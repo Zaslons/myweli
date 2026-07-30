@@ -11,11 +11,7 @@ class CommunePill extends StatelessWidget {
   final String? commune;
   final VoidCallback onTap;
 
-  const CommunePill({
-    super.key,
-    required this.commune,
-    required this.onTap,
-  });
+  const CommunePill({super.key, required this.commune, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -49,8 +45,11 @@ class CommunePill extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.location_on,
-                      size: AppTheme.iconXS, color: AppColors.secondary),
+                  const Icon(
+                    Icons.location_on,
+                    size: AppTheme.iconXS,
+                    color: AppColors.secondary,
+                  ),
                   const SizedBox(width: AppTheme.spacingS),
                   Flexible(
                     child: Text(

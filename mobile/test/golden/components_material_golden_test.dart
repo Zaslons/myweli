@@ -118,10 +118,7 @@ class _MaterialSheetState extends State<_MaterialSheet>
                   onPressed: _noop,
                   icon: const Icon(Icons.notifications_outlined),
                 ),
-                IconButton(
-                  onPressed: _noop,
-                  icon: const Icon(Icons.more_vert),
-                ),
+                IconButton(onPressed: _noop, icon: const Icon(Icons.more_vert)),
               ],
             ),
           ),

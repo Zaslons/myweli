@@ -48,13 +48,19 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     if (source == null) return;
     final ok = await gallery.addPhoto(providerId, source);
     if (!ok) {
-      AppSnackBar.showOn(messenger, gallery.error ?? 'Échec de l’envoi',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        gallery.error ?? 'Échec de l’envoi',
+        kind: SnackKind.error,
+      );
     }
   }
 
   Future<void> _removePhoto(
-      String providerId, ProGalleryProvider gallery, int index) async {
+    String providerId,
+    ProGalleryProvider gallery,
+    int index,
+  ) async {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Supprimer cette photo ?',
@@ -69,8 +75,11 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     final removed = gallery.photos[index];
     final ok = await gallery.removePhoto(providerId, index);
     if (!ok) {
-      AppSnackBar.showOn(messenger, gallery.error ?? 'Suppression impossible.',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        gallery.error ?? 'Suppression impossible.',
+        kind: SnackKind.error,
+      );
       return;
     }
     // Before A6 the photo simply disappeared: no confirmation, nothing
@@ -84,12 +93,17 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
         label: 'Annuler',
         // A failed undo used to be silent — the Future was discarded.
         onPressed: () async {
-          final restored =
-              await gallery.restorePhotoAt(providerId, index, removed);
+          final restored = await gallery.restorePhotoAt(
+            providerId,
+            index,
+            removed,
+          );
           if (!restored) {
             AppSnackBar.showOn(
-                messenger, gallery.error ?? 'Restauration impossible.',
-                kind: SnackKind.error);
+              messenger,
+              gallery.error ?? 'Restauration impossible.',
+              kind: SnackKind.error,
+            );
           }
         },
       ),
@@ -130,8 +144,9 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
               Text(
                 'Ajoutez au moins 3 photos de qualité. La première sert de '
                 'couverture. Les images sont optimisées automatiquement.',
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textTertiary),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
               const SizedBox(height: AppTheme.spacingM),
               GridView.count(
@@ -217,8 +232,11 @@ class _PhotoTile extends StatelessWidget {
                       color: Colors.black54,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close,
-                        size: AppTheme.iconXS, color: Colors.white),
+                    child: const Icon(
+                      Icons.close,
+                      size: AppTheme.iconXS,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -262,7 +280,9 @@ class _PhotoTile extends StatelessWidget {
             left: 4,
             child: Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+                horizontal: AppTheme.spacingS,
+                vertical: AppTheme.spacingXS,
+              ),
               decoration: BoxDecoration(
                 color: Colors.black54,
                 borderRadius: BorderRadius.circular(AppTheme.radiusPill),
@@ -309,15 +329,17 @@ class _UploadingTile extends StatelessWidget {
               // `repeat()` is exactly what the framework scale cannot reach.
               // Under the flag it holds a still 0 % arc — and the
               // « Envoi… 0 % » below already carries what the spin was saying.
-              value:
-                  progress == 0 && !reduceMotionOf(context) ? null : progress,
+              value: progress == 0 && !reduceMotionOf(context)
+                  ? null
+                  : progress,
             ),
           ),
           const SizedBox(height: AppTheme.spacingS),
           Text(
             'Envoi… ${(progress * 100).round()}%',
-            style: AppTextStyles.labelSmall
-                .copyWith(color: AppColors.textTertiary),
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
         ],
       ),
@@ -338,12 +360,18 @@ class _AddTile extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_a_photo_outlined,
-                color: AppColors.textSecondary, size: AppTheme.iconM),
+            Icon(
+              Icons.add_a_photo_outlined,
+              color: AppColors.textSecondary,
+              size: AppTheme.iconM,
+            ),
             const SizedBox(height: AppTheme.spacingXS),
-            Text('Ajouter',
-                style: AppTextStyles.labelSmall
-                    .copyWith(color: AppColors.textSecondary)),
+            Text(
+              'Ajouter',
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),

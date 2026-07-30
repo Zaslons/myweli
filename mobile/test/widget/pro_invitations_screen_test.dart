@@ -30,9 +30,9 @@ void main() {
   });
 
   Widget app() => wrapApp(
-        providers: [ChangeNotifierProvider(create: (_) => ProTeamProvider())],
-        home: const ProInvitationsScreen(),
-      );
+    providers: [ChangeNotifierProvider(create: (_) => ProTeamProvider())],
+    home: const ProInvitationsScreen(),
+  );
 
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
@@ -41,8 +41,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-      'renders the pending card; accept shows « Vous avez rejoint » '
+  testWidgets('renders the pending card; accept shows « Vous avez rejoint » '
       'and empties the list', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);

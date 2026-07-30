@@ -31,24 +31,25 @@ void main() {
   setUp(() => reset(service));
 
   Appointment appt({DateTime? date, DateTime? arrivedAt}) => Appointment(
-        id: 'a1',
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        // Same-day-safe: a fixed +2h crossed midnight on late-UTC CI runs
-        // (a 22h-24h flake window) — "now" is inside today by definition.
-        appointmentDate: date ?? DateTime.now(),
-        status: AppointmentStatus.confirmed,
-        totalPrice: 10000,
-        clientName: 'Koffi',
-        arrivedAt: arrivedAt,
-        createdAt: DateTime.now(),
-      );
+    id: 'a1',
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    // Same-day-safe: a fixed +2h crossed midnight on late-UTC CI runs
+    // (a 22h-24h flake window) — "now" is inside today by definition.
+    appointmentDate: date ?? DateTime.now(),
+    status: AppointmentStatus.confirmed,
+    totalPrice: 10000,
+    clientName: 'Koffi',
+    arrivedAt: arrivedAt,
+    createdAt: DateTime.now(),
+  );
 
   Future<Widget> host(Appointment a) async {
-    when(() => service.getProviderAppointments(any(),
-            status: any(named: 'status')))
-        .thenAnswer((_) async => ApiResponse.success([a]));
+    when(
+      () =>
+          service.getProviderAppointments(any(), status: any(named: 'status')),
+    ).thenAnswer((_) async => ApiResponse.success([a]));
     // Pre-load: the screen reads the provider's list (auth-gated reload only).
     final appointments = ProAppointmentProvider();
     await appointments.loadAppointments('p1');
@@ -62,10 +63,12 @@ void main() {
     );
   }
 
-  testWidgets('same-day confirmed → « Client arrivé » marks the arrival',
-      (tester) async {
-    when(() => service.markArrived('a1'))
-        .thenAnswer((_) async => ApiResponse.success(true));
+  testWidgets('same-day confirmed → « Client arrivé » marks the arrival', (
+    tester,
+  ) async {
+    when(
+      () => service.markArrived('a1'),
+    ).thenAnswer((_) async => ApiResponse.success(true));
 
     await tester.pumpWidget(await host(appt()));
     await tester.pump();
@@ -89,9 +92,7 @@ void main() {
     await tester.pump();
     expect(find.text('Client arrivé'), findsNothing);
 
-    await tester.pumpWidget(
-      await host(appt(arrivedAt: DateTime.now())),
-    );
+    await tester.pumpWidget(await host(appt(arrivedAt: DateTime.now())));
     await tester.pump();
     expect(find.text('Client arrivé'), findsNothing);
     await tester.pump(const Duration(seconds: 5));

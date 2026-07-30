@@ -49,23 +49,25 @@ void main() {
     expect(provider.error, isNull);
   });
 
-  test('loadProviders surfaces the error and empties the list on failure',
-      () async {
-    when(
-      () => service.getProviders(
-        category: any(named: 'category'),
-        searchQuery: any(named: 'searchQuery'),
-        commune: any(named: 'commune'),
-      ),
-    ).thenAnswer((_) async => ApiResponse<List<Provider>>.error('boom'));
+  test(
+    'loadProviders surfaces the error and empties the list on failure',
+    () async {
+      when(
+        () => service.getProviders(
+          category: any(named: 'category'),
+          searchQuery: any(named: 'searchQuery'),
+          commune: any(named: 'commune'),
+        ),
+      ).thenAnswer((_) async => ApiResponse<List<Provider>>.error('boom'));
 
-    final provider = ProviderProvider();
-    await provider.loadProviders();
+      final provider = ProviderProvider();
+      await provider.loadProviders();
 
-    expect(provider.providers, isEmpty);
-    expect(provider.error, 'boom');
-    expect(provider.isLoading, isFalse);
-  });
+      expect(provider.providers, isEmpty);
+      expect(provider.error, 'boom');
+      expect(provider.isLoading, isFalse);
+    },
+  );
 
   test('setCommune updates state and filters the list by commune', () async {
     stubProviders(<Provider>[_FakeProvider()]);

@@ -73,9 +73,9 @@ void main() {
 
   setUp(() {
     reset(pro);
-    when(() => pro.updateSalonProfile(any(), any())).thenAnswer(
-      (_) async => ApiResponse.success(seededSalon()),
-    );
+    when(
+      () => pro.updateSalonProfile(any(), any()),
+    ).thenAnswer((_) async => ApiResponse.success(seededSalon()));
   });
 
   Widget app() {
@@ -133,21 +133,26 @@ void main() {
     await settle(tester);
     await settle(tester);
 
-    expect(find.text('Profil du salon'), findsOneWidget,
-        reason: 'the form must be on screen before anything is asserted');
+    expect(
+      find.text('Profil du salon'),
+      findsOneWidget,
+      reason: 'the form must be on screen before anything is asserted',
+    );
   }
 
   // Field order in the ListView: nom · description · adresse ·
   // (commune is a picker row, not a field) · téléphone · WhatsApp.
   Finder nameField() => find.byType(TextField).at(0);
 
-  testWidgets(
-      'an empty name answers UNDER the field — the « nom » fault is no '
+  testWidgets('an empty name answers UNDER the field — the « nom » fault is no '
       'longer a snackbar', (tester) async {
     await openForm(tester);
 
-    expect(find.text('Salon Excellence'), findsOneWidget,
-        reason: 'the name field is prefilled from the loaded listing');
+    expect(
+      find.text('Salon Excellence'),
+      findsOneWidget,
+      reason: 'the name field is prefilled from the loaded listing',
+    );
 
     // Clear it and submit. Rule 5 keeps « Enregistrer » live, so the press
     // MUST answer rather than silently do nothing.
@@ -156,32 +161,47 @@ void main() {
     await tester.tap(find.text('Enregistrer'));
     await settle(tester);
 
-    expect(find.text('Indiquez le nom du salon.'), findsOneWidget,
-        reason: 'the fault renders under the field it belongs to (§14 rule 1)');
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar, and this exact '
-            'message used to BE one (« Le nom est requis »)');
+    expect(
+      find.text('Indiquez le nom du salon.'),
+      findsOneWidget,
+      reason: 'the fault renders under the field it belongs to (§14 rule 1)',
+    );
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason:
+          '§14 rule 3 — a field fault is never a bar, and this exact '
+          'message used to BE one (« Le nom est requis »)',
+    );
     verifyNever(() => pro.updateSalonProfile(any(), any()));
-    expect(find.text('Profil du salon'), findsOneWidget,
-        reason: 'a refused submit must not pop back to « Profil »');
+    expect(
+      find.text('Profil du salon'),
+      findsOneWidget,
+      reason: 'a refused submit must not pop back to « Profil »',
+    );
 
     // Rule 2: fixing it clears the message without another submit.
     await tester.enterText(nameField(), 'Salon Excellence');
     await tester.pump();
-    expect(find.text('Indiquez le nom du salon.'), findsNothing,
-        reason: '§14 rule 2 — the message clears on change, not on re-submit');
+    expect(
+      find.text('Indiquez le nom du salon.'),
+      findsNothing,
+      reason: '§14 rule 2 — the message clears on change, not on re-submit',
+    );
   });
 
-  testWidgets(
-      'THE LOCKOUT: an untouched form saves — the stored E.164 numbers '
+  testWidgets('THE LOCKOUT: an untouched form saves — the stored E.164 numbers '
       'pass their own rule', (tester) async {
     await openForm(tester);
 
     // The precondition that made the 10-local-digit rule unsatisfiable: the
     // phone AND the WhatsApp field are prefilled in E.164 (openapi.yaml), by
     // the app itself, before the salon touches anything.
-    expect(find.text('+225 07 11 22 33 44'), findsNWidgets(2),
-        reason: 'téléphone + WhatsApp both prefilled from the stored listing');
+    expect(
+      find.text('+225 07 11 22 33 44'),
+      findsNWidgets(2),
+      reason: 'téléphone + WhatsApp both prefilled from the stored listing',
+    );
 
     // Press save having changed NOTHING. This is the whole regression: a
     // salon opening its profile and pressing « Enregistrer ».
@@ -189,22 +209,37 @@ void main() {
     await settle(tester);
     await settle(tester);
 
-    expect(find.text('Saisissez un numéro de téléphone valide.'), findsNothing,
-        reason: 'THE LOCKOUT — a rule that rejects the value the app just '
-            'loaded locks the salon out of its own profile forever');
-    expect(find.text('Saisissez un numéro de téléphone.'), findsNothing,
-        reason: 'the field is not empty either — it is prefilled');
-    expect(find.text('Indiquez le nom du salon.'), findsNothing,
-        reason: 'nothing on an untouched, server-filled form may fail');
+    expect(
+      find.text('Saisissez un numéro de téléphone valide.'),
+      findsNothing,
+      reason:
+          'THE LOCKOUT — a rule that rejects the value the app just '
+          'loaded locks the salon out of its own profile forever',
+    );
+    expect(
+      find.text('Saisissez un numéro de téléphone.'),
+      findsNothing,
+      reason: 'the field is not empty either — it is prefilled',
+    );
+    expect(
+      find.text('Indiquez le nom du salon.'),
+      findsNothing,
+      reason: 'nothing on an untouched, server-filled form may fail',
+    );
 
     verify(() => pro.updateSalonProfile('provider1', any())).called(1);
-    expect(find.text('PROFIL'), findsOneWidget,
-        reason: 'a saved profile pops back to « Profil » (A6: success is a '
-            'bar + a pop, not a dead screen)');
+    expect(
+      find.text('PROFIL'),
+      findsOneWidget,
+      reason:
+          'a saved profile pops back to « Profil » (A6: success is a '
+          'bar + a pop, not a dead screen)',
+    );
   });
 
-  testWidgets('a phone typed as local digits answers under ITS field',
-      (tester) async {
+  testWidgets('a phone typed as local digits answers under ITS field', (
+    tester,
+  ) async {
     await openForm(tester);
 
     // The other side of the same rule: E.164 is what the backend stores, so a
@@ -215,20 +250,29 @@ void main() {
     await settle(tester);
 
     expect(
-        find.text('Saisissez un numéro de téléphone valide.'), findsOneWidget,
-        reason: 'E.164 (§ openapi.yaml) — the message sits under téléphone');
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
+      find.text('Saisissez un numéro de téléphone valide.'),
+      findsOneWidget,
+      reason: 'E.164 (§ openapi.yaml) — the message sits under téléphone',
+    );
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
     verifyNever(() => pro.updateSalonProfile(any(), any()));
 
     await tester.enterText(find.byType(TextField).at(3), '+225 07 11 22 33 44');
     await tester.pump();
-    expect(find.text('Saisissez un numéro de téléphone valide.'), findsNothing,
-        reason: '§14 rule 2 — cleared on change, without a second submit');
+    expect(
+      find.text('Saisissez un numéro de téléphone valide.'),
+      findsNothing,
+      reason: '§14 rule 2 — cleared on change, without a second submit',
+    );
   });
 
-  testWidgets('WhatsApp is OPTIONAL — an empty one does not block the save',
-      (tester) async {
+  testWidgets('WhatsApp is OPTIONAL — an empty one does not block the save', (
+    tester,
+  ) async {
     await openForm(tester);
 
     // The optional field's own trap: reusing the required phone rule here
@@ -239,9 +283,13 @@ void main() {
     await settle(tester);
     await settle(tester);
 
-    expect(find.text('Saisissez un numéro de téléphone.'), findsNothing,
-        reason: 'blank WhatsApp passes — only a typed one must be a real '
-            'number');
+    expect(
+      find.text('Saisissez un numéro de téléphone.'),
+      findsNothing,
+      reason:
+          'blank WhatsApp passes — only a typed one must be a real '
+          'number',
+    );
     verify(() => pro.updateSalonProfile('provider1', any())).called(1);
   });
 }

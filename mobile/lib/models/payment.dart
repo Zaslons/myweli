@@ -25,11 +25,11 @@ class DepositPolicy {
   });
 
   factory DepositPolicy.fromJson(Map<String, dynamic> json) => DepositPolicy(
-        depositRequired: json['depositRequired'] as bool? ?? false,
-        depositPercentage: (json['depositPercentage'] as num?)?.toDouble() ?? 0,
-        cancellationWindowHours:
-            (json['cancellationWindowHours'] as num?)?.toInt() ?? 24,
-        mobileMoneyOperator: json['mobileMoneyOperator'] as String?,
-        mobileMoneyNumber: json['mobileMoneyNumber'] as String?,
-      );
+    depositRequired: json['depositRequired'] as bool? ?? false,
+    depositPercentage: (json['depositPercentage'] as num?)?.toDouble() ?? 0,
+    cancellationWindowHours:
+        (json['cancellationWindowHours'] as num?)?.toInt() ?? 24,
+    mobileMoneyOperator: json['mobileMoneyOperator'] as String?,
+    mobileMoneyNumber: json['mobileMoneyNumber'] as String?,
+  );
 }

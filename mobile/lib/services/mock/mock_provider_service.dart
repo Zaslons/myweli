@@ -97,10 +97,9 @@ class MockProviderService implements ProviderServiceInterface {
 
     try {
       final provider = MockData.providers.firstWhere((p) => p.id == id);
-      final providerReviews = MockData.reviews
-          .where((r) => r.providerId == id)
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final providerReviews =
+          MockData.reviews.where((r) => r.providerId == id).toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return ApiResponse.success(provider.copyWith(reviews: providerReviews));
     } catch (e) {
       return ApiResponse.error('Provider non trouvé');

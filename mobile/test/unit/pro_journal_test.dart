@@ -73,21 +73,20 @@ void main() {
       String date = '2026-07-13T10:00:00.000Z',
       int noShow = 0,
       DateTime? arrivedAt,
-    }) =>
-        Appointment(
-          id: id,
-          userId: 'u1',
-          providerId: 'p1',
-          serviceIds: const ['s1'],
-          artistId: artistId,
-          appointmentDate: DateTime.parse(date),
-          status: AppointmentStatus.values.byName(status),
-          totalPrice: 10000,
-          durationMinutes: 60,
-          clientNoShowCount: noShow,
-          arrivedAt: arrivedAt,
-          createdAt: DateTime.parse('2026-07-13T08:00:00.000Z'),
-        );
+    }) => Appointment(
+      id: id,
+      userId: 'u1',
+      providerId: 'p1',
+      serviceIds: const ['s1'],
+      artistId: artistId,
+      appointmentDate: DateTime.parse(date),
+      status: AppointmentStatus.values.byName(status),
+      totalPrice: 10000,
+      durationMinutes: 60,
+      clientNoShowCount: noShow,
+      arrivedAt: arrivedAt,
+      createdAt: DateTime.parse('2026-07-13T08:00:00.000Z'),
+    );
 
     test('load populates the day; error path clears it', () async {
       fake.day = JournalDay(
@@ -161,8 +160,7 @@ void main() {
       expect(p.error, isNotNull);
     });
 
-    test(
-        'the ACTIVE salon tz shapes keyOf/todayKey (multi-pays MP2) and '
+    test('the ACTIVE salon tz shapes keyOf/todayKey (multi-pays MP2) and '
         'resets on salon switch', () async {
       fake.day = JournalDay(
         date: '2026-07-13',

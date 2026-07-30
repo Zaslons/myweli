@@ -9,14 +9,13 @@ class CalendarScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Calendrier'),
-      ),
+      appBar: AppBar(title: const Text('Calendrier')),
       body: Center(
         child: Text(
           'Calendrier - À implémenter',
-          style:
-              AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
       ),
     );

@@ -21,11 +21,7 @@ class AppLogger {
 
   static void warning(String message) => _log(LogLevel.warning, message);
 
-  static void error(
-    String message, {
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
+  static void error(String message, {Object? error, StackTrace? stackTrace}) {
     _log(LogLevel.error, message, error: error, stackTrace: stackTrace);
     // TODO(observability): forward errors to Sentry/Crashlytics once a DSN /
     // Firebase project is configured. Keep this the single integration point.

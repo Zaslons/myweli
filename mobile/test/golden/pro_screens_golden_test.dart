@@ -269,9 +269,13 @@ void main() {
       final target = monday.add(Duration(days: today.weekday - 1 + 2));
       await tester.tap(find.text('${target.day}'));
       await settleMocks(tester, rounds: 10);
-      expect(find.text('Aujourd\u2019hui'), findsNothing,
-          reason: 'the tap must have landed — if the strip did not move, this '
-              'golden is a second copy of the one above');
+      expect(
+        find.text('Aujourd\u2019hui'),
+        findsNothing,
+        reason:
+            'the tap must have landed — if the strip did not move, this '
+            'golden is a second copy of the one above',
+      );
       await expectGolden(tester, 'pro_journal_day');
     });
 
@@ -288,8 +292,9 @@ void main() {
     // that replaced a bare `Center(Text(…))` in the same commit. But one picture
     // of an empty state is not a photograph of a screen, which is why the second
     // one exists — the same argument, and the same shape, as `pro_journal_day`.
-    testWidgets('the earnings buckets, on the day the salon opens it',
-        (tester) async {
+    testWidgets('the earnings buckets, on the day the salon opens it', (
+      tester,
+    ) async {
       await _pumpPro(
         tester,
         const EarningsScreen(),
@@ -299,7 +304,8 @@ void main() {
       expect(
         find.text('Aucune transaction'),
         findsOneWidget,
-        reason: 'the first load must be the SELECTED tab\'s load — if this '
+        reason:
+            'the first load must be the SELECTED tab\'s load — if this '
             'shows rows, `initState` has drifted back to loading unbounded and '
             'the picture is of a bug',
       );
@@ -330,7 +336,7 @@ void main() {
         tester,
         const AppointmentListScreen(),
         extra: [
-          ChangeNotifierProvider(create: (_) => ProAppointmentProvider())
+          ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
         ],
         size: const Size(360, 1200),
       );
@@ -350,7 +356,8 @@ void main() {
       expect(
         find.text('Aucun avis'),
         findsNothing,
-        reason: 'provider1 has three seeded reviews — the empty state has no '
+        reason:
+            'provider1 has three seeded reviews — the empty state has no '
             'summary card, and the histogram bar is the whole subject',
       );
       await expectGolden(tester, 'pro_reviews_w360');
@@ -510,11 +517,12 @@ Future<void> _pumpPro(
       MockAuthService.demoOtp,
     );
     auth = ProAuthProvider();
-    for (var i = 0;
-        i < 60 &&
-            (auth.isLoading ||
-                (auth.isAuthenticated && auth.membership == null));
-        i++) {
+    for (
+      var i = 0;
+      i < 60 &&
+          (auth.isLoading || (auth.isAuthenticated && auth.membership == null));
+      i++
+    ) {
       await Future<void>.delayed(const Duration(milliseconds: 25));
     }
   });

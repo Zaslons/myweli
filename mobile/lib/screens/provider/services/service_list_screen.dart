@@ -32,8 +32,10 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final serviceProvider =
-            Provider.of<ProServiceProvider>(context, listen: false);
+        final serviceProvider = Provider.of<ProServiceProvider>(
+          context,
+          listen: false,
+        );
         serviceProvider.loadServices(_resolvedProviderId(context));
       }
     });
@@ -43,9 +45,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Services'),
-      ),
+      appBar: AppBar(title: const Text('Services')),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Ajouter un service',
         onPressed: () => context.push('/pro/service/new'),
@@ -69,8 +69,11 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.build,
-                        size: AppTheme.iconXL, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.build,
+                      size: AppTheme.iconXL,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun service pour le moment',
@@ -102,8 +105,9 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           return BrandRefresh(
             onRefresh: () async {
               if (authProvider.provider != null) {
-                await serviceProvider
-                    .loadServices(_resolvedProviderId(context));
+                await serviceProvider.loadServices(
+                  _resolvedProviderId(context),
+                );
               }
             },
             child: ListView.builder(
@@ -133,10 +137,7 @@ class _ServiceCard extends StatelessWidget {
   final Service service;
   final VoidCallback onTap;
 
-  const _ServiceCard({
-    required this.service,
-    required this.onTap,
-  });
+  const _ServiceCard({required this.service, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

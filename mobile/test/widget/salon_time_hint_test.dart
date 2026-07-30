@@ -10,10 +10,8 @@ import '../support/pump_app.dart';
 /// deterministic on any machine.
 void main() {
   Widget host(Duration offset) => wrapApp(
-        home: Scaffold(
-          body: SalonTimeHint(deviceOffsetOverride: offset),
-        ),
-      );
+    home: Scaffold(body: SalonTimeHint(deviceOffsetOverride: offset)),
+  );
 
   testWidgets('a foreign device sees the hint', (tester) async {
     await tester.pumpWidget(host(const Duration(hours: 1))); // Paris (winter)

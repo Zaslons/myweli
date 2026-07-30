@@ -21,8 +21,10 @@ void main() {
     });
 
     test('missing params render as empty, not an error', () {
-      expect(() => renderTemplate(MessageTemplate.reminder24h, const {}),
-          returnsNormally);
+      expect(
+        () => renderTemplate(MessageTemplate.reminder24h, const {}),
+        returnsNormally,
+      );
     });
   });
 
@@ -98,8 +100,7 @@ void main() {
       expect(provider.outbox.last.template, MessageTemplate.bookingConfirmed);
     });
 
-    test(
-        'the confirmation renders the SALON wall-clock + FCFA for XAF '
+    test('the confirmation renders the SALON wall-clock + FCFA for XAF '
         '(multi-pays MP2)', () async {
       final provider = MessagingProvider();
       await provider.sendBookingConfirmation(

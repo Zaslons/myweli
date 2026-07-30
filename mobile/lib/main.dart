@@ -57,11 +57,8 @@ void main() {
 
       runApp(MyweliApp(auth: auth));
     },
-    (error, stack) => AppLogger.error(
-      'Uncaught zone error',
-      error: error,
-      stackTrace: stack,
-    ),
+    (error, stack) =>
+        AppLogger.error('Uncaught zone error', error: error, stackTrace: stack),
   );
 }
 

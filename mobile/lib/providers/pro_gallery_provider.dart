@@ -116,11 +116,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   /// restoring a snapshot silently reverts anything done during the 10s undo
   /// window — a reorder, or worse, a photo uploaded in the meantime, destroyed
   /// with no warning. Undo must undo one action, not rewind the gallery.
-  Future<bool> restorePhotoAt(
-    String providerId,
-    int index,
-    String url,
-  ) async {
+  Future<bool> restorePhotoAt(String providerId, int index, String url) async {
     final next = [..._photos];
     next.insert(index.clamp(0, next.length), url);
     final saved = await _proService.updateGalleryPhotos(providerId, next);

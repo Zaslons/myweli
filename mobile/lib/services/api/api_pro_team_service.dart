@@ -22,9 +22,9 @@ class ApiProTeamService implements ProTeamServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -188,10 +188,12 @@ class ApiProTeamService implements ProTeamServiceInterface {
     String? selected;
     if (raw != null) {
       try {
-        selected =
-            ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
-                .selectedSalonId;
-      } catch (_) {/* legacy blob → default salon */}
+        selected = ProviderSession.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>,
+        ).selectedSalonId;
+      } catch (_) {
+        /* legacy blob → default salon */
+      }
     }
     final uri = _uri(path);
     if (selected == null || selected.isEmpty) return uri;
@@ -199,8 +201,10 @@ class ApiProTeamService implements ProTeamServiceInterface {
   }
 
   Map<String, String> _bearer(String t) => {'Authorization': 'Bearer $t'};
-  Map<String, String> _json(String t) =>
-      {..._bearer(t), 'Content-Type': 'application/json'};
+  Map<String, String> _json(String t) => {
+    ..._bearer(t),
+    'Content-Type': 'application/json',
+  };
   ApiResponse<T> _networkError<T>() =>
       ApiResponse.error('Pas de connexion. Réessayez.');
 

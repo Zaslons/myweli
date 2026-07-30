@@ -18,12 +18,7 @@ class InventoryManagementScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Gestion des stocks'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {},
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.add), onPressed: () {})],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -161,9 +156,7 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: AppTextStyles.headlineSmall.copyWith(
-              color: color,
-            ),
+            style: AppTextStyles.headlineSmall.copyWith(color: color),
           ),
           Text(
             subtitle,
@@ -238,10 +231,7 @@ class _ProductItem extends StatelessWidget {
               color: _statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             ),
-            child: Icon(
-              Icons.inventory_2,
-              color: _statusColor,
-            ),
+            child: Icon(Icons.inventory_2, color: _statusColor),
           ),
           const SizedBox(width: 12),
           Expanded(

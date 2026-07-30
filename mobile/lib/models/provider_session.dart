@@ -35,38 +35,35 @@ class ProviderSession {
     ProMembership? membership,
     String? selectedSalonId,
     bool clearSelectedSalon = false,
-  }) =>
-      ProviderSession(
-        token: token,
-        refreshToken: refreshToken,
-        provider: provider,
-        membership: membership ?? this.membership,
-        selectedSalonId: clearSelectedSalon
-            ? null
-            : (selectedSalonId ?? this.selectedSalonId),
-      );
+  }) => ProviderSession(
+    token: token,
+    refreshToken: refreshToken,
+    provider: provider,
+    membership: membership ?? this.membership,
+    selectedSalonId: clearSelectedSalon
+        ? null
+        : (selectedSalonId ?? this.selectedSalonId),
+  );
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'refreshToken': refreshToken,
-        'provider': provider.toJson(),
-        if (membership != null) 'membership': membership!.toJson(),
-        if (selectedSalonId != null) 'selectedSalonId': selectedSalonId,
-      };
+    'token': token,
+    'refreshToken': refreshToken,
+    'provider': provider.toJson(),
+    if (membership != null) 'membership': membership!.toJson(),
+    if (selectedSalonId != null) 'selectedSalonId': selectedSalonId,
+  };
 
-  factory ProviderSession.fromJson(Map<String, dynamic> json) =>
-      ProviderSession(
-        token: json['token'] as String,
-        refreshToken: json['refreshToken'] as String?,
-        provider:
-            ProviderUser.fromJson(json['provider'] as Map<String, dynamic>),
-        // Legacy sessions (pre-R4b) simply have no cached membership.
-        membership: json['membership'] == null
-            ? null
-            : ProMembership.fromJson(
-                json['membership'] as Map<String, dynamic>,
-              ),
-        // Legacy sessions (pre-R6) simply have no selection.
-        selectedSalonId: json['selectedSalonId'] as String?,
-      );
+  factory ProviderSession.fromJson(
+    Map<String, dynamic> json,
+  ) => ProviderSession(
+    token: json['token'] as String,
+    refreshToken: json['refreshToken'] as String?,
+    provider: ProviderUser.fromJson(json['provider'] as Map<String, dynamic>),
+    // Legacy sessions (pre-R4b) simply have no cached membership.
+    membership: json['membership'] == null
+        ? null
+        : ProMembership.fromJson(json['membership'] as Map<String, dynamic>),
+    // Legacy sessions (pre-R6) simply have no selection.
+    selectedSalonId: json['selectedSalonId'] as String?,
+  );
 }

@@ -76,7 +76,8 @@ void main() {
       expect(
         offenders(RegExp(r'\.showSnackBar\('), allow: [snackBarComponent]),
         isEmpty,
-        reason: 'feedback goes through AppSnackBar.show/showOn/outcome. It '
+        reason:
+            'feedback goes through AppSnackBar.show/showOn/outcome. It '
             'owns §15\'s kind→colour+icon+duration table; a hand-rolled bar '
             'picks its own tone (30 of 61 errors used to render ink-black) '
             'and its own duration (2s/1s/4s — §15 says 3/6/10).',
@@ -85,8 +86,10 @@ void main() {
 
     test('no hand-built SnackBar (§15)', () {
       expect(
-        offenders(RegExp(r'(?:^|[^A-Za-z0-9_])SnackBar\('),
-            allow: [snackBarComponent]),
+        offenders(
+          RegExp(r'(?:^|[^A-Za-z0-9_])SnackBar\('),
+          allow: [snackBarComponent],
+        ),
         isEmpty,
         reason: 'constructing a SnackBar is building the component again.',
       );
@@ -94,10 +97,13 @@ void main() {
 
     test('one ConfirmDialog — no hand-built AlertDialog (§15)', () {
       expect(
-        offenders(RegExp(r'(?:^|[^A-Za-z0-9_])AlertDialog\('),
-            allow: [dialogComponent]),
+        offenders(
+          RegExp(r'(?:^|[^A-Za-z0-9_])AlertDialog\('),
+          allow: [dialogComponent],
+        ),
         isEmpty,
-        reason: 'use showConfirmDialog / showInputDialog. The component owns '
+        reason:
+            'use showConfirmDialog / showInputDialog. The component owns '
             'the ladder (verb label, consequence, type-to-confirm), the '
             'destructive classification, cancel-takes-focus (§13.5) and the '
             'controller\'s lifetime — all things the 13 copies got wrong '
@@ -107,10 +113,13 @@ void main() {
 
     test('…and its entry points (§15)', () {
       expect(
-        offenders(RegExp(r'showDialog<(?:bool|String)>'),
-            allow: [dialogComponent]),
+        offenders(
+          RegExp(r'showDialog<(?:bool|String)>'),
+          allow: [dialogComponent],
+        ),
         isEmpty,
-        reason: 'a bool/String dialog IS a confirm or an input — both belong '
+        reason:
+            'a bool/String dialog IS a confirm or an input — both belong '
             'to ConfirmDialog. (showDialog<void> for a lightbox is fine.)',
       );
     });
@@ -130,7 +139,8 @@ void main() {
       expect(
         offenders(RegExp(r'(?:^|[^A-Za-z0-9_])validator:')),
         isEmpty,
-        reason: 'a `validator:` cannot express §14 rule 2 (it fires on every '
+        reason:
+            'a `validator:` cannot express §14 rule 2 (it fires on every '
             'change once touched — the form that yells at `s@`), gives no '
             'per-field map, and cannot carry a server fault to its field. '
             'Worse, its result silently overwrites `decoration.errorText`, so '
@@ -142,7 +152,8 @@ void main() {
       expect(
         offenders(RegExp(r"RegExp\(r'\^\[\^@")),
         isEmpty,
-        reason: 'five copies of the e-mail rule shipped in one app, and they '
+        reason:
+            'five copies of the e-mail rule shipped in one app, and they '
             'disagreed: the loose one accepted a single-character TLD the '
             'strict one rejects. Validators.email is the definition.',
       );
@@ -155,7 +166,8 @@ void main() {
       expect(
         offenders(RegExp(r'SizedBox\((?:height|width): \d+(?:\.\d+)?\)')),
         isEmpty,
-        reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64). A raw spacer '
+        reason:
+            'use AppTheme.spacing* (4/8/12/16/24/32/48/64). A raw spacer '
             'number is either off the 8pt grid or a token that already exists. '
             'A genuine fixed dimension declares `// ds-ignore`.',
       );
@@ -195,7 +207,8 @@ void main() {
       expect(
         offenders(RegExp(r'(?:\b(?:run)?|(?:cross|main)Axis)[Ss]pacing:\s*\d')),
         isEmpty,
-        reason: 'use AppTheme.spacing* (4/8/12/16/24/32/48/64) for Wrap and '
+        reason:
+            'use AppTheme.spacing* (4/8/12/16/24/32/48/64) for Wrap and '
             'Flex gaps too. A gap is spacing whether it is written as a '
             'SizedBox between children or as the parent’s `spacing:`, or as a '
             'grid delegate’s crossAxisSpacing/mainAxisSpacing.',
@@ -211,7 +224,8 @@ void main() {
       expect(
         dartFiles.length,
         greaterThan(100),
-        reason: 'the spacing pin is scanning an empty or truncated file set, '
+        reason:
+            'the spacing pin is scanning an empty or truncated file set, '
             'so its green means nothing',
       );
     });
@@ -238,7 +252,8 @@ void main() {
       expect(
         offenders(RegExp(r'fontSize:')),
         isEmpty,
-        reason: 'pick a scale entry (AppTextStyles.*) and .copyWith(color:) — '
+        reason:
+            'pick a scale entry (AppTextStyles.*) and .copyWith(color:) — '
             'never TextStyle(fontSize:). 11 (labelSmall) is the floor.',
       );
     });
@@ -287,10 +302,12 @@ void main() {
     // flag-hidden V2/V3 screens (§22) and the motion pins inherit that. Named
     // here because inheriting an exclusion silently is how one gets forgotten.
     final animationFiles = dartFiles
-        .where((f) =>
-            f.path.contains('/screens/') ||
-            f.path.contains('/widgets/') ||
-            f.path.contains('/core/router/'))
+        .where(
+          (f) =>
+              f.path.contains('/screens/') ||
+              f.path.contains('/widgets/') ||
+              f.path.contains('/core/router/'),
+        )
         .toList();
 
     List<String> animationOffenders(RegExp pattern) {
@@ -311,15 +328,19 @@ void main() {
       // `dartFiles` is built from a relative `Directory('lib')`. If that ever
       // resolves to nothing the two tests below pass on an empty list and read
       // as a clean sweep — the failure mode this whole register exists to stop.
-      expect(animationFiles.length, greaterThan(100),
-          reason: 'the animation pins are scanning an empty or truncated set');
+      expect(
+        animationFiles.length,
+        greaterThan(100),
+        reason: 'the animation pins are scanning an empty or truncated set',
+      );
     });
 
     test('motion duration is a token — no raw milliseconds (§9)', () {
       expect(
         animationOffenders(RegExp(r'Duration\(milliseconds:')),
         isEmpty,
-        reason: 'use AppMotion.* (stagger/fast/base/emphasis/slow = '
+        reason:
+            'use AppMotion.* (stagger/fast/base/emphasis/slow = '
             '50/100/200/300/400ms). A hand-written number is how 240ms and '
             '220ms came to sit next to 200ms doing the same job.',
       );
@@ -329,7 +350,8 @@ void main() {
       expect(
         animationOffenders(RegExp(r'Curves\.')),
         isEmpty,
-        reason: 'each §9 token names its curve: use AppMotion.*Curve. '
+        reason:
+            'each §9 token names its curve: use AppMotion.*Curve. '
             'The pairing is the rule — entering decelerates, exiting '
             'accelerates — and a bare Curves.easeIn on an ENTERING fade is '
             'exactly the inversion the tokens exist to prevent.',
@@ -350,10 +372,14 @@ void main() {
       // how it eases, and the curve inside it is caught by the rule above.
       expect(
         animationOffenders(
-            RegExp(r'\b(Cubic|ElasticInCurve|ElasticOutCurve|ElasticInOutCurve|'
-                r'SawTooth|Threshold|FlippedCurve|CatmullRom)\(')),
+          RegExp(
+            r'\b(Cubic|ElasticInCurve|ElasticOutCurve|ElasticInOutCurve|'
+            r'SawTooth|Threshold|FlippedCurve|CatmullRom)\(',
+          ),
+        ),
         isEmpty,
-        reason: 'an easing shape is a token (AppMotion.*Curve), not four '
+        reason:
+            'an easing shape is a token (AppMotion.*Curve), not four '
             'hand-tuned control points',
       );
     });
@@ -370,10 +396,14 @@ void main() {
       // shape that could only ever be motion.
       expect(
         animationOffenders(
-            RegExp(r'(duration|transitionDuration|reverseDuration):\s*'
-                r'(const\s+)?Duration\(seconds:')),
+          RegExp(
+            r'(duration|transitionDuration|reverseDuration):\s*'
+            r'(const\s+)?Duration\(seconds:',
+          ),
+        ),
         isEmpty,
-        reason: 'an animation longer than motionSlow reads as lag, not '
+        reason:
+            'an animation longer than motionSlow reads as lag, not '
             'response (§9) — and a whole second is 2.5× the ceiling',
       );
     });
@@ -406,11 +436,9 @@ void main() {
     /// would wave the second through — and the three tests that broke this
     /// sweep were all double-quoted precisely because the author was avoiding
     /// the escape.
-    List<String> stringsIn(String line) =>
-        RegExp('\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"')
-            .allMatches(line)
-            .map((m) => m.group(0)!)
-            .toList();
+    List<String> stringsIn(String line) => RegExp(
+      '\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"',
+    ).allMatches(line).map((m) => m.group(0)!).toList();
 
     /// Does [literal] contain a straight apostrophe, in whichever form its
     /// quoting requires?
@@ -496,7 +524,8 @@ void main() {
           if (line.trimLeft().startsWith('//')) continue;
           // A pattern is code that SEARCHES source: a RegExp, a grep token, a
           // contains(). A curly quote inside one is always a corrupted pin.
-          final isPattern = line.contains('RegExp(') ||
+          final isPattern =
+              line.contains('RegExp(') ||
               line.contains('token:') ||
               line.contains('.contains(');
           if (isPattern &&
@@ -506,16 +535,19 @@ void main() {
         }
       }
 
-      expect(dead, isEmpty,
-          reason: 'this pattern can never match — a curly quote and an '
-              'ellipsis character do not appear in '
-              'Dart syntax, so the pin is a no-op that passes vacuously. Four '
-              'pins were disabled this way in one commit, and the suite stayed '
-              'green through all of them.');
+      expect(
+        dead,
+        isEmpty,
+        reason:
+            'this pattern can never match — a curly quote and an '
+            'ellipsis character do not appear in '
+            'Dart syntax, so the pin is a no-op that passes vacuously. Four '
+            'pins were disabled this way in one commit, and the suite stayed '
+            'green through all of them.',
+      );
     });
 
-    test('a grid tile that holds text has no fixed aspect ratio (§13.3, A12)',
-        () {
+    test('a grid tile that holds text has no fixed aspect ratio (§13.3, A12)', () {
       // `childAspectRatio` freezes tile HEIGHT as a multiple of tile WIDTH, and
       // width does not move with the OS text scale — so the tile is the same
       // height at 100% and at 200%, forever. §13.3 already says "a box that
@@ -585,7 +617,8 @@ void main() {
       expect(
         offenders(noScalingPattern),
         isEmpty,
-        reason: 'this widget renders the same size at 100% and 200% text. The '
+        reason:
+            'this widget renders the same size at 100% and 200% text. The '
             'user turned the setting on and the app decided not to listen — '
             'which no golden, no clip gate and no `takeException` can see.',
       );
@@ -609,9 +642,11 @@ void main() {
       // not the same evidence as the sweep finding it in `lib/`.
       expect(
         noScalingPattern.hasMatch(
-            '      child: Text(t, textScaler: TextScaler.noScaling),'),
+          '      child: Text(t, textScaler: TextScaler.noScaling),',
+        ),
         isTrue,
-        reason: 'the pin cannot see the literal it exists to forbid — this is '
+        reason:
+            'the pin cannot see the literal it exists to forbid — this is '
             'the line copied from time_picker.dart:387',
       );
       expect(
@@ -623,9 +658,11 @@ void main() {
       // for a hit would be to stop scaling properly.
       expect(
         noScalingPattern.hasMatch(
-            '      final s = MediaQuery.textScalerOf(context).scale(line);'),
+          '      final s = MediaQuery.textScalerOf(context).scale(line);',
+        ),
         isFalse,
-        reason: 'the pin flags the right way to read the scale, so obeying it '
+        reason:
+            'the pin flags the right way to read the scale, so obeying it '
             'would mean removing the scaling this rule exists to protect',
       );
     });
@@ -676,23 +713,32 @@ void main() {
         }
       }
 
-      expect(found, isNotEmpty,
-          reason: 'no DropdownButtonFormField was found anywhere in lib/, so '
-              'the assertion below is empty-set-true. Either they are all gone '
-              'or this scan is resolving paths from the wrong directory.');
+      expect(
+        found,
+        isNotEmpty,
+        reason:
+            'no DropdownButtonFormField was found anywhere in lib/, so '
+            'the assertion below is empty-set-true. Either they are all gone '
+            'or this scan is resolving paths from the wrong directory.',
+      );
 
-      expect(missing, isEmpty,
-          reason: 'a form dropdown without `isExpanded: true` is as wide as '
-              'its longest option, whatever the screen is. At 200% text that '
-              'is off the edge, and in a release build there is no striped '
-              'banner to say so.');
+      expect(
+        missing,
+        isEmpty,
+        reason:
+            'a form dropdown without `isExpanded: true` is as wide as '
+            'its longest option, whatever the screen is. At 200% text that '
+            'is off the edge, and in a release build there is no striped '
+            'banner to say so.',
+      );
     });
 
     test('one ellipsis character — … never ... (§17.1)', () {
       expect(
         stringOffenders((s) => s.contains('...')),
         isEmpty,
-        reason: 'the app shipped `Chargement...` and `Chargement…` — the same '
+        reason:
+            'the app shipped `Chargement...` and `Chargement…` — the same '
             'word, two spellings. Use the … character.',
       );
     });
@@ -716,7 +762,8 @@ void main() {
         lineOffenders((line) => line.contains("\\'")) +
             stringOffenders(hasStraightApostrophe),
         isEmpty,
-        reason: "use ’ (U+2019), not \\'. Both shipped, sometimes in adjacent "
+        reason:
+            "use ’ (U+2019), not \\'. Both shipped, sometimes in adjacent "
             'files. It also removes the escape, which is why the strings get '
             'shorter rather than longer.',
       );
@@ -740,13 +787,13 @@ void main() {
     // asserted verbatim by `pro_login_invitations_test.dart`. A sweep that
     // quietly changed it would be inventing a convention, which is the thing
     // §17.1 says to take as its own decision.
-    test(
-        'no parenthetical plural — « 1 prestation » never « 1 prestation(s) » '
+    test('no parenthetical plural — « 1 prestation » never « 1 prestation(s) » '
         '(§17.1)', () {
       expect(
         stringOffenders((s) => s.contains('(s)')),
         isEmpty,
-        reason: 'French does not use the English « (s) » form. Use '
+        reason:
+            'French does not use the English « (s) » form. Use '
             'Formatters.count(n, singular, plural), which asks CLDR and gets '
             'n = 0 right — French puts zero in the SINGULAR, which is exactly '
             'where the app’s four hand-rolled idioms disagreed.',

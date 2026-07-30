@@ -57,26 +57,40 @@ class _AdminAuditScreenState extends State<AdminAuditScreen> {
                 for (final e in p.items)
                   AdminRow(
                     cells: [
-                      Text(_when(e['createdAt']),
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: AppColors.textSecondary)),
-                      Text(auditActionLabel(e['action'] as String?),
-                          style: AppTextStyles.bodyMedium),
-                      Text(_target(e),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: AppColors.textSecondary)),
-                      Text('${e['reason'] ?? '—'}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: AppColors.textSecondary)),
-                      Text('${e['actorAdminId'] ?? '—'}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: AppColors.textSecondary)),
+                      Text(
+                        _when(e['createdAt']),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        auditActionLabel(e['action'] as String?),
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                      Text(
+                        _target(e),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '${e['reason'] ?? '—'}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '${e['actorAdminId'] ?? '—'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
               ],
@@ -129,7 +143,9 @@ class _ActionFilter extends StatelessWidget {
           icon: const Icon(Icons.keyboard_arrow_down, size: AppTheme.iconS),
           items: [
             const DropdownMenuItem(
-                value: null, child: Text('Toutes les actions')),
+              value: null,
+              child: Text('Toutes les actions'),
+            ),
             for (final entry in kAuditActions.entries)
               DropdownMenuItem(value: entry.key, child: Text(entry.value)),
           ],
@@ -150,9 +166,12 @@ class _Pager extends StatelessWidget {
       padding: const EdgeInsets.only(top: AppTheme.spacingM),
       child: Row(
         children: [
-          Text(Formatters.count(provider.total, 'entrée', 'entrées'),
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textTertiary)),
+          Text(
+            Formatters.count(provider.total, 'entrée', 'entrées'),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          ),
           const Spacer(),
           IconButton(
             tooltip: 'Précédent',

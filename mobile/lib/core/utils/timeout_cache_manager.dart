@@ -11,13 +11,13 @@ class TimeoutCacheManager extends CacheManager {
     Duration stalePeriod = const Duration(days: 7),
     int maxNrOfCacheObjects = 200,
   }) : super(
-          Config(
-            cacheKey,
-            stalePeriod: stalePeriod,
-            maxNrOfCacheObjects: maxNrOfCacheObjects,
-            fileService: _TimeoutHttpFileService(requestTimeout),
-          ),
-        );
+         Config(
+           cacheKey,
+           stalePeriod: stalePeriod,
+           maxNrOfCacheObjects: maxNrOfCacheObjects,
+           fileService: _TimeoutHttpFileService(requestTimeout),
+         ),
+       );
 
   static final TimeoutCacheManager images = TimeoutCacheManager(
     cacheKey: 'myweliImageCache',

@@ -46,31 +46,36 @@ void main() {
     return tester.getSize(find.byType(SectionHeading)).height;
   }
 
-  testWidgets('an untappable heading keeps its vertical padding',
-      (tester) async {
+  testWidgets('an untappable heading keeps its vertical padding', (
+    tester,
+  ) async {
     final bare = await heightOf(tester);
 
     // The text alone, in the same style and on the same surface — so the
     // comparison is "the heading is padded", not a guess at a pixel count.
     final textHeight = tester
-        .getSize(find.descendant(
-          of: find.byType(SectionHeading),
-          matching: find.byType(Text),
-        ))
+        .getSize(
+          find.descendant(
+            of: find.byType(SectionHeading),
+            matching: find.byType(Text),
+          ),
+        )
         .height;
 
     expect(
       bare,
       closeTo(textHeight + 2 * AppTheme.spacingXS, 0.51),
-      reason: 'the heading is ${bare}dp tall around ${textHeight}dp of text, '
+      reason:
+          'the heading is ${bare}dp tall around ${textHeight}dp of text, '
           'so it carries ${bare - textHeight}dp of padding instead of '
           '${2 * AppTheme.spacingXS}. Six salon-detail sections are untappable '
           'and this is the only thing holding them off their content.',
     );
   });
 
-  testWidgets('the tappable one still meets the 48dp target (§13.2)',
-      (tester) async {
+  testWidgets('the tappable one still meets the 48dp target (§13.2)', (
+    tester,
+  ) async {
     expect(
       await heightOf(tester, onTap: () {}),
       greaterThanOrEqualTo(48.0),

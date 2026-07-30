@@ -32,8 +32,9 @@ void main() {
         goldenApp(
           home: Builder(
             builder: (context) {
-              WidgetsBinding.instance
-                  .addPostFrameCallback((_) => open(context));
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => open(context),
+              );
               return const Scaffold(backgroundColor: AppColors.background);
             },
           ),
@@ -49,12 +50,14 @@ void main() {
       // is the safe default and holds focus.
       await pumpDialog(
         tester,
-        (context) => unawaited(showConfirmDialog(
-          context,
-          title: 'Supprimer cette photo ?',
-          message: 'Elle disparaîtra de votre galerie publique.',
-          confirmLabel: 'Supprimer la photo',
-        )),
+        (context) => unawaited(
+          showConfirmDialog(
+            context,
+            title: 'Supprimer cette photo ?',
+            message: 'Elle disparaîtra de votre galerie publique.',
+            confirmLabel: 'Supprimer la photo',
+          ),
+        ),
       );
       await expectGolden(tester, 'components_dialog');
     });
@@ -65,21 +68,24 @@ void main() {
       // rung too — it used to take one tap.
       await pumpDialog(
         tester,
-        (context) => unawaited(showConfirmDialog(
-          context,
-          title: 'Supprimer mon compte',
-          // Verbatim from `profile_screen.dart` — this golden photographs the
-          // REAL account-deletion dialog, so the two move together. L1 changed
-          // it because it was false: appointments and reviews are not deleted,
-          // they survive without you.
-          message: 'Cette action est définitive. Votre profil, vos favoris et '
-              'vos notifications sont supprimés ; vos rendez-vous et vos avis '
-              'restent chez le salon, sans votre nom. Pensez à exporter vos '
-              'données avant.',
-          confirmLabel: 'Supprimer définitivement',
-          icon: Icons.warning_amber_rounded,
-          confirmWord: 'SUPPRIMER',
-        )),
+        (context) => unawaited(
+          showConfirmDialog(
+            context,
+            title: 'Supprimer mon compte',
+            // Verbatim from `profile_screen.dart` — this golden photographs the
+            // REAL account-deletion dialog, so the two move together. L1 changed
+            // it because it was false: appointments and reviews are not deleted,
+            // they survive without you.
+            message:
+                'Cette action est définitive. Votre profil, vos favoris et '
+                'vos notifications sont supprimés ; vos rendez-vous et vos avis '
+                'restent chez le salon, sans votre nom. Pensez à exporter vos '
+                'données avant.',
+            confirmLabel: 'Supprimer définitivement',
+            icon: Icons.warning_amber_rounded,
+            confirmWord: 'SUPPRIMER',
+          ),
+        ),
         size: const Size(390, 520),
       );
       await expectGolden(tester, 'components_dialog_confirm');
@@ -114,11 +120,17 @@ void main() {
       );
       await tester.pump();
 
-      AppSnackBar.showOn(keys[0].currentState!, 'Rendez-vous accepté',
-          kind: SnackKind.success);
+      AppSnackBar.showOn(
+        keys[0].currentState!,
+        'Rendez-vous accepté',
+        kind: SnackKind.success,
+      );
       AppSnackBar.showOn(keys[1].currentState!, 'Fonctionnalité à venir');
-      AppSnackBar.showOn(keys[2].currentState!, 'Impossible d’ouvrir WhatsApp.',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        keys[2].currentState!,
+        'Impossible d’ouvrir WhatsApp.',
+        kind: SnackKind.error,
+      );
       AppSnackBar.showOn(
         keys[3].currentState!,
         'Photo supprimée',

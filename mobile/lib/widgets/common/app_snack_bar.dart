@@ -74,13 +74,12 @@ abstract final class AppSnackBar {
     String message, {
     SnackKind kind = SnackKind.info,
     SnackAction? action,
-  }) =>
-      showOn(
-        ScaffoldMessenger.of(context),
-        message,
-        kind: kind,
-        action: action,
-      );
+  }) => showOn(
+    ScaffoldMessenger.of(context),
+    message,
+    kind: kind,
+    action: action,
+  );
 
   /// The primitive. [messenger] is a `ScaffoldMessengerState` captured BEFORE
   /// an await — the idiom 38 call sites already had right.
@@ -133,14 +132,13 @@ abstract final class AppSnackBar {
     required String success,
     required String error,
     SnackAction? action,
-  }) =>
-      outcomeOn(
-        ScaffoldMessenger.of(context),
-        ok: ok,
-        success: success,
-        error: error,
-        action: action,
-      );
+  }) => outcomeOn(
+    ScaffoldMessenger.of(context),
+    ok: ok,
+    success: success,
+    error: error,
+    action: action,
+  );
 
   static void outcomeOn(
     ScaffoldMessengerState messenger, {
@@ -148,11 +146,10 @@ abstract final class AppSnackBar {
     required String success,
     required String error,
     SnackAction? action,
-  }) =>
-      showOn(
-        messenger,
-        ok ? success : error,
-        kind: ok ? SnackKind.success : SnackKind.error,
-        action: action,
-      );
+  }) => showOn(
+    messenger,
+    ok ? success : error,
+    kind: ok ? SnackKind.success : SnackKind.error,
+    action: action,
+  );
 }

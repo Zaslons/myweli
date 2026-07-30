@@ -35,10 +35,10 @@ const double _kPinnedWidth = 360;
 /// bypasses `_animateToInternal` entirely. So everything below targets the
 /// manual half: §9's *"looping/decorative animation stops"*.
 void main() {
-  group('§9 — looping animation stops (the half the framework will not do)',
-      () {
-    testWidgets('BrandLoader keeps scheduling frames forever with motion ON',
-        (tester) async {
+  group('§9 — looping animation stops (the half the framework will not do)', () {
+    testWidgets('BrandLoader keeps scheduling frames forever with motion ON', (
+      tester,
+    ) async {
       // The control. Without it the assertion below could pass on a loader that
       // never animated at all — and this is also the reason 18 test files
       // hand-roll `settle()` instead of using `pumpAndSettle`.
@@ -47,19 +47,27 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(tester.binding.hasScheduledFrame, isTrue,
-          reason: 'the infinite Lottie is the subject of this gate — if it '
-              'stopped on its own, the reduced-motion assertion proves nothing');
+      expect(
+        tester.binding.hasScheduledFrame,
+        isTrue,
+        reason:
+            'the infinite Lottie is the subject of this gate — if it '
+            'stopped on its own, the reduced-motion assertion proves nothing',
+      );
     });
 
     testWidgets('…and STOPS under reduced motion', (tester) async {
       await pumpWithReducedMotion(tester, const BrandLoader());
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(tester.binding.hasScheduledFrame, isFalse,
-          reason: '§9: looping/decorative animation stops. `repeat()` bypasses '
-              'the framework 5% scale entirely, so the widget must read the '
-              'flag itself — nothing upstream will do it.');
+      expect(
+        tester.binding.hasScheduledFrame,
+        isFalse,
+        reason:
+            '§9: looping/decorative animation stops. `repeat()` bypasses '
+            'the framework 5% scale entirely, so the widget must read the '
+            'flag itself — nothing upstream will do it.',
+      );
     });
 
     testWidgets('the loading state still SAYS it is loading', (tester) async {
@@ -69,12 +77,16 @@ void main() {
       await pumpWithReducedMotion(tester, const BrandLoader());
       await tester.pump();
 
-      expect(find.text('Chargement…'), findsOneWidget,
-          reason: 'a frozen logo is indistinguishable from a broken screen');
+      expect(
+        find.text('Chargement…'),
+        findsOneWidget,
+        reason: 'a frozen logo is indistinguishable from a broken screen',
+      );
     });
 
-    testWidgets('there is no Lottie at all — a still brand mark instead',
-        (tester) async {
+    testWidgets('there is no Lottie at all — a still brand mark instead', (
+      tester,
+    ) async {
       // **This assertion used to read `lottie.animate, isFalse`, and it was
       // wrong on a point no test could see.** `animate: false` really does stop
       // the ticker, so it passed, and the sweep shipped it. Then the golden was
@@ -88,12 +100,20 @@ void main() {
       await pumpWithReducedMotion(tester, const BrandLoader());
       await tester.pump();
 
-      expect(find.byType(LottieBuilder), findsNothing,
-          reason: 'a Lottie under the flag is either ticking or blank — '
-              'neither is a still mark');
-      expect(find.byType(SvgPicture), findsOneWidget,
-          reason: 'the loading state must still SHOW the brand, not just '
-              'stop moving');
+      expect(
+        find.byType(LottieBuilder),
+        findsNothing,
+        reason:
+            'a Lottie under the flag is either ticking or blank — '
+            'neither is a still mark',
+      );
+      expect(
+        find.byType(SvgPicture),
+        findsOneWidget,
+        reason:
+            'the loading state must still SHOW the brand, not just '
+            'stop moving',
+      );
     });
   });
 
@@ -106,18 +126,26 @@ void main() {
   /// §9's promise is kept by nothing at all unless we keep it ourselves.
   group('§9 on iOS — the flag the framework reads nowhere', () {
     testWidgets('the loader stops on the iOS flag ALONE', (tester) async {
-      await pumpWithReducedMotion(tester, const BrandLoader(),
-          disableAnimations: false);
+      await pumpWithReducedMotion(
+        tester,
+        const BrandLoader(),
+        disableAnimations: false,
+      );
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(tester.binding.hasScheduledFrame, isFalse,
-          reason: 'every iOS user who set Reduce Motion gets the animation '
-              'anyway if this reads MediaQuery alone — MediaQueryData has no '
-              'reduceMotion field to read.');
+      expect(
+        tester.binding.hasScheduledFrame,
+        isFalse,
+        reason:
+            'every iOS user who set Reduce Motion gets the animation '
+            'anyway if this reads MediaQuery alone — MediaQueryData has no '
+            'reduceMotion field to read.',
+      );
     });
 
-    testWidgets('raising it MID-SESSION stops a loader already on screen',
-        (tester) async {
+    testWidgets('raising it MID-SESSION stops a loader already on screen', (
+      tester,
+    ) async {
       // The realistic path: the spinner is up, the user leaves for Settings,
       // turns Reduce Motion on, and comes back. Nothing rebuilds on its own —
       // `_updateData`'s `if (newData != _data)` is false when only
@@ -125,22 +153,31 @@ void main() {
       pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
       await tester.pump();
-      expect(tester.binding.hasScheduledFrame, isTrue,
-          reason: 'the control: it must be animating before the flag lands, or '
-              'the assertion below is about nothing');
+      expect(
+        tester.binding.hasScheduledFrame,
+        isTrue,
+        reason:
+            'the control: it must be animating before the flag lands, or '
+            'the assertion below is about nothing',
+      );
 
       setReducedMotion(tester, disableAnimations: false);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(tester.binding.hasScheduledFrame, isFalse,
-          reason: 'this is the assertion that needs an observer. Reading the '
-              'flag at build time passes the test above and fails this one — '
-              'which is exactly the difference the observer exists to make.');
+      expect(
+        tester.binding.hasScheduledFrame,
+        isFalse,
+        reason:
+            'this is the assertion that needs an observer. Reading the '
+            'flag at build time passes the test above and fails this one — '
+            'which is exactly the difference the observer exists to make.',
+      );
     });
 
-    testWidgets('the observer unregisters itself when the tree goes away',
-        (tester) async {
+    testWidgets('the observer unregisters itself when the tree goes away', (
+      tester,
+    ) async {
       // A6 found three leaked controllers, and the test that was supposed to
       // catch one of them stayed green when the `dispose()` was deleted. The
       // binding holds observers for the life of the process, so a missed
@@ -153,11 +190,14 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
 
-      expect(() => setReducedMotion(tester, disableAnimations: false),
-          returnsNormally,
-          reason: 'the flag reached a State that no longer exists — '
-              '`_ReduceMotionObserverState.dispose` is not removing itself '
-              'from the binding');
+      expect(
+        () => setReducedMotion(tester, disableAnimations: false),
+        returnsNormally,
+        reason:
+            'the flag reached a State that no longer exists — '
+            '`_ReduceMotionObserverState.dispose` is not removing itself '
+            'from the binding',
+      );
     });
 
     test('every app root installs the observer that makes that possible', () {
@@ -168,20 +208,28 @@ void main() {
           .whereType<File>()
           .where((f) => RegExp(r'main(_\w+)?\.dart$').hasMatch(f.path))
           .toList();
-      expect(roots, isNotEmpty,
-          reason: 'no app root found — this test is resolving paths from the '
-              'wrong directory and would pass on an empty set');
+      expect(
+        roots,
+        isNotEmpty,
+        reason:
+            'no app root found — this test is resolving paths from the '
+            'wrong directory and would pass on an empty set',
+      );
 
       final missing = roots
           .where((f) => !f.readAsStringSync().contains('ReduceMotionObserver'))
           .map((f) => f.path)
           .toList();
 
-      expect(missing, isEmpty,
-          reason: 'the iOS flag is not an InheritedWidget, so a root without '
-              'the observer honours it only on the next rebuild that happens '
-              'to occur. Correct, but not reactive — and on the splash, which '
-              'builds once, "the next rebuild" never comes.');
+      expect(
+        missing,
+        isEmpty,
+        reason:
+            'the iOS flag is not an InheritedWidget, so a root without '
+            'the observer honours it only on the next rebuild that happens '
+            'to occur. Correct, but not reactive — and on the splash, which '
+            'builds once, "the next rebuild" never comes.',
+      );
     });
   });
 
@@ -193,29 +241,39 @@ void main() {
   /// is not caused by reduced motion, but freezing the mark would make it worse,
   /// so the label is not conditional on the flag — only the *visible* text is.
   group('§13 — the loader says what it is, in BOTH modes', () {
-    testWidgets('with motion ON, the moving mark still has a label',
-        (tester) async {
+    testWidgets('with motion ON, the moving mark still has a label', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       pinSurface(tester, size: const Size(_kPinnedWidth, 1600));
       await pumpApp(tester, home: const Scaffold(body: BrandLoader()));
       await tester.pump();
 
-      expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
-          reason: 'a purely visual loading state excludes the users §13 is '
-              'written for — and this half has nothing to do with motion');
+      expect(
+        find.bySemanticsLabel('Chargement…'),
+        findsOneWidget,
+        reason:
+            'a purely visual loading state excludes the users §13 is '
+            'written for — and this half has nothing to do with motion',
+      );
       handle.dispose();
     });
 
-    testWidgets('under reduced motion, EXACTLY one node says it',
-        (tester) async {
+    testWidgets('under reduced motion, EXACTLY one node says it', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       await pumpWithReducedMotion(tester, const BrandLoader());
 
-      expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
-          reason: 'the visible text and the wrapper must not BOTH announce. '
-              'This finder returns two nodes if the label is added without '
-              'excluding the Text beneath it — which is the natural way to '
-              'write it, and is why the count is asserted rather than presence');
+      expect(
+        find.bySemanticsLabel('Chargement…'),
+        findsOneWidget,
+        reason:
+            'the visible text and the wrapper must not BOTH announce. '
+            'This finder returns two nodes if the label is added without '
+            'excluding the Text beneath it — which is the natural way to '
+            'write it, and is why the count is asserted rather than presence',
+      );
       handle.dispose();
     });
   });
@@ -239,10 +297,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(tester.binding.hasScheduledFrame, isFalse,
-          reason: 'no ReduceMotionObserver above it, and it must still stop. '
-              'Fail-safe, not fail-broken: a missing scope costs reactivity, '
-              'never correctness.');
+      expect(
+        tester.binding.hasScheduledFrame,
+        isFalse,
+        reason:
+            'no ReduceMotionObserver above it, and it must still stop. '
+            'Fail-safe, not fail-broken: a missing scope costs reactivity, '
+            'never correctness.',
+      );
     });
   });
 
@@ -254,27 +316,28 @@ void main() {
   /// `reduceMotionOf` call sites shipped, five of them asserted by nothing.
   group('§9.1 — the OTHER call sites, which nothing was pumping', () {
     Widget storyReel() => const StoryViewer(
-          stories: [
-            StoryItem(
-              id: 'a',
-              title: 'Un',
-              assetPath: 'assets/images/stories/promo_weekend.svg',
-            ),
-            StoryItem(
-              id: 'b',
-              title: 'Deux',
-              assetPath: 'assets/images/stories/nouveaux_salons.svg',
-            ),
-          ],
-        );
+      stories: [
+        StoryItem(
+          id: 'a',
+          title: 'Un',
+          assetPath: 'assets/images/stories/promo_weekend.svg',
+        ),
+        StoryItem(
+          id: 'b',
+          title: 'Deux',
+          assetPath: 'assets/images/stories/nouveaux_salons.svg',
+        ),
+      ],
+    );
 
     /// The reel's position, in pages — the only measure that separates
     /// "advanced instantly" from "advanced normally" from "did not advance".
     double pageOf(WidgetTester tester) =>
         tester.widget<PageView>(find.byType(PageView)).controller!.page!;
 
-    testWidgets('the story reel ADVANCES under the flag instead of throwing',
-        (tester) async {
+    testWidgets('the story reel ADVANCES under the flag instead of throwing', (
+      tester,
+    ) async {
       // `Duration.zero` is legal for `Scrollable.ensureVisible`
       // (`scroll_position.dart:872` jumps explicitly) and **illegal** for
       // `PageController`: `animateToPage` → `position.animateTo` →
@@ -302,17 +365,26 @@ void main() {
       await tester.tapAt(Offset(_kPinnedWidth * 0.8, 400));
       await tester.pump();
 
-      expect(tester.takeException(), isNull,
-          reason: 'the reel must advance, not assert. Zero duration is a jump '
-              'for ensureVisible and a crash for PageController.');
-      expect(pageOf(tester), closeTo(1.0, 0.01),
-          reason: 'ONE pump, already there. Without this the gate passes on a '
-              'reel that ignores the flag completely and animates as usual — '
-              'measured: that mutation stayed green until this line existed.');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'the reel must advance, not assert. Zero duration is a jump '
+            'for ensureVisible and a crash for PageController.',
+      );
+      expect(
+        pageOf(tester),
+        closeTo(1.0, 0.01),
+        reason:
+            'ONE pump, already there. Without this the gate passes on a '
+            'reel that ignores the flag completely and animates as usual — '
+            'measured: that mutation stayed green until this line existed.',
+      );
     });
 
-    testWidgets('…and still GLIDES with motion on — the other leg',
-        (tester) async {
+    testWidgets('…and still GLIDES with motion on — the other leg', (
+      tester,
+    ) async {
       // Without this, the assertion above is satisfied by a reel that jumps
       // for everyone, which is not what §9 asks for and would be a silent
       // product change for every other user.
@@ -326,13 +398,18 @@ void main() {
 
       final page = pageOf(tester);
       expect(page, greaterThan(0.0));
-      expect(page, lessThan(0.9),
-          reason: 'one 60fps frame into a 200ms slide must be MID-FLIGHT — '
-              'if it has arrived, the reel is jumping for everybody');
+      expect(
+        page,
+        lessThan(0.9),
+        reason:
+            'one 60fps frame into a 200ms slide must be MID-FLIGHT — '
+            'if it has arrived, the reel is jumping for everybody',
+      );
     });
 
-    testWidgets('the splash SHOWS the brand instead of a blank screen',
-        (tester) async {
+    testWidgets('the splash SHOWS the brand instead of a blank screen', (
+      tester,
+    ) async {
       // The bug ②/⑤ already fixed in `BrandLoader`, shipped one file over:
       // `animate: false` holds composition frame 0, and in
       // `myweli_loader_mixed.json` every layer is either opacity 0 at t=0 or
@@ -350,8 +427,9 @@ void main() {
         routes: [
           GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
           GoRoute(
-              path: '/home',
-              builder: (_, _) => const Scaffold(body: Text('accueil'))),
+            path: '/home',
+            builder: (_, _) => const Scaffold(body: Text('accueil')),
+          ),
         ],
       );
       await pumpWithReducedMotion(tester, const SizedBox.shrink());
@@ -361,20 +439,30 @@ void main() {
       // the widget schedules frames for the LOAD, not for motion — asserting
       // before it resolves measures the wrong thing.
       await tester.runAsync(
-          () async => Future<void>.delayed(const Duration(milliseconds: 300)));
+        () async => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
       final lottie = tester.widget<LottieBuilder>(find.byType(LottieBuilder));
-      expect(lottie.controller, isNotNull,
-          reason: 'frame 0 of this composition is an EMPTY canvas — freezing '
-              'it renders a blank splash. The progress must be pinned to a '
-              'frame that has the mark on it.');
-      expect(lottie.controller!.value, greaterThan(0.0),
-          reason:
-              'pinned to frame 0 is the same blank screen with extra steps');
-      expect(tester.binding.hasScheduledFrame, isFalse,
-          reason: 'and it must still not animate');
+      expect(
+        lottie.controller,
+        isNotNull,
+        reason:
+            'frame 0 of this composition is an EMPTY canvas — freezing '
+            'it renders a blank splash. The progress must be pinned to a '
+            'frame that has the mark on it.',
+      );
+      expect(
+        lottie.controller!.value,
+        greaterThan(0.0),
+        reason: 'pinned to frame 0 is the same blank screen with extra steps',
+      );
+      expect(
+        tester.binding.hasScheduledFrame,
+        isFalse,
+        reason: 'and it must still not animate',
+      );
 
       // Still on the splash at 3.7 s, gone by 3.9 s: the hold is a `Timer`, so
       // the framework's 5 % scale never touches it and reduced-motion users
@@ -382,16 +470,23 @@ void main() {
       // app"). Nothing was asserting that, which is how a well-meant
       // "shorten the wait for them" would have landed unnoticed.
       await tester.pump(const Duration(milliseconds: 3300));
-      expect(find.text('accueil'), findsNothing,
-          reason: 'the 3800ms hold must not be collapsed for these users');
+      expect(
+        find.text('accueil'),
+        findsNothing,
+        reason: 'the 3800ms hold must not be collapsed for these users',
+      );
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
-      expect(find.text('accueil'), findsOneWidget,
-          reason: 'and it must still end');
+      expect(
+        find.text('accueil'),
+        findsOneWidget,
+        reason: 'and it must still end',
+      );
     });
 
-    testWidgets('the caption never overflows a box too small to hold it',
-        (tester) async {
+    testWidgets('the caption never overflows a box too small to hold it', (
+      tester,
+    ) async {
       // `LoadingIndicator` never passes `fast`, so all ~50 of its call sites
       // take the caption branch — including a 60×60 avatar placeholder
       // (`artist_selection_screen.dart:375`). 40 mark + 8 gap + 16 line = 64,
@@ -406,38 +501,55 @@ void main() {
       );
       await tester.pump();
 
-      expect(tester.takeException(), isNull,
-          reason: 'a loading state that throws is worse than one that does '
-              'not explain itself');
-      expect(find.text('Chargement…'), findsNothing,
-          reason: 'no room for it — and the Semantics label still says it, '
-              'which is the half that matters for §13');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'a loading state that throws is worse than one that does '
+            'not explain itself',
+      );
+      expect(
+        find.text('Chargement…'),
+        findsNothing,
+        reason:
+            'no room for it — and the Semantics label still says it, '
+            'which is the half that matters for §13',
+      );
     });
 
-    testWidgets('the INLINE cut is a bare mark — no caption, still labelled',
-        (tester) async {
+    testWidgets('the INLINE cut is a bare mark — no caption, still labelled', (
+      tester,
+    ) async {
       // `fast` marks the inline case (a button, a list footer, a 60px
       // thumbnail), and it is what keeps the caption out of boxes that cannot
       // hold it. Until now only the Linux-only golden covered this half, so on
       // a developer's Mac it was asserted by nothing.
       final handle = tester.ensureSemantics();
-      await pumpWithReducedMotion(
-        tester,
-        const BrandLoader(fast: true),
-      );
+      await pumpWithReducedMotion(tester, const BrandLoader(fast: true));
 
-      expect(find.text('Chargement…'), findsNothing,
-          reason: 'no room for a caption inside a button');
-      expect(find.bySemanticsLabel('Chargement…'), findsOneWidget,
-          reason: 'but a screen reader must still be told — that half is not '
-              'conditional on the cut');
-      expect(find.byType(LottieBuilder), findsNothing,
-          reason: 'the fast cut is a Lottie too, and it repeats too');
+      expect(
+        find.text('Chargement…'),
+        findsNothing,
+        reason: 'no room for a caption inside a button',
+      );
+      expect(
+        find.bySemanticsLabel('Chargement…'),
+        findsOneWidget,
+        reason:
+            'but a screen reader must still be told — that half is not '
+            'conditional on the cut',
+      );
+      expect(
+        find.byType(LottieBuilder),
+        findsNothing,
+        reason: 'the fast cut is a Lottie too, and it repeats too',
+      );
       handle.dispose();
     });
 
-    testWidgets('…and still shows it when there IS room, at 2× text',
-        (tester) async {
+    testWidgets('…and still shows it when there IS room, at 2× text', (
+      tester,
+    ) async {
       // The other half: a computed bound that under-provisions is register
       // row 15's exact failure, so the gate checks the scale that breaks it.
       tester.platformDispatcher.textScaleFactorTestValue = 2.0;
@@ -449,11 +561,18 @@ void main() {
       );
       await tester.pump();
 
-      expect(tester.takeException(), isNull,
-          reason: 'the caption must fit at 2× in a box that claims to hold it');
-      expect(find.text('Chargement…'), findsOneWidget,
-          reason: 'over-provisioning is the other way a computed bound rots — '
-              'a 200px box has room for a 48px mark and one line of text');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'the caption must fit at 2× in a box that claims to hold it',
+      );
+      expect(
+        find.text('Chargement…'),
+        findsOneWidget,
+        reason:
+            'over-provisioning is the other way a computed bound rots — '
+            'a 200px box has room for a 48px mark and one line of text',
+      );
     });
   });
 

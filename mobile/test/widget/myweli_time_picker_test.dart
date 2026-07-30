@@ -31,22 +31,24 @@ void main() {
     Future<T?> Function(BuildContext) show,
   ) async {
     final result = _Result<T>();
-    await tester.pumpWidget(wrapApp(
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: ElevatedButton(
-              onPressed: () => show(context).then((v) {
-                result
-                  ..popped = true
-                  ..value = v;
-              }),
-              child: const Text('ouvrir'),
+    await tester.pumpWidget(
+      wrapApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => show(context).then((v) {
+                  result
+                    ..popped = true
+                    ..value = v;
+                }),
+                child: const Text('ouvrir'),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('ouvrir'));
     await settleMocks(tester);
     return result;
@@ -68,8 +70,11 @@ void main() {
   /// cache and `find.text` returns nothing at all — `ensureVisible` then throws
   /// « Bad state: No element » rather than scrolling, because there is no
   /// element to scroll to. Dragging is the only way down.
-  Future<void> tapValue(WidgetTester tester, String value,
-      {int column = 1}) async {
+  Future<void> tapValue(
+    WidgetTester tester,
+    String value, {
+    int column = 1,
+  }) async {
     // **Scoped to the column**, because « 10 » is an hour AND a minute: an
     // unscoped `find.text('10')` tapped whichever came first, and the B1 test
     // below quietly asserted about 12:10 instead of hour 10.
@@ -92,8 +97,9 @@ void main() {
   }
 
   group('MyweliTimePicker', () {
-    testWidgets('confirming returns the chosen hour and minute',
-        (tester) async {
+    testWidgets('confirming returns the chosen hour and minute', (
+      tester,
+    ) async {
       final r = await openFrom<TimeOfDay>(
         tester,
         (context) => showMyweliTimePicker(
@@ -106,9 +112,13 @@ void main() {
       expect(find.text('09:00'), findsOneWidget);
 
       await tapValue(tester, '30');
-      expect(find.text('09:30'), findsOneWidget,
-          reason: 'the headline is the only place the value is legible '
-              'without decoding two highlighted columns');
+      expect(
+        find.text('09:30'),
+        findsOneWidget,
+        reason:
+            'the headline is the only place the value is legible '
+            'without decoding two highlighted columns',
+      );
 
       await tester.tap(find.text('Confirmer'));
       await settleMocks(tester);
@@ -129,8 +139,11 @@ void main() {
       await settleMocks(tester);
 
       expect(r.popped, isTrue);
-      expect(r.value, isNull,
-          reason: 'every call site treats null as "change nothing"');
+      expect(
+        r.value,
+        isNull,
+        reason: 'every call site treats null as "change nothing"',
+      );
     });
 
     testWidgets('an initialTime off the grid snaps onto it', (tester) async {
@@ -146,8 +159,9 @@ void main() {
       expect(find.text('09:05'), findsOneWidget);
     });
 
-    testWidgets('minTime lifts the opening value out of the past',
-        (tester) async {
+    testWidgets('minTime lifts the opening value out of the past', (
+      tester,
+    ) async {
       // The constraint Material could not express. Without it,
       // `pro_manual_booking`'s « Choisissez une date et une heure à venir. »
       // was the only thing standing between the user and an impossible time.
@@ -159,9 +173,13 @@ void main() {
           minTime: const TimeOfDay(hour: 14, minute: 10),
         ),
       );
-      expect(find.text('14:10'), findsOneWidget,
-          reason: 'an initialTime below the floor must be lifted TO the floor, '
-              'not left selected-but-invalid');
+      expect(
+        find.text('14:10'),
+        findsOneWidget,
+        reason:
+            'an initialTime below the floor must be lifted TO the floor, '
+            'not left selected-but-invalid',
+      );
     });
 
     testWidgets('a floor of 23:58 does not invent an hour 24', (tester) async {
@@ -194,22 +212,34 @@ void main() {
         ),
       );
 
-      expect(tester.takeException(), isNull,
-          reason: 'nothing throws either way — this is here so the test says '
-              'out loud that the old failure was silent');
-      expect(find.text('23:55'), findsOneWidget,
-          reason: 'capped at the last time the grid can represent');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'nothing throws either way — this is here so the test says '
+            'out loud that the old failure was silent',
+      );
+      expect(
+        find.text('23:55'),
+        findsOneWidget,
+        reason: 'capped at the last time the grid can represent',
+      );
 
       await tester.tap(find.text('Confirmer'));
       await settleMocks(tester);
-      expect(r.popped, isFalse,
-          reason: 'no time on the grid satisfies the floor, so Confirmer is '
-              'disabled — the empty state §11.4 specifies, not a value the '
-              'caller would then have to re-validate');
+      expect(
+        r.popped,
+        isFalse,
+        reason:
+            'no time on the grid satisfies the floor, so Confirmer is '
+            'disabled — the empty state §11.4 specifies, not a value the '
+            'caller would then have to re-validate',
+      );
     });
 
-    testWidgets('a minuteStep that does not divide 60 still lands on the grid',
-        (tester) async {
+    testWidgets('a minuteStep that does not divide 60 still lands on the grid', (
+      tester,
+    ) async {
       // Not used by any call site today — the default is 5 and every caller
       // takes it — but the parameter is public, and 7 is the cheapest way to
       // show the arithmetic is not quietly assuming a divisor of 60.
@@ -251,8 +281,9 @@ void main() {
       expect(r.value?.end, const TimeOfDay(hour: 17, minute: 0));
     });
 
-    testWidgets('an initialEnd at or before the start is repaired on open',
-        (tester) async {
+    testWidgets('an initialEnd at or before the start is repaired on open', (
+      tester,
+    ) async {
       final r = await openFrom<({TimeOfDay start, TimeOfDay end})>(
         tester,
         (context) => showMyweliTimeRangePicker(
@@ -267,19 +298,27 @@ void main() {
       // **Ordering alone is not enough, and the review proved it:** a widget
       // that silently SWAPPED the two — discarding the 17:00 start the caller
       // asked for — satisfies `end > start` and passed. So the start is pinned.
-      expect(r.value!.start, const TimeOfDay(hour: 17, minute: 0),
-          reason: 'the START the caller passed must survive; repairing the end '
-              'is not licence to move the start');
-      expect(r.value!.end.hour * 60 + r.value!.end.minute,
-          greaterThan(r.value!.start.hour * 60 + r.value!.start.minute),
-          reason: 'weekly_hours_editor.dart:75 answered this with a BARE '
-              'SILENT RETURN — two modals, then the row simply did not '
-              'change, indistinguishable from a cancel. The invalid state has '
-              'to be unreachable, not caught.');
+      expect(
+        r.value!.start,
+        const TimeOfDay(hour: 17, minute: 0),
+        reason:
+            'the START the caller passed must survive; repairing the end '
+            'is not licence to move the start',
+      );
+      expect(
+        r.value!.end.hour * 60 + r.value!.end.minute,
+        greaterThan(r.value!.start.hour * 60 + r.value!.start.minute),
+        reason:
+            'weekly_hours_editor.dart:75 answered this with a BARE '
+            'SILENT RETURN — two modals, then the row simply did not '
+            'change, indistinguishable from a cancel. The invalid state has '
+            'to be unreachable, not caught.',
+      );
     });
 
-    testWidgets('moving the start past the end drags the end with it',
-        (tester) async {
+    testWidgets('moving the start past the end drags the end with it', (
+      tester,
+    ) async {
       final r = await openFrom<({TimeOfDay start, TimeOfDay end})>(
         tester,
         (context) => showMyweliTimeRangePicker(
@@ -296,14 +335,19 @@ void main() {
       await settleMocks(tester);
 
       expect(r.value!.start, const TimeOfDay(hour: 14, minute: 0));
-      expect(r.value!.end.hour * 60 + r.value!.end.minute, greaterThan(14 * 60),
-          reason: 'availability_screen.dart:642 faked this with '
-              '`pickedStart.hour + 1` because two dialogs could not see each '
-              'other. On one screen it is just a default the user can change.');
+      expect(
+        r.value!.end.hour * 60 + r.value!.end.minute,
+        greaterThan(14 * 60),
+        reason:
+            'availability_screen.dart:642 faked this with '
+            '`pickedStart.hour + 1` because two dialogs could not see each '
+            'other. On one screen it is just a default the user can change.',
+      );
     });
 
-    testWidgets('an hour with no selectable minute in it is INERT',
-        (tester) async {
+    testWidgets('an hour with no selectable minute in it is INERT', (
+      tester,
+    ) async {
       // **The review's B1.** The end column's hour predicate was
       // `(hour + 1) * 60 > start` — "does this hour end after the start" — but
       // the largest minute the column offers is `60 - step`. With a start of
@@ -325,13 +369,18 @@ void main() {
 
       await tester.tap(find.text('Confirmer'));
       await settleMocks(tester);
-      expect(r.value!.end, const TimeOfDay(hour: 12, minute: 0),
-          reason: 'hour 10 holds no minute after 10:55, so it is disabled and '
-              'the tap changes nothing. It must not silently become 11:00.');
+      expect(
+        r.value!.end,
+        const TimeOfDay(hour: 12, minute: 0),
+        reason:
+            'hour 10 holds no minute after 10:55, so it is disabled and '
+            'the tap changes nothing. It must not silently become 11:00.',
+      );
     });
 
-    testWidgets('a start at the very end of the day stays ON the grid',
-        (tester) async {
+    testWidgets('a start at the very end of the day stays ON the grid', (
+      tester,
+    ) async {
       // **The review's C2.** The start was clamped to `_lastGridMinute - 1` =
       // 1434 = **23:54**, which a 5-minute column never renders: nothing
       // highlighted and « Confirmer » returned a time the control never offered.
@@ -345,9 +394,13 @@ void main() {
           initialEnd: const TimeOfDay(hour: 23, minute: 59),
         ),
       );
-      expect(find.text('23:50'), findsOneWidget,
-          reason: 'clamped to the last START the grid allows, not to an '
-              'off-grid 23:54');
+      expect(
+        find.text('23:50'),
+        findsOneWidget,
+        reason:
+            'clamped to the last START the grid allows, not to an '
+            'off-grid 23:54',
+      );
 
       await tester.tap(find.text('Confirmer'));
       await settleMocks(tester);
@@ -355,8 +408,9 @@ void main() {
       expect(r.value!.end, const TimeOfDay(hour: 23, minute: 55));
     });
 
-    testWidgets('the repaired end is on the grid at a step that splits an hour',
-        (tester) async {
+    testWidgets('the repaired end is on the grid at a step that splits an hour', (
+      tester,
+    ) async {
       // **The review's B3.** `_clampEnd` did `start + step`, which crosses the
       // hour boundary without re-snapping: at a step of 7 a start of 10:56 gave
       // **11:03**, and 3 is not one of [0,7,14,…,56].
@@ -372,11 +426,17 @@ void main() {
       await tester.tap(find.text('Confirmer'));
       await settleMocks(tester);
 
-      expect(r.value!.end.minute % 7, 0,
-          reason: 'every returned minute must be a row the column renders — '
-              '${r.value!.end.minute} is not on a 7-minute grid');
-      expect(r.value!.end.hour * 60 + r.value!.end.minute,
-          greaterThan(10 * 60 + 56));
+      expect(
+        r.value!.end.minute % 7,
+        0,
+        reason:
+            'every returned minute must be a row the column renders — '
+            '${r.value!.end.minute} is not on a 7-minute grid',
+      );
+      expect(
+        r.value!.end.hour * 60 + r.value!.end.minute,
+        greaterThan(10 * 60 + 56),
+      );
     });
 
     testWidgets('the labels are the caller’s, not ours', (tester) async {
@@ -404,27 +464,28 @@ void main() {
       DateTime? today,
       TimeOfDay? minTimeOnToday,
       DateTime? initialDate,
-    }) =>
-        openFrom<({DateTime date, TimeOfDay time})>(
-          tester,
-          (context) => showMyweliDateTimePicker(
-            context: context,
-            initialDate: initialDate ?? DateTime(2026, 3, 11),
-            initialTime: const TimeOfDay(hour: 9, minute: 0),
-            firstDate: DateTime(2026, 3),
-            lastDate: DateTime(2027, 3, 11),
-            today: today,
-            minTimeOnToday: minTimeOnToday,
-          ),
-        );
+    }) => openFrom<({DateTime date, TimeOfDay time})>(
+      tester,
+      (context) => showMyweliDateTimePicker(
+        context: context,
+        initialDate: initialDate ?? DateTime(2026, 3, 11),
+        initialTime: const TimeOfDay(hour: 9, minute: 0),
+        firstDate: DateTime(2026, 3),
+        lastDate: DateTime(2027, 3, 11),
+        today: today,
+        minTimeOnToday: minTimeOnToday,
+      ),
+    );
 
-    testWidgets(
-        'a day tap advances to the time step, and Confirmer returns '
+    testWidgets('a day tap advances to the time step, and Confirmer returns '
         'both', (tester) async {
       final r = await openCombined(tester);
 
-      expect(find.text('Heures'), findsNothing,
-          reason: 'it opens on the DATE step');
+      expect(
+        find.text('Heures'),
+        findsNothing,
+        reason: 'it opens on the DATE step',
+      );
       await tester.tap(find.text('18'));
       await settleMocks(tester);
       expect(find.text('Heures'), findsOneWidget);
@@ -448,10 +509,16 @@ void main() {
       await tester.tap(find.byTooltip('Retour à la date'));
       await settleMocks(tester);
 
-      expect(r.popped, isFalse,
-          reason: 'back is a step, not a dismissal — nothing has been decided');
-      expect(find.text('18/03/2026'), findsOneWidget,
-          reason: 'the date survives the trip back; that is the entire fix');
+      expect(
+        r.popped,
+        isFalse,
+        reason: 'back is a step, not a dismissal — nothing has been decided',
+      );
+      expect(
+        find.text('18/03/2026'),
+        findsOneWidget,
+        reason: 'the date survives the trip back; that is the entire fix',
+      );
 
       await tester.tap(find.text('20'));
       await settleMocks(tester);
@@ -468,8 +535,9 @@ void main() {
       expect(r.value, isNull);
     });
 
-    testWidgets('the past-time floor applies to TODAY and not to other days',
-        (tester) async {
+    testWidgets('the past-time floor applies to TODAY and not to other days', (
+      tester,
+    ) async {
       final r = await openCombined(
         tester,
         today: DateTime(2026, 3, 11),
@@ -478,10 +546,14 @@ void main() {
       );
 
       // Today: the 09:00 seed is in the past and must be lifted.
-      expect(find.text('14:30'), findsOneWidget,
-          reason: 'today + an earlier hour was submittable before A14b, and '
-              '« Choisissez une date et une heure à venir. » was the only '
-              'thing that noticed');
+      expect(
+        find.text('14:30'),
+        findsOneWidget,
+        reason:
+            'today + an earlier hour was submittable before A14b, and '
+            '« Choisissez une date et une heure à venir. » was the only '
+            'thing that noticed',
+      );
 
       // **The second clause, actually asserted.** The first version tapped a
       // later day and checked the time was still 14:00 — which holds whether or
@@ -500,15 +572,20 @@ void main() {
       await tester.tap(find.text('Confirmer'));
       await settleMocks(tester);
       expect(r.value!.date, DateTime(2026, 3, 12));
-      expect(r.value!.time, const TimeOfDay(hour: 14, minute: 0),
-          reason: '14:00 is before the 14:30 floor but the day is NOT today, '
-              'so the floor must not apply and the tap must stick. If the lift '
-              'were unconditional, minute 00 would be disabled and this would '
-              'come back 14:30.');
+      expect(
+        r.value!.time,
+        const TimeOfDay(hour: 14, minute: 0),
+        reason:
+            '14:00 is before the 14:30 floor but the day is NOT today, '
+            'so the floor must not apply and the tap must stick. If the lift '
+            'were unconditional, minute 00 would be disabled and this would '
+            'come back 14:30.',
+      );
     });
 
-    testWidgets('a floor late in an hour lifts to the next hour, not into it',
-        (tester) async {
+    testWidgets('a floor late in an hour lifts to the next hour, not into it', (
+      tester,
+    ) async {
       // **The review's B2** — the combined picker had B1's over-permissive
       // predicate against the floor. With a floor of 10:56, hour 10 read as
       // enabled while no grid minute in it satisfied `>= 656`, so tapping 10
@@ -520,9 +597,13 @@ void main() {
         minTimeOnToday: const TimeOfDay(hour: 10, minute: 56),
         initialDate: DateTime(2026, 3, 11),
       );
-      expect(find.text('11:00'), findsOneWidget,
-          reason: 'the first grid time at or after 10:56 is 11:00 — not 10:55, '
-              'which is before it, and not 10:56, which is not a row');
+      expect(
+        find.text('11:00'),
+        findsOneWidget,
+        reason:
+            'the first grid time at or after 10:56 is 11:00 — not 10:55, '
+            'which is before it, and not 10:56, which is not a row',
+      );
 
       // It opens on the DATE step, so « Confirmer » does not exist yet.
       await tester.tap(find.text('11'));
@@ -532,8 +613,9 @@ void main() {
       expect(r.value!.time, const TimeOfDay(hour: 11, minute: 0));
     });
 
-    testWidgets('it returns the PARTS, so the caller must recombine',
-        (tester) async {
+    testWidgets('it returns the PARTS, so the caller must recombine', (
+      tester,
+    ) async {
       // Not a style point. Composing `DateTime(y, m, d, h, min)` here would be
       // device-local — the shape §18 forbids, and the one
       // `availability_screen.dart:651-657` records having got wrong once, with
@@ -549,13 +631,20 @@ void main() {
       // fail on null — a check three tests above already make. What is worth
       // asserting is that the two parts come back UNCOMBINED and unconverted,
       // so the call site still has to run them through `salonDateTime`.
-      expect(r.value!.date, DateTime(2026, 3, 18),
-          reason: 'a bare calendar day, with no time folded into it');
+      expect(
+        r.value!.date,
+        DateTime(2026, 3, 18),
+        reason: 'a bare calendar day, with no time folded into it',
+      );
       expect(r.value!.date.hour, 0);
       expect(r.value!.date.minute, 0);
-      expect(r.value!.date.isUtc, isFalse,
-          reason: 'not an instant — converting to one is the call site’s job, '
-              'because only it knows the salon timezone (§18)');
+      expect(
+        r.value!.date.isUtc,
+        isFalse,
+        reason:
+            'not an instant — converting to one is the call site’s job, '
+            'because only it knows the salon timezone (§18)',
+      );
       expect(r.value!.time, const TimeOfDay(hour: 9, minute: 0));
     });
   });

@@ -132,7 +132,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     // them (the server enforces it; this mirrors the rule with guidance).
     final verified =
         context.watch<ProAuthProvider>().provider?.verificationStatus ==
-            VerificationStatus.verified;
+        VerificationStatus.verified;
 
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -237,8 +237,9 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                     deposit,
                     currency: context.read<ProAuthProvider>().salonCurrency,
                   ),
-                  valueStyle: AppTextStyles.bodyMedium
-                      .copyWith(fontWeight: FontWeight.w600),
+                  valueStyle: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spacingXS),
                 LabelValueRow(
@@ -265,14 +266,17 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Recevoir l’acompte',
-                    style: AppTextStyles.bodyMedium),
+                const Text(
+                  'Recevoir l’acompte',
+                  style: AppTextStyles.bodyMedium,
+                ),
                 const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   'Le client envoie l’acompte directement sur ce compte '
                   'Mobile Money. Myweli ne le traite pas.',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textTertiary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spacingM),
                 // Multi-pays MP2: the salon COUNTRY's operator catalog
@@ -289,8 +293,9 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                             Expanded(
                               child: Text(
                                 'Impossible de charger les opérateurs.',
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(color: AppColors.textTertiary),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
                             ),
                             TextButton(

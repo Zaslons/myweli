@@ -29,8 +29,9 @@ class LengthVariantSelector extends StatelessWidget {
       children: [
         Text(
           'Longueur des cheveux',
-          style: AppTextStyles.labelMedium
-              .copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.labelMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: AppTheme.spacingS),
         Wrap(
@@ -51,8 +52,9 @@ class LengthVariantSelector extends StatelessWidget {
         Text(
           'Les créneaux sont calculés selon cette durée. '
           'Le prix final est confirmé par le salon.',
-          style:
-              AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
         ),
       ],
     );

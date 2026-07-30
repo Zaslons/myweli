@@ -23,10 +23,10 @@ class SubscriptionPlans {
   static const int reseauSeatsPerSalon = 15;
 
   static int seatsFor(SalonTier tier) => switch (tier) {
-        SalonTier.pro => proSeats,
-        SalonTier.business => businessSeats,
-        SalonTier.reseau => reseauSeatsPerSalon,
-      };
+    SalonTier.pro => proSeats,
+    SalonTier.business => businessSeats,
+    SalonTier.reseau => reseauSeatsPerSalon,
+  };
 
   /// What each offer includes (display checklists).
   static const List<String> proEntitlements = [
@@ -51,10 +51,10 @@ class SubscriptionPlans {
   ];
 
   static List<String> entitlementsFor(SalonTier tier) => switch (tier) {
-        SalonTier.pro => proEntitlements,
-        SalonTier.business => businessEntitlements,
-        SalonTier.reseau => reseauEntitlements,
-      };
+    SalonTier.pro => proEntitlements,
+    SalonTier.business => businessEntitlements,
+    SalonTier.reseau => reseauEntitlements,
+  };
 
   /// The binding ROI narrative (PRD §6.1).
   static const String roiLine =

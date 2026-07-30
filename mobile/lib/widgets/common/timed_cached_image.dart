@@ -121,7 +121,9 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
 
       if (widget.borderRadius != null) {
         return ClipRRect(
-            borderRadius: widget.borderRadius!, child: assetWidget);
+          borderRadius: widget.borderRadius!,
+          child: assetWidget,
+        );
       }
       return assetWidget;
     }
@@ -170,10 +172,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
 
     Widget wrapped = content;
     if (widget.borderRadius != null) {
-      wrapped = ClipRRect(
-        borderRadius: widget.borderRadius!,
-        child: wrapped,
-      );
+      wrapped = ClipRRect(borderRadius: widget.borderRadius!, child: wrapped);
     }
 
     if (!_timedOut) return wrapped;
@@ -188,8 +187,10 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
             child: TextButton.icon(
               onPressed: _retry,
               icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text('Réessayer',
-                  style: TextStyle(color: Colors.white)),
+              label: const Text(
+                'Réessayer',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ),

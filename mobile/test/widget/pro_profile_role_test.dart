@@ -47,8 +47,10 @@ void main() {
   Future<void> loginAs(WidgetTester tester, String email) async {
     await tester.runAsync(() async {
       await auth.requestProviderEmailOtp(email);
-      final res =
-          await auth.verifyProviderEmailOtp(email, MockAuthService.demoOtp);
+      final res = await auth.verifyProviderEmailOtp(
+        email,
+        MockAuthService.demoOtp,
+      );
       expect(res.signedIn, isTrue);
     });
   }
@@ -80,12 +82,14 @@ void main() {
     late ProAuthProvider authProvider;
     await tester.runAsync(() async {
       authProvider = ProAuthProvider();
-      for (var i = 0;
-          i < 60 &&
-              (authProvider.isLoading ||
-                  (authProvider.isAuthenticated &&
-                      authProvider.membership == null));
-          i++) {
+      for (
+        var i = 0;
+        i < 60 &&
+            (authProvider.isLoading ||
+                (authProvider.isAuthenticated &&
+                    authProvider.membership == null));
+        i++
+      ) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     });
@@ -108,8 +112,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-      'MANAGER: catalogue/profil-salon rows kept; money, team and '
+  testWidgets('MANAGER: catalogue/profil-salon rows kept; money, team and '
       'owner rows gone; member header card', (tester) async {
     await loginAs(tester, 'awa.manager@myweli.test');
     await tester.pumpWidget(app(await readyAuth(tester)));
@@ -142,8 +145,9 @@ void main() {
     expect(find.text('Déconnexion'), findsOneWidget);
   });
 
-  testWidgets('STAFF: the slim personal profile — no salon rows at all',
-      (tester) async {
+  testWidgets('STAFF: the slim personal profile — no salon rows at all', (
+    tester,
+  ) async {
     await loginAs(tester, 'sonia.staff@myweli.test');
     await tester.pumpWidget(app(await readyAuth(tester)));
     await settle(tester);

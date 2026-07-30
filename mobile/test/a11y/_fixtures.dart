@@ -28,30 +28,30 @@ import 'package:provider/single_child_widget.dart';
 /// Nothing here needs "now"; it needs a French date long enough to be laid out.
 
 List<SingleChildWidget> favProviders() => [
-      ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-      ChangeNotifierProvider(create: (_) => AuthProvider()),
-    ];
+  ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+  ChangeNotifierProvider(create: (_) => AuthProvider()),
+];
 
 Review review() => Review(
-      id: 'r1',
-      providerId: 'p1',
-      userId: 'u1',
-      userName: 'Marie Diallo',
-      rating: 5,
-      text: 'Super service, je recommande vivement ce salon.',
-      createdAt: DateTime(2025, 2, 4),
-    );
+  id: 'r1',
+  providerId: 'p1',
+  userId: 'u1',
+  userName: 'Marie Diallo',
+  rating: 5,
+  text: 'Super service, je recommande vivement ce salon.',
+  createdAt: DateTime(2025, 2, 4),
+);
 
 Appointment appt() => Appointment(
-      id: 'a1',
-      userId: 'u1',
-      providerId: 'p1',
-      serviceIds: const ['s1'],
-      appointmentDate: DateTime(2026, 6, 30, 10),
-      status: AppointmentStatus.confirmed,
-      totalPrice: 20000,
-      createdAt: DateTime(2026),
-    );
+  id: 'a1',
+  userId: 'u1',
+  providerId: 'p1',
+  serviceIds: const ['s1'],
+  appointmentDate: DateTime(2026, 6, 30, 10),
+  status: AppointmentStatus.confirmed,
+  totalPrice: 20000,
+  createdAt: DateTime(2026),
+);
 
 /// A live [OtpCodeRow], with its controllers and nodes disposed on tear-down
 /// (A11 C3).
@@ -111,18 +111,18 @@ OtpCodeRow otpRow({bool enabled = true, bool hasError = false}) {
 /// fixture modelling a configuration `lib/` does not contain proves nothing
 /// about `lib/`.
 Widget tabStrip() => DefaultTabController(
-      length: 4,
-      child: TabBar(
-        isScrollable: true,
-        tabAlignment: TabAlignment.center,
-        tabs: const [
-          Tab(text: 'Aujourd\u2019hui'),
-          Tab(text: 'Semaine'),
-          Tab(text: 'Mois'),
-          Tab(text: 'Tout'),
-        ],
-      ),
-    );
+  length: 4,
+  child: TabBar(
+    isScrollable: true,
+    tabAlignment: TabAlignment.center,
+    tabs: const [
+      Tab(text: 'Aujourd\u2019hui'),
+      Tab(text: 'Semaine'),
+      Tab(text: 'Mois'),
+      Tab(text: 'Tout'),
+    ],
+  ),
+);
 
 /// The one bar in `lib/` that legitimately keeps `fill` — two short labels.
 ///
@@ -131,16 +131,19 @@ Widget tabStrip() => DefaultTabController(
 /// that measurement, and A12 is the first slice to take it at 360dp rather than
 /// at 800.
 Widget tabStripFill() => DefaultTabController(
-      length: 2,
-      child: const TabBar(
-        tabs: [Tab(text: 'Calendrier'), Tab(text: 'Liste')],
-      ),
-    );
+  length: 2,
+  child: const TabBar(
+    tabs: [
+      Tab(text: 'Calendrier'),
+      Tab(text: 'Liste'),
+    ],
+  ),
+);
 
 AppNotification note() => AppNotification(
-      id: '1',
-      type: AppNotificationType.bookingConfirmed,
-      title: 'Rendez-vous confirmé',
-      body: 'Salon Excellence, Cocody — jeudi 30 juin à 10h00',
-      createdAt: DateTime(2026, 6, 29, 10),
-    );
+  id: '1',
+  type: AppNotificationType.bookingConfirmed,
+  title: 'Rendez-vous confirmé',
+  body: 'Salon Excellence, Cocody — jeudi 30 juin à 10h00',
+  createdAt: DateTime(2026, 6, 29, 10),
+);

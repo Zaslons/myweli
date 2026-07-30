@@ -96,8 +96,11 @@ class _DataExportScreenState extends State<DataExportScreen> {
     final json = const JsonEncoder.withIndent('  ').convert(export);
     await Clipboard.setData(ClipboardData(text: json));
     if (!mounted) return;
-    AppSnackBar.show(context, 'Données copiées dans le presse-papiers',
-        kind: SnackKind.success);
+    AppSnackBar.show(
+      context,
+      'Données copiées dans le presse-papiers',
+      kind: SnackKind.success,
+    );
   }
 
   @override

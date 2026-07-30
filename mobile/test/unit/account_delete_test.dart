@@ -47,8 +47,9 @@ void main() {
     });
 
     test('returns true and clears the user on success', () async {
-      when(() => service.deleteAccount())
-          .thenAnswer((_) async => ApiResponse.success(null));
+      when(
+        () => service.deleteAccount(),
+      ).thenAnswer((_) async => ApiResponse.success(null));
 
       final provider = AuthProvider();
       final ok = await provider.deleteAccount();
@@ -59,8 +60,9 @@ void main() {
     });
 
     test('returns false and surfaces the error on failure', () async {
-      when(() => service.deleteAccount())
-          .thenAnswer((_) async => ApiResponse.error('boom'));
+      when(
+        () => service.deleteAccount(),
+      ).thenAnswer((_) async => ApiResponse.error('boom'));
 
       final provider = AuthProvider();
       final ok = await provider.deleteAccount();
@@ -106,7 +108,8 @@ void main() {
       expect(
         res.error,
         contains('Annulez'),
-        reason: 'the user must be told WHAT to do — a bare « échec » leaves '
+        reason:
+            'the user must be told WHAT to do — a bare « échec » leaves '
             'them with an account they cannot close and no idea why',
       );
       expect(

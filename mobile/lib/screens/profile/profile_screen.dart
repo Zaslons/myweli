@@ -22,9 +22,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Profil'),
-      ),
+      appBar: AppBar(title: const Text('Profil')),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;
@@ -75,7 +73,8 @@ class ProfileScreen extends StatelessWidget {
                   onTap: () {
                     if (user == null) {
                       context.go(
-                          '/login?returnTo=${Uri.encodeComponent('/profile')}');
+                        '/login?returnTo=${Uri.encodeComponent('/profile')}',
+                      );
                       return;
                     }
                     context.push('/profile/edit');
@@ -110,7 +109,8 @@ class ProfileScreen extends StatelessWidget {
                   onTap: () => openWhatsApp(
                     context,
                     number: AppConfig.supportWhatsApp,
-                    message: 'Bonjour MyWeli, j’ai besoin d’aide concernant '
+                    message:
+                        'Bonjour MyWeli, j’ai besoin d’aide concernant '
                         'mon compte.',
                   ),
                 ),
@@ -146,7 +146,8 @@ class ProfileScreen extends StatelessWidget {
                       final confirmed = await showConfirmDialog(
                         context,
                         title: 'Déconnexion',
-                        message: 'Vous devrez vous reconnecter pour '
+                        message:
+                            'Vous devrez vous reconnecter pour '
                             'retrouver vos rendez-vous.',
                         confirmLabel: 'Se déconnecter',
                         // Reversible — you log back in. Red would be a lie.
@@ -156,8 +157,10 @@ class ProfileScreen extends StatelessWidget {
                       if (confirmed && context.mounted) {
                         // Clear favorites from state (but keep in storage per user)
                         final favoritesProvider =
-                            Provider.of<FavoritesProvider>(context,
-                                listen: false);
+                            Provider.of<FavoritesProvider>(
+                              context,
+                              listen: false,
+                            );
                         favoritesProvider.clearFavorites();
 
                         await authProvider.logout();
@@ -172,7 +175,8 @@ class ProfileScreen extends StatelessWidget {
                     text: 'Se connecter',
                     onPressed: () {
                       context.go(
-                          '/login?returnTo=${Uri.encodeComponent('/profile')}');
+                        '/login?returnTo=${Uri.encodeComponent('/profile')}',
+                      );
                     },
                   ),
               ],
@@ -190,8 +194,10 @@ class ProfileScreen extends StatelessWidget {
     final confirmed = await _confirmDeletion(context);
     if (!confirmed || !context.mounted) return;
 
-    final favoritesProvider =
-        Provider.of<FavoritesProvider>(context, listen: false);
+    final favoritesProvider = Provider.of<FavoritesProvider>(
+      context,
+      listen: false,
+    );
     final success = await authProvider.deleteAccount();
     if (!context.mounted) return;
 
@@ -201,32 +207,35 @@ class ProfileScreen extends StatelessWidget {
       AppSnackBar.show(context, 'Compte supprimé', kind: SnackKind.success);
     } else {
       AppSnackBar.show(
-          context, authProvider.error ?? 'Erreur lors de la suppression',
-          kind: SnackKind.error);
+        context,
+        authProvider.error ?? 'Erreur lors de la suppression',
+        kind: SnackKind.error,
+      );
     }
   }
 
   /// A6: the hand-rolled StatefulBuilder + gating + its own controller became
   /// three arguments — the ladder's top rung expressed as parameters.
   Future<bool> _confirmDeletion(BuildContext context) => showConfirmDialog(
-        context,
-        title: 'Supprimer mon compte',
-        // **This copy was false, and stayed false after the cascade landed.**
-        // It promised that appointments and reviews « seront supprimés ». They
-        // are not: the booking survives stripped of your name, phone and notes
-        // (the salon needs it to reconcile takings) and the review survives
-        // without its author (the rating is an aggregate the salon earned).
-        // Saying « supprimés » of either would be describing an erasure the
-        // backend deliberately does not perform.
-        //
-        // One transcription, three surfaces: this dialog, `openapi.yaml`'s
-        // `/me` `delete:` description, and myweli.com/suppression-compte.
-        message: 'Cette action est définitive. Votre profil, vos favoris et '
-            'vos notifications sont supprimés ; vos rendez-vous et vos avis '
-            'restent chez le salon, sans votre nom. Pensez à exporter vos '
-            'données avant.',
-        confirmLabel: 'Supprimer définitivement',
-        icon: Icons.warning_amber_rounded,
-        confirmWord: 'SUPPRIMER',
-      );
+    context,
+    title: 'Supprimer mon compte',
+    // **This copy was false, and stayed false after the cascade landed.**
+    // It promised that appointments and reviews « seront supprimés ». They
+    // are not: the booking survives stripped of your name, phone and notes
+    // (the salon needs it to reconcile takings) and the review survives
+    // without its author (the rating is an aggregate the salon earned).
+    // Saying « supprimés » of either would be describing an erasure the
+    // backend deliberately does not perform.
+    //
+    // One transcription, three surfaces: this dialog, `openapi.yaml`'s
+    // `/me` `delete:` description, and myweli.com/suppression-compte.
+    message:
+        'Cette action est définitive. Votre profil, vos favoris et '
+        'vos notifications sont supprimés ; vos rendez-vous et vos avis '
+        'restent chez le salon, sans votre nom. Pensez à exporter vos '
+        'données avant.',
+    confirmLabel: 'Supprimer définitivement',
+    icon: Icons.warning_amber_rounded,
+    confirmWord: 'SUPPRIMER',
+  );
 }

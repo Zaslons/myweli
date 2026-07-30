@@ -14,8 +14,9 @@ class MockReviewService implements ReviewServiceInterface {
     }
 
     // Persist onto the provider so the review survives + shows on reload.
-    final index =
-        MockData.providers.indexWhere((p) => p.id == review.providerId);
+    final index = MockData.providers.indexWhere(
+      (p) => p.id == review.providerId,
+    );
     if (index != -1) {
       final provider = MockData.providers[index];
       MockData.providers[index] = provider.copyWith(
@@ -32,10 +33,9 @@ class MockReviewService implements ReviewServiceInterface {
     int pageSize = 20,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
-    final all = MockData.reviews
-        .where((r) => r.providerId == providerId)
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final all =
+        MockData.reviews.where((r) => r.providerId == providerId).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final start = (page - 1) * pageSize;
     final items = start >= all.length
         ? <Review>[]

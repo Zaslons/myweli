@@ -47,8 +47,9 @@ class StatCard extends StatelessWidget {
                 const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   label,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),

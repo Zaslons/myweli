@@ -48,8 +48,10 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.artistId != null && !_prefillDone) {
-      final artistProvider =
-          Provider.of<ProArtistProvider>(context, listen: false);
+      final artistProvider = Provider.of<ProArtistProvider>(
+        context,
+        listen: false,
+      );
       Artist? artist;
       for (final a in artistProvider.artists) {
         if (a.id == widget.artistId) {
@@ -65,7 +67,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
           _customHours = true;
           _workingHours = {
             for (final e in artist.workingHours.entries)
-              e.key: List<TimeSlot>.from(e.value)
+              e.key: List<TimeSlot>.from(e.value),
           };
         }
       }
@@ -89,8 +91,11 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     if (url != null) {
       setState(() => _avatarUrl = url);
     } else {
-      AppSnackBar.show(context, provider.error ?? 'Échec de l’envoi',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        provider.error ?? 'Échec de l’envoi',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -103,8 +108,10 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       return;
     }
 
-    final artistProvider =
-        Provider.of<ProArtistProvider>(context, listen: false);
+    final artistProvider = Provider.of<ProArtistProvider>(
+      context,
+      listen: false,
+    );
     final providerId = _resolvedProviderId(context);
 
     final data = {
@@ -127,8 +134,10 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       Navigator.pop(context);
     } else {
       AppSnackBar.show(
-          context, artistProvider.error ?? 'Erreur lors de la sauvegarde',
-          kind: SnackKind.error);
+        context,
+        artistProvider.error ?? 'Erreur lors de la sauvegarde',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -136,15 +145,18 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Supprimer cet employé ?',
-      message: 'Sa fiche et ses créneaux disparaîtront. Cette action est '
+      message:
+          'Sa fiche et ses créneaux disparaîtront. Cette action est '
           'irréversible.',
       confirmLabel: 'Supprimer l’employé',
     );
 
     if (!confirmed || !mounted) return;
 
-    final artistProvider =
-        Provider.of<ProArtistProvider>(context, listen: false);
+    final artistProvider = Provider.of<ProArtistProvider>(
+      context,
+      listen: false,
+    );
     final success = await artistProvider.deleteArtist(widget.artistId!);
 
     if (!mounted) return;
@@ -154,8 +166,10 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       Navigator.pop(context);
     } else {
       AppSnackBar.show(
-          context, artistProvider.error ?? 'Erreur lors de la suppression',
-          kind: SnackKind.error);
+        context,
+        artistProvider.error ?? 'Erreur lors de la suppression',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -165,7 +179,8 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-            widget.artistId != null ? 'Modifier l’employé' : 'Nouvel employé'),
+          widget.artistId != null ? 'Modifier l’employé' : 'Nouvel employé',
+        ),
       ),
       body: Consumer<ProArtistProvider>(
         builder: (context, artistProvider, _) {
@@ -183,9 +198,11 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                             radius: 40,
                             backgroundColor: AppColors.surface,
                             child: _avatarUrl == null
-                                ? const Icon(Icons.person_outline,
+                                ? const Icon(
+                                    Icons.person_outline,
                                     size: AppTheme.iconL,
-                                    color: AppColors.textSecondary)
+                                    color: AppColors.textSecondary,
+                                  )
                                 : ClipOval(
                                     child: TimedCachedImage(
                                       imageUrl: _avatarUrl!,
@@ -204,9 +221,10 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                                   width: 24,
                                   height: 24,
                                   child: BrandLoader(
-                                      size: AppTheme.iconS,
-                                      fast: true,
-                                      onDark: true),
+                                    size: AppTheme.iconS,
+                                    fast: true,
+                                    onDark: true,
+                                  ),
                                 ),
                               ),
                             ),
@@ -216,9 +234,11 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                         onPressed: artistProvider.isUploadingAvatar
                             ? null
                             : () => _pickAvatar(artistProvider),
-                        child: Text(_avatarUrl == null
-                            ? 'Ajouter une photo'
-                            : 'Changer la photo'),
+                        child: Text(
+                          _avatarUrl == null
+                              ? 'Ajouter une photo'
+                              : 'Changer la photo',
+                        ),
                       ),
                     ],
                   ),
@@ -243,8 +263,9 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Suit les horaires du salon'),
-                  subtitle:
-                      const Text('Désactiver pour des horaires personnalisés'),
+                  subtitle: const Text(
+                    'Désactiver pour des horaires personnalisés',
+                  ),
                   value: !_customHours,
                   onChanged: (followsSalon) =>
                       setState(() => _customHours = !followsSalon),
@@ -258,8 +279,9 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                   Text(
                     'Les clients ne verront que les créneaux où ce membre '
                     'travaille (dans la limite des horaires du salon).',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textTertiary),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
                 const SizedBox(height: AppTheme.spacingL),
@@ -272,8 +294,9 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                   TextButton(
                     onPressed: artistProvider.isLoading ? null : _handleDelete,
-                    style:
-                        TextButton.styleFrom(foregroundColor: AppColors.error),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
                     child: const Text('Supprimer l’employé'),
                   ),
                 ],

@@ -46,21 +46,26 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
     );
     if (reason == null || !mounted) return;
     await _run(
-        () => context
-            .read<AdminProviderDetailProvider>()
-            .suspend(widget.id, reason),
-        'Salon suspendu');
+      () => context.read<AdminProviderDetailProvider>().suspend(
+        widget.id,
+        reason,
+      ),
+      'Salon suspendu',
+    );
   }
 
   Future<void> _restore() => _run(
-      () => context.read<AdminProviderDetailProvider>().restore(widget.id),
-      'Salon réactivé');
+    () => context.read<AdminProviderDetailProvider>().restore(widget.id),
+    'Salon réactivé',
+  );
 
   Future<void> _feature(bool featured) => _run(
-      () => context
-          .read<AdminProviderDetailProvider>()
-          .feature(widget.id, featured),
-      featured ? 'Mis en avant' : 'Retiré de la mise en avant');
+    () => context.read<AdminProviderDetailProvider>().feature(
+      widget.id,
+      featured,
+    ),
+    featured ? 'Mis en avant' : 'Retiré de la mise en avant',
+  );
 
   /// Manual billing (T54): the salon paid via « Nous contacter » — record
   /// N months. Republishes a billing-unpublished salon server-side.
@@ -80,10 +85,12 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
     );
     if (months == null || !mounted) return;
     await _run(
-        () => context
-            .read<AdminProviderDetailProvider>()
-            .markPaid(widget.id, months),
-        'Paiement enregistré ($months mois)');
+      () => context.read<AdminProviderDetailProvider>().markPaid(
+        widget.id,
+        months,
+      ),
+      'Paiement enregistré ($months mois)',
+    );
   }
 
   Future<void> _run(Future<bool> Function() action, String okMsg) async {
@@ -123,11 +130,7 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AdminProviderDetailProvider>();
-    return AdminScaffold(
-      title: 'Salon',
-      showBack: true,
-      child: _body(p),
-    );
+    return AdminScaffold(title: 'Salon', showBack: true, child: _body(p));
   }
 
   Widget _body(AdminProviderDetailProvider p) {

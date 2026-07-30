@@ -34,27 +34,27 @@ void main() {
   setUp(() => reset(service));
 
   Widget host() => wrapApp(
-        providers: [
-          ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
-          // T52 lock reads the session's verification status.
-          ChangeNotifierProvider(create: (_) => ProAuthProvider()),
-          // Multi-pays MP2: the operator-catalog chips.
-          ChangeNotifierProvider(create: (_) => LocalityProvider()),
-        ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
-      );
+    providers: [
+      ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+      // T52 lock reads the session's verification status.
+      ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+      // Multi-pays MP2: the operator-catalog chips.
+      ChangeNotifierProvider(create: (_) => LocalityProvider()),
+    ],
+    home: const DepositSettingsScreen(providerId: 'p1'),
+  );
 
   /// Same host, on a settings provider the test already primed — the screen
   /// prefills its Mobile Money field from `provider.mobileMoneyNumber`, so this
   /// is how a test opens the screen on a salon that HAS a stored handle.
   Widget hostWith(ProDepositSettingsProvider settings) => wrapApp(
-        providers: [
-          ChangeNotifierProvider.value(value: settings),
-          ChangeNotifierProvider(create: (_) => ProAuthProvider()),
-          ChangeNotifierProvider(create: (_) => LocalityProvider()),
-        ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
-      );
+    providers: [
+      ChangeNotifierProvider.value(value: settings),
+      ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+      ChangeNotifierProvider(create: (_) => LocalityProvider()),
+    ],
+    home: const DepositSettingsScreen(providerId: 'p1'),
+  );
 
   testWidgets('shows the loaded policy', (tester) async {
     when(() => service.getDepositPolicy(any())).thenAnswer(
@@ -69,10 +69,7 @@ void main() {
     expect(find.text('Exiger un acompte'), findsOneWidget);
     expect(find.text('30 %'), findsOneWidget);
     // T52: an unverified session sees the lock banner.
-    expect(
-      find.textContaining('après la vérification'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('après la vérification'), findsOneWidget);
     // The banner lengthens the lazy ListView — bring the tail into view.
     await tester.scrollUntilVisible(
       find.text('Enregistrer', skipOffstage: false),
@@ -81,7 +78,9 @@ void main() {
     );
     expect(find.text('Enregistrer', skipOffstage: false), findsOneWidget);
     expect(
-        find.text('Recevoir l’acompte', skipOffstage: false), findsOneWidget);
+      find.text('Recevoir l’acompte', skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets('hides the percentage when the deposit is off', (tester) async {
@@ -139,13 +138,15 @@ void main() {
   /// The form is a lazy [ListView] taller than the test surface, so « the field »
   /// and « the button » are never on screen at once — the same helper the two
   /// tests above use, as a direction-aware wrapper.
-  Future<void> scrollTo(WidgetTester tester, Finder target,
-          {double delta = 200}) =>
-      tester.scrollUntilVisible(
-        target,
-        delta,
-        scrollable: find.byType(Scrollable).first,
-      );
+  Future<void> scrollTo(
+    WidgetTester tester,
+    Finder target, {
+    double delta = 200,
+  }) => tester.scrollUntilVisible(
+    target,
+    delta,
+    scrollable: find.byType(Scrollable).first,
+  );
 
   final saveButton = find.text('Enregistrer', skipOffstage: false);
   final numberLabel = find.text('Numéro Mobile Money', skipOffstage: false);
@@ -166,21 +167,21 @@ void main() {
   /// Every `updateDepositPolicy` call, whatever its arguments — the "did the
   /// press reach the network at all" question.
   VerificationResult saveCalls() => verify(
-        () => service.updateDepositPolicy(
-          any(),
-          depositRequired: any(named: 'depositRequired'),
-          depositPercentage: any(named: 'depositPercentage'),
-          cancellationWindowHours: any(named: 'cancellationWindowHours'),
-          mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
-          mobileMoneyNumber: captureAny(named: 'mobileMoneyNumber'),
-        ),
-      );
+    () => service.updateDepositPolicy(
+      any(),
+      depositRequired: any(named: 'depositRequired'),
+      depositPercentage: any(named: 'depositPercentage'),
+      cancellationWindowHours: any(named: 'cancellationWindowHours'),
+      mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
+      mobileMoneyNumber: captureAny(named: 'mobileMoneyNumber'),
+    ),
+  );
 
-  testWidgets(
-      'A7 LOCKOUT: « Enregistrer » accepts the stored E.164 number the '
+  testWidgets('A7 LOCKOUT: « Enregistrer » accepts the stored E.164 number the '
       'screen just loaded', (tester) async {
-    when(() => service.getDepositPolicy(any()))
-        .thenAnswer((_) async => ApiResponse.success(loadedPolicy));
+    when(
+      () => service.getDepositPolicy(any()),
+    ).thenAnswer((_) async => ApiResponse.success(loadedPolicy));
     stubSaveOk();
 
     // Open on a provider that already holds the stored policy, so the field is
@@ -210,107 +211,144 @@ void main() {
     // value, so the save below never happened and this salon could never
     // store a deposit policy.
     final sent = saveCalls().captured.single;
-    expect(sent, storedNumber,
-        reason: 'the E.164 handle reaches PUT /deposit-policy unchanged');
-    expect(find.text('Paramètres enregistrés'), findsOneWidget,
-        reason: 'and the salon is told it saved');
-
-    await scrollTo(tester, numberLabel, delta: -200);
-    expect(find.text('Saisissez un numéro de téléphone valide.'), findsNothing,
-        reason: 'the app must be able to save what it just loaded');
-  });
-
-  testWidgets(
-      'an invalid Mobile Money number answers UNDER THE FIELD, with no bar, '
-      'and saves nothing', (tester) async {
-    when(() => service.getDepositPolicy(any()))
-        .thenAnswer((_) async => ApiResponse.success(loadedPolicy));
-    stubSaveOk();
-
-    await tester.pumpWidget(host());
-    await settle(tester);
-    await settle(tester);
-
-    // `"abc"` is the literal value A7's review found saving fine, rendering
-    // verbatim in the client's deposit sheet and going into the Wave deep
-    // link — the whole path's only transformation was `.trim()`.
-    await scrollTo(tester, numberLabel);
-    await tester.enterText(find.byType(TextField).first, 'abc');
-    await tester.pump();
-
-    // Rule 5 keeps the button live, so the press MUST answer rather than
-    // silently succeed.
-    await scrollTo(tester, saveButton);
-    final button = tester.widget<ElevatedButton>(
-      find.widgetWithText(ElevatedButton, 'Enregistrer'),
+    expect(
+      sent,
+      storedNumber,
+      reason: 'the E.164 handle reaches PUT /deposit-policy unchanged',
     );
-    expect(button.onPressed, isNotNull,
-        reason: '§14 rule 5: never disabled to express "invalid"');
-
-    await tester.tap(saveButton);
-    await settle(tester);
-    await settle(tester);
-
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
-    verifyNever(
-      () => service.updateDepositPolicy(
-        any(),
-        depositRequired: any(named: 'depositRequired'),
-        depositPercentage: any(named: 'depositPercentage'),
-        cancellationWindowHours: any(named: 'cancellationWindowHours'),
-        mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
-        mobileMoneyNumber: any(named: 'mobileMoneyNumber'),
-      ),
+    expect(
+      find.text('Paramètres enregistrés'),
+      findsOneWidget,
+      reason: 'and the salon is told it saved',
     );
 
-    // The message lives in the field's own decoration, so it is built exactly
-    // when the field is.
     await scrollTo(tester, numberLabel, delta: -200);
     expect(
-        find.text('Saisissez un numéro de téléphone valide.'), findsOneWidget,
-        reason: 'the fault renders under the field it belongs to (§14 rule 1)');
-
-    // Rule 2: fixing it clears the message without another submit.
-    await tester.enterText(find.byType(TextField).first, storedNumber);
-    await tester.pump();
-    expect(find.text('Saisissez un numéro de téléphone valide.'), findsNothing,
-        reason: '§14 rule 2 — a fixed field clears itself, no second press');
+      find.text('Saisissez un numéro de téléphone valide.'),
+      findsNothing,
+      reason: 'the app must be able to save what it just loaded',
+    );
   });
 
   testWidgets(
-      'deposits OFF: the number is not judged at all — a salon that takes '
-      'no deposit still saves', (tester) async {
-    when(() => service.getDepositPolicy(any())).thenAnswer(
-      (_) async => ApiResponse.success(
-        const DepositPolicy(depositRequired: false, depositPercentage: 0.30),
-      ),
-    );
-    stubSaveOk();
+    'an invalid Mobile Money number answers UNDER THE FIELD, with no bar, '
+    'and saves nothing',
+    (tester) async {
+      when(
+        () => service.getDepositPolicy(any()),
+      ).thenAnswer((_) async => ApiResponse.success(loadedPolicy));
+      stubSaveOk();
 
-    await tester.pumpWidget(host());
-    await settle(tester);
-    await settle(tester);
+      await tester.pumpWidget(host());
+      await settle(tester);
+      await settle(tester);
 
-    expect(numberLabel, findsNothing,
-        reason: 'the field only exists when a deposit is actually collected');
+      // `"abc"` is the literal value A7's review found saving fine, rendering
+      // verbatim in the client's deposit sheet and going into the Wave deep
+      // link — the whole path's only transformation was `.trim()`.
+      await scrollTo(tester, numberLabel);
+      await tester.enterText(find.byType(TextField).first, 'abc');
+      await tester.pump();
 
-    await scrollTo(tester, saveButton);
-    await tester.tap(saveButton);
-    await settle(tester);
-    await settle(tester);
+      // Rule 5 keeps the button live, so the press MUST answer rather than
+      // silently succeed.
+      await scrollTo(tester, saveButton);
+      final button = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Enregistrer'),
+      );
+      expect(
+        button.onPressed,
+        isNotNull,
+        reason: '§14 rule 5: never disabled to express "invalid"',
+      );
 
-    // `_save` guards the rule with `if (provider.depositRequired)`: with
-    // deposits off there is no number to require, so an empty one must not
-    // stop the press.
-    expect(find.text('Saisissez un numéro de téléphone.'), findsNothing,
-        reason: 'an absent number is not a fault when no deposit is collected');
-    expect(find.text('Paramètres enregistrés'), findsOneWidget,
-        reason: 'the policy saved');
-    final sent = saveCalls().captured.single;
-    expect(sent, isNull,
-        reason: 'and no Mobile Money handle is invented on the way out');
-  });
+      await tester.tap(saveButton);
+      await settle(tester);
+      await settle(tester);
+
+      expect(
+        find.byType(SnackBar),
+        findsNothing,
+        reason: '§14 rule 3 — a field fault is never a bar',
+      );
+      verifyNever(
+        () => service.updateDepositPolicy(
+          any(),
+          depositRequired: any(named: 'depositRequired'),
+          depositPercentage: any(named: 'depositPercentage'),
+          cancellationWindowHours: any(named: 'cancellationWindowHours'),
+          mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
+          mobileMoneyNumber: any(named: 'mobileMoneyNumber'),
+        ),
+      );
+
+      // The message lives in the field's own decoration, so it is built exactly
+      // when the field is.
+      await scrollTo(tester, numberLabel, delta: -200);
+      expect(
+        find.text('Saisissez un numéro de téléphone valide.'),
+        findsOneWidget,
+        reason: 'the fault renders under the field it belongs to (§14 rule 1)',
+      );
+
+      // Rule 2: fixing it clears the message without another submit.
+      await tester.enterText(find.byType(TextField).first, storedNumber);
+      await tester.pump();
+      expect(
+        find.text('Saisissez un numéro de téléphone valide.'),
+        findsNothing,
+        reason: '§14 rule 2 — a fixed field clears itself, no second press',
+      );
+    },
+  );
+
+  testWidgets(
+    'deposits OFF: the number is not judged at all — a salon that takes '
+    'no deposit still saves',
+    (tester) async {
+      when(() => service.getDepositPolicy(any())).thenAnswer(
+        (_) async => ApiResponse.success(
+          const DepositPolicy(depositRequired: false, depositPercentage: 0.30),
+        ),
+      );
+      stubSaveOk();
+
+      await tester.pumpWidget(host());
+      await settle(tester);
+      await settle(tester);
+
+      expect(
+        numberLabel,
+        findsNothing,
+        reason: 'the field only exists when a deposit is actually collected',
+      );
+
+      await scrollTo(tester, saveButton);
+      await tester.tap(saveButton);
+      await settle(tester);
+      await settle(tester);
+
+      // `_save` guards the rule with `if (provider.depositRequired)`: with
+      // deposits off there is no number to require, so an empty one must not
+      // stop the press.
+      expect(
+        find.text('Saisissez un numéro de téléphone.'),
+        findsNothing,
+        reason: 'an absent number is not a fault when no deposit is collected',
+      );
+      expect(
+        find.text('Paramètres enregistrés'),
+        findsOneWidget,
+        reason: 'the policy saved',
+      );
+      final sent = saveCalls().captured.single;
+      expect(
+        sent,
+        isNull,
+        reason: 'and no Mobile Money handle is invented on the way out',
+      );
+    },
+  );
 
   // NOT COVERED, because it is currently broken — reported, not asserted:
   // **cold-start prefill.** `_buildForm` guards the prefill with

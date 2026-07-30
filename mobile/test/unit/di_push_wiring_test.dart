@@ -18,7 +18,8 @@ void main() {
     expect(
       serviceLocator.pushNotificationService,
       isA<MockPushNotificationService>(),
-      reason: 'the real FCM adapter must never be constructed in tests — it '
+      reason:
+          'the real FCM adapter must never be constructed in tests — it '
           'needs a native Firebase app (see the file header)',
     );
   });

@@ -66,7 +66,9 @@ class AdminDataTable extends StatelessWidget {
   Widget _headerRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM, vertical: 11),
+        horizontal: AppTheme.spacingM,
+        vertical: 11,
+      ),
       child: Row(
         children: [
           for (final c in columns)
@@ -74,8 +76,9 @@ class AdminDataTable extends StatelessWidget {
               flex: c.flex,
               child: Text(
                 c.label,
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textTertiary),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
             ),
         ],
@@ -85,9 +88,7 @@ class AdminDataTable extends StatelessWidget {
 
   Widget _body() {
     if (isLoading && rows.isEmpty) {
-      return Column(
-        children: List.generate(4, (_) => _skeletonRow()),
-      );
+      return Column(children: List.generate(4, (_) => _skeletonRow()));
     }
     if (error != null && rows.isEmpty) {
       return Padding(
@@ -134,7 +135,9 @@ class AdminDataTable extends StatelessWidget {
         child: Container(
           constraints: const BoxConstraints(minHeight: 52),
           padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
+            horizontal: AppTheme.spacingM,
+            vertical: AppTheme.spacingS,
+          ),
           child: Row(
             children: [
               for (var c = 0; c < columns.length; c++)
@@ -155,7 +158,9 @@ class AdminDataTable extends StatelessWidget {
     return Container(
       height: 52,
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM, vertical: AppTheme.spacingM),
+        horizontal: AppTheme.spacingM,
+        vertical: AppTheme.spacingM,
+      ),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),

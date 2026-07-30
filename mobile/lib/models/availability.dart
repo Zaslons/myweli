@@ -52,8 +52,13 @@ class Availability extends Equatable {
   });
 
   @override
-  List<Object?> get props =>
-      [providerId, weeklySchedule, blockedDates, bufferMinutes, breaks];
+  List<Object?> get props => [
+    providerId,
+    weeklySchedule,
+    blockedDates,
+    bufferMinutes,
+    breaks,
+  ];
 
   Availability copyWith({
     String? providerId,
@@ -72,19 +77,23 @@ class Availability extends Equatable {
   }
 
   static Map<String, dynamic> _scheduleToJson(Map<int, List<TimeSlot>> m) =>
-      m.map((key, value) => MapEntry(
-            key.toString(),
-            value.map((slot) => slot.toJson()).toList(),
-          ));
+      m.map(
+        (key, value) => MapEntry(
+          key.toString(),
+          value.map((slot) => slot.toJson()).toList(),
+        ),
+      );
 
   static Map<int, List<TimeSlot>> _scheduleFromJson(Map? json) {
     if (json == null) return const {};
-    return json.map((key, value) => MapEntry(
-          int.parse(key as String),
-          (value as List)
-              .map((slot) => TimeSlot.fromJson(slot as Map<String, dynamic>))
-              .toList(),
-        ));
+    return json.map(
+      (key, value) => MapEntry(
+        int.parse(key as String),
+        (value as List)
+            .map((slot) => TimeSlot.fromJson(slot as Map<String, dynamic>))
+            .toList(),
+      ),
+    );
   }
 
   Map<String, dynamic> toJson() {

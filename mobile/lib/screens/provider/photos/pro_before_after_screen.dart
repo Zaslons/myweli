@@ -57,8 +57,11 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
       caption: caption,
     );
     if (!ok) {
-      AppSnackBar.showOn(messenger, p.error ?? 'Échec de l’envoi',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        p.error ?? 'Échec de l’envoi',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -95,8 +98,11 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
     final removed = p.pairs[index];
     final ok = await p.removePair(providerId, index);
     if (!ok) {
-      AppSnackBar.showOn(messenger, p.error ?? 'Suppression impossible.',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        p.error ?? 'Suppression impossible.',
+        kind: SnackKind.error,
+      );
       return;
     }
     AppSnackBar.showOn(
@@ -108,8 +114,11 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
         onPressed: () async {
           final restored = await p.restorePairAt(providerId, index, removed);
           if (!restored) {
-            AppSnackBar.showOn(messenger, p.error ?? 'Restauration impossible.',
-                kind: SnackKind.error);
+            AppSnackBar.showOn(
+              messenger,
+              p.error ?? 'Restauration impossible.',
+              kind: SnackKind.error,
+            );
           }
         },
       ),
@@ -150,19 +159,22 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
                 'Montrez vos plus belles transformations. Choisissez la photo '
                 'avant puis la photo après ; les images sont optimisées '
                 'automatiquement.',
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textTertiary),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
               const SizedBox(height: AppTheme.spacingM),
               if (p.pairs.isEmpty && !p.isUploading)
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppTheme.spacingXL),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppTheme.spacingXL,
+                  ),
                   child: Text(
                     'Aucune réalisation pour le moment.',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: AppColors.textTertiary),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ),
               for (var i = 0; i < p.pairs.length; i++)
@@ -196,14 +208,17 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
                           // beside it already carries what the spin was saying.
                           value:
                               p.uploadProgress == 0 && !reduceMotionOf(context)
-                                  ? null
-                                  : p.uploadProgress,
+                              ? null
+                              : p.uploadProgress,
                         ),
                       ),
                       const SizedBox(width: AppTheme.spacingM),
-                      Text('Envoi… ${(p.uploadProgress * 100).round()}%',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
+                      Text(
+                        'Envoi… ${(p.uploadProgress * 100).round()}%',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -252,8 +267,12 @@ class _PairCard extends StatelessWidget {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppTheme.spacingM,
-                AppTheme.spacingS, AppTheme.spacingS, AppTheme.spacingS),
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.spacingM,
+              AppTheme.spacingS,
+              AppTheme.spacingS,
+              AppTheme.spacingS,
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -298,13 +317,17 @@ class _PairCard extends StatelessWidget {
           left: 6,
           child: Container(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+              horizontal: AppTheme.spacingS,
+              vertical: AppTheme.spacingXS,
+            ),
             decoration: BoxDecoration(
               color: Colors.black54,
               borderRadius: BorderRadius.circular(AppTheme.radiusPill),
             ),
-            child: Text(label,
-                style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
+            child: Text(
+              label,
+              style: AppTextStyles.labelSmall.copyWith(color: Colors.white),
+            ),
           ),
         ),
       ],

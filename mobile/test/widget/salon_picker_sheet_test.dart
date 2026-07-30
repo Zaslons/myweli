@@ -84,8 +84,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  testWidgets('lists both salons with roles; the active one is checked',
-      (tester) async {
+  testWidgets('lists both salons with roles; the active one is checked', (
+    tester,
+  ) async {
     final auth = await signInOwner(tester);
     await pumpPicker(tester, auth);
 
@@ -99,8 +100,9 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('tapping the other salon switches and pops with its id',
-      (tester) async {
+  testWidgets('tapping the other salon switches and pops with its id', (
+    tester,
+  ) async {
     final auth = await signInOwner(tester);
     await pumpPicker(tester, auth);
 
@@ -121,12 +123,15 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('« Ajouter un salon » appears once the Réseau gate opens',
-      (tester) async {
+  testWidgets('« Ajouter un salon » appears once the Réseau gate opens', (
+    tester,
+  ) async {
     final auth = await signInOwner(tester);
     await tester.runAsync(() async {
-      final chosen = await serviceLocator.subscriptionService
-          .chooseOffer('provider1', SalonTier.reseau);
+      final chosen = await serviceLocator.subscriptionService.chooseOffer(
+        'provider1',
+        SalonTier.reseau,
+      );
       expect(chosen.success, isTrue);
       await auth.loadMySalons();
     });

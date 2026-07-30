@@ -41,27 +41,29 @@ void main() {
     setUp(() => reset(service));
 
     Appointment created() => Appointment(
-          id: 'm1',
-          userId: 'manual',
-          providerId: 'p1',
-          serviceIds: const ['s1'],
-          appointmentDate: DateTime(2026, 7, 1, 10),
-          status: AppointmentStatus.confirmed,
-          totalPrice: 15000,
-          clientPhone: '+2250700000012',
-          createdAt: DateTime(2026),
-        );
+      id: 'm1',
+      userId: 'manual',
+      providerId: 'p1',
+      serviceIds: const ['s1'],
+      appointmentDate: DateTime(2026, 7, 1, 10),
+      status: AppointmentStatus.confirmed,
+      totalPrice: 15000,
+      clientPhone: '+2250700000012',
+      createdAt: DateTime(2026),
+    );
 
     void stub(ApiResponse<Appointment> response) {
-      when(() => service.createManualBooking(
-            providerId: any(named: 'providerId'),
-            serviceIds: any(named: 'serviceIds'),
-            appointmentDateTime: any(named: 'appointmentDateTime'),
-            clientName: any(named: 'clientName'),
-            clientPhone: any(named: 'clientPhone'),
-            notes: any(named: 'notes'),
-            sendSmsInvite: any(named: 'sendSmsInvite'),
-          )).thenAnswer((_) async => response);
+      when(
+        () => service.createManualBooking(
+          providerId: any(named: 'providerId'),
+          serviceIds: any(named: 'serviceIds'),
+          appointmentDateTime: any(named: 'appointmentDateTime'),
+          clientName: any(named: 'clientName'),
+          clientPhone: any(named: 'clientPhone'),
+          notes: any(named: 'notes'),
+          sendSmsInvite: any(named: 'sendSmsInvite'),
+        ),
+      ).thenAnswer((_) async => response);
     }
 
     test('adds the created confirmed booking on success', () async {

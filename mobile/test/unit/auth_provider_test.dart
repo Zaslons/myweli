@@ -23,10 +23,8 @@ void main() {
 
   test('verifyOtp surfaces the failure code on a locked error', () async {
     when(() => service.verifyOtp(any(), any())).thenAnswer(
-      (_) async => ApiResponse<User>.error(
-        'Trop de tentatives.',
-        code: 'otp_locked',
-      ),
+      (_) async =>
+          ApiResponse<User>.error('Trop de tentatives.', code: 'otp_locked'),
     );
 
     final provider = AuthProvider();

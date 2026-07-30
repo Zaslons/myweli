@@ -76,8 +76,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   'Console interne. Accès réservé à l’équipe.',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textTertiary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spacingL),
                 AppTextField(

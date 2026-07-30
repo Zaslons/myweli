@@ -71,9 +71,10 @@ Future<TimeOfDay?> showMyweliTimePicker({
   String? helpText,
 }) {
   assert(
-      minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
-      'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
-      'grid arithmetic and never terminates the minutes loop');
+    minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
+    'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
+    'grid arithmetic and never terminates the minutes loop',
+  );
   return Navigator.of(context).push<TimeOfDay>(
     MaterialPageRoute<TimeOfDay>(
       fullscreenDialog: true,
@@ -241,23 +242,23 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
   }
 
   void _pickHour(int hour) => setState(() {
-        _hour = hour;
-        if (_isBelowMin(_hour, _minute)) {
-          // Moving to the boundary hour can strand the minute below the floor.
-          // Dragging it up is the behaviour the two-dialog chain faked with
-          // `pickedStart.hour + 1` arithmetic, and getting it wrong is what the
-          // deleted error states used to catch.
-          //
-          // In total minutes, not by ceiling `minTime.minute` on its own: that
-          // form only happens to be right when the new hour equals the floor's
-          // hour, which is the one case the enabled set allows — a correctness
-          // argument that depends on another method's predicate is the kind that
-          // stops being true when someone widens the predicate.
-          final total = snapUpToStep(_floorMinutes!, widget.minuteStep);
-          _hour = total ~/ TimeOfDay.minutesPerHour;
-          _minute = total % TimeOfDay.minutesPerHour;
-        }
-      });
+    _hour = hour;
+    if (_isBelowMin(_hour, _minute)) {
+      // Moving to the boundary hour can strand the minute below the floor.
+      // Dragging it up is the behaviour the two-dialog chain faked with
+      // `pickedStart.hour + 1` arithmetic, and getting it wrong is what the
+      // deleted error states used to catch.
+      //
+      // In total minutes, not by ceiling `minTime.minute` on its own: that
+      // form only happens to be right when the new hour equals the floor's
+      // hour, which is the one case the enabled set allows — a correctness
+      // argument that depends on another method's predicate is the kind that
+      // stops being true when someone widens the predicate.
+      final total = snapUpToStep(_floorMinutes!, widget.minuteStep);
+      _hour = total ~/ TimeOfDay.minutesPerHour;
+      _minute = total % TimeOfDay.minutesPerHour;
+    }
+  });
 
   void _pickMinute(int minute) => setState(() => _minute = minute);
 
@@ -295,8 +296,9 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
                 isFullWidth: true,
                 onPressed: _selectionBelowMin
                     ? null
-                    : () => Navigator.of(context)
-                        .pop(TimeOfDay(hour: _hour, minute: _minute)),
+                    : () => Navigator.of(
+                        context,
+                      ).pop(TimeOfDay(hour: _hour, minute: _minute)),
               ),
             ),
           ],
@@ -339,9 +341,10 @@ Future<({TimeOfDay start, TimeOfDay end})?> showMyweliTimeRangePicker({
   String? helpText,
 }) {
   assert(
-      minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
-      'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
-      'grid arithmetic and never terminates the minutes loop');
+    minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
+    'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
+    'grid arithmetic and never terminates the minutes loop',
+  );
   return Navigator.of(context).push<({TimeOfDay start, TimeOfDay end})>(
     MaterialPageRoute<({TimeOfDay start, TimeOfDay end})>(
       fullscreenDialog: true,
@@ -402,7 +405,9 @@ class _MyweliTimeRangePickerScreenState
   int get _lastStartMinute => _lastGridMinute - widget.minuteStep;
 
   int _snap(TimeOfDay t) => snapDownToStep(
-      t.hour * TimeOfDay.minutesPerHour + t.minute, widget.minuteStep);
+    t.hour * TimeOfDay.minutesPerHour + t.minute,
+    widget.minuteStep,
+  );
 
   @override
   void initState() {
@@ -425,26 +430,32 @@ class _MyweliTimeRangePickerScreenState
   void _setEditing(bool end) => setState(() => _editingEnd = end);
 
   void _pickHour(int hour) => setState(() {
-        if (_editingEnd) {
-          _endMinutes = _clampEnd(hour * TimeOfDay.minutesPerHour +
-              _endMinutes % TimeOfDay.minutesPerHour);
-        } else {
-          _setStart(hour * TimeOfDay.minutesPerHour +
-              _startMinutes % TimeOfDay.minutesPerHour);
-        }
-      });
+    if (_editingEnd) {
+      _endMinutes = _clampEnd(
+        hour * TimeOfDay.minutesPerHour +
+            _endMinutes % TimeOfDay.minutesPerHour,
+      );
+    } else {
+      _setStart(
+        hour * TimeOfDay.minutesPerHour +
+            _startMinutes % TimeOfDay.minutesPerHour,
+      );
+    }
+  });
 
   void _pickMinute(int minute) => setState(() {
-        if (_editingEnd) {
-          _endMinutes = _clampEnd((_endMinutes ~/ TimeOfDay.minutesPerHour) *
-                  TimeOfDay.minutesPerHour +
-              minute);
-        } else {
-          _setStart((_startMinutes ~/ TimeOfDay.minutesPerHour) *
-                  TimeOfDay.minutesPerHour +
-              minute);
-        }
-      });
+    if (_editingEnd) {
+      _endMinutes = _clampEnd(
+        (_endMinutes ~/ TimeOfDay.minutesPerHour) * TimeOfDay.minutesPerHour +
+            minute,
+      );
+    } else {
+      _setStart(
+        (_startMinutes ~/ TimeOfDay.minutesPerHour) * TimeOfDay.minutesPerHour +
+            minute,
+      );
+    }
+  });
 
   void _setStart(int value) {
     _startMinutes = value.clamp(0, _lastStartMinute);
@@ -553,9 +564,9 @@ class _MyweliTimeRangePickerScreenState
 }
 
 TimeOfDay _toTimeOfDay(int minutes) => TimeOfDay(
-      hour: minutes ~/ TimeOfDay.minutesPerHour,
-      minute: minutes % TimeOfDay.minutesPerHour,
-    );
+  hour: minutes ~/ TimeOfDay.minutesPerHour,
+  minute: minutes % TimeOfDay.minutesPerHour,
+);
 
 /// Two labelled values side by side, one of them active — « Début 09:00 » next
 /// to « Fin 17:00 », or « Date 11/03/2026 » next to « Heure 14:30 ».
@@ -665,8 +676,9 @@ class _PickerChip extends StatelessWidget {
                 Text(
                   label,
                   style: AppTextStyles.labelSmall.copyWith(
-                    color:
-                        active ? AppColors.secondary : AppColors.textTertiary,
+                    color: active
+                        ? AppColors.secondary
+                        : AppColors.textTertiary,
                   ),
                 ),
                 Text(
@@ -755,9 +767,11 @@ class MyweliTimeWheels extends StatelessWidget {
               Expanded(
                 child: _WheelColumn(
                   values: [
-                    for (var m = 0;
-                        m < TimeOfDay.minutesPerHour;
-                        m += minuteStep)
+                    for (
+                      var m = 0;
+                      m < TimeOfDay.minutesPerHour;
+                      m += minuteStep
+                    )
                       m,
                   ],
                   selected: minute,
@@ -795,8 +809,9 @@ class _ColumnHeadings extends StatelessWidget {
                 child: Text(
                   label,
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.labelSmall
-                      .copyWith(color: AppColors.textTertiary),
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
             ),
@@ -910,8 +925,8 @@ class _WheelColumnState extends State<_WheelColumn> {
                     color: !enabled
                         ? AppColors.textTertiary
                         : isSel
-                            ? AppColors.secondary
-                            : AppColors.textPrimary,
+                        ? AppColors.secondary
+                        : AppColors.textPrimary,
                   ),
                 ),
               ),

@@ -57,15 +57,17 @@ List<OnboardingStep> buildOnboardingChecklist({
   // Staff is optional for solo freelancers (businessType == other).
   final staffStatus = businessType == BusinessType.other
       ? (staffCount >= 1
-          ? OnboardingStepStatus.done
-          : OnboardingStepStatus.optional)
+            ? OnboardingStepStatus.done
+            : OnboardingStepStatus.optional)
       : doneIf(staffCount >= 1);
 
   return [
     OnboardingStep(OnboardingStepKey.profile, doneIf(profileComplete)),
     OnboardingStep(OnboardingStepKey.location, doneIf(locationSet)),
     OnboardingStep(
-        OnboardingStepKey.services, doneIf(serviceCount >= kMinServices)),
+      OnboardingStepKey.services,
+      doneIf(serviceCount >= kMinServices),
+    ),
     OnboardingStep(OnboardingStepKey.staff, staffStatus),
     OnboardingStep(OnboardingStepKey.availability, doneIf(availabilitySet)),
     OnboardingStep(OnboardingStepKey.deposit, doneIf(depositConfigured)),
@@ -97,8 +99,9 @@ bool canGoLive(List<OnboardingStep> steps) =>
 
 /// Progress over the actionable steps (optional ones don't count).
 ({int done, int total}) onboardingProgress(List<OnboardingStep> steps) {
-  final actionable =
-      steps.where((s) => s.status != OnboardingStepStatus.optional).toList();
+  final actionable = steps
+      .where((s) => s.status != OnboardingStepStatus.optional)
+      .toList();
   return (
     done: actionable.where((s) => s.isDone).length,
     total: actionable.length,

@@ -21,37 +21,40 @@ void main() {
   });
 
   Widget wrap() => wrapApp(
-        providers: [
-          ChangeNotifierProvider(create: (_) => ProviderProvider()),
-        ],
-        home:
-            const ProviderDetailScreen(providerId: 'provider1', preview: true),
+    providers: [ChangeNotifierProvider(create: (_) => ProviderProvider())],
+    home: const ProviderDetailScreen(providerId: 'provider1', preview: true),
+  );
+
+  testWidgets(
+    'preview renders the salon with the owner banner + disabled CTA',
+    (tester) async {
+      await tester.pumpWidget(wrap());
+      await tester.pumpAndSettle();
+
+      // The salon loaded (mock seed) — the client view is on screen.
+      expect(
+        find.text('Aperçu — voici ce que verront vos clients.'),
+        findsOneWidget,
       );
+      expect(find.text('Réserver (après la mise en ligne)'), findsOneWidget);
 
-  testWidgets('preview renders the salon with the owner banner + disabled CTA',
-      (tester) async {
-    await tester.pumpWidget(wrap());
-    await tester.pumpAndSettle();
+      // The disabled CTA really is disabled. (ElevatedButton.icon builds a
+      // private subtype — byType(ElevatedButton) would not match it.)
+      final btn = tester.widget<ElevatedButton>(
+        find.ancestor(
+          of: find.text('Réserver (après la mise en ligne)'),
+          matching: find.byWidgetPredicate((w) => w is ElevatedButton),
+        ),
+      );
+      expect(btn.onPressed, isNull);
 
-    // The salon loaded (mock seed) — the client view is on screen.
-    expect(find.text('Aperçu — voici ce que verront vos clients.'),
-        findsOneWidget);
-    expect(find.text('Réserver (après la mise en ligne)'), findsOneWidget);
-
-    // The disabled CTA really is disabled. (ElevatedButton.icon builds a
-    // private subtype — byType(ElevatedButton) would not match it.)
-    final btn = tester.widget<ElevatedButton>(
-      find.ancestor(
-        of: find.text('Réserver (après la mise en ligne)'),
-        matching: find.byWidgetPredicate((w) => w is ElevatedButton),
-      ),
-    );
-    expect(btn.onPressed, isNull);
-
-    // Consumer-session UI is absent: no favorite heart, and the
-    // rendez-vous section shows the logged-out copy.
-    expect(find.byIcon(Icons.favorite_border), findsNothing);
-    expect(
-        find.text('Connectez-vous pour voir vos rendez-vous.'), findsOneWidget);
-  });
+      // Consumer-session UI is absent: no favorite heart, and the
+      // rendez-vous section shows the logged-out copy.
+      expect(find.byIcon(Icons.favorite_border), findsNothing);
+      expect(
+        find.text('Connectez-vous pour voir vos rendez-vous.'),
+        findsOneWidget,
+      );
+    },
+  );
 }

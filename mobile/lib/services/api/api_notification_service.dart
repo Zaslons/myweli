@@ -26,10 +26,10 @@ class ApiNotificationService implements NotificationServiceInterface {
     String? baseUrl,
     SessionStore? sessionStore,
     String refreshPath = '/auth/refresh',
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _sessionStore = sessionStore ?? InMemorySessionStore(),
-        _refreshPath = refreshPath;
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _sessionStore = sessionStore ?? InMemorySessionStore(),
+       _refreshPath = refreshPath;
 
   final http.Client _client;
   final String _baseUrl;
@@ -74,8 +74,10 @@ class ApiNotificationService implements NotificationServiceInterface {
       return ApiResponse.error('Non connecté');
     }
     final res = await _authed.send(
-      (t) => _client.get(_uri('/me/notification-preferences'),
-          headers: _bearer(t)),
+      (t) => _client.get(
+        _uri('/me/notification-preferences'),
+        headers: _bearer(t),
+      ),
     );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
@@ -129,8 +131,9 @@ class ApiNotificationService implements NotificationServiceInterface {
   }
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
-  Map<String, String> _bearer(String token) =>
-      {'Authorization': 'Bearer $token'};
+  Map<String, String> _bearer(String token) => {
+    'Authorization': 'Bearer $token',
+  };
   ApiResponse<T> _networkError<T>() =>
       ApiResponse.error('Pas de connexion. Réessayez.');
 

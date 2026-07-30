@@ -48,7 +48,9 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> createService(
-      String providerId, Map<String, dynamic> serviceData) async {
+    String providerId,
+    Map<String, dynamic> serviceData,
+  ) async {
     _isLoading = true;
     notifyListeners();
 
@@ -75,7 +77,9 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> updateService(
-      String serviceId, Map<String, dynamic> serviceData) async {
+    String serviceId,
+    Map<String, dynamic> serviceData,
+  ) async {
     _isLoading = true;
     notifyListeners();
 

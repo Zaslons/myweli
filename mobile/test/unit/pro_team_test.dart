@@ -35,22 +35,23 @@ void main() {
       expect(rows.any((m) => m.artistName == 'Kouassi Jean'), isTrue);
     });
 
-    test('invite happy path: pending row + invitee card + 7-day window',
-        () async {
-      final svc = MockProTeamService(subscriptions: liveOffer());
-      final res = await svc.inviteMember(
-        email: 'Nouveau@B.com',
-        role: TeamRole.manager,
-      );
-      expect(res.success, isTrue);
-      expect(res.data!.email, 'nouveau@b.com'); // lowercased
-      expect(res.data!.isPending, isTrue);
-      expect(res.data!.resendsLeft, 3);
-      expect(MockData.teamInvitations['nouveau@b.com'], hasLength(1));
-    });
-
     test(
-        'owner role → invalid_role · staff sans fiche → artist_required '
+      'invite happy path: pending row + invitee card + 7-day window',
+      () async {
+        final svc = MockProTeamService(subscriptions: liveOffer());
+        final res = await svc.inviteMember(
+          email: 'Nouveau@B.com',
+          role: TeamRole.manager,
+        );
+        expect(res.success, isTrue);
+        expect(res.data!.email, 'nouveau@b.com'); // lowercased
+        expect(res.data!.isPending, isTrue);
+        expect(res.data!.resendsLeft, 3);
+        expect(MockData.teamInvitations['nouveau@b.com'], hasLength(1));
+      },
+    );
+
+    test('owner role → invalid_role · staff sans fiche → artist_required '
         '· fiche inconnue → artist_not_found', () async {
       final svc = MockProTeamService(subscriptions: liveOffer());
       expect(
@@ -66,30 +67,26 @@ void main() {
           email: 'a@b.com',
           role: TeamRole.staff,
           artistId: 'artist_ghost',
-        ))
-            .code,
+        )).code,
         'artist_not_found',
       );
     });
 
-    test(
-        'duplicate active/pending → member_exists; an EXPIRED invite can '
+    test('duplicate active/pending → member_exists; an EXPIRED invite can '
         'be re-invited', () async {
       final svc = MockProTeamService(subscriptions: liveOffer());
       expect(
         (await svc.inviteMember(
           email: 'awa.manager@myweli.test', // seeded ACTIVE
           role: TeamRole.reception,
-        ))
-            .code,
+        )).code,
         'member_exists',
       );
       expect(
         (await svc.inviteMember(
           email: 'invitee@myweli.test', // seeded PENDING (unexpired)
           role: TeamRole.reception,
-        ))
-            .code,
+        )).code,
         'member_exists',
       );
       // The seeded EXPIRED réception row does not block a fresh invite.
@@ -105,8 +102,10 @@ void main() {
         subscriptions: MockSubscriptionService(), // setup state
       );
       expect(
-        (await setup.inviteMember(email: 'a@b.com', role: TeamRole.manager))
-            .code,
+        (await setup.inviteMember(
+          email: 'a@b.com',
+          role: TeamRole.manager,
+        )).code,
         'offer_required',
       );
 
@@ -116,8 +115,10 @@ void main() {
         subscriptions: liveOffer(tier: SalonTier.pro),
       );
       expect(
-        (await full.inviteMember(email: 'm6@b.com', role: TeamRole.reception))
-            .code,
+        (await full.inviteMember(
+          email: 'm6@b.com',
+          role: TeamRole.reception,
+        )).code,
         'seat_limit',
       );
     });
@@ -163,8 +164,7 @@ void main() {
       expect(ok.data!.artistName, 'Kouassi Jean');
     });
 
-    test(
-        'resend burns the budget of 3 then 429s; active member → '
+    test('resend burns the budget of 3 then 429s; active member → '
         'invalid_state', () async {
       final svc = MockProTeamService();
       for (var left = 2; left >= 0; left--) {
@@ -182,8 +182,7 @@ void main() {
       );
     });
 
-    test(
-        'the invitee surface: unexpired cards only; accept activates the '
+    test('the invitee surface: unexpired cards only; accept activates the '
         'roster row; expired → invitation_expired', () async {
       final svc = MockProTeamService();
       final cards = (await svc.getMyInvitations()).data!;
@@ -207,10 +206,7 @@ void main() {
     test('decline deletes the card AND the pending roster row', () async {
       final svc = MockProTeamService();
       expect((await svc.declineInvitation('mem_staff1')).success, isTrue);
-      expect(
-        MockData.teamMembers.any((m) => m.id == 'mem_staff1'),
-        isFalse,
-      );
+      expect(MockData.teamMembers.any((m) => m.id == 'mem_staff1'), isFalse);
       expect((await svc.declineInvitation('mem_staff1')).code, 'not_found');
     });
   });
@@ -220,26 +216,28 @@ void main() {
       serviceLocator.proTeamService = MockProTeamService();
     });
 
-    test('load sorts owner first; invite appends; revoke updates in place',
-        () async {
-      final p = ProTeamProvider();
-      await p.load();
-      expect(p.members.first.isOwner, isTrue);
-      final before = p.members.length;
+    test(
+      'load sorts owner first; invite appends; revoke updates in place',
+      () async {
+        final p = ProTeamProvider();
+        await p.load();
+        expect(p.members.first.isOwner, isTrue);
+        final before = p.members.length;
 
-      final invited = await p.invite(
-        email: 'new@b.com',
-        role: TeamRole.reception,
-      );
-      expect(invited, isNotNull);
-      expect(p.members.length, before + 1);
+        final invited = await p.invite(
+          email: 'new@b.com',
+          role: TeamRole.reception,
+        );
+        expect(invited, isNotNull);
+        expect(p.members.length, before + 1);
 
-      expect(await p.revoke(invited!.id), isTrue);
-      expect(
-        p.members.singleWhere((m) => m.id == invited.id).status,
-        TeamMemberStatus.revoked,
-      );
-    });
+        expect(await p.revoke(invited!.id), isTrue);
+        expect(
+          p.members.singleWhere((m) => m.id == invited.id).status,
+          TeamMemberStatus.revoked,
+        );
+      },
+    );
 
     test('invite failure surfaces the paired error + code', () async {
       final p = ProTeamProvider();
@@ -253,8 +251,7 @@ void main() {
       expect(p.inviteError, 'Cette personne est déjà dans l’équipe.');
     });
 
-    test(
-        'myInvitations: load, accept removes the card, decline removes '
+    test('myInvitations: load, accept removes the card, decline removes '
         'the card', () async {
       final p = ProTeamProvider();
       await p.loadMyInvitations();

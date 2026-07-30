@@ -44,11 +44,8 @@ void main() {
       initSalonTime();
       runApp(const MyweliAdminApp());
     },
-    (error, stack) => AppLogger.error(
-      'Uncaught zone error',
-      error: error,
-      stackTrace: stack,
-    ),
+    (error, stack) =>
+        AppLogger.error('Uncaught zone error', error: error, stackTrace: stack),
   );
 }
 

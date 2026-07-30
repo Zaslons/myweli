@@ -40,7 +40,7 @@ void main() {
         'plateau',
         'adjame',
         'port-bouet',
-        'attecoube'
+        'attecoube',
       ]),
     );
   });
@@ -53,19 +53,21 @@ void main() {
     expect(p.nearestArea(5.2800, -4.0500)!.name, 'Marcory');
   });
 
-  test('operator lookups: catalog per country + deep-link vocabulary',
-      () async {
-    final p = LocalityProvider();
-    await p.ensureLoaded();
-    expect(p.operatorsFor('CI').map((o) => o.id), [
-      'wave',
-      'orangeMoney',
-      'mtnMoMo',
-      'moov',
-    ]);
-    expect(p.operatorInfo('wave')!.deepLinkKind, 'wave');
-    expect(p.operatorInfo('orangeMoney')!.label, 'Orange Money');
-    expect(p.operatorInfo('mpesa'), isNull);
-    expect(p.countryName('CI'), 'Côte d’Ivoire');
-  });
+  test(
+    'operator lookups: catalog per country + deep-link vocabulary',
+    () async {
+      final p = LocalityProvider();
+      await p.ensureLoaded();
+      expect(p.operatorsFor('CI').map((o) => o.id), [
+        'wave',
+        'orangeMoney',
+        'mtnMoMo',
+        'moov',
+      ]);
+      expect(p.operatorInfo('wave')!.deepLinkKind, 'wave');
+      expect(p.operatorInfo('orangeMoney')!.label, 'Orange Money');
+      expect(p.operatorInfo('mpesa'), isNull);
+      expect(p.countryName('CI'), 'Côte d’Ivoire');
+    },
+  );
 }

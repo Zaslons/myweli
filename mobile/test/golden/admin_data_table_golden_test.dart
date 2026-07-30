@@ -55,25 +55,23 @@ Widget _table({
   bool isLoading = false,
   String? error,
   List<AdminRow> rows = const [],
-}) =>
-    Padding(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      child: AdminDataTable(
-        columns: const [
-          AdminColumn('Salon', flex: 2),
-          AdminColumn('Commune'),
-          AdminColumn('Statut'),
-        ],
-        rows: rows,
-        isLoading: isLoading,
-        error: error,
-        onRetry: _noop,
-        emptyTitle: 'Aucune demande en attente',
-        emptyIcon: Icons.inbox_outlined,
-        emptyDescription:
-            'Les nouvelles demandes de vérification arriveront ici.',
-      ),
-    );
+}) => Padding(
+  padding: const EdgeInsets.all(AppTheme.spacingM),
+  child: AdminDataTable(
+    columns: const [
+      AdminColumn('Salon', flex: 2),
+      AdminColumn('Commune'),
+      AdminColumn('Statut'),
+    ],
+    rows: rows,
+    isLoading: isLoading,
+    error: error,
+    onRetry: _noop,
+    emptyTitle: 'Aucune demande en attente',
+    emptyIcon: Icons.inbox_outlined,
+    emptyDescription: 'Les nouvelles demandes de vérification arriveront ici.',
+  ),
+);
 
 final _rows = [
   _row('Beauté Divine', 'Cocody', 'verified'),
@@ -83,14 +81,11 @@ final _rows = [
 ];
 
 AdminRow _row(String name, String commune, String status) => AdminRow(
-      cells: [
-        Text(name, style: AppTextStyles.bodyMedium),
-        Text(commune, style: AppTextStyles.bodyMedium),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: StatusChip.forStatus(status),
-        ),
-      ],
-    );
+  cells: [
+    Text(name, style: AppTextStyles.bodyMedium),
+    Text(commune, style: AppTextStyles.bodyMedium),
+    Align(alignment: Alignment.centerLeft, child: StatusChip.forStatus(status)),
+  ],
+);
 
 void _noop() {}

@@ -37,10 +37,7 @@ void main() {
     final router = GoRouter(
       initialLocation: '/pro/login',
       routes: [
-        GoRoute(
-          path: '/pro/login',
-          builder: (_, _) => const ProLoginScreen(),
-        ),
+        GoRoute(path: '/pro/login', builder: (_, _) => const ProLoginScreen()),
         GoRoute(
           path: '/pro/dashboard',
           builder: (_, _) => const Scaffold(body: Text('DASHBOARD')),
@@ -73,10 +70,7 @@ void main() {
     await tester.pumpWidget(app());
     await settle(tester);
 
-    await tester.enterText(
-      find.byType(TextField).first,
-      'invitee@myweli.test',
-    );
+    await tester.enterText(find.byType(TextField).first, 'invitee@myweli.test');
     await tester.pump();
     await tester.tap(find.text('Continuer avec e-mail'));
     await settle(tester);
@@ -92,8 +86,7 @@ void main() {
     expect(find.text('Vous êtes invité(e)'), findsOneWidget);
   }
 
-  testWidgets(
-      'the 202 bridge: the invitations step renders the card '
+  testWidgets('the 202 bridge: the invitations step renders the card '
       'instead of « compte introuvable »', (tester) async {
     await reachInvitationsStep(tester);
 
@@ -109,8 +102,7 @@ void main() {
     expect(find.text('Créer un compte'), findsNothing);
   });
 
-  testWidgets(
-      '« Rejoindre » authenticates and lands on the STAFF SHELL — the '
+  testWidgets('« Rejoindre » authenticates and lands on the STAFF SHELL — the '
       'seeded invitation is a Collaborateur (R4b routing)', (tester) async {
     await reachInvitationsStep(tester);
 
@@ -125,8 +117,7 @@ void main() {
     expect(find.text('STAFF_SHELL'), findsOneWidget);
   });
 
-  testWidgets(
-      '« Refuser » on the last card falls back to the classic '
+  testWidgets('« Refuser » on the last card falls back to the classic '
       '« Créer un compte » path', (tester) async {
     await reachInvitationsStep(tester);
 
@@ -139,8 +130,9 @@ void main() {
     expect(find.textContaining('Compte introuvable'), findsOneWidget);
   });
 
-  testWidgets('« Retour » clears the step without touching the invitation',
-      (tester) async {
+  testWidgets('« Retour » clears the step without touching the invitation', (
+    tester,
+  ) async {
     await reachInvitationsStep(tester);
 
     await tester.tap(find.text('Retour'));

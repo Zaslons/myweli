@@ -121,7 +121,8 @@ void main() {
       expect(
         find.text('Derniers rendez-vous'),
         findsOneWidget,
-        reason: 'the heading C5 rewrote — behind isAuthenticated, which is why '
+        reason:
+            'the heading C5 rewrote — behind isAuthenticated, which is why '
             'consumer_home.png contains zero A11 pixels',
       );
       expect(find.text('Mes favoris'), findsOneWidget);
@@ -142,7 +143,8 @@ void main() {
       expect(
         find.text('Vos rendez-vous ici'),
         findsOneWidget,
-        reason: 'signed out this card renders the login prompt, and the third '
+        reason:
+            'signed out this card renders the login prompt, and the third '
             'SectionHeading copy would not be in the picture',
       );
       await expectGolden(tester, 'consumer_provider_detail_w360_x2');
@@ -161,7 +163,8 @@ void main() {
       expect(
         find.text('Aucun rendez-vous'),
         findsNothing,
-        reason: 'user1 has a confirmed booking at now + 2d — an empty '
+        reason:
+            'user1 has a confirmed booking at now + 2d — an empty '
             '« À venir » means the session or the load did not land',
       );
       await expectGolden(tester, 'consumer_my_bookings_w360_x2');

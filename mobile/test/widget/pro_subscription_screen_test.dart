@@ -31,15 +31,13 @@ class _SwitchableSubs implements SubscriptionServiceInterface {
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
     String providerId,
-  ) =>
-      inner.getSalonSubscription(providerId);
+  ) => inner.getSalonSubscription(providerId);
 
   @override
   Future<ApiResponse<SalonSubscription>> chooseOffer(
     String providerId,
     SalonTier tier,
-  ) =>
-      inner.chooseOffer(providerId, tier);
+  ) => inner.chooseOffer(providerId, tier);
 }
 
 /// Team access R3 §2.4 — « Mon abonnement »: the setup picker, the offer
@@ -53,15 +51,14 @@ void main() {
   SalonSubscription state({
     SalonOfferStatus status = SalonOfferStatus.trial,
     bool unpublished = false,
-  }) =>
-      SalonSubscription(
-        tier: SalonTier.pro,
-        status: status,
-        trialEndsAt: DateTime.now().add(const Duration(days: 45)),
-        graceEndsAt: DateTime.now().add(const Duration(days: 52)),
-        unpublishedForBilling: unpublished,
-        seats: const SalonSeats(cap: 5, used: 3),
-      );
+  }) => SalonSubscription(
+    tier: SalonTier.pro,
+    status: status,
+    trialEndsAt: DateTime.now().add(const Duration(days: 45)),
+    graceEndsAt: DateTime.now().add(const Duration(days: 52)),
+    unpublishedForBilling: unpublished,
+    seats: const SalonSeats(cap: 5, used: 3),
+  );
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR', null);
@@ -76,12 +73,12 @@ void main() {
   });
 
   Widget app() => wrapApp(
-        providers: [
-          ChangeNotifierProvider(create: (_) => ProAuthProvider()),
-          ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
-        ],
-        home: const ProSubscriptionScreen(),
-      );
+    providers: [
+      ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+      ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
+    ],
+    home: const ProSubscriptionScreen(),
+  );
 
   Future<void> settle(WidgetTester tester) async {
     await tester.pump();
@@ -102,8 +99,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-      'SETUP: the picker headline + three cards with anchors, '
+  testWidgets('SETUP: the picker headline + three cards with anchors, '
       'seats and « 3 mois offerts »', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
@@ -126,8 +122,7 @@ void main() {
     );
   });
 
-  testWidgets(
-      'choosing Pro starts the trial: snackbar + banner + seats bar '
+  testWidgets('choosing Pro starts the trial: snackbar + banner + seats bar '
       '+ « Votre offre » badge', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
@@ -157,10 +152,10 @@ void main() {
     expect(find.text('Nous contacter'), findsWidgets);
   });
 
-  testWidgets(
-      'EXPIRED + unpublished: « Salon dépublié » with the '
-      'data-intact reassurance; a re-choice surfaces trial_used',
-      (tester) async {
+  testWidgets('EXPIRED + unpublished: « Salon dépublié » with the '
+      'data-intact reassurance; a re-choice surfaces trial_used', (
+    tester,
+  ) async {
     subs.inner = MockSubscriptionService(
       initial: state(status: SalonOfferStatus.expired, unpublished: true),
     );
@@ -176,13 +171,15 @@ void main() {
     await tester.tap(find.text('Changer d’offre').first);
     await settle(tester);
     // The trial-used notice lands ABOVE the cards — scroll back up.
-    for (var i = 0;
-        i < 20 &&
-            find
-                .text('Votre essai gratuit a déjà été utilisé.')
-                .evaluate()
-                .isEmpty;
-        i++) {
+    for (
+      var i = 0;
+      i < 20 &&
+          find
+              .text('Votre essai gratuit a déjà été utilisé.')
+              .evaluate()
+              .isEmpty;
+      i++
+    ) {
       await tester.drag(find.byType(ListView).first, const Offset(0, 400));
       await tester.pump();
     }
@@ -192,8 +189,9 @@ void main() {
     );
   });
 
-  testWidgets('a bare member account gets the owner-only guard',
-      (tester) async {
+  testWidgets('a bare member account gets the owner-only guard', (
+    tester,
+  ) async {
     auth.current = ProviderUser(
       id: 'member_1',
       phoneNumber: '',

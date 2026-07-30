@@ -12,8 +12,8 @@ import '../interfaces/locality_service_interface.dart';
 /// when `AppConfig.useApiBackend` is true.
 class ApiLocalityService implements LocalityServiceInterface {
   ApiLocalityService({http.Client? client, String? baseUrl})
-      : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
+    : _client = client ?? http.Client(),
+      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _client;
   final String _baseUrl;

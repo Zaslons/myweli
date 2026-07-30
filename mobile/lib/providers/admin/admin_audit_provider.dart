@@ -6,7 +6,7 @@ import '../../services/admin/admin_service.dart';
 /// Read-only. Design: docs/design/admin-console-ui.md §3.
 class AdminAuditProvider extends ChangeNotifier {
   AdminAuditProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

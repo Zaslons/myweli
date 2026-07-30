@@ -15,31 +15,33 @@ void main() {
   });
 
   ApiNotificationService svc(MockClient c) => ApiNotificationService(
-        client: c,
-        baseUrl: 'http://x',
-        sessionStore: store,
-      );
+    client: c,
+    baseUrl: 'http://x',
+    sessionStore: store,
+  );
 
   test('getNotifications parses the feed', () async {
-    final s = svc(MockClient((req) async {
-      expect(req.url.path, '/me/notifications');
-      return http.Response(
-        jsonEncode({
-          'items': [
-            {
-              'id': 'n1',
-              'type': 'bookingConfirmed',
-              'title': 'Confirmé',
-              'body': 'x',
-              'createdAt': '2026-06-28T10:00:00.000Z',
-              'read': false,
-              'route': '/bookings',
-            },
-          ],
-        }),
-        200,
-      );
-    }));
+    final s = svc(
+      MockClient((req) async {
+        expect(req.url.path, '/me/notifications');
+        return http.Response(
+          jsonEncode({
+            'items': [
+              {
+                'id': 'n1',
+                'type': 'bookingConfirmed',
+                'title': 'Confirmé',
+                'body': 'x',
+                'createdAt': '2026-06-28T10:00:00.000Z',
+                'read': false,
+                'route': '/bookings',
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
     final res = await s.getNotifications();
     expect(res.success, isTrue);
     expect(res.data!.single.title, 'Confirmé');
@@ -48,10 +50,12 @@ void main() {
 
   test('markRead / markAllRead POST the right paths', () async {
     final paths = <String>[];
-    final s = svc(MockClient((req) async {
-      paths.add('${req.method} ${req.url.path}');
-      return http.Response(jsonEncode({'status': 'ok'}), 200);
-    }));
+    final s = svc(
+      MockClient((req) async {
+        paths.add('${req.method} ${req.url.path}');
+        return http.Response(jsonEncode({'status': 'ok'}), 200);
+      }),
+    );
     expect((await s.markRead('n1')).success, isTrue);
     expect((await s.markAllRead()).success, isTrue);
     expect(paths, [
@@ -61,13 +65,15 @@ void main() {
   });
 
   test('getPreferences parses prefs', () async {
-    final s = svc(MockClient((req) async {
-      expect(req.url.path, '/me/notification-preferences');
-      return http.Response(
-        jsonEncode({'reminders': false, 'marketing': true, 'push': true}),
-        200,
-      );
-    }));
+    final s = svc(
+      MockClient((req) async {
+        expect(req.url.path, '/me/notification-preferences');
+        return http.Response(
+          jsonEncode({'reminders': false, 'marketing': true, 'push': true}),
+          200,
+        );
+      }),
+    );
     final res = await s.getPreferences();
     expect(res.success, isTrue);
     expect(res.data!.reminders, isFalse);
@@ -77,14 +83,16 @@ void main() {
   test('updatePreferences PUTs only the changed fields', () async {
     String? method;
     Map<String, dynamic>? sent;
-    final s = svc(MockClient((req) async {
-      method = req.method;
-      sent = jsonDecode(req.body) as Map<String, dynamic>;
-      return http.Response(
-        jsonEncode({'reminders': false, 'marketing': true, 'push': true}),
-        200,
-      );
-    }));
+    final s = svc(
+      MockClient((req) async {
+        method = req.method;
+        sent = jsonDecode(req.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({'reminders': false, 'marketing': true, 'push': true}),
+          200,
+        );
+      }),
+    );
     final res = await s.updatePreferences(reminders: false);
     expect(res.success, isTrue);
     expect(method, 'PUT');

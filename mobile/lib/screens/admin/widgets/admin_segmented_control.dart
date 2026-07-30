@@ -28,9 +28,7 @@ class AdminSegmentedControl extends StatelessWidget {
       padding: const EdgeInsets.all(AppTheme.spacingXS),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < labels.length; i++) _seg(labels[i], i),
-        ],
+        children: [for (var i = 0; i < labels.length; i++) _seg(labels[i], i)],
       ),
     );
   }
@@ -53,7 +51,9 @@ class AdminSegmentedControl extends StatelessWidget {
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
+              horizontal: AppTheme.spacingM,
+              vertical: AppTheme.spacingS,
+            ),
             decoration: BoxDecoration(
               color: active ? AppColors.secondary : Colors.transparent,
               borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
@@ -64,8 +64,10 @@ class AdminSegmentedControl extends StatelessWidget {
               style:
                   (active ? AppTextStyles.titleSmall : AppTextStyles.bodyMedium)
                       .copyWith(
-                color: active ? AppColors.textPrimary : AppColors.textSecondary,
-              ),
+                        color: active
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                      ),
             ),
           ),
         ),

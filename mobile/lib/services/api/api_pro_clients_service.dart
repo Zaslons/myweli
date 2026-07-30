@@ -18,9 +18,9 @@ class ApiProClientsService implements ProClientsServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -51,9 +51,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
     };
     final res = await _authed.send(
       (t) => _client.get(
-        _uri('/providers/$providerId/clients').replace(
-          queryParameters: params,
-        ),
+        _uri('/providers/$providerId/clients').replace(queryParameters: params),
         headers: _bearer(t),
       ),
     );
@@ -210,11 +208,11 @@ class ApiProClientsService implements ProClientsServiceInterface {
   }
 
   String _messageFor(String? code) => switch (code) {
-        'invalid_phone' => 'Numéro invalide.',
-        'invalid_tags' => 'Tags invalides (10 max, 24 caractères max).',
-        'note_too_long' => 'Note trop longue (500 caractères max).',
-        'not_found' => 'Client introuvable.',
-        'forbidden' => 'Accès refusé.',
-        _ => 'Une erreur est survenue.',
-      };
+    'invalid_phone' => 'Numéro invalide.',
+    'invalid_tags' => 'Tags invalides (10 max, 24 caractères max).',
+    'note_too_long' => 'Note trop longue (500 caractères max).',
+    'not_found' => 'Client introuvable.',
+    'forbidden' => 'Accès refusé.',
+    _ => 'Une erreur est survenue.',
+  };
 }

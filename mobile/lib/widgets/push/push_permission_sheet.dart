@@ -13,7 +13,8 @@ import '../common/app_button.dart';
 Future<bool> showPushPermissionSheet(
   BuildContext context, {
   String title = 'Activer les notifications',
-  String body = 'Recevez vos rappels et confirmations de rendez-vous, et soyez '
+  String body =
+      'Recevez vos rappels et confirmations de rendez-vous, et soyez '
       'prévenu·e dès que votre salon répond.',
 }) async {
   final result = await showModalBottomSheet<bool>(

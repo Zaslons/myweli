@@ -19,10 +19,7 @@ class PayrollCalculationScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Calcul des salaires'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
         ],
       ),
       body: SingleChildScrollView(
@@ -112,8 +109,9 @@ class PayrollCalculationScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                border:
-                    Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -173,10 +171,7 @@ class _RuleItem extends StatelessWidget {
   final String label;
   final String value;
 
-  const _RuleItem({
-    required this.label,
-    required this.value,
-  });
+  const _RuleItem({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -243,10 +238,7 @@ class _EmployeePayrollCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
@@ -372,10 +364,7 @@ class _PaymentHistoryItem extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
@@ -392,9 +381,7 @@ class _PaymentHistoryItem extends StatelessWidget {
           ),
           Text(
             amount,
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.primary,
-            ),
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.primary),
           ),
         ],
       ),

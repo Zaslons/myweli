@@ -6,10 +6,10 @@ import 'package:myweli/widgets/providers/before_after_section.dart';
 import '../support/pump_app.dart';
 
 Widget _host(List<BeforeAfterPair> pairs) => wrapApp(
-      home: Scaffold(
-        body: SingleChildScrollView(child: BeforeAfterSection(pairs: pairs)),
-      ),
-    );
+  home: Scaffold(
+    body: SingleChildScrollView(child: BeforeAfterSection(pairs: pairs)),
+  ),
+);
 
 /// Asset bytes aren't bundled in `flutter test`, so `TimedCachedImage` throws
 /// "Unable to load asset" during layout. Swallow only those so the structural
@@ -24,13 +24,19 @@ void _ignoreAssetImageErrors() {
 }
 
 void main() {
-  testWidgets('renders the slider, Avant/Après labels + caption',
-      (tester) async {
+  testWidgets('renders the slider, Avant/Après labels + caption', (
+    tester,
+  ) async {
     _ignoreAssetImageErrors();
-    await tester.pumpWidget(_host(const [
-      BeforeAfterPair(
-          before: 'asset:a.png', after: 'asset:b.png', caption: 'Tresses'),
-    ]));
+    await tester.pumpWidget(
+      _host(const [
+        BeforeAfterPair(
+          before: 'asset:a.png',
+          after: 'asset:b.png',
+          caption: 'Tresses',
+        ),
+      ]),
+    );
 
     expect(find.byType(BeforeAfterSlider), findsOneWidget);
     expect(find.text('Avant'), findsOneWidget);
@@ -39,15 +45,24 @@ void main() {
     expect(find.textContaining('Glisser pour comparer'), findsOneWidget);
   });
 
-  testWidgets('shows a thumbnail strip + only the active caption for 2 pairs',
-      (tester) async {
+  testWidgets('shows a thumbnail strip + only the active caption for 2 pairs', (
+    tester,
+  ) async {
     _ignoreAssetImageErrors();
-    await tester.pumpWidget(_host(const [
-      BeforeAfterPair(
-          before: 'asset:a1.png', after: 'asset:a2.png', caption: 'Un'),
-      BeforeAfterPair(
-          before: 'asset:b1.png', after: 'asset:b2.png', caption: 'Deux'),
-    ]));
+    await tester.pumpWidget(
+      _host(const [
+        BeforeAfterPair(
+          before: 'asset:a1.png',
+          after: 'asset:a2.png',
+          caption: 'Un',
+        ),
+        BeforeAfterPair(
+          before: 'asset:b1.png',
+          after: 'asset:b2.png',
+          caption: 'Deux',
+        ),
+      ]),
+    );
 
     expect(find.text('Un'), findsOneWidget);
     expect(find.text('Deux'), findsNothing); // not selected yet
@@ -56,9 +71,11 @@ void main() {
 
   testWidgets('the drag handle is present', (tester) async {
     _ignoreAssetImageErrors();
-    await tester.pumpWidget(_host(const [
-      BeforeAfterPair(before: 'asset:a.png', after: 'asset:b.png'),
-    ]));
+    await tester.pumpWidget(
+      _host(const [
+        BeforeAfterPair(before: 'asset:a.png', after: 'asset:b.png'),
+      ]),
+    );
     expect(find.byIcon(Icons.compare_arrows), findsOneWidget);
   });
 }

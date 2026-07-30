@@ -25,50 +25,54 @@ void main() {
     expect(undetermined.registeredTokens, isEmpty);
   });
 
-  test('after first booking: accept → prompt, grant, register; asked once',
-      () async {
-    final devices = MockDeviceRegistrationService();
-    final coord = PushRegistration(
-      push: MockPushNotificationService(),
-      devices: devices,
-    );
-    var prompts = 0;
-    await coord.maybePromptOnce(() async {
-      prompts++;
-      return true;
-    });
-    expect(prompts, 1);
-    expect(devices.registeredTokens, contains('mock-fcm-token'));
+  test(
+    'after first booking: accept → prompt, grant, register; asked once',
+    () async {
+      final devices = MockDeviceRegistrationService();
+      final coord = PushRegistration(
+        push: MockPushNotificationService(),
+        devices: devices,
+      );
+      var prompts = 0;
+      await coord.maybePromptOnce(() async {
+        prompts++;
+        return true;
+      });
+      expect(prompts, 1);
+      expect(devices.registeredTokens, contains('mock-fcm-token'));
 
-    // A second booking must not prompt again.
-    await coord.maybePromptOnce(() async {
-      prompts++;
-      return true;
-    });
-    expect(prompts, 1);
-  });
+      // A second booking must not prompt again.
+      await coord.maybePromptOnce(() async {
+        prompts++;
+        return true;
+      });
+      expect(prompts, 1);
+    },
+  );
 
-  test('after first booking: decline → asked set, not registered (no nag)',
-      () async {
-    final devices = MockDeviceRegistrationService();
-    final coord = PushRegistration(
-      push: MockPushNotificationService(),
-      devices: devices,
-    );
-    var prompts = 0;
-    await coord.maybePromptOnce(() async {
-      prompts++;
-      return false;
-    });
-    expect(prompts, 1);
-    expect(devices.registeredTokens, isEmpty);
+  test(
+    'after first booking: decline → asked set, not registered (no nag)',
+    () async {
+      final devices = MockDeviceRegistrationService();
+      final coord = PushRegistration(
+        push: MockPushNotificationService(),
+        devices: devices,
+      );
+      var prompts = 0;
+      await coord.maybePromptOnce(() async {
+        prompts++;
+        return false;
+      });
+      expect(prompts, 1);
+      expect(devices.registeredTokens, isEmpty);
 
-    await coord.maybePromptOnce(() async {
-      prompts++;
-      return false;
-    });
-    expect(prompts, 1); // not asked again
-  });
+      await coord.maybePromptOnce(() async {
+        prompts++;
+        return false;
+      });
+      expect(prompts, 1); // not asked again
+    },
+  );
 
   test('already granted → registers without showing the rationale', () async {
     final devices = MockDeviceRegistrationService();
@@ -112,8 +116,9 @@ void main() {
 
   test('token refresh re-registers when granted', () async {
     final devices = MockDeviceRegistrationService();
-    final push =
-        MockPushNotificationService(initial: PushPermissionStatus.granted);
+    final push = MockPushNotificationService(
+      initial: PushPermissionStatus.granted,
+    );
     PushRegistration(push: push, devices: devices);
     push.emitRefresh('rotated-token');
     await Future<void>.delayed(const Duration(milliseconds: 200));

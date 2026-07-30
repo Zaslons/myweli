@@ -88,8 +88,10 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
     notifyListeners();
 
     try {
-      final response =
-          await _proService.rejectAppointment(appointmentId, reason);
+      final response = await _proService.rejectAppointment(
+        appointmentId,
+        reason,
+      );
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -182,8 +184,10 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
     notifyListeners();
 
     try {
-      final response =
-          await _proService.rescheduleAppointment(appointmentId, newDateTime);
+      final response = await _proService.rescheduleAppointment(
+        appointmentId,
+        newDateTime,
+      );
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {

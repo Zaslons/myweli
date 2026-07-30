@@ -31,12 +31,12 @@ class StatusLabels {
   /// render time in all seven call sites. The `switch`es this file replaced
   /// *were* checked; the consolidation quietly gave that up. Caught by review.
   static String of(AppointmentStatus status) => switch (status) {
-        AppointmentStatus.pending => 'En attente',
-        AppointmentStatus.confirmed => 'Confirmé',
-        AppointmentStatus.completed => 'Terminé',
-        AppointmentStatus.cancelled => 'Annulé',
-        AppointmentStatus.noShow => 'Absent',
-      };
+    AppointmentStatus.pending => 'En attente',
+    AppointmentStatus.confirmed => 'Confirmé',
+    AppointmentStatus.completed => 'Terminé',
+    AppointmentStatus.cancelled => 'Annulé',
+    AppointmentStatus.noShow => 'Absent',
+  };
 
   /// Statuses the admin console receives as raw JSON, beyond the booking
   /// vocabulary above (`EXTRA_FR` in the web twin).

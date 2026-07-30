@@ -5,13 +5,10 @@ import 'package:myweli/screens/auth/otp_verify_screen.dart';
 import '../support/pump_app.dart';
 
 void main() {
-  testWidgets(
-      'OTP entry is an AutofillGroup whose first box requests the '
+  testWidgets('OTP entry is an AutofillGroup whose first box requests the '
       'one-time code', (tester) async {
     await tester.pumpWidget(
-      wrapApp(
-        home: OtpVerifyScreen(phoneNumber: '+2250700000000'),
-      ),
+      wrapApp(home: OtpVerifyScreen(phoneNumber: '+2250700000000')),
     );
     await tester.pump();
 
@@ -19,8 +16,9 @@ void main() {
 
     final hasOneTimeCodeHint = tester
         .widgetList<TextField>(find.byType(TextField))
-        .any((f) =>
-            f.autofillHints?.contains(AutofillHints.oneTimeCode) ?? false);
+        .any(
+          (f) => f.autofillHints?.contains(AutofillHints.oneTimeCode) ?? false,
+        );
     expect(hasOneTimeCodeHint, isTrue);
 
     // Dispose the screen so its resend-cooldown timer is cancelled.

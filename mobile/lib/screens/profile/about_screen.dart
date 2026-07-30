@@ -44,10 +44,7 @@ class AboutScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    AppConstants.appName,
-                    style: AppTextStyles.titleLarge,
-                  ),
+                  Text(AppConstants.appName, style: AppTextStyles.titleLarge),
                   const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     // ONE source. The row this screen replaces printed

@@ -5,8 +5,9 @@ import 'package:myweli/widgets/common/phone_number_field.dart';
 import '../support/pump_app.dart';
 
 void main() {
-  testWidgets('renders a phone input defaulting to Côte d’Ivoire (+225)',
-      (tester) async {
+  testWidgets('renders a phone input defaulting to Côte d’Ivoire (+225)', (
+    tester,
+  ) async {
     var lastE164 = '';
     await tester.pumpWidget(
       wrapApp(
@@ -46,13 +47,12 @@ void main() {
   /// valid 10-digit number (it returns null). This is the case that separates
   /// them: a SHORT national number, which the package rejects and our rule has
   /// no opinion about until submit.
-  testWidgets('the package’s own validator is silenced — one rule, on submit',
-      (tester) async {
+  testWidgets('the package’s own validator is silenced — one rule, on submit', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       wrapApp(
-        home: Scaffold(
-          body: PhoneNumberField(onChanged: (_) {}),
-        ),
+        home: Scaffold(body: PhoneNumberField(onChanged: (_) {})),
       ),
     );
     await tester.pumpAndSettle();
@@ -61,17 +61,22 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '071234567');
     await tester.pump();
 
-    expect(find.text('Saisissez un numéro de téléphone valide.'), findsNothing,
-        reason: '§14 rule 2 — nothing may judge this field mid-typing. With '
-            '`autovalidateMode` back at the package default this renders on '
-            'the ninth keystroke.');
+    expect(
+      find.text('Saisissez un numéro de téléphone valide.'),
+      findsNothing,
+      reason:
+          '§14 rule 2 — nothing may judge this field mid-typing. With '
+          '`autovalidateMode` back at the package default this renders on '
+          'the ninth keystroke.',
+    );
   });
 
   /// The other half of the same defect: when both rules have an opinion, the
   /// package's used to WIN. This pins that the app's message is the one on
   /// screen — the regression is silent otherwise, because both are red text.
-  testWidgets('the app’s message is the one that renders, not the package’s',
-      (tester) async {
+  testWidgets('the app’s message is the one that renders, not the package’s', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       wrapApp(
         home: const Scaffold(
@@ -88,11 +93,18 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '071234567');
     await tester.pump();
 
-    expect(find.text('Saisissez un numéro de téléphone.'), findsOneWidget,
-        reason: 'the app owns the message');
-    expect(find.text('Saisissez un numéro de téléphone valide.'), findsNothing,
-        reason: 'the package must not overwrite it — `copyWith(errorText:)` '
-            'keeps whichever is non-null, so its message used to win');
+    expect(
+      find.text('Saisissez un numéro de téléphone.'),
+      findsOneWidget,
+      reason: 'the app owns the message',
+    );
+    expect(
+      find.text('Saisissez un numéro de téléphone valide.'),
+      findsNothing,
+      reason:
+          'the package must not overwrite it — `copyWith(errorText:)` '
+          'keeps whichever is non-null, so its message used to win',
+    );
   });
 }
 

@@ -17,11 +17,9 @@ import 'mock_data.dart';
 /// salon touched — exactly the pre-R6 single-salon behavior every existing
 /// test drives.
 class MockSubscriptionService implements SubscriptionServiceInterface {
-  MockSubscriptionService({
-    SalonSubscription? initial,
-    bool trialUsed = false,
-  })  : _seed = initial,
-        _seedTrialUsed = trialUsed || initial != null;
+  MockSubscriptionService({SalonSubscription? initial, bool trialUsed = false})
+    : _seed = initial,
+      _seedTrialUsed = trialUsed || initial != null;
 
   final SalonSubscription? _seed;
   final bool _seedTrialUsed;

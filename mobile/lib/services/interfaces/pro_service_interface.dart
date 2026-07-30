@@ -33,13 +33,13 @@ class DashboardStats {
   bool get hasRevenue => todayRevenue != null;
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) => DashboardStats(
-        todayAppointments: (json['todayAppointments'] as num).toInt(),
-        pendingRequests: (json['pendingRequests'] as num).toInt(),
-        todayRevenue: (json['todayRevenue'] as num?)?.toDouble(),
-        weekRevenue: (json['weekRevenue'] as num?)?.toDouble(),
-        monthRevenue: (json['monthRevenue'] as num?)?.toDouble(),
-        totalAppointments: (json['totalAppointments'] as num).toInt(),
-      );
+    todayAppointments: (json['todayAppointments'] as num).toInt(),
+    pendingRequests: (json['pendingRequests'] as num).toInt(),
+    todayRevenue: (json['todayRevenue'] as num?)?.toDouble(),
+    weekRevenue: (json['weekRevenue'] as num?)?.toDouble(),
+    monthRevenue: (json['monthRevenue'] as num?)?.toDouble(),
+    totalAppointments: (json['totalAppointments'] as num).toInt(),
+  );
 }
 
 /// GET /me/provider (team access R4b): the acting salon + the caller's
@@ -68,12 +68,12 @@ class EarningsData {
   });
 
   factory EarningsData.fromJson(Map<String, dynamic> json) => EarningsData(
-        totalEarnings: (json['totalEarnings'] as num).toDouble(),
-        currency: json['currency'] as String?,
-        transactions: ((json['transactions'] as List?) ?? const [])
-            .map((e) => EarningsTransaction.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    totalEarnings: (json['totalEarnings'] as num).toDouble(),
+    currency: json['currency'] as String?,
+    transactions: ((json['transactions'] as List?) ?? const [])
+        .map((e) => EarningsTransaction.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class EarningsTransaction {
@@ -137,7 +137,9 @@ abstract class ProServiceInterface {
   });
   Future<ApiResponse<bool>> acceptAppointment(String appointmentId);
   Future<ApiResponse<bool>> rejectAppointment(
-      String appointmentId, String? reason);
+    String appointmentId,
+    String? reason,
+  );
   Future<ApiResponse<bool>> markAppointmentComplete(String appointmentId);
   Future<ApiResponse<bool>> markNoShow(String appointmentId);
 
@@ -193,9 +195,13 @@ abstract class ProServiceInterface {
   // Services
   Future<ApiResponse<List<Service>>> getProviderServices(String providerId);
   Future<ApiResponse<Service>> createService(
-      String providerId, Map<String, dynamic> serviceData);
+    String providerId,
+    Map<String, dynamic> serviceData,
+  );
   Future<ApiResponse<Service>> updateService(
-      String serviceId, Map<String, dynamic> serviceData);
+    String serviceId,
+    Map<String, dynamic> serviceData,
+  );
   Future<ApiResponse<bool>> deleteService(String serviceId);
 
   /// Enable/disable a service (`active`). A disabled service is hidden from

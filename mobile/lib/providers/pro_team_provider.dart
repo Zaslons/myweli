@@ -101,10 +101,9 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
     String memberId, {
     required TeamRole role,
     String? artistId,
-  }) =>
-      _memberAction(
-        () => _service.changeRole(memberId, role: role, artistId: artistId),
-      );
+  }) => _memberAction(
+    () => _service.changeRole(memberId, role: role, artistId: artistId),
+  );
 
   Future<bool> revoke(String memberId) =>
       _memberAction(() => _service.revokeMember(memberId));

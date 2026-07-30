@@ -62,27 +62,43 @@ void main() {
     // fr_FR formatting uses a non-breaking thousands separator, so assert on
     // the stable parts (the value digits and the FCFA suffix) rather than
     // exact whitespace.
-    test('produces an FCFA-suffixed amount (the display name, multi-pays §4)',
-        () {
-      expect(Formatters.formatCurrency(0), startsWith('0'));
-      expect(Formatters.formatCurrency(0), endsWith('FCFA'));
-      expect(Formatters.formatCurrency(1500), endsWith('FCFA'));
-      expect(Formatters.formatCurrency(1500), contains('500'));
-    });
+    test(
+      'produces an FCFA-suffixed amount (the display name, multi-pays §4)',
+      () {
+        expect(Formatters.formatCurrency(0), startsWith('0'));
+        expect(Formatters.formatCurrency(0), endsWith('FCFA'));
+        expect(Formatters.formatCurrency(1500), endsWith('FCFA'));
+        expect(Formatters.formatCurrency(1500), contains('500'));
+      },
+    );
 
-    test('a NULL currency (unthreaded/pre-MP1) falls back to FCFA in the seam',
-        () {
-      expect(Formatters.formatCurrency(1500, currency: null), endsWith('FCFA'));
-    });
+    test(
+      'a NULL currency (unthreaded/pre-MP1) falls back to FCFA in the seam',
+      () {
+        expect(
+          Formatters.formatCurrency(1500, currency: null),
+          endsWith('FCFA'),
+        );
+      },
+    );
 
-    test('XOF and XAF both read FCFA; other ISO codes render as themselves',
-        () {
-      expect(
-          Formatters.formatCurrency(1500, currency: 'XOF'), endsWith('FCFA'));
-      expect(
-          Formatters.formatCurrency(1500, currency: 'XAF'), endsWith('FCFA'));
-      expect(Formatters.formatCurrency(1500, currency: 'GHS'), endsWith('GHS'));
-    });
+    test(
+      'XOF and XAF both read FCFA; other ISO codes render as themselves',
+      () {
+        expect(
+          Formatters.formatCurrency(1500, currency: 'XOF'),
+          endsWith('FCFA'),
+        );
+        expect(
+          Formatters.formatCurrency(1500, currency: 'XAF'),
+          endsWith('FCFA'),
+        );
+        expect(
+          Formatters.formatCurrency(1500, currency: 'GHS'),
+          endsWith('GHS'),
+        );
+      },
+    );
   });
 
   group('Formatters.formatRelative', () {
@@ -144,10 +160,7 @@ void main() {
     });
 
     test('single value when max is not greater than min', () {
-      expect(
-        Formatters.formatPriceRange(15000, 15000),
-        isNot(contains('–')),
-      );
+      expect(Formatters.formatPriceRange(15000, 15000), isNot(contains('–')));
     });
   });
 
@@ -173,8 +186,10 @@ void main() {
     // while the function has always produced "lundi 15 janvier". The assertion
     // follows the code, which is right; the docstring is the thing that is wrong.
     test('« mercredi 11 mars 2026 » — French, full weekday and month', () {
-      expect(Formatters.formatDate(DateTime(2026, 3, 11)),
-          'mercredi 11 mars 2026');
+      expect(
+        Formatters.formatDate(DateTime(2026, 3, 11)),
+        'mercredi 11 mars 2026',
+      );
     });
 
     test('a single-digit day is NOT zero-padded', () {
@@ -213,8 +228,10 @@ void main() {
     });
 
     test('the day is not in the output', () {
-      expect(Formatters.formatMonthYear(DateTime(2026, 3, 11)),
-          Formatters.formatMonthYear(DateTime(2026, 3, 28)));
+      expect(
+        Formatters.formatMonthYear(DateTime(2026, 3, 11)),
+        Formatters.formatMonthYear(DateTime(2026, 3, 28)),
+      );
     });
   });
 
@@ -241,8 +258,10 @@ void main() {
     });
 
     test('« … à 14:30 » joins the two halves', () {
-      expect(Formatters.formatDateTime(DateTime(2026, 3, 11, 14, 30)),
-          'mercredi 11 mars 2026 à 14:30');
+      expect(
+        Formatters.formatDateTime(DateTime(2026, 3, 11, 14, 30)),
+        'mercredi 11 mars 2026 à 14:30',
+      );
     });
   });
 
@@ -256,16 +275,19 @@ void main() {
       expect(Formatters.formatHourMinute(0, 0), '00:00');
     });
 
-    test('agrees with formatTime, which is the point of having one of them',
-        () {
-      for (final (h, m) in const [(0, 0), (9, 5), (14, 30), (23, 55)]) {
-        expect(
-          Formatters.formatHourMinute(h, m),
-          Formatters.formatTime(DateTime(2026, 3, 11, h, m)),
-          reason: 'two spellings of one job that disagree at some value is '
-              'exactly what A13 found in the plural rule',
-        );
-      }
-    });
+    test(
+      'agrees with formatTime, which is the point of having one of them',
+      () {
+        for (final (h, m) in const [(0, 0), (9, 5), (14, 30), (23, 55)]) {
+          expect(
+            Formatters.formatHourMinute(h, m),
+            Formatters.formatTime(DateTime(2026, 3, 11, h, m)),
+            reason:
+                'two spellings of one job that disagree at some value is '
+                'exactly what A13 found in the plural rule',
+          );
+        }
+      },
+    );
   });
 }

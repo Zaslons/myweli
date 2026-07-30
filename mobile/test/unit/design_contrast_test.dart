@@ -36,7 +36,8 @@ void main() {
       expect(
         ratio,
         greaterThanOrEqualTo(floor),
-        reason: '$name on $surfaceName is ${ratioLabel(ratio)}:1 — '
+        reason:
+            '$name on $surfaceName is ${ratioLabel(ratio)}:1 — '
             'below the ${floor.toStringAsFixed(1)}:1 floor.',
       );
     });
@@ -56,12 +57,14 @@ void main() {
     });
 
     test(
-        'textDisabled is exempt (WCAG exempts inactive controls) — but exempt is '
-        'not the same as invisible', () {
-      // No WCAG floor. Ours: it must still read as a *disabled thing*, not as a
-      // blank. The old #C0C0C0 was 1.70:1 — effectively nothing.
-      expectFloor('textDisabled', AppColors.textDisabled, 2.0);
-    });
+      'textDisabled is exempt (WCAG exempts inactive controls) — but exempt is '
+      'not the same as invisible',
+      () {
+        // No WCAG floor. Ours: it must still read as a *disabled thing*, not as a
+        // blank. The old #C0C0C0 was 1.70:1 — effectively nothing.
+        expectFloor('textDisabled', AppColors.textDisabled, 2.0);
+      },
+    );
   });
 
   group('non-text — WCAG 1.4.11, 3:1', () {
@@ -81,12 +84,14 @@ void main() {
       expectFloor('favorite', AppColors.favorite, kFloorNonText);
     });
 
-    test('the category accents (a sanctioned exception, but still legible)',
-        () {
-      expectFloor('categorySpa', AppColors.categorySpa, kFloorText);
-      expectFloor('categoryBarber', AppColors.categoryBarber, kFloorText);
-      expectFloor('categorySalon', AppColors.categorySalon, kFloorText);
-    });
+    test(
+      'the category accents (a sanctioned exception, but still legible)',
+      () {
+        expectFloor('categorySpa', AppColors.categorySpa, kFloorText);
+        expectFloor('categoryBarber', AppColors.categoryBarber, kFloorText);
+        expectFloor('categorySalon', AppColors.categorySalon, kFloorText);
+      },
+    );
   });
 
   group('semantic', () {
@@ -106,15 +111,17 @@ void main() {
         ('error', AppColors.error),
       ]) {
         final ratio = contrastRatio(AppColors.secondary, fill);
-        expect(ratio, greaterThanOrEqualTo(kFloorText),
-            reason: 'white on $name is ${ratioLabel(ratio)}:1');
+        expect(
+          ratio,
+          greaterThanOrEqualTo(kFloorText),
+          reason: 'white on $name is ${ratioLabel(ratio)}:1',
+        );
       }
     });
   });
 
   group('the tokens that are NOT foregrounds', () {
-    test(
-        'warningLight is a background TINT — it fails as a foreground (1.62:1), '
+    test('warningLight is a background TINT — it fails as a foreground (1.62:1), '
         'and carries ink ON it instead', () {
       // Asserting the failure is the point: this documents WHY the token may not
       // be used as a text or icon colour, and it would go red if someone
@@ -124,26 +131,33 @@ void main() {
         lessThan(kFloorNonText),
       );
       // What it IS for: ink on the tint.
-      final onTint =
-          contrastRatio(AppColors.textPrimary, AppColors.warningLight);
-      expect(onTint, greaterThanOrEqualTo(kFloorText),
-          reason: 'ink on warningLight is ${ratioLabel(onTint)}:1');
+      final onTint = contrastRatio(
+        AppColors.textPrimary,
+        AppColors.warningLight,
+      );
+      expect(
+        onTint,
+        greaterThanOrEqualTo(kFloorText),
+        reason: 'ink on warningLight is ${ratioLabel(onTint)}:1',
+      );
     });
 
     test(
-        'starRating is the fill of a star GLYPH and nothing else — at 1.62:1 it '
-        'can only ever be decoration, which is why the numeral carries the '
-        'meaning (§3.5)', () {
-      expect(
-        contrastRatio(AppColors.starRating, AppColors.background),
-        lessThan(kFloorNonText),
-      );
-      // …and why gold-as-state uses `gold`, which actually clears the floor.
-      expect(
-        contrastRatio(AppColors.gold, AppColors.background),
-        greaterThanOrEqualTo(kFloorNonText),
-      );
-    });
+      'starRating is the fill of a star GLYPH and nothing else — at 1.62:1 it '
+      'can only ever be decoration, which is why the numeral carries the '
+      'meaning (§3.5)',
+      () {
+        expect(
+          contrastRatio(AppColors.starRating, AppColors.background),
+          lessThan(kFloorNonText),
+        );
+        // …and why gold-as-state uses `gold`, which actually clears the floor.
+        expect(
+          contrastRatio(AppColors.gold, AppColors.background),
+          greaterThanOrEqualTo(kFloorNonText),
+        );
+      },
+    );
   });
 
   group('the two blacks (SYSTEM.md §1)', () {
@@ -152,28 +166,33 @@ void main() {
       expect(contrastRatio(AppColors.secondary, AppColors.primary), 21.0);
     });
 
-    test('the ink is NOT the brand black — the split may not silently collapse',
-        () {
-      expect(
-        AppColors.textPrimary,
-        isNot(AppColors.primary),
-        reason: 'textPrimary has been set back to the brand black. Text is '
-            'never `primary` (SYSTEM.md §1): long runs of pure-black glyphs '
-            'halate, which is the whole reason the ink is #1A1A1A.',
-      );
-      // …but softening the ink must not cost us anything: still AAA.
-      expect(
-        contrastRatio(AppColors.textPrimary, AppColors.background),
-        greaterThanOrEqualTo(7.0),
-      );
-    });
+    test(
+      'the ink is NOT the brand black — the split may not silently collapse',
+      () {
+        expect(
+          AppColors.textPrimary,
+          isNot(AppColors.primary),
+          reason:
+              'textPrimary has been set back to the brand black. Text is '
+              'never `primary` (SYSTEM.md §1): long runs of pure-black glyphs '
+              'halate, which is the whole reason the ink is #1A1A1A.',
+        );
+        // …but softening the ink must not cost us anything: still AAA.
+        expect(
+          contrastRatio(AppColors.textPrimary, AppColors.background),
+          greaterThanOrEqualTo(7.0),
+        );
+      },
+    );
 
-    test('the three border roles are ordered: divider < border < borderStrong',
-        () {
-      double r(Color c) => contrastRatio(c, AppColors.background);
-      expect(r(AppColors.divider), lessThan(r(AppColors.border)));
-      expect(r(AppColors.border), lessThan(r(AppColors.borderStrong)));
-    });
+    test(
+      'the three border roles are ordered: divider < border < borderStrong',
+      () {
+        double r(Color c) => contrastRatio(c, AppColors.background);
+        expect(r(AppColors.divider), lessThan(r(AppColors.border)));
+        expect(r(AppColors.border), lessThan(r(AppColors.borderStrong)));
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -199,7 +218,8 @@ void main() {
         for (var i = 0; i < lines.length; i++) {
           final line = lines[i];
           if (!line.contains('AppColors.textPrimary')) continue;
-          final isFillOrStroke = line.contains('backgroundColor:') ||
+          final isFillOrStroke =
+              line.contains('backgroundColor:') ||
               line.contains('Border.all(') ||
               line.contains('BorderSide(') ||
               line.contains('fillColor:') ||
@@ -238,7 +258,8 @@ void main() {
       expect(
         users.difference(allowed),
         isEmpty,
-        reason: 'AppColors.starRating is the fill of a rating STAR and nothing '
+        reason:
+            'AppColors.starRating is the fill of a rating STAR and nothing '
             'else (1.62:1 — it cannot carry meaning). If this is gold-as-state, '
             'use AppColors.gold; if it really is a rating star, add the file to '
             'the allowlist above.',

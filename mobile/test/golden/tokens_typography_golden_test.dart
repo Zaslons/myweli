@@ -19,20 +19,12 @@ void main() {
     setUpAll(loadRealFonts);
 
     testWidgets('the type scale', (tester) async {
-      await pumpGolden(
-        tester,
-        const _TypeSheet(),
-        size: const Size(470, 700),
-      );
+      await pumpGolden(tester, const _TypeSheet(), size: const Size(470, 700));
       await expectGolden(tester, 'tokens_typography');
     });
 
     testWidgets('the three text tiers, at the same size', (tester) async {
-      await pumpGolden(
-        tester,
-        const _TiersSheet(),
-        size: const Size(470, 330),
-      );
+      await pumpGolden(tester, const _TiersSheet(), size: const Size(470, 330));
       await expectGolden(tester, 'tokens_text_tiers');
     });
   }, skip: kGoldensSkip);
@@ -58,28 +50,28 @@ class _TypeSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: AppColors.background,
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: ListView(
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            for (final (name, style, spec) in _samples)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('$name  ·  $spec', style: _meta),
-                    const SizedBox(height: 2),
-                    // A real French string: accents, and the ~20% expansion the
-                    // layout has to survive (SYSTEM.md §17).
-                    Text('Réservez chez Beauté Divine', style: style),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      );
+    color: AppColors.background,
+    padding: const EdgeInsets.all(AppTheme.spacingM),
+    child: ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        for (final (name, style, spec) in _samples)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$name  ·  $spec', style: _meta),
+                const SizedBox(height: 2),
+                // A real French string: accents, and the ~20% expansion the
+                // layout has to survive (SYSTEM.md §17).
+                Text('Réservez chez Beauté Divine', style: style),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 /// The same sentence in all three legal text colors — the clearest possible
@@ -89,37 +81,37 @@ class _TiersSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: AppColors.background,
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final (name, color) in const [
-              ('textPrimary', AppColors.textPrimary),
-              ('textSecondary', AppColors.textSecondary),
-              ('textTertiary', AppColors.textTertiary),
-              ('textDisabled', AppColors.textDisabled),
-            ])
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: _meta),
-                    Text(
-                      'Votre rendez-vous est confirmé à 14:30.',
-                      style: AppTextStyles.bodyLarge.copyWith(color: color),
-                    ),
-                    Text(
-                      'Votre rendez-vous est confirmé à 14:30.',
-                      style: AppTextStyles.labelSmall.copyWith(color: color),
-                    ),
-                  ],
+    color: AppColors.background,
+    padding: const EdgeInsets.all(AppTheme.spacingM),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (name, color) in const [
+          ('textPrimary', AppColors.textPrimary),
+          ('textSecondary', AppColors.textSecondary),
+          ('textTertiary', AppColors.textTertiary),
+          ('textDisabled', AppColors.textDisabled),
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: _meta),
+                Text(
+                  'Votre rendez-vous est confirmé à 14:30.',
+                  style: AppTextStyles.bodyLarge.copyWith(color: color),
                 ),
-              ),
-          ],
-        ),
-      );
+                Text(
+                  'Votre rendez-vous est confirmé à 14:30.',
+                  style: AppTextStyles.labelSmall.copyWith(color: color),
+                ),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 const _meta = TextStyle(

@@ -34,8 +34,8 @@ class _OtpState {
 
 class MockAuthService implements AuthServiceInterface {
   MockAuthService({Duration? otpValidity, SessionStore? sessionStore})
-      : _otpValidity = otpValidity ?? AppConstants.otpValidity,
-        _sessionStore = sessionStore ?? InMemorySessionStore();
+    : _otpValidity = otpValidity ?? AppConstants.otpValidity,
+      _sessionStore = sessionStore ?? InMemorySessionStore();
 
   /// Demo code (no real SMS) — surfaced only in debug builds.
   static const String demoOtp = '123456';
@@ -287,8 +287,12 @@ class MockAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ApiResponse<User>> updateUser(
-      {String? name, String? email, String? avatarUrl, String? phone}) async {
+  Future<ApiResponse<User>> updateUser({
+    String? name,
+    String? email,
+    String? avatarUrl,
+    String? phone,
+  }) async {
     await Future.delayed(AppConstants.mockDelay);
 
     if (_currentUser == null) {
@@ -297,8 +301,9 @@ class MockAuthService implements AuthServiceInterface {
 
     var updatedUser = _currentUser!.copyWith(
       name: (name != null && name.isNotEmpty) ? name : _currentUser!.name,
-      email:
-          email == null ? _currentUser!.email : (email.isEmpty ? null : email),
+      email: email == null
+          ? _currentUser!.email
+          : (email.isEmpty ? null : email),
       avatarUrl: avatarUrl ?? _currentUser!.avatarUrl,
     );
     if (phone != null && phone != _currentUser!.phoneNumber) {
@@ -374,7 +379,9 @@ class MockAuthService implements AuthServiceInterface {
 
   @override
   Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-      String phoneNumber, String otp) async {
+    String phoneNumber,
+    String otp,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     final storedOtp = _providerOtpStore[phoneNumber];
     if (storedOtp == null || storedOtp != otp) {
@@ -415,11 +422,13 @@ class MockAuthService implements AuthServiceInterface {
 
   /// Unexpired invitee cards for a verified email (the mock 202 bridge).
   List<TeamInvitation> _pendingInvitationsFor(String email) {
-    final cards = MockData.teamInvitations[email.toLowerCase()] ??
+    final cards =
+        MockData.teamInvitations[email.toLowerCase()] ??
         const <TeamInvitation>[];
     return cards
         .where(
-            (c) => c.expiresAt == null || c.expiresAt!.isAfter(AppClock.now()))
+          (c) => c.expiresAt == null || c.expiresAt!.isAfter(AppClock.now()),
+        )
         .toList();
   }
 
@@ -468,12 +477,16 @@ class MockAuthService implements AuthServiceInterface {
 
   @override
   Future<ProviderLoginResult> verifyProviderEmailOtp(
-      String email, String code) async {
+    String email,
+    String code,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     final key = email.trim().toLowerCase();
     if (_providerEmailOtpStore[key] != code) {
-      return const ProviderLoginResult.failure('Code incorrect.',
-          code: 'otp_invalid');
+      return const ProviderLoginResult.failure(
+        'Code incorrect.',
+        code: 'otp_invalid',
+      );
     }
     // LOGIN-ONLY; a correct code with no salon keeps the code for register —
     // and for the invitation ACCEPT (the 202 bridge never consumes it).
@@ -486,16 +499,18 @@ class MockAuthService implements AuthServiceInterface {
   /// The email code is validated WITHOUT being consumed (accept consumes it
   /// on success — mirrors the backend, T37).
   String? _provenEmail(InvitationProof proof) => switch (proof) {
-        GoogleInvitationProof() => mockProGoogleEmail,
-        EmailOtpInvitationProof(:final email, :final code) =>
-          _providerEmailOtpStore[email.trim().toLowerCase()] == code
-              ? email.trim().toLowerCase()
-              : null,
-      };
+    GoogleInvitationProof() => mockProGoogleEmail,
+    EmailOtpInvitationProof(:final email, :final code) =>
+      _providerEmailOtpStore[email.trim().toLowerCase()] == code
+          ? email.trim().toLowerCase()
+          : null,
+  };
 
   @override
   Future<ApiResponse<ProviderUser>> acceptProviderInvitation(
-      String invitationId, InvitationProof proof) async {
+    String invitationId,
+    InvitationProof proof,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     final email = _provenEmail(proof);
     if (email == null) {
@@ -548,7 +563,9 @@ class MockAuthService implements AuthServiceInterface {
 
   @override
   Future<ApiResponse<bool>> declineProviderInvitation(
-      String invitationId, InvitationProof proof) async {
+    String invitationId,
+    InvitationProof proof,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     final email = _provenEmail(proof);
     if (email == null) {

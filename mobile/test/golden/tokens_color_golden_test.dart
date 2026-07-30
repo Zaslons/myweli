@@ -56,10 +56,16 @@ class _ColorSheet extends StatelessWidget {
           GoldenSection(
             title: 'Brand & surface',
             child: _Swatches([
-              _Tok('primary', AppColors.primary,
-                  note: 'brand fill — never text'),
-              _Tok('primaryHover', AppColors.primaryHover,
-                  note: 'hover/pressed'),
+              _Tok(
+                'primary',
+                AppColors.primary,
+                note: 'brand fill — never text',
+              ),
+              _Tok(
+                'primaryHover',
+                AppColors.primaryHover,
+                note: 'hover/pressed',
+              ),
               _Tok('secondary', AppColors.secondary, note: 'card'),
               _Tok('background', AppColors.background),
               _Tok('surface', AppColors.surface),
@@ -84,10 +90,18 @@ class _ColorSheet extends StatelessWidget {
             child: _Swatches([
               _Tok('divider', AppColors.divider, note: 'decorative rules'),
               _Tok('border', AppColors.border, note: 'container hairlines'),
-              _Tok('borderStrong', AppColors.borderStrong,
-                  floor: kFloorNonText, note: 'interactive controls'),
-              _Tok('borderFocus', AppColors.borderFocus,
-                  floor: kFloorNonText, note: 'the focus ring'),
+              _Tok(
+                'borderStrong',
+                AppColors.borderStrong,
+                floor: kFloorNonText,
+                note: 'interactive controls',
+              ),
+              _Tok(
+                'borderFocus',
+                AppColors.borderFocus,
+                floor: kFloorNonText,
+                note: 'the focus ring',
+              ),
             ]),
           ),
           GoldenSection(
@@ -111,19 +125,29 @@ class _ColorSheet extends StatelessWidget {
           GoldenSection(
             title: 'Accents',
             child: _Swatches([
-              _Tok('starRating', AppColors.starRating,
-                  note: 'star glyph only — the numeral informs'),
+              _Tok(
+                'starRating',
+                AppColors.starRating,
+                note: 'star glyph only — the numeral informs',
+              ),
               _Tok('favorite', AppColors.favorite, floor: kFloorNonText),
-              _Tok('gold', AppColors.gold,
-                  floor: kFloorNonText, note: 'gold-as-state'),
+              _Tok(
+                'gold',
+                AppColors.gold,
+                floor: kFloorNonText,
+                note: 'gold-as-state',
+              ),
             ]),
           ),
           GoldenSection(
             title: 'Category (sanctioned exception)',
             child: _Swatches([
               _Tok('categorySpa', AppColors.categorySpa, floor: kFloorText),
-              _Tok('categoryBarber', AppColors.categoryBarber,
-                  floor: kFloorText),
+              _Tok(
+                'categoryBarber',
+                AppColors.categoryBarber,
+                floor: kFloorText,
+              ),
               _Tok('categorySalon', AppColors.categorySalon, floor: kFloorText),
             ]),
           ),
@@ -138,9 +162,8 @@ class _Swatches extends StatelessWidget {
   final List<_Tok> tokens;
 
   @override
-  Widget build(BuildContext context) => Column(
-        children: [for (final t in tokens) _SwatchRow(t)],
-      );
+  Widget build(BuildContext context) =>
+      Column(children: [for (final t in tokens) _SwatchRow(t)]);
 }
 
 class _SwatchRow extends StatelessWidget {
@@ -174,8 +197,10 @@ class _SwatchRow extends StatelessWidget {
                 Text(token.name, style: _mono(13, FontWeight.w500)),
                 Text(
                   '${_hex(token.color)}${token.note == null ? '' : '  · ${token.note}'}',
-                  style: _mono(11, FontWeight.w400)
-                      .copyWith(color: AppColors.textTertiary),
+                  style: _mono(
+                    11,
+                    FontWeight.w400,
+                  ).copyWith(color: AppColors.textTertiary),
                 ),
               ],
             ),
@@ -209,11 +234,11 @@ class _SwatchRow extends StatelessWidget {
 }
 
 TextStyle _mono(double size, FontWeight weight) => TextStyle(
-      fontFamily: kRealFont,
-      fontSize: size,
-      fontWeight: weight,
-      color: AppColors.textPrimary,
-    );
+  fontFamily: kRealFont,
+  fontSize: size,
+  fontWeight: weight,
+  color: AppColors.textPrimary,
+);
 
 String _hex(Color c) {
   String h(double v) =>

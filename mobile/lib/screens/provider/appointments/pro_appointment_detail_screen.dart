@@ -62,8 +62,10 @@ class _ProAppointmentDetailScreenState
     }
     if (!mounted) return;
 
-    final appointmentProvider =
-        Provider.of<ProAppointmentProvider>(context, listen: false);
+    final appointmentProvider = Provider.of<ProAppointmentProvider>(
+      context,
+      listen: false,
+    );
     await appointmentProvider.loadAppointments(
       authProvider.activeSalonId ?? '',
     );
@@ -73,9 +75,7 @@ class _ProAppointmentDetailScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Détails du rendez-vous'),
-      ),
+      appBar: AppBar(title: const Text('Détails du rendez-vous')),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
           // Collaborateur (access R4b §5.3): own bookings only reach this
@@ -129,8 +129,8 @@ class _ProAppointmentDetailScreenState
                                   vertical: AppTheme.spacingXS,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: ((appointment.clientNoShowCount ??
-                                              0) >=
+                                  color:
+                                      ((appointment.clientNoShowCount ?? 0) >=
                                           2)
                                       ? AppColors.error.withValues(alpha: 0.1)
                                       : AppColors.surfaceVariant,
@@ -145,9 +145,9 @@ class _ProAppointmentDetailScreenState
                                   style: AppTextStyles.bodySmall.copyWith(
                                     color:
                                         ((appointment.clientNoShowCount ?? 0) >=
-                                                2)
-                                            ? AppColors.error
-                                            : AppColors.textSecondary,
+                                            2)
+                                        ? AppColors.error
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                               ),
@@ -166,7 +166,8 @@ class _ProAppointmentDetailScreenState
                               child: Container(
                                 alignment: Alignment.centerLeft,
                                 padding: const EdgeInsets.only(
-                                    top: AppTheme.spacingXS),
+                                  top: AppTheme.spacingXS,
+                                ),
                                 child: Text(
                                   'Voir la fiche client',
                                   style: AppTextStyles.bodySmall.copyWith(
@@ -180,23 +181,28 @@ class _ProAppointmentDetailScreenState
                         const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Date et heure',
-                          style: AppTextStyles.titleMedium
-                              .copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: AppTheme.spacingS),
                         Text(
-                          Formatters.formatDateTime(toSalonTime(
-                            appointment.appointmentDate,
-                            tz: authProvider.salonTimezone,
-                          )),
-                          style: AppTextStyles.bodyLarge
-                              .copyWith(color: AppColors.textSecondary),
+                          Formatters.formatDateTime(
+                            toSalonTime(
+                              appointment.appointmentDate,
+                              tz: authProvider.salonTimezone,
+                            ),
+                          ),
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Statut',
-                          style: AppTextStyles.titleMedium
-                              .copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: AppTheme.spacingS),
                         Chip(
@@ -206,8 +212,9 @@ class _ProAppointmentDetailScreenState
                         const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Prix total',
-                          style: AppTextStyles.titleMedium
-                              .copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: AppTheme.spacingS),
                         Text(
@@ -215,16 +222,19 @@ class _ProAppointmentDetailScreenState
                             appointment.totalPrice,
                             currency: authProvider.salonCurrency,
                           ),
-                          style: AppTextStyles.headlineSmall
-                              .copyWith(color: AppColors.primary),
+                          style: AppTextStyles.headlineSmall.copyWith(
+                            color: AppColors.primary,
+                          ),
                         ),
                         if (appointment.depositAmount > 0) ...[
                           const Divider(height: 24),
                           Row(
                             children: [
-                              const Icon(Icons.savings_outlined,
-                                  size: AppTheme.iconS,
-                                  color: AppColors.textSecondary),
+                              const Icon(
+                                Icons.savings_outlined,
+                                size: AppTheme.iconS,
+                                color: AppColors.textSecondary,
+                              ),
                               const SizedBox(width: AppTheme.spacingS),
                               Expanded(
                                 child: Text(
@@ -238,8 +248,9 @@ class _ProAppointmentDetailScreenState
                           Text(
                             'Confirmez le rendez-vous une fois l’acompte reçu '
                             'sur votre compte Mobile Money.',
-                            style: AppTextStyles.bodySmall
-                                .copyWith(color: AppColors.textTertiary),
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingS),
                           _DepositProof(
@@ -260,8 +271,11 @@ class _ProAppointmentDetailScreenState
                       final success = await appointmentProvider
                           .acceptAppointment(appointment.id);
                       if (success && context.mounted) {
-                        AppSnackBar.show(context, 'Rendez-vous accepté',
-                            kind: SnackKind.success);
+                        AppSnackBar.show(
+                          context,
+                          'Rendez-vous accepté',
+                          kind: SnackKind.success,
+                        );
                         Navigator.pop(context);
                       }
                     },
@@ -274,8 +288,11 @@ class _ProAppointmentDetailScreenState
                       final success = await appointmentProvider
                           .rejectAppointment(appointment.id, null);
                       if (success && context.mounted) {
-                        AppSnackBar.show(context, 'Rendez-vous rejeté',
-                            kind: SnackKind.success);
+                        AppSnackBar.show(
+                          context,
+                          'Rendez-vous rejeté',
+                          kind: SnackKind.success,
+                        );
                         Navigator.pop(context);
                       }
                     },
@@ -287,8 +304,10 @@ class _ProAppointmentDetailScreenState
                   if (!ownMode &&
                       appointment.arrivedAt == null &&
                       isSameSalonDay(
-                          appointment.appointmentDate, AppClock.now(),
-                          tz: authProvider.salonTimezone)) ...[
+                        appointment.appointmentDate,
+                        AppClock.now(),
+                        tz: authProvider.salonTimezone,
+                      )) ...[
                     AppButton(
                       text: 'Client arrivé',
                       icon: Icons.how_to_reg_outlined,
@@ -316,11 +335,15 @@ class _ProAppointmentDetailScreenState
                   AppButton(
                     text: 'Marquer comme terminé',
                     onPressed: () async {
-                      final success = await appointmentProvider
-                          .markComplete(appointment.id);
+                      final success = await appointmentProvider.markComplete(
+                        appointment.id,
+                      );
                       if (success && context.mounted) {
-                        AppSnackBar.show(context, 'Rendez-vous terminé',
-                            kind: SnackKind.success);
+                        AppSnackBar.show(
+                          context,
+                          'Rendez-vous terminé',
+                          kind: SnackKind.success,
+                        );
                         Navigator.pop(context);
                       }
                     },
@@ -334,7 +357,8 @@ class _ProAppointmentDetailScreenState
                         final confirmed = await showConfirmDialog(
                           context,
                           title: 'Client absent ?',
-                          message: 'Le client ne s’est pas présenté. '
+                          message:
+                              'Le client ne s’est pas présenté. '
                               'L’acompte est conservé selon votre politique '
                               'd’annulation.',
                           confirmLabel: 'Marquer absent',
@@ -343,11 +367,15 @@ class _ProAppointmentDetailScreenState
                           isDestructive: false,
                         );
                         if (!confirmed || !context.mounted) return;
-                        final success = await appointmentProvider
-                            .markNoShow(appointment.id);
+                        final success = await appointmentProvider.markNoShow(
+                          appointment.id,
+                        );
                         if (success && context.mounted) {
-                          AppSnackBar.show(context, 'Marqué comme absent',
-                              kind: SnackKind.success);
+                          AppSnackBar.show(
+                            context,
+                            'Marqué comme absent',
+                            kind: SnackKind.success,
+                          );
                           Navigator.pop(context);
                         }
                       },
@@ -413,8 +441,9 @@ class _DepositProofState extends State<_DepositProof> {
         if (res == null || !res.success || res.data == null) {
           return Text(
             'Capture indisponible. Réessayez plus tard.',
-            style:
-                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
           );
         }
         final url = res.data!;

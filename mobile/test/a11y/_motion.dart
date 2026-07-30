@@ -36,7 +36,11 @@ Future<void> pumpWithReducedMotion(
     disableAnimations: disableAnimations,
     reduceMotion: reduceMotion,
   );
-  await pumpApp(tester, providers: providers, home: Scaffold(body: child));
+  await pumpApp(
+    tester,
+    providers: providers,
+    home: Scaffold(body: child),
+  );
   await tester.pump();
 }
 
@@ -66,9 +70,9 @@ void setReducedMotion(
 }) {
   tester.platformDispatcher.accessibilityFeaturesTestValue =
       FakeAccessibilityFeatures(
-    disableAnimations: disableAnimations,
-    reduceMotion: reduceMotion,
-  );
+        disableAnimations: disableAnimations,
+        reduceMotion: reduceMotion,
+      );
   addTearDown(tester.platformDispatcher.clearAllTestValues);
 }
 

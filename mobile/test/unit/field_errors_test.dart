@@ -11,21 +11,25 @@ import 'package:myweli/core/utils/validators.dart';
 /// the class it guards.
 void main() {
   FieldErrors build() => FieldErrors({
-        'email': Validators.email,
-        'code': Validators.otp,
-        'name': Validators.requiredField('votre nom'),
-      });
+    'email': Validators.email,
+    'code': Validators.otp,
+    'name': Validators.requiredField('votre nom'),
+  });
 
   group('validate — submit', () {
     test(
-        'validates ONLY the keys passed (a step never fails what it cannot see)',
-        () {
-      final errors = build();
-      expect(errors.validate({'email': 'awa@exemple.ci'}), isTrue);
-      expect(errors['code'], isNull,
-          reason: 'the code field was not submitted — it must not be judged');
-      expect(errors.isEmpty, isTrue);
-    });
+      'validates ONLY the keys passed (a step never fails what it cannot see)',
+      () {
+        final errors = build();
+        expect(errors.validate({'email': 'awa@exemple.ci'}), isTrue);
+        expect(
+          errors['code'],
+          isNull,
+          reason: 'the code field was not submitted — it must not be judged',
+        );
+        expect(errors.isEmpty, isTrue);
+      },
+    );
 
     test('MERGES — a later submit does not wipe an earlier unfixed error', () {
       final errors = build();
@@ -39,9 +43,13 @@ void main() {
 
       // The web's replacing version returned true here with an empty map, and
       // the caller submitted a form whose name was still blank.
-      expect(errors['name'], 'Indiquez votre nom.',
-          reason: 'an error persists until it is FIXED (§14 rule 1) — not '
-              'until some other field is submitted');
+      expect(
+        errors['name'],
+        'Indiquez votre nom.',
+        reason:
+            'an error persists until it is FIXED (§14 rule 1) — not '
+            'until some other field is submitted',
+      );
       expect(errors.isNotEmpty, isTrue);
     });
 
@@ -62,8 +70,11 @@ void main() {
       // The user is mid-type. This is the form that yells at `s@`, and it must
       // not exist.
       errors.revalidate('email', 's@');
-      expect(errors['email'], isNull,
-          reason: 'never validate a field the user has not finished typing');
+      expect(
+        errors['email'],
+        isNull,
+        reason: 'never validate a field the user has not finished typing',
+      );
     });
 
     test('goes live once errored, and clears the moment it passes', () {
@@ -72,8 +83,11 @@ void main() {
       expect(errors['email'], 'Saisissez une adresse e-mail valide.');
 
       errors.revalidate('email', 's@exemple');
-      expect(errors['email'], 'Saisissez une adresse e-mail valide.',
-          reason: 'still wrong — the message stays');
+      expect(
+        errors['email'],
+        'Saisissez une adresse e-mail valide.',
+        reason: 'still wrong — the message stays',
+      );
 
       errors.revalidate('email', 's@exemple.ci');
       expect(errors['email'], isNull, reason: 'fixed — it disappears');
@@ -89,8 +103,11 @@ void main() {
       expect(errors['code'], 'Code incorrect ou expiré.');
 
       errors.revalidate('code', '123456');
-      expect(errors['code'], isNull,
-          reason: 'a changed value that passes the client check clears it');
+      expect(
+        errors['code'],
+        isNull,
+        reason: 'a changed value that passes the client check clears it',
+      );
     });
 
     test('null clears', () {
@@ -103,9 +120,13 @@ void main() {
   test('firstErroredKey follows DECLARATION order, not hash order', () {
     final errors = build();
     errors.validate({'code': '', 'name': '', 'email': ''});
-    expect(errors.firstErroredKey, 'email',
-        reason: 'the focus move must land on the first field in the form’s '
-            'reading order (§13.5)');
+    expect(
+      errors.firstErroredKey,
+      'email',
+      reason:
+          'the focus move must land on the first field in the form’s '
+          'reading order (§13.5)',
+    );
   });
 
   test('clear wipes everything — a step change', () {
