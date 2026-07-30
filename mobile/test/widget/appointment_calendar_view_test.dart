@@ -14,6 +14,7 @@ import '../support/pump_app.dart';
 import '../support/secure_storage.dart';
 import '../support/settle.dart';
 import '../support/sign_in.dart';
+import '../support/surface.dart';
 
 /// The pro calendar's behaviour (A14c §18).
 ///
@@ -76,6 +77,28 @@ void main() {
     // sentence than a screen-wide one. This branch was unreachable before.
     expect(find.textContaining('mercredi 11 mars 2026'), findsWidgets);
   });
+
+  // **A REAL phone, because the matrix does not use one.** `pumpAtWidth`
+  // defaults to `height: 1600` so a screen's full content can be measured
+  // without scroll clipping — deliberate, and it means nothing in
+  // `layout_test.dart` exercises the actual vertical budget. The calendar is
+  // the one screen where that matters: it grows with the text scale, and the
+  // day list sits under it in the same scroll view.
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('an empty day fits a real 360×780 phone at $scale×', (
+      tester,
+    ) async {
+      pinSurface(tester, size: kFloorPhone, scale: scale);
+      await pumpCalendar(tester, const []);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'the month plus the per-day empty state must fit, or scroll — this '
+            'view overflowed by 40dp before it became one CustomScrollView',
+      );
+    });
+  }
 
   testWidgets('a day with appointments announces how many, and shows one dot', (
     tester,
