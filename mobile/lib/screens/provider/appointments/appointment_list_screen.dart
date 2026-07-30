@@ -172,27 +172,19 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                     );
                   }
                 },
-                child: appointments.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.event_busy,
-                              size: AppTheme.iconXL,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(height: AppTheme.spacingM),
-                            Text(
-                              'Aucun rendez-vous',
-                              style: AppTextStyles.titleLarge.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : AppointmentCalendarView(appointments: appointments),
+                // **No `isEmpty` branch here, and removing it is a fix** (A14c
+                // §18.1). This used to replace the whole calendar with a
+                // centred « Aucun rendez-vous », so a salon with nothing booked
+                // — a brand-new one, or any pro on a quiet week — **could not
+                // open its calendar at all**. It could not browse forward to
+                // plan, and the calendar's own empty state («Aucun rendez-vous
+                // pour mercredi 11 mars 2026 », which names the day) was
+                // unreachable, never photographed, and effectively dead code.
+                //
+                // A calendar with no appointments is not an error state. It is
+                // a calendar. The day list underneath already says so per day,
+                // which is the more useful sentence anyway.
+                child: AppointmentCalendarView(appointments: appointments),
               ),
               // List View
               Column(
