@@ -14,7 +14,7 @@ dependencies:
   provider: ^6.1.1
 
   # Navigation
-  go_router: ^13.0.0
+  go_router: ^17.3.0
 
   # Maps & Location
   flutter_map: ^8.3.0
