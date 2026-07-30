@@ -102,7 +102,7 @@ class HighlightStories extends StatelessWidget {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(AppTheme.spacingS),
                         child: Text(
                           name,
                           style: AppTextStyles.labelSmall.copyWith(

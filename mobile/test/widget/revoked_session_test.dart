@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/access/pro_access_guard.dart';
@@ -14,6 +13,8 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../support/pump_app.dart';
 
 /// Team access R4b §5.3 — revoked mid-session: a forbidden response probes
 /// the membership once, signs the member out, and the login screen shows
@@ -79,9 +80,9 @@ void main() {
 
     // The login screen consumes the one-shot notice into the banner.
     await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: authProvider,
-        child: const MaterialApp(home: ProLoginScreen()),
+      wrapApp(
+        providers: [ChangeNotifierProvider.value(value: authProvider)],
+        home: const ProLoginScreen(),
       ),
     );
     await settle(tester);

@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Loading } from '../Loading';
 import { useEffect, useRef, useState } from 'react';
 import { directionsUrl } from '../../lib/provider-summary';
 
@@ -13,7 +14,7 @@ const SalonLocationMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center bg-surfaceVariant">
-        <p className="text-sm text-textSecondary">Chargement de la carte…</p>
+        <Loading label="Chargement de la carte…" />
       </div>
     ),
   },
@@ -59,7 +60,7 @@ export function MapEmbed({
 
   return (
     <section className="px-m py-l">
-      <h2 className="text-xl font-semibold text-textPrimary">Localisation</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">Localisation</h2>
       <p className="mt-xs text-textSecondary">
         {address}
         {commune ? `, ${commune}` : ''}
@@ -68,6 +69,7 @@ export function MapEmbed({
         <>
           <div
             ref={holder}
+            role="region"
             aria-label={`Carte — ${address ?? name}`}
             className="mt-m h-64 w-full overflow-hidden rounded-lg border border-border md:h-80"
           >
@@ -86,7 +88,7 @@ export function MapEmbed({
             href={directionsUrl(latitude, longitude)}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-s inline-block text-sm font-medium text-textPrimary underline"
+            className="mt-s inline-block text-labelLarge font-medium text-textPrimary underline"
           >
             Itinéraire
           </a>

@@ -3,7 +3,7 @@
 import type { DayForm } from '../../lib/pro/availability';
 
 const inputCls =
-  'rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary';
+  'min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 /// One weekly-schedule editor for the three places that edit day ranges:
 /// salon hours, breaks (« Pauses ») and per-artist hours (audit 3.4/3.8).
@@ -24,16 +24,27 @@ export function DayHoursEditor({
       {days.map((d, i) => (
         <div key={d.key} className="flex flex-wrap items-center gap-m">
           <span className="w-28 text-textPrimary">{d.label}</span>
-          <label className="flex items-center gap-s text-sm text-textSecondary">
+          <label className="flex min-h-12 cursor-pointer items-center gap-s text-bodyMedium text-textSecondary">
             <input
               type="checkbox"
+              className="h-5 w-5 shrink-0 accent-primary"
               checked={d.open}
               onChange={(e) => onPatch(i, { open: e.target.checked })}
             />
             {onLabel}
           </label>
           {d.open ? (
-            <span className="flex items-center gap-s">
+            // B11: two `type="time"` inputs and « à » in a row that could not
+            // wrap. Measured 332px of the 291 available at 320 — **on CI, not
+            // locally**: a UA time input's intrinsic width is font- and
+            // platform-dependent, and Linux renders it wider than macOS, so the
+            // local suite reported green on a page that scrolls sideways. The
+            // parent row already wraps; this one now does too.
+            //
+            // (A `//` comment, not `{/* */}` — inside a ternary's parentheses
+            // this is an expression position and a JSX comment is a syntax
+            // error. Third time in this slice.)
+            <span className="flex flex-wrap items-center gap-s">
               <input
                 type="time"
                 aria-label={`${d.label} début`}
@@ -51,7 +62,7 @@ export function DayHoursEditor({
               />
             </span>
           ) : (
-            <span className="text-sm text-textTertiary">{offLabel}</span>
+            <span className="text-bodyMedium text-textTertiary">{offLabel}</span>
           )}
         </div>
       ))}

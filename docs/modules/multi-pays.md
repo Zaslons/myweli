@@ -13,7 +13,7 @@ in §9, and the first slice ([design/timezone-salon-time.md](../design/timezone-
 
 | | |
 |---|---|
-| **Status** | 📘 End version agreed (2026-07-13) · slice 1 (salon time) built 2026-07-13 · **FULL MACHINERY BUILD in progress (user decision 2026-07-14): MP1 backend → MP2 mobile → MP3 web** — see [design/multi-pays-end-version.md](../design/multi-pays-end-version.md) |
+| **Status** | 🟢 **MACHINERY COMPLETE (2026-07-14): MP1 backend + MP2 mobile + MP3 web built** — a new market is now §8 checklist + seed rows; see [design/multi-pays-end-version.md](../design/multi-pays-end-version.md) |
 | **Module slug** | `multi-pays` (cross-cutting — every module stands on it, like identity/design/security) |
 | **First slice** | [design/timezone-salon-time.md](../design/timezone-salon-time.md) — the salon-time seam |
 | **Companions** | [MODULES.md](../MODULES.md) · [ROADMAP.md](../ROADMAP.md) · [PRD.md](../PRD.md) (CI scope) · module [`network`](../MODULES.md) (V3 layer above) |
@@ -78,15 +78,14 @@ changes hands.
 - The tree powers: the discovery commune filter, « Près de moi » resolution,
   the map center/zoom, the registration picker, widget/catalog placement, and
   the **SEO landing families**.
-- **URLs:** the Planity tree (`/tresses` → `/tresses/abidjan` →
-  `/tresses/abidjan/cocody`) with **permanent redirects from every flat
-  slug** — *user decision 2026-07-14: nested NOW (MP3), ahead of the
-  second-city trigger; redirects + nested sitemap ship in one deploy.*
-- **Today's seed (the seam):** `mobile/lib/core/constants/communes.dart`
-  (`abidjanCommunes`), the web landing taxonomy (`web/lib/landing.ts`,
-  `discovery.ts`, `service-landing.ts`), backend commune validation
-  (provisioning/repository). One list per surface, referenced everywhere,
-  hardcoded nowhere else.
+- **URLs (BUILT — MP3):** the Planity tree (`/tresses` → `/tresses/abidjan` →
+  `/tresses/abidjan/cocody`, categories AND services) with **permanent
+  redirects (308 ≡ 301) from every flat slug** — shipped in ONE deploy with
+  the nested sitemap; the flat parsers survive only as redirect recognizers.
+- **The seams (post-MP1–MP3):** the tree is DATA from `GET /localities` on
+  every surface — mobile `LocalityProvider`, web `lib/api/localities.ts`,
+  backend `lib/src/localities/`. `communes.dart` is the mobile mock seed
+  only; the web taxonomy libs take geography as parameters.
 
 ---
 
@@ -220,7 +219,7 @@ it "works" for Côte d'Ivoire.
 | Surface | The seams |
 |---|---|
 | Mobile (MP2) | **the live tree: `providers/locality_provider.dart` + the `LocalityService` seam** (fed by `GET /localities`) · `core/constants/communes.dart` (**mock seed only**) · `core/utils/mobile_money.dart` · `core/utils/formatters.dart` · `core/utils/salon_time.dart` (`package:timezone`, per-salon `tz`) |
-| Web | `lib/landing.ts` / `lib/discovery.ts` / `lib/service-landing.ts` (taxonomy) · `lib/format.ts` · `lib/time.ts` — the locality tree goes live at MP3 |
+| Web (MP3) | **the live tree: `lib/api/localities.ts` + `/api/localities` + `lib/use-localities.ts`** (fed by `GET /localities`) · `lib/landing.ts` / `lib/discovery.ts` / `lib/service-landing.ts` / `lib/taxonomy.ts` (taxonomy — geography enters as parameters) · `lib/mobile-money.ts` · `lib/format.ts` · `lib/time.ts` (per-salon `tz`) |
 | Backend (MP1) | `lib/src/localities/` (the seeded tree + `GET /localities`) · `lib/src/salon_time.dart` (`package:timezone`) · UTC storage ([BACKEND.md §2](../BACKEND.md)) |
 
 Mirrored as one rule line in [DESIGN-STANDARDS §4](../design/DESIGN-STANDARDS.md),

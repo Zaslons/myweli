@@ -18,6 +18,22 @@ class _MockAuth extends Mock implements AuthRepository {}
 
 class _MockProviders extends Mock implements ProvidersRepository {}
 
+/// Captures the FCM payload so the deep-link route can be asserted.
+class _RecordingPushProvider implements PushProvider {
+  final sends = <Map<String, String>>[];
+
+  @override
+  Future<PushSendResult> send({
+    required List<String> tokens,
+    required String title,
+    required String body,
+    Map<String, String> data = const {},
+  }) async {
+    sends.add(data);
+    return (sent: tokens.length, invalidTokens: const <String>[]);
+  }
+}
+
 void main() {
   late InMemoryMessagingOutboxRepository outbox;
   late MessagingService messaging;
@@ -46,6 +62,45 @@ void main() {
     InMemoryNotificationsRepository(),
     InMemoryNotificationPrefsRepository(),
   );
+
+  test('the consumer push carries the deep-link route; the feed row keeps '
+      '/bookings (the web center maps that path)', () async {
+    final pushes = _RecordingPushProvider();
+    final devices = InMemoryDeviceTokenRepository();
+    await devices.upsert(
+      token: 'tok-u1',
+      userId: 'u1',
+      role: 'user',
+      platform: 'android',
+    );
+    final feed = InMemoryNotificationsRepository();
+    when(() => users.userById('u1')).thenAnswer(
+      (_) async => AuthUser(
+        id: 'u1',
+        phoneNumber: '+2250700000002',
+        createdAt: DateTime.utc(2026),
+      ),
+    );
+
+    await BookingNotifier(
+      messaging,
+      users,
+      providers,
+      PushService(pushes, devices),
+      feed,
+      InMemoryNotificationPrefsRepository(),
+    ).notify({
+      'id': 'a7',
+      'providerId': 'p1',
+      'userId': 'u1',
+      'appointmentDate': '2026-06-28T09:00:00.000Z',
+    }, MessageTemplate.bookingAccepted);
+
+    expect(pushes.sends.single['route'], '/appointment/a7');
+    expect(pushes.sends.single['appointmentId'], 'a7');
+    expect(pushes.sends.single['template'], 'bookingAccepted');
+    expect((await feed.listForUser('u1')).single['route'], '/bookings');
+  });
 
   test('message times render the SALON wall-clock; amounts read FCFA '
       '(multi-pays MP1)', () async {

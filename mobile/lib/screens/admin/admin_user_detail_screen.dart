@@ -9,6 +9,7 @@ import '../../providers/admin/admin_disputes_provider.dart';
 import '../../providers/admin/admin_user_detail_provider.dart';
 import '../../providers/admin/admin_users_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import 'widgets/admin_detail_widgets.dart';
 import 'widgets/admin_scaffold.dart';
@@ -39,6 +40,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
       context,
       title: 'Bannir ce client ?',
       confirmLabel: 'Bannir',
+      isDestructive: true,
       hint: 'Motif (interne)',
       reasonRequired: false,
     );
@@ -57,8 +59,11 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await action();
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? okMsg : (p.actionError ?? 'Échec'))),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: okMsg,
+      error: p.actionError ?? 'Échec',
     );
     if (ok) unawaited(context.read<AdminUsersProvider>().load());
   }
@@ -75,10 +80,11 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await disputes.open(appointmentId, reason);
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(ok ? 'Litige ouvert' : (disputes.actionError ?? 'Échec')),
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Litige ouvert',
+      error: disputes.actionError ?? 'Échec',
     );
   }
 

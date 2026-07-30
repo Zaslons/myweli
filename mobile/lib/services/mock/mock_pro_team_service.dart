@@ -1,5 +1,6 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/di/dependency_injection.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/team_invitation.dart';
@@ -108,15 +109,15 @@ class MockProTeamService implements ProTeamServiceInterface {
         MockData.providers.where((p) => p.id == providerId).firstOrNull?.name ??
             'Salon Excellence';
     final member = TeamMember(
-      id: 'mem_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'mem_${AppClock.now().millisecondsSinceEpoch}',
       providerId: providerId,
       email: key,
       role: role,
       status: TeamMemberStatus.invited,
-      invitedAt: DateTime.now(),
+      invitedAt: AppClock.now(),
       artistId: role == TeamRole.staff ? artistId : null,
       artistName: artistName,
-      expiresAt: DateTime.now().add(const Duration(days: 7)),
+      expiresAt: AppClock.now().add(const Duration(days: 7)),
       resendsLeft: 3,
     );
     MockData.teamMembers.add(member);
@@ -175,7 +176,7 @@ class MockProTeamService implements ProTeamServiceInterface {
     if (member.isOwner) return _fail('owner_protected');
     final updated = member.copyWith(
       status: TeamMemberStatus.revoked,
-      revokedAt: DateTime.now(),
+      revokedAt: AppClock.now(),
     );
     MockData.teamMembers[i] = updated;
     _removeInvitationCard(member);
@@ -198,7 +199,7 @@ class MockProTeamService implements ProTeamServiceInterface {
           code: 'invite_rate_limited');
     }
     final updated = member.copyWith(
-      expiresAt: DateTime.now().add(const Duration(days: 7)),
+      expiresAt: AppClock.now().add(const Duration(days: 7)),
       resendsLeft: member.resendsLeft - 1,
       expired: false,
     );
@@ -213,7 +214,7 @@ class MockProTeamService implements ProTeamServiceInterface {
         const <TeamInvitation>[];
     final unexpired = cards
         .where(
-            (c) => c.expiresAt == null || c.expiresAt!.isAfter(DateTime.now()))
+            (c) => c.expiresAt == null || c.expiresAt!.isAfter(AppClock.now()))
         .toList();
     return ApiResponse.success(unexpired);
   }
@@ -225,7 +226,7 @@ class MockProTeamService implements ProTeamServiceInterface {
     final cards = MockData.teamInvitations[key] ?? const <TeamInvitation>[];
     final card = cards.where((c) => c.id == invitationId).firstOrNull;
     if (card == null) return _fail('not_found');
-    if (card.expiresAt != null && card.expiresAt!.isBefore(DateTime.now())) {
+    if (card.expiresAt != null && card.expiresAt!.isBefore(AppClock.now())) {
       return _fail('invitation_expired');
     }
     MockData.teamInvitations[key]?.removeWhere((c) => c.id == invitationId);
@@ -235,7 +236,7 @@ class MockProTeamService implements ProTeamServiceInterface {
       final activated = MockData.teamMembers[i].copyWith(
         status: TeamMemberStatus.active,
         accountId: 'member_$key',
-        acceptedAt: DateTime.now(),
+        acceptedAt: AppClock.now(),
       );
       MockData.teamMembers[i] = activated;
       return ApiResponse.success(activated);
@@ -247,9 +248,9 @@ class MockProTeamService implements ProTeamServiceInterface {
       email: key,
       role: card.role,
       status: TeamMemberStatus.active,
-      invitedAt: DateTime.now(),
+      invitedAt: AppClock.now(),
       accountId: 'member_$key',
-      acceptedAt: DateTime.now(),
+      acceptedAt: AppClock.now(),
     ));
   }
 

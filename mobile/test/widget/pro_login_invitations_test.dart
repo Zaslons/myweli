@@ -11,6 +11,8 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Team access R3 §2.2 — the login « Invitations » step: an invited email
 /// signs in with the NORMAL flow, sees the card instead of « compte
 /// introuvable », joins with the proven identity, or declines back to the
@@ -53,9 +55,9 @@ void main() {
         ),
       ],
     );
-    return ChangeNotifierProvider(
-      create: (_) => ProAuthProvider(),
-      child: MaterialApp.router(routerConfig: router),
+    return wrapApp(
+      providers: [ChangeNotifierProvider(create: (_) => ProAuthProvider())],
+      routerConfig: router,
     );
   }
 
@@ -96,7 +98,7 @@ void main() {
     await reachInvitationsStep(tester);
 
     expect(
-      find.text('Rejoignez l\'équipe — aucun salon à créer.'),
+      find.text('Rejoignez l’équipe — aucun salon à créer.'),
       findsOneWidget,
     );
     expect(find.textContaining('Salon Excellence'), findsOneWidget);
@@ -116,7 +118,7 @@ void main() {
     await settle(tester);
 
     expect(
-      find.textContaining('Bienvenue dans l\'équipe de Salon Excellence'),
+      find.textContaining('Bienvenue dans l’équipe de Salon Excellence'),
       findsOneWidget,
     );
     await settle(tester);

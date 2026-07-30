@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/config/subscription_plans.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/external_link.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/pro_membership.dart';
 import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -50,30 +51,12 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     context.read<ProSubscriptionProvider>().load(providerId);
   }
 
-  Future<void> _contact([String? message]) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final number = AppConfig.supportWhatsApp;
-    if (number.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Contact bientôt disponible.')),
+  Future<void> _contact([String? message]) => openWhatsApp(
+        context,
+        number: AppConfig.supportWhatsApp,
+        message: message ??
+            'Bonjour Myweli, je souhaite activer mon offre pour mon salon.',
       );
-      return;
-    }
-    final text = message ??
-        'Bonjour Myweli, je souhaite activer mon offre pour mon salon.';
-    final uri = Uri.parse(
-      'https://wa.me/$number?text=${Uri.encodeComponent(text)}',
-    );
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && mounted) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Impossible d\'ouvrir WhatsApp.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
-  }
 
   Future<void> _choose(String providerId, SalonTier tier) async {
     final provider = context.read<ProSubscriptionProvider>();
@@ -82,24 +65,16 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     final ok = await provider.choose(providerId, tier);
     if (!mounted) return;
     if (ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            wasSetup
-                ? 'Offre ${salonTierLabel(tier)} choisie — '
-                    '${SubscriptionPlans.trialMonths} mois offerts !'
-                : 'Vous êtes maintenant sur l\'offre '
-                    '${salonTierLabel(tier)}.',
-          ),
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger,
+          wasSetup
+              ? 'Offre ${salonTierLabel(tier)} choisie — '
+                  '${SubscriptionPlans.trialMonths} mois offerts !'
+              : 'Vous êtes maintenant sur l’offre ${salonTierLabel(tier)}.',
+          kind: SnackKind.success);
     } else if (provider.chooseErrorCode != 'trial_used') {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(provider.chooseError ?? 'Choix impossible.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, provider.chooseError ?? 'Choix impossible.',
+          kind: SnackKind.error);
     }
   }
 
@@ -115,7 +90,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
           ? const EmptyState(
               icon: Icons.workspace_premium_outlined,
               title: 'Réservé au propriétaire',
-              description: 'L\'offre du salon est gérée par son propriétaire.',
+              description: 'L’offre du salon est gérée par son propriétaire.',
             )
           : Consumer<ProSubscriptionProvider>(
               builder: (context, provider, _) {
@@ -217,7 +192,7 @@ class _Body extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
             child: Text(
-              'Le changement d\'offre conserve votre période d\'essai.',
+              'Le changement d’offre conserve votre période d’essai.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textTertiary,
               ),
@@ -227,12 +202,12 @@ class _Body extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.info_outline,
-                size: 18, color: AppColors.textTertiary),
-            const SizedBox(width: 8),
+                size: AppTheme.iconS, color: AppColors.textTertiary),
+            const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
                 'Le paiement se fait manuellement — contactez-nous à la fin '
-                'de votre période d\'essai. Vos données ne sont jamais '
+                'de votre période d’essai. Vos données ne sont jamais '
                 'bloquées.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
@@ -280,7 +255,7 @@ class _StatusBanner extends StatelessWidget {
           Icons.verified,
           'Offre ${salon.tierLabel} active',
           salon.paidUntil != null
-              ? 'Jusqu\'au ${Formatters.formatDate(salon.paidUntil!)}'
+              ? 'Jusqu’au ${Formatters.formatDate(salon.paidUntil!)}'
               : 'Paiement à jour',
           false,
         ),
@@ -289,7 +264,7 @@ class _StatusBanner extends StatelessWidget {
           AppColors.warning,
           Icons.warning_amber,
           'Votre offre a expiré',
-          'Jusqu\'au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
+          'Jusqu’au ${Formatters.formatDate(salon.graceEndsAt)} avant la '
               'dépublication de votre salon. Contactez-nous pour régler.',
           true,
         ),
@@ -299,7 +274,7 @@ class _StatusBanner extends StatelessWidget {
           Icons.error_outline,
           salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
           salon.unpublishedForBilling
-              ? 'Votre salon n\'est plus visible des clients. '
+              ? 'Votre salon n’est plus visible des clients. '
                   'Contactez-nous pour réactiver — vos données sont '
                   'intactes.'
               : 'Contactez-nous pour réactiver votre offre.',
@@ -373,7 +348,7 @@ class _SeatsBar extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.group_outlined,
-                  size: 18, color: AppColors.textSecondary),
+                  size: AppTheme.iconS, color: AppColors.textSecondary),
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 '${seats.used} / ${seats.cap} places',
@@ -495,7 +470,7 @@ class _OfferCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppTheme.spacingS,
-                    vertical: 4,
+                    vertical: AppTheme.spacingXS,
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
@@ -545,8 +520,8 @@ class _OfferCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.group_outlined,
-                  size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
+                  size: AppTheme.iconXS, color: AppColors.textSecondary),
+              const SizedBox(width: AppTheme.spacingS),
               Text(
                 seatsLine,
                 style: AppTextStyles.bodyMedium.copyWith(
@@ -558,11 +533,12 @@ class _OfferCard extends StatelessWidget {
           const SizedBox(height: AppTheme.spacingM),
           for (final line in SubscriptionPlans.entitlementsFor(tier))
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.check, size: 16, color: AppColors.success),
+                  const Icon(Icons.check,
+                      size: AppTheme.iconXS, color: AppColors.success),
                   const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(
@@ -588,7 +564,7 @@ class _OfferCard extends StatelessWidget {
           if (!current) ...[
             const SizedBox(height: AppTheme.spacingM),
             AppButton(
-              text: isSetup ? 'Choisir' : 'Changer d\'offre',
+              text: isSetup ? 'Choisir' : 'Changer d’offre',
               type: isSetup ? AppButtonType.primary : AppButtonType.secondary,
               isLoading: busy,
               isFullWidth: true,

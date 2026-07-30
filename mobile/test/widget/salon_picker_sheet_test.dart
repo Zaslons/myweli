@@ -14,6 +14,8 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:myweli/widgets/provider/salon_picker_sheet.dart';
 import 'package:provider/provider.dart';
 
+import '../support/pump_app.dart';
+
 /// Team access R6b — the « Mes salons » switcher sheet: both memberships
 /// render with role + state, the active salon carries the check, a tap
 /// switches, and « Ajouter un salon » appears only when the gate is open.
@@ -63,16 +65,14 @@ void main() {
 
   Future<void> pumpPicker(WidgetTester tester, ProAuthProvider auth) async {
     await tester.pumpWidget(
-      ChangeNotifierProvider<ProAuthProvider>.value(
-        value: auth,
-        child: MaterialApp(
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: Center(
-                child: ElevatedButton(
-                  onPressed: () => showSalonPicker(context),
-                  child: const Text('ouvrir'),
-                ),
+      wrapApp(
+        providers: [ChangeNotifierProvider<ProAuthProvider>.value(value: auth)],
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => showSalonPicker(context),
+                child: const Text('ouvrir'),
               ),
             ),
           ),

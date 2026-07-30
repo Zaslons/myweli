@@ -144,6 +144,42 @@ void main() {
       );
       expect((await p.send(tokens: ['x'], title: 'T', body: 'B')).sent, 0);
     });
+
+    test(
+      'carries the per-platform options (design §9): the Android channel '
+      'the app declares + the time-sensitive priority on both platforms',
+      () async {
+        Map<String, dynamic>? message;
+        final p = FcmV1PushProvider(
+          projectId: 'proj',
+          tokenSource: _FakeTokenSource('tok'),
+          client: MockClient((req) async {
+            message =
+                (jsonDecode(req.body) as Map<String, dynamic>)['message']
+                    as Map<String, dynamic>;
+            return http.Response('{}', 200);
+          }),
+        );
+
+        await p.send(
+          tokens: ['good'],
+          title: 'T',
+          body: 'B',
+          data: {'route': '/appointment/a1'},
+        );
+
+        final android = message!['android'] as Map<String, dynamic>;
+        expect(
+          (android['notification'] as Map)['channel_id'],
+          FcmV1PushProvider.androidChannelId, // == the app's kPushChannelId
+        );
+        expect(android['priority'], 'high');
+        final apns = message!['apns'] as Map<String, dynamic>;
+        expect((apns['headers'] as Map)['apns-priority'], '10');
+        // The data payload (deep-link route) rides along untouched.
+        expect((message!['data'] as Map)['route'], '/appointment/a1');
+      },
+    );
   });
 
   group('routes /me/devices', () {

@@ -4,10 +4,12 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/widgets/review/review_tile.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
   setUpAll(() => initializeDateFormatting('fr_FR', null));
 
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   Review review({bool verified = false, String? artistName}) => Review(
         id: 'r1',

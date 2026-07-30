@@ -10,8 +10,10 @@ import {
   updateContactPhone,
   verifyEmailOtp,
 } from '../../lib/auth/client';
+import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
+import { TextField } from '../TextField';
 
 /// Consumer sign-in — Google + Apple + email OTP (auth overhaul P2, replaces
 /// phone-OTP). Google/Apple render only when their public client IDs are
@@ -100,6 +102,21 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // §14 rules 1/2/5 — the funnels are the reference implementation
+  // (docs/design/web-b4-controls.md): validate on submit, re-validate on change
+  // once errored, submit never disabled-as-validation, and server-side field
+  // faults land under their field too.
+  const fields = useFieldErrors({
+    email: (v: string) =>
+      /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)
+        ? null
+        : 'Saisissez une adresse e-mail valide.',
+    code: (v: string) => (v.length >= 4 ? null : 'Saisissez le code reçu par e-mail.'),
+    phone: (v: string) =>
+      v && isPossiblePhoneNumber(v)
+        ? null
+        : 'Saisissez un numéro de téléphone valide.',
+  });
   const googleDiv = useRef<HTMLDivElement>(null);
 
   /// Post-login: the contact phone is MANDATORY — block until the profile has
@@ -185,6 +202,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   }
 
   async function sendCode() {
+    if (!fields.validate({ email: email.trim() })) return;
     setBusy(true);
     setError(null);
     const r = await requestEmailOtp(email.trim());
@@ -196,49 +214,50 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   }
 
   async function verifyCode() {
+    if (!fields.validate({ code: code.trim() })) return;
     setBusy(true);
     setError(null);
     const r = await verifyEmailOtp(email.trim(), code.trim());
     setBusy(false);
     if (!r.ok) {
-      return setError(
-        r.error === 'account_suspended'
-          ? 'Compte suspendu.'
-          : 'Code incorrect ou expiré.',
-      );
+      // « Compte suspendu » is an ACCOUNT state → form-level. A bad code is the
+      // code field's fault → under the field (§14 rule 1).
+      if (r.error === 'account_suspended') return setError('Compte suspendu.');
+      return fields.set('code', 'Code incorrect ou expiré.');
     }
     afterLogin(r.user);
   }
 
   async function savePhone() {
+    if (!fields.validate({ phone })) return;
     setBusy(true);
     setError(null);
     const r = await updateContactPhone(phone);
     setBusy(false);
-    if (!r.ok) return setError('Numéro invalide. Réessayez.');
+    if (!r.ok) return fields.set('phone', 'Numéro invalide. Réessayez.');
     onSuccess();
   }
-
-  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 
   // --- Mandatory contact phone (post-registration) ---------------------------
   if (step === 'phone') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-sm font-medium text-textPrimary">
-          Votre numéro de téléphone
-        </p>
-        <p className="text-sm text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.
         </p>
-        <PhoneField onChange={setPhone} disabled={busy} />
-        <Button
-          disabled={busy || !phone || !isPossiblePhoneNumber(phone)}
-          onClick={savePhone}
-        >
+        <PhoneField
+          label="Votre numéro de téléphone"
+          onChange={(v) => {
+            setPhone(v);
+            fields.revalidate('phone', v);
+          }}
+          disabled={busy}
+          error={fields.errors.phone}
+        />
+        <Button disabled={busy} isLoading={busy} onClick={savePhone}>
           Continuer
         </Button>
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -247,43 +266,48 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-sm text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Entrez le code reçu par e-mail à {email.trim()}.
         </p>
-        <input
+        <TextField
+          label="Code à 6 chiffres"
           type="text"
           inputMode="numeric"
-          placeholder="Code à 6 chiffres"
+          autoComplete="one-time-code"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
+          onChange={(e) => {
+            setCode(e.target.value);
+            fields.revalidate('code', e.target.value);
+          }}
+          error={fields.errors.code}
         />
         {devCode ? (
-          <p className="text-xs text-textTertiary">Code (dev) : {devCode}</p>
+          <p className="text-bodySmall text-textTertiary">Code (dev) : {devCode}</p>
         ) : null}
-        <Button disabled={busy || code.trim().length < 4} onClick={verifyCode}>
+        <Button disabled={busy} isLoading={busy} onClick={verifyCode}>
           Se connecter
         </Button>
-        <button
-          type="button"
+        {/* cooldown-disabled is NOT §14 rule 5's anti-pattern — it is a rate
+            limit, not validation, and the label says when it reopens. */}
+        <Button
+          variant="text"
           disabled={busy || cooldown > 0}
           onClick={sendCode}
-          className="text-sm text-textTertiary underline disabled:no-underline disabled:opacity-60"
         >
           {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : 'Renvoyer le code'}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="text"
           onClick={() => {
             setStep('options');
             setCode('');
             setError(null);
+            fields.clear();
           }}
-          className="text-sm text-textTertiary underline"
         >
           Changer d’e-mail
-        </button>
-        {error ? <p className="text-sm text-error">{error}</p> : null}
+        </Button>
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -300,27 +324,30 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         </Button>
       ) : null}
       {googleClientId || appleClientId ? (
-        <div className="flex items-center gap-s text-xs text-textTertiary">
-          <span className="h-px flex-1 bg-divider" />
+        <div className="flex items-center gap-s text-bodySmall text-textTertiary">
+          <span className="flex-1 border-t border-divider" />
           ou
-          <span className="h-px flex-1 bg-divider" />
+          <span className="flex-1 border-t border-divider" />
         </div>
       ) : null}
-      <input
+      <TextField
+        label="Votre e-mail"
         type="email"
         inputMode="email"
         autoComplete="email"
-        placeholder="Votre e-mail"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          fields.revalidate('email', e.target.value);
+        }}
         disabled={busy}
-        className="rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
+        error={fields.errors.email}
       />
-      <Button disabled={busy || !emailValid} onClick={sendCode}>
+      <Button disabled={busy} isLoading={busy} onClick={sendCode}>
         Continuer avec e-mail
       </Button>
-      {error ? <p className="text-sm text-error">{error}</p> : null}
-      <p className="text-xs text-textTertiary">
+      {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
+      <p className="text-bodySmall text-textTertiary">
         En continuant, vous acceptez nos conditions d’utilisation.
       </p>
     </div>

@@ -1,7 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
+import { SkeletonRows } from '../Skeleton';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
 import {
   type ListTab,
@@ -20,12 +25,21 @@ import { JournalGrid } from './JournalGrid';
 import { ManualBookingDialog } from './ManualBookingDialog';
 import { MonthCalendar } from './MonthCalendar';
 import { ProAppointmentRow } from './ProAppointmentRow';
+import { Tabs } from '../Tabs';
 
 type View = 'journal' | 'calendar' | 'list';
 
+/// The view switcher's labels. Tabled rather than built from a ternary inside
+/// the map, which is what the hand-rolled strip did (B9).
+const VIEW_TABS: { key: View; label: string }[] = [
+  { key: 'journal', label: 'Journée' },
+  { key: 'calendar', label: 'Calendrier' },
+  { key: 'list', label: 'Liste' },
+];
+
 // Midday anchors the key inside its salon day at any wave offset (±11 h).
-const dayLabel = (key: string) =>
-  salonFormatter({ day: 'numeric', month: 'long', year: 'numeric' }).format(
+const dayLabel = (key: string, tz?: string) =>
+  salonFormatter({ day: 'numeric', month: 'long', year: 'numeric' }, tz).format(
     new Date(`${key}T12:00:00.000Z`),
   );
 
@@ -34,12 +48,13 @@ export function RendezVousClient() {
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [view, setView] = useState<View>('journal');
   const [journalDay, setJournalDay] = useState<JournalDay | null>(null);
   const [journalDate, setJournalDate] = useState<string>(dateKey(new Date()));
   const [showCancelled, setShowCancelled] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
   const [focused, setFocused] = useState<Date>(new Date());
   const [selected, setSelected] = useState<string>(dateKey(new Date()));
   const [listTab, setListTab] = useState<ListTab>('today');
@@ -62,16 +77,27 @@ export function RendezVousClient() {
       }
       setProfile(me.profile ?? null);
       setItems(appts.items);
+      // « Aujourd'hui » is the ACTIVE salon's day (multi-pays MP3) — the
+      // pre-profile defaults assumed Abidjan; realign before first paint.
+      const salonTz = me.profile?.provider.timezone ?? undefined;
+      setJournalDate(dateKey(new Date(), salonTz));
+      setSelected(dateKey(new Date(), salonTz));
       setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
+  // The booking hub's request-id dedupe: a held ←/→ fires several day loads
+  // in flight at once, and without this the SLOWEST response wins — the grid
+  // could show Tuesday under a header saying Thursday.
+  const journalReq = useRef(0);
   const loadJournal = useCallback(async () => {
     if (!profile) return;
+    const req = ++journalReq.current;
     const r = await getJournalDay(profile.provider.id, journalDate);
+    if (req !== journalReq.current) return;
     if (r.status === 200 && r.day) setJournalDay(r.day);
   }, [profile, journalDate]);
 
@@ -79,21 +105,57 @@ export function RendezVousClient() {
     if (view === 'journal') loadJournal();
   }, [view, loadJournal]);
 
+  // §9's journal shortcuts (B7): ← / → = jour précédent/suivant, T =
+  // aujourd'hui. Guarded four ways — no modifier chords, never while typing
+  // (input/textarea/select/contenteditable), never while ANY dialog is open
+  // (the manual-booking + quick-create dialogs and the block panel), and
+  // only on the Journée view. T is a single-character shortcut (WCAG 2.1.4);
+  // the typing guard + view scope are the mitigation, recorded in §9.
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
+    if (view !== 'journal') return;
+    const salonTz = profile?.provider.timezone ?? undefined;
+    const onKey = (e: KeyboardEvent) => {
+      // A held key auto-repeats — one deliberate press, one step.
+      if (e.repeat) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          t.isContentEditable)
+      )
+        return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const delta = e.key === 'ArrowLeft' ? -1 : 1;
+        setJournalDate((d) =>
+          // Midday anchor: ±1 day stays inside the salon day at any offset.
+          dateKey(addDays(new Date(`${d}T12:00:00.000Z`), delta), salonTz),
+        );
+      } else if (e.key === 't' || e.key === 'T') {
+        setJournalDate(dateKey(new Date(), salonTz));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, profile]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Rendez-vous" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const serviceName = (id: string) =>
     profile?.provider.services?.find((s) => s.id === id)?.name;
-  const dayList = appointmentsOnDate(items, selected);
-  const list = filterList(items, listTab);
+  // The ACTIVE salon's market (multi-pays MP3).
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
+  const dayList = appointmentsOnDate(items, selected, tz);
+  const list = filterList(items, listTab, new Date(), tz);
 
   // Team access R5b: own-scope roles (Collaborateur) get a read-only,
   // server-filtered planning — no creation, no drag.
@@ -102,7 +164,7 @@ export function RendezVousClient() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-s">
-        <h1 className="text-2xl font-semibold text-textPrimary">
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
           {canManageAll
             ? 'Rendez-vous'
             : `${profile?.provider.name ?? ''} — votre planning`}
@@ -111,40 +173,45 @@ export function RendezVousClient() {
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="rounded-lg bg-primary px-m py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+            className="rounded-lg bg-primary px-m py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
           >
             + Nouveau rendez-vous
           </button>
         ) : null}
       </div>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(['journal', 'calendar', 'list'] as View[]).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`px-m py-s text-sm ${
-              view === v
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {v === 'journal' ? 'Journée' : v === 'calendar' ? 'Calendrier' : 'Liste'}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Vue de l’agenda"
+        className="mt-l"
+        value={view}
+        onChange={setView}
+        items={VIEW_TABS}
+      />
 
       {view === 'journal' ? (
         <div className="mt-m">
           <div className="flex flex-wrap items-center justify-between gap-s">
-            <div className="flex items-center gap-s">
+            {/* B11: `flex-wrap` is the reflow fix. Four controls — ‹, a 16px
+                `type="date"` field whose intrinsic width the UA owns, ›, and
+                « Aujourd'hui » — measured 312px of the 272 available at 320,
+                pushing the whole page sideways. The parent row already wraps;
+                this one did not, so it spilled instead. Wrapping is the same
+                answer B9 gave the tab strips, one level down. */}
+            <div className="flex flex-wrap items-center gap-s">
               <button
                 type="button"
                 aria-label="Jour précédent"
+                title="Raccourci : ←"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
-                  setJournalDate(dateKey(addDays(new Date(`${journalDate}T00:00:00Z`), -1)))
+                  // Midday anchor: ±1 day stays inside the salon day at any
+                  // wave offset.
+                  setJournalDate(
+                    dateKey(
+                      addDays(new Date(`${journalDate}T12:00:00.000Z`), -1),
+                      tz,
+                    ),
+                  )
                 }
               >
                 ‹
@@ -154,27 +221,34 @@ export function RendezVousClient() {
                 value={journalDate}
                 onChange={(e) => setJournalDate(e.target.value)}
                 aria-label="Date"
-                className="rounded-lg border border-border bg-surface px-s py-xs text-sm text-textPrimary"
+                className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
               <button
                 type="button"
                 aria-label="Jour suivant"
+                title="Raccourci : →"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
-                  setJournalDate(dateKey(addDays(new Date(`${journalDate}T00:00:00Z`), 1)))
+                  setJournalDate(
+                    dateKey(
+                      addDays(new Date(`${journalDate}T12:00:00.000Z`), 1),
+                      tz,
+                    ),
+                  )
                 }
               >
                 ›
               </button>
               <button
                 type="button"
-                className="text-sm text-textTertiary underline"
-                onClick={() => setJournalDate(dateKey(new Date()))}
+                title="Raccourci : T"
+                className="text-bodyMedium text-textTertiary underline"
+                onClick={() => setJournalDate(dateKey(new Date(), tz))}
               >
                 Aujourd’hui
               </button>
             </div>
-            <label className="flex items-center gap-xs text-sm text-textSecondary">
+            <label className="flex items-center gap-xs text-bodyMedium text-textSecondary">
               <input
                 type="checkbox"
                 checked={showCancelled}
@@ -196,11 +270,11 @@ export function RendezVousClient() {
                 profile={profile}
                 readOnly={!canManageAll}
                 onChanged={loadJournal}
-                onToast={setToast}
+                onToast={show}
               />
             </div>
           ) : (
-            <p className="mt-l text-textSecondary">Chargement du planning…</p>
+            <SkeletonRows count={6} className="mt-l" />
           )}
         </div>
       ) : view === 'calendar' ? (
@@ -211,14 +285,15 @@ export function RendezVousClient() {
             selected={selected}
             onFocus={setFocused}
             onSelect={setSelected}
+            tz={tz}
           />
           <div>
-            <p className="text-sm text-textTertiary">pour {dayLabel(selected)}</p>
+            <p className="text-bodyMedium text-textTertiary">
+              pour {dayLabel(selected, tz)}
+            </p>
             <div className="mt-s space-y-s">
               {dayList.length === 0 ? (
-                <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-                  Aucun rendez-vous ce jour-là.
-                </p>
+                <EmptyState icon="event" title="Aucun rendez-vous ce jour-là" />
               ) : (
                 dayList.map((a) => (
                   <ProAppointmentRow
@@ -226,6 +301,8 @@ export function RendezVousClient() {
                     appt={a}
                     serviceName={serviceName}
                     href={`/pro/rendez-vous/${a.id}`}
+                    tz={tz}
+                    currency={currency}
                   />
                 ))
               )}
@@ -234,27 +311,15 @@ export function RendezVousClient() {
         </div>
       ) : (
         <div className="mt-m">
-          <div className="flex gap-s border-b border-divider">
-            {LIST_TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setListTab(t.key)}
-                className={`px-m py-s text-sm ${
-                  listTab === t.key
-                    ? 'border-b-2 border-primary text-textPrimary'
-                    : 'text-textTertiary'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            label="Filtrer les rendez-vous"
+            value={listTab}
+            onChange={setListTab}
+            items={LIST_TABS}
+          />
           <div className="mt-m space-y-s">
             {list.length === 0 ? (
-              <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-                Aucun rendez-vous.
-              </p>
+              <EmptyState icon="event" title="Aucun rendez-vous" description="Les réservations de vos clients apparaîtront ici." />
             ) : (
               list.map((a) => (
                 <ProAppointmentRow
@@ -262,6 +327,8 @@ export function RendezVousClient() {
                   appt={a}
                   serviceName={serviceName}
                   href={`/pro/rendez-vous/${a.id}`}
+                  tz={tz}
+                  currency={currency}
                 />
               ))
             )}
@@ -276,19 +343,14 @@ export function RendezVousClient() {
           onClose={() => setCreating(false)}
           onCreated={async () => {
             setCreating(false);
-            setToast('Rendez-vous créé');
+            show('Rendez-vous créé', 'success');
             loadJournal();
             const appts = await listProAppointments();
             if (appts.status === 200) setItems(appts.items);
           }}
-          onToast={setToast}
         />
       ) : null}
-      {toast ? (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-primary px-l py-s text-sm text-secondary shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }

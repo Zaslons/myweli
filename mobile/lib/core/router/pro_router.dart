@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/pro_auth_provider.dart';
+import '../../screens/profile/about_screen.dart';
 import '../../screens/provider/appointments/appointment_list_screen.dart';
 import '../../screens/provider/appointments/pro_appointment_detail_screen.dart';
 import '../../screens/provider/appointments/pro_manual_booking_screen.dart';
@@ -16,6 +17,7 @@ import '../../screens/provider/clients/client_list_screen.dart';
 import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
 import '../../screens/provider/journal/pro_journal_screen.dart';
+import '../../screens/provider/notifications/pro_notifications_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
 import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
 import '../../screens/provider/photos/pro_before_after_screen.dart';
@@ -70,6 +72,14 @@ class ProRouter {
         name: 'pro-dashboard',
         builder: (context, state) => const DashboardScreen(),
       ),
+      // The salon's notification centre — the provider-directed events
+      // (docs/design/push-notifications-fcm.md §10). Opened by the dashboard
+      // bell and by a tapped push.
+      GoRoute(
+        path: '/pro/notifications',
+        name: 'pro-notifications',
+        builder: (context, state) => const ProNotificationsScreen(),
+      ),
       GoRoute(
         path: '/pro/clients',
         name: 'pro-clients',
@@ -112,7 +122,14 @@ class ProRouter {
         name: 'pro-appointment-detail',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return ProAppointmentDetailScreen(appointmentId: id);
+          // `?salon=` — a salon notification (push OR feed row) may belong to
+          // another of the account's salons; the screen switches to it before
+          // loading (R6). See docs/design/push-notifications-fcm.md §10.
+          final salonId = state.uri.queryParameters['salon'];
+          return ProAppointmentDetailScreen(
+            appointmentId: id,
+            salonId: salonId,
+          );
         },
       ),
       GoRoute(
@@ -225,6 +242,13 @@ class ProRouter {
         path: '/pro/data-export',
         name: 'pro-data-export',
         builder: (context, state) => const ProDataExportScreen(),
+      ),
+      // L1 — the SAME screen the consumer app registers at the same path. One
+      // legal surface, two apps, no capability gate: legal is not a permission.
+      GoRoute(
+        path: '/a-propos',
+        name: 'pro-about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/pro/photos',

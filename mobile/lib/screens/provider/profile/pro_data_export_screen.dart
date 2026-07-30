@@ -11,7 +11,9 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/data_export.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
 /// « Mes données » for salons (audit 11.5 — AUTH-005 for pros): assembles the
@@ -100,12 +102,8 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     final json = const JsonEncoder.withIndent('  ').convert(export);
     await Clipboard.setData(ClipboardData(text: json));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Données copiées dans le presse-papiers'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    AppSnackBar.show(context, 'Données copiées dans le presse-papiers',
+        kind: SnackKind.success);
   }
 
   @override
@@ -170,17 +168,12 @@ class _CountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTextStyles.bodyMedium),
-          Text(
-            '$count',
-            style: AppTextStyles.bodyMedium
-                .copyWith(color: AppColors.textSecondary),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+      child: LabelValueRow(
+        label: label,
+        value: '$count',
+        valueStyle:
+            AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
       ),
     );
   }

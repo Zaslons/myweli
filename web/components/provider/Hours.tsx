@@ -10,12 +10,12 @@ export function Hours({
   if (!schedule) return null;
   return (
     <section className="px-m py-l">
-      <h2 className="text-xl font-semibold text-textPrimary">Horaires</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">Horaires</h2>
       <ul className="mt-m">
         {weekdaysFr.map((day, i) => {
           const windows = schedule[String(i)] ?? [];
           return (
-            <li key={day} className="flex justify-between py-xs text-sm">
+            <li key={day} className="flex justify-between py-xs text-bodyMedium">
               <span className="text-textSecondary">{day}</span>
               <span className="text-textPrimary">
                 {windows.length

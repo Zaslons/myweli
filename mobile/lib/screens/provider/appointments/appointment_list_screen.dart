@@ -7,9 +7,11 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -93,7 +95,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       case 1: // Upcoming
         appointmentProvider.loadAppointments(
           authProvider.activeSalonId ?? '',
-          startDate: DateTime.now(),
+          startDate: AppClock.now(),
         );
         return;
       case 2: // Pending
@@ -115,6 +117,17 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Rendez-vous'),
+        // **Deliberately NOT scrollable, unlike the four-tab bar below.**
+        // Measured, not assumed: « Calendrier » + « Liste » is 257.8dp of strip
+        // at 200% text, inside a 360dp bar — it fits at every width and scale
+        // §10 supports, so there is nothing to fix and dividing the width in two
+        // is the better control for a binary view switcher (Material's own
+        // guidance: fixed tabs for two short labels).
+        //
+        // What protects it long-term is the GATE, not this comment: the width
+        // gate walks every RenderParagraph on this screen at all six
+        // width×scale configurations, so a renamed or added tab that starts
+        // clipping goes red on its own.
         bottom: TabBar(
           controller: _mainTabController,
           tabs: const [
@@ -158,8 +171,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.event_busy,
-                                size: 64, color: AppColors.textSecondary),
-                            const SizedBox(height: 16),
+                                size: AppTheme.iconXL,
+                                color: AppColors.textSecondary),
+                            const SizedBox(height: AppTheme.spacingM),
                             Text(
                               'Aucun rendez-vous',
                               style: AppTextStyles.titleLarge.copyWith(
@@ -177,8 +191,20 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                   TabBar(
                     controller: _listTabController,
                     onTap: _loadAppointmentsForListTab,
+                    // §13.3's width twin — the same bar as `earnings_screen`,
+                    // and the same silent fade: « Aujourd’hui » needs 72.2dp and
+                    // gets 58.0 at 360. See that file for the full argument for
+                    // `center` over the M3 default.
+                    //
+                    // **This one lives inside a `TabBarView` page**, so making it
+                    // scrollable is a gesture-arena change as well as a layout
+                    // one: a horizontal drag on the strip now scrolls the strip
+                    // instead of paging back to « Calendrier ». That is what
+                    // scrollable tabs are, and it is the standard trade.
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.center,
                     tabs: const [
-                      Tab(text: 'Aujourd\'hui'),
+                      Tab(text: 'Aujourd’hui'),
                       Tab(text: 'À venir'),
                       Tab(text: 'En attente'),
                       Tab(text: 'Tous'),
@@ -195,8 +221,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(Icons.event_busy,
-                                      size: 64, color: AppColors.textSecondary),
-                                  const SizedBox(height: 16),
+                                      size: AppTheme.iconXL,
+                                      color: AppColors.textSecondary),
+                                  const SizedBox(height: AppTheme.spacingM),
                                   Text(
                                     'Aucun rendez-vous',
                                     style: AppTextStyles.titleLarge.copyWith(
@@ -242,21 +269,6 @@ class _AppointmentCard extends StatelessWidget {
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
 
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -279,7 +291,9 @@ class _AppointmentCard extends StatelessWidget {
               children: [
                 Flexible(
                   child: Text(
-                    appointment.clientName ?? 'Client',
+                    appointment.clientDisplayName ??
+                        appointment.clientName ??
+                        'Client',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -298,7 +312,11 @@ class _AppointmentCard extends StatelessWidget {
                 ],
               ],
             ),
-            Text('${appointment.serviceIds.length} service(s)'),
+            Text(Formatters.count(
+              appointment.serviceIds.length,
+              'service',
+              'services',
+            )),
             Text(Formatters.formatCurrency(
               appointment.totalPrice,
               currency: context.read<ProAuthProvider>().salonCurrency,
@@ -307,7 +325,7 @@ class _AppointmentCard extends StatelessWidget {
         ),
         trailing: Chip(
           label: Text(
-            _getStatusText(appointment.status),
+            StatusLabels.of(appointment.status),
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
           backgroundColor: _getStatusColor(appointment.status),

@@ -75,11 +75,11 @@ class NotificationPreferencesProvider extends ChangeNotifier {
         return true;
       }
       _prefs = previous; // revert
-      _error = res.error ?? 'Impossible d\'enregistrer. Réessayez.';
+      _error = res.error ?? 'Impossible d’enregistrer. Réessayez.';
       return false;
     } catch (e) {
       _prefs = previous; // revert
-      _error = 'Impossible d\'enregistrer. Réessayez.';
+      _error = 'Impossible d’enregistrer. Réessayez.';
       return false;
     } finally {
       _saving = false;

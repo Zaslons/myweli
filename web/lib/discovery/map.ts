@@ -1,3 +1,4 @@
+import type { LocalityCity } from '../api/localities';
 import type { Provider } from '../api/providers';
 import { colors } from '../../styles/tokens';
 
@@ -6,10 +7,21 @@ import { colors } from '../../styles/tokens';
 /// constants + the DESIGN-STANDARDS §7 category-color mapping (the web copy
 /// of `category_colors.dart`; values live in styles/tokens.ts). Unit-tested.
 
-/// The app's Abidjan-ish default center + zoom. NOTE: MapLibre speaks
-/// GeoJSON order — [longitude, latitude].
-export const ABIDJAN_CENTER: [number, number] = [-4.026, 5.336];
+/// The Wave-0 fallback center (Abidjan) — used ONLY when the locality tree
+/// can't supply a city centroid (multi-pays MP3: live centers come from
+/// GET /localities via [centerOf]). NOTE: MapLibre speaks GeoJSON order —
+/// [longitude, latitude].
+export const FALLBACK_CENTER: [number, number] = [-4.026, 5.336];
 export const DEFAULT_ZOOM = 12;
+
+/// A city's map center from the locality tree, falling back to the Wave-0
+/// constant when the tree is degraded or the city has no centroid.
+export function centerOf(
+  city: Pick<LocalityCity, 'lat' | 'lng'> | null | undefined,
+): [number, number] {
+  if (city?.lat != null && city?.lng != null) return [city.lng, city.lat];
+  return FALLBACK_CENTER;
+}
 
 /// §7 canonical mapping — unknown categories fall back to primary.
 export function markerColor(category: string | null | undefined): string {

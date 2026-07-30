@@ -51,6 +51,17 @@ describe('periodRange (salon-day buckets)', () => {
     expect(periodRange('all', now)).toBeNull();
   });
 
+  it('a UTC+1 salon gets ITS day boundaries (multi-pays MP3)', () => {
+    const r = periodRange(
+      'today',
+      new Date('2026-07-13T23:30:00Z'),
+      'Africa/Libreville',
+    )!;
+    // 23:30Z is already the 14th in Libreville — its midnights are 23:00Z.
+    expect(r.startDate).toBe('2026-07-13T23:00:00.000Z');
+    expect(r.endDate).toBe('2026-07-14T23:00:00.000Z');
+  });
+
   it('exposes the four French tabs in the app’s order', () => {
     expect(PERIODS.map((p) => p.label)).toEqual([
       'Aujourd’hui',

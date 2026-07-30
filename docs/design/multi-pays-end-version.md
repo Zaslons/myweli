@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **Status** | **MP1 (backend, PR #235) + MP2 (mobile) BUILT — MP3 (web) remaining** (user decision 2026-07-14: build all four dimensions now, ahead of the wave triggers; nested URLs now; three PRs) |
+| **Status** | ✅ **PROGRAM COMPLETE — MP1 (backend, PR #235) + MP2 (mobile, PR #236) + MP3 (web) BUILT** (user decision 2026-07-14: all four dimensions, ahead of the wave triggers; nested URLs now; three PRs). A new market = the module doc's §8 checklist + seed rows. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-07-14 |
 | **Module / phase** | `multi-pays` (cross-cutting) — supersedes the wave-gated §10 of the module doc |
@@ -131,13 +131,35 @@ labels and the Wave deep link from `deepLinkKind` — the client enum retires.
   money surface (platform billing/admin stay XOF by design); the hint's
   country label is dynamic on all three consumer surfaces; grep pins extended
   (quoted-`Africa/Abidjan` + communes-import).
-- **Web:** `lib/api/localities.ts` (server-side, revalidate 3600); the
-  hardcoded commune list dies; **nested landings** `/coiffure` →
-  `/coiffure/abidjan` → `/coiffure/abidjan/cocody` (categories AND services),
-  flat slugs `permanentRedirect` to nested (Next 308 ≡ 301 for SEO), sitemap
-  emits the tree, 3-level breadcrumbs, `priceCurrency`/`addressCountry` from
-  salon data, home directory + internal links from data, forms get the
-  locality picker, `AcompteClient` operators from the catalog.
+- **Web (BUILT — MP3):** `lib/api/localities.ts` (openapi-fetch, module
+  cache, empty-tree fallback) + `/api/localities` BFF + `lib/use-localities.ts`
+  client hook; the hardcoded commune list is GONE — the taxonomy libs
+  (`landing.ts`/`service-landing.ts`/`discovery.ts` + the new `taxonomy.ts`)
+  stay pure/sync and take geography as parameters. **Nested landings** ship
+  as ONE `TaxonomyLandingView` for the three levels of both taxonomies
+  (root « {label} en {Pays} » with city cards · city with area chips +
+  citywide grid geo-scoped by the salons' own `citySlug` · area = the
+  historical landing), each with canonical/OG, noindex-when-empty, visible
+  fil d'Ariane + Breadcrumb/ItemList/FAQ JSON-LD; the `[slug]` dispatcher
+  resolves taxonomy ROOT → provider → legacy flat slug →
+  `permanentRedirect()` (308 ≡ 301) → 404, and `[slug]/[city](/[area])`
+  pages 404 off-tree (the static `/reserver` wins by precedence — e2e
+  pinned). Sitemap emits the nested tree only; `llms.txt` updated. Per-salon
+  tz/currency threaded through EVERY surface: consumer (appointment carriers
+  `providerTimezone/-Currency/-CountryCode` stamped in the BFF enrich,
+  BookingFlow/account/detail + reschedule pickers), pro (each client reads
+  `provider.timezone/currency` off `getMyProvider`; `lib/pro/*` helpers take
+  `tz`; `salonWallClockToUtc` retires every hand-built `…:00.000Z` instant —
+  journal drops, manual booking, reprogram pre-fills), `priceCurrency`/
+  `addressCountry` from salon data, map centers from city centroids
+  (`centerOf`), the hint takes `tz` + a dynamic country label. Forms:
+  `LocalityPicker` (Ville → commune/quartier, four states, free-text
+  self-heal fallback on profil) writes `areaId` on profil/inscription/
+  ajouter-un-salon (optional — the publish gate enforces, T57); the salons
+  BFF forwards `areaId`; deposit operators come from the salon country's
+  catalog (`operatorsFor`), `OPERATORS` deleted, `lib/mobile-money.ts`
+  mirrors the app (label lookup + Wave deep link from the closed
+  `deepLinkKind` vocabulary — T56, « Payer avec Wave » on the proof sheet).
 
 ## 7. Security & authz (threat-model deltas T56/T57)
 
@@ -184,10 +206,17 @@ ONE deploy.
   tz/currency; picker returns names + writes areaId; catalog-rendered
   operator chips + deep link; hint label; pins extended (no `Africa/Abidjan`
   literal outside the seam; no `abidjanCommunes` import outside the mock).
-- **MP3:** nested builders/parsers; **e2e 308 assertions** (`/coiffure-cocody`
-  → `/coiffure/abidjan/cocody`); the `/[provider]/reserver` precedence guard;
-  reserved-slug unit guard; a Libreville/XAF stub provider rendering
-  wall-clock + FCFA; jsonld priceCurrency XAF case; pins extended.
+- **MP3 (done):** nested builders/parsers + reserved-slug guard (unit);
+  **e2e 308 assertions** (`/coiffure-cocody` → `/coiffure/abidjan/cocody`,
+  hyphenated service roots too); the `/[provider]/reserver` precedence guard
+  + `[city]` under a provider slug → 404; **the Libreville arc**: stub p3
+  « Institut Belle Vue » = GA/Libreville/XAF and appt4 its booking — the
+  account renders 10:00 for the 09:00Z instant (Abidjan row stays 09:00 in
+  the same list), « FCFA » from XAF, the hint « heure du salon (Gabon) »;
+  pro: switching to p3 re-catalogs the deposit operators (Airtel, no Orange);
+  jsonld priceCurrency XAF/addressCountry GA case; `salonWallClockToUtc`
+  DST-probe; pins extended (no `'Africa/Abidjan'` outside `lib/time.ts`, no
+  hand-built `T${…}:00.000Z` instants). 350 unit + 77 e2e green.
 - Test-date hygiene: no fixed calendar dates anywhere.
 
 ## 10. Definition of done (per slice)
@@ -198,9 +227,10 @@ ONE deploy.
 - [x] MP2: analyze 0 · full mobile suite (543) · APK size delta noted
       (tzdata latest_all ≈ 1 MB raw / ~450 KB compressed — the MP1 LINK-zone
       trade) · pins extended.
-- [ ] MP3: typecheck/lint/build/vitest/e2e (nested + 308 + precedence) ·
-      Lighthouse budgets hold.
-- [ ] Each PR: CI green → USER merges before the next slice starts; spec
+- [x] MP3: typecheck/lint/build/vitest (350)/e2e (77 — nested + 308 +
+      precedence + the Libreville arcs) all green · public pages stay
+      SSG/ISR with no new client JS on landings (budgets hold).
+- [x] Each PR: CI green → USER merges before the next slice starts; spec
       section flipped to Built per slice.
 
 ## 11. Open questions

@@ -11,6 +11,7 @@ import {
 } from '../../lib/api/pro';
 import { buildProviderDataExport } from '../../lib/pro/export';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 
 /// « Compte » danger zone on /pro/profil (audit 11.5 — AUTH-004/005 for
 /// pros): the data export (client-side assembly, like the consumer page) and
@@ -93,11 +94,11 @@ export function CompteDangerSection({
 
   return (
     <section className="mt-l rounded-xl border border-border bg-secondary p-m">
-      <h2 className="text-lg font-semibold text-textPrimary">Compte</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">Compte</h2>
 
       {exportEnabled ? (
         <div className="mt-s flex items-center justify-between gap-m">
-          <p className="text-sm text-textSecondary">
+          <p className="text-bodyLarge text-textSecondary">
             Recevoir une copie des données de votre salon (compte, fiche,
             catalogue, rendez-vous, fichier clients, revenus).
           </p>
@@ -108,6 +109,9 @@ export function CompteDangerSection({
             <Button variant="secondary" disabled={exporting} onClick={copy}>
               {copied ? 'Copié ✓' : 'Copier'}
             </Button>
+            <span role="status" className="sr-only">
+              {copied ? 'Données copiées.' : ''}
+            </span>
           </div>
         </div>
       ) : null}
@@ -125,25 +129,26 @@ export function CompteDangerSection({
               setDeleteText('');
               setError(null);
             }}
-            className="text-sm text-error underline"
+            className="text-bodyMedium text-error underline"
           >
             Supprimer mon compte
           </button>
         ) : (
           <div className="rounded-lg bg-surface p-m">
-            <p className="text-sm text-textSecondary">
+            <p className="text-bodyLarge text-textSecondary">
               {exportEnabled
                 ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
                 : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}
             </p>
-            <input
+            <TextField
+              className="mt-s"
+              label="Confirmation de suppression"
+              hideLabel
               value={deleteText}
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder="SUPPRIMER"
-              aria-label="Confirmation de suppression"
-              className="mt-s rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
             />
-            {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
+            {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
             <div className="mt-s flex gap-s">
               <Button
                 variant="secondary"

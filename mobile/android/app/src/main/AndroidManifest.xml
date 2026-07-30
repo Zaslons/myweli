@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required in release for the API client + push (debug adds its own). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+: the runtime notification permission. firebase_messaging's
+         requestPermission() raises the dialog; without this it can't.
+         Design: docs/design/push-notifications-app.md -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
@@ -28,6 +32,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Push (FCM). The channel id MUST match the one the backend stamps
+             on every message (FcmV1PushProvider.androidChannelId) and the one
+             the app creates at boot (kPushChannelId) — otherwise a background
+             notification lands in an unnamed default channel. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="myweli_default" />
+        <!-- The status-bar glyph (Android masks it to a silhouette). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_myweli" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

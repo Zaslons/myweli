@@ -400,6 +400,15 @@ class ClientsService {
   /// « Today » is the SALON's calendar day (multi-pays MP1 — salon_time.dart).
   /// `salonClientId`/`clientNoShowCount` stay (ids and counters, not contact
   /// data); the client card itself sits behind audited `clients.view`.
+  ///
+  /// **A13: `clientDisplayName` masks with the phone.** Before A13 the pro app
+  /// rendered the literal « Client » for every app-originated booking, so there
+  /// was no name here to mask; now there is. A name is contact data of a
+  /// different kind but the same purpose — an own-scope Collaborateur who can
+  /// browse days they do not work would otherwise reconstruct the salon's
+  /// client list one date at a time, which is T39's scraping risk reached
+  /// through T40's door. The booking, its time and the counters still show, so
+  /// the schedule stays legible.
   static List<Map<String, dynamic>> maskContactsOffDay(
     List<Map<String, dynamic>> appointments, {
     DateTime? now,
@@ -412,7 +421,9 @@ class ClientsService {
           final t = DateTime.tryParse(a['appointmentDate'] as String? ?? '');
           final sameDay = t != null && sameSalonDay(t, ref, tzName);
           if (sameDay) return a;
-          return {...a}..remove('clientPhone');
+          return {...a}
+            ..remove('clientPhone')
+            ..remove('clientDisplayName');
         }(),
     ];
   }
@@ -450,12 +461,39 @@ class ClientsService {
     ];
   }
 
+  /// The salon's view of who this booking is for (A13, §21 row 41).
+  ///
+  /// **`clientDisplayName` comes from `salon_clients`, deliberately, and not
+  /// from a `users` join.** `booking_service.dart` writes `clientName: null`
+  /// for every app-originated booking — that field means "the name the SALON
+  /// typed", and `appointment_card.dart` gates its « Réservé par votre salon » badge
+  /// on it — so the pro app fell back to the literal « Client » for every
+  /// booking made through the consumer app. This is a second field, not a
+  /// reinterpretation of the first.
+  ///
+  /// `salon_clients.display_name` is already the real name: `recordBooking`
+  /// writes `user?.name ?? 'Client'` at booking time. And it is **already
+  /// anonymised by erasure** — `UserErasureService` sets it to
+  /// `anonymousClientLabel`, which is the same « Client » literal the app was
+  /// showing anyway.
+  ///
+  /// **Three mechanisms, and the test found the third.** The `users` row is
+  /// hard-deleted; this column is anonymised; and `anonymizeUser` also **nulls
+  /// `salon_clients.user_id`**, so after erasure the booking cannot resolve to
+  /// the client row at all — which is the one that actually fires, as
+  /// `clients_test.dart` asserts by checking the field is ABSENT rather than
+  /// anonymised. A `users` join would have had only the first.
   Future<Map<String, dynamic>> _identityOf(
     String providerId,
     Map<String, dynamic> appointment,
   ) async {
     final client = await _resolveClient(providerId, appointment);
-    return {if (client != null) 'salonClientId': client['id']};
+    if (client == null) return const {};
+    return {
+      'salonClientId': client['id'],
+      if (client['displayName'] is String)
+        'clientDisplayName': client['displayName'],
+    };
   }
 
   Future<Map<String, dynamic>?> _resolveClient(

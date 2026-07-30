@@ -10,7 +10,7 @@ export function OpenInAppButton({ className = '' }: { className?: string }) {
       href={href}
       className={
         'inline-flex items-center justify-center rounded-lg border border-border ' +
-        'bg-secondary px-l py-s text-sm font-medium text-textPrimary ' +
+        'bg-secondary px-l py-s text-labelLarge font-medium text-textPrimary ' +
         `hover:bg-surfaceVariant ${className}`
       }
     >

@@ -9,6 +9,8 @@ import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// Team access R3 §2.3 — the authed « Invitations » screen: cards, accept
 /// (« Vous avez rejoint {salon} », no navigation change — R6 brings the
 /// switcher), decline, empty state.
@@ -27,9 +29,9 @@ void main() {
     team.invitationEmail = 'invitee@myweli.test';
   });
 
-  Widget app() => ChangeNotifierProvider(
-        create: (_) => ProTeamProvider(),
-        child: const MaterialApp(home: ProInvitationsScreen()),
+  Widget app() => wrapApp(
+        providers: [ChangeNotifierProvider(create: (_) => ProTeamProvider())],
+        home: const ProInvitationsScreen(),
       );
 
   Future<void> settle(WidgetTester tester) async {

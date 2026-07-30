@@ -13,9 +13,13 @@ const routerMock = { replace };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
 
 import { AddSalonClient } from '../components/pro/AddSalonClient';
+import { resetLocalitiesClientCache } from '../lib/use-localities';
+import { fixtureTree } from './localities.test';
 
 /// Team access R6c — « Ajouter un salon »: validation, the Réseau gate copy
 /// (+ CTA), and the happy path (create → select → the draft dashboard).
+/// Multi-pays MP3: the locality picker rides the form (optional — the
+/// publish gate enforces).
 
 const ME = {
   account: { id: 'acc1', phoneNumber: '+2250700000000' },
@@ -42,6 +46,9 @@ function mockFetch(opts: { addStatus: number; addBody: unknown }) {
       if (url === '/api/pro/salons/select') {
         return new Response(JSON.stringify(ME), { status: 200 });
       }
+      if (url === '/api/localities') {
+        return new Response(JSON.stringify(fixtureTree), { status: 200 });
+      }
       return new Response('{}', { status: 404 });
     }),
   );
@@ -51,6 +58,7 @@ function mockFetch(opts: { addStatus: number; addBody: unknown }) {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  resetLocalitiesClientCache();
   replace.mockReset();
 });
 
@@ -115,5 +123,36 @@ describe('AddSalonClient', () => {
     });
     const select = calls.find((c) => c.url === '/api/pro/salons/select');
     expect(select?.body).toEqual({ salonId: 'p4' });
+  });
+
+  it('a picked area rides the create as areaId (multi-pays MP3)', async () => {
+    const calls = mockFetch({
+      addStatus: 201,
+      addBody: {
+        salon: {
+          salonId: 'p4',
+          salonName: 'Salon Trois',
+          role: 'owner',
+          salonStatus: 'draft',
+          verified: true,
+        },
+      },
+    });
+    render(<AddSalonClient />);
+    await screen.findByText('Ajouter un salon');
+
+    fireEvent.change(screen.getByPlaceholderText('Ex : Salon Excellence Yopougon'), {
+      target: { value: 'Salon Trois' },
+    });
+    // The picker loads the tree, then the commune select appears.
+    const areaSelect = await screen.findByLabelText('Commune');
+    fireEvent.change(areaSelect, { target: { value: 'marcory' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le salon' }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro'));
+    const add = calls.find(
+      (c) => c.url === '/api/pro/salons' && c.body !== undefined,
+    );
+    expect(add?.body).toMatchObject({ areaId: 'marcory' });
   });
 });

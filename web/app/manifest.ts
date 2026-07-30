@@ -9,8 +9,10 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Réservation beauté & bien-être en Côte d’Ivoire',
     start_url: '/',
     display: 'standalone',
-    background_color: '#000000',
-    theme_color: '#000000',
+    // The splash background is the scaffold `background` — NOT brand black, which
+    // made the installed PWA flash black before revealing a near-white app.
+    background_color: '#F6F7F9',
+    theme_color: '#000000', // status-bar tint = brand black (correct)
     icons: [
       { src: '/android-chrome-192.png', sizes: '192x192', type: 'image/png' },
       { src: '/android-chrome-512.png', sizes: '512x512', type: 'image/png' },

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/breaks.dart';
 import '../../core/utils/salon_time.dart';
 import '../../core/utils/staff_hours.dart';
@@ -113,7 +114,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
       cancellationWindowHours: provider.cancellationWindowHours,
       notes: notes,
       depositScreenshotUrl: depositScreenshotUrl,
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
 
     _appointments.add(appointment);
@@ -274,7 +275,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
         current.status == AppointmentStatus.completed) {
       return ApiResponse.error('Ce rendez-vous ne peut pas être reporté');
     }
-    if (newDateTime.isBefore(DateTime.now())) {
+    if (newDateTime.isBefore(AppClock.now())) {
       return ApiResponse.error('Veuillez choisir une date à venir');
     }
 
@@ -344,7 +345,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
     // For today, skip slots in the past (start 1 hour from now).
     final minStart = dayStartUtc.isAtSameMomentAs(todayStartUtc)
-        ? DateTime.now().toUtc().add(const Duration(hours: 1))
+        ? AppClock.now().toUtc().add(const Duration(hours: 1))
         : null;
 
     final duration = durationMinutes ??

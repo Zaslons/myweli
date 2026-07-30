@@ -65,9 +65,11 @@ import 'messaging/messaging_provider.dart';
 import 'messaging/messaging_service.dart';
 import 'messaging/reminder_log_repository.dart';
 import 'messaging/reminder_scheduler.dart';
+import 'messaging/salon_notifier.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
+import 'privacy/user_erasure_service.dart';
 import 'provider_account_service.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
@@ -383,6 +385,9 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   appointmentRepository,
   storageService,
   membershipRepository,
+  // L1/T59 — a deleted salon owner's phone must stop ringing too.
+  devices: deviceTokenRepository,
+  notifications: notificationsRepository,
 );
 
 /// The pricing pivot (R2a): salon offers + the daily warning/enforcement
@@ -631,6 +636,32 @@ final BookingNotifier bookingNotifier = BookingNotifier(
   pushService,
   notificationsRepository,
   notificationPrefsRepository,
+);
+
+/// Consumer account erasure (L1, threat T59 — docs/design/account-deletion-erasure.md).
+/// Declared here rather than beside `clientsService` because it needs the
+/// notification stack, which is defined further down this file.
+final UserErasureService userErasureService = UserErasureService(
+  authRepository,
+  deviceTokenRepository,
+  notificationsRepository,
+  notificationPrefsRepository,
+  favoritesRepository,
+  reviewsRepository,
+  appointmentRepository,
+  clientsService,
+  storageService,
+);
+
+/// The provider-directed sibling: turns client-driven booking events into
+/// SALON-team notifications (push + in-app feed), scoped by team capabilities.
+/// Design: docs/design/push-notifications-fcm.md §10.
+final SalonNotifier salonNotifier = SalonNotifier(
+  membershipRepository,
+  pushService,
+  notificationsRepository,
+  notificationPrefsRepository,
+  providersRepository,
 );
 
 final ReminderLogRepository reminderLogRepository = _pool == null

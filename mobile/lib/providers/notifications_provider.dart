@@ -5,8 +5,15 @@ import '../models/app_notification.dart';
 import '../services/interfaces/notification_service_interface.dart';
 
 class NotificationsProvider extends ChangeNotifier {
-  final NotificationServiceInterface _service =
-      serviceLocator.notificationService;
+  /// [service] lets the PRO app run the same feed on its own session
+  /// (`serviceLocator.proNotificationService`); the consumer app keeps the
+  /// default. The feed is ACCOUNT-scoped, not salon-scoped: `/me/notifications`
+  /// is keyed by the token's subject, so a multi-salon owner sees one merged
+  /// feed and a salon switch must not reset it.
+  NotificationsProvider({NotificationServiceInterface? service})
+      : _service = service ?? serviceLocator.notificationService;
+
+  final NotificationServiceInterface _service;
 
   List<AppNotification> _items = [];
   bool _isLoading = false;

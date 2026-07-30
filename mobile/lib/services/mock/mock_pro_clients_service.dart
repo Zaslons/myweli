@@ -1,4 +1,5 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/salon_client.dart';
@@ -16,7 +17,7 @@ class MockProClientsService implements ProClientsServiceInterface {
       displayName: 'Aïcha Koné',
       phone: '+2250700000001',
       tags: const ['VIP'],
-      lastVisitAt: DateTime.now().subtract(const Duration(days: 3)),
+      lastVisitAt: AppClock.now().subtract(const Duration(days: 3)),
       linked: true,
       visits: 12,
       noShows: 0,
@@ -26,7 +27,7 @@ class MockProClientsService implements ProClientsServiceInterface {
       displayName: 'Koffi Yao',
       phone: '+2250700000002',
       tags: const [],
-      lastVisitAt: DateTime.now().subtract(const Duration(days: 12)),
+      lastVisitAt: AppClock.now().subtract(const Duration(days: 12)),
       linked: true,
       visits: 3,
       noShows: 2,
@@ -47,7 +48,7 @@ class MockProClientsService implements ProClientsServiceInterface {
         id: 'note1',
         authorName: 'Vous',
         body: 'Préfère Awa. Allergique à l’ammoniaque.',
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        createdAt: AppClock.now().subtract(const Duration(days: 3)),
       ),
     ],
   };
@@ -145,10 +146,10 @@ class MockProClientsService implements ProClientsServiceInterface {
           userId: client.linked ? 'user_$clientId' : 'manual',
           providerId: providerId,
           serviceIds: const ['service_1'],
-          appointmentDate: DateTime.now().subtract(Duration(days: 7 * (i + 1))),
+          appointmentDate: AppClock.now().subtract(Duration(days: 7 * (i + 1))),
           status: AppointmentStatus.completed,
           totalPrice: 15000,
-          createdAt: DateTime.now().subtract(Duration(days: 7 * (i + 1))),
+          createdAt: AppClock.now().subtract(Duration(days: 7 * (i + 1))),
         ),
     ]);
   }
@@ -186,7 +187,7 @@ class MockProClientsService implements ProClientsServiceInterface {
           id: 'note${_seq++}',
           authorName: 'Vous',
           body: note.trim(),
-          createdAt: DateTime.now(),
+          createdAt: AppClock.now(),
         ),
       );
     }
@@ -224,7 +225,7 @@ class MockProClientsService implements ProClientsServiceInterface {
       id: 'note${_seq++}',
       authorName: 'Vous',
       body: trimmed,
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
     (_notes[clientId] ??= []).insert(0, note);
     return ApiResponse.success(note);

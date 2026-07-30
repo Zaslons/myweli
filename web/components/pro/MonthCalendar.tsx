@@ -2,6 +2,7 @@
 
 import {
   addMonths,
+  anchorKey,
   dateKey,
   daysWithBookings,
   monthLabelFr,
@@ -13,24 +14,28 @@ import { Button } from '../Button';
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 /// Month grid (Monday-start) — mirrors the app's calendar view: today + days with
-/// bookings are marked; clicking a day selects it.
+/// bookings are marked; clicking a day selects it. Cell identity is anchor
+/// (UTC-field) math; « today » and the booking dots are SALON-day facts and
+/// take the active salon's tz (multi-pays MP3).
 export function MonthCalendar({
   items,
   focused,
   selected,
   onFocus,
   onSelect,
+  tz,
 }: {
   items: ProAppointment[];
   focused: Date;
   selected: string;
   onFocus: (d: Date) => void;
   onSelect: (key: string) => void;
+  tz?: string | null;
 }) {
   const weeks = monthMatrix(focused);
-  const booked = daysWithBookings(items);
+  const booked = daysWithBookings(items, tz ?? undefined);
   const month = focused.getUTCMonth();
-  const todayK = dateKey(new Date());
+  const todayK = dateKey(new Date(), tz ?? undefined);
 
   return (
     <div>
@@ -38,7 +43,7 @@ export function MonthCalendar({
         <Button variant="secondary" onClick={() => onFocus(addMonths(focused, -1))}>
           ‹
         </Button>
-        <p className="text-sm font-medium capitalize text-textPrimary">
+        <p className="text-labelLarge font-medium capitalize text-textPrimary">
           {monthLabelFr(focused)}
         </p>
         <Button variant="secondary" onClick={() => onFocus(addMonths(focused, 1))}>
@@ -46,14 +51,14 @@ export function MonthCalendar({
         </Button>
       </div>
 
-      <div className="mt-m grid grid-cols-7 gap-xs text-center text-xs text-textTertiary">
+      <div className="mt-m grid grid-cols-7 gap-xs text-center text-bodySmall text-textTertiary">
         {WEEKDAYS.map((d) => (
           <div key={d}>{d}</div>
         ))}
       </div>
       <div className="mt-xs grid grid-cols-7 gap-xs">
         {weeks.flat().map((d) => {
-          const k = dateKey(d);
+          const k = anchorKey(d);
           const inMonth = d.getUTCMonth() === month;
           const isSel = k === selected;
           const isToday = k === todayK;
@@ -63,7 +68,7 @@ export function MonthCalendar({
               key={k}
               type="button"
               onClick={() => onSelect(k)}
-              className={`flex aspect-square flex-col items-center justify-center rounded-lg text-sm ${
+              className={`min-h-12 flex aspect-square flex-col items-center justify-center rounded-lg text-bodyMedium ${
                 isSel
                   ? 'bg-primary text-secondary'
                   : inMonth
@@ -74,7 +79,7 @@ export function MonthCalendar({
               <span>{d.getUTCDate()}</span>
               {hasBooking ? (
                 <span
-                  className={`mt-xs h-xs w-xs rounded-full ${
+                  className={`mt-xs h-xs w-xs rounded-pill ${
                     isSel ? 'bg-secondary' : 'bg-primary'
                   }`}
                 />
