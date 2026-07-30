@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
@@ -108,6 +110,38 @@ void main() {
       },
     );
 
+    test('R2StorageService.presignDelete signs a DELETE query URL', () {
+      final r2 = R2StorageService(
+        endpoint: 'https://acc.r2.cloudflarestorage.com',
+        bucket: 'uploads',
+        accessKeyId: 'AKID',
+        secretAccessKey: 'SECRET',
+        publicBaseUrl: 'https://cdn.myweli.com/',
+        kycBucket: 'kyc-private',
+        clock: () => DateTime.utc(2026, 7, 11, 10),
+      );
+      final url = r2.presignDelete(
+        key: 'kyc/acc1/doc.pdf',
+        bucket: StorageBucket.kyc,
+      );
+      expect(url, startsWith('https://acc.r2.cloudflarestorage.com/'));
+      expect(url, contains('/kyc-private/kyc/acc1/doc.pdf?'));
+      expect(url, contains('X-Amz-Algorithm=AWS4-HMAC-SHA256'));
+      expect(url, matches(RegExp(r'X-Amz-Signature=[0-9a-f]{64}')));
+      // A different METHOD must sign differently (the method is in the
+      // canonical request).
+      final get = r2.presignGet(
+        key: 'kyc/acc1/doc.pdf',
+        bucket: StorageBucket.kyc,
+      );
+      expect(
+        RegExp(r'X-Amz-Signature=([0-9a-f]{64})').firstMatch(url)!.group(1),
+        isNot(
+          RegExp(r'X-Amz-Signature=([0-9a-f]{64})').firstMatch(get)!.group(1),
+        ),
+      );
+    });
+
     test('FakeStorageService.presignGet returns a usable private URL', () {
       expect(
         const FakeStorageService().presignGet(
@@ -121,6 +155,7 @@ void main() {
 
   group('UploadSigningService', () {
     late InMemoryProviderAuthRepository providerAuth;
+    late InMemoryMembershipRepository memberships;
     late UploadSigningService service;
     final tokens = TokenService(secret: 'test-secret');
     late String accountId;
@@ -130,8 +165,16 @@ void main() {
         tokens: tokens,
         isProd: false,
       );
-      service = UploadSigningService(providerAuth, const FakeStorageService());
+      memberships = InMemoryMembershipRepository();
+      service = UploadSigningService(
+        providerAuth,
+        MembershipService(memberships, providerAuth),
+        const FakeStorageService(),
+      );
       final reg = await providerAuth.register(
+        email: 'reg12@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-12',
         phoneNumber: '+2250500000060',
         businessName: 'X',
         businessType: 'salon',
@@ -152,6 +195,49 @@ void main() {
       expect(data['maxBytes'], isA<int>());
       expect((data['fields'] as Map)['key'], startsWith('gallery/provider1/'));
       expect(data['publicUrl'], contains('gallery/provider1/'));
+    });
+
+    test('review purpose: public, scoped to the USER prefix (P2b)', () async {
+      final r = await service.sign(
+        'u42',
+        contentType: 'image/png',
+        purpose: 'review',
+      );
+      expect(r.ok, isTrue);
+      final data = r.data!;
+      expect((data['fields'] as Map)['key'], startsWith('review/u42/'));
+      // Public bucket: tiles render the photos.
+      expect(data['publicUrl'], contains('review/u42/'));
+    });
+
+    test('R6: a selected salon scopes the gallery key; a forged one is '
+        'denied', () async {
+      // The owner also owns provider2.
+      await memberships.ensureOwner(
+        providerId: 'provider2',
+        accountId: accountId,
+        email: 'reg12@test.pro',
+      );
+      final r = await service.sign(
+        accountId,
+        contentType: 'image/jpeg',
+        purpose: 'gallery',
+        salonId: 'provider2',
+      );
+      expect(r.ok, isTrue);
+      expect(
+        (r.data!['fields'] as Map)['key'],
+        startsWith('gallery/provider2/'),
+      );
+
+      final forged = await service.sign(
+        accountId,
+        contentType: 'image/jpeg',
+        purpose: 'gallery',
+        salonId: 'provider9',
+      );
+      expect(forged.ok, isFalse);
+      expect(forged.error, 'forbidden');
     });
 
     test('rejects a disallowed content-type / purpose', () async {
@@ -230,6 +316,9 @@ void main() {
 
     test('kyc works for an unlinked account (gallery does not)', () async {
       final reg = await providerAuth.register(
+        email: 'reg13@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-13',
         phoneNumber: '+2250500000063',
         businessName: 'Unlinked',
         businessType: 'salon',
@@ -251,6 +340,9 @@ void main() {
 
     test('an unlinked account → forbidden', () async {
       final reg = await providerAuth.register(
+        email: 'reg14@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-14',
         phoneNumber: '+2250500000061',
         businessName: 'Y',
         businessType: 'salon',
@@ -277,8 +369,15 @@ void main() {
         tokens: tokens,
         isProd: false,
       );
-      service = UploadSigningService(providerAuth, const FakeStorageService());
+      service = UploadSigningService(
+        providerAuth,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        const FakeStorageService(),
+      );
       final reg = await providerAuth.register(
+        email: 'reg15@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-15',
         phoneNumber: '+2250500000062',
         businessName: 'X',
         businessType: 'salon',
@@ -385,6 +484,36 @@ void main() {
             '/uploads/sign',
             bearer: token,
             body: {'contentType': 'image/jpeg', 'purpose': 'deposit'},
+          ),
+        ),
+      );
+      expect(provider.statusCode, HttpStatus.forbidden);
+    });
+
+    test('review purpose: consumer → 200 public URL; provider → 403', () async {
+      final userToken = tokens
+          .issueAccessToken(subject: 'u1', role: 'user')
+          .token;
+      final ok = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: userToken,
+            body: {'contentType': 'image/jpeg', 'purpose': 'review'},
+          ),
+        ),
+      );
+      expect(ok.statusCode, HttpStatus.ok);
+      final body = jsonDecode(await ok.body()) as Map<String, dynamic>;
+      expect(body['key'], startsWith('review/u1/'));
+      expect(body['publicUrl'], isNotNull);
+
+      final provider = await sign_route.onRequest(
+        ctx(
+          post(
+            '/uploads/sign',
+            bearer: token,
+            body: {'contentType': 'image/jpeg', 'purpose': 'review'},
           ),
         ),
       );

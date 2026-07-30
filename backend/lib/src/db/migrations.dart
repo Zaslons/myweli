@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:postgres/postgres.dart';
 
+import '../localities/localities_repository.dart';
 import '../providers_repository.dart';
 
 /// One migration: an id and its ordered statements (each `execute` runs a
@@ -484,6 +485,328 @@ CREATE TABLE notification_preferences (
       'CREATE UNIQUE INDEX IF NOT EXISTS providers_slug_idx ON providers(slug)',
     ],
   ),
+  (
+    id: '0022_auth_social_email',
+    statements: [
+      // Auth overhaul (docs/design/auth-social-email.md): identity = verified
+      // email (Google/Apple/email-OTP); phone becomes an optional, initially
+      // unverified contact attribute (verified later via SMS/Termii).
+      'ALTER TABLE users ALTER COLUMN phone_number DROP NOT NULL',
+      // Phone is contact data now, not an identity → uniqueness is no longer
+      // an invariant (the dormant phone-OTP path is disabled via AUTH_METHODS).
+      'ALTER TABLE users DROP CONSTRAINT IF EXISTS users_phone_number_key',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified boolean NOT NULL DEFAULT false',
+      // Existing accounts proved their number via SMS-OTP.
+      'UPDATE users SET phone_verified = true WHERE phone_number IS NOT NULL',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub text',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_sub text',
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider text',
+      'CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_key '
+          'ON users (lower(email)) WHERE email IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_key '
+          'ON users (google_sub) WHERE google_sub IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS users_apple_sub_key '
+          'ON users (apple_sub) WHERE apple_sub IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS users_phone_number_idx '
+          'ON users (phone_number) WHERE phone_number IS NOT NULL',
+      '''
+CREATE TABLE IF NOT EXISTS email_otp_codes (
+  email        text PRIMARY KEY,
+  code_hash    text NOT NULL,
+  expires_at   timestamptz NOT NULL,
+  attempts_left int NOT NULL,
+  resends_left  int NOT NULL
+)''',
+    ],
+  ),
+  (
+    id: '0023_provider_auth_social',
+    statements: [
+      // Pro auth overhaul (docs/design/pro-auth-social.md): salon identity =
+      // verified email (Google/Apple/email-OTP); phone stays the REQUIRED
+      // salon contact (uniqueness dropped — no longer an identity).
+      'ALTER TABLE provider_users DROP CONSTRAINT IF EXISTS provider_users_phone_number_key',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS google_sub text',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS apple_sub text',
+      'ALTER TABLE provider_users ADD COLUMN IF NOT EXISTS auth_provider text',
+      'CREATE UNIQUE INDEX IF NOT EXISTS provider_users_email_lower_key '
+          'ON provider_users (lower(email)) WHERE email IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS provider_users_google_sub_key '
+          'ON provider_users (google_sub) WHERE google_sub IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS provider_users_apple_sub_key '
+          'ON provider_users (apple_sub) WHERE apple_sub IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS provider_users_phone_number_idx '
+          'ON provider_users (phone_number)',
+      '''
+CREATE TABLE IF NOT EXISTS provider_email_otp_codes (
+  email        text PRIMARY KEY,
+  code_hash    text NOT NULL,
+  expires_at   timestamptz NOT NULL,
+  attempts_left int NOT NULL,
+  resends_left  int NOT NULL
+)''',
+    ],
+  ),
+  (
+    id: '0024_salon_clients',
+    statements: [
+      // Module `clients` C1 (docs/design/clients-c1.md): the salon client
+      // base, DERIVED from bookings. One row per (salon, platform user) or
+      // (salon, guest phone); tags jsonb (codebase idiom); stats stay
+      // computed — only last_visit_at is denormalized (list sort).
+      '''
+CREATE TABLE IF NOT EXISTS salon_clients (
+  id            text PRIMARY KEY,
+  provider_id   text NOT NULL,
+  user_id       text,
+  display_name  text NOT NULL,
+  phone         text,
+  tags          jsonb NOT NULL DEFAULT '[]',
+  last_visit_at timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE UNIQUE INDEX IF NOT EXISTS salon_clients_user_key '
+          'ON salon_clients (provider_id, user_id) WHERE user_id IS NOT NULL',
+      'CREATE UNIQUE INDEX IF NOT EXISTS salon_clients_phone_key '
+          'ON salon_clients (provider_id, phone) WHERE phone IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS salon_clients_list_idx '
+          'ON salon_clients (provider_id, last_visit_at DESC NULLS LAST)',
+      '''
+CREATE TABLE IF NOT EXISTS salon_client_notes (
+  id                text PRIMARY KEY,
+  client_id         text NOT NULL REFERENCES salon_clients(id)
+                      ON DELETE CASCADE,
+  author_account_id text NOT NULL,
+  body              text NOT NULL,
+  created_at        timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS salon_client_notes_client_idx '
+          'ON salon_client_notes (client_id, created_at DESC)',
+      // Salon-scoped audit trail (T46/T39; `access` A2 reuses it).
+      '''
+CREATE TABLE IF NOT EXISTS provider_audit_log (
+  id               text PRIMARY KEY,
+  provider_id      text NOT NULL,
+  actor_account_id text NOT NULL,
+  action           text NOT NULL,
+  target_id        text,
+  meta             jsonb NOT NULL DEFAULT '{}',
+  created_at       timestamptz NOT NULL DEFAULT now()
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_audit_log_idx '
+          'ON provider_audit_log (provider_id, created_at DESC)',
+      // Stats resolve a client's bookings by user_id / guest phone.
+      'CREATE INDEX IF NOT EXISTS appointments_provider_user_idx '
+          'ON appointments (provider_id, user_id)',
+      'CREATE INDEX IF NOT EXISTS appointments_provider_client_phone_idx '
+          'ON appointments (provider_id, client_phone) '
+          'WHERE client_phone IS NOT NULL',
+      // Backfill 1/2 — platform users who ever booked. A linked client's
+      // phone is stored only when VERIFIED (T33/T49 bar).
+      '''
+INSERT INTO salon_clients
+  (id, provider_id, user_id, display_name, phone, last_visit_at)
+SELECT gen_random_uuid()::text,
+       a.provider_id,
+       a.user_id,
+       COALESCE(u.name, 'Client'),
+       CASE WHEN u.phone_verified THEN u.phone_number END,
+       MAX(a.appointment_date) FILTER (WHERE a.status = 'completed')
+FROM appointments a
+JOIN users u ON u.id = a.user_id
+WHERE a.user_id <> 'manual'
+GROUP BY a.provider_id, a.user_id, u.name, u.phone_number, u.phone_verified
+ON CONFLICT DO NOTHING''',
+      // Backfill 2/2 — walk-in guests (manual bookings keyed by phone). A
+      // guest phone equal to a user's VERIFIED phone at the same salon merges
+      // into that user row (skipped here — the user row already claims it).
+      '''
+INSERT INTO salon_clients
+  (id, provider_id, user_id, display_name, phone, last_visit_at)
+SELECT gen_random_uuid()::text,
+       a.provider_id,
+       NULL,
+       COALESCE(MAX(a.client_name) FILTER (WHERE a.client_name IS NOT NULL),
+                'Client'),
+       a.client_phone,
+       MAX(a.appointment_date) FILTER (WHERE a.status = 'completed')
+FROM appointments a
+WHERE a.user_id = 'manual' AND a.client_phone IS NOT NULL
+GROUP BY a.provider_id, a.client_phone
+ON CONFLICT DO NOTHING''',
+    ],
+  ),
+  (
+    id: '0025_appointment_arrived',
+    statements: [
+      // Journal J1/J2 (docs/design/journal-j1-grid.md): the in-day
+      // « Client arrivé » flag — a timestamp on confirmed bookings.
+      'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS '
+          'arrived_at timestamptz',
+    ],
+  ),
+  (
+    id: '0026_per_artist_capacity',
+    statements: [
+      // Capacity model (docs/design/booking-capacity-web-hub.md): a salon is
+      // no longer one chair. Collisions are enforced PER ARTIST; unassigned
+      // (« Sans préférence ») bookings are pool-counted app-side (§2.2).
+      'ALTER TABLE appointments DROP CONSTRAINT IF EXISTS '
+          'appointments_no_overlap',
+      'DROP INDEX IF EXISTS appointments_slot_unique',
+      'CREATE UNIQUE INDEX IF NOT EXISTS appointments_artist_slot_unique '
+          'ON appointments (provider_id, artist_id, appointment_date) '
+          "WHERE status IN ('pending', 'confirmed') AND artist_id IS NOT NULL",
+      '''
+ALTER TABLE appointments ADD CONSTRAINT appointments_artist_no_overlap
+  EXCLUDE USING gist (
+    provider_id WITH =,
+    artist_id WITH =,
+    tstzrange(appointment_date, ends_at) WITH &&
+  ) WHERE (status IN ('pending', 'confirmed') AND artist_id IS NOT NULL)''',
+    ],
+  ),
+  (
+    id: '0027_provider_members',
+    statements: [
+      // Module `access` (docs/modules/access.md §3): who can act inside
+      // which salon, as which role. One row per (salon, email); account_id
+      // stays NULL while the invitation is pending (R2).
+      '''
+CREATE TABLE IF NOT EXISTS provider_members (
+  id           text PRIMARY KEY,
+  provider_id  text NOT NULL REFERENCES providers(id),
+  account_id   text REFERENCES provider_users(id),
+  email        text NOT NULL,
+  role         text NOT NULL,
+  artist_id    text,
+  status       text NOT NULL,
+  grants       jsonb NOT NULL DEFAULT '[]',
+  denies       jsonb NOT NULL DEFAULT '[]',
+  invited_by   text,
+  invited_at   timestamptz NOT NULL DEFAULT now(),
+  accepted_at  timestamptz,
+  revoked_at   timestamptz,
+  UNIQUE (provider_id, email)
+)''',
+      'CREATE INDEX IF NOT EXISTS provider_members_account '
+          'ON provider_members (account_id, status)',
+      'CREATE INDEX IF NOT EXISTS provider_members_provider '
+          'ON provider_members (provider_id)',
+      // Backfill: every linked account becomes its salon's owner row.
+      '''
+INSERT INTO provider_members
+  (id, provider_id, account_id, email, role, status, invited_at, accepted_at)
+SELECT 'mem_' || id, provider_id, id,
+       lower(coalesce(email, phone_number)), 'owner', 'active', now(), now()
+FROM provider_users WHERE provider_id IS NOT NULL
+ON CONFLICT (provider_id, email) DO NOTHING''',
+    ],
+  ),
+  (
+    id: '0028_salon_subscriptions',
+    statements: [
+      // The pricing pivot (docs/design/team-access-r2a-offers.md): offers
+      // hang on the SALON. A separate table by design — the public provider
+      // payload serializes the whole `data` blob, so billing state must
+      // never live there.
+      '''
+CREATE TABLE IF NOT EXISTS provider_subscriptions (
+  provider_id     text PRIMARY KEY REFERENCES providers(id),
+  tier            text NOT NULL,
+  trial_ends_at   timestamptz NOT NULL,
+  paid_until      timestamptz,
+  unpublished_at  timestamptz,
+  chosen_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+)''',
+      // Warning idempotency (the appointment_reminders pattern): one notice
+      // per (salon, kind) per billing cycle — rows cleared on markPaid.
+      '''
+CREATE TABLE IF NOT EXISTS subscription_notices (
+  provider_id  text NOT NULL REFERENCES providers(id),
+  kind         text NOT NULL,
+  sent_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (provider_id, kind)
+)''',
+      // Grandfather (sign-off 2026-07-11): every ACTIVE salon starts a fresh
+      // 3-month Pro trial (existing salons are pre-launch test data).
+      '''
+INSERT INTO provider_subscriptions (provider_id, tier, trial_ends_at)
+SELECT id, 'pro', now() + interval '90 days'
+FROM providers WHERE status = 'active'
+ON CONFLICT (provider_id) DO NOTHING''',
+    ],
+  ),
+  (
+    id: '0029_member_invitations',
+    statements: [
+      // Module `access` R2b (docs/design/team-access-r2b-invitations.md):
+      // the invitation half of provider_members — a 7-day validity window
+      // and a resend budget (the email-OTP budget model).
+      'ALTER TABLE provider_members ADD COLUMN IF NOT EXISTS '
+          'expires_at timestamptz',
+      'ALTER TABLE provider_members ADD COLUMN IF NOT EXISTS '
+          'resends_left int NOT NULL DEFAULT 3',
+      'CREATE INDEX IF NOT EXISTS provider_members_email '
+          'ON provider_members (email, status)',
+    ],
+  ),
+  (
+    id: '0030_localities_and_salon_market',
+    statements: [
+      // Module `multi-pays` MP1 (docs/design/multi-pays-end-version.md §2):
+      // the locality reference tree + the per-country Mobile-Money operator
+      // catalog. Reference data only — seeded from the Dart seed lists
+      // (seedLocalitiesIfEmpty), changed by reviewed deploys (threat T56).
+      // The salon's market fields (areaId/citySlug/countryCode/timezone/
+      // currency) ride the providers `data` jsonb — no providers columns.
+      '''
+CREATE TABLE IF NOT EXISTS countries (
+  code          text PRIMARY KEY,
+  name          text NOT NULL,
+  currency      text NOT NULL,
+  phone_prefix  text NOT NULL,
+  active        boolean NOT NULL DEFAULT true
+)''',
+      '''
+CREATE TABLE IF NOT EXISTS cities (
+  id            text PRIMARY KEY,
+  country_code  text NOT NULL REFERENCES countries(code),
+  name          text NOT NULL,
+  slug          text NOT NULL,
+  timezone      text NOT NULL,
+  lat           double precision,
+  lng           double precision,
+  active        boolean NOT NULL DEFAULT true,
+  UNIQUE (country_code, slug)
+)''',
+      '''
+CREATE TABLE IF NOT EXISTS areas (
+  id          text PRIMARY KEY,
+  city_id     text NOT NULL REFERENCES cities(id),
+  name        text NOT NULL,
+  slug        text NOT NULL,
+  label_kind  text NOT NULL,
+  lat         double precision,
+  lng         double precision,
+  active      boolean NOT NULL DEFAULT true,
+  UNIQUE (city_id, slug)
+)''',
+      '''
+CREATE TABLE IF NOT EXISTS momo_operators (
+  country_code    text NOT NULL REFERENCES countries(code),
+  id              text NOT NULL,
+  label           text NOT NULL,
+  deep_link_kind  text,
+  active          boolean NOT NULL DEFAULT true,
+  PRIMARY KEY (country_code, id)
+)''',
+    ],
+  ),
 ];
 
 /// Applies any not-yet-applied migrations. Idempotent.
@@ -707,4 +1030,137 @@ String _timeOfDay(String iso) {
   final hh = t.hour.toString().padLeft(2, '0');
   final mm = t.minute.toString().padLeft(2, '0');
   return '$hh:$mm:00';
+}
+
+/// Seeds the locality reference tables from the Dart seed lists when empty
+/// (multi-pays MP1 — docs/design/multi-pays-end-version.md §2). The Dart
+/// lists in `localities_repository.dart` are the single source of truth; a
+/// new market appends rows there and redeploys.
+Future<void> seedLocalitiesIfEmpty(Pool<void> pool) async {
+  final count = await pool.execute('SELECT count(*) AS n FROM countries');
+  if ((count.first.toColumnMap()['n'] as int) > 0) return;
+  await pool.runTx((tx) async {
+    for (final c in seedCountries) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO countries (code, name, currency, phone_prefix, active) '
+          'VALUES (@code, @name, @currency, @prefix, @active)',
+        ),
+        parameters: {
+          'code': c.code,
+          'name': c.name,
+          'currency': c.currency,
+          'prefix': c.phonePrefix,
+          'active': c.active,
+        },
+      );
+    }
+    for (final city in seedCities) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO cities '
+          '(id, country_code, name, slug, timezone, lat, lng, active) '
+          'VALUES (@id, @country, @name, @slug, @tz, @lat, @lng, @active)',
+        ),
+        parameters: {
+          'id': city.id,
+          'country': city.countryCode,
+          'name': city.name,
+          'slug': city.slug,
+          'tz': city.timezone,
+          'lat': city.lat,
+          'lng': city.lng,
+          'active': city.active,
+        },
+      );
+    }
+    for (final a in seedAreas) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO areas '
+          '(id, city_id, name, slug, label_kind, lat, lng, active) '
+          'VALUES (@id, @city, @name, @slug, @kind, @lat, @lng, @active)',
+        ),
+        parameters: {
+          'id': a.id,
+          'city': a.cityId,
+          'name': a.name,
+          'slug': a.slug,
+          'kind': a.labelKind,
+          'lat': a.lat,
+          'lng': a.lng,
+          'active': a.active,
+        },
+      );
+    }
+    for (final o in seedMomoOperators) {
+      await tx.execute(
+        Sql.named(
+          'INSERT INTO momo_operators '
+          '(country_code, id, label, deep_link_kind, active) '
+          'VALUES (@country, @id, @label, @kind, @active)',
+        ),
+        parameters: {
+          'country': o.countryCode,
+          'id': o.id,
+          'label': o.label,
+          'kind': o.deepLinkKind,
+          'active': o.active,
+        },
+      );
+    }
+  });
+}
+
+/// Backfills the salon market fields (areaId/citySlug/countryCode/timezone/
+/// currency) onto every provider document that predates multi-pays MP1 —
+/// commune display names slug-match into areas (accent/case-insensitive);
+/// a miss leaves `areaId` null (it self-heals at the first picker save and
+/// only blocks a NEW publish). Wave-0 defaults (CI · Africa/Abidjan · XOF)
+/// apply regardless, since every pre-MP1 salon is Ivorian. Idempotent: docs
+/// that already carry `timezone` are skipped. Like `backfillCatalogueIfNeeded`
+/// this is a Dart read-modify-write — the `data` value round-trips as a JSON
+/// document, so SQL-side jsonb operators are not used.
+Future<void> backfillSalonMarketIfNeeded(Pool<void> pool) async {
+  final providers = await pool.execute('SELECT id, data FROM providers');
+  if (providers.isEmpty) return;
+
+  await pool.runTx((tx) async {
+    for (final row in providers) {
+      final m = row.toColumnMap();
+      final raw = m['data'];
+      final doc = raw is String
+          ? jsonDecode(raw) as Map<String, dynamic>
+          : Map<String, dynamic>.from(raw as Map);
+      if (doc['timezone'] != null) continue; // already market-stamped
+      await tx.execute(
+        Sql.named('UPDATE providers SET data = @data:jsonb WHERE id = @id'),
+        parameters: {
+          'id': m['id'],
+          'data': jsonEncode(applySalonMarketDefaults(doc)),
+        },
+      );
+    }
+  });
+}
+
+/// Stamps the Wave-0 market defaults + the commune→area match onto a provider
+/// [doc] (shared by the Postgres backfill and the in-memory seed/self-heal).
+/// Market facts derive from the SEED lists (the locality tree), never from
+/// literals, so a matched area in any future city resolves correctly.
+Map<String, dynamic> applySalonMarketDefaults(Map<String, dynamic> doc) {
+  final commune = doc['commune'] as String?;
+  final match = commune == null ? null : seedAreaForCommuneName(commune);
+  if (match != null) {
+    doc.addAll(marketChangesForArea(match));
+    return doc;
+  }
+  // Wave-0 defaults when unmatched — every pre-MP1 salon is Ivorian; the
+  // areaId self-heals at the first picker save (and gates NEW publishes).
+  doc['areaId'] = null;
+  doc['citySlug'] = null;
+  doc['countryCode'] = 'CI';
+  doc['timezone'] = 'Africa/Abidjan';
+  doc['currency'] = 'XOF';
+  return doc;
 }

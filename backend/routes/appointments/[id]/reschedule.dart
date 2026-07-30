@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/access/capabilities.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/auth/principal.dart';
-import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
 import 'package:myweli_backend/src/responses.dart';
@@ -36,17 +37,29 @@ Future<Response> onRequest(RequestContext context, String id) async {
   final lifecycle = context.read<AppointmentLifecycleService>();
   final LifecycleResult result;
   if (principal.role == 'provider') {
-    final account = await context.read<ProviderAuthRepository>().accountById(
+    // Module `access` R1: the acting salon comes from the membership layer;
+    // the lifecycle service re-checks it against the appointment.
+    final members = context.read<MembershipService>();
+    // R6: `?salonId=` selects among the caller's ACTIVE memberships (T55);
+    // the lifecycle service still cross-checks the appointment's salon.
+    final managedProviderId = await members.salonForRequest(
       principal.userId,
+      salonId: context.request.uri.queryParameters['salonId'],
     );
-    final managedProviderId = account?.providerId;
-    if (managedProviderId == null) {
+    if (managedProviderId == null ||
+        !await members.can(
+          principal.userId,
+          managedProviderId,
+          Cap.journalManageAll,
+        )) {
       return jsonError(HttpStatus.forbidden, 'forbidden');
     }
     result = await lifecycle.rescheduleByProvider(
       id,
       managedProviderId,
       newDateTime,
+      // Drag across the journal grid's columns (J1); validated in the service.
+      artistId: (body['artistId'] as String?)?.trim(),
     );
   } else {
     result = await lifecycle.reschedule(id, principal.userId, newDateTime);
@@ -65,6 +78,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
       return jsonError(HttpStatus.notFound, 'not_found');
     case 'forbidden':
       return jsonError(HttpStatus.forbidden, 'forbidden');
+    case 'invalid_artist':
+      return jsonError(HttpStatus.badRequest, 'invalid_artist');
     default:
       return jsonError(HttpStatus.conflict, result.error!);
   }

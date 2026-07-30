@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:postgres/postgres.dart';
 
 import '../providers_repository.dart';
+import '../slug.dart' show isReservedSlug;
 import 'migrations.dart' show insertProviderAvailability;
 
 /// Postgres-backed [ProvidersRepository].
@@ -29,8 +30,9 @@ class PostgresProvidersRepository implements ProvidersRepository {
     String? commune,
     String? category,
   }) async {
-    // Discovery hides suspended providers and surfaces featured ones first.
-    final conditions = <String>["status <> 'suspended'"];
+    // Discovery hides suspended providers AND unpublished drafts (T51),
+    // and surfaces featured ones first.
+    final conditions = <String>["status NOT IN ('suspended', 'draft')"];
     final parameters = <String, Object?>{};
     if (category != null && category.isNotEmpty) {
       conditions.add('category = @category');
@@ -585,6 +587,49 @@ class PostgresProvidersRepository implements ProvidersRepository {
   }
 
   Object? _json(Object? v) => v is String ? jsonDecode(v) : v;
+
+  @override
+  Future<Map<String, dynamic>> createSalon({
+    required String name,
+    required String category,
+    required String phoneNumber,
+    String? address,
+  }) async {
+    final id = 'provider_${DateTime.now().microsecondsSinceEpoch}';
+    var slug = slugifySalonName(name);
+    var n = 2;
+    // Reserved slugs (multi-pays MP1): taxonomy roots / city slugs / web
+    // routes are never claimable — « Coiffure » becomes coiffure-2.
+    while (isReservedSlug(slug) || await bySlug(slug) != null) {
+      slug = '${slugifySalonName(name)}-${n++}';
+    }
+    final salon = draftSalonDocument(
+      id: id,
+      slug: slug,
+      name: name,
+      category: category,
+      phoneNumber: phoneNumber,
+      address: address,
+    );
+    await _pool.execute(
+      Sql.named(
+        'INSERT INTO providers '
+        '(id, slug, category, commune, rating, name, description, address, '
+        'status, data) '
+        "VALUES (@id, @slug, @category, NULL, 0, @name, '', @address, "
+        "'draft', @data:jsonb)",
+      ),
+      parameters: {
+        'id': id,
+        'slug': slug,
+        'category': category,
+        'name': name,
+        'address': address ?? '',
+        'data': jsonEncode(salon),
+      },
+    );
+    return salon;
+  }
 
   @override
   Future<Map<String, dynamic>?> setStatus(

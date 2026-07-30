@@ -1,6 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
+import { SkeletonRows } from '../Skeleton';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -8,22 +12,29 @@ import {
   type ProProfile,
   getDashboard,
   getMyProvider,
+  getSalonSubscription,
   listProAppointments,
 } from '../../lib/api/pro';
 import { formatFcfa } from '../../lib/format';
+import { hasCap } from '../../lib/pro/team';
 import {
   type ProAppointment,
   todayCounts,
   todaysAppointments,
 } from '../../lib/pro/today';
+import { GoLiveCard } from './GoLiveCard';
 import { ProAppointmentRow } from './ProAppointmentRow';
+import { ProInvitationsCard } from './ProInvitationsCard';
 
 export function AujourdhuiClient() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProProfile | null>(null);
+  const [live, setLive] = useState(false);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [offerLive, setOfferLive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -44,75 +55,207 @@ export function AujourdhuiClient() {
       setProfile(me.profile ?? null);
       setItems(appts.items);
       setLoading(false);
-      // Revenue stats are best-effort — don't block the bookings list.
+      // Secondary fetches are capability-gated (team access R5b): the server
+      // would 403/field-gate them anyway — skipping is the honest UI.
       if (me.profile) {
-        const dash = await getDashboard(me.profile.provider.id);
-        if (active && dash.status === 200) setStats(dash.stats ?? null);
+        const m = me.profile.membership;
+        if (hasCap(m, 'journal.view.all')) {
+          // Revenue stats are best-effort — don't block the bookings list.
+          const dash = await getDashboard(me.profile.provider.id);
+          if (active && dash.status === 200) setStats(dash.stats ?? null);
+        }
+        // A draft salon needs a live offer to publish (team access R5a) —
+        // owner-only concern (salon.publish).
+        if (
+          me.profile.provider.status === 'draft' &&
+          hasCap(m, 'salon.publish')
+        ) {
+          const sub = await getSalonSubscription(me.profile.provider.id);
+          if (active && sub.status === 200 && sub.offer) {
+            setOfferLive(
+              sub.offer.status === 'trial' || sub.offer.status === 'paid',
+            );
+          }
+        }
       }
     })();
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Aujourd’hui" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
-  const today = todaysAppointments(items);
-  const counts = todayCounts(items);
+  // The ACTIVE salon's market (multi-pays MP3) — day boundary + money label.
+  const tz = profile?.provider.timezone ?? undefined;
+  const currency = profile?.provider.currency ?? undefined;
+  const today = todaysAppointments(items, new Date(), tz);
+  const counts = todayCounts(items, new Date(), tz);
   const serviceName = (id: string) =>
     profile?.provider.services?.find((s) => s.id === id)?.name;
 
+  // Team access R5b: the role shape. A Collaborateur gets « votre planning »
+  // (own rows, server-filtered) — no stats, no owner cards.
+  const m = profile?.membership;
+  const staffView = !hasCap(m, 'journal.view.all');
+  const salonName = profile?.provider.name ?? '';
+
+  if (staffView) {
+    return (
+      <div>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
+          {salonName} — votre planning
+        </h1>
+
+        {/* Pending invitations for THIS account (if any). */}
+        <ProInvitationsCard />
+
+        <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
+          Rendez-vous du jour
+        </h2>
+        <div className="mt-m space-y-s">
+          {today.length === 0 ? (
+            <EmptyState icon="event" title="Aucun rendez-vous aujourd’hui" description="Vos rendez-vous du jour apparaîtront ici." />
+          ) : (
+            today.map((a) => (
+              <ProAppointmentRow
+                key={a.id}
+                appt={a}
+                serviceName={serviceName}
+                href={`/pro/rendez-vous/${a.id}`}
+                tz={tz}
+                currency={currency}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Aujourd’hui</h1>
-      <p className="mt-xs text-sm text-textTertiary">{profile?.provider.name}</p>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Aujourd’hui</h1>
+      <p className="mt-xs text-bodyMedium text-textTertiary">{profile?.provider.name}</p>
 
-      <Link
-        href="/pro/profil"
-        className="mt-m flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-sm text-textPrimary hover:bg-surfaceVariant"
-      >
-        <span>Configurer mon profil</span>
-        <span className="text-textTertiary">›</span>
-      </Link>
+      {/* §9's two-pane desktop (B7): ONE DOM tree. Below xl the two children
+          stack in the vertical flow (interrupts + stats, then the day's
+          list); at xl the agenda takes the main pane and this rail moves
+          right — grid placement, no duplicated content. */}
+      <div className="xl:grid xl:grid-cols-desk xl:items-start xl:gap-xl">
+        <div className="xl:col-start-2 xl:row-start-1">
+          {/* Team access R5a: pending invitations for THIS account (if any). */}
+          <ProInvitationsCard />
 
-      <div className="mt-l grid grid-cols-3 gap-m">
-        <Stat label="À confirmer" value={counts.pending} />
-        <Stat label="Confirmés" value={counts.confirmed} />
-        <Stat label="Total du jour" value={counts.total} />
-      </div>
-
-      <div className="mt-m grid grid-cols-2 gap-m">
-        <Stat
-          label="Revenus aujourd’hui"
-          value={stats ? formatFcfa(stats.todayRevenue ?? 0) : '—'}
-        />
-        <Stat
-          label="Revenus ce mois"
-          value={stats ? formatFcfa(stats.monthRevenue ?? 0) : '—'}
-        />
-      </div>
-
-      <h2 className="mt-l text-lg font-semibold text-textPrimary">
-        Rendez-vous du jour
-      </h2>
-      <div className="mt-m space-y-s">
-        {today.length === 0 ? (
-          <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-            Aucun rendez-vous aujourd’hui.
-          </p>
-        ) : (
-          today.map((a) => (
-            <ProAppointmentRow
-              key={a.id}
-              appt={a}
-              serviceName={serviceName}
-              href={`/pro/rendez-vous/${a.id}`}
+          {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2) —
+              publishing is the owner's act (salon.publish). */}
+          {profile?.provider.status === 'draft' && hasCap(m, 'salon.publish') ? (
+            <GoLiveCard
+              profile={profile}
+              offerLive={offerLive}
+              onPublished={() => {
+                setProfile({
+                  ...profile,
+                  provider: { ...profile.provider, status: 'active' },
+                });
+                setLive(true);
+              }}
             />
-          ))
-        )}
+          ) : null}
+          <p
+            role="status"
+            className={
+              live
+                ? 'mt-m rounded-xl border border-success/40 bg-success/10 p-m text-bodyMedium text-success'
+                : 'sr-only'
+            }
+          >
+            {live
+              ? '🎉 Votre salon est en ligne ! Il apparaît maintenant dans les recherches.'
+              : ''}
+          </p>
+
+          {/* Parity with the app's « Demandes » (web-b7-desktop.md): pending
+              across ALL dates from DashboardStats — a salon with Monday
+              requests must not read « 0 » on Friday. Today-only fallback
+              while the best-effort stats call is out (or failed). */}
+          {/* B11: `grid-cols-3` gave each tile ~46px of the 320 viewport (and 64
+              of 375) for French labels like « Demandes en attente » — measured
+              spilling at BOTH widths, on a route this gate had never opened.
+              Stacked below `sm`; three across once there is room. */}
+          <div className="mt-l grid grid-cols-1 gap-m sm:grid-cols-3 xl:grid-cols-1">
+            <Stat
+              label="Demandes en attente"
+              value={stats?.pendingRequests ?? counts.pending}
+            />
+            <Stat label="Confirmés" value={counts.confirmed} />
+            <Stat label="Total du jour" value={counts.total} />
+          </div>
+
+          {/* The money row needs finances.view — the server drops the revenue
+              fields for other roles, so rendering it would show a lying 0 F. */}
+          {hasCap(m, 'finances.view') ? (
+            <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-3 xl:grid-cols-1">
+              <Stat
+                label="Revenus aujourd’hui"
+                value={stats ? formatFcfa(stats.todayRevenue ?? 0, currency) : '—'}
+              />
+              <Stat
+                label="Revenus cette semaine"
+                value={stats ? formatFcfa(stats.weekRevenue ?? 0, currency) : '—'}
+              />
+              <Stat
+                label="Revenus ce mois"
+                value={stats ? formatFcfa(stats.monthRevenue ?? 0, currency) : '—'}
+              />
+            </div>
+          ) : null}
+
+          {hasCap(m, 'profile.manage') ? (
+            <Link
+              href="/pro/profil"
+              className="mt-l flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
+            >
+              <span>Configurer mon profil</span>
+              <span className="text-textTertiary">›</span>
+            </Link>
+          ) : null}
+
+          {profile?.provider.status === 'active' && profile.provider.slug ? (
+            <Link
+              href={`/${profile.provider.slug}`}
+              className="mt-s flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-bodyLarge text-textPrimary hover:bg-surfaceVariant"
+            >
+              <span>Voir ma page publique</span>
+              <span className="text-textTertiary">›</span>
+            </Link>
+          ) : null}
+        </div>
+
+        <div className="xl:col-start-1 xl:row-start-1">
+          <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
+            Rendez-vous du jour
+          </h2>
+          <div className="mt-m space-y-s">
+            {today.length === 0 ? (
+              <EmptyState icon="event" title="Aucun rendez-vous aujourd’hui" description="Vos rendez-vous du jour apparaîtront ici." />
+            ) : (
+              today.map((a) => (
+                <ProAppointmentRow
+                  key={a.id}
+                  appt={a}
+                  serviceName={serviceName}
+                  href={`/pro/rendez-vous/${a.id}`}
+                  tz={tz}
+                  currency={currency}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -126,9 +269,9 @@ function Stat({
   value: number | string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-secondary p-m text-center">
-      <p className="text-xl font-semibold text-textPrimary">{value}</p>
-      <p className="text-xs text-textTertiary">{label}</p>
-    </div>
+    <Card className="text-center">
+      <p className="text-titleLarge font-semibold text-textPrimary">{value}</p>
+      <p className="text-bodySmall text-textTertiary">{label}</p>
+    </Card>
   );
 }

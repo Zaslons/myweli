@@ -25,6 +25,9 @@ void main() {
     );
     service = KycService(providerAuth);
     final reg = await providerAuth.register(
+      email: 'reg7@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-7',
       phoneNumber: '+2250500000070',
       businessName: 'X',
       businessType: 'salon',

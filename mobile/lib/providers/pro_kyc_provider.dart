@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
+import '../core/utils/app_clock.dart';
 import '../models/kyc_document.dart';
 import '../models/provider_user.dart';
 import '../services/interfaces/pro_kyc_service_interface.dart';
@@ -91,7 +92,7 @@ class ProKycProvider extends ChangeNotifier {
           type: type,
           fileName: source.split('/').last,
           key: res.data!,
-          submittedAt: DateTime.now(),
+          submittedAt: AppClock.now(),
         );
         return true;
       }
@@ -127,7 +128,7 @@ class ProKycProvider extends ChangeNotifier {
         _error = null;
         return true;
       }
-      _error = res.error ?? "Erreur lors de l'envoi";
+      _error = res.error ?? 'Erreur lors de l’envoi';
       return false;
     } catch (e) {
       _error = e.toString();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -8,6 +9,7 @@ import '../../core/theme/text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/provider/provider_card.dart';
@@ -29,12 +31,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       // Check if user is authenticated
       if (!authProvider.isAuthenticated || authProvider.user == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Veuillez vous connecter pour voir vos favoris'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          AppSnackBar.show(
+              context, 'Veuillez vous connecter pour voir vos favoris');
           context.go('/login?returnTo=${Uri.encodeComponent('/favorites')}');
         });
         return;
@@ -68,15 +66,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.favorite_border,
-                      size: 64, color: AppColors.textTertiary),
-                  const SizedBox(height: 16),
+                      size: AppTheme.iconXL, color: AppColors.textTertiary),
+                  const SizedBox(height: AppTheme.spacingM),
                   Text(
                     'Connectez-vous pour voir vos favoris',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   ElevatedButton(
                     onPressed: () {
                       context.go(
@@ -111,7 +109,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           }
 
           // List of favorites
-          return RefreshIndicator(
+          return BrandRefresh(
             onRefresh: () async {
               final userId = authProvider.user!.id;
               await Future.wait([

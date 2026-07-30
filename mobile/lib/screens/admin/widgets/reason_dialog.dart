@@ -1,43 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/common/confirm_dialog.dart';
+
 /// A standard confirm dialog with a reason field. Returns the entered reason on
 /// confirm, or null on cancel. When [reasonRequired], the confirm button is
 /// disabled until non-empty. Design: docs/design/admin-console-ui.md §2.
+///
+/// A6: this is now a thin caller of [ConfirmDialog] — one dialog implementation
+/// product-wide (SYSTEM.md §15), so the admin inherits the cancel-takes-focus
+/// rule and a disposed controller for free. The 9 call sites keep this exact
+/// signature; it gained [isDestructive] so « Bannir », « Suspendre » and
+/// « Rejeter » render the `error` confirm §15 requires instead of a neutral one.
 Future<String?> showReasonDialog(
   BuildContext context, {
   required String title,
   required String confirmLabel,
   String hint = '',
   bool reasonRequired = true,
-}) {
-  final controller = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        maxLines: 3,
-        decoration: InputDecoration(hintText: hint),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Annuler'),
-        ),
-        ValueListenableBuilder<TextEditingValue>(
-          valueListenable: controller,
-          builder: (_, value, __) {
-            final text = value.text.trim();
-            final enabled = !reasonRequired || text.isNotEmpty;
-            return TextButton(
-              onPressed: enabled ? () => Navigator.pop(ctx, text) : null,
-              child: Text(confirmLabel),
-            );
-          },
-        ),
-      ],
-    ),
-  );
-}
+  bool isDestructive = false,
+}) =>
+    showInputDialog(
+      context,
+      title: title,
+      confirmLabel: confirmLabel,
+      isDestructive: isDestructive,
+      field: ConfirmField(hint: hint, isRequired: reasonRequired),
+    );

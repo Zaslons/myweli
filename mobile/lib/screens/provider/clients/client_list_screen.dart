@@ -1,0 +1,471 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../../../core/forms/field_errors.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/colors.dart';
+import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/utils/validators.dart';
+import '../../../models/salon_client.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_clients_provider.dart';
+import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/brand_loader.dart';
+import '../../../widgets/common/brand_refresh.dart';
+import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/phone_number_field.dart';
+
+/// The salon client base — « Clients » (module `clients` C1c,
+/// docs/design/clients-c1.md §5). Derived from bookings: search, tag chips,
+/// infinite scroll, manual add with phone dedupe (409 → opens the existing
+/// card). Every read is audited server-side.
+class ClientListScreen extends StatefulWidget {
+  const ClientListScreen({super.key});
+
+  @override
+  State<ClientListScreen> createState() => _ClientListScreenState();
+}
+
+class _ClientListScreenState extends State<ClientListScreen> {
+  final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+  Timer? _debounce;
+
+  String get _providerId {
+    final auth = context.read<ProAuthProvider>();
+    return auth.activeSalonId ?? '';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProClientsProvider>().load(_providerId);
+    });
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >
+          _scrollController.position.maxScrollExtent - 200) {
+        context.read<ProClientsProvider>().loadMore(_providerId);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    // A search debounce. It collides numerically with `motionEmphasis` and
+    // has nothing to do with it; tokenising it would tie network chattiness to
+    // a curve. Named so the escape sits on a line the formatter cannot move.
+    const debounce = Duration(milliseconds: 300); // ds-ignore
+    _debounce = Timer(debounce, () {
+      if (mounted) {
+        context.read<ProClientsProvider>().search(_providerId, value);
+      }
+    });
+  }
+
+  Future<void> _openAddSheet() async {
+    final clients = context.read<ProClientsProvider>();
+    final id = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AddClientSheet(
+        onSubmit: (name, phone, note) => clients.addClient(_providerId,
+            name: name, phone: phone, note: note),
+      ),
+    );
+    // A7: the duplicate notice used to be raised HERE — on the list, after the
+    // sheet holding the phone field had already popped, and one frame before
+    // navigating away again. The sheet keeps it now, under the field it is
+    // about; whatever id comes back is a card the user chose to open.
+    if (id == null || !mounted) return;
+    unawaited(context.push('/pro/clients/$id'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clients = context.watch<ProClientsProvider>();
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Clients')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAddSheet,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Ajouter un client'),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.spacingM,
+              AppTheme.spacingM,
+              AppTheme.spacingM,
+              0,
+            ),
+            child: AppTextField(
+              controller: _searchController,
+              hint: 'Nom ou téléphone…',
+              prefixIcon: const Icon(Icons.search),
+              onChanged: _onSearchChanged,
+            ),
+          ),
+          // A horizontal ListView demands a BOUNDED height, and that bound was
+          // the constant 44 — so the tag chips clipped the moment the OS text
+          // scale grew (§13.3): the strip measured 44 at 1x and still 44 at 2x.
+          // The tag list is short and already built eagerly, so there is nothing
+          // to virtualise: a scroll view over a Row lets the strip take its
+          // INTRINSIC height and grow with the text.
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM,
+              vertical: AppTheme.spacingS,
+            ),
+            child: Row(
+              children: [
+                for (final t in clients.availableTags)
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppTheme.spacingS),
+                    child: FilterChip(
+                      label: Text(t),
+                      selected: clients.tag == t,
+                      onSelected: (_) => context
+                          .read<ProClientsProvider>()
+                          .filterByTag(_providerId, t),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(child: _body(clients)),
+        ],
+      ),
+    );
+  }
+
+  Widget _body(ProClientsProvider clients) {
+    if (clients.isLoading) {
+      return const LoadingIndicator();
+    }
+    if (clients.error != null) {
+      return EmptyState(
+        icon: Icons.wifi_off,
+        title: 'Une erreur est survenue',
+        description: clients.error,
+        actionText: 'Réessayer',
+        onAction: () => clients.load(_providerId),
+      );
+    }
+    if (clients.isBaseEmpty) {
+      return EmptyState(
+        icon: Icons.people_outline,
+        title: 'Vos clients apparaîtront ici',
+        description:
+            'Automatiquement, après leur première réservation. Vous pouvez '
+            'aussi les ajouter vous-même.',
+        actionText: '+ Ajouter un client',
+        onAction: _openAddSheet,
+      );
+    }
+    if (clients.clients.isEmpty) {
+      return EmptyState(
+        icon: Icons.search_off,
+        title: 'Aucun client trouvé',
+        description: 'Essayez un autre nom ou numéro.',
+      );
+    }
+    return BrandRefresh(
+      onRefresh: () => clients.load(_providerId),
+      child: ListView.separated(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.spacingM,
+          0,
+          AppTheme.spacingM,
+          96, // clear the FAB
+        ),
+        itemCount: clients.clients.length + (clients.hasMore ? 1 : 0),
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, i) {
+          if (i >= clients.clients.length) {
+            return const Padding(
+              padding: EdgeInsets.all(AppTheme.spacingM),
+              // `fast` is the inline cut — a list-footer pager is exactly the
+              // case it documents, and it is what keeps A8's reduced-motion
+              // caption out of a 24px row.
+              child: BrandLoader(size: AppTheme.iconM, fast: true),
+            );
+          }
+          return _ClientRow(client: clients.clients[i]);
+        },
+      ),
+    );
+  }
+}
+
+class _ClientRow extends StatelessWidget {
+  const _ClientRow({required this.client});
+
+  final SalonClient client;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitleParts = <String>[
+      if (client.phone != null) maskClientPhone(client.phone),
+      if (client.visits > 0)
+        '${client.visits} visite${client.visits > 1 ? 's' : ''}',
+      if (client.lastVisitAt != null)
+        'dernière ${Formatters.formatRelative(client.lastVisitAt!)}',
+    ];
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: () => context.push('/pro/clients/${client.id}'),
+      leading: CircleAvatar(
+        backgroundColor: AppColors.surfaceVariant,
+        child: Text(
+          client.displayName.isEmpty
+              ? '?'
+              : client.displayName[0].toUpperCase(),
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              client.displayName,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (client.linked) ...[
+            const SizedBox(width: AppTheme.spacingXS),
+            _MiniBadge(label: 'MyWeli', color: AppColors.textTertiary),
+          ],
+          if (client.noShows >= 1) ...[
+            const SizedBox(width: AppTheme.spacingXS),
+            _MiniBadge(
+              label: client.noShows == 1
+                  ? '1 absence'
+                  : '${client.noShows} absences',
+              color: client.noShows >= 2
+                  ? AppColors.error
+                  : AppColors.textSecondary,
+            ),
+          ],
+        ],
+      ),
+      subtitle: Text(
+        subtitleParts.join(' · '),
+        style: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.textSecondary,
+        ),
+      ),
+      trailing: client.tags.isEmpty
+          ? null
+          : Wrap(
+              spacing: AppTheme.spacingXS,
+              children: [
+                for (final t in client.tags.take(2))
+                  _MiniBadge(label: t, color: AppColors.textSecondary),
+              ],
+            ),
+    );
+  }
+}
+
+class _MiniBadge extends StatelessWidget {
+  const _MiniBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+      decoration: BoxDecoration(
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(color: color),
+      ),
+    );
+  }
+}
+
+class _AddClientSheet extends StatefulWidget {
+  const _AddClientSheet({required this.onSubmit});
+
+  final Future<String?> Function(String name, String phone, String? note)
+      onSubmit;
+
+  @override
+  State<_AddClientSheet> createState() => _AddClientSheetState();
+}
+
+class _AddClientSheetState extends State<_AddClientSheet> {
+  final _nameController = TextEditingController();
+  final _noteController = TextEditingController();
+  String _phone = '';
+  bool _busy = false;
+
+  // A7/§14 — the sheet owns its faults now instead of shouting them at the
+  // screen behind it.
+  late final _errors = FieldErrors({
+    'name': Validators.requiredField('le nom du client'),
+    'phone': Validators.phoneNumber,
+  });
+  final _nameFocus = FocusNode();
+
+  /// Set when the phone belongs to a client that already exists. The sheet
+  /// STAYS OPEN and offers the existing card, instead of popping and firing a
+  /// bar over two other screens.
+  String? _duplicateId;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _noteController.dispose();
+    _nameFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    // §14 rule 5: the button is no longer disabled on empty fields, so the
+    // press has to answer. The phone rule is new too — this field sits outside
+    // any Form — though not for the reason A7 gave: its "the package's check
+    // could never run here" was measured false. See phone_number_field.dart.
+    final ok = _errors.validate({
+      'name': _nameController.text,
+      'phone': _phone,
+    });
+    setState(() => _duplicateId = null);
+    if (!ok) {
+      focusFirstError(_errors, {'name': _nameFocus});
+      return;
+    }
+
+    setState(() => _busy = true);
+    final clients = context.read<ProClientsProvider>();
+    final id = await widget.onSubmit(
+      _nameController.text.trim(),
+      _phone,
+      _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (id == null) return; // a real failure — `error` renders below
+
+    if (clients.lastAddWasDuplicate) {
+      // The duplicate used to pop the sheet, raise « Ce numéro existe déjà. »
+      // on the LIST screen, and navigate to the client card in the same frame
+      // — a message about the phone field, delivered over two surfaces after
+      // the field was gone. It belongs to the field, so it stays with it; the
+      // existing card is still one tap away, but as a choice rather than a
+      // hijack.
+      setState(() {
+        _duplicateId = id;
+        _errors.set('phone', 'Ce numéro existe déjà.');
+      });
+      return;
+    }
+    Navigator.of(context).pop(id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = context.watch<ProClientsProvider>().error;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppTheme.spacingL,
+        right: AppTheme.spacingL,
+        top: AppTheme.spacingL,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingL,
+      ),
+      // §13.3 — the same defect the invite sheet had: two field errors plus the
+      // duplicate CTA overflow this sheet at raised text scale.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Ajouter un client',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _nameController,
+              label: 'Nom',
+              focusNode: _nameFocus,
+              errorText: _errors['name'],
+              onChanged: (v) => setState(() => _errors.revalidate('name', v)),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            PhoneNumberField(
+              errorText: _errors['phone'],
+              // It also never called setState, so the submit gate read a stale
+              // phone: typing a number alone did not re-enable the button until
+              // some unrelated rebuild happened.
+              onChanged: (e164) => setState(() {
+                _phone = e164;
+                _duplicateId = null;
+                _errors.revalidate('phone', e164);
+              }),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _noteController,
+              label: 'Note (optionnelle)',
+              hint: 'Ex : Préfère Awa',
+              maxLength: 500,
+            ),
+            // The form-level outcome (a real save failure) — A6's in-modal slot,
+            // and a live region, which the red Text it replaces was not.
+            InlineFeedback(error),
+            if (_duplicateId != null) ...[
+              const SizedBox(height: AppTheme.spacingS),
+              AppButton(
+                text: 'Voir la fiche existante',
+                type: AppButtonType.secondary,
+                isFullWidth: true,
+                onPressed: () => Navigator.of(context).pop(_duplicateId),
+              ),
+            ],
+            const SizedBox(height: AppTheme.spacingM),
+            AppButton(
+              text: 'Ajouter',
+              isLoading: _busy,
+              onPressed: _busy ? null : _submit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

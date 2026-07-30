@@ -1,5 +1,3 @@
-import '../../models/payment.dart';
-
 /// Builds a Wave deep link that pre-fills the recipient + amount, so the client
 /// only has to confirm with their PIN.
 ///
@@ -13,7 +11,7 @@ Uri? waveDeepLink({required String number, required double amount}) {
       'https://pay.wave.com/?recipient=$digits&amount=${amount.round()}');
 }
 
-/// Whether the chosen operator supports a pre-filled deep link in V1 (only Wave
-/// today; the others are copy-number + open-app-manually).
-bool operatorHasDeepLink(MobileMoneyOperator? operator) =>
-    operator == MobileMoneyOperator.wave;
+/// Whether an operator supports a pre-filled deep link — driven by the
+/// catalog's CLOSED `deepLinkKind` vocabulary (multi-pays MP2, threat T56:
+/// never a URL from a payload), only Wave today.
+bool deepLinkKindIsWave(String? deepLinkKind) => deepLinkKind == 'wave';

@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Manages a provider's salon gallery photos: load, upload (via the image
 /// pipeline) and remove, persisting through [ProServiceInterface].
-class ProGalleryProvider extends ChangeNotifier {
+class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
   final ImageUploadServiceInterface _uploadService =
       serviceLocator.imageUploadService;
@@ -81,6 +82,59 @@ class ProGalleryProvider extends ChangeNotifier {
     }
   }
 
+  /// Reorder (audit 3.6 — the first photo is the listing cover): swap the
+  /// photo with its neighbour and persist through the same gallery PUT.
+  Future<bool> movePhoto(String providerId, int index, int delta) async {
+    final target = index + delta;
+    if (index < 0 ||
+        index >= _photos.length ||
+        target < 0 ||
+        target >= _photos.length) {
+      return false;
+    }
+    final next = [..._photos];
+    final tmp = next[index];
+    next[index] = next[target];
+    next[target] = tmp;
+    final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (saved.success && saved.data != null) {
+      _photos = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Échec du déplacement';
+    notifyListeners();
+    return false;
+  }
+
+  /// A6/§15: put ONE photo back where it was — the Undo behind the delete
+  /// confirmation.
+  ///
+  /// It re-inserts into the CURRENT list rather than PUTting the pre-delete
+  /// snapshot. The review caught that: the service takes the whole list, so
+  /// restoring a snapshot silently reverts anything done during the 10s undo
+  /// window — a reorder, or worse, a photo uploaded in the meantime, destroyed
+  /// with no warning. Undo must undo one action, not rewind the gallery.
+  Future<bool> restorePhotoAt(
+    String providerId,
+    int index,
+    String url,
+  ) async {
+    final next = [..._photos];
+    next.insert(index.clamp(0, next.length), url);
+    final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (saved.success && saved.data != null) {
+      _photos = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Restauration impossible';
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> removePhoto(String providerId, int index) async {
     if (index < 0 || index >= _photos.length) return false;
     final next = [..._photos]..removeAt(index);
@@ -94,5 +148,17 @@ class ProGalleryProvider extends ChangeNotifier {
     _error = saved.error ?? 'Échec de la suppression';
     notifyListeners();
     return false;
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _isLoading = false;
+    _loadFailed = false;
+    _isUploading = false;
+    _uploadProgress = 0;
+    _error = null;
+    _photos = const [];
+    notifyListeners();
   }
 }

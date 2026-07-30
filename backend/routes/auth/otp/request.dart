@@ -1,14 +1,21 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
 /// `POST /auth/otp/request` — dispatch a one-time code for a phone number.
+/// Dormant at launch: `AUTH_METHODS` without `phone` disables this route
+/// (SMS to CI is ~$0.49/message until Termii unlocks — see
+/// docs/design/auth-social-email.md).
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
+  if (!context.read<AuthMethods>().contains('phone')) {
+    return jsonError(HttpStatus.notFound, 'auth_method_disabled');
+  }
 
   final Map<String, dynamic> body;
   try {

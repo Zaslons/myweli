@@ -2,12 +2,14 @@ import '../../models/provider_user.dart';
 
 enum OnboardingStepKey {
   profile,
+  location,
   services,
   staff,
   availability,
   deposit,
   verification,
   photos,
+  offer,
 }
 
 enum OnboardingStepStatus { done, todo, inProgress, optional }
@@ -28,6 +30,7 @@ const int kMinPhotos = 3;
 /// Pure and deterministic so it can be unit-tested.
 List<OnboardingStep> buildOnboardingChecklist({
   required bool profileComplete,
+  required bool locationSet,
   required int serviceCount,
   required int staffCount,
   required bool availabilitySet,
@@ -36,6 +39,7 @@ List<OnboardingStep> buildOnboardingChecklist({
   required VerificationStatus verificationStatus,
   required bool hasSubmittedKyc,
   required BusinessType businessType,
+  required bool offerLive,
 }) {
   OnboardingStepStatus doneIf(bool ok) =>
       ok ? OnboardingStepStatus.done : OnboardingStepStatus.todo;
@@ -57,31 +61,35 @@ List<OnboardingStep> buildOnboardingChecklist({
           : OnboardingStepStatus.optional)
       : doneIf(staffCount >= 1);
 
-  // Photo upload UI is deferred to the image pipeline: done if the listing
-  // already has enough, otherwise optional (can't upload on-device yet).
-  final photosStatus = photoCount >= kMinPhotos
-      ? OnboardingStepStatus.done
-      : OnboardingStepStatus.optional;
-
   return [
     OnboardingStep(OnboardingStepKey.profile, doneIf(profileComplete)),
+    OnboardingStep(OnboardingStepKey.location, doneIf(locationSet)),
     OnboardingStep(
         OnboardingStepKey.services, doneIf(serviceCount >= kMinServices)),
     OnboardingStep(OnboardingStepKey.staff, staffStatus),
     OnboardingStep(OnboardingStepKey.availability, doneIf(availabilitySet)),
     OnboardingStep(OnboardingStepKey.deposit, doneIf(depositConfigured)),
     OnboardingStep(OnboardingStepKey.verification, verificationStep()),
-    OnboardingStep(OnboardingStepKey.photos, photosStatus),
+    // The upload pipeline shipped — photos gate go-live like the server does.
+    OnboardingStep(OnboardingStepKey.photos, doneIf(photoCount >= kMinPhotos)),
+    // Pricing pivot (team access R2a/R3): publishing requires a live offer
+    // (trial/paid/grace) — the server gate's `offer` key mirrored.
+    OnboardingStep(OnboardingStepKey.offer, doneIf(offerLive)),
   ];
 }
 
-/// The self-serve essentials that gate go-live. Verification (admin-gated) and
-/// photos (pending the image pipeline) are shown but don't block.
+/// The steps that gate « Mettre mon profil en ligne » — the MIRROR of the
+/// server's publish gate (docs/design/pro-salon-lifecycle.md + the R2a
+/// pricing pivot): profile + location + ≥3 services + hours + ≥3 photos +
+/// a live offer. Deposit and verification are shown and recommended but
+/// never block (matching the server).
 const Set<OnboardingStepKey> _goLiveKeys = {
   OnboardingStepKey.profile,
+  OnboardingStepKey.location,
   OnboardingStepKey.services,
   OnboardingStepKey.availability,
-  OnboardingStepKey.deposit,
+  OnboardingStepKey.photos,
+  OnboardingStepKey.offer,
 };
 
 bool canGoLive(List<OnboardingStep> steps) =>

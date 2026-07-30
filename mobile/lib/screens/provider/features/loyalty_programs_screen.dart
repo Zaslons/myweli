@@ -25,7 +25,7 @@ class LoyaltyProgramsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Comptabilisation automatique des remises et du cashback. Émission simple d\'abonnements et de certificats. Une raison de plus pour les clients d\'acheter des services et produits supplémentaires.',
+              'Comptabilisation automatique des remises et du cashback. Émission simple d’abonnements et de certificats. Une raison de plus pour les clients d’acheter des services et produits supplémentaires.',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),

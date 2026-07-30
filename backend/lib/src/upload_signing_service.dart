@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'access/capabilities.dart';
+import 'access/membership_service.dart';
 import 'auth/provider_auth_repository.dart';
 import 'storage/storage_service.dart';
 
@@ -17,9 +19,10 @@ typedef SignResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// - `kyc` → **private** bucket, prefix `kyc/{accountId}`, returns the `key`
 ///   only (no public URL — ID documents are never public); accepts PDF too.
 class UploadSigningService {
-  UploadSigningService(this._providerAuth, this._storage);
+  UploadSigningService(this._providerAuth, this._members, this._storage);
 
   final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final StorageService _storage;
 
   /// content-type → file extension, per purpose.
@@ -41,11 +44,15 @@ class UploadSigningService {
     String accountId, {
     required Object? contentType,
     required Object? purpose,
+    String? salonId,
   }) async {
     final isKyc = purpose == 'kyc';
     final isDeposit = purpose == 'deposit';
     final isGallery = purpose == 'gallery';
-    if (!isGallery && !isKyc && !isDeposit) {
+    // Consumer review photos (P2b, audit 2.13): public like gallery, but
+    // scoped to the USER token — review/{userId}.
+    final isReview = purpose == 'review';
+    if (!isGallery && !isKyc && !isDeposit && !isReview) {
       return (ok: false, error: 'invalid_input', data: null);
     }
     // KYC accepts PDF; gallery + deposit (screenshots) are images only.
@@ -62,6 +69,10 @@ class UploadSigningService {
     if (isDeposit) {
       prefixId = accountId;
       bucket = StorageBucket.deposit;
+    } else if (isReview) {
+      // Public (review tiles render them), under the caller's own prefix.
+      prefixId = accountId;
+      bucket = StorageBucket.public;
     } else if (isKyc) {
       if (await _providerAuth.accountById(accountId) == null) {
         return (ok: false, error: 'forbidden', data: null);
@@ -69,10 +80,15 @@ class UploadSigningService {
       prefixId = accountId;
       bucket = StorageBucket.kyc;
     } else {
-      final providerId = (await _providerAuth.accountById(
+      // Module `access` R1: gallery uploads need catalogue.manage inside
+      // the caller's acting salon; R6: `?salonId=` selects among ACTIVE
+      // memberships (T55).
+      final providerId = await _members.salonForRequest(
         accountId,
-      ))?.providerId;
-      if (providerId == null) {
+        salonId: salonId,
+      );
+      if (providerId == null ||
+          !await _members.can(accountId, providerId, Cap.catalogueManage)) {
         return (ok: false, error: 'forbidden', data: null);
       }
       prefixId = providerId;

@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/mobile_money.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
-import 'package:myweli/models/payment.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
@@ -19,8 +18,10 @@ void main() {
 
     test('null for an empty number; only Wave has a deep link', () {
       expect(waveDeepLink(number: '', amount: 6000), isNull);
-      expect(operatorHasDeepLink(MobileMoneyOperator.wave), isTrue);
-      expect(operatorHasDeepLink(MobileMoneyOperator.orangeMoney), isFalse);
+      // The deep link is driven by the catalog's CLOSED deepLinkKind
+      // vocabulary (multi-pays MP2) — only 'wave' today.
+      expect(deepLinkKindIsWave('wave'), isTrue);
+      expect(deepLinkKindIsWave(null), isFalse);
     });
   });
 
@@ -41,11 +42,11 @@ void main() {
         phoneNumber: '+22500',
         category: 'salon',
         depositRequired: true,
-        depositMobileMoneyOperator: MobileMoneyOperator.wave,
+        depositMobileMoneyOperator: 'wave',
         depositMobileMoneyNumber: '+2250707123456',
       );
       final back = models.Provider.fromJson(p.toJson());
-      expect(back.depositMobileMoneyOperator, MobileMoneyOperator.wave);
+      expect(back.depositMobileMoneyOperator, 'wave');
       expect(back.depositMobileMoneyNumber, '+2250707123456');
 
       final json = p.toJson()
@@ -102,12 +103,12 @@ void main() {
       depositRequired: true,
       depositPercentage: 0.3,
       cancellationWindowHours: 24,
-      mobileMoneyOperator: MobileMoneyOperator.orangeMoney,
+      mobileMoneyOperator: 'orangeMoney',
       mobileMoneyNumber: '+2250500000000',
     );
     final policy = (await service.getDepositPolicy('provider1')).data!;
     expect(policy.depositRequired, isTrue);
-    expect(policy.mobileMoneyOperator, MobileMoneyOperator.orangeMoney);
+    expect(policy.mobileMoneyOperator, 'orangeMoney');
     expect(policy.mobileMoneyNumber, '+2250500000000');
   });
 }

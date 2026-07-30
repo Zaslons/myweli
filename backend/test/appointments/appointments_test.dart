@@ -3,14 +3,25 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/clients_repository.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/clients/provider_audit_log.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
+import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
+import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/push/push_provider.dart';
+import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/appointments/[id]/index.dart' as detail;
@@ -40,6 +51,11 @@ void main() {
   late BookingService booking;
   late InMemoryProviderAuthRepository providerAuth;
   late _MockAuth auth;
+  // Provider-directed pushes (design §10): the salon team's feed + devices.
+  late InMemoryMembershipRepository members;
+  late InMemoryNotificationsRepository salonFeed;
+  late InMemoryDeviceTokenRepository salonDevices;
+  late SalonNotifier salonNotifier;
   final tokens = TokenService(secret: 'test-secret');
   final accessA = tokens
       .issueAccessToken(subject: 'user_A', role: 'user')
@@ -60,12 +76,25 @@ void main() {
     // By default a token subject has no consumer account on file → no phone →
     // auto-sync match is off (own bookings only).
     when(() => auth.userById(any())).thenAnswer((_) async => null);
+    members = InMemoryMembershipRepository();
+    salonFeed = InMemoryNotificationsRepository();
+    salonDevices = InMemoryDeviceTokenRepository();
+    salonNotifier = SalonNotifier(
+      members,
+      PushService(LogPushProvider(), salonDevices),
+      salonFeed,
+      InMemoryNotificationPrefsRepository(),
+      providers,
+    );
   });
 
   /// Registers a provider account (optionally linked to [providerId]) and
   /// returns a provider-role access token for it.
   Future<String> providerToken(String phone, {String? providerId}) async {
     final reg = await providerAuth.register(
+      email: '\$phone@test.pro',
+      authProvider: 'google',
+      googleSub: 'sub-\$phone',
       phoneNumber: phone,
       businessName: 'Salon',
       businessType: 'salon',
@@ -105,8 +134,15 @@ void main() {
     test(
       'a saved deposit policy drives the next booking (server authority)',
       () async {
-        final catalog = ProviderCatalogService(providers, providerAuth);
+        final catalog = ProviderCatalogService(
+          providers,
+          providerAuth,
+          MembershipService(InMemoryMembershipRepository(), providerAuth),
+        );
         final reg = await providerAuth.register(
+          email: '\$phone@test.pro',
+          authProvider: 'google',
+          googleSub: 'sub-\$phone',
           phoneNumber: '+2250500000099',
           businessName: 'Salon',
           businessType: 'salon',
@@ -122,6 +158,12 @@ void main() {
         );
         expect(before.appointment!['depositAmount'], 0);
         final total = before.appointment!['totalPrice'] as num;
+
+        // T52: enabling deposits requires a verified account.
+        await providerAuth.setVerification(
+          reg.provider!.id,
+          status: 'verified',
+        );
 
         // The salon turns on a 40% deposit (with a Mobile Money destination).
         final upd = await catalog
@@ -294,7 +336,24 @@ void main() {
       when(
         () => context.read<ProviderAuthRepository>(),
       ).thenReturn(providerAuth);
+      when(() => context.read<MembershipService>()).thenReturn(
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+      );
       when(() => context.read<AuthRepository>()).thenReturn(auth);
+      when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
+      // Multi-pays MP1: the market enrichment + off-day masking read the
+      // salon's timezone/currency from the providers repo.
+      when(() => context.read<ProvidersRepository>()).thenReturn(providers);
+      when(() => context.read<ClientsService>()).thenReturn(
+        ClientsService(
+          providerAuth,
+          MembershipService(InMemoryMembershipRepository(), providerAuth),
+          auth,
+          InMemoryClientsRepository(),
+          appts,
+          InMemoryProviderAuditLogRepository(),
+        ),
+      );
       return context;
     }
 
@@ -338,6 +397,41 @@ void main() {
       expect(body['userId'], 'user_A');
       expect(body['status'], 'pending');
     });
+
+    test(
+      'POST notifies the SALON team (design §10): the owner gets a feed '
+      'row + a device push; the client’s own push is BookingNotifier’s job',
+      () async {
+        // An owner of provider1 with a registered device.
+        await members.ensureOwner(
+          providerId: 'provider1',
+          accountId: 'acc-owner',
+          email: 'owner@salon.test',
+        );
+        await salonDevices.upsert(
+          token: 'tok-owner',
+          userId: 'acc-owner',
+          role: 'provider',
+          platform: 'android',
+        );
+
+        final res = await list.onRequest(
+          ctx(bookReq(accessA, bookBody(_slotAt(9)))),
+        );
+        expect(res.statusCode, HttpStatus.created);
+        final id = (await jsonOf(res))['id'];
+
+        // The hook is fire-and-forget (unawaited) — let the microtasks land.
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        final rows = await salonFeed.listForUser('acc-owner');
+        expect(rows, hasLength(1));
+        expect(rows.single['title'], 'Nouvelle réservation');
+        expect(rows.single['route'], '/pro/appointment/$id?salon=provider1');
+        // The device survived (LogPushProvider reports nothing invalid).
+        expect(await salonDevices.tokensForUser('acc-owner'), ['tok-owner']);
+      },
+    );
 
     test('POST an unavailable slot → 409', () async {
       final res = await list.onRequest(
@@ -385,11 +479,13 @@ void main() {
           'appointmentDate': _slotAt(11).toIso8601String(),
           'totalPrice': 1000,
         });
-        // user_C's account verified that same phone → it should appear.
+        // user_C's account VERIFIED that same phone → it should appear.
+        // (An unverified contact phone must not match — threat model T34.)
         when(() => auth.userById('user_C')).thenAnswer(
           (_) async => AuthUser(
             id: 'user_C',
             phoneNumber: phone,
+            phoneVerified: true,
             createdAt: DateTime.utc(2026),
           ),
         );
@@ -420,6 +516,82 @@ void main() {
         expect((await jsonOf(other))['total'], 0);
       },
     );
+
+    test('GET as a STAFF member lists own-artist bookings only, phones masked '
+        'off-day (T40/T39 — access R4a)', () async {
+      // A shared membership store so the route sees the staff row.
+      final memberships = InMemoryMembershipRepository();
+      final members = MembershipService(memberships, providerAuth);
+      RequestContext staffCtx(Request request) {
+        final context = _MockRequestContext();
+        when(() => context.request).thenReturn(request);
+        when(() => context.read<TokenService>()).thenReturn(tokens);
+        when(() => context.read<AppointmentRepository>()).thenReturn(appts);
+        when(
+          () => context.read<ProviderAuthRepository>(),
+        ).thenReturn(providerAuth);
+        when(() => context.read<MembershipService>()).thenReturn(members);
+        when(() => context.read<AuthRepository>()).thenReturn(auth);
+        when(() => context.read<ProvidersRepository>()).thenReturn(providers);
+        when(() => context.read<ClientsService>()).thenReturn(
+          ClientsService(
+            providerAuth,
+            members,
+            auth,
+            InMemoryClientsRepository(),
+            appts,
+            InMemoryProviderAuditLogRepository(),
+          ),
+        );
+        return context;
+      }
+
+      final sent = await providerAuth.requestEmailOtp('staff@list.pro');
+      final created = await providerAuth.createMemberAccount(
+        email: 'staff@list.pro',
+        authProvider: 'email',
+        emailCode: sent.devCode,
+      );
+      final row = await memberships.invite(
+        providerId: 'provider1',
+        email: 'staff@list.pro',
+        role: 'staff',
+        artistId: 'artist1',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(row.id, created.provider!.id);
+
+      final today = DateTime.now().toUtc();
+      Future<void> seedRow(String id, String? artistId, DateTime when) =>
+          appts.create({
+            'id': id,
+            'userId': 'manual',
+            'providerId': 'provider1',
+            'serviceIds': ['service1'],
+            'artistId': artistId,
+            'clientName': 'Koffi',
+            'clientPhone': '+2250700000042',
+            'status': 'confirmed',
+            'appointmentDate': when.toIso8601String(),
+            'totalPrice': 1000,
+          });
+      await seedRow('own-today', 'artist1', today);
+      await seedRow('own-later', 'artist1', today.add(const Duration(days: 3)));
+      await seedRow('foreign', 'artist2', today);
+
+      final token = tokens
+          .issueAccessToken(subject: created.provider!.id, role: 'provider')
+          .token;
+      final res = await list.onRequest(staffCtx(getReq(token)));
+      final body = await jsonOf(res);
+
+      final items = (body['items'] as List).cast<Map<String, dynamic>>();
+      expect(items.map((a) => a['id']).toSet(), {'own-today', 'own-later'});
+      final byId = {for (final a in items) a['id']: a};
+      // Same-day contact rule: today's phone stays, the future one masks.
+      expect(byId['own-today']!['clientPhone'], '+2250700000042');
+      expect(byId['own-later']!.containsKey('clientPhone'), isFalse);
+    });
 
     test(
       'GET as a provider lists its salon’s appointments (not by user)',
@@ -474,6 +646,37 @@ void main() {
 
       expect(res.statusCode, HttpStatus.forbidden);
       expect((await jsonOf(res))['error'], 'forbidden');
+    });
+
+    test('R6: GET as a provider with a forged ?salonId= → 403 '
+        'forbidden (T55)', () async {
+      final token = await providerToken(
+        '+2250500000004',
+        providerId: 'provider1',
+      );
+      final res = await list.onRequest(
+        ctx(getReq(token, query: '?salonId=provider9')),
+      );
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect((await jsonOf(res))['error'], 'forbidden');
+    });
+
+    test('R6: GET with the OWN salon selected explicitly behaves like the '
+        'default', () async {
+      await list.onRequest(ctx(bookReq(accessA, bookBody(_slotAt(9)))));
+      final token = await providerToken(
+        '+2250500000005',
+        providerId: 'provider1',
+      );
+      final res = await list.onRequest(
+        ctx(getReq(token, query: '?salonId=provider1')),
+      );
+      final body = await jsonOf(res);
+      expect(res.statusCode, HttpStatus.ok);
+      expect(
+        (body['items'] as List).every((a) => a['providerId'] == 'provider1'),
+        isTrue,
+      );
     });
 
     test('GET /{id} enforces ownership (403) + 404 for unknown', () async {

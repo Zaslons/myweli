@@ -13,4 +13,8 @@ abstract class ReviewServiceInterface {
     int page,
     int pageSize,
   });
+
+  /// Flag a review for moderation (FR-REV-005). Consumer-only; idempotent
+  /// per (review, reporter); [reason] is optional (≤500 chars server-side).
+  Future<ApiResponse<void>> reportReview(String reviewId, {String? reason});
 }

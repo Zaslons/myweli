@@ -1,14 +1,22 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
 /// `POST /auth/provider/otp/verify` — verify a code; returns the provider
+/// NOTE (module `access` R2b): the invitation bridge does NOT apply here —
+/// invitations are EMAIL-keyed and a phone OTP proves no email. Dormant
+/// route (AUTH_METHODS gates phone off at launch).
 /// account + a signed access token (role `provider`).
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
+  // Dormant at launch (auth overhaul): SMS-OTP is gated by AUTH_METHODS.
+  if (!context.read<AuthMethods>().contains('phone')) {
+    return jsonError(HttpStatus.notFound, 'auth_method_disabled');
+  }
 
   final Map<String, dynamic> body;
   try {

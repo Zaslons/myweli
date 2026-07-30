@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -13,6 +15,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/appointment_card.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/empty_state.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -36,13 +39,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       // Check if user is authenticated, if not redirect to login
       if (!authProvider.isAuthenticated) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('Veuillez vous connecter pour voir vos rendez-vous'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          AppSnackBar.show(
+              context, 'Veuillez vous connecter pour voir vos rendez-vous');
           context.go('/login?returnTo=${Uri.encodeComponent('/bookings')}');
         });
         return;
@@ -75,6 +73,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         title: const Text('Mes rendez-vous'),
         bottom: TabBar(
           controller: _tabController,
+          // §13.3's width twin — see otp_code_row.dart and
+          // earnings_screen.dart for the full argument. Three tabs fit at
+          // 1× and « Passés » (91.9dp) and « Annulés » (102.0dp) do not fit
+          // their 88.0/93.0dp shares at 200% text, where they fade away in
+          // silence. `center` keeps today's look while they fit.
+          isScrollable: true,
+          tabAlignment: TabAlignment.center,
           tabs: const [
             Tab(text: 'À venir'),
             Tab(text: 'Passés'),
@@ -135,18 +140,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   Widget _buildAppointmentsList(
       List<Appointment> appointments, bool isLoading) {
     if (isLoading && appointments.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: LoadingIndicator());
     }
 
     if (appointments.isEmpty) {
       return const EmptyState(
         icon: Icons.calendar_today,
         title: 'Aucun rendez-vous',
-        description: 'Vous n\'avez pas de rendez-vous dans cette catégorie',
+        description: 'Vous n’avez pas de rendez-vous dans cette catégorie',
       );
     }
 
-    return RefreshIndicator(
+    return BrandRefresh(
       onRefresh: () async {
         final provider =
             Provider.of<AppointmentProvider>(context, listen: false);
@@ -171,7 +176,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   Widget _buildHistory(List<Appointment> visits, bool isLoading) {
     if (isLoading && visits.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: LoadingIndicator());
     }
 
     if (visits.isEmpty) {
@@ -191,13 +196,22 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           Expanded(
             child: _summaryMetric(
               '${visits.length}',
-              visits.length == 1 ? 'visite' : 'visites',
+              // A13 — `== 1` printed « 0 visites »; French puts zero in
+              // the singular. The number renders separately here, so this is
+              // the noun-only helper.
+              Formatters.plural(visits.length, 'visite', 'visites'),
             ),
           ),
           const SizedBox(width: AppTheme.spacingM),
           Expanded(
             child: _summaryMetric(
-              Formatters.formatCurrency(spent),
+              // MVP: a mixed-currency history sums nominally and reads the
+              // first visit's currency (per-currency grouping is post-MP2).
+              Formatters.formatCurrency(
+                spent,
+                currency:
+                    visits.first.currency ?? visits.first.providerCurrency,
+              ),
               'dépensés',
             ),
           ),
@@ -230,7 +244,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       visit.copyWith(status: AppointmentStatus.completed),
                   onTap: () => context.push('/appointment/${visit.id}'),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 SizedBox(
                   width: double.infinity,
                   child: AppButton(
@@ -247,7 +261,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       }
     }
 
-    return RefreshIndicator(
+    return BrandRefresh(
       onRefresh: () async {
         final provider =
             Provider.of<AppointmentProvider>(context, listen: false);
@@ -281,7 +295,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(value, style: AppTextStyles.titleLarge),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             label,
             style: AppTextStyles.bodySmall.copyWith(

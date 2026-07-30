@@ -13,11 +13,15 @@ bool artistWorksDuring(Artist artist, DateTime start, DateTime end) {
   if (daySlots.isEmpty) return false; // day off
 
   for (final slot in daySlots) {
-    final slotStart = DateTime(start.year, start.month, start.day,
-        slot.startTime.hour, slot.startTime.minute);
-    final slotEnd = DateTime(start.year, start.month, start.day,
-        slot.endTime.hour, slot.endTime.minute);
+    // Same zone flag as [start] — never mix a naive-local range with salon
+    // (UTC-flagged) slot instants (salon_time.dart).
+    final slotStart = _at(start, slot.startTime.hour, slot.startTime.minute);
+    final slotEnd = _at(start, slot.endTime.hour, slot.endTime.minute);
     if (!start.isBefore(slotStart) && !end.isAfter(slotEnd)) return true;
   }
   return false;
 }
+
+DateTime _at(DateTime day, int hour, int minute) => day.isUtc
+    ? DateTime.utc(day.year, day.month, day.day, hour, minute)
+    : DateTime(day.year, day.month, day.day, hour, minute);

@@ -8,16 +8,16 @@ export const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 /// Brand entity — emitted site-wide so search + AI consistently map
-/// "réservation beauté en Côte d'Ivoire" → Myweli.
+/// "réservation beauté en Côte d'Ivoire" → MyWeli.
 export function organizationJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'Myweli',
+    name: 'MyWeli',
     url: siteUrl,
-    logo: `${siteUrl}/logo.svg`,
+    logo: `${siteUrl}/android-chrome-512.png`,
     description:
-      'Myweli — réservation beauté & bien-être en Côte d’Ivoire : ' +
+      'MyWeli — réservation beauté & bien-être en Côte d’Ivoire : ' +
       'coiffure, barbier, onglerie, spa. Réservez votre salon en ligne, 24/7.',
     areaServed: { '@type': 'Country', name: "Côte d'Ivoire" },
     sameAs: [] as string[],
@@ -30,12 +30,12 @@ export function jsonLdScript(data: unknown): string {
 }
 
 /// WebSite entity + SearchAction (sitelinks search box) → /recherche. Emitted on
-/// the home so engines can wire a Myweli search box.
+/// the home so engines can wire a MyWeli search box.
 export function websiteJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Myweli',
+    name: 'MyWeli',
     url: siteUrl,
     potentialAction: {
       '@type': 'SearchAction',
@@ -88,7 +88,9 @@ export function localBusinessJsonLd(p: Provider, url: string) {
       '@type': 'PostalAddress',
       streetAddress: p.address,
       addressLocality: p.commune ?? p.city ?? undefined,
-      addressCountry: 'CI',
+      // Multi-pays MP3: the salon's own market fields ('CI' = the
+      // pre-backfill fallback only).
+      addressCountry: p.countryCode ?? 'CI',
     },
     ...(p.latitude != null && p.longitude != null
       ? {
@@ -111,7 +113,7 @@ export function localBusinessJsonLd(p: Provider, url: string) {
     ...(reviews.length ? { review: reviews } : {}),
     makesOffer: services.map((s) => ({
       '@type': 'Offer',
-      priceCurrency: 'XOF',
+      priceCurrency: p.currency ?? 'XOF',
       price: s.price,
       itemOffered: { '@type': 'Service', name: s.name },
     })),
@@ -155,5 +157,35 @@ export function breadcrumbJsonLd(crumbs: { name: string; url: string }[]) {
       name: c.name,
       item: c.url,
     })),
+  };
+}
+
+/// A static content page (L1 — the four legal documents).
+///
+/// `WebPage` rather than `Article`: these are not editorial pieces, and
+/// `dateModified` is the field that matters — a policy's date is a claim about
+/// when the practice it describes last changed. It comes from the single
+/// `LEGAL_UPDATED_AT`, so four pages cannot disagree.
+export function webPageJsonLd({
+  name,
+  path,
+  description,
+  dateModified,
+}: {
+  name: string;
+  path: string;
+  description: string;
+  dateModified: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name,
+    url: `${siteUrl}${path}`,
+    description,
+    inLanguage: 'fr-FR',
+    dateModified,
+    isPartOf: { '@type': 'WebSite', url: siteUrl },
+    publisher: { '@type': 'Organization', name: 'MyWeli', url: siteUrl },
   };
 }

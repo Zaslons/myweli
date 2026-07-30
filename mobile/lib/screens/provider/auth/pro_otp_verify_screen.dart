@@ -1,17 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/helpers.dart';
+import '../../../core/utils/validators.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/otp_code_row.dart';
 
 class ProOtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
@@ -34,6 +38,11 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
   bool _isLoading = false;
+
+  // A7/§14 — the six-digit rule is the shared one, and its verdict renders
+  // beside the boxes instead of in a bar that outlives the screen.
+  late final _errors = FieldErrors({'code': Validators.otp});
+  String? _inlineError;
 
   @override
   void initState() {
@@ -68,19 +77,30 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
     });
   }
 
-  void _onOtpChanged(int index, String value) {
-    if (value.isNotEmpty && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
+  /// The row hands back the whole code after every edit.
+  ///
+  /// A11 C3: focus advance used to be the only thing this did. Autofill, paste
+  /// distribution and backspace now arrive with [OtpCodeRow] — this screen had
+  /// none of the three — and with them the sixth digit can submit on its own,
+  /// the way the consumer screen has always done.
+  void _onCodeChanged(String code) {
+    // §14 rule 2 — the review found the fault surviving a full retype and even
+    // a « Renvoyer », so the screen kept accusing a code the user had replaced.
+    if (_inlineError != null) setState(() => _inlineError = null);
+
+    if (code.length == 6 && !_isLoading) _handleVerify();
   }
 
   Future<void> _handleVerify() async {
     final otp = _controllers.map((c) => c.text).join();
-    if (otp.length != 6) {
-      Helpers.showSnackBar(context, 'Veuillez entrer le code complet',
-          isError: true);
+    // A7/§14 rule 3: an incomplete code is a FIELD fault. It used to be a
+    // snackbar — a message about these six boxes, floating at the bottom of the
+    // screen on a timer.
+    if (!_errors.validate({'code': otp})) {
+      setState(() => _inlineError = _errors['code']);
       return;
     }
+    setState(() => _inlineError = null);
 
     setState(() => _isLoading = true);
 
@@ -97,11 +117,8 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
         context.go('/pro/dashboard');
       }
     } else {
-      Helpers.showSnackBar(
-        context,
-        authProvider.error ?? 'Code invalide',
-        isError: true,
-      );
+      // The server's verdict on the code belongs to the code, too (rule 1).
+      setState(() => _inlineError = authProvider.error ?? 'Code invalide');
       for (var controller in _controllers) {
         controller.clear();
       }
@@ -118,14 +135,12 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
     if (!mounted) return;
 
     if (success) {
-      Helpers.showSnackBar(context, 'Code renvoyé avec succès');
+      AppSnackBar.show(context, 'Code renvoyé avec succès',
+          kind: SnackKind.success);
       _startCooldown();
     } else {
-      Helpers.showSnackBar(
-        context,
-        authProvider.error ?? 'Erreur lors de l\'envoi',
-        isError: true,
-      );
+      AppSnackBar.show(context, authProvider.error ?? 'Erreur lors de l’envoi',
+          kind: SnackKind.error);
     }
   }
 
@@ -138,17 +153,22 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacingL),
+          // spacingM, not spacingL, and it is load-bearing rather than
+          // cosmetic: the six flexed boxes are `(W − 2×pad − 40)/6`, so at
+          // spacingL they come out **45.33dp at 360 — under §13.2's 48 floor,
+          // and silently**, because nothing overflows. At spacingM they are
+          // exactly 48.0. The padding is what buys the tap target.
+          padding: const EdgeInsets.all(AppTheme.spacingM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: AppTheme.spacingXL),
               const Icon(
                 Icons.lock_outline,
-                size: 80,
+                size: AppTheme.iconXL,
                 color: AppColors.primary,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingL),
               Text(
                 'Code de vérification',
                 style: AppTextStyles.headlineMedium.copyWith(
@@ -156,7 +176,7 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Text(
                 'Entrez le code envoyé au\n${Helpers.maskPhoneNumber(widget.phoneNumber)}',
                 style: AppTextStyles.bodyMedium.copyWith(
@@ -164,78 +184,22 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(6, (index) {
-                  return Container(
-                    width: 50,
-                    height: 64,
-                    margin: EdgeInsets.only(
-                      left: index == 0 ? 0 : 4,
-                      right: index == 5 ? 0 : 4,
-                    ),
-                    child: TextField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      textAlign: TextAlign.center,
-                      textAlignVertical: TextAlignVertical.center,
-                      keyboardType: TextInputType.number,
-                      maxLength: 1,
-                      obscureText: false,
-                      style: AppTextStyles.headlineMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0,
-                        height: 1.2,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      decoration: InputDecoration(
-                        counterText: '',
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 16),
-                        isDense: false,
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                              color: AppColors.border, width: 1.5),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                              color: AppColors.border, width: 1.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusLarge),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
-                            width: 2.5,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.secondary,
-                      ),
-                      onChanged: (value) => _onOtpChanged(index, value),
-                      onTap: () {
-                        if (_controllers[index].text.isEmpty) {
-                          _controllers[index].selection =
-                              const TextSelection.collapsed(
-                            offset: 0,
-                          );
-                        }
-                      },
-                    ),
-                  );
-                }),
+              const SizedBox(height: AppTheme.spacingXL),
+              OtpCodeRow(
+                controllers: _controllers,
+                focusNodes: _focusNodes,
+                onChanged: _onCodeChanged,
               ),
-              const SizedBox(height: 24),
+              // §14 rule 1, as close to "under the field" as six boxes allow:
+              // the message sits with the thing it is about, and stays until
+              // the code is fixed. `InlineFeedback` is a live region, so a
+              // screen reader hears it — the snackbar it replaces was pruned
+              // the moment this screen sat under anything modal (§15/A6).
+              InlineFeedback(_inlineError),
+              const SizedBox(height: AppTheme.spacingL),
               TextButton(
+                // A rate limit, not validation — §14 rule 5's stated
+                // exception, and the label says when it reopens.
                 onPressed: _resendCooldown > 0 ? null : _handleResend,
                 child: Text(
                   _resendCooldown > 0
@@ -243,7 +207,7 @@ class _ProOtpVerifyScreenState extends State<ProOtpVerifyScreen> {
                       : 'Renvoyer le code',
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppTheme.spacingXL),
               AppButton(
                 text: 'Vérifier',
                 onPressed: _isLoading ? null : _handleVerify,

@@ -1,4 +1,7 @@
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/access/salon_directory_service.dart';
+import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
 import 'package:myweli_backend/src/admin/admin_provider_service.dart';
@@ -10,21 +13,30 @@ import 'package:myweli_backend/src/admin/moderation_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
+import 'package:myweli_backend/src/appointments/journal_service.dart';
 import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/cors.dart';
 import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/favorites_service.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
+import 'package:myweli_backend/src/localities/localities_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
+import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
 import 'package:myweli_backend/src/provider_dashboard_service.dart';
 import 'package:myweli_backend/src/provider_earnings_service.dart';
@@ -32,6 +44,9 @@ import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
 import 'package:myweli_backend/src/reviews_service.dart';
+import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
+import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 import 'package:myweli_backend/src/upload_signing_service.dart';
 
 /// Provides the process-wide singletons into every request's context, so
@@ -40,7 +55,17 @@ import 'package:myweli_backend/src/upload_signing_service.dart';
 Handler middleware(Handler handler) {
   return handler
       .use(provider<AuthRepository>((_) => authRepository))
+      .use(provider<AuthMethods>((_) => authMethods))
+      .use(provider<GoogleIdTokenVerifier>((_) => googleIdTokenVerifier))
+      .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
+      .use(provider<EmailProvider>((_) => emailProvider))
       .use(provider<ProviderAuthRepository>((_) => providerAuthRepository))
+      .use(provider<ProviderAccountService>((_) => providerAccountService))
+      .use(provider<MembershipService>((_) => membershipService))
+      .use(provider<SalonSubscriptionService>((_) => salonSubscriptionService))
+      .use(provider<SalonDirectoryService>((_) => salonDirectoryService))
+      .use(provider<TeamService>((_) => teamService))
+      .use(provider<SubscriptionScheduler>((_) => subscriptionScheduler))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
       .use(provider<BookingService>((_) => bookingService))
       .use(provider<SlotService>((_) => slotService))
@@ -50,15 +75,20 @@ Handler middleware(Handler handler) {
         ),
       )
       .use(provider<ProAppointmentService>((_) => proAppointmentService))
+      .use(provider<ClientsService>((_) => clientsService))
+      .use(provider<UserErasureService>((_) => userErasureService))
+      .use(provider<JournalService>((_) => journalService))
       .use(provider<ProviderCatalogService>((_) => providerCatalogService))
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))
       .use(provider<UploadSigningService>((_) => uploadSigningService))
       .use(provider<FavoritesService>((_) => favoritesService))
       .use(provider<KycService>((_) => kycService))
+      .use(provider<SalonProvisioningService>((_) => salonProvisioningService))
       .use(provider<DepositService>((_) => depositService))
       .use(provider<MessagingService>((_) => messagingService))
       .use(provider<BookingNotifier>((_) => bookingNotifier))
+      .use(provider<SalonNotifier>((_) => salonNotifier))
       .use(provider<ReminderScheduler>((_) => reminderScheduler))
       .use(provider<PushService>((_) => pushService))
       .use(provider<NotificationsRepository>((_) => notificationsRepository))
@@ -79,6 +109,7 @@ Handler middleware(Handler handler) {
       .use(provider<ReviewsService>((_) => reviewsService))
       .use(provider<TokenService>((_) => tokenService))
       .use(provider<ProvidersRepository>((_) => providersRepository))
+      .use(provider<LocalitiesService>((_) => localitiesService))
       // Outermost: browser CORS for the Next.js web app(s).
       .use(corsMiddleware(webOrigins));
 }

@@ -8,6 +8,7 @@ import '../../providers/admin/admin_disputes_provider.dart';
 import '../../providers/admin/admin_provider_detail_provider.dart';
 import '../../providers/admin/admin_providers_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import 'widgets/admin_detail_widgets.dart';
 import 'widgets/admin_scaffold.dart';
@@ -39,6 +40,7 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
       context,
       title: 'Suspendre ce salon ?',
       confirmLabel: 'Suspendre',
+      isDestructive: true,
       hint: 'Motif (interne)',
       reasonRequired: false,
     );
@@ -60,13 +62,40 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
           .feature(widget.id, featured),
       featured ? 'Mis en avant' : 'Retiré de la mise en avant');
 
+  /// Manual billing (T54): the salon paid via « Nous contacter » — record
+  /// N months. Republishes a billing-unpublished salon server-side.
+  Future<void> _markPaid() async {
+    final months = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Paiement reçu — combien de mois ?'),
+        children: [
+          for (final m in const [1, 3, 6, 12])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, m),
+              child: Text('$m mois'),
+            ),
+        ],
+      ),
+    );
+    if (months == null || !mounted) return;
+    await _run(
+        () => context
+            .read<AdminProviderDetailProvider>()
+            .markPaid(widget.id, months),
+        'Paiement enregistré ($months mois)');
+  }
+
   Future<void> _run(Future<bool> Function() action, String okMsg) async {
     final p = context.read<AdminProviderDetailProvider>();
     final messenger = ScaffoldMessenger.of(context);
     final ok = await action();
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? okMsg : (p.actionError ?? 'Échec'))),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: okMsg,
+      error: p.actionError ?? 'Échec',
     );
     if (ok) unawaited(context.read<AdminProvidersProvider>().load());
   }
@@ -83,10 +112,11 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await disputes.open(appointmentId, reason);
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(ok ? 'Litige ouvert' : (disputes.actionError ?? 'Échec')),
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Litige ouvert',
+      error: disputes.actionError ?? 'Échec',
     );
   }
 
@@ -174,6 +204,15 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
             type: suspended ? AppButtonType.primary : AppButtonType.secondary,
             isLoading: acting,
             onPressed: acting ? null : (suspended ? _restore : _suspend),
+          ),
+        ),
+        const SizedBox(width: AppTheme.spacingM),
+        SizedBox(
+          width: 160,
+          child: AppButton(
+            text: 'Marquer payé',
+            type: AppButtonType.secondary,
+            onPressed: acting ? null : _markPaid,
           ),
         ),
       ],

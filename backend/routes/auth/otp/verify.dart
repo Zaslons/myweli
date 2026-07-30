@@ -1,13 +1,18 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
 /// `POST /auth/otp/verify` — verify a code and issue a token pair + user.
+/// Dormant at launch (see otp/request.dart).
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) return methodNotAllowed();
+  if (!context.read<AuthMethods>().contains('phone')) {
+    return jsonError(HttpStatus.notFound, 'auth_method_disabled');
+  }
 
   final Map<String, dynamic> body;
   try {
@@ -23,22 +28,5 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   final result = await context.read<AuthRepository>().verifyOtp(phone, code);
-  if (!result.ok) {
-    final status = result.error == 'account_suspended'
-        ? HttpStatus.forbidden
-        : HttpStatus.badRequest;
-    return jsonError(status, result.error!);
-  }
-
-  final tokens = result.tokens!;
-  return Response.json(
-    body: {
-      'tokens': {
-        'accessToken': tokens.accessToken,
-        'refreshToken': tokens.refreshToken,
-        'expiresAt': tokens.expiresAt.toIso8601String(),
-      },
-      'user': result.user!.toJson(),
-    },
-  );
+  return authSessionResponse(result);
 }

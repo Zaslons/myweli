@@ -6,15 +6,15 @@ import { siteUrl } from './jsonld';
 export const defaultMetadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Myweli — Réservation beauté en Côte d’Ivoire',
-    template: '%s · Myweli',
+    default: 'MyWeli — Réservation beauté en Côte d’Ivoire',
+    template: '%s · MyWeli',
   },
   description:
     'Trouvez et réservez votre salon de coiffure, barbier, onglerie ou spa ' +
     'en Côte d’Ivoire. Réservation en ligne, 24/7.',
   openGraph: {
     type: 'website',
-    siteName: 'Myweli',
+    siteName: 'MyWeli',
     locale: 'fr_FR',
     url: siteUrl,
   },

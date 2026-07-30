@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/breaks.dart';
+import '../../core/utils/salon_time.dart';
 import '../../core/utils/staff_hours.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
@@ -112,7 +114,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
       cancellationWindowHours: provider.cancellationWindowHours,
       notes: notes,
       depositScreenshotUrl: depositScreenshotUrl,
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
 
     _appointments.add(appointment);
@@ -273,7 +275,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
         current.status == AppointmentStatus.completed) {
       return ApiResponse.error('Ce rendez-vous ne peut pas être reporté');
     }
-    if (newDateTime.isBefore(DateTime.now())) {
+    if (newDateTime.isBefore(AppClock.now())) {
       return ApiResponse.error('Veuillez choisir une date à venir');
     }
 
@@ -295,40 +297,46 @@ class MockAppointmentService implements AppointmentServiceInterface {
   }) async {
     await Future.delayed(AppConstants.mockDelay);
 
-    // Normalize date to start of day
-    final selectedDate = DateTime(date.year, date.month, date.day);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    // Skip past dates
-    if (selectedDate.isBefore(today)) {
-      return ApiResponse.success([]);
-    }
-
     final provider = MockData.providers.firstWhere(
       (p) => p.id == providerId,
       orElse: () => MockData.providers.first,
     );
+    // The requested calendar day (its y/m/d FIELDS) names THIS salon's day,
+    // and slot instants are that salon's wall-clocks — mirroring the MP1
+    // backend slot engine (salon_time.dart).
+    final tz = provider.timezone;
+    final dayStartUtc = salonDateTime(date.year, date.month, date.day, tz: tz);
+    final todayStartUtc = salonDayBoundsUtc(tz: tz).startUtc;
 
-    // Respect blocked dates from provider availability.
-    final blocked = provider.availability.blockedDates.any((d) =>
-        d.year == selectedDate.year &&
-        d.month == selectedDate.month &&
-        d.day == selectedDate.day);
+    // Skip past dates
+    if (dayStartUtc.isBefore(todayStartUtc)) {
+      return ApiResponse.success([]);
+    }
+
+    // Respect blocked dates (SALON calendar days) from provider availability.
+    final blocked = provider.availability.blockedDates.any((d) {
+      final wall = toSalonTime(d, tz: tz);
+      return wall.year == date.year &&
+          wall.month == date.month &&
+          wall.day == date.day;
+    });
     if (blocked) return ApiResponse.success([]);
 
-    // Determine base opening slots from weekly schedule (30min slots).
-    final weekdayIndex = selectedDate.weekday - 1; // Mon=1..Sun=7 -> 0..6
+    // Determine base opening slots from weekly schedule (30min slots) —
+    // weekday of the requested calendar date (pure field math).
+    final weekdayIndex =
+        DateTime.utc(date.year, date.month, date.day).weekday - 1;
     final templateSlots =
         provider.availability.weeklySchedule[weekdayIndex] ?? const [];
     final openingSlots = templateSlots
         .where((s) => s.isAvailable)
-        .map((s) => DateTime(
-              selectedDate.year,
-              selectedDate.month,
-              selectedDate.day,
-              s.startTime.hour,
-              s.startTime.minute,
+        .map((s) => salonDateTime(
+              date.year,
+              date.month,
+              date.day,
+              hour: s.startTime.hour,
+              minute: s.startTime.minute,
+              tz: tz,
             ))
         .toList()
       ..sort((a, b) => a.compareTo(b));
@@ -336,8 +344,8 @@ class MockAppointmentService implements AppointmentServiceInterface {
     if (openingSlots.isEmpty) return ApiResponse.success([]);
 
     // For today, skip slots in the past (start 1 hour from now).
-    final minStart = selectedDate.isAtSameMomentAs(today)
-        ? now.add(const Duration(hours: 1))
+    final minStart = dayStartUtc.isAtSameMomentAs(todayStartUtc)
+        ? AppClock.now().toUtc().add(const Duration(hours: 1))
         : null;
 
     final duration = durationMinutes ??

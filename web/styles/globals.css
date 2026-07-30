@@ -12,6 +12,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* The focus ring (WEB-SYSTEM §5, register row 8) — ONE base rule, not 271
+   utilities. Before B4, `focus-visible:` appeared zero times across 180 buttons
+   and ~105 controls: nobody broke the ring (`outline-none` is never used), it was
+   simply never designed, and the browser default is barely visible on a
+   black-and-white UI.
+
+   `:focus-visible`, not `:focus` — a clicked BUTTON leaves no ring. (A clicked
+   TEXT FIELD does show it; that is platform-correct — a field you clicked is a
+   field you will type in — and pinned as such in tests/e2e/focus.spec.ts.)
+   The 2px offset is §3.3's own design: the ring never merges with a control's
+   edge, so it composes with the TextField's borderFocus border instead of
+   fighting it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid theme('colors.borderFocus');
+    outline-offset: 2px;
+    border-radius: theme('borderRadius.md');
+  }
+}
+
 /* Phone field — react-phone-number-input themed to the app tokens.
    The country flag/dropdown sits in its own bordered box; the number input
    matches the app's other text inputs. */
@@ -25,15 +45,30 @@ body {
   align-items: center;
   gap: theme('spacing.xs');
   padding: 0 theme('spacing.s');
-  border: 1px solid theme('colors.border');
+  /* borderStrong, not border: the boundary IS the control (SYSTEM §3.3). The
+     phone widgets were invisible to the row-3 count — the grep never sees the
+     input/select that react-phone-number-input renders. */
+  border: 1px solid theme('colors.borderStrong');
   border-radius: theme('borderRadius.lg');
   background-color: theme('colors.surface');
 }
 .myweli-phone .PhoneInputInput {
   flex: 1;
   min-width: 0;
-  padding: theme('spacing.s') theme('spacing.m');
-  border: 1px solid theme('colors.border');
+  /* §13.2 — the same floor as TextField's `min-h-12`. B11: written in rem
+     because `min-h-12` IS rem (3rem), and this comment claimed to match it
+     while being px. Identical at a 16px root, divergent at every other one —
+     the field would have stopped matching the fields beside it exactly when a
+     user asked for larger text. */
+  min-height: 3rem;
+  /* B8: the typed text is bodyLarge BY DECLARATION — it was 16px only by
+     inheriting the browser default (no font-size anywhere in the chain),
+     and any future base body class would have silently shrunk it. */
+  font-size: theme('fontSize.bodyLarge.0');
+  line-height: theme('fontSize.bodyLarge.1.lineHeight');
+  letter-spacing: theme('fontSize.bodyLarge.1.letterSpacing');
+  padding: theme('spacing.m');
+  border: 1px solid theme('colors.borderStrong');
   border-radius: theme('borderRadius.lg');
   background-color: theme('colors.surface');
   color: theme('colors.textPrimary');
@@ -41,10 +76,26 @@ body {
 .myweli-phone .PhoneInputInput::placeholder {
   color: theme('colors.textTertiary');
 }
-.myweli-phone .PhoneInputInput:focus,
-.myweli-phone .PhoneInputCountrySelect:focus + .PhoneInputCountryIcon {
-  outline: 2px solid theme('colors.primary');
-  outline-offset: 1px;
+/* The field's own focus state — the TextField pair, in CSS: border swaps to
+   borderFocus and a 1px spread fakes mobile's 2nd border pixel (zero layout
+   shift). The global :focus-visible ring composes on top for keyboard focus. */
+.myweli-phone .PhoneInputInput:focus {
+  border-color: theme('colors.borderFocus');
+  box-shadow: 0 0 0 1px theme('colors.borderFocus');
+}
+/* The country <select> is an opacity-0 overlay, so the GLOBAL ring is invisible
+   on it — the visible focus must be painted on the sibling icon. This is the one
+   place the ring stays hand-written CSS, fixed three ways from its pre-§5 form:
+   :focus-visible (was :focus — mouse rings), borderFocus (was primary), offset
+   2px (was 1). */
+/* B8 (review): the country SELECT types nothing but iOS zooms on focusing a
+   <select> under 16px too — declare it, like its sibling input. */
+.myweli-phone .PhoneInputCountrySelect {
+  font-size: theme('fontSize.bodyLarge.0');
+}
+.myweli-phone .PhoneInputCountrySelect:focus-visible + .PhoneInputCountryIcon {
+  outline: 2px solid theme('colors.borderFocus');
+  outline-offset: 2px;
 }
 .myweli-phone .PhoneInputCountrySelectArrow {
   color: theme('colors.textSecondary');
@@ -53,4 +104,41 @@ body {
 .myweli-phone[aria-disabled='true'],
 .myweli-phone .PhoneInputInput:disabled {
   opacity: 0.6;
+}
+
+/* Discovery-map salon markers (docs/design/web-discovery-map.md §2) — the
+   app's _SalonMarker: white circle, 2px category-color ring, category icon.
+   Scale lives on the pin itself (MapLibre positions the marker wrapper via
+   transform). Colors arrive inline from the §7 tokens (lib/discovery/map.ts). */
+.myweli-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: theme('colors.secondary');
+  border: 2px solid currentColor;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.myweli-pin.is-active {
+  transform: scale(1.25);
+}
+/* MapLibre popup content on the app tokens. */
+.maplibregl-popup-content {
+  border-radius: theme('borderRadius.lg');
+  padding: theme('spacing.m');
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.2);
+}
+/* The app's user-location dot: info-blue, 3px white ring. */
+.myweli-user-dot {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: theme('colors.info');
+  border: 3px solid theme('colors.secondary');
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
 }

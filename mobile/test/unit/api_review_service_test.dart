@@ -102,4 +102,24 @@ void main() {
     expect(res.success, isTrue);
     expect(res.data!.single.serviceName, 'Coupe');
   });
+
+  test('reportReview POSTs /reviews/{id}/report with the trimmed reason',
+      () async {
+    late http.Request captured;
+    final client = MockClient((req) async {
+      captured = req;
+      return http.Response('{}', 200);
+    });
+    final res = await _service(client).reportReview('rev9', reason: '  spam  ');
+    expect(res.success, isTrue);
+    expect(captured.url.path, '/reviews/rev9/report');
+    expect(jsonDecode(captured.body), {'reason': 'spam'});
+  });
+
+  test('reportReview without a session fails fast in French', () async {
+    final client = MockClient((req) async => http.Response('{}', 200));
+    final res = await _service(client, token: null).reportReview('rev9');
+    expect(res.success, isFalse);
+    expect(res.error, contains('Connectez-vous'));
+  });
 }

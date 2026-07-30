@@ -64,7 +64,7 @@ class MockFavoritesService implements FavoritesServiceInterface {
       return ApiResponse.success(true, message: 'Déjà dans les favoris');
     } catch (e) {
       return ApiResponse.error(
-          'Erreur lors de l\'ajout aux favoris: ${e.toString()}');
+          'Erreur lors de l’ajout aux favoris: ${e.toString()}');
     }
   }
 

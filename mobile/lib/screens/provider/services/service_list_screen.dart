@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -21,7 +23,7 @@ class ServiceListScreen extends StatefulWidget {
 class _ServiceListScreenState extends State<ServiceListScreen> {
   String _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.provider?.providerId ?? authProvider.provider?.id ?? '';
+    return authProvider.activeSalonId ?? '';
   }
 
   @override
@@ -45,6 +47,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
         title: const Text('Services'),
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Ajouter un service',
         onPressed: () => context.push('/pro/service/new'),
         child: const Icon(Icons.add),
       ),
@@ -55,7 +58,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           }
 
           if (serviceProvider.isLoading && serviceProvider.services.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final services = serviceProvider.services;
@@ -67,8 +70,8 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.build,
-                        size: 64, color: AppColors.textSecondary),
-                    const SizedBox(height: 16),
+                        size: AppTheme.iconXL, color: AppColors.textSecondary),
+                    const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun service pour le moment',
                       style: AppTextStyles.titleLarge.copyWith(
@@ -76,7 +79,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     Text(
                       'Ajoutez vos services pour que les clients puissent réserver.',
                       style: AppTextStyles.bodyMedium.copyWith(
@@ -84,7 +87,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppTheme.spacingL),
                     AppButton(
                       text: 'Ajouter un service',
                       onPressed: () => context.push('/pro/service/new'),
@@ -96,7 +99,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
             );
           }
 
-          return RefreshIndicator(
+          return BrandRefresh(
             onRefresh: () async {
               if (authProvider.provider != null) {
                 await serviceProvider
@@ -158,17 +161,33 @@ class _ServiceCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
-            Row(
+            const SizedBox(height: AppTheme.spacingS),
+            // A12 — §21 row 68's finding #5. Two unflexed `Text`s in a `Row`,
+            // so each takes its full intrinsic width: « 20 000 FCFA » +
+            // « • 2h 30min » is ~316dp in a 280dp card at 200%.
+            //
+            // It does NOT reproduce on the seeded pro salon — provider1's
+            // three services are 5000/30min, 3000/20min, 7000/45min, all of
+            // which fit — which is why the device run never showed it. Latent,
+            // not theoretical: provider2's Lissage is 20 000 / 150min.
+            //
+            // A `Wrap`: the duration drops under the price rather than either
+            // running off the card. A price and a duration are two tokens, and
+            // §13.3 forbids breaking inside either.
+            Wrap(
+              spacing: AppTheme.spacingS,
+              runSpacing: AppTheme.spacingXS,
               children: [
                 Text(
-                  Formatters.formatCurrency(service.price),
+                  Formatters.formatCurrency(
+                    service.price,
+                    currency: context.read<ProAuthProvider>().salonCurrency,
+                  ),
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 8),
                 Text(
                   '• ${Formatters.formatDuration(service.durationMinutes)}',
                   style: AppTextStyles.bodyMedium.copyWith(
@@ -178,7 +197,7 @@ class _ServiceCard extends StatelessWidget {
               ],
             ),
             if (service.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Text(
                 service.description,
                 style: AppTextStyles.bodySmall.copyWith(

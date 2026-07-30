@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/models/before_after_pair.dart';
 import 'package:myweli/widgets/providers/before_after_section.dart';
 
-Widget _host(List<BeforeAfterPair> pairs) => MaterialApp(
+import '../support/pump_app.dart';
+
+Widget _host(List<BeforeAfterPair> pairs) => wrapApp(
       home: Scaffold(
         body: SingleChildScrollView(child: BeforeAfterSection(pairs: pairs)),
       ),

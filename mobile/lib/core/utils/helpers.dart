@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../widgets/common/app_snack_bar.dart';
 import '../theme/app_theme.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
@@ -110,11 +114,8 @@ class Helpers {
     if (!context.mounted) return;
 
     if (available.isEmpty) {
-      showSnackBar(
-        context,
-        'Aucune application de navigation trouvée',
-        isError: true,
-      );
+      AppSnackBar.show(context, 'Aucune application de navigation trouvée',
+          kind: SnackKind.error);
       return;
     }
 
@@ -148,7 +149,7 @@ class Helpers {
                     height: 5,
                     decoration: BoxDecoration(
                       color: AppColors.divider,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                     ),
                   ),
                 ),
@@ -180,18 +181,16 @@ class Helpers {
     );
   }
 
-  /// Show snackbar with message
-  static void showSnackBar(BuildContext context, String message,
-      {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? AppColors.error : Colors.black87,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        margin: const EdgeInsets.all(16),
+  /// Speak an off-focus change (a SnackBar, a list reload — things a screen
+  /// reader doesn't read on its own) to TalkBack/VoiceOver. Fire-and-forget.
+  /// Wraps the post-3.35 `sendAnnouncement` so call sites don't repeat the
+  /// `View.of` + `Directionality.of` + `unawaited` boilerplate.
+  static void announce(BuildContext context, String message) {
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        message,
+        Directionality.of(context),
       ),
     );
   }
@@ -202,7 +201,7 @@ class Helpers {
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(
-        child: CircularProgressIndicator(),
+        child: LoadingIndicator(),
       ),
     );
   }

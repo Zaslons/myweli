@@ -1,0 +1,254 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { ErrorState } from '../ErrorState';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getKycStatus, getMyProvider, submitKyc } from '../../lib/api/pro';
+import {
+  KYC_ACCEPT,
+  KYC_DOC_TYPES,
+  type KycDocType,
+  type KycStatus,
+  canSubmitKyc,
+  isKycDocRequired,
+} from '../../lib/pro/kyc';
+import { uploadKycDocument } from '../../lib/pro/upload';
+import { Button } from '../Button';
+import { Loading } from '../Loading';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
+
+type LocalDoc = { type: KycDocType; fileName?: string; key: string };
+
+/// « Vérification » (docs/design/web-pro-kyc.md) — the pro app's ProKycScreen,
+/// web-adapted: status banner + the four document tiles (upload at add time,
+/// « Soumettre pour vérification » posts the full list). Verified = read-only.
+export function VerificationClient() {
+  const router = useRouter();
+  const [businessType, setBusinessType] = useState<string | null>(null);
+  const [status, setStatus] = useState<KycStatus['status']>('pending');
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [docs, setDocs] = useState<LocalDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [uploadingType, setUploadingType] = useState<KycDocType | null>(null);
+  const [uploadError, setUploadError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const { toast, show } = useToast();
+  const inputs = useRef<Partial<Record<KycDocType, HTMLInputElement | null>>>(
+    {},
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    const me = await getMyProvider();
+    if (me.status === 401) {
+      router.replace('/pro/connexion');
+      return;
+    }
+    const kyc = await getKycStatus();
+    if (me.status !== 200 || !me.profile || kyc.status !== 200 || !kyc.kyc) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
+    setBusinessType(me.profile.account.businessType ?? null);
+    setStatus(kyc.kyc.status);
+    setRejectionReason(kyc.kyc.rejectionReason ?? null);
+    setDocs(
+      kyc.kyc.documents.map((d) => ({
+        type: d.type,
+        fileName: d.fileName,
+        key: d.key,
+      })),
+    );
+    setLoading(false);
+  }, [router]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+
+  const verified = status === 'verified';
+
+  async function onFile(type: KycDocType, file: File | undefined) {
+    if (!file) return;
+    setUploadingType(type);
+    setUploadError(false);
+    const up = await uploadKycDocument(file);
+    setUploadingType(null);
+    if (!up) {
+      setUploadError(true);
+      return;
+    }
+    setDocs((prev) => [
+      ...prev.filter((d) => d.type !== type),
+      { type, fileName: up.fileName, key: up.key },
+    ]);
+  }
+
+  async function submit() {
+    setSubmitting(true);
+    const r = await submitKyc(docs);
+    setSubmitting(false);
+    if (r.status !== 200 || !r.kyc) {
+      show('L’envoi a échoué. Réessayez.', 'error');
+      return;
+    }
+    setStatus(r.kyc.status);
+    setRejectionReason(r.kyc.rejectionReason ?? null);
+    show('Documents soumis pour vérification', 'success');
+  }
+
+  if (loading) return <Loading className="mt-l" />;
+  if (error) {
+    return (
+      <div>
+        <ErrorState title="Vérification" message="Chargement impossible." onRetry={load} />
+      </div>
+    );
+  }
+
+  const banner = verified
+    ? {
+        cls: 'border-success/40 bg-success/10 text-success',
+        title: 'Compte vérifié',
+        subtitle: 'Vous pouvez activer les acomptes.',
+      }
+    : status === 'rejected'
+      ? {
+          cls: 'border-error/40 bg-error/10 text-error',
+          title: 'Vérification refusée',
+          subtitle: rejectionReason ?? 'Veuillez renvoyer vos documents.',
+        }
+      : {
+          cls: 'border-border bg-surface text-textSecondary',
+          title: 'Vérification en attente',
+          subtitle: 'Soumettez vos documents pour être vérifié.',
+        };
+
+  const canSubmit = canSubmitKyc({
+    documents: docs,
+    businessType,
+    status,
+    busy: submitting || uploadingType != null,
+  });
+
+  return (
+    <div className="max-w-2xl">
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Vérification</h1>
+
+      <div className={`mt-l rounded-xl border p-m ${banner.cls}`}>
+        <p className="font-medium">{banner.title}</p>
+        <p className="mt-xs text-bodyLarge">{banner.subtitle}</p>
+      </div>
+
+      <p className="mt-l text-labelMedium font-medium uppercase text-textTertiary">
+        Documents
+      </p>
+      <ul className="mt-xs space-y-s">
+        {KYC_DOC_TYPES.map(({ type, label }) => {
+          const required = isKycDocRequired(type, businessType);
+          const doc = docs.find((d) => d.type === type);
+          const uploading = uploadingType === type;
+          return (
+            <li
+              key={type}
+              // B11: the action buttons are `shrink-0`, so at 320 they took
+              // their full width and left the label 64px — and « Pièce
+              // d'identité (CNI / passeport) » cannot wrap below its longest
+              // word, which measures 73. The row wraps instead, dropping the
+              // buttons under the label when there is no room beside it.
+              //
+              // Honest note: this surfaced only after the filename below
+              // changed from `truncate` to `break-all`, and I did not establish
+              // which of the two flex resolutions moved. The row could not fit
+              // its own label at 320 either way, so it is fixed at the root
+              // rather than by restoring the truncation that hid it.
+              className="flex flex-wrap items-center justify-between gap-m rounded-xl border border-border bg-secondary p-m"
+            >
+              <div className="min-w-0">
+                <p className="text-bodyMedium text-textPrimary">
+                  {label}
+                  {required ? '' : ' (optionnel)'}
+                </p>
+                {/* B11: the uploaded document's filename appears NOWHERE else
+                    in the product — not in the row above, not in the ⋯ menu,
+                    not in an aria-label. Truncating it meant a pro could not
+                    tell which of two similarly-named files they had actually
+                    sent to KYC. `break-all` because filenames have no spaces. */}
+                <p
+                  className={`mt-xs break-all text-bodySmall ${
+                    doc ? 'text-success' : 'text-textTertiary'
+                  }`}
+                >
+                  {doc ? `Fourni · ${doc.fileName ?? 'document'}` : 'À fournir'}
+                </p>
+              </div>
+              {!verified ? (
+                <div className="flex shrink-0 items-center gap-s">
+                  {doc ? (
+                    <button
+                      type="button"
+                      aria-label={`Retirer ${label}`}
+                      className="text-bodyMedium text-textTertiary underline"
+                      onClick={() =>
+                        setDocs((prev) => prev.filter((d) => d.type !== type))
+                      }
+                    >
+                      Retirer
+                    </button>
+                  ) : null}
+                  <input
+                    ref={(el) => {
+                      inputs.current[type] = el;
+                    }}
+                    type="file"
+                    accept={KYC_ACCEPT}
+                    aria-label={label}
+                    className="hidden"
+                    onChange={(e) => onFile(type, e.target.files?.[0])}
+                  />
+                  <Button
+                    variant="secondary"
+                    isLoading={uploading}
+                    onClick={() => inputs.current[type]?.click()}
+                  >
+                    {doc ? 'Modifier' : 'Ajouter'}
+                  </Button>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {uploadError ? (
+        <p role="alert" className="mt-s text-bodyMedium text-error">
+          Échec de l’envoi du document. Réessayez.
+        </p>
+      ) : null}
+
+      <p className="mt-m text-bodySmall text-textTertiary">
+        Les acomptes sont activés une fois votre compte vérifié. Vos documents
+        sont chiffrés et confidentiels.
+      </p>
+
+      {!verified ? (
+        <div className="mt-l">
+          <Button disabled={!canSubmit} isLoading={submitting} onClick={submit}>
+            Soumettre pour vérification
+          </Button>
+          {!canSubmit && !submitting && uploadingType == null ? (
+            <p className="mt-xs text-bodySmall text-textTertiary">
+              Ajoutez les documents requis pour soumettre.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <Toast toast={toast} />
+    </div>
+  );
+}

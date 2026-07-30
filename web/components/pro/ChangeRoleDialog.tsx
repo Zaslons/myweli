@@ -1,0 +1,191 @@
+'use client';
+
+import type { RefObject } from 'react';
+import { useState } from 'react';
+import { changeMemberRole, createArtistReturning } from '../../lib/api/pro';
+import type { Artist } from '../../lib/pro/catalogue';
+import {
+  ROLE_SUMMARIES,
+  type TeamMember,
+  type TeamRoleInput,
+  teamErrorMessage,
+} from '../../lib/pro/team';
+import { Button } from '../Button';
+import { Modal } from '../Modal';
+
+const ROLE_ORDER: TeamRoleInput[] = ['manager', 'reception', 'staff'];
+const ROLE_LABELS: Record<TeamRoleInput, string> = {
+  manager: 'Manager',
+  reception: 'Réception',
+  staff: 'Collaborateur',
+};
+
+/// Change a member's role (team access R5a). Reuses the invite role cards;
+/// a Collaborateur must carry an employee fiche.
+export function ChangeRoleDialog({
+  member,
+  providerId,
+  artists,
+  onArtistCreated,
+  onClose,
+  returnFocusRef,
+  onChanged,
+}: {
+  member: TeamMember;
+  providerId: string;
+  artists: Artist[];
+  onArtistCreated: (a: Artist) => void;
+  onClose: () => void;
+  /** See Modal.returnFocusRef — the ⋯ menu item that opens this unmounts. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  onChanged: (member: TeamMember) => void;
+}) {
+  const initialRole =
+    member.role === 'owner' ? 'manager' : (member.role as TeamRoleInput);
+  const [role, setRole] = useState<TeamRoleInput>(initialRole);
+  const [artistId, setArtistId] = useState<string>(member.artistId ?? '');
+  const [creatingFiche, setCreatingFiche] = useState(false);
+  const [newFicheName, setNewFicheName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+
+
+  async function createFiche() {
+    const name = newFicheName.trim();
+    if (!name) return;
+    setBusy(true);
+    setError(undefined);
+    const r = await createArtistReturning(providerId, {
+      name,
+      specialization: null,
+      imageUrl: null,
+      workingHours: {},
+    });
+    setBusy(false);
+    if (!r.ok || !r.artist) {
+      setError(teamErrorMessage(r.error));
+      return;
+    }
+    onArtistCreated(r.artist);
+    setArtistId(r.artist.id);
+    setCreatingFiche(false);
+    setNewFicheName('');
+  }
+
+  async function submit() {
+    if (role === 'staff' && !artistId) {
+      setError(teamErrorMessage('artist_required'));
+      return;
+    }
+    setBusy(true);
+    setError(undefined);
+    const r = await changeMemberRole(member.id, {
+      role,
+      artistId: role === 'staff' ? artistId : undefined,
+    });
+    setBusy(false);
+    if (!r.ok || !r.member) {
+      setError(teamErrorMessage(r.error));
+      return;
+    }
+    onChanged(r.member);
+  }
+
+  return (
+    <Modal title="Changer le rôle" onClose={onClose} returnFocusRef={returnFocusRef}>
+        <p className="mt-xs text-bodyMedium text-textTertiary">{member.email}</p>
+
+        <div className="mt-m flex flex-col gap-s">
+          {ROLE_ORDER.map((r) => (
+            <button
+              key={r}
+              type="button"
+              aria-pressed={role === r}
+              onClick={() => {
+                setRole(r);
+                setError(undefined);
+              }}
+              className={`rounded-lg border px-m py-s text-left ${
+                role === r
+                  ? 'border-primary bg-surfaceVariant'
+                  : 'border-border bg-surface'
+              }`}
+            >
+              <span className="block text-labelLarge font-medium text-textPrimary">
+                {ROLE_LABELS[r]}
+              </span>
+              <span
+                // ds-ignore: 2px optical nudge; below the 4px grid floor. Hand to B6's shared
+                // <Chip>/role-row rather than redesign here.
+                // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                className="mt-[2px] block text-bodySmall text-textTertiary"
+              >
+                {ROLE_SUMMARIES[r]}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {role === 'staff' ? (
+          <div className="mt-m">
+            <label
+              htmlFor="changerole-fiche"
+              className="text-bodyMedium text-textSecondary"
+            >
+              Fiche employé
+            </label>
+            {creatingFiche ? (
+              <div className="mt-xs flex gap-s">
+                <input
+                  id="changerole-fiche"
+                  value={newFicheName}
+                  onChange={(e) => setNewFicheName(e.target.value)}
+                  placeholder="Nom de l’employé"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                />
+                <Button
+                  onClick={createFiche}
+                  disabled={busy || !newFicheName.trim()}
+                >
+                  Créer
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-xs flex gap-s">
+                <select
+                  id="changerole-fiche"
+                  value={artistId}
+                  onChange={(e) => setArtistId(e.target.value)}
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
+                >
+                  <option value="">Choisir une fiche…</option>
+                  {artists.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="secondary"
+                  onClick={() => setCreatingFiche(true)}
+                >
+                  Créer une fiche
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
+
+        <div className="mt-l flex justify-end gap-s">
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            Annuler
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            Enregistrer
+          </Button>
+        </div>
+    </Modal>
+  );
+}

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -50,8 +52,14 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
-    service = ProviderEarningsService(providerAuth, appts);
+    service = ProviderEarningsService(
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
+      appts,
+    );
     final reg = await providerAuth.register(
+      email: 'reg10@test.pro',
+      authProvider: 'google',
+      googleSub: 'reg-sub-10',
       phoneNumber: '+2250500000040',
       businessName: 'X',
       businessType: 'salon',
@@ -99,6 +107,9 @@ void main() {
 
     test('ownership: unlinked + cross-salon → forbidden', () async {
       final reg = await providerAuth.register(
+        email: 'reg11@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-11',
         phoneNumber: '+2250500000041',
         businessName: 'Y',
         businessType: 'salon',

@@ -1,24 +1,89 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'colors.dart';
 import 'text_styles.dart';
 
 class AppTheme {
-  // Spacing System (8px grid)
+  // Spacing System — an 8pt grid with one sanctioned half-step (SYSTEM.md §5).
+  // Nothing else is legal: 10, 14, 18, 20 are not spacing values.
   static const double spacingXS = 4.0;
   static const double spacingS = 8.0;
+
+  /// The half-step. 12px appeared 76× as a raw literal because 8 was too tight
+  /// and 16 too loose for dense UI — naming it makes that a legal choice instead
+  /// of a violation (SYSTEM.md §5). Chip padding, dense list gaps, title↔subtitle.
+  static const double spacingSM = 12.0;
   static const double spacingM = 16.0;
   static const double spacingL = 24.0;
   static const double spacingXL = 32.0;
   static const double spacingXXL = 48.0;
   static const double spacingXXXL = 64.0;
 
-  // Border Radius
+  // Border Radius (SYSTEM.md §6)
   static const double radiusSmall = 4.0;
   static const double radiusMedium = 8.0;
   static const double radiusLarge = 12.0;
   static const double radiusXL = 16.0;
   static const double radiusXXL = 24.0;
+
+  /// Fully-rounded. `999` is a *shape* (a pill), not a number — chips, avatars,
+  /// badges, FABs, segmented controls (SYSTEM.md §6). It was hand-written 21×.
+  static const double radiusPill = 999.0;
+
+  // Icon size — five is enough (SYSTEM.md §7). An icon's *size* and its *tap
+  // target* are different things: `iconM` is 24px of glyph inside a ≥48px touch
+  // target (§13.2) — never grow the glyph to enlarge the target, grow the target.
+  static const double iconXS = 16.0; // inline w/ bodySmall/labelMedium; chips
+  static const double iconS = 20.0; // inline with text — the common case
+  static const double iconM = 24.0; // default action icon (AppBar, IconButton)
+  static const double iconL = 32.0; // feature / avatar-scale glyphs
+  static const double iconXL = 64.0; // the empty-state illustration glyph
+
+  // ---- Layout (SYSTEM.md §10) ---------------------------------------------
+
+  /// The widest a column of text or a form may be (§10).
+  ///
+  /// *"A 1000px-wide line of French body copy is unreadable, and an
+  /// `ElevatedButton` whose theme says `minimumSize: Size(double.infinity, 48)`
+  /// becomes a 1000px-wide button on a tablet."* §10 has said that since it was
+  /// written, and until A11 C6 it existed **in no code on either surface** —
+  /// prose on mobile, a hard-coded `'720px'` on web with a comment admitting it
+  /// stood in for this line.
+  ///
+  /// It is the one dimension the design system names that is not spacing,
+  /// radius or an icon size, which is why the web token mirror needed a fourth
+  /// family before this constant could exist at all.
+  static const double contentMaxWidth = 720;
+
+  /// The height bound a **scroller** must hand a box that mixes constant chrome
+  /// with text, when the OS text scale moves (SYSTEM.md §13.3).
+  ///
+  /// A horizontal `ListView` demands a bounded cross-axis, so "let it be
+  /// intrinsic" is not available — the bound has to be computed. Two ways to get
+  /// that wrong, both found in review:
+  ///
+  /// * **Scaling the whole bound.** A 280px provider card is 180 image + 32
+  ///   padding + 68 text; only the 68 tracks the font. `scale(280)` gives 560 at
+  ///   200% for 332 of content — 41% dead space, and it drags the *image's* share
+  ///   up with it. So scale [text] alone and add [constant] back untouched.
+  /// * **Letting it shrink.** Rows are `max(icon, line)` and icons do *not*
+  ///   scale, so a text block that measures 68 at 1× still needs 60.4 at 0.85 —
+  ///   not `68 × 0.85 = 57.8`. A proportional bound under-provisions at *small*
+  ///   scales, which is a real clip and can trip a downstream height threshold.
+  ///   Hence the `max`: the 1× baseline is a **floor**, and this only ever grows.
+  ///
+  /// [constant] is the chrome that must not move (image/avatar height, padding);
+  /// [text] is the text block's own height at 1×. Pin both with a test that
+  /// asserts the bound still covers the real content — a measured constant
+  /// silently rots the day someone adds a row (see `test/a11y/text_scale_test.dart`).
+  static double textScaledBound(
+    BuildContext context, {
+    required double constant,
+    required double text,
+  }) =>
+      constant + math.max(text, MediaQuery.textScalerOf(context).scale(text));
 
   // Elevation/Shadows
   static List<BoxShadow> get elevation1 => [
@@ -68,21 +133,72 @@ class AppTheme {
         ),
       ];
 
-  static ThemeData get lightTheme {
+  /// The app's theme. Production passes no [fontFamily], so text renders in the
+  /// platform's system font (SF Pro on iOS, Roboto on Android) — unchanged.
+  static ThemeData get lightTheme => themeData();
+
+  /// [fontFamily] pins the typeface for every text style the theme sets.
+  ///
+  /// `ThemeData(fontFamily:)` alone would NOT be enough: the styles below are
+  /// passed explicitly (the AppBar title, the three button labels, the input
+  /// label/hint, the nav labels), and an explicit style's null family wins over
+  /// the theme's. So the family is applied to each of them here, in one place.
+  ///
+  /// Only the golden tests pass it today (they pin Roboto so the rendered bytes
+  /// are reproducible — see test/support/golden.dart). It is also the seam the
+  /// brand font will use when it lands (docs/design/SYSTEM.md §22).
+  static ThemeData themeData({String? fontFamily}) {
+    TextStyle f(TextStyle style) =>
+        fontFamily == null ? style : style.copyWith(fontFamily: fontFamily);
+
     return ThemeData(
       useMaterial3: true,
+      // The FULL scheme (SYSTEM.md §21 row 9). We used to set 8 slots; the other
+      // ~22 fell back to Material 3's PURPLE baseline, and since nothing reads a
+      // slot by name, that purple leaked implicitly through every unthemed
+      // component (pickers, snackbars, chips, tab labels, icons, sheets…).
+      // Filling them all — monochrome, token-derived — de-purples the whole app
+      // at once, present components and future ones alike.
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
-        secondary: AppColors.secondary,
-        surface: AppColors.surface,
-        error: AppColors.error,
         onPrimary: AppColors.secondary,
-        onSecondary: AppColors.primary,
-        onSurface: AppColors.textPrimary,
+        primaryContainer: AppColors.surfaceVariant,
+        onPrimaryContainer: AppColors.textPrimary,
+        secondary: AppColors.primary,
+        onSecondary: AppColors.secondary,
+        secondaryContainer: AppColors.surfaceVariant, // was #E8DEF8 purple
+        onSecondaryContainer: AppColors.textPrimary,
+        tertiary: AppColors.primary,
+        onTertiary: AppColors.secondary,
+        tertiaryContainer: AppColors.surfaceVariant,
+        onTertiaryContainer: AppColors.textPrimary,
+        error: AppColors.error,
         onError: AppColors.secondary,
+        errorContainer: AppColors.secondaryVariant,
+        onErrorContainer: AppColors.error,
+        surface: AppColors.surface,
+        onSurface: AppColors.textPrimary,
+        // The single worst leak: icon/label defaults resolve to onSurfaceVariant.
+        onSurfaceVariant: AppColors.textSecondary,
+        // The neutral surface ramp (M3 draws menus/sheets/switch tracks from it).
+        surfaceDim: AppColors.secondaryVariant,
+        surfaceBright: AppColors.secondary,
+        surfaceContainerLowest: AppColors.secondary,
+        surfaceContainerLow: AppColors.surface,
+        surfaceContainer: AppColors.secondaryVariant,
+        surfaceContainerHigh: AppColors.secondaryVariant,
+        surfaceContainerHighest: AppColors.divider,
+        outline: AppColors.borderStrong, // 3.22:1
+        outlineVariant: AppColors.border,
+        inverseSurface: AppColors.textPrimary, // snackbar bg
+        onInverseSurface: AppColors.secondary,
+        inversePrimary: AppColors.secondary,
+        shadow: Colors.black,
+        scrim: Colors.black,
+        surfaceTint:
+            Colors.transparent, // flat monochrome — no M3 elevation tint
       ),
       scaffoldBackgroundColor: AppColors.background,
-      // fontFamily: 'Inter', // Using system fonts for now
       textTheme: const TextTheme(
         displayLarge: AppTextStyles.displayLarge,
         displayMedium: AppTextStyles.displayMedium,
@@ -99,14 +215,14 @@ class AppTheme {
         labelLarge: AppTextStyles.labelLarge,
         labelMedium: AppTextStyles.labelMedium,
         labelSmall: AppTextStyles.labelSmall,
-      ),
+      ).apply(fontFamily: fontFamily),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        titleTextStyle: AppTextStyles.headlineSmall.copyWith(
-          color: AppColors.textPrimary,
+        titleTextStyle: f(
+          AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary),
         ),
         iconTheme: const IconThemeData(
           color: AppColors.textPrimary,
@@ -119,11 +235,24 @@ class AppTheme {
           horizontal: spacingM,
           vertical: spacingM,
         ),
+        // WCAG 1.4.11 (SYSTEM.md §3.3): a field's outline is the ONLY thing that
+        // says a field is there, so it is `borderStrong` (3.22:1) — not `border`
+        // (1.44:1), which is what every input in the product used to be outlined
+        // in, i.e. invisible to a low-vision user. These two lines fix every
+        // AppTextField in all three apps, plus the DropdownButtonFormFields that
+        // don't override the theme.
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusLarge),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: const BorderSide(color: AppColors.borderStrong),
         ),
         enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+          borderSide: const BorderSide(color: AppColors.borderStrong),
+        ),
+        // Disabled controls are exempt from the contrast rule — and SHOULD recede
+        // below the enabled state. Without this the disabled field fell through to
+        // an untokened Material default; now it is deliberately the soft `border`.
+        disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: AppColors.border),
         ),
@@ -139,53 +268,79 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
-        labelStyle: AppTextStyles.labelMedium.copyWith(
-          color: AppColors.textSecondary,
+        labelStyle: f(
+          AppTextStyles.labelMedium.copyWith(color: AppColors.textSecondary),
         ),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textTertiary,
+        hintStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.textTertiary),
         ),
+        // A7 — §13.3. `errorMaxLines` defaults to **1**, so a §17-compliant
+        // French sentence (« Le numéro doit comporter 10 chiffres (ex : 07 07
+        // 12 34 56). ») was ellipsised on a narrow field and amputated at
+        // 200 %: the message telling the user how to fix the form was the one
+        // message they could not finish reading.
+        //
+        // No `errorStyle` here, deliberately. A7 added one and then MEASURED
+        // it: the rendered style is byte-identical without it, because A3's
+        // full `ColorScheme` (`error`) and `textTheme` (`bodySmall`, already
+        // through `f(...)`) resolve to exactly the same thing. The spec's first
+        // draft claimed the error text was untokened — it was not, and dead
+        // configuration that agrees with its default is a comment pretending to
+        // be a decision.
+        errorMaxLines: 3,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.secondary,
+          // Disabled reads as disabled, and legibly (SYSTEM.md §21 row 24): the
+          // old #5C5C5C-on-#949495 was 2.21:1. Exempt from WCAG, but this pair
+          // is a clearly-inert light grey.
+          disabledBackgroundColor: AppColors.surfaceVariant,
+          disabledForegroundColor: AppColors.textDisabled,
           elevation: 1,
           padding: const EdgeInsets.symmetric(
             horizontal: spacingM,
             vertical: spacingM,
           ),
-          minimumSize: const Size(double.infinity, 48),
+          // Height floor only — a button takes its WIDTH from its container, not
+          // a forced `double.infinity` (which became a ~1000px bar on a tablet).
+          // AppButton overrides this for its own full-width sizing.
+          minimumSize: const Size(0, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
-          textStyle: AppTextStyles.labelLarge,
+          textStyle: f(AppTextStyles.labelLarge),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
+          disabledForegroundColor: AppColors.textDisabled,
           side: const BorderSide(color: AppColors.primary),
           padding: const EdgeInsets.symmetric(
             horizontal: spacingM,
             vertical: spacingM,
           ),
-          minimumSize: const Size(double.infinity, 48),
+          minimumSize: const Size(0, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
-          textStyle: AppTextStyles.labelLarge,
+          textStyle: f(AppTextStyles.labelLarge),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
+          disabledForegroundColor: AppColors.textDisabled,
           padding: const EdgeInsets.symmetric(
             horizontal: spacingM,
             vertical: spacingS,
           ),
-          minimumSize: const Size(0, 40),
-          textStyle: AppTextStyles.labelLarge,
+          // 48, not 40 — the WCAG tap-target floor (§13.2). Raises raw
+          // TextButtons and AppButton.text alike.
+          minimumSize: const Size(0, 48),
+          textStyle: f(AppTextStyles.labelLarge),
         ),
       ),
       cardTheme: CardThemeData(
@@ -201,15 +356,192 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.secondary,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textTertiary,
         type: BottomNavigationBarType.fixed,
         elevation: 3,
-        selectedLabelStyle: AppTextStyles.labelSmall,
-        unselectedLabelStyle: AppTextStyles.labelSmall,
+        selectedLabelStyle: f(AppTextStyles.labelSmall),
+        unselectedLabelStyle: f(AppTextStyles.labelSmall),
       ),
+      // ---- The component themes (SYSTEM.md §21 row 9) -----------------------
+      // Everything below used to render off Material's purple defaults. Only the
+      // components the app ACTUALLY renders are themed here; the completed
+      // ColorScheme above already keeps the unused ones (radio, segmented,
+      // badge, drawer) on-token, so we don't add dead config.
+
+      // Fixes the ~65 bare SnackBars (were dark purple-grey `inverseSurface`),
+      // and lets Helpers.showSnackBar drop its hardcoded Colors.black87.
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.textPrimary,
+        contentTextStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.secondary),
+        ),
+        actionTextColor: AppColors.secondary,
+        behavior: SnackBarBehavior.floating,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+      ),
+      // Bare chips were filled with #E8DEF8 purple (`secondaryContainer`).
+      // The label INVERTS to white on the black selected fill — via a
+      // `WidgetStateColor`, not `secondaryLabelStyle` (which M3's RawChip
+      // ignores; it resolves `labelStyle.color` per-state instead). This works
+      // uniformly for Chip / ChoiceChip / FilterChip — the golden proved that
+      // secondaryLabelStyle left FilterChip's selected label dark-on-black.
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surface,
+        selectedColor: AppColors.primary,
+        disabledColor: AppColors.surfaceVariant,
+        checkmarkColor: AppColors.secondary,
+        side: const BorderSide(color: AppColors.borderStrong),
+        shape: const StadiumBorder(),
+        labelStyle: f(AppTextStyles.labelMedium).copyWith(
+          color: WidgetStateColor.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? AppColors.secondary
+                : AppColors.textPrimary,
+          ),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.secondary
+              : AppColors.surface,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.surfaceVariant,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(AppColors.borderStrong),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.secondary,
+        ),
+        checkColor: const WidgetStatePropertyAll(AppColors.secondary),
+        side: const BorderSide(color: AppColors.borderStrong, width: 2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSmall),
+        ),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: AppColors.primary,
+        inactiveTrackColor: AppColors.surfaceVariant, // was purple-tinted
+        thumbColor: AppColors.primary,
+        overlayColor: AppColors.primary.withValues(alpha: 0.12),
+        valueIndicatorColor: AppColors.textPrimary,
+        valueIndicatorTextStyle: f(
+          AppTextStyles.labelMedium.copyWith(color: AppColors.secondary),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColors.textPrimary,
+        unselectedLabelColor: AppColors.textTertiary, // was onSurfaceVariant
+        labelStyle: f(AppTextStyles.titleSmall),
+        unselectedLabelStyle: f(AppTextStyles.titleSmall),
+        indicatorColor: AppColors.primary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: AppColors.divider,
+      ),
+      // The ~30 uncolored IconButtons defaulted to `onSurfaceVariant`.
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: AppColors.textPrimary),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.secondary,
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+        ),
+        titleTextStyle: f(
+          AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+        ),
+        contentTextStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.secondary,
+        modalBackgroundColor: AppColors.secondary,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radiusXXL)),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: AppColors.secondary,
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+        textStyle: f(
+          AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.secondary,
+        indicatorColor: AppColors.surfaceVariant,
+        surfaceTintColor: Colors.transparent,
+        labelTextStyle: WidgetStatePropertyAll(
+          f(AppTextStyles.labelSmall.copyWith(color: AppColors.textPrimary)),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (s) => IconThemeData(
+            color: s.contains(WidgetState.selected)
+                ? AppColors.primary
+                : AppColors.textTertiary,
+          ),
+        ),
+      ),
+      // ListTile leading/trailing icons defaulted to `onSurfaceVariant`.
+      listTileTheme: const ListTileThemeData(
+        iconColor: AppColors.textSecondary,
+        textColor: AppColors.textPrimary,
+      ),
+      // No explicit tooltips today, but A4 adds ~26 — themed now so they land
+      // on-brand (dark, rounded, white text).
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: AppColors.textPrimary,
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+        textStyle: f(
+          AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.secondary,
+      ),
+      // **`datePickerTheme` and `timePickerTheme` were here, and both are gone
+      // (A14b).** The comment they carried — *"The 11 date/time pickers were the
+      // worst purple offenders"* — was stale twice over by the end: A14a
+      // converted the 5 date sites and A14b the 6 time sites, so there are now
+      // **zero** Material pickers in `lib/`. No `showDatePicker`,
+      // `DatePickerDialog`, `CalendarDatePicker`, `showDateRangePicker`,
+      // `InputDatePickerFormField` or `showTimePicker` survives.
+      //
+      // `datePickerTheme`'s last consumer was a *test* — `french_test.dart`
+      // pumped a live `showDatePicker` to assert a parse defect the product can
+      // no longer reach. Deleting the theme and leaving that test would have
+      // left the test measuring Flutter; deleting the test and leaving the theme
+      // would have left genuinely unreachable code. They went together.
+      //
+      // If a Material picker is ever wanted again, note what A14b learned about
+      // theming the time one: `hourMinuteSize` and `dialSize` live only on the
+      // private `_TimePickerDefaults` and appear **zero** times in
+      // `time_picker_theme.dart`, and `TextScaler.noScaling` at
+      // `time_picker.dart:387` is a literal. The font is the only lever, and it
+      // does nothing.
     );
   }
 }

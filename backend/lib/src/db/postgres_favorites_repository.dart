@@ -40,4 +40,12 @@ class PostgresFavoritesRepository implements FavoritesRepository {
       parameters: {'uid': userId, 'pid': providerId},
     );
   }
+
+  @override
+  Future<void> deleteForUser(String userId) async {
+    await _pool.execute(
+      Sql.named('DELETE FROM favorites WHERE user_id = @u'),
+      parameters: {'u': userId},
+    );
+  }
 }

@@ -1,0 +1,804 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../../../core/constants/booking_horizons.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/colors.dart';
+import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/status_labels.dart';
+import '../../../models/appointment.dart';
+import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_journal_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/brand_refresh.dart';
+import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_date_time_picker.dart';
+
+/// « Ma journée » — the pro-app day timeline (module `journal` J1b,
+/// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
+/// a vertical day with artist filter, week strip, gap slots, and swipe /
+/// long-press quick actions. The salon's default appointment view.
+class ProJournalScreen extends StatefulWidget {
+  const ProJournalScreen({super.key});
+
+  @override
+  State<ProJournalScreen> createState() => _ProJournalScreenState();
+}
+
+class _ProJournalScreenState extends State<ProJournalScreen> {
+  String get _providerId => context.read<ProAuthProvider>().activeSalonId ?? '';
+
+  /// Collaborateur own-mode (access R4b §5.3): « Ma journée » shows the
+  /// member's own planning only — the lock + hidden actions below; the
+  /// server own-filters regardless (T40).
+  bool get _ownMode => context.read<ProAuthProvider>().isStaff;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncLock();
+      context.read<ProJournalProvider>().load(
+            _providerId,
+            tz: context.read<ProAuthProvider>().salonTimezone,
+          );
+    });
+  }
+
+  /// Keeps the own-mode lock in step with the membership (which can land
+  /// asynchronously after a cold start) — re-run from build post-frame.
+  void _syncLock() {
+    if (!mounted) return;
+    final auth = context.read<ProAuthProvider>();
+    final journal = context.read<ProJournalProvider>();
+    final ownArtist = auth.isStaff ? auth.membership?.artistId : null;
+    if (ownArtist != null) {
+      journal.lockToArtist(ownArtist);
+    } else {
+      journal.unlock();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final journal = context.watch<ProJournalProvider>();
+    final auth = context.watch<ProAuthProvider>();
+    final ownMode = auth.isStaff;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncLock());
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        // Own-mode grounds the boundary: « {Salon} — votre planning ».
+        title: Text(
+          ownMode ? '${auth.salonName} — votre planning' : 'Ma journée',
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          if (!ownMode)
+            IconButton(
+              tooltip: 'Agenda',
+              icon: const Icon(Icons.calendar_month),
+              onPressed: () => context.push('/pro/appointments'),
+            ),
+          PopupMenuButton<String>(
+            onSelected: (_) =>
+                context.read<ProJournalProvider>().toggleCancelled(),
+            itemBuilder: (_) => [
+              CheckedPopupMenuItem(
+                value: 'cancelled',
+                checked: journal.showCancelled,
+                child: const Text('Voir les annulés'),
+              ),
+            ],
+          ),
+        ],
+      ),
+      floatingActionButton: ownMode
+          ? null // manual booking is a whole-journal act (T40)
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/pro/appointment/new'),
+              icon: const Icon(Icons.add),
+              label: const Text('Nouveau'),
+            ),
+      body: Column(
+        children: [
+          _Header(journal: journal, onPick: _pickDate),
+          Expanded(child: _body(journal)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final journal = context.read<ProJournalProvider>();
+    // A14: the only past-facing picker in the app. The bounds were
+    // `DateTime.utc(2024)`..`utc(2030)` — two magic years, one of which
+    // eventually arrives. A span around the selected day cannot expire.
+    final picked = await showMyweliDatePicker(
+      context: context,
+      initialDate: journal.selectedDate,
+      firstDate: journal.selectedDate.subtract(kJournalPastHorizon),
+      lastDate: journal.selectedDate.add(kBookingHorizon),
+      today: salonToday(tz: context.read<ProAuthProvider>().salonTimezone),
+    );
+    if (picked != null) {
+      journal.setDate(DateTime.utc(picked.year, picked.month, picked.day));
+    }
+  }
+
+  Widget _body(ProJournalProvider journal) {
+    if (journal.isLoading && journal.day == null) {
+      return const LoadingIndicator();
+    }
+    if (journal.error != null && journal.day == null) {
+      return EmptyState(
+        icon: Icons.wifi_off,
+        title: 'Une erreur est survenue',
+        description: journal.error,
+        actionText: 'Réessayer',
+        onAction: () => journal.load(
+          _providerId,
+          tz: context.read<ProAuthProvider>().salonTimezone,
+        ),
+      );
+    }
+    final items = journal.visibleAppointments;
+    return BrandRefresh(
+      onRefresh: journal.refresh,
+      child: items.isEmpty
+          ? ListView(
+              children: [
+                const SizedBox(height: AppTheme.spacingXXXL),
+                EmptyState(
+                  icon: Icons.event_available,
+                  title: 'Aucun rendez-vous ce jour',
+                  actionText: _ownMode ? null : '+ Nouveau rendez-vous',
+                  onAction: _ownMode
+                      ? null
+                      : () => context.push('/pro/appointment/new'),
+                ),
+              ],
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+                AppTheme.spacingM,
+                96,
+              ),
+              children: _rows(journal, items),
+            ),
+    );
+  }
+
+  /// Interleaves booking cards with tappable « Libre » gap rows (≥30 min).
+  List<Widget> _rows(ProJournalProvider journal, List<Appointment> items) {
+    final rows = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      final a = items[i];
+      rows.add(_card(journal, a));
+      if (i + 1 < items.length) {
+        final end = a.appointmentDate.add(
+          Duration(minutes: a.durationMinutes ?? 30),
+        );
+        final nextStart = items[i + 1].appointmentDate;
+        if (nextStart.difference(end).inMinutes >= 30) {
+          rows.add(_gap(end));
+        }
+      }
+    }
+    return rows;
+  }
+
+  Widget _gap(DateTime start) {
+    // J1b §4.2 (audit 1.11): the « Libre » row carries the ACTIVE artist
+    // filter into the prefill ('' = « Sans artiste » and null = « Tous »
+    // pass nothing).
+    final artistFilter = context.read<ProJournalProvider>().artistFilter;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+        child: InkWell(
+          // Own-mode: gaps are informational only (booking = manage.all).
+          onTap: _ownMode
+              ? null
+              : () => context.push(
+                    '/pro/appointment/new',
+                    extra: {
+                      'dateTime': start.toIso8601String(),
+                      if (artistFilter != null && artistFilter.isNotEmpty)
+                        'artistId': artistFilter,
+                    },
+                  ),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM,
+              vertical: AppTheme.spacingS,
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: AppColors.borderStrong,
+                style: BorderStyle.solid,
+              ),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.add,
+                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+                const SizedBox(width: AppTheme.spacingS),
+                Text(
+                  'Libre — ${Formatters.formatTime(toSalonTime(start, tz: context.read<ProAuthProvider>().salonTimezone))}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.chevron_right,
+                    size: AppTheme.iconXS, color: AppColors.textTertiary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _card(ProJournalProvider journal, Appointment a) {
+    final arrived =
+        a.status == AppointmentStatus.confirmed && a.arrivedAt != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+      child: Slidable(
+        key: ValueKey(a.id),
+        // Right swipe → the state-appropriate positive action.
+        startActionPane: _startPane(journal, a, arrived),
+        endActionPane: _endPane(journal, a),
+        child: InkWell(
+          onTap: () => context.push('/pro/appointment/${a.id}'),
+          onLongPress: () => _actionSheet(journal, a, arrived),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          child: _TimelineCard(
+            appt: a,
+            arrived: arrived,
+            statusLabel: arrived ? 'Arrivé' : StatusLabels.of(a.status),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ActionPane? _startPane(
+    ProJournalProvider journal,
+    Appointment a,
+    bool arrived,
+  ) {
+    if (_ownMode) {
+      // Collaborateur: « Terminé » on own confirmed bookings only (§5.3).
+      if (a.status != AppointmentStatus.confirmed) return null;
+      return ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.3,
+        children: [
+          SlidableAction(
+            onPressed: (_) => _run(journal.complete(a.id)),
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
+            icon: Icons.done_all,
+            label: 'Terminé',
+          ),
+        ],
+      );
+    }
+    if (a.status == AppointmentStatus.pending) {
+      return ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.3,
+        children: [
+          SlidableAction(
+            onPressed: (_) => _run(journal.accept(a.id)),
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
+            icon: Icons.check,
+            label: 'Accepter',
+          ),
+        ],
+      );
+    }
+    if (a.status == AppointmentStatus.confirmed) {
+      return ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.3,
+        children: [
+          SlidableAction(
+            onPressed: (_) =>
+                _run(arrived ? journal.complete(a.id) : journal.arrive(a.id)),
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
+            icon: arrived ? Icons.done_all : Icons.login,
+            label: arrived ? 'Terminé' : 'Arrivé',
+          ),
+        ],
+      );
+    }
+    return null;
+  }
+
+  ActionPane? _endPane(ProJournalProvider journal, Appointment a) {
+    if (_ownMode) return null; // reschedule = manage.all
+    if (a.status == AppointmentStatus.cancelled ||
+        a.status == AppointmentStatus.completed ||
+        a.status == AppointmentStatus.noShow) {
+      return null;
+    }
+    return ActionPane(
+      motion: const DrawerMotion(),
+      extentRatio: 0.3,
+      children: [
+        SlidableAction(
+          onPressed: (_) => _reschedule(journal, a),
+          backgroundColor: AppColors.surfaceVariant,
+          foregroundColor: AppColors.textPrimary,
+          icon: Icons.schedule,
+          label: 'Reprogrammer',
+        ),
+      ],
+    );
+  }
+
+  /// Long-press = the full action set (discoverable + a11y — swipes aren't
+  /// announced to screen readers).
+  Future<void> _actionSheet(
+    ProJournalProvider journal,
+    Appointment a,
+    bool arrived,
+  ) async {
+    final ownMode = _ownMode;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!ownMode && a.status == AppointmentStatus.pending) ...[
+              _sheetAction(Icons.check, 'Accepter', () => journal.accept(a.id)),
+              _sheetAction(Icons.close, 'Refuser', () => journal.noShow(a.id),
+                  destructive: false),
+            ],
+            if (a.status == AppointmentStatus.confirmed) ...[
+              if (!ownMode && !arrived)
+                _sheetAction(
+                    Icons.login, 'Client arrivé', () => journal.arrive(a.id)),
+              _sheetAction(
+                  Icons.done_all, 'Terminé', () => journal.complete(a.id)),
+              _sheetAction(
+                  Icons.person_off, 'Non présenté', () => journal.noShow(a.id)),
+            ],
+            if (!ownMode &&
+                a.status != AppointmentStatus.cancelled &&
+                a.status != AppointmentStatus.completed &&
+                a.status != AppointmentStatus.noShow)
+              ListTile(
+                leading: const Icon(Icons.schedule),
+                title: const Text('Reprogrammer'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _reschedule(journal, a);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetAction(
+    IconData icon,
+    String label,
+    Future<bool> Function() run, {
+    bool destructive = false,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: destructive ? AppColors.error : null),
+      title: Text(label),
+      onTap: () {
+        Navigator.of(context).pop();
+        _run(run());
+      },
+    );
+  }
+
+  /// Reschedule, in **one** route (A14b).
+  ///
+  /// **This was two modals, and the second one's Cancel undid the first one's
+  /// answer.** The old shape opened the date picker, then opened
+  /// `showTimePicker` the instant it popped, then hit
+  /// `if (time == null || !mounted) return;` — so a user who chose a day and
+  /// then backed out of the time lost the day too, with no message and no way
+  /// back to it. `MyweliDateTimePicker` makes back a *step*: the date is one
+  /// widget's state instead of one route's return value.
+  ///
+  /// **`minTimeOnToday` is why « Créneau indisponible. » is now a backstop
+  /// rather than the first feedback.** Material's picker could not express *"not
+  /// before now"*, so today-plus-an-earlier-hour was submittable and the server
+  /// round-trip was the validation.
+  Future<void> _reschedule(ProJournalProvider journal, Appointment a) async {
+    // Picker seeds + result are the ACTIVE SALON's wall-clock
+    // (salon_time.dart) — never the device's zone.
+    final tz = context.read<ProAuthProvider>().salonTimezone;
+    final now = salonNow(tz: tz);
+    final picked = await showMyweliDateTimePicker(
+      context: context,
+      initialDate: toSalonTime(a.appointmentDate, tz: tz),
+      initialTime:
+          TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate, tz: tz)),
+      firstDate: salonToday(tz: tz),
+      lastDate: salonToday(tz: tz).add(kBookingHorizon),
+      today: salonToday(tz: tz),
+      minTimeOnToday: TimeOfDay(hour: now.hour, minute: now.minute),
+      helpText: 'Reprogrammer',
+    );
+    if (picked == null || !mounted) return;
+    // The control returns the PARTS, not a `DateTime`, so this recombination
+    // through `salonDateTime` stays where the timezone is known (§18). Returning
+    // a composed `DateTime` would have made `DateTime(y, m, d, h, min)` — the
+    // device-local shape §18 forbids — the convenient call.
+    final newDt = salonDateTime(
+      picked.date.year,
+      picked.date.month,
+      picked.date.day,
+      hour: picked.time.hour,
+      minute: picked.time.minute,
+      tz: tz,
+    );
+    final ok = await journal.reschedule(a.id, newDt);
+    if (!ok && mounted) {
+      AppSnackBar.show(context, journal.error ?? 'Créneau indisponible.',
+          kind: SnackKind.error);
+    }
+  }
+
+  Future<void> _run(Future<bool> future) async {
+    final journal = context.read<ProJournalProvider>();
+    final ok = await future;
+    if (!ok && mounted) {
+      AppSnackBar.show(context, journal.error ?? 'Action impossible.',
+          kind: SnackKind.error);
+    }
+  }
+}
+
+// ---- Header (date row + week strip + artist chips) -------------------------
+
+class _Header extends StatelessWidget {
+  const _Header({required this.journal, required this.onPick});
+
+  final ProJournalProvider journal;
+  final Future<void> Function() onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = journal.selectedDate;
+    final isToday = journal.keyOf(date) == journal.todayKey;
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Jour précédent',
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () => journal.setDate(
+                  date.subtract(const Duration(days: 1)),
+                ),
+              ),
+              Expanded(
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(minHeight: 48), // §13.2 touch target
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onPick,
+                    child: Center(
+                      child: Text(
+                        isToday
+                            ? 'Aujourd’hui'
+                            : Formatters.formatDate(toSalonTime(
+                                date,
+                                tz: context
+                                    .read<ProAuthProvider>()
+                                    .salonTimezone,
+                              )),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Jour suivant',
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => journal.setDate(
+                  date.add(const Duration(days: 1)),
+                ),
+              ),
+            ],
+          ),
+          _WeekStrip(journal: journal),
+          if (journal.day != null && !journal.isLocked)
+            _ArtistChips(journal: journal),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekStrip extends StatelessWidget {
+  const _WeekStrip({required this.journal});
+
+  final ProJournalProvider journal;
+
+  static const _labels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = journal.selectedDate;
+    final monday = selected.subtract(Duration(days: selected.weekday - 1));
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingS),
+      child: Row(
+        children: [
+          for (var i = 0; i < 7; i++)
+            Expanded(
+              child:
+                  _dayPill(context, monday.add(Duration(days: i)), _labels[i]),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dayPill(BuildContext context, DateTime d, String label) {
+    final key = journal.keyOf(d);
+    final isSel = key == journal.keyOf(journal.selectedDate);
+    final count = journal.weekCounts[key] ?? 0;
+    // §13.2: fills its Expanded 1/7 slot (≥48 on normal widths; opaque makes the
+    // whole slot tappable). A fixed minWidth:48 × 7 overflowed narrow phones.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => journal.setDate(d),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingXS),
+          Builder(builder: (context) {
+            // A tight 32×32 around the day number clipped it at 200% (the
+            // bodyMedium line is 20 at 1× but 40 at 2×). The pill is a CIRCLE,
+            // so it has to stay square: diameter = the scaled line + breathing
+            // room, floored at the 32 the design draws at 1× (§13.3).
+            const style = AppTextStyles.bodyMedium;
+            final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
+            final d0 = math.max(
+              32.0,
+              MediaQuery.textScalerOf(context).scale(line) + AppTheme.spacingS,
+            );
+            return Container(
+              width: d0,
+              height: d0,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSel ? AppColors.primary : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '${d.day}',
+                style: style.copyWith(
+                  color: isSel ? AppColors.secondary : AppColors.textPrimary,
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: AppTheme.spacingXS),
+          Container(
+            width: count == 0 ? 0 : (3 + count.clamp(0, 5)).toDouble(),
+            height: 4,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArtistChips extends StatelessWidget {
+  const _ArtistChips({required this.journal});
+
+  final ProJournalProvider journal;
+
+  @override
+  Widget build(BuildContext context) {
+    final artists = journal.day!.artists;
+    // A horizontal ListView demands a BOUNDED height, and that bound was the
+    // constant 48 — so the chips clipped the moment the OS text scale grew
+    // (§13.3): the strip measured 48 at 1× and still 48 at 2×. The children were
+    // already built eagerly, so there is nothing to virtualise; a scroll view
+    // over a Row lets the strip take its INTRINSIC height and grow with the
+    // text, while the FilterChips keep their own 48 tap target (§13.2).
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+      child: Row(
+        children: [
+          _chip(context, 'Tous', journal.artistFilter == null, null),
+          for (final a in artists)
+            _chip(context, a.name, journal.artistFilter == a.id, a.id),
+          if (journal.hasUnassigned)
+            _chip(context, 'Sans artiste', journal.artistFilter == '', ''),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(BuildContext context, String label, bool selected, String? id) {
+    return Padding(
+      padding: const EdgeInsets.only(right: AppTheme.spacingS),
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => journal.setArtistFilter(selected ? null : id),
+      ),
+    );
+  }
+}
+
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({
+    required this.appt,
+    required this.arrived,
+    required this.statusLabel,
+  });
+
+  final Appointment appt;
+  final bool arrived;
+  final String statusLabel;
+
+  Color get _statusColor {
+    if (arrived) return AppColors.success;
+    return switch (appt.status) {
+      AppointmentStatus.completed => AppColors.textSecondary,
+      AppointmentStatus.noShow => AppColors.error,
+      AppointmentStatus.cancelled => AppColors.textTertiary,
+      AppointmentStatus.pending => AppColors.warning,
+      AppointmentStatus.confirmed => AppColors.info,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tz = context.read<ProAuthProvider>().salonTimezone;
+    final end = appt.appointmentDate.add(
+      Duration(minutes: appt.durationMinutes ?? 30),
+    );
+    final cancelled = appt.status == AppointmentStatus.cancelled;
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border(left: BorderSide(color: _statusColor, width: 3)),
+      ),
+      child: Row(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                Formatters.formatTime(
+                    toSalonTime(appt.appointmentDate, tz: tz)),
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                Formatters.formatTime(toSalonTime(end, tz: tz)),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: AppTheme.spacingM),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        appt.clientDisplayName ?? appt.clientName ?? 'Client',
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                          decoration:
+                              cancelled ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
+                    if ((appt.clientNoShowCount ?? 0) >= 1) ...[
+                      const SizedBox(width: AppTheme.spacingXS),
+                      _badge(
+                        appt.clientNoShowCount == 1
+                            ? '1 absence'
+                            : '${appt.clientNoShowCount} absences',
+                        (appt.clientNoShowCount ?? 0) >= 2
+                            ? AppColors.error
+                            : AppColors.textSecondary,
+                      ),
+                    ],
+                    if (appt.depositAmount > 0) ...[
+                      const SizedBox(width: AppTheme.spacingXS),
+                      const Icon(Icons.savings_outlined,
+                          size: AppTheme.iconXS, color: AppColors.textTertiary),
+                    ],
+                  ],
+                ),
+                Text(
+                  Formatters.count(
+                    appt.serviceIds.length,
+                    'prestation',
+                    'prestations',
+                  ),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _badge(statusLabel, _statusColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _badge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(color: color),
+      ),
+    );
+  }
+}

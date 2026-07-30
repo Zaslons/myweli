@@ -1,25 +1,61 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
+import type { ProProfile } from '../../lib/api/pro';
 import { getMyProvider, updateProviderProfile } from '../../lib/api/pro';
 import {
+  PROFILE_CATEGORIES,
   type ProfileForm,
   buildProfilePayload,
   profileToForm,
   validateProfile,
 } from '../../lib/pro/profile';
+import dynamic from 'next/dynamic';
+import { findCity } from '../../lib/api/localities';
+import { centerOf } from '../../lib/discovery/map';
+import { hasCap } from '../../lib/pro/team';
+import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
+import { CompteDangerSection } from './CompteDangerSection';
+import { LocalityPicker } from './LocalityPicker';
+import { TeamRoleChip } from './TeamRoleChip';
+
+// MapLibre is browser-only; the pin picker loads with the page (authed, not
+// an indexed surface — no CWV concern).
+const LocationPicker = dynamic(
+  () => import('./LocationPicker').then((m) => m.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-surfaceVariant md:h-80">
+        <Loading label="Chargement de la carte…" />
+      </div>
+    ),
+  },
+);
 
 const input =
-  'w-full rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
+  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 export function ProfilClient() {
   const router = useRouter();
+  // The locality tree (multi-pays MP3) — the area picker + the map's
+  // unplaced-pin center.
+  const { tree } = useLocalities();
   const [providerId, setProviderId] = useState('');
+  // Kept whole for the export assembly (audit 11.5).
+  const [profile, setProfile] = useState<ProProfile | null>(null);
+  const [verification, setVerification] = useState<
+    'pending' | 'verified' | 'rejected'
+  >('pending');
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,17 +76,43 @@ export function ProfilClient() {
         return;
       }
       setProviderId(me.profile.provider.id);
+      setProfile(me.profile);
+      setVerification(me.profile.account.verificationStatus ?? 'pending');
       setForm(profileToForm(me.profile.provider));
       setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (loadError || !form) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Profil" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
+  }
+
+  // Team access R5b (amended): members WITHOUT profile.manage get a SLIM
+  // personal view — identity + role + salon + « Supprimer mon compte »
+  // (account-deletion parity for everyone; export stays owner-side).
+  const membership = profile?.membership;
+  if (profile && membership && !hasCap(membership, 'profile.manage')) {
+    return (
+      <div className="max-w-xl">
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
+        <Card as="section" className="mt-l space-y-s">
+          {profile.account.email ? (
+            <p className="break-all text-bodyMedium text-textPrimary">
+              {profile.account.email}
+            </p>
+          ) : null}
+          <TeamRoleChip role={membership.role} />
+          <p className="text-bodyMedium text-textSecondary">
+            Salon : {profile.provider.name}
+          </p>
+        </Card>
+        <CompteDangerSection profile={profile} exportEnabled={false} />
+      </div>
+    );
   }
 
   function set<K extends keyof ProfileForm>(k: K, v: ProfileForm[K]) {
@@ -80,9 +142,9 @@ export function ProfilClient() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Profil</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
 
-      <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l space-y-s">
         <Field label="Nom du salon">
           <input
             className={input}
@@ -105,22 +167,15 @@ export function ProfilClient() {
             onChange={(e) => set('address', e.target.value)}
           />
         </Field>
-        <div className="flex gap-s">
-          <Field label="Commune" className="flex-1">
-            <input
-              className={input}
-              value={form.commune}
-              onChange={(e) => set('commune', e.target.value)}
-            />
-          </Field>
-          <Field label="Ville" className="flex-1">
-            <input
-              className={input}
-              value={form.city}
-              onChange={(e) => set('city', e.target.value)}
-            />
-          </Field>
-        </div>
+        {/* Multi-pays MP3: the area picker writes areaId — the serveur en
+            dérive commune/ville (et fuseau/devise, T57). */}
+        <LocalityPicker
+          areaId={form.areaId}
+          legacyCommune={form.commune}
+          onChange={(areaId) => set('areaId', areaId)}
+          fallbackValue={form.commune}
+          onFallbackChange={(v) => set('commune', v)}
+        />
         <Field label="Téléphone">
           <input
             className={input}
@@ -135,23 +190,70 @@ export function ProfilClient() {
             onChange={(e) => set('whatsapp', e.target.value)}
           />
         </Field>
+        <Field label="Catégorie">
+          <select
+            className={input}
+            value={form.category}
+            onChange={(e) => set('category', e.target.value)}
+          >
+            {PROFILE_CATEGORIES.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Position sur la carte">
+          {/* The pin your clients see on la carte (pro-salon-lifecycle L1);
+              required to go live. */}
+          <LocationPicker
+            latitude={form.latitude}
+            longitude={form.longitude}
+            fallbackCenter={centerOf(
+              findCity(tree, profile?.provider.citySlug ?? '') ??
+                tree.countries[0]?.cities[0],
+            )}
+            onChange={(lat, lng) =>
+              setForm((f) =>
+                f ? { ...f, latitude: lat, longitude: lng } : f,
+              )
+            }
+          />
+        </Field>
 
-        {error ? <p className="text-sm text-error">{error}</p> : null}
-        {saved ? (
-          <p className="text-sm text-textSecondary">Profil enregistré.</p>
-        ) : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
+        <p
+          role="status"
+          className={saved ? 'text-bodyMedium text-textSecondary' : 'sr-only'}
+        >
+          {saved ? 'Profil enregistré.' : ''}
+        </p>
         <div className="pt-s">
           <Button disabled={busy} onClick={save}>
             Enregistrer
           </Button>
         </div>
-      </section>
+      </Card>
 
       <section className="mt-l space-y-s">
+        <SectionLink
+          href="/pro/verification"
+          label="Vérification"
+          hint={
+            verification === 'verified'
+              ? 'Compte vérifié'
+              : verification === 'rejected'
+                ? 'Vérification refusée'
+                : 'En attente'
+          }
+        />
         <SectionLink href="/pro/acompte" label="Acompte" />
         <SectionLink href="/pro/abonnement" label="Abonnement" />
         <SectionLink href="/pro/medias" label="Photos & Avant/Après" />
       </section>
+
+      {/* Audit 11.5 — export + deletion (AUTH-004/005 for pros). */}
+      {profile ? <CompteDangerSection profile={profile} /> : null}
     </div>
   );
 }
@@ -166,21 +268,31 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className={`block text-sm text-textTertiary ${className}`}>
+    <label className={`block text-bodyMedium text-textTertiary ${className}`}>
       {label}
       {children}
     </label>
   );
 }
 
-function SectionLink({ href, label }: { href: string; label: string }) {
+function SectionLink({
+  href,
+  label,
+  hint,
+}: {
+  href: string;
+  label: string;
+  hint?: string;
+}) {
   return (
     <Link
       href={href}
       className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m text-textPrimary hover:bg-surfaceVariant"
     >
       <span>{label}</span>
-      <span className="text-textTertiary">›</span>
+      <span className="text-textTertiary">
+        {hint ? <span className="mr-s text-bodyMedium">{hint}</span> : null}›
+      </span>
     </Link>
   );
 }

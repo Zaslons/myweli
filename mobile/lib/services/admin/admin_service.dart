@@ -135,6 +135,15 @@ class AdminService {
   ) =>
       _post('/admin/providers/$id/feature', body: {'featured': featured});
 
+  /// Manual billing (T54): record a payment of [months] months.
+  Future<ApiResponse<Map<String, dynamic>>> markSubscriptionPaid(
+    String id,
+    int months,
+  ) =>
+      _post('/admin/providers/$id/subscription/paid', body: {
+        'months': months,
+      });
+
   // --- consumer management ---------------------------------------------------
   Future<ApiResponse<Map<String, dynamic>>> users({
     String? status,

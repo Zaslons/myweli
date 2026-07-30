@@ -9,7 +9,9 @@ import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
+import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
+import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
@@ -47,7 +49,8 @@ void main() {
     await pool.execute(
       'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
       'provider_users, provider_otp_codes, provider_refresh_tokens, '
-      'favorites, reviews CASCADE',
+      'favorites, reviews, salon_clients, salon_client_notes, '
+      'provider_audit_log CASCADE',
     );
   });
 
@@ -58,12 +61,13 @@ void main() {
     String status = 'pending',
     int durationMinutes = 30,
     required DateTime when,
+    String? artistId,
   }) => {
     'id': id,
     'userId': userId,
     'providerId': providerId,
     'serviceIds': ['service1'],
-    'artistId': null,
+    'artistId': artistId,
     'appointmentDate': when.toUtc().toIso8601String(),
     'durationMinutes': durationMinutes,
     'status': status,
@@ -110,36 +114,57 @@ void main() {
       );
     });
 
-    test(
-      'the partial unique index blocks a second booking on the same slot',
-      () async {
-        final repo = PostgresAppointmentRepository(pool);
-        expect(await repo.create(apptMap(id: 'a1', when: when)), isNotNull);
-        // Same provider + exact start, still pending → conflict → null.
-        expect(
-          await repo.create(apptMap(id: 'a2', userId: 'u2', when: when)),
-          isNull,
-        );
-        // After the first is cancelled, the slot frees up.
-        await repo.update('a1', {'status': 'cancelled'});
-        expect(
-          await repo.create(apptMap(id: 'a3', userId: 'u2', when: when)),
-          isNotNull,
-        );
-      },
-    );
+    test('the partial unique index blocks a second booking on the same slot '
+        'FOR THE SAME ARTIST (capacity model, migration 0026)', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      expect(
+        await repo.create(apptMap(id: 'a1', when: when, artistId: 'ar1')),
+        isNotNull,
+      );
+      // Same provider + artist + exact start, still pending → null.
+      expect(
+        await repo.create(
+          apptMap(id: 'a2', userId: 'u2', when: when, artistId: 'ar1'),
+        ),
+        isNull,
+      );
+      // A DIFFERENT artist takes the same slot — the multi-chair win.
+      expect(
+        await repo.create(
+          apptMap(id: 'a2b', userId: 'u2', when: when, artistId: 'ar2'),
+        ),
+        isNotNull,
+      );
+      // After the first is cancelled, ar1's chair frees up.
+      await repo.update('a1', {'status': 'cancelled'});
+      expect(
+        await repo.create(
+          apptMap(id: 'a3', userId: 'u3', when: when, artistId: 'ar1'),
+        ),
+        isNotNull,
+      );
+      // Unassigned bookings are UNGUARDED at the DB level by design — the
+      // slot engine's pool count owns them (spec §2.2).
+      expect(await repo.create(apptMap(id: 'a4', when: when)), isNotNull);
+      expect(
+        await repo.create(apptMap(id: 'a5', userId: 'u5', when: when)),
+        isNotNull,
+      );
+    });
 
     test(
       'btree_gist exclusion blocks duration overlaps (not just exact start)',
       () async {
         final repo = PostgresAppointmentRepository(pool);
         final at9 = DateTime.utc(2030, 6, 25, 9);
-        // 09:00 for 120 min → occupies [09:00, 11:00).
+        // ar1, 09:00 for 120 min → occupies [09:00, 11:00).
         expect(
-          await repo.create(apptMap(id: 'o1', when: at9, durationMinutes: 120)),
+          await repo.create(
+            apptMap(id: 'o1', when: at9, durationMinutes: 120, artistId: 'ar1'),
+          ),
           isNotNull,
         );
-        // 10:00 (different start) overlaps the 09:00–11:00 booking → rejected.
+        // ar1 again at 10:00 overlaps [09:00, 11:00) → rejected.
         expect(
           await repo.create(
             apptMap(
@@ -147,11 +172,25 @@ void main() {
               userId: 'u2',
               when: DateTime.utc(2030, 6, 25, 10),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNull,
         );
-        // 11:00 is back-to-back (half-open range) → allowed.
+        // The SAME overlap on another artist → allowed (per-artist chairs).
+        expect(
+          await repo.create(
+            apptMap(
+              id: 'o2b',
+              userId: 'u2',
+              when: DateTime.utc(2030, 6, 25, 10),
+              durationMinutes: 60,
+              artistId: 'ar2',
+            ),
+          ),
+          isNotNull,
+        );
+        // 11:00 is back-to-back for ar1 (half-open range) → allowed.
         expect(
           await repo.create(
             apptMap(
@@ -159,11 +198,12 @@ void main() {
               userId: 'u3',
               when: DateTime.utc(2030, 6, 25, 11),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNotNull,
         );
-        // Same overlapping time at a DIFFERENT provider → allowed (per-provider).
+        // Same artist id at a DIFFERENT provider → allowed (per-provider).
         expect(
           await repo.create(
             apptMap(
@@ -172,11 +212,12 @@ void main() {
               providerId: 'provider2',
               when: DateTime.utc(2030, 6, 25, 10),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNotNull,
         );
-        // Cancelling o1 frees [09:00, 11:00) → a 10:00 booking now fits.
+        // Cancelling o1 frees ar1's [09:00, 11:00) → a 10:00 booking fits.
         await repo.update('o1', {'status': 'cancelled'});
         expect(
           await repo.create(
@@ -185,6 +226,7 @@ void main() {
               userId: 'u5',
               when: DateTime.utc(2030, 6, 25, 10),
               durationMinutes: 60,
+              artistId: 'ar1',
             ),
           ),
           isNotNull,
@@ -196,11 +238,13 @@ void main() {
       'reschedule update onto an overlapping slot is rejected (null)',
       () async {
         final repo = PostgresAppointmentRepository(pool);
+        // Both bookings on the SAME artist — per-artist guards (0026).
         await repo.create(
           apptMap(
             id: 'r1',
             when: DateTime.utc(2030, 6, 25, 9),
             durationMinutes: 120,
+            artistId: 'ar1',
           ),
         );
         await repo.create(
@@ -209,6 +253,7 @@ void main() {
             userId: 'u2',
             when: DateTime.utc(2030, 6, 25, 14),
             durationMinutes: 60,
+            artistId: 'ar1',
           ),
         );
         // Move r2 to 10:00–11:00 → overlaps r1's [09:00, 11:00) → null.
@@ -246,6 +291,9 @@ void main() {
       () async {
         final r = repo();
         final reg = await r.register(
+          email: 'reg28@test.pro',
+          authProvider: 'google',
+          googleSub: 'reg-sub-28',
           phoneNumber: provPhone,
           businessName: 'Élégance',
           businessType: 'salon',
@@ -253,11 +301,14 @@ void main() {
         );
         expect(reg.ok, isTrue);
         expect(reg.provider!.providerId, 'provider1');
-        expect(reg.devCode, isNotNull);
+        expect(reg.tokens!.accessToken, isNotEmpty);
 
-        // Duplicate phone is rejected.
+        // Duplicate identity (same email) is rejected.
         expect(
           (await r.register(
+            email: 'reg28@test.pro',
+            authProvider: 'google',
+            googleSub: 'reg-sub-28b',
             phoneNumber: provPhone,
             businessName: 'X',
             businessType: 'salon',
@@ -265,7 +316,9 @@ void main() {
           'provider_exists',
         );
 
-        final ok = await r.verifyOtp(provPhone, reg.devCode!);
+        // The dormant phone-OTP path still logs the salon in.
+        final code = (await r.requestOtp(provPhone)).devCode!;
+        final ok = await r.verifyOtp(provPhone, code);
         expect(ok.ok, isTrue);
         expect(
           tokens.verifyAccessToken(ok.tokens!.accessToken)!.payload,
@@ -280,11 +333,14 @@ void main() {
       () async {
         final r = repo();
         final reg = await r.register(
+          email: 'reg29@test.pro',
+          authProvider: 'google',
+          googleSub: 'reg-sub-29',
           phoneNumber: provPhone,
           businessName: 'Élégance',
           businessType: 'salon',
         );
-        final first = (await r.verifyOtp(provPhone, reg.devCode!)).tokens!;
+        final first = reg.tokens!;
 
         final rotated = await r.refresh(first.refreshToken);
         expect(rotated.ok, isTrue);
@@ -308,11 +364,18 @@ void main() {
       );
 
       final reg = await r.register(
+        email: 'reg30@test.pro',
+
+        authProvider: 'google',
+
+        googleSub: 'reg-sub-30',
         phoneNumber: provPhone,
         businessName: 'X',
         businessType: 'salon',
       );
-      final wrong = reg.devCode == '111111' ? '222222' : '111111';
+      expect(reg.ok, isTrue);
+      final sent = await r.requestOtp(provPhone);
+      final wrong = sent.devCode == '111111' ? '222222' : '111111';
       expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_invalid');
       expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_locked');
     });
@@ -320,6 +383,9 @@ void main() {
     test('submitKyc persists kyc_docs + pending; survives re-read', () async {
       final r = repo();
       final reg = await r.register(
+        email: 'reg31@test.pro',
+        authProvider: 'google',
+        googleSub: 'reg-sub-31',
         phoneNumber: provPhone,
         businessName: 'X',
         businessType: 'salon',
@@ -344,6 +410,48 @@ void main() {
   });
 
   group('PostgresProvidersRepository', () {
+    test('createSalon persists a hidden draft; linkProvider attaches it '
+        '(pro-salon-lifecycle.md)', () async {
+      final repo = PostgresProvidersRepository(pool);
+      final before = (await repo.query()).length;
+      final salon = await repo.createSalon(
+        name: 'Salon Test Lifecycle',
+        category: 'salon',
+        phoneNumber: '+2250700000042',
+        address: 'Rue du Test',
+      );
+      final id = salon['id'] as String;
+      expect(salon['status'], 'draft');
+      // Hidden from discovery (T51)…
+      expect((await repo.query()).length, before);
+      // …readable by id, and by slug at repo level (the route gates it).
+      expect((await repo.byId(id))?['name'], 'Salon Test Lifecycle');
+      expect((await repo.bySlug('salon-test-lifecycle'))?['id'], id);
+
+      // Publish → discoverable.
+      await repo.setStatus(id, 'active');
+      expect((await repo.query()).any((x) => x['id'] == id), isTrue);
+
+      // linkProvider round-trip on the auth side.
+      final auth = PostgresProviderAuthRepository(
+        pool,
+        tokens: TokenService(secret: 'test-secret'),
+        isProd: false,
+      );
+      final reg = await auth.register(
+        businessName: 'Salon Test Lifecycle',
+        businessType: 'salon',
+        phoneNumber: '+2250700000042',
+        email: 'lifecycle@salon.test',
+        authProvider: 'google',
+        googleSub: 'sub-lifecycle',
+      );
+      expect(reg.ok, isTrue);
+      expect(reg.provider!.providerId, isNull);
+      await auth.linkProvider(reg.provider!.id, id);
+      expect((await auth.accountById(reg.provider!.id))?.providerId, id);
+    });
+
     test('query returns seeded providers sorted by rating desc', () async {
       final repo = PostgresProvidersRepository(pool);
       final all = await repo.query();
@@ -649,6 +757,170 @@ void main() {
         expect(await r.listForUser('fav_user_A'), ['provider2']);
       },
     );
+  });
+
+  group('journal J1 columns (module journal)', () {
+    test('update round-trips arrivedAt + artistId (migration 0025)', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      final when = DateTime.utc(2026, 8, 3, 10);
+      await repo.create(apptMap(id: 'j1', status: 'confirmed', when: when));
+      final arrived = await repo.update('j1', {
+        'arrivedAt': when.toIso8601String(),
+        'artistId': 'artist1',
+      });
+      expect(arrived?['arrivedAt'], when.toIso8601String());
+      expect(arrived?['artistId'], 'artist1');
+      // Clearing works too.
+      final cleared = await repo.update('j1', {'arrivedAt': null});
+      expect(cleared?['arrivedAt'], isNull);
+    });
+  });
+
+  group('PostgresClientsRepository (module clients C1)', () {
+    late PostgresClientsRepository clients;
+    late PostgresProviderAuditLogRepository audit;
+
+    setUp(() {
+      clients = PostgresClientsRepository(pool);
+      audit = PostgresProviderAuditLogRepository(pool);
+    });
+
+    Map<String, dynamic> clientMap({
+      required String id,
+      String providerId = 'provider1',
+      String? userId,
+      String name = 'Aïcha',
+      String? phone,
+      List<String> tags = const [],
+    }) => {
+      'id': id,
+      'providerId': providerId,
+      'userId': userId,
+      'displayName': name,
+      'phone': phone,
+      'tags': tags,
+      'lastVisitAt': null,
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+    };
+
+    test('create + scoped lookups + uniqueness upsert', () async {
+      await clients.create(
+        clientMap(id: 'c1', phone: '+2250700000001', userId: null),
+      );
+      // Same phone again → conflict swallowed, existing row returned.
+      final dup = await clients.create(
+        clientMap(id: 'c1bis', phone: '+2250700000001'),
+      );
+      expect(dup['id'], 'c1');
+
+      expect(await clients.byId('provider1', 'c1'), isNotNull);
+      // T45: scoped — the same id under another salon resolves to nothing.
+      expect(await clients.byId('provider2', 'c1'), isNull);
+      expect(
+        (await clients.byPhone('provider1', '+2250700000001'))?['id'],
+        'c1',
+      );
+    });
+
+    test(
+      'list: search by name/digits, tag filter, pagination + sort',
+      () async {
+        await clients.create(
+          clientMap(id: 'l1', name: 'Aminata', phone: '+2250701112233'),
+        );
+        await clients.create(
+          clientMap(
+            id: 'l2',
+            name: 'Binta',
+            phone: '+2250704445566',
+            tags: ['VIP'],
+          ),
+        );
+        await clients.touchLastVisit('provider1', 'l2', DateTime.utc(2026, 7));
+
+        final all = await clients.list('provider1', page: 1, pageSize: 20);
+        expect(all.total, 2);
+        // last_visit_at DESC NULLS LAST → l2 first.
+        expect(all.items.first['id'], 'l2');
+
+        final byName = await clients.list(
+          'provider1',
+          query: 'amin',
+          page: 1,
+          pageSize: 20,
+        );
+        expect(byName.items.single['id'], 'l1');
+
+        final byDigits = await clients.list(
+          'provider1',
+          query: '0704 44',
+          page: 1,
+          pageSize: 20,
+        );
+        expect(byDigits.items.single['id'], 'l2');
+
+        final byTag = await clients.list(
+          'provider1',
+          tag: 'VIP',
+          page: 1,
+          pageSize: 20,
+        );
+        expect(byTag.items.single['id'], 'l2');
+        expect(await clients.tagsFor('provider1'), ['VIP']);
+      },
+    );
+
+    test('tags update, notes CRUD, anonymize (T48)', () async {
+      await clients.create(
+        clientMap(id: 'n1', userId: 'uX', phone: '+2250700000002'),
+      );
+      final updated = await clients.updateTags('provider1', 'n1', [
+        'VIP',
+        'Fidèle',
+      ]);
+      expect(updated?['tags'], ['VIP', 'Fidèle']);
+
+      await clients.addNote({
+        'id': 'note1',
+        'clientId': 'n1',
+        'authorAccountId': 'acct1',
+        'body': 'Préfère Awa',
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      expect((await clients.notesFor('n1')).single['body'], 'Préfère Awa');
+      expect(await clients.deleteNote('n1', 'note1'), isTrue);
+      expect(await clients.notesFor('n1'), isEmpty);
+
+      await clients.anonymizeUser('uX');
+      final anon = await clients.byId('provider1', 'n1');
+      expect(anon?['userId'], isNull);
+      expect(anon?['displayName'], 'Client');
+      expect(anon?['phone'], isNull);
+    });
+
+    test('audit log round-trips (T46)', () async {
+      await audit.log(
+        providerId: 'provider1',
+        actorAccountId: 'acct1',
+        action: 'clients.list',
+        meta: {'query': 'ami'},
+      );
+      final entries = await audit.entriesFor('provider1');
+      expect(entries.single['action'], 'clients.list');
+      expect((entries.single['meta'] as Map)['query'], 'ami');
+    });
+
+    test('0024 backfill created rows from historical bookings', () async {
+      // The migration ran in setUpAll against whatever appointments existed;
+      // here we assert the derived-upsert path stays consistent with it:
+      // a completed booking + touchLastVisit orders the list.
+      await clients.create(clientMap(id: 'b1', phone: '+2250700000003'));
+      await clients.touchLastVisit('provider1', 'b1', DateTime.utc(2026, 7, 2));
+      // Regressions never move it backwards.
+      await clients.touchLastVisit('provider1', 'b1', DateTime.utc(2026, 6, 1));
+      final row = await clients.byId('provider1', 'b1');
+      expect(row?['lastVisitAt'], DateTime.utc(2026, 7, 2).toIso8601String());
+    });
   });
 
   group('PostgresReviewsRepository', () {

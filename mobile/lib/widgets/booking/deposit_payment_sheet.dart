@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,9 +13,12 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/mobile_money.dart';
-import '../../models/payment.dart';
+import '../../models/locality.dart';
 import '../../providers/appointment_provider.dart';
+import '../../providers/locality_provider.dart';
 import '../common/app_button.dart';
+import '../common/app_snack_bar.dart';
+import '../common/inline_feedback.dart';
 import '../provider/image_picker_sheet.dart';
 import '../provider/mock_image_picker_sheet.dart';
 
@@ -31,8 +35,10 @@ Future<bool?> showDepositPaymentSheet(
   required String providerName,
   required List<String> serviceIds,
   required DateTime appointmentDateTime,
-  MobileMoneyOperator? depositOperator,
+  String? depositOperator,
+  String? depositCountryCode,
   String? depositNumber,
+  String? currency,
   String? artistId,
   String? notes,
 }) {
@@ -48,7 +54,9 @@ Future<bool?> showDepositPaymentSheet(
       serviceIds: serviceIds,
       appointmentDateTime: appointmentDateTime,
       depositOperator: depositOperator,
+      depositCountryCode: depositCountryCode,
       depositNumber: depositNumber,
+      currency: currency,
       artistId: artistId,
       notes: notes,
     ),
@@ -64,8 +72,10 @@ Future<bool?> showDepositSubmitSheet(
   required double depositAmount,
   required double balanceDue,
   required String providerName,
-  MobileMoneyOperator? depositOperator,
+  String? depositOperator,
+  String? depositCountryCode,
   String? depositNumber,
+  String? currency,
 }) {
   return showModalBottomSheet<bool>(
     context: context,
@@ -77,7 +87,9 @@ Future<bool?> showDepositSubmitSheet(
       balanceDue: balanceDue,
       providerName: providerName,
       depositOperator: depositOperator,
+      depositCountryCode: depositCountryCode,
       depositNumber: depositNumber,
+      currency: currency,
     ),
   );
 }
@@ -86,8 +98,15 @@ class _DepositPaymentSheet extends StatefulWidget {
   final double depositAmount;
   final double balanceDue;
   final String providerName;
-  final MobileMoneyOperator? depositOperator;
+
+  /// The operator id from the salon country's catalog (multi-pays MP2) —
+  /// label + deep link resolve from `LocalityProvider`, never a client enum.
+  final String? depositOperator;
+  final String? depositCountryCode;
   final String? depositNumber;
+
+  /// The salon's ISO-4217 currency (multi-pays §4; null → XOF).
+  final String? currency;
 
   /// Submit mode (pay-later) when non-null; book mode otherwise.
   final String? appointmentId;
@@ -104,7 +123,9 @@ class _DepositPaymentSheet extends StatefulWidget {
     required this.balanceDue,
     required this.providerName,
     this.depositOperator,
+    this.depositCountryCode,
     this.depositNumber,
+    this.currency,
     this.appointmentId,
     this.providerId,
     this.serviceIds,
@@ -120,7 +141,20 @@ class _DepositPaymentSheet extends StatefulWidget {
 }
 
 class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
+  /// A6: feedback raised while this sheet is open renders INSIDE it — a
+  /// snackbar here is invisible to a screen reader and hidden by the scrim.
+  (String, SnackKind)? _feedback;
+
   /// The private object key returned by the upload (sent to the backend).
+  @override
+  void initState() {
+    super.initState();
+    // Best-effort catalog load for the operator label/deep link.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<LocalityProvider>().ensureLoaded();
+    });
+  }
+
   String? _screenshotKey;
 
   /// The just-picked local file, used only to preview the attachment.
@@ -131,6 +165,15 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
 
   bool get _hasHandle => (widget.depositNumber ?? '').trim().isNotEmpty;
 
+  /// The catalog entry for the salon's operator (multi-pays MP2). Null while
+  /// the tree loads / on failure — the copy-number flow (the guaranteed
+  /// fallback) never depends on it.
+  MomoOperatorInfo? _operatorInfo(BuildContext context) =>
+      context.watch<LocalityProvider>().operatorInfo(
+            widget.depositOperator,
+            countryCode: widget.depositCountryCode,
+          );
+
   Future<void> _payWithWave() async {
     final uri = waveDeepLink(
       number: widget.depositNumber!,
@@ -140,18 +183,15 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir Wave')),
-      );
+      // A6: inside a sheet, a snackbar is pruned by the modal barrier and
+      // painted under the scrim — the message belongs here.
+      setState(() => _feedback = ('Impossible d’ouvrir Wave', SnackKind.error));
     }
   }
 
   void _copyNumber() {
     Clipboard.setData(ClipboardData(text: widget.depositNumber!));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Numéro copié'), duration: Duration(seconds: 1)),
-    );
+    setState(() => _feedback = ('Numéro copié', SnackKind.success));
   }
 
   Future<void> _attachScreenshot() async {
@@ -183,6 +223,13 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
   }
 
   Future<void> _markPaid() async {
+    // The proof IS the submission in submit mode, so its absence is a fault,
+    // not a reason to go inert (§14 rule 5).
+    if (widget.isSubmitMode && _screenshotKey == null) {
+      setState(() =>
+          _error = 'Ajoutez la capture d’écran du paiement pour l’envoyer.');
+      return;
+    }
     setState(() {
       _booking = true;
       _error = null;
@@ -241,10 +288,10 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                widget.isSubmitMode ? "Envoyer l'acompte" : "Payer l'acompte",
+                widget.isSubmitMode ? 'Envoyer l’acompte' : 'Payer l’acompte',
                 style: AppTextStyles.titleMedium,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppTheme.spacingXS),
               Text(
                 'Versé directement au salon. Myweli ne prélève rien.',
                 style: AppTextStyles.bodySmall
@@ -263,10 +310,12 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                     Text('Acompte',
                         style: AppTextStyles.bodySmall
                             .copyWith(color: AppColors.textSecondary)),
-                    Text(Formatters.formatCurrency(widget.depositAmount),
+                    Text(
+                        Formatters.formatCurrency(widget.depositAmount,
+                            currency: widget.currency),
                         style: AppTextStyles.headlineMedium),
                     Text(
-                      'Solde ${Formatters.formatCurrency(widget.balanceDue)} à régler au salon',
+                      'Solde ${Formatters.formatCurrency(widget.balanceDue, currency: widget.currency)} à régler au salon',
                       style: AppTextStyles.bodySmall
                           .copyWith(color: AppColors.textTertiary),
                     ),
@@ -274,8 +323,11 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingM),
+              if (_feedback != null)
+                InlineFeedback(_feedback!.$1, kind: _feedback!.$2),
               if (_hasHandle) ...[
-                if (widget.depositOperator == MobileMoneyOperator.wave) ...[
+                if (deepLinkKindIsWave(
+                    _operatorInfo(context)?.deepLinkKind)) ...[
                   AppButton(text: 'Payer avec Wave', onPressed: _payWithWave),
                   const SizedBox(height: AppTheme.spacingS),
                 ],
@@ -295,7 +347,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${widget.depositOperator?.displayName ?? 'Mobile Money'} · ${widget.providerName}',
+                                '${_operatorInfo(context)?.label ?? 'Mobile Money'} · ${widget.providerName}',
                                 style: AppTextStyles.bodySmall
                                     .copyWith(color: AppColors.textTertiary),
                               ),
@@ -320,27 +372,25 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
                 ),
               const SizedBox(height: AppTheme.spacingM),
               _screenshotRow(),
-              if (_error != null) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                Text(_error!,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.error)),
-              ],
+              // A7: this sheet carried TWO inline error surfaces — the A6
+              // `_feedback` record at the top (which knows its kind) and this
+              // hand-rolled red Text near the button (which did not, and was
+              // not a live region). One vocabulary now; the message stays here,
+              // beside the screenshot row it is usually about.
+              InlineFeedback(_error),
               const SizedBox(height: AppTheme.spacingL),
               AppButton(
                 text: widget.isSubmitMode
-                    ? "Envoyer l'acompte"
-                    : "J'ai payé l'acompte",
+                    ? 'Envoyer l’acompte'
+                    : 'J’ai payé l’acompte',
                 isLoading: _booking,
-                // Submit mode needs a screenshot (it's the proof being sent);
-                // book mode lets you confirm now and attach proof later.
-                onPressed: (_booking ||
-                        _uploading ||
-                        (widget.isSubmitMode && _screenshotKey == null))
-                    ? null
-                    : _markPaid,
+                // §14 rule 5: work-in-progress only. The missing screenshot
+                // used to leave the primary button dead with no explanation
+                // anywhere near it — the nearest prose was the reassurance
+                // about the salon confirming.
+                onPressed: (_booking || _uploading) ? null : _markPaid,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingS),
               Text(
                 widget.isSubmitMode
                     ? 'Le salon confirmera après réception de l’acompte.'
@@ -391,7 +441,7 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderStrong),
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         ),
         child: Row(
@@ -400,11 +450,11 @@ class _DepositPaymentSheetState extends State<_DepositPaymentSheet> {
               const SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: BrandLoader(size: AppTheme.iconS, fast: true),
               )
             else
               const Icon(Icons.attachment,
-                  size: 18, color: AppColors.textSecondary),
+                  size: AppTheme.iconS, color: AppColors.textSecondary),
             const SizedBox(width: AppTheme.spacingM),
             Expanded(
               child: Text(

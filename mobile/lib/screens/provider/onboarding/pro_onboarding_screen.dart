@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -31,12 +33,33 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
     });
   }
 
-  void _goLive() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🎉 Votre profil est en ligne !'),
-        backgroundColor: AppColors.success,
-      ),
+  Future<void> _goLive() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final providerId = context.read<ProAuthProvider>().activeSalonId ?? '';
+    final onboarding = context.read<ProOnboardingProvider>();
+    final ok = await onboarding.publish(providerId);
+    if (!mounted) return;
+    // Pricing pivot: the server's `offer` gate points to the picker.
+    final offerRequired =
+        !ok && onboarding.publishErrorCode == 'offer_required';
+    AppSnackBar.showOn(
+      messenger,
+      ok
+          ? '🎉 Votre profil est en ligne !'
+          : offerRequired
+              ? 'Choisissez votre offre avant la mise en ligne.'
+              : (onboarding.error ?? 'La mise en ligne a échoué'),
+      kind: ok ? SnackKind.success : SnackKind.error,
+      // The product's only pre-A6 action — a NAVIGATION, not an undo. It ran
+      // at Material's 4s default; §15 gives it the 10s it always needed,
+      // because the snackbar is the only route to the offer picker from here.
+      action: offerRequired
+          ? SnackAction(
+              label: 'Choisir',
+              onPressed: () => router.push('/pro/subscription'),
+            )
+          : null,
     );
   }
 
@@ -77,13 +100,15 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
         Text(
-          '${progress.done} étapes sur ${progress.total} terminées',
+          '${Formatters.count(progress.done, 'étape', 'étapes')} sur '
+          '${progress.total} '
+          '${Formatters.plural(progress.done, 'terminée', 'terminées')}',
           style:
               AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         ClipRRect(
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
           child: LinearProgressIndicator(
             value: ratio,
             minHeight: 6,
@@ -94,12 +119,24 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
         const SizedBox(height: AppTheme.spacingL),
         for (final step in onboarding.steps) _StepRow(step: step),
         const SizedBox(height: AppTheme.spacingL),
+        // See the salon exactly as a client will, before going live (B5).
+        OutlinedButton(
+          onPressed: () => context.push('/pro/apercu'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.textPrimary,
+            side: const BorderSide(color: AppColors.borderStrong),
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
+          ),
+          child: const Text('Aperçu de ma page'),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
         AppButton(
           text: 'Mettre mon profil en ligne',
+          isLoading: onboarding.isPublishing,
           onPressed: onboarding.readyToGoLive ? _goLive : null,
         ),
         if (!onboarding.readyToGoLive) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacingS),
           Text(
             'Complétez les étapes essentielles pour mettre votre profil en ligne.',
             textAlign: TextAlign.center,
@@ -124,7 +161,7 @@ class _StepRow extends StatelessWidget {
     final sublabel = _sublabel(step);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
       child: ListTile(
         leading:
             Icon(_statusIcon(step.status), color: _statusColor(step.status)),
@@ -146,7 +183,9 @@ class _StepRow extends StatelessWidget {
   String _label(OnboardingStepKey key) {
     switch (key) {
       case OnboardingStepKey.profile:
-        return 'Profil de l\'entreprise';
+        return 'Profil de l’entreprise';
+      case OnboardingStepKey.location:
+        return 'Position sur la carte';
       case OnboardingStepKey.services:
         return 'Services (3 minimum)';
       case OnboardingStepKey.staff:
@@ -159,13 +198,17 @@ class _StepRow extends StatelessWidget {
         return 'Vérification (KYC)';
       case OnboardingStepKey.photos:
         return 'Photos (3 minimum)';
+      case OnboardingStepKey.offer:
+        return 'Choisissez votre offre';
     }
   }
 
   String? _route(OnboardingStepKey key) {
     switch (key) {
       case OnboardingStepKey.profile:
-        return '/pro/profile';
+        return '/pro/salon-profile';
+      case OnboardingStepKey.location:
+        return '/pro/salon-profile';
       case OnboardingStepKey.services:
         return '/pro/services';
       case OnboardingStepKey.staff:
@@ -178,6 +221,8 @@ class _StepRow extends StatelessWidget {
         return '/pro/verification';
       case OnboardingStepKey.photos:
         return '/pro/photos';
+      case OnboardingStepKey.offer:
+        return '/pro/subscription';
     }
   }
 
@@ -188,6 +233,9 @@ class _StepRow extends StatelessWidget {
     }
     if (step.key == OnboardingStepKey.photos) {
       return 'Ajouter des photos du salon';
+    }
+    if (step.key == OnboardingStepKey.offer) {
+      return '3 mois offerts';
     }
     if (step.status == OnboardingStepStatus.inProgress) {
       return 'En cours';

@@ -184,14 +184,23 @@ void main() {
     expect(res.data, '654321');
   });
 
-  test('registerProvider POSTs the account; does not log in yet', () async {
+  test(
+      'registerProviderWithEmail POSTs identity + business fields and '
+      'signs in immediately (auth overhaul P4)', () async {
     final store = InMemorySessionStore();
     final client = MockClient((req) async {
       expect(req.url.path, '/auth/provider/register');
       final body = jsonDecode(req.body) as Map<String, dynamic>;
       expect(body['businessType'], 'salon');
+      expect(body['email'], 'salon@x.com');
+      expect(body['code'], '123456');
       return http.Response(
-        jsonEncode({'provider': _providerJson(), 'devCode': '654321'}),
+        jsonEncode({
+          'provider': _providerJson(),
+          'accessToken': 'prov-reg-123',
+          'refreshToken': 'prov-reg-refresh',
+          'expiresAt': DateTime(2030).toIso8601String(),
+        }),
         201,
       );
     });
@@ -201,7 +210,9 @@ void main() {
       providerSessionStore: store,
     );
 
-    final res = await service.registerProvider(
+    final res = await service.registerProviderWithEmail(
+      email: 'salon@x.com',
+      code: '123456',
       phoneNumber: _phone,
       businessName: 'Élégance',
       businessType: BusinessType.salon,
@@ -209,9 +220,9 @@ void main() {
 
     expect(res.success, isTrue);
     expect(res.data!.id, 'provider_1');
-    // Registration sends a code but does not authenticate — verify does that.
-    expect(await store.read(), isNull);
-    expect(await service.getCurrentProvider(), isNull);
+    // Registration NOW signs in (one submit) — the session is persisted.
+    expect(await store.read(), isNotNull);
+    expect((await service.getCurrentProvider())!.id, 'provider_1');
   });
 
   test('verifyOtpForProvider persists the provider session and restores it',

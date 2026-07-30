@@ -29,4 +29,41 @@ class AppConfig {
   static const String supportWhatsApp = String.fromEnvironment(
     'SUPPORT_WHATSAPP',
   );
+
+  /// The public site (no trailing slash) — where the legal documents live.
+  ///
+  /// **The default is inverted from [supportWhatsApp]'s, deliberately.** That
+  /// one defaults to empty and its CTA degrades gracefully, because a missing
+  /// support number is a missing convenience. A missing privacy-policy link is a
+  /// **rejected store submission**, so here the production URL is the default
+  /// and the env var is the *staging* override.
+  ///
+  /// `myweli.com`, not `.ci`: `render.yaml` and `docs/DEPLOYMENT.md` both use
+  /// `.com`, and `PRD.md:506`'s `.ci` is stale. Switching later is one define.
+  static const String siteBaseUrl = String.fromEnvironment(
+    'SITE_BASE_URL',
+    defaultValue: 'https://myweli.com',
+  );
+
+  /// The four legal documents (L1 — docs/design/legal-l1.md).
+  ///
+  /// **One base and four getters, not four env vars**, because these paths are a
+  /// contract with `web/lib/legal.ts` and must move together — four independent
+  /// variables invite three of them being right. **No mobile test can reach the
+  /// web**, so that contract is held by review, in one PR, and by
+  /// `web/tests/legal.test.tsx` pinning the web half.
+  static String get privacyUrl => '$siteBaseUrl/politique-confidentialite';
+  static String get termsUrl => '$siteBaseUrl/cgu';
+  static String get legalNoticeUrl => '$siteBaseUrl/mentions-legales';
+  static String get accountDeletionUrl => '$siteBaseUrl/suppression-compte';
+
+  /// Google Sign-In server client ID (the **web** OAuth client) — makes the
+  /// native flow return an ID token whose `aud` the backend allowlists.
+  /// A public identifier, not a secret; overridable per environment.
+  /// Design: docs/design/app-auth-social.md §5.
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue:
+        '731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com',
+  );
 }

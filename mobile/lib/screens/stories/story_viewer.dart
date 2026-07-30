@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/a11y/reduce_motion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 
 class StoryItem {
@@ -79,10 +81,7 @@ class _StoryViewerState extends State<StoryViewer>
       Navigator.of(context).maybePop();
       return;
     }
-    _pageController.nextPage(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-    );
+    _goToPage(_index + 1);
   }
 
   void _prev() {
@@ -90,9 +89,32 @@ class _StoryViewerState extends State<StoryViewer>
       _progress.forward(from: 0);
       return;
     }
-    _pageController.previousPage(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
+    _goToPage(_index - 1);
+  }
+
+  /// §9/A8. A story reel slides a FULL SCREEN sideways every few seconds, and
+  /// on auto-advance the user did not ask for it — the involuntary case.
+  ///
+  /// **`jumpToPage`, not a zero duration.** `Duration.zero` is a jump for
+  /// `Scrollable.ensureVisible` (`scroll_position.dart:872` short-circuits it)
+  /// and an assertion failure for `PageController`: `animateToPage` reaches
+  /// `DrivenScrollActivity`, whose constructor is
+  /// `assert(duration > Duration.zero)` (`scroll_activity.dart:705`).
+  /// `_PagePosition` overrides `ensureVisible` and `jumpTo`, never `animateTo`.
+  /// The first version of this shipped the crash to exactly the users §9.1 is
+  /// written for.
+  ///
+  /// Not the same thing as the 6 s reading time above, which is a content timer
+  /// and stays: see docs/design/mobile-a8-motion.md's open question.
+  void _goToPage(int page) {
+    if (reduceMotionOf(context)) {
+      _pageController.jumpToPage(page);
+      return;
+    }
+    _pageController.animateToPage(
+      page,
+      duration: AppMotion.base,
+      curve: AppMotion.baseCurve,
     );
   }
 
@@ -177,9 +199,11 @@ class _StoryViewerState extends State<StoryViewer>
                   final isCurrent = i == _index;
                   return Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingXS),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusPill),
                         child: Container(
                           height: 3,
                           color: Colors.white.withValues(alpha: 0.25),
@@ -225,6 +249,7 @@ class _StoryViewerState extends State<StoryViewer>
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Fermer',
                     onPressed: () => Navigator.of(context).maybePop(),
                     icon: const Icon(Icons.close, color: Colors.white),
                   ),

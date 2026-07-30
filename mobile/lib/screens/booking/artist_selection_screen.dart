@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -190,10 +191,10 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                   children: [
                     const Icon(
                       Icons.person_off,
-                      size: 64,
+                      size: AppTheme.iconXL,
                       color: AppColors.textTertiary,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun artiste disponible',
                       style: AppTextStyles.titleLarge.copyWith(
@@ -201,7 +202,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     Text(
                       'Aucun artiste ne peut effectuer tous les services sélectionnés. Veuillez modifier votre sélection.',
                       style: AppTextStyles.bodyMedium.copyWith(
@@ -209,7 +210,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppTheme.spacingL),
                     AppButton(
                       text: 'Retour',
                       onPressed: () => context.pop(),
@@ -239,12 +240,12 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                           const Icon(
                             Icons.info_outline,
                             color: AppColors.primary,
-                            size: 20,
+                            size: AppTheme.iconS,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppTheme.spacingSM),
                           Expanded(
                             child: Text(
-                              'Sélectionnez l\'artiste qui effectuera vos services',
+                              'Sélectionnez l’artiste qui effectuera vos services',
                               style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -253,7 +254,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     if (_loadingTimeFilter)
                       Padding(
                         padding:
@@ -263,9 +264,10 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                             const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child:
+                                  BrandLoader(size: AppTheme.iconS, fast: true),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: AppTheme.spacingSM),
                             Expanded(
                               child: Text(
                                 'Vérification des disponibilités…',
@@ -347,7 +349,7 @@ class _ArtistCard extends StatelessWidget {
           color: AppColors.secondary,
           borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? AppColors.primary : AppColors.borderStrong,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -362,7 +364,7 @@ class _ArtistCard extends StatelessWidget {
                       height: 60,
                       color: AppColors.surface,
                       child: const Icon(Icons.shuffle,
-                          size: 26, color: AppColors.textTertiary),
+                          size: AppTheme.iconM, color: AppColors.textTertiary),
                     )
                   : artist.imageUrl != null && artist.imageUrl!.isNotEmpty
                       ? CachedNetworkImage(
@@ -374,24 +376,29 @@ class _ArtistCard extends StatelessWidget {
                             width: 60,
                             height: 60,
                             color: AppColors.surface,
+                            // `fast` is the inline cut, and a 60px avatar
+                            // placeholder is exactly what it documents.
                             child: const Center(
-                                child: CircularProgressIndicator()),
+                              child:
+                                  BrandLoader(size: AppTheme.iconL, fast: true),
+                            ),
                           ),
                           errorWidget: (context, url, error) => Container(
                             width: 60,
                             height: 60,
                             color: AppColors.surface,
-                            child: const Icon(Icons.person, size: 30),
+                            child:
+                                const Icon(Icons.person, size: AppTheme.iconL),
                           ),
                         )
                       : Container(
                           width: 60,
                           height: 60,
                           color: AppColors.surface,
-                          child: const Icon(Icons.person, size: 30),
+                          child: const Icon(Icons.person, size: AppTheme.iconL),
                         ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.spacingSM),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +408,7 @@ class _ArtistCard extends StatelessWidget {
                     style: AppTextStyles.titleMedium,
                   ),
                   if (!isNoPreference && artist.specialization != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.spacingXS),
                     Text(
                       artist.specialization!,
                       style: AppTextStyles.bodySmall.copyWith(
@@ -410,12 +417,12 @@ class _ArtistCard extends StatelessWidget {
                     ),
                   ],
                   if (!isNoPreference && artist.rating != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.spacingXS),
                     Row(
                       children: [
                         const Icon(Icons.star,
-                            size: 14, color: AppColors.starRating),
-                        const SizedBox(width: 4),
+                            size: AppTheme.iconXS, color: AppColors.starRating),
+                        const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           artist.rating!.toStringAsFixed(1),
                           style: AppTextStyles.bodySmall.copyWith(
@@ -423,7 +430,7 @@ class _ArtistCard extends StatelessWidget {
                           ),
                         ),
                         if (artist.reviewCount != null) ...[
-                          const SizedBox(width: 4),
+                          const SizedBox(width: AppTheme.spacingXS),
                           Text(
                             '(${artist.reviewCount})',
                             style: AppTextStyles.bodySmall.copyWith(

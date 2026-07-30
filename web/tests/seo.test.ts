@@ -6,7 +6,7 @@ describe('SEO foundation', () => {
   it('builds the brand Organization entity (GEO anchor)', () => {
     const o = organizationJsonLd();
     expect(o['@type']).toBe('Organization');
-    expect(o.name).toBe('Myweli');
+    expect(o.name).toBe('MyWeli');
     expect(o.areaServed.name).toContain('Ivoire');
   });
 
@@ -17,6 +17,6 @@ describe('SEO foundation', () => {
 
   it('default metadata has a title template', () => {
     const title = defaultMetadata.title as { template?: string };
-    expect(title.template).toContain('Myweli');
+    expect(title.template).toContain('MyWeli');
   });
 });

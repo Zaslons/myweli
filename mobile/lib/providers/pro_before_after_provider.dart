@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/before_after_pair.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -8,7 +9,7 @@ import '../services/interfaces/pro_service_interface.dart';
 /// Manages a salon's before/after pairs (FR-DISC-006): load, add (two image
 /// uploads via the pipeline) and remove, persisting through [ProServiceInterface].
 /// Mirrors [ProGalleryProvider]. Design: docs/design/provider-before-after.md.
-class ProBeforeAfterProvider extends ChangeNotifier {
+class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
   final ImageUploadServiceInterface _uploadService =
       serviceLocator.imageUploadService;
@@ -109,6 +110,28 @@ class ProBeforeAfterProvider extends ChangeNotifier {
     }
   }
 
+  /// A6/§15: put ONE pair back where it was — see [ProGalleryProvider]
+  /// for why this re-inserts into the CURRENT list instead of restoring a
+  /// pre-delete snapshot.
+  Future<bool> restorePairAt(
+    String providerId,
+    int index,
+    BeforeAfterPair pair,
+  ) async {
+    final next = [..._pairs];
+    next.insert(index.clamp(0, next.length), pair);
+    final saved = await _proService.updateBeforeAfters(providerId, next);
+    if (saved.success && saved.data != null) {
+      _pairs = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Restauration impossible';
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> removePair(String providerId, int index) async {
     if (index < 0 || index >= _pairs.length) return false;
     final next = [..._pairs]..removeAt(index);
@@ -122,5 +145,17 @@ class ProBeforeAfterProvider extends ChangeNotifier {
     _error = saved.error ?? 'Échec de la suppression';
     notifyListeners();
     return false;
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _isLoading = false;
+    _loadFailed = false;
+    _isUploading = false;
+    _uploadProgress = 0;
+    _error = null;
+    _pairs = const [];
+    notifyListeners();
   }
 }

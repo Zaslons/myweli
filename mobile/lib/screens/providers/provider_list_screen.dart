@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -61,6 +62,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         title: const Text('Salons & Barbiers'),
         actions: [
           IconButton(
+            tooltip: _isGrid ? 'Afficher en liste' : 'Afficher en grille',
             icon: Icon(_isGrid ? Icons.view_list : Icons.grid_view),
             onPressed: () => setState(() => _isGrid = !_isGrid),
           ),
@@ -87,13 +89,30 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+            // A12 — §21 row 68's finding #2, **device-confirmed**: this row
+            // showed « RIGHT OVERFLOWED BY 122 PIXELS » on a 360×780pt iPhone
+            // at ≈1.95×.
+            //
+            // The mechanism is worth naming because the pill looks safe:
+            // `CommunePill` carries its own `Flexible` + `maxLines: 1` +
+            // ellipsis (`commune_pill.dart:55`), and **none of it binds here**.
+            // A `Row` hands a NON-flex child an unbounded width, so the pill
+            // laid out at full intrinsic width — « Toutes les communes » at
+            // 200% is ~286dp of glyphs plus 44 of icons in a 328dp budget —
+            // and its ellipsis was dead code at this call site.
+            //
+            // `Flexible` here, and the `Spacer` goes: two flex children would
+            // split the row in half and cap the pill even when there is room.
+            // `spaceBetween` gives the leftover to the gap instead.
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CommunePill(
-                  commune: provider.selectedCommune,
-                  onTap: () => _openCommunePicker(provider),
+                Flexible(
+                  child: CommunePill(
+                    commune: provider.selectedCommune,
+                    onTap: () => _openCommunePicker(provider),
+                  ),
                 ),
-                const Spacer(),
                 if (!provider.isLoading && provider.providers.isNotEmpty)
                   Text(
                     _countLabel(provider),
@@ -119,7 +138,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
                 const SizedBox(width: AppTheme.spacingS),
                 _filterPill(
                   icon: Icons.event_available,
-                  label: "Disponible aujourd'hui",
+                  label: 'Disponible aujourd’hui',
                   active: provider.availableToday,
                   onTap: () =>
                       provider.setAvailableToday(!provider.availableToday),
@@ -139,31 +158,35 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     required VoidCallback onTap,
   }) {
     final fg = active ? AppColors.secondary : AppColors.textPrimary;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM,
-          vertical: AppTheme.spacingS,
-        ),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(999),
-          border:
-              Border.all(color: active ? AppColors.primary : AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: fg),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: fg, fontWeight: FontWeight.w600),
-            ),
-          ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingM,
+            vertical: AppTheme.spacingS,
+          ),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primary : AppColors.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+            border: Border.all(
+                color: active ? AppColors.primary : AppColors.borderStrong),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: AppTheme.iconXS, color: fg),
+              const SizedBox(width: AppTheme.spacingS),
+              Text(
+                label,
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: fg, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -234,30 +257,54 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
 
     final providers = provider.providers;
     if (_isGrid) {
-      return RefreshIndicator(
+      return BrandRefresh(
         onRefresh: () => provider.loadProviders(category: widget.category),
-        child: GridView.builder(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: AppTheme.spacingM,
-            mainAxisSpacing: AppTheme.spacingM,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: providers.length,
-          itemBuilder: (context, index) {
-            final p = providers[index];
-            return ProviderCard(
-              provider: p,
-              isGrid: true,
-              onTap: () => context.push('/provider/${p.id}'),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // A12 — **two columns is a claim about the text, not the screen.**
+            // A 360dp phone's two-column cell is 156dp and gives the salon's
+            // NAME 140 of it, which stops holding 8 characters at 1.90× — just
+            // under the ≈1.95× contract point, so the device showed
+            // « Salon … » and « Barber… » where a name should be. One column
+            // is the same answer the dashboard's action grid takes above 1.3×.
+            final inner = constraints.maxWidth - AppTheme.spacingM * 2;
+            final twoColumnCell = (inner - AppTheme.spacingM) / 2;
+            final columns =
+                twoColumnCell >= ProviderCard.minGridCellWidth(context) ? 2 : 1;
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              // `childAspectRatio: 0.75` derived tile HEIGHT from tile WIDTH,
+              // and width does not move with the OS text scale — so the card
+              // was 208dp at 100% and 208dp at 200%, with the text block
+              // clipped. The bound now comes from the card, which is the only
+              // thing that knows its own chrome (the same reason
+              // `carouselHeight` lives there). A full-width card has the room
+              // for the roomy design, so it gets the carousel's bound.
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: AppTheme.spacingM,
+                mainAxisSpacing: AppTheme.spacingM,
+                mainAxisExtent: columns == 1
+                    ? ProviderCard.carouselHeight(context)
+                    : ProviderCard.gridHeight(context),
+              ),
+              itemCount: providers.length,
+              itemBuilder: (context, index) {
+                final p = providers[index];
+                return ProviderCard(
+                  provider: p,
+                  isGrid: true,
+                  onTap: () => context.push('/provider/${p.id}'),
+                );
+              },
             );
           },
         ),
       );
     }
 
-    return RefreshIndicator(
+    return BrandRefresh(
       onRefresh: () => provider.loadProviders(category: widget.category),
       child: ListView.builder(
         padding: const EdgeInsets.all(AppTheme.spacingM),

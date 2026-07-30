@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/push/push_permission_sheet.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
-  Widget host(void Function(bool) onResult) => MaterialApp(
+  Widget host(void Function(bool) onResult) => wrapApp(
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
@@ -44,7 +46,7 @@ void main() {
 
   testWidgets('accepts overridden copy (pro variant)', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
+      wrapApp(
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(

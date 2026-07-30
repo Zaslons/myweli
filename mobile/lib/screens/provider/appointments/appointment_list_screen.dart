@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/widgets/common/brand_refresh.dart';
+import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -20,7 +25,9 @@ class AppointmentListScreen extends StatefulWidget {
 }
 
 class _AppointmentListScreenState extends State<AppointmentListScreen>
-    with SingleTickerProviderStateMixin {
+    // Two TabControllers (Calendrier/Liste + the list's status tabs).
+    with
+        TickerProviderStateMixin {
   late TabController _mainTabController; // Calendar vs List
   late TabController _listTabController; // Today/Upcoming/Pending/All
 
@@ -36,7 +43,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
         final appointmentProvider =
             Provider.of<ProAppointmentProvider>(context, listen: false);
         // Load all appointments for calendar view
-        appointmentProvider.loadAppointments(authProvider.provider!.id);
+        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
       }
     });
   }
@@ -53,7 +60,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
 
       if (_mainTabController.index == 0) {
         // Calendar view - load all appointments
-        appointmentProvider.loadAppointments(authProvider.provider!.id);
+        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
       } else {
         // List view - load based on selected list tab
         _loadAppointmentsForListTab(_listTabController.index);
@@ -77,20 +84,18 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     AppointmentStatus? status;
 
     switch (index) {
-      case 0: // Today
-        final today = DateTime.now();
-        final todayStart = DateTime(today.year, today.month, today.day);
-        final todayEnd = todayStart.add(const Duration(days: 1));
+      case 0: // Today — the ACTIVE SALON's day bounds (salon_time.dart).
+        final bounds = salonDayBoundsUtc(tz: authProvider.salonTimezone);
         appointmentProvider.loadAppointments(
-          authProvider.provider!.id,
-          startDate: todayStart,
-          endDate: todayEnd,
+          authProvider.activeSalonId ?? '',
+          startDate: bounds.startUtc,
+          endDate: bounds.endUtc,
         );
         return;
       case 1: // Upcoming
         appointmentProvider.loadAppointments(
-          authProvider.provider!.id,
-          startDate: DateTime.now(),
+          authProvider.activeSalonId ?? '',
+          startDate: AppClock.now(),
         );
         return;
       case 2: // Pending
@@ -101,7 +106,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     }
 
     appointmentProvider.loadAppointments(
-      authProvider.provider!.id,
+      authProvider.activeSalonId ?? '',
       status: status,
     );
   }
@@ -112,6 +117,17 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Rendez-vous'),
+        // **Deliberately NOT scrollable, unlike the four-tab bar below.**
+        // Measured, not assumed: « Calendrier » + « Liste » is 257.8dp of strip
+        // at 200% text, inside a 360dp bar — it fits at every width and scale
+        // §10 supports, so there is nothing to fix and dividing the width in two
+        // is the better control for a binary view switcher (Material's own
+        // guidance: fixed tabs for two short labels).
+        //
+        // What protects it long-term is the GATE, not this comment: the width
+        // gate walks every RenderParagraph on this screen at all six
+        // width×scale configurations, so a renamed or added tab that starts
+        // clipping goes red on its own.
         bottom: TabBar(
           controller: _mainTabController,
           tabs: const [
@@ -133,7 +149,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
 
           if (appointmentProvider.isLoading &&
               appointmentProvider.appointments.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: LoadingIndicator());
           }
 
           final appointments = appointmentProvider.appointments;
@@ -142,11 +158,11 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
             controller: _mainTabController,
             children: [
               // Calendar View
-              RefreshIndicator(
+              BrandRefresh(
                 onRefresh: () async {
                   if (authProvider.provider != null) {
                     await appointmentProvider
-                        .loadAppointments(authProvider.provider!.id);
+                        .loadAppointments(authProvider.activeSalonId ?? '');
                   }
                 },
                 child: appointments.isEmpty
@@ -155,8 +171,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.event_busy,
-                                size: 64, color: AppColors.textSecondary),
-                            const SizedBox(height: 16),
+                                size: AppTheme.iconXL,
+                                color: AppColors.textSecondary),
+                            const SizedBox(height: AppTheme.spacingM),
                             Text(
                               'Aucun rendez-vous',
                               style: AppTextStyles.titleLarge.copyWith(
@@ -174,15 +191,27 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                   TabBar(
                     controller: _listTabController,
                     onTap: _loadAppointmentsForListTab,
+                    // §13.3's width twin — the same bar as `earnings_screen`,
+                    // and the same silent fade: « Aujourd’hui » needs 72.2dp and
+                    // gets 58.0 at 360. See that file for the full argument for
+                    // `center` over the M3 default.
+                    //
+                    // **This one lives inside a `TabBarView` page**, so making it
+                    // scrollable is a gesture-arena change as well as a layout
+                    // one: a horizontal drag on the strip now scrolls the strip
+                    // instead of paging back to « Calendrier ». That is what
+                    // scrollable tabs are, and it is the standard trade.
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.center,
                     tabs: const [
-                      Tab(text: 'Aujourd\'hui'),
+                      Tab(text: 'Aujourd’hui'),
                       Tab(text: 'À venir'),
                       Tab(text: 'En attente'),
                       Tab(text: 'Tous'),
                     ],
                   ),
                   Expanded(
-                    child: RefreshIndicator(
+                    child: BrandRefresh(
                       onRefresh: () async {
                         _loadAppointmentsForListTab(_listTabController.index);
                       },
@@ -192,8 +221,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(Icons.event_busy,
-                                      size: 64, color: AppColors.textSecondary),
-                                  const SizedBox(height: 16),
+                                      size: AppTheme.iconXL,
+                                      color: AppColors.textSecondary),
+                                  const SizedBox(height: AppTheme.spacingM),
                                   Text(
                                     'Aucun rendez-vous',
                                     style: AppTextStyles.titleLarge.copyWith(
@@ -239,21 +269,6 @@ class _AppointmentCard extends StatelessWidget {
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
 
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -261,20 +276,56 @@ class _AppointmentCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         title: Text(
-          Formatters.formatDateTime(appointment.appointmentDate),
+          Formatters.formatDateTime(toSalonTime(
+            appointment.appointmentDate,
+            tz: context.read<ProAuthProvider>().salonTimezone,
+          )),
           style:
               AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${appointment.serviceIds.length} service(s)'),
-            Text(Formatters.formatCurrency(appointment.totalPrice)),
+            // Module clients C1c: who booked + the no-show badge.
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    appointment.clientDisplayName ??
+                        appointment.clientName ??
+                        'Client',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if ((appointment.clientNoShowCount ?? 0) >= 1) ...[
+                  const SizedBox(width: AppTheme.spacingXS),
+                  Text(
+                    appointment.clientNoShowCount == 1
+                        ? '· 1 absence'
+                        : '· ${appointment.clientNoShowCount} absences',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: (appointment.clientNoShowCount ?? 0) >= 2
+                          ? AppColors.error
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            Text(Formatters.count(
+              appointment.serviceIds.length,
+              'service',
+              'services',
+            )),
+            Text(Formatters.formatCurrency(
+              appointment.totalPrice,
+              currency: context.read<ProAuthProvider>().salonCurrency,
+            )),
           ],
         ),
         trailing: Chip(
           label: Text(
-            _getStatusText(appointment.status),
+            StatusLabels.of(appointment.status),
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
           backgroundColor: _getStatusColor(appointment.status),

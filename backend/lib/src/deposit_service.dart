@@ -1,5 +1,6 @@
+import 'access/capabilities.dart';
+import 'access/membership_service.dart';
 import 'appointments/appointment_repository.dart';
-import 'auth/provider_auth_repository.dart';
 import 'storage/storage_service.dart';
 
 /// Outcome of a deposit operation; [data] is the response body on success.
@@ -11,10 +12,10 @@ typedef DepositResult = ({bool ok, String? error, Object? data});
 /// booking. This service records the screenshot key on the booking and issues
 /// short-lived signed view URLs to the two authorized parties.
 class DepositService {
-  DepositService(this._appointments, this._providerAuth, this._storage);
+  DepositService(this._appointments, this._members, this._storage);
 
   final AppointmentRepository _appointments;
-  final ProviderAuthRepository _providerAuth;
+  final MembershipService _members;
   final StorageService _storage;
 
   static const _viewTtl = Duration(minutes: 5);
@@ -60,8 +61,12 @@ class DepositService {
     if (role == 'admin') {
       authorized = true; // admins review deposit proof for disputes
     } else if (role == 'provider') {
-      final pid = (await _providerAuth.accountById(sub))?.providerId;
-      authorized = pid != null && pid == appt['providerId'];
+      // Module `access` R1: the booking's salon journal is the boundary.
+      authorized = await _members.can(
+        sub,
+        appt['providerId'] as String? ?? '',
+        Cap.journalViewAll,
+      );
     } else {
       authorized = appt['userId'] == sub;
     }

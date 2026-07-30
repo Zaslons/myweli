@@ -50,4 +50,12 @@ class PostgresDeviceTokenRepository implements DeviceTokenRepository {
       parameters: {'t': token},
     );
   }
+
+  @override
+  Future<void> deleteForUser(String userId) async {
+    await _pool.execute(
+      Sql.named('DELETE FROM device_tokens WHERE user_id = @u'),
+      parameters: {'u': userId},
+    );
+  }
 }

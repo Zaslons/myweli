@@ -2,16 +2,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../screens/appointments/appointment_detail_screen.dart';
 import '../../screens/appointments/my_bookings_screen.dart';
-import '../../screens/auth/otp_verify_screen.dart';
-import '../../screens/auth/phone_login_screen.dart';
+import '../../screens/auth/login_screen.dart';
 import '../../screens/booking/artist_selection_screen.dart';
 import '../../screens/booking/booking_confirmation_screen.dart';
 import '../../screens/booking/booking_hub_screen.dart';
 import '../../screens/booking/date_time_selection_screen.dart';
-import '../../screens/booking/service_selection_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/map/map_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
+import '../../screens/profile/about_screen.dart';
 import '../../screens/profile/data_export_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
 import '../../screens/profile/notification_preferences_screen.dart';
@@ -29,21 +28,15 @@ class AppRouter {
         name: 'splash',
         builder: (context, state) => const SplashScreen(),
       ),
+      // Auth overhaul (docs/design/app-auth-social.md): Google + email OTP
+      // (+ flag-hidden Apple). The phone-OTP screens are dormant (unrouted),
+      // kept for the Termii-era phone verification reuse.
       GoRoute(
         path: '/login',
         name: 'login',
         builder: (context, state) {
           final returnTo = state.uri.queryParameters['returnTo'];
-          return PhoneLoginScreen(returnTo: returnTo);
-        },
-      ),
-      GoRoute(
-        path: '/verify-otp',
-        name: 'verify-otp',
-        builder: (context, state) {
-          final phone = state.uri.queryParameters['phone'] ?? '';
-          final returnTo = state.uri.queryParameters['returnTo'];
-          return OtpVerifyScreen(phoneNumber: phone, returnTo: returnTo);
+          return LoginScreen(returnTo: returnTo);
         },
       ),
       GoRoute(
@@ -81,26 +74,6 @@ class AppRouter {
             providerId: providerId,
             initialServiceIds: initialServiceIds,
             initialArtistId: state.uri.queryParameters['artistId'],
-          );
-        },
-      ),
-      GoRoute(
-        path: '/booking/service',
-        name: 'service-selection',
-        builder: (context, state) {
-          final providerId = state.uri.queryParameters['providerId']!;
-          final returnToHub = state.uri.queryParameters['returnToHub'] == '1';
-          final selectedParam = state.uri.queryParameters['selectedServiceIds'];
-          final initialSelectedServiceIds =
-              selectedParam == null || selectedParam.isEmpty
-                  ? const <String>[]
-                  : selectedParam.split(',');
-          final artistId = state.uri.queryParameters['artistId'];
-          return ServiceSelectionScreen(
-            providerId: providerId,
-            returnToHub: returnToHub,
-            initialSelectedServiceIds: initialSelectedServiceIds,
-            artistId: artistId,
           );
         },
       ),
@@ -217,6 +190,16 @@ class AppRouter {
         path: '/notifications',
         name: 'notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      // L1 — top-level, NOT a `/profile` child. A store reviewer is never
+      // signed in, and a path that reads as account-scoped invites someone to
+      // gate it later; this one carries no auth connotation, deep-links
+      // cleanly, and lets the flat pro router register the identical route to
+      // the identical screen.
+      GoRoute(
+        path: '/a-propos',
+        name: 'about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/favorites',
