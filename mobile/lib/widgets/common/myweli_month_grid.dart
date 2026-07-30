@@ -188,6 +188,7 @@ class MyweliYearList extends StatelessWidget {
     required this.firstYear,
     required this.lastYear,
     required this.onPick,
+    this.shrinkWrap = false,
   });
 
   final int selectedYear;
@@ -195,10 +196,17 @@ class MyweliYearList extends StatelessWidget {
   final int lastYear;
   final ValueChanged<int> onPick;
 
+  /// Sizes to its content instead of filling a bounded box. Set by
+  /// [MyweliMonthNavigator.shrinkWrap]; the physics go with it, because a
+  /// shrink-wrapped list inside another scrollable must not scroll itself.
+  final bool shrinkWrap;
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
+      shrinkWrap: shrinkWrap,
+      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       itemCount: lastYear - firstYear + 1,
       itemBuilder: (context, i) {
         final year = firstYear + i;
@@ -278,6 +286,7 @@ class MyweliMonthGrid extends StatelessWidget {
     this.today,
     this.firstDate,
     this.lastDate,
+    this.markers,
   });
 
   /// Any day in the month to render; only its year and month are read.
@@ -309,6 +318,29 @@ class MyweliMonthGrid extends StatelessWidget {
   /// calendar browses freely and disables nothing.
   final DateTime? firstDate;
   final DateTime? lastDate;
+
+  /// Day → the French phrase appended to that cell's accessibility label.
+  ///
+  /// A day present in the map gets **one dot** under its number; a day absent
+  /// gets the reserved space and nothing in it.
+  ///
+  /// **Null is not the same as empty, and the difference is the cell's height.**
+  /// Null turns the marker channel off, so the cell keeps A14a's geometry
+  /// byte-for-byte — which is what leaves the two picker goldens alone. A
+  /// non-null map, *even an empty one*, reserves the marker row on every cell in
+  /// every month, so the card does not change height when a pro pages from a
+  /// busy month to a quiet one.
+  ///
+  /// **Why a map and not a `Set` or a predicate.** The value carries what the
+  /// day announces, so "is it marked" and "what does it say" are one lookup
+  /// rather than a predicate plus a second parameter. A `Set<CalendarDay>` would
+  /// need `markerSemanticsLabel` beside it; a `String Function(DateTime)` would
+  /// run 28–31 times per build and allocate a string per cell per frame.
+  ///
+  /// The caller builds it **once per data change**, not per build — see
+  /// `appointment_calendar_view`, where doing it per build cost ~4,200 timezone
+  /// conversions a frame.
+  final Map<CalendarDay, String>? markers;
 
   bool _enabled(DateTime day) {
     if (firstDate != null && day.isBefore(_dayOf(firstDate!))) return false;
@@ -343,10 +375,17 @@ class MyweliMonthGrid extends StatelessWidget {
               for (final day in cells.sublist(w * 7, w * 7 + 7))
                 Expanded(
                   child: day == null
-                      ? SizedBox(height: _cellHeight(context))
+                      ? SizedBox(
+                          height: _cellHeight(
+                            context,
+                            withMarker: markers != null,
+                          ),
+                        )
                       : _DayCell(
                           day: day,
                           selected: selectedDays.contains(CalendarDay.of(day)),
+                          withMarker: markers != null,
+                          markerLabel: markers?[CalendarDay.of(day)],
                           isToday: today != null && isSameDay(day, today!),
                           enabled: _enabled(day),
                           onPick: onDayTap,
@@ -375,6 +414,8 @@ class MyweliMonthNavigator extends StatefulWidget {
     required this.onDayTap,
     this.selectedDays = const <CalendarDay>{},
     this.today,
+    this.markers,
+    this.shrinkWrap = false,
   });
 
   final DateTime initialMonth;
@@ -383,6 +424,29 @@ class MyweliMonthNavigator extends StatefulWidget {
   final ValueChanged<DateTime> onDayTap;
   final Set<CalendarDay> selectedDays;
   final DateTime? today;
+
+  /// Passed straight through to [MyweliMonthGrid.markers].
+  final Map<CalendarDay, String>? markers;
+
+  /// Whether the navigator is exactly as tall as its content.
+  ///
+  /// `false` (the default, and A14a/A14b's shape byte-for-byte): the grid
+  /// scrolls inside the leftover box and the year list fills it. **Requires a
+  /// bounded parent** — which is what a `Scaffold` body gives it.
+  ///
+  /// `true`: legal inside a scroll view or an unbounded `Column`. **Not a
+  /// preference — a requirement.** A `Column` hands its non-flex children
+  /// unbounded main-axis constraints, so the `Expanded`s below do not merely
+  /// look wrong there, they throw *"RenderFlex children have non-zero flex but
+  /// incoming height constraints are unbounded"*. The pro calendar sits exactly
+  /// there, under `BrandRefresh`.
+  ///
+  /// **Its one visible cost, accepted rather than hidden:** in shrink-wrap mode
+  /// the year list replaces the grid, and three `ListTile`s are shorter than six
+  /// week rows — so the card jumps when the year toggle is pressed. One tap,
+  /// reversible; the alternative is arithmetic on a widget that has no business
+  /// knowing the grid's height. Photographed in a golden so it cannot drift.
+  final bool shrinkWrap;
 
   @override
   State<MyweliMonthNavigator> createState() => _MyweliMonthNavigatorState();
@@ -427,7 +491,41 @@ class _MyweliMonthNavigatorState extends State<MyweliMonthNavigator> {
 
   @override
   Widget build(BuildContext context) {
+    // **The page inset belongs to the page, not to the grid.**
+    //
+    // Full-screen (`shrinkWrap: false`) this is the picker's own page padding:
+    // 360 − 2×`spacingM` = 328 over seven columns = **46.86dp**, which is the
+    // width A14a's arithmetic is built on (a two-digit day needs 36.9dp at 2×
+    // inside the cell's 8dp margin, so the column must be ≥ 44.9).
+    //
+    // Embedded (`shrinkWrap: true`) the host already contributes an inset, and
+    // re-applying the page's would triple-count it. Measured on the pro
+    // calendar: card margin 16 + card padding 16 + this 16 = 48 a side, leaving
+    // **37.7dp** a column — so « 15 » wrapped to two lines at 2× and the cell
+    // overflowed by exactly 40dp. `spacingS` here, `spacingS` on the card, and
+    // the embedded column is 46.86 again — the same number the picker gets.
+    final gridPadding = EdgeInsets.symmetric(
+      horizontal: widget.shrinkWrap ? AppTheme.spacingS : AppTheme.spacingM,
+      vertical: AppTheme.spacingS,
+    );
+
+    /// `Expanded` when the parent bounds us, the bare child when it does not.
+    /// One tree, two height models — see [MyweliMonthNavigator.shrinkWrap].
+    Widget fit(Widget child) =>
+        widget.shrinkWrap ? child : Expanded(child: child);
+
+    final grid = MyweliMonthGrid(
+      month: _month,
+      selectedDays: widget.selectedDays,
+      today: widget.today,
+      firstDate: widget.firstDate,
+      lastDate: widget.lastDate,
+      markers: widget.markers,
+      onDayTap: widget.onDayTap,
+    );
+
     return Column(
+      mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         MyweliMonthBar(
@@ -440,11 +538,12 @@ class _MyweliMonthNavigatorState extends State<MyweliMonthNavigator> {
           onToggleYear: () => setState(() => _pickingYear = !_pickingYear),
         ),
         if (_pickingYear)
-          Expanded(
-            child: MyweliYearList(
+          fit(
+            MyweliYearList(
               selectedYear: _month.year,
               firstYear: widget.firstDate.year,
               lastYear: widget.lastDate.year,
+              shrinkWrap: widget.shrinkWrap,
               onPick: (y) => setState(() {
                 _month = DateTime(y, _month.month);
                 _pickingYear = false;
@@ -453,21 +552,14 @@ class _MyweliMonthNavigatorState extends State<MyweliMonthNavigator> {
           )
         else ...[
           const MyweliWeekdayHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
-                vertical: AppTheme.spacingS,
-              ),
-              child: MyweliMonthGrid(
-                month: _month,
-                selectedDays: widget.selectedDays,
-                today: widget.today,
-                firstDate: widget.firstDate,
-                lastDate: widget.lastDate,
-                onDayTap: widget.onDayTap,
-              ),
-            ),
+          fit(
+            widget.shrinkWrap
+                // No scroll view: a shrink-wrapped navigator is already inside
+                // one (`BrandRefresh` on the pro calendar), and nesting two
+                // vertical scrollables makes the inner one eat the outer's
+                // pull-to-refresh gesture.
+                ? Padding(padding: gridPadding, child: grid)
+                : SingleChildScrollView(padding: gridPadding, child: grid),
           ),
         ],
       ],
@@ -499,9 +591,17 @@ const TextStyle _dayStyle = AppTextStyles.bodyLarge;
 /// §16.1 measured the cell at **65.6dp holding a 72dp line** under a non-linear
 /// curve: the day number painting over the weeks above and below, with the 4dp
 /// of breathing room this docstring promises silently gone.
-double _cellHeight(BuildContext context) => math.max(
+double _cellHeight(
+  BuildContext context, {
+  required bool withMarker,
+}) => math.max(
   AppTheme.spacingXXL,
-  AppTheme.scaledLine(context, _dayStyle) + AppTheme.spacingS,
+  AppTheme.scaledLine(context, _dayStyle) +
+      AppTheme.spacingS +
+      // The marker's own row: the dot plus the gap above it. Reserved whenever
+      // the channel is on, marked or not, so a card does not change height
+      // between a busy month and a quiet one.
+      (withMarker ? AppTheme.spacingS : 0),
 );
 
 class _DayCell extends StatelessWidget {
@@ -511,6 +611,8 @@ class _DayCell extends StatelessWidget {
     required this.isToday,
     required this.enabled,
     required this.onPick,
+    required this.withMarker,
+    required this.markerLabel,
   });
 
   final DateTime day;
@@ -518,6 +620,12 @@ class _DayCell extends StatelessWidget {
   final bool isToday;
   final bool enabled;
   final ValueChanged<DateTime> onPick;
+
+  /// Whether this grid reserves the marker row at all. See [MyweliMonthGrid.markers].
+  final bool withMarker;
+
+  /// What this day's marker announces, or null for « nothing here ».
+  final String? markerLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -531,16 +639,25 @@ class _DayCell extends StatelessWidget {
       button: true,
       selected: selected,
       enabled: enabled,
-      label: isToday
-          ? 'aujourd’hui, ${Formatters.formatDate(day)}'
-          : Formatters.formatDate(day),
+      // **The count lives here and nowhere else.** `_WeekStrip` already tried
+      // encoding it in pixels — `width: 3 + count.clamp(0, 5), height: 4,
+      // shape: BoxShape.circle` — and `BoxShape.circle` paints
+      // `drawCircle(center, rect.shortestSide / 2)`, so the shortest side is 4
+      // for every count and one appointment paints the same dot as five. Only
+      // an invisible box widened. In speech it costs no pixels and reads
+      // exactly: « 3 rendez-vous, jeudi 19 mars 2026 ».
+      label: [
+        if (isToday) 'aujourd’hui',
+        Formatters.formatDate(day),
+        ?markerLabel,
+      ].join(', '),
       child: GestureDetector(
         // The whole cell is the target — §13.2's floor is met on the axis a
         // 7-column grid can meet it on, and `opaque` makes the padding count.
         behavior: HitTestBehavior.opaque,
         onTap: enabled ? () => onPick(day) : null,
         child: Container(
-          height: _cellHeight(context),
+          height: _cellHeight(context, withMarker: withMarker),
           alignment: Alignment.center,
           // `spacingXS`, and the arithmetic is tight enough to state: it takes
           // 8dp off a 46.9dp column, leaving ~38.9 for a two-digit day that
@@ -559,7 +676,31 @@ class _DayCell extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           ),
           child: ExcludeSemantics(
-            child: Text('${day.day}', style: _dayStyle.copyWith(color: fg)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('${day.day}', style: _dayStyle.copyWith(color: fg)),
+                if (withMarker) ...[
+                  const SizedBox(height: AppTheme.spacingXS),
+                  Container(
+                    width: AppTheme.spacingXS,
+                    height: AppTheme.spacingXS,
+                    decoration: BoxDecoration(
+                      // Null rather than a transparent colour: the row is real
+                      // layout either way, and `null` says "no ink" where a
+                      // transparent token would claim a colour it does not use.
+                      color: markerLabel == null
+                          ? null
+                          : selected
+                          ? AppColors.secondary
+                          : AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
