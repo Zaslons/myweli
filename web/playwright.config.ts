@@ -27,7 +27,24 @@ export default defineConfig({
   /// reproduce at all. A green built that way carries no information.
   retries: 0,
   reporter: 'line',
-  use: { baseURL, timezoneId: 'UTC' },
+  use: {
+    baseURL,
+    timezoneId: 'UTC',
+    /// **Because `retries: 0` means a red run is the ONLY look you get at it.**
+    ///
+    /// B10 removed the retry on the argument that a green built by re-running
+    /// alone carries no information. That argument holds, and it has a cost the
+    /// slice did not pay: with no retry and no artifact, a CI failure leaves
+    /// nothing but a stack.
+    ///
+    /// A14b's PR hit exactly that. `axe.spec.ts` timed out inside a five-route
+    /// loop, and because Playwright attributes a test-level timeout to whatever
+    /// call is in flight, the stack could not say **which** route was loading —
+    /// so "the server was hanging on an image" and "the 30 s budget simply ran
+    /// out four routes in" stayed indistinguishable. A trace answers that in one
+    /// look, and costs nothing on a green run.
+    trace: 'retain-on-failure',
+  },
   /// **Neither server is ever reused, locally or on CI** (B10 §4.3).
   ///
   /// The stub holds all of its state in module-level variables and has no
