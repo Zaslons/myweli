@@ -39,19 +39,19 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/login',
-          builder: (_, __) => const ProLoginScreen(),
+          builder: (_, _) => const ProLoginScreen(),
         ),
         GoRoute(
           path: '/pro/dashboard',
-          builder: (_, __) => const Scaffold(body: Text('DASHBOARD')),
+          builder: (_, _) => const Scaffold(body: Text('DASHBOARD')),
         ),
         GoRoute(
           path: '/pro/register',
-          builder: (_, __) => const Scaffold(body: Text('REGISTER')),
+          builder: (_, _) => const Scaffold(body: Text('REGISTER')),
         ),
         GoRoute(
           path: '/pro/staff',
-          builder: (_, __) => const Scaffold(body: Text('STAFF_SHELL')),
+          builder: (_, _) => const Scaffold(body: Text('STAFF_SHELL')),
         ),
       ],
     );

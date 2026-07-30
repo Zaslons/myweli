@@ -806,7 +806,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 child: ListView.separated(
                                   scrollDirection: Axis.horizontal,
                                   itemCount: p.imageUrls.length,
-                                  separatorBuilder: (_, __) =>
+                                  separatorBuilder: (_, _) =>
                                       const SizedBox(width: AppTheme.spacingS),
                                   itemBuilder: (context, i) {
                                     return GestureDetector(

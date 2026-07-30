@@ -62,11 +62,11 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/register',
-          builder: (_, __) => const ProRegisterScreen(),
+          builder: (_, _) => const ProRegisterScreen(),
         ),
         GoRoute(
           path: '/pro/dashboard',
-          builder: (_, __) => const Scaffold(body: Text('DASHBOARD')),
+          builder: (_, _) => const Scaffold(body: Text('DASHBOARD')),
         ),
       ],
     );

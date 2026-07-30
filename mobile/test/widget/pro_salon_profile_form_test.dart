@@ -84,7 +84,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/profile',
-          builder: (context, __) => Scaffold(
+          builder: (context, _) => Scaffold(
             body: Center(
               child: ElevatedButton(
                 onPressed: () => context.push('/pro/salon-profile'),
@@ -95,7 +95,7 @@ void main() {
         ),
         GoRoute(
           path: '/pro/salon-profile',
-          builder: (_, __) => const ProSalonProfileScreen(),
+          builder: (_, _) => const ProSalonProfileScreen(),
         ),
       ],
     );

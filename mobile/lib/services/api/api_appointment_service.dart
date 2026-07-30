@@ -79,10 +79,9 @@ class ApiAppointmentService implements AppointmentServiceInterface {
             'serviceIds': serviceIds,
             'appointmentDateTime':
                 appointmentDateTime.toUtc().toIso8601String(),
-            if (artistId != null) 'artistId': artistId,
-            if (notes != null) 'notes': notes,
-            if (depositScreenshotUrl != null)
-              'depositScreenshotUrl': depositScreenshotUrl,
+            'artistId': ?artistId,
+            'notes': ?notes,
+            'depositScreenshotUrl': ?depositScreenshotUrl,
           }),
         ));
     if (res == null) return _networkError();
@@ -263,7 +262,7 @@ class ApiAppointmentService implements AppointmentServiceInterface {
           'serviceIds': serviceIds.join(','),
         if (durationMinutes != null) 'durationMinutes': '$durationMinutes',
         // Capacity model (K1): the chosen artist's own calendar governs.
-        if (artistId != null) 'artistId': artistId,
+        'artistId': ?artistId,
       },
     );
     final res = await _send(() => _client.get(uri)); // public

@@ -248,10 +248,10 @@ class ApiAuthService implements AuthServiceInterface {
           _uri('/me'),
           headers: _bearer(token),
           body: jsonEncode({
-            if (name != null) 'name': name,
-            if (email != null) 'email': email,
-            if (avatarUrl != null) 'avatarUrl': avatarUrl,
-            if (phone != null) 'phone': phone,
+            'name': ?name,
+            'email': ?email,
+            'avatarUrl': ?avatarUrl,
+            'phone': ?phone,
           }),
         ));
     if (res == null) return _networkError();

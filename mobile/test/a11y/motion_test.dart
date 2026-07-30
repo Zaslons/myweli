@@ -348,10 +348,10 @@ void main() {
       final router = GoRouter(
         initialLocation: '/',
         routes: [
-          GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
+          GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
           GoRoute(
               path: '/home',
-              builder: (_, __) => const Scaffold(body: Text('accueil'))),
+              builder: (_, _) => const Scaffold(body: Text('accueil'))),
         ],
       );
       await pumpWithReducedMotion(tester, const SizedBox.shrink());

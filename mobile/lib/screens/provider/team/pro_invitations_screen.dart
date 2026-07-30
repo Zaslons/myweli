@@ -77,7 +77,7 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(AppTheme.spacingM),
             itemCount: team.myInvitations.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const SizedBox(height: AppTheme.spacingM),
             itemBuilder: (context, index) {
               final invitation = team.myInvitations[index];

@@ -429,10 +429,10 @@ class ApiProService implements ProServiceInterface {
         body: jsonEncode({
           'serviceIds': serviceIds,
           'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
-          if (clientName != null) 'clientName': clientName,
-          if (clientPhone != null) 'clientPhone': clientPhone,
-          if (notes != null) 'notes': notes,
-          if (artistId != null) 'artistId': artistId,
+          'clientName': ?clientName,
+          'clientPhone': ?clientPhone,
+          'notes': ?notes,
+          'artistId': ?artistId,
           // Honoured by the notifications backend (deferred); ignored for now.
           'sendSmsInvite': sendSmsInvite,
         }),

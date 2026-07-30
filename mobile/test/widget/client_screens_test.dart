@@ -58,7 +58,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/clients',
-          builder: (_, __) => const ClientListScreen(),
+          builder: (_, _) => const ClientListScreen(),
         ),
         GoRoute(
           path: '/pro/clients/:id',
@@ -67,7 +67,7 @@ void main() {
         ),
         GoRoute(
           path: '/pro/appointment/new',
-          builder: (_, __) => const Scaffold(body: Text('MANUEL')),
+          builder: (_, _) => const Scaffold(body: Text('MANUEL')),
         ),
       ],
     );

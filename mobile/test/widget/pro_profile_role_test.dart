@@ -59,7 +59,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/profile',
-          builder: (_, __) => const ProProfileScreen(),
+          builder: (_, _) => const ProProfileScreen(),
         ),
       ],
     );

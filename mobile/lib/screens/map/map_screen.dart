@@ -241,7 +241,7 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                       Consumer2<AuthProvider, FavoritesProvider>(
-                        builder: (_, auth, favorites, __) {
+                        builder: (_, auth, favorites, _) {
                           final isFav = auth.isAuthenticated
                               ? favorites.isFavorite(p.id)
                               : false;
@@ -392,7 +392,7 @@ class _MapScreenState extends State<MapScreen> {
 
     final markers = <Marker>[
       ...providerMarkers,
-      if (userMarker != null) userMarker,
+      ?userMarker,
     ];
 
     return Scaffold(

@@ -3,8 +3,28 @@ description: Myweli - Beauty and wellness booking app for Côte d'Ivoire
 publish_to: 'none'
 version: 1.0.0+1
 
+# **`sdk` is not documentation.** Dart derives the package's *language version*
+# from this lower bound, and a lint tied to a language feature simply does not
+# fire below it. `>=3.0.0` was holding two whole rules switched off —
+# `unnecessary_underscores` (wildcard variables, 3.7) and
+# `use_null_aware_elements` (null-aware elements, 3.8), 70 sites between them —
+# while `flutter analyze --fatal-infos` reported 0 and looked like proof.
+#
+# It also decides the FORMATTER's style: below 3.7 `dart format` writes the old
+# short style, at 3.7+ the tall style. Raising this bound rewrote 392 of 480
+# files, and `ci.yml:44` runs `--set-exit-if-changed`, so that reformat is
+# mandatory rather than optional — see .git-blame-ignore-revs.
+#
+# Nothing could honour 3.0.0 anyway: CI pins **Flutter 3.38.6**
+# (.github/workflows/ci.yml:36, :344), which ships **Dart 3.10.7**, and
+# backend/pubspec.yaml has said `^3.10.0` all along — mobile was the outlier.
+#
+# The `flutter` floor is the CI pin itself rather than a rounder number, because
+# 3.38.6 is the only Flutter this tree has been built or tested on and there is
+# no evidence for any claim below it. Do not lower either bound.
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ^3.10.0
+  flutter: '>=3.38.6'
 
 dependencies:
   flutter:

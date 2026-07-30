@@ -96,9 +96,9 @@ class ApiNotificationService implements NotificationServiceInterface {
       return ApiResponse.error('Non connecté');
     }
     final body = jsonEncode({
-      if (reminders != null) 'reminders': reminders,
-      if (marketing != null) 'marketing': marketing,
-      if (push != null) 'push': push,
+      'reminders': ?reminders,
+      'marketing': ?marketing,
+      'push': ?push,
     });
     final res = await _authed.send(
       (t) => _client.put(

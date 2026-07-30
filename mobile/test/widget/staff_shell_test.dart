@@ -55,10 +55,10 @@ void main() {
       initialLocation: '/pro/staff',
       routes: [
         GoRoute(
-            path: '/pro/staff', builder: (_, __) => const StaffHomeScreen()),
+            path: '/pro/staff', builder: (_, _) => const StaffHomeScreen()),
         GoRoute(
           path: '/pro/appointment/:id',
-          builder: (_, __) => const Scaffold(body: Text('DETAIL')),
+          builder: (_, _) => const Scaffold(body: Text('DETAIL')),
         ),
       ],
     );

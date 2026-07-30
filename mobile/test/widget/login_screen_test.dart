@@ -25,10 +25,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/login',
       routes: [
-        GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
         GoRoute(
           path: '/home',
-          builder: (_, __) => const Scaffold(body: Text('HOME')),
+          builder: (_, _) => const Scaffold(body: Text('HOME')),
         ),
       ],
     );

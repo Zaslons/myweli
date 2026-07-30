@@ -48,7 +48,7 @@ class _BeforeAfterSectionState extends State<BeforeAfterSection> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: widget.pairs.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const SizedBox(width: AppTheme.spacingS),
               itemBuilder: (context, i) {
                 final active = i == _index;

@@ -31,22 +31,22 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
         return null;
       },
       routes: [
-        GoRoute(path: '/admin', builder: (_, __) => const AdminLoginScreen()),
+        GoRoute(path: '/admin', builder: (_, _) => const AdminLoginScreen()),
         GoRoute(
           path: '/admin/dashboard',
-          builder: (_, __) => const AdminDashboardScreen(),
+          builder: (_, _) => const AdminDashboardScreen(),
         ),
         GoRoute(
           path: '/admin/kyc',
-          builder: (_, __) => const AdminKycQueueScreen(),
+          builder: (_, _) => const AdminKycQueueScreen(),
         ),
         GoRoute(
           path: '/admin/reviews',
-          builder: (_, __) => const AdminModerationScreen(),
+          builder: (_, _) => const AdminModerationScreen(),
         ),
         GoRoute(
           path: '/admin/providers',
-          builder: (_, __) => const AdminProvidersScreen(),
+          builder: (_, _) => const AdminProvidersScreen(),
         ),
         GoRoute(
           path: '/admin/providers/:id',
@@ -55,7 +55,7 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
         ),
         GoRoute(
           path: '/admin/users',
-          builder: (_, __) => const AdminUsersScreen(),
+          builder: (_, _) => const AdminUsersScreen(),
         ),
         GoRoute(
           path: '/admin/users/:id',
@@ -64,7 +64,7 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
         ),
         GoRoute(
           path: '/admin/disputes',
-          builder: (_, __) => const AdminDisputesScreen(),
+          builder: (_, _) => const AdminDisputesScreen(),
         ),
         GoRoute(
           path: '/admin/disputes/:id',
@@ -73,7 +73,7 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
         ),
         GoRoute(
           path: '/admin/audit',
-          builder: (_, __) => const AdminAuditScreen(),
+          builder: (_, _) => const AdminAuditScreen(),
         ),
         GoRoute(
           path: '/admin/kyc/:id',

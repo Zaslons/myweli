@@ -108,10 +108,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/host',
       routes: [
-        GoRoute(path: '/host', builder: (_, __) => const _SheetHost()),
+        GoRoute(path: '/host', builder: (_, _) => const _SheetHost()),
         GoRoute(
           path: '/pro/subscription',
-          builder: (_, __) => const Scaffold(body: Text('OFFRES')),
+          builder: (_, _) => const Scaffold(body: Text('OFFRES')),
         ),
       ],
     );

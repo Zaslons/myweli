@@ -91,19 +91,19 @@ void main() {
             routes: [
               GoRoute(
                 path: '/pro/journal',
-                builder: (_, __) => const ProJournalScreen(),
+                builder: (_, _) => const ProJournalScreen(),
               ),
               GoRoute(
                 path: '/pro/appointment/new',
-                builder: (_, __) => const Scaffold(body: Text('MANUEL')),
+                builder: (_, _) => const Scaffold(body: Text('MANUEL')),
               ),
               GoRoute(
                 path: '/pro/appointment/:id',
-                builder: (_, __) => const Scaffold(body: Text('DETAIL')),
+                builder: (_, _) => const Scaffold(body: Text('DETAIL')),
               ),
               GoRoute(
                 path: '/pro/appointments',
-                builder: (_, __) => const Scaffold(body: Text('AGENDA')),
+                builder: (_, _) => const Scaffold(body: Text('AGENDA')),
               ),
             ],
           ),

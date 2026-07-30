@@ -163,7 +163,7 @@ class ReviewTile extends StatelessWidget {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: review.photoUrls.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const SizedBox(width: AppTheme.spacingS),
                     itemBuilder: (context, index) {
                       final url = review.photoUrls[index];

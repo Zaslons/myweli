@@ -90,11 +90,11 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/dashboard',
-          builder: (_, __) => const DashboardScreen(),
+          builder: (_, _) => const DashboardScreen(),
         ),
         GoRoute(
           path: '/pro/notifications',
-          builder: (_, __) {
+          builder: (_, _) {
             pushedRoutes.add('/pro/notifications');
             return const Scaffold(body: Text('centre'));
           },

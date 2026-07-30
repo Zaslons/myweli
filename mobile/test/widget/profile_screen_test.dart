@@ -44,13 +44,13 @@ void main() {
           routes: [
             GoRoute(
               path: '/profile',
-              builder: (_, __) => const ProfileScreen(),
+              builder: (_, _) => const ProfileScreen(),
             ),
             GoRoute(
               path: '/a-propos',
-              builder: (_, __) => const Scaffold(body: Text('À-PROPOS')),
+              builder: (_, _) => const Scaffold(body: Text('À-PROPOS')),
             ),
-            GoRoute(path: '/login', builder: (_, __) => const Scaffold()),
+            GoRoute(path: '/login', builder: (_, _) => const Scaffold()),
           ],
         ),
       ),

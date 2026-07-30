@@ -48,7 +48,7 @@ class HighlightStories extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
             itemCount: items.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const SizedBox(width: AppTheme.spacingS),
             itemBuilder: (context, index) {
               final item = items[index];

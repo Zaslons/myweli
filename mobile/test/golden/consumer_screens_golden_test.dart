@@ -216,7 +216,7 @@ Future<void> _pumpScreen(
 
   final router = GoRouter(
     initialLocation: '/',
-    routes: [GoRoute(path: '/', builder: (_, __) => screen)],
+    routes: [GoRoute(path: '/', builder: (_, _) => screen)],
   );
 
   await tester.pumpWidget(

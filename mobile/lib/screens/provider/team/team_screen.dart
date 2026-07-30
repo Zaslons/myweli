@@ -162,7 +162,7 @@ class _TeamScreenState extends State<TeamScreen> {
           96, // clear the FAB
         ),
         itemCount: team.members.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: AppTheme.spacingS),
+        separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingS),
         itemBuilder: (context, index) {
           if (index == 0) return const _SeatsHeader();
           final member = team.members[index - 1];

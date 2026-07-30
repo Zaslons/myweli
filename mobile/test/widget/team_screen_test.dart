@@ -62,10 +62,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/pro/team',
       routes: [
-        GoRoute(path: '/pro/team', builder: (_, __) => const TeamScreen()),
+        GoRoute(path: '/pro/team', builder: (_, _) => const TeamScreen()),
         GoRoute(
           path: '/pro/subscription',
-          builder: (_, __) => const Scaffold(body: Text('OFFRES')),
+          builder: (_, _) => const Scaffold(body: Text('OFFRES')),
         ),
       ],
     );
