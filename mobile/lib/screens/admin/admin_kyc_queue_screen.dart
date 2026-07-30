@@ -65,22 +65,32 @@ class _AdminKycQueueScreenState extends State<AdminKycQueueScreen> {
               AdminRow(
                 onTap: () => context.go('/admin/kyc/${item['accountId']}'),
                 cells: [
-                  Text('${item['businessName'] ?? '—'}',
-                      style: AppTextStyles.bodyMedium),
-                  Text('${item['businessType'] ?? ''}',
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(color: AppColors.textSecondary)),
-                  Text(_date(item['submittedAt']),
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(color: AppColors.textSecondary)),
                   Text(
-                      Formatters.count(
-                        (item['docCount'] as int?) ?? 0,
-                        'document',
-                        'documents',
-                      ),
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(color: AppColors.textSecondary)),
+                    '${item['businessName'] ?? '—'}',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                  Text(
+                    '${item['businessType'] ?? ''}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    _date(item['submittedAt']),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    Formatters.count(
+                      (item['docCount'] as int?) ?? 0,
+                      'document',
+                      'documents',
+                    ),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
           ],

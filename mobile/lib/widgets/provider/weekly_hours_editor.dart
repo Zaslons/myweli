@@ -53,10 +53,10 @@ class WeeklyHoursEditor extends StatelessWidget {
   }
 
   TimeSlot _slot(TimeOfDay start, TimeOfDay end) => TimeSlot(
-        startTime: DateTime(2000, 1, 1, start.hour, start.minute),
-        endTime: DateTime(2000, 1, 1, end.hour, end.minute),
-        isAvailable: true,
-      );
+    startTime: DateTime(2000, 1, 1, start.hour, start.minute),
+    endTime: DateTime(2000, 1, 1, end.hour, end.minute),
+    isAvailable: true,
+  );
 
   /// One screen for the whole range (A14b).
   ///
@@ -82,13 +82,20 @@ class WeeklyHoursEditor extends StatelessWidget {
   /// `availability_screen.dart` wires it straight to `updateAvailability`, so a
   /// control that emitted per edit would write to the server on every tap.
   Future<void> _editRange(
-      BuildContext context, int day, TimeSlot current) async {
+    BuildContext context,
+    int day,
+    TimeSlot current,
+  ) async {
     final range = await showMyweliTimeRangePicker(
       context: context,
       initialStart: TimeOfDay(
-          hour: current.startTime.hour, minute: current.startTime.minute),
-      initialEnd:
-          TimeOfDay(hour: current.endTime.hour, minute: current.endTime.minute),
+        hour: current.startTime.hour,
+        minute: current.startTime.minute,
+      ),
+      initialEnd: TimeOfDay(
+        hour: current.endTime.hour,
+        minute: current.endTime.minute,
+      ),
       startLabel: 'Heure de début',
       endLabel: 'Heure de fin',
       helpText: '${_dayNames[day]} — horaires',
@@ -121,14 +128,16 @@ class WeeklyHoursEditor extends StatelessWidget {
               if (works)
                 TextButton(
                   onPressed: () => _editRange(context, day, slot),
-                  child:
-                      Text('${_fmt(slot.startTime)} – ${_fmt(slot.endTime)}'),
+                  child: Text(
+                    '${_fmt(slot.startTime)} – ${_fmt(slot.endTime)}',
+                  ),
                 )
               else
                 Text(
                   offLabel,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textTertiary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               Switch(
                 value: works,

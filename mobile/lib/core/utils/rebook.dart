@@ -18,7 +18,7 @@ RebookSelection sanitizeRebookSelection({
   final validServices = serviceIds.where(availableServiceIds.contains).toList();
   final validArtist =
       (artistId != null && availableArtistIds.contains(artistId))
-          ? artistId
-          : null;
+      ? artistId
+      : null;
   return RebookSelection(serviceIds: validServices, artistId: validArtist);
 }

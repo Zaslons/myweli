@@ -160,12 +160,15 @@ void main() {
         expect(
           find.byType(TextField),
           findsNWidgets(6),
-          reason: 'C: the six-box code row is the subject — without it this '
+          reason:
+              'C: the six-box code row is the subject — without it this '
               'test is about an empty Scaffold',
         );
         _expectOtpRowFitsTheFloor(tester, width: width, at: at);
-        expectNoUndeclaredTruncation(tester,
-            context: 'the consumer OTP at $at');
+        expectNoUndeclaredTruncation(
+          tester,
+          context: 'the consumer OTP at $at',
+        );
         expectNoLegibilityCrush(tester, context: 'the consumer OTP at $at');
         expectNoVerticalClip(tester, context: 'the consumer OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
@@ -253,8 +256,10 @@ void main() {
           tester,
           context: 'the pro appointment list at $at',
         );
-        expectNoVerticalClip(tester,
-            context: 'the pro appointment list at $at');
+        expectNoVerticalClip(
+          tester,
+          context: 'the pro appointment list at $at',
+        );
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -282,7 +287,8 @@ void main() {
         expect(
           find.text('Aucun rendez-vous'),
           findsNothing,
-          reason: 'C: user1 has a confirmed booking at now + 2d and a pending '
+          reason:
+              'C: user1 has a confirmed booking at now + 2d and a pending '
               'one at now + 5d — an empty « À venir » means the session or the '
               'load did not land',
         );
@@ -295,10 +301,7 @@ void main() {
           tester,
           context: 'consumer bookings at $at',
         );
-        expectNoLegibilityCrush(
-          tester,
-          context: 'consumer bookings at $at',
-        );
+        expectNoLegibilityCrush(tester, context: 'consumer bookings at $at');
         expectNoVerticalClip(tester, context: 'consumer bookings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -333,7 +336,8 @@ void main() {
         expect(
           find.text('Derniers rendez-vous'),
           findsOneWidget,
-          reason: 'C: the heading this slice is about — it is behind '
+          reason:
+              'C: the heading this slice is about — it is behind '
               'isAuthenticated, so a signed-out pump measures nothing',
         );
         expect(find.text('Mes favoris'), findsOneWidget, reason: 'C');
@@ -399,7 +403,8 @@ void main() {
         expect(
           find.text('Vos rendez-vous ici'),
           findsOneWidget,
-          reason: 'C: the heading with an action beside it — signed out this '
+          reason:
+              'C: the heading with an action beside it — signed out this '
               'screen renders « Connectez-vous pour voir vos rendez-vous. » '
               'instead, and the subject would be missing',
         );
@@ -446,7 +451,8 @@ void main() {
         expect(
           find.text('Aucun avis'),
           findsNothing,
-          reason: 'C: provider1 has three seeded reviews — the empty state '
+          reason:
+              'C: provider1 has three seeded reviews — the empty state '
               'has no summary card, which is the whole subject',
         );
         // The bar is about to become `Expanded`, and a flexed bar in a row that
@@ -456,7 +462,8 @@ void main() {
           expect(
             tester.getSize(find.byType(LinearProgressIndicator).at(i)).width,
             greaterThanOrEqualTo(24),
-            reason: 'distribution bar $i has collapsed at $at — a rating '
+            reason:
+                'distribution bar $i has collapsed at $at — a rating '
                 'histogram whose bars carry no length is a column of numbers',
           );
         }
@@ -511,7 +518,8 @@ void main() {
         expect(
           find.byType(ProviderCard),
           findsWidgets,
-          reason: 'C: no salon has loaded, so the count label — half of what '
+          reason:
+              'C: no salon has loaded, so the count label — half of what '
               'overflows — is not built and the row cannot overflow',
         );
         expectNoUndeclaredTruncation(tester, context: 'salon list at $at');
@@ -638,17 +646,15 @@ void main() {
         expect(
           find.text('Tissage'),
           findsWidgets,
-          reason: 'C: the service row is the subject, and it only renders '
+          reason:
+              'C: the service row is the subject, and it only renders '
               'once the provider has loaded',
         );
         expectNoUndeclaredTruncation(
           tester,
           context: 'booking confirmation at $at',
         );
-        expectNoLegibilityCrush(
-          tester,
-          context: 'booking confirmation at $at',
-        );
+        expectNoLegibilityCrush(tester, context: 'booking confirmation at $at');
         expectNoVerticalClip(tester, context: 'booking confirmation at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -724,7 +730,8 @@ void main() {
         expect(
           find.text('Opérations quotidiennes'),
           findsOneWidget,
-          reason: 'C: the action grid is half the subject, and it renders '
+          reason:
+              'C: the action grid is half the subject, and it renders '
               'below the stat cards — a screen that stopped at the header '
               'would measure neither',
         );
@@ -792,8 +799,9 @@ void main() {
   // was removed, the field wanted **66.0dp at 1×** and had 64 — so the row
   // shipped 2dp of clipping on every device — and **99.0dp at 2×**, clipping by
   // 35. Nothing in 825 tests had anything to say about it.
-  testWidgets('the OTP box grows with the OS text scale (§13.3)',
-      (tester) async {
+  testWidgets('the OTP box grows with the OS text scale (§13.3)', (
+    tester,
+  ) async {
     Future<double> boxHeightAt(double scale) async {
       await pumpAtWidth(
         tester,
@@ -814,7 +822,8 @@ void main() {
     expect(
       atTwo,
       greaterThan(atOne),
-      reason: 'the box is ${atOne}dp at 1× and ${atTwo}dp at 2× — it did not '
+      reason:
+          'the box is ${atOne}dp at 1× and ${atTwo}dp at 2× — it did not '
           'grow, so the digits are being clipped by a fixed bound (§13.3). '
           'This is what `height: 64` did, and takeException cannot see it.',
     );
@@ -848,7 +857,8 @@ void _expectHeadingIsWhole(WidgetTester tester, String text, String at) {
   expect(
     p.didExceedMaxLines,
     isFalse,
-    reason: '« $text » is cut off at $at — it wanted more lines than '
+    reason:
+        '« $text » is cut off at $at — it wanted more lines than '
         '${p.maxLines} and did not get them',
   );
 }
@@ -859,14 +869,14 @@ void _expectHeadingIsWhole(WidgetTester tester, String text, String at) {
 /// fits — « Voir tout » demoted to a 24dp glyph. That is green on every other
 /// assertion in this file.
 void _expectActionIsTappable(WidgetTester tester, String label, String at) {
-  final size = tester.getSize(find.ancestor(
-    of: find.text(label),
-    matching: find.byType(TextButton),
-  ));
+  final size = tester.getSize(
+    find.ancestor(of: find.text(label), matching: find.byType(TextButton)),
+  );
   expect(
     size.width >= 48 && size.height >= 48,
     isTrue,
-    reason: '« $label » is ${size.width}×${size.height} at $at — §13.2 says '
+    reason:
+        '« $label » is ${size.width}×${size.height} at $at — §13.2 says '
         'every touch target is ≥48×48',
   );
 }
@@ -900,7 +910,8 @@ void _expectOtpRowFitsTheFloor(
     expect(
       boxes[i].width,
       closeTo(expected, 0.01),
-      reason: 'box $i is ${boxes[i].width}dp at $at, and the row promises '
+      reason:
+          'box $i is ${boxes[i].width}dp at $at, and the row promises '
           '$expected — (W − 2×spacingM − 5×spacingS)/6. A margin inside the '
           'Expanded is the usual cause: it is spent from the slot, so the four '
           'middle boxes shrink and the two ends do not.',
@@ -908,7 +919,8 @@ void _expectOtpRowFitsTheFloor(
     expect(
       boxes[i].width,
       greaterThanOrEqualTo(48),
-      reason: 'box $i is ${boxes[i].width}dp wide at $at — §13.2 says every '
+      reason:
+          'box $i is ${boxes[i].width}dp wide at $at — §13.2 says every '
           'touch target is ≥48×48, and this one is typed into',
     );
     expect(
@@ -933,7 +945,8 @@ void _expectOtpRowFitsTheFloor(
     expect(
       boxes[i].left - boxes[i - 1].right,
       greaterThanOrEqualTo(8 - 0.01),
-      reason: 'boxes ${i - 1} and $i are '
+      reason:
+          'boxes ${i - 1} and $i are '
           '${(boxes[i].left - boxes[i - 1].right).toStringAsFixed(2)}dp apart '
           'at $at — §13.2: "targets that are adjacent need ≥8px between them, '
           'or a fat finger hits the wrong one".',
@@ -948,13 +961,13 @@ void _expectOtpRowFitsTheFloor(
 /// they live in `SharedPreferences`, so a `HomeScreen` test that seeds nothing
 /// renders no « Mes favoris » section and measures a heading that is not there.
 void _seedPrefs() => SharedPreferences.setMockInitialValues({
-      'favorites_user1': '["provider1","provider2"]',
-      // The pro dashboard offers push on its FIRST visit
-      // (`push_registration.dart`), and a modal sheet over the subject measures
-      // the sheet. A12 added the dashboard as a subject; this makes it the
-      // second visit.
-      'myweli_push_asked': true,
-    });
+  'favorites_user1': '["provider1","provider2"]',
+  // The pro dashboard offers push on its FIRST visit
+  // (`push_registration.dart`), and a modal sheet over the subject measures
+  // the sheet. A12 added the dashboard as a subject; this makes it the
+  // second visit.
+  'myweli_push_asked': true,
+});
 
 /// Unmounts the tree so the OTP resend cooldown stops.
 ///

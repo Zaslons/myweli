@@ -87,7 +87,7 @@ class _NotificationsListState extends State<NotificationsList> {
           child: ListView.separated(
             padding: const EdgeInsets.all(AppTheme.spacingM),
             itemCount: provider.notifications.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const SizedBox(height: AppTheme.spacingM),
             itemBuilder: (context, index) {
               final n = provider.notifications[index];

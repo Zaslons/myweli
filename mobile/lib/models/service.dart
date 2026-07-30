@@ -17,10 +17,10 @@ class DurationVariants extends Equatable {
   List<Object?> get props => [court, moyen, long];
 
   Map<String, dynamic> toJson() => {
-        if (court != null) 'court': court,
-        if (moyen != null) 'moyen': moyen,
-        if (long != null) 'long': long,
-      };
+    if (court != null) 'court': court,
+    if (moyen != null) 'moyen': moyen,
+    if (long != null) 'long': long,
+  };
 
   factory DurationVariants.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const DurationVariants();
@@ -59,17 +59,17 @@ class Service extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        description,
-        price,
-        priceMax,
-        durationMinutes,
-        durationVariants,
-        providerId,
-        artistIds,
-        active,
-      ];
+    id,
+    name,
+    description,
+    price,
+    priceMax,
+    durationMinutes,
+    durationVariants,
+    providerId,
+    artistIds,
+    active,
+  ];
 
   Service copyWith({
     String? id,

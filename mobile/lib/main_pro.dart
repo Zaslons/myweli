@@ -70,11 +70,8 @@ void main() {
 
       runApp(MyweliProApp(auth: proAuth));
     },
-    (error, stack) => AppLogger.error(
-      'Uncaught zone error',
-      error: error,
-      stackTrace: stack,
-    ),
+    (error, stack) =>
+        AppLogger.error('Uncaught zone error', error: error, stackTrace: stack),
   );
 }
 
@@ -122,38 +119,54 @@ class MyweliProApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProDashboardProvider())),
+          create: (_) => ProSalonScope.track(ProDashboardProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProAppointmentProvider())),
+          create: (_) => ProSalonScope.track(ProAppointmentProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProServiceProvider())),
+          create: (_) => ProSalonScope.track(ProServiceProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProArtistProvider())),
+          create: (_) => ProSalonScope.track(ProArtistProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProClientsProvider())),
+          create: (_) => ProSalonScope.track(ProClientsProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProJournalProvider())),
+          create: (_) => ProSalonScope.track(ProJournalProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProAvailabilityProvider())),
+          create: (_) => ProSalonScope.track(ProAvailabilityProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProEarningsProvider())),
+          create: (_) => ProSalonScope.track(ProEarningsProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProReviewsProvider())),
+          create: (_) => ProSalonScope.track(ProReviewsProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProSalonProfileProvider())),
+          create: (_) => ProSalonScope.track(ProSalonProfileProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProDepositSettingsProvider())),
+          create: (_) => ProSalonScope.track(ProDepositSettingsProvider()),
+        ),
         ChangeNotifierProvider(create: (_) => ProKycProvider()),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProOnboardingProvider())),
+          create: (_) => ProSalonScope.track(ProOnboardingProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProGalleryProvider())),
+          create: (_) => ProSalonScope.track(ProGalleryProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProBeforeAfterProvider())),
+          create: (_) => ProSalonScope.track(ProBeforeAfterProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProSubscriptionProvider())),
+          create: (_) => ProSalonScope.track(ProSubscriptionProvider()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProTeamProvider())),
+          create: (_) => ProSalonScope.track(ProTeamProvider()),
+        ),
       ],
       // Above MaterialApp so the whole tree rebuilds when iOS Reduce Motion is
       // toggled mid-session — nothing in the framework reads that flag (§9, A8).

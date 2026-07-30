@@ -79,10 +79,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
-        _Header(
-          client: client,
-          onEditTags: () => _openTagSheet(client),
-        ),
+        _Header(client: client, onEditTags: () => _openTagSheet(client)),
         const SizedBox(height: AppTheme.spacingM),
         _StatsStrip(stats: card.stats, lastVisitAt: client.lastVisitAt),
         if (card.upcoming != null) ...[
@@ -183,8 +180,9 @@ class _Header extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: AppColors.surfaceVariant,
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusSmall),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusSmall,
+                              ),
                             ),
                             child: Text(
                               'MyWeli',
@@ -256,33 +254,33 @@ class _StatsStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget tile(String label, String value, {bool alert = false}) => Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(AppTheme.spacingS),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      child: Container(
+        padding: const EdgeInsets.all(AppTheme.spacingS),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: AppTextStyles.titleMedium.copyWith(
+                color: alert ? AppColors.error : AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
             ),
-            child: Column(
-              children: [
-                Text(
-                  value,
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: alert ? AppColors.error : AppColors.textPrimary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.spacingXS),
-                Text(
-                  label,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+            const SizedBox(height: AppTheme.spacingXS),
+            Text(
+              label,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        );
+          ],
+        ),
+      ),
+    );
 
     final auth = context.read<ProAuthProvider>();
     return Row(
@@ -304,7 +302,8 @@ class _StatsStrip extends StatelessWidget {
           lastVisitAt == null
               ? '—'
               : Formatters.formatDate(
-                  toSalonTime(lastVisitAt!, tz: auth.salonTimezone)),
+                  toSalonTime(lastVisitAt!, tz: auth.salonTimezone),
+                ),
         ),
       ],
     );
@@ -318,8 +317,9 @@ class _UpcomingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date =
-        DateTime.tryParse(upcoming['appointmentDate'] as String? ?? '');
+    final date = DateTime.tryParse(
+      upcoming['appointmentDate'] as String? ?? '',
+    );
     final id = upcoming['id'] as String?;
     return InkWell(
       onTap: id == null ? null : () => context.push('/pro/appointment/$id'),
@@ -345,10 +345,12 @@ class _UpcomingCard extends StatelessWidget {
             Text(
               date == null
                   ? '—'
-                  : Formatters.formatDateTime(toSalonTime(
-                      date,
-                      tz: context.read<ProAuthProvider>().salonTimezone,
-                    )),
+                  : Formatters.formatDateTime(
+                      toSalonTime(
+                        date,
+                        tz: context.read<ProAuthProvider>().salonTimezone,
+                      ),
+                    ),
               style: AppTextStyles.bodyLarge.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w500,
@@ -381,8 +383,9 @@ class _NotesSectionState extends State<_NotesSection> {
   final _focus = FocusNode();
 
   // A7/§14 — including the save failure, which used to vanish.
-  late final _errors =
-      FieldErrors({'note': Validators.requiredField('une note')});
+  late final _errors = FieldErrors({
+    'note': Validators.requiredField('une note'),
+  });
   bool _busy = false;
 
   @override
@@ -409,7 +412,8 @@ class _NotesSectionState extends State<_NotesSection> {
         // A failure used to be swallowed whole: the note stayed in the box and
         // nothing said why.
         setState(
-            () => _errors.set('note', 'Enregistrement impossible. Réessayez.'));
+          () => _errors.set('note', 'Enregistrement impossible. Réessayez.'),
+        );
       }
     }
   }
@@ -532,11 +536,11 @@ class _VisitsSection extends StatelessWidget {
   final List<Appointment> visits;
 
   Color _statusColor(AppointmentStatus s) => switch (s) {
-        AppointmentStatus.completed => AppColors.success,
-        AppointmentStatus.noShow => AppColors.error,
-        AppointmentStatus.cancelled => AppColors.textTertiary,
-        _ => AppColors.textSecondary,
-      };
+    AppointmentStatus.completed => AppColors.success,
+    AppointmentStatus.noShow => AppColors.error,
+    AppointmentStatus.cancelled => AppColors.textTertiary,
+    _ => AppColors.textSecondary,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -573,10 +577,12 @@ class _VisitsSection extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        Formatters.formatDateTime(toSalonTime(
-                          v.appointmentDate,
-                          tz: context.read<ProAuthProvider>().salonTimezone,
-                        )),
+                        Formatters.formatDateTime(
+                          toSalonTime(
+                            v.appointmentDate,
+                            tz: context.read<ProAuthProvider>().salonTimezone,
+                          ),
+                        ),
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: AppColors.textPrimary,
                         ),
@@ -710,11 +716,11 @@ class _TagSheetState extends State<_TagSheet> {
                 final fault = t.isEmpty
                     ? 'Saisissez un tag.'
                     : _tags.contains(t)
-                        ? 'Ce tag est déjà ajouté.'
-                        : _tags.length >= 10
-                            ? 'Vous avez atteint 10 tags — retirez-en un '
-                                'pour en ajouter.'
-                            : null;
+                    ? 'Ce tag est déjà ajouté.'
+                    : _tags.length >= 10
+                    ? 'Vous avez atteint 10 tags — retirez-en un '
+                          'pour en ajouter.'
+                    : null;
                 if (fault != null) {
                   setState(() => _tagError = fault);
                   return;

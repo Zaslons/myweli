@@ -49,7 +49,8 @@ class SettingsTile extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-      trailing: trailing ??
+      trailing:
+          trailing ??
           const Icon(Icons.chevron_right, color: AppColors.textTertiary),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(

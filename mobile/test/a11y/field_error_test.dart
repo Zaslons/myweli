@@ -25,15 +25,13 @@ void main() {
   const longest = 'Le numéro doit comporter 10 chiffres (ex : 07 07 12 34 56).';
 
   Widget field({String? error = longest}) => Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: AppTextField(
-          label: 'Numéro Mobile Money',
-          errorText: error,
-        ),
-      );
+    padding: const EdgeInsets.all(AppTheme.spacingM),
+    child: AppTextField(label: 'Numéro Mobile Money', errorText: error),
+  );
 
-  testWidgets('a two-clause error does not clip at 200 % text (§13.3)',
-      (tester) async {
+  testWidgets('a two-clause error does not clip at 200 % text (§13.3)', (
+    tester,
+  ) async {
     await pumpAtTextScale(tester, SingleChildScrollView(child: field()));
     expect(tester.takeException(), isNull);
 
@@ -42,28 +40,36 @@ void main() {
     // always sets `overflow: ellipsis` on the error and bounds it with
     // `errorMaxLines`, so the line count IS the assertion.
     final rendered = tester.widget<Text>(find.text(longest));
-    expect(rendered.maxLines, greaterThan(1),
-        reason: 'at errorMaxLines: 1 — the Material default this theme used to '
-            'inherit — the sentence telling the user how to fix the form is '
-            'cut off mid-instruction');
+    expect(
+      rendered.maxLines,
+      greaterThan(1),
+      reason:
+          'at errorMaxLines: 1 — the Material default this theme used to '
+          'inherit — the sentence telling the user how to fix the form is '
+          'cut off mid-instruction',
+    );
     expect(find.text(longest), findsOneWidget);
   });
 
-  testWidgets('the error grows the field instead of overlapping it',
-      (tester) async {
+  testWidgets('the error grows the field instead of overlapping it', (
+    tester,
+  ) async {
     await pumpApp(tester, home: Scaffold(body: field(error: null)));
     final clean = tester.getSize(find.byType(AppTextField)).height;
 
     await pumpApp(tester, home: Scaffold(body: field()));
     final errored = tester.getSize(find.byType(AppTextField)).height;
 
-    expect(errored, greaterThan(clean),
-        reason: 'the message needs its own room — a fixed-height field would '
-            'paint it over the next control (§13.3)');
+    expect(
+      errored,
+      greaterThan(clean),
+      reason:
+          'the message needs its own room — a fixed-height field would '
+          'paint it over the next control (§13.3)',
+    );
   });
 
-  testWidgets(
-      'the message is IN the field’s semantics — that is the '
+  testWidgets('the message is IN the field’s semantics — that is the '
       'association §14 rule 1 asks for', (tester) async {
     final handle = tester.ensureSemantics();
     await pumpApp(tester, home: Scaffold(body: field()));
@@ -83,8 +89,11 @@ void main() {
     //
     // Not `SemanticsService` — A6 proved `supportsAnnounce` is false on
     // Android, where a direct announcement clears TalkBack's queue.
-    expect(find.bySemanticsLabel(longest), findsOneWidget,
-        reason: 'the error must be in the semantics tree at all');
+    expect(
+      find.bySemanticsLabel(longest),
+      findsOneWidget,
+      reason: 'the error must be in the semantics tree at all',
+    );
 
     var foundUnderTheField = false;
     void walk(SemanticsNode node) {
@@ -96,10 +105,14 @@ void main() {
     }
 
     walk(tester.getSemantics(find.byType(TextField)));
-    expect(foundUnderTheField, isTrue,
-        reason: 'if this goes red the message detached from its field — it '
-            'became decoration: visible, but orphaned from the input the user '
-            'has to fix');
+    expect(
+      foundUnderTheField,
+      isTrue,
+      reason:
+          'if this goes red the message detached from its field — it '
+          'became decoration: visible, but orphaned from the input the user '
+          'has to fix',
+    );
     handle.dispose();
   });
 

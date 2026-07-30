@@ -22,31 +22,38 @@ void main() {
   setUp(() async {
     reset(service);
     gallery = ProGalleryProvider();
-    when(() => service.getGalleryPhotos('p1'))
-        .thenAnswer((_) async => ApiResponse.success(['a', 'b', 'c']));
+    when(
+      () => service.getGalleryPhotos('p1'),
+    ).thenAnswer((_) async => ApiResponse.success(['a', 'b', 'c']));
     await gallery.load('p1');
   });
 
-  test('movePhoto swaps with the neighbour and persists the new order',
-      () async {
-    when(() => service.updateGalleryPhotos('p1', ['b', 'a', 'c']))
-        .thenAnswer((_) async => ApiResponse.success(['b', 'a', 'c']));
+  test(
+    'movePhoto swaps with the neighbour and persists the new order',
+    () async {
+      when(
+        () => service.updateGalleryPhotos('p1', ['b', 'a', 'c']),
+      ).thenAnswer((_) async => ApiResponse.success(['b', 'a', 'c']));
 
-    expect(await gallery.movePhoto('p1', 1, -1), isTrue);
-    expect(gallery.photos, ['b', 'a', 'c']);
-  });
+      expect(await gallery.movePhoto('p1', 1, -1), isTrue);
+      expect(gallery.photos, ['b', 'a', 'c']);
+    },
+  );
 
-  test('movePhoto rejects out-of-bounds moves without a network call',
-      () async {
-    expect(await gallery.movePhoto('p1', 0, -1), isFalse);
-    expect(await gallery.movePhoto('p1', 2, 1), isFalse);
-    verifyNever(() => service.updateGalleryPhotos(any(), any()));
-    expect(gallery.photos, ['a', 'b', 'c']);
-  });
+  test(
+    'movePhoto rejects out-of-bounds moves without a network call',
+    () async {
+      expect(await gallery.movePhoto('p1', 0, -1), isFalse);
+      expect(await gallery.movePhoto('p1', 2, 1), isFalse);
+      verifyNever(() => service.updateGalleryPhotos(any(), any()));
+      expect(gallery.photos, ['a', 'b', 'c']);
+    },
+  );
 
   test('movePhoto keeps the order and surfaces the error on failure', () async {
-    when(() => service.updateGalleryPhotos('p1', any()))
-        .thenAnswer((_) async => ApiResponse.error('offline'));
+    when(
+      () => service.updateGalleryPhotos('p1', any()),
+    ).thenAnswer((_) async => ApiResponse.error('offline'));
 
     expect(await gallery.movePhoto('p1', 0, 1), isFalse);
     expect(gallery.photos, ['a', 'b', 'c']);
@@ -59,22 +66,24 @@ void main() {
   // gallery rather than undoing one delete: a photo uploaded during the 10s
   // window is destroyed, a reorder is reverted — silently, by the button whose
   // whole promise is that nothing was lost.
-  test(
-      'restorePhotoAt re-inserts into the CURRENT list, keeping work done '
+  test('restorePhotoAt re-inserts into the CURRENT list, keeping work done '
       'during the undo window', () async {
-    when(() => service.updateGalleryPhotos('p1', ['a', 'c']))
-        .thenAnswer((_) async => ApiResponse.success(['a', 'c']));
+    when(
+      () => service.updateGalleryPhotos('p1', ['a', 'c']),
+    ).thenAnswer((_) async => ApiResponse.success(['a', 'c']));
     expect(await gallery.removePhoto('p1', 1), isTrue); // delete 'b'
     expect(gallery.photos, ['a', 'c']);
 
     // …the user changes the cover before tapping « Annuler ».
-    when(() => service.updateGalleryPhotos('p1', ['c', 'a']))
-        .thenAnswer((_) async => ApiResponse.success(['c', 'a']));
+    when(
+      () => service.updateGalleryPhotos('p1', ['c', 'a']),
+    ).thenAnswer((_) async => ApiResponse.success(['c', 'a']));
     expect(await gallery.movePhoto('p1', 1, -1), isTrue);
     expect(gallery.photos, ['c', 'a']);
 
-    when(() => service.updateGalleryPhotos('p1', ['c', 'b', 'a']))
-        .thenAnswer((_) async => ApiResponse.success(['c', 'b', 'a']));
+    when(
+      () => service.updateGalleryPhotos('p1', ['c', 'b', 'a']),
+    ).thenAnswer((_) async => ApiResponse.success(['c', 'b', 'a']));
     expect(await gallery.restorePhotoAt('p1', 1, 'b'), isTrue);
 
     // 'b' is back AND the new cover survived. The snapshot version would have
@@ -84,14 +93,19 @@ void main() {
   });
 
   test('restorePhotoAt reports failure instead of failing silently', () async {
-    when(() => service.updateGalleryPhotos('p1', ['a', 'c']))
-        .thenAnswer((_) async => ApiResponse.success(['a', 'c']));
+    when(
+      () => service.updateGalleryPhotos('p1', ['a', 'c']),
+    ).thenAnswer((_) async => ApiResponse.success(['a', 'c']));
     await gallery.removePhoto('p1', 1);
 
-    when(() => service.updateGalleryPhotos('p1', ['a', 'b', 'c']))
-        .thenAnswer((_) async => ApiResponse.error('Réseau indisponible'));
-    expect(await gallery.restorePhotoAt('p1', 1, 'b'), isFalse,
-        reason: 'the call site needs the result to tell the user');
+    when(
+      () => service.updateGalleryPhotos('p1', ['a', 'b', 'c']),
+    ).thenAnswer((_) async => ApiResponse.error('Réseau indisponible'));
+    expect(
+      await gallery.restorePhotoAt('p1', 1, 'b'),
+      isFalse,
+      reason: 'the call site needs the result to tell the user',
+    );
     expect(gallery.photos, ['a', 'c'], reason: 'no optimistic lie');
   });
 }

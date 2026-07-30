@@ -69,8 +69,10 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
     }
     if (source == null || !mounted) return;
     setState(() => _uploadingPhoto = true);
-    final providerProvider =
-        Provider.of<ProviderProvider>(context, listen: false);
+    final providerProvider = Provider.of<ProviderProvider>(
+      context,
+      listen: false,
+    );
     final url = await providerProvider.uploadReviewPhoto(source);
     if (!mounted) return;
     setState(() {
@@ -97,8 +99,10 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
     final user = authProvider.user;
     if (user == null) return;
 
-    final providerProvider =
-        Provider.of<ProviderProvider>(context, listen: false);
+    final providerProvider = Provider.of<ProviderProvider>(
+      context,
+      listen: false,
+    );
     final artists =
         providerProvider.selectedProvider?.artists ?? const <Artist>[];
     String? artistName;
@@ -140,11 +144,16 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       // The snackbar below is a live region — announcing here as well
       // double-spoke it on iOS and cleared TalkBack's queue on Android.
       Navigator.pop(context);
-      AppSnackBar.show(context, 'Merci pour votre avis',
-          kind: SnackKind.success);
+      AppSnackBar.show(
+        context,
+        'Merci pour votre avis',
+        kind: SnackKind.success,
+      );
     } else {
-      setState(() =>
-          _error = providerProvider.error ?? 'Erreur lors de la publication');
+      setState(
+        () =>
+            _error = providerProvider.error ?? 'Erreur lors de la publication',
+      );
     }
   }
 
@@ -152,7 +161,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
   Widget build(BuildContext context) {
     final artists =
         context.watch<ProviderProvider>().selectedProvider?.artists ??
-            const <Artist>[];
+        const <Artist>[];
     // §14 rule 5: NOT gated on the rating. `_uploadingPhoto` and `_submitting`
     // are work in progress, which is the rule's one allowed reason to disable.
     final canSubmit = !_submitting && !_uploadingPhoto;
@@ -188,7 +197,8 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                     color: AppColors.starRating,
                   ),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingXS),
+                    horizontal: AppTheme.spacingXS,
+                  ),
                 ),
               );
             }),
@@ -259,8 +269,9 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                     height: 56,
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusMedium),
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
                     ),
                     child: const Center(
                       child: SizedBox(
@@ -280,20 +291,24 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusMedium),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
                           border: Border.all(color: AppColors.borderStrong),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.camera_alt_outlined,
-                                size: AppTheme.iconS,
-                                color: AppColors.textSecondary),
+                            const Icon(
+                              Icons.camera_alt_outlined,
+                              size: AppTheme.iconS,
+                              color: AppColors.textSecondary,
+                            ),
                             Text(
                               '${_photoUrls.length}/$_maxReviewPhotos',
-                              style: AppTextStyles.labelSmall
-                                  .copyWith(color: AppColors.textTertiary),
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
                             ),
                           ],
                         ),
@@ -368,8 +383,11 @@ class _PhotoThumb extends StatelessWidget {
                         color: Colors.black54,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close,
-                          size: AppTheme.iconXS, color: Colors.white),
+                      child: const Icon(
+                        Icons.close,
+                        size: AppTheme.iconXS,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),

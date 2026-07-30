@@ -96,9 +96,10 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
       }
       final pos = await Geolocator.getCurrentPosition();
       if (!mounted) return;
-      final nearest = context
-          .read<LocalityProvider>()
-          .nearestArea(pos.latitude, pos.longitude);
+      final nearest = context.read<LocalityProvider>().nearestArea(
+        pos.latitude,
+        pos.longitude,
+      );
       if (nearest != null) {
         _pick(nearest);
       } else {
@@ -137,8 +138,9 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
           children: [
             const SizedBox(height: AppTheme.spacingS),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingM,
+              ),
               child: InlineFeedback(_error),
             ),
             Center(
@@ -210,8 +212,9 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
             Text(
               locality.error!,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: AppColors.textTertiary),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
             const SizedBox(height: AppTheme.spacingS),
             TextButton(
@@ -233,10 +236,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
                   height: 20,
                   child: BrandLoader(size: AppTheme.iconS, fast: true),
                 )
-              : const Icon(
-                  Icons.my_location,
-                  color: AppColors.textPrimary,
-                ),
+              : const Icon(Icons.my_location, color: AppColors.textPrimary),
           title: const Text('Près de moi'),
           onTap: _locating ? null : _useNearMe,
         ),
@@ -256,8 +256,9 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
             child: Text(
               'Aucune commune trouvée',
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: AppColors.textTertiary),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
           ),
         ...areas.map((a) {
@@ -265,8 +266,9 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
           return ListTile(
             leading: Icon(
               Icons.location_on_outlined,
-              color:
-                  isSelected ? AppColors.textPrimary : AppColors.textTertiary,
+              color: isSelected
+                  ? AppColors.textPrimary
+                  : AppColors.textTertiary,
             ),
             title: Text(a.name),
             trailing: isSelected

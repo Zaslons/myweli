@@ -42,8 +42,9 @@ void main() {
 
   // The strip is a horizontal scroller, so it NEEDS a bounded height — which is
   // exactly how it clipped: the bound was a constant. It must track the scale.
-  testWidgets('CategoryChips — the strip grows with the text scale',
-      (tester) async {
+  testWidgets('CategoryChips — the strip grows with the text scale', (
+    tester,
+  ) async {
     await expectGrowsWithTextScale(
       tester,
       const CategoryChips(selectedCategory: 'all'),
@@ -61,20 +62,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('OtpCodeRow — the boxes grow with the text scale',
-      (tester) async {
-    await expectGrowsWithTextScale(
-      tester,
-      otpRow(),
-      find.byType(OtpCodeRow),
-    );
+  testWidgets('OtpCodeRow — the boxes grow with the text scale', (
+    tester,
+  ) async {
+    await expectGrowsWithTextScale(tester, otpRow(), find.byType(OtpCodeRow));
   });
 
   testWidgets('CommunePill', (tester) async {
-    await pumpAtTextScale(
-      tester,
-      CommunePill(commune: 'Cocody', onTap: () {}),
-    );
+    await pumpAtTextScale(tester, CommunePill(commune: 'Cocody', onTap: () {}));
     expect(tester.takeException(), isNull);
   });
 
@@ -92,13 +87,17 @@ void main() {
 
   testWidgets('ReviewTile', (tester) async {
     await pumpAtTextScale(
-        tester, ReviewTile(review: review(), onReport: () {}));
+      tester,
+      ReviewTile(review: review(), onReport: () {}),
+    );
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('NotificationTile', (tester) async {
     await pumpAtTextScale(
-        tester, NotificationTile(notification: note(), onTap: () {}));
+      tester,
+      NotificationTile(notification: note(), onTap: () {}),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -114,8 +113,9 @@ void main() {
   // The `hint` variant is the one that breaks — an unflexed Text in a Row — so
   // pumping only the default variant is a gate that passes against the bug.
   for (final hint in [null, 'Réserver à nouveau']) {
-    testWidgets('CompactAppointmentTile (hint: $hint) — bounded, as it ships',
-        (tester) async {
+    testWidgets('CompactAppointmentTile (hint: $hint) — bounded, as it ships', (
+      tester,
+    ) async {
       await pumpAtTextScale(
         tester,
         // Unbounded, a tile can never overflow and the gate is vacuous. Both
@@ -144,8 +144,9 @@ void main() {
 
   // Both tile strips are intrinsic (≤5 tiles): no computed bound, so the only
   // thing to prove is that the strip tracks the text.
-  testWidgets('CompactAppointmentTile — grows with the text scale',
-      (tester) async {
+  testWidgets('CompactAppointmentTile — grows with the text scale', (
+    tester,
+  ) async {
     await expectGrowsWithTextScale(
       tester,
       // The scroll view is load-bearing: it gives an UNBOUNDED vertical axis so
@@ -174,8 +175,9 @@ void main() {
   // can pick — including the SMALL ones, where a proportional bound
   // under-provisions (rows are max(icon, line) and icons do not scale).
   for (final scale in [0.82, 0.85, 1.0, 1.3, 1.5, 2.0]) {
-    testWidgets('ProviderCard.carouselHeight covers the card at $scale×',
-        (tester) async {
+    testWidgets('ProviderCard.carouselHeight covers the card at $scale×', (
+      tester,
+    ) async {
       late double bound;
       double? intrinsic;
       await pumpApp(
@@ -183,24 +185,27 @@ void main() {
         providers: favProviders(),
         home: Builder(
           builder: (context) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
             child: Scaffold(
-              body: Builder(builder: (context) {
-                bound = ProviderCard.carouselHeight(context);
-                // An unbounded vertical axis → the card takes its INTRINSIC
-                // height, i.e. what it actually needs at this scale.
-                return SingleChildScrollView(
-                  child: SizedBox(
-                    width: 280,
-                    child: ProviderCard(
-                      provider: MockData.providers.first,
-                      isGrid: true,
-                      onTap: () {},
+              body: Builder(
+                builder: (context) {
+                  bound = ProviderCard.carouselHeight(context);
+                  // An unbounded vertical axis → the card takes its INTRINSIC
+                  // height, i.e. what it actually needs at this scale.
+                  return SingleChildScrollView(
+                    child: SizedBox(
+                      width: 280,
+                      child: ProviderCard(
+                        provider: MockData.providers.first,
+                        isGrid: true,
+                        onTap: () {},
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -210,7 +215,8 @@ void main() {
       expect(
         bound,
         greaterThanOrEqualTo(intrinsic),
-        reason: 'the carousel gives the card $bound at $scale× but it needs '
+        reason:
+            'the carousel gives the card $bound at $scale× but it needs '
             '$intrinsic — the text is clipped (§13.3). If a row was added to '
             'the card, raise ProviderCard._textBlockHeight.',
       );
@@ -219,7 +225,8 @@ void main() {
       expect(
         bound - intrinsic,
         lessThan(40),
-        reason: 'the carousel over-provisions by ${bound - intrinsic}px at '
+        reason:
+            'the carousel over-provisions by ${bound - intrinsic}px at '
             '$scale× — dead space below every card.',
       );
     });
@@ -235,15 +242,17 @@ void main() {
   // The threshold is now `carouselHeight` itself, so the assertion can be the
   // real thing — the image the card actually drew.
   for (final scale in [0.5, 0.8, 0.82, 0.85, 1.0, 1.5, 2.0]) {
-    testWidgets('a carousel card is the roomy design at $scale×',
-        (tester) async {
+    testWidgets('a carousel card is the roomy design at $scale×', (
+      tester,
+    ) async {
       await pumpApp(
         tester,
         providers: favProviders(),
         home: Builder(
           builder: (context) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
             child: Scaffold(
               body: Builder(
                 builder: (context) => SizedBox(
@@ -264,7 +273,8 @@ void main() {
       expect(
         tester.widget<TimedCachedImage>(find.byType(TimedCachedImage)).height,
         180.0,
-        reason: 'at $scale× the carousel card fell into the COMPACT branch — '
+        reason:
+            'at $scale× the carousel card fell into the COMPACT branch — '
             'a different card design for the same surface.',
       );
       expect(tester.takeException(), isNull);
@@ -276,15 +286,17 @@ void main() {
   // screen but only at 1× and 2×; the defect it found lived at the crossing
   // (≈1.74×), so the scales BETWEEN the two contract points are the point.
   for (final scale in [0.82, 0.85, 1.0, 1.3, 1.5, 1.7, 1.8, 2.0]) {
-    testWidgets('ProviderCard.gridHeight covers the card at $scale×',
-        (tester) async {
+    testWidgets('ProviderCard.gridHeight covers the card at $scale×', (
+      tester,
+    ) async {
       await pumpApp(
         tester,
         providers: favProviders(),
         home: Builder(
           builder: (context) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
             child: Scaffold(
               body: Builder(
                 builder: (context) => SizedBox(
@@ -307,7 +319,8 @@ void main() {
       expect(
         tester.takeException(),
         isNull,
-        reason: 'the card does not fit the height `gridHeight` promises it at '
+        reason:
+            'the card does not fit the height `gridHeight` promises it at '
             '$scale× — the two formulas in provider_card.dart disagree again.',
       );
       expectNoVerticalClip(tester, context: 'grid card at $scale×');

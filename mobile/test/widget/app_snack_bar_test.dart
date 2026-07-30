@@ -14,8 +14,8 @@ void main() {
   final key = GlobalKey<ScaffoldMessengerState>();
 
   Future<void> pumpHost(WidgetTester tester) => tester.pumpWidget(
-        wrapApp(scaffoldMessengerKey: key, home: const Scaffold()),
-      );
+    wrapApp(scaffoldMessengerKey: key, home: const Scaffold()),
+  );
 
   /// Mount the bar and let its 250ms entrance finish, without `pumpAndSettle`
   /// (an infinite Lottie elsewhere in the app makes that unusable — the house
@@ -28,12 +28,13 @@ void main() {
   group('the kind is the API (§15)', () {
     for (final (kind, color, icon, seconds)
         in <(SnackKind, Color, IconData, int)>[
-      (SnackKind.success, AppColors.success, Icons.check_circle_outline, 3),
-      (SnackKind.info, AppColors.textPrimary, Icons.info_outline, 3),
-      (SnackKind.error, AppColors.error, Icons.error_outline, 6),
-    ]) {
-      testWidgets('${kind.name}: colour, ${seconds}s, and the glyph',
-          (tester) async {
+          (SnackKind.success, AppColors.success, Icons.check_circle_outline, 3),
+          (SnackKind.info, AppColors.textPrimary, Icons.info_outline, 3),
+          (SnackKind.error, AppColors.error, Icons.error_outline, 6),
+        ]) {
+      testWidgets('${kind.name}: colour, ${seconds}s, and the glyph', (
+        tester,
+      ) async {
         await pumpHost(tester);
         AppSnackBar.showOn(key.currentState!, 'Message', kind: kind);
         await settleIn(tester);
@@ -48,8 +49,9 @@ void main() {
     }
   });
 
-  testWidgets('the error really stays 6s — a duration you can measure',
-      (tester) async {
+  testWidgets('the error really stays 6s — a duration you can measure', (
+    tester,
+  ) async {
     // The field assertion above proves what we ASKED for; this proves what the
     // messenger does. They are not the same claim.
     await pumpHost(tester);
@@ -64,8 +66,9 @@ void main() {
   });
 
   group('the action (§15, as amended by A6)', () {
-    testWidgets('the only route back → 10s, and tapping it fires + closes',
-        (tester) async {
+    testWidgets('the only route back → 10s, and tapping it fires + closes', (
+      tester,
+    ) async {
       var undone = false;
       await pumpHost(tester);
       AppSnackBar.showOn(
@@ -90,32 +93,34 @@ void main() {
     });
 
     testWidgets(
-        'when the SCREEN is the undo (a heart), the kind keeps its duration',
-        (tester) async {
-      // A6's §15 amendment: 10s of occlusion on a routine heart tap is a cost
-      // with no benefit — the filled/outlined heart is already a one-tap undo.
-      await pumpHost(tester);
-      AppSnackBar.showOn(
-        key.currentState!,
-        'Ajouté aux favoris',
-        kind: SnackKind.success,
-        action: SnackAction(
-          label: 'Annuler',
-          onPressed: () {},
-          isOnlyRouteBack: false,
-        ),
-      );
-      await settleIn(tester);
+      'when the SCREEN is the undo (a heart), the kind keeps its duration',
+      (tester) async {
+        // A6's §15 amendment: 10s of occlusion on a routine heart tap is a cost
+        // with no benefit — the filled/outlined heart is already a one-tap undo.
+        await pumpHost(tester);
+        AppSnackBar.showOn(
+          key.currentState!,
+          'Ajouté aux favoris',
+          kind: SnackKind.success,
+          action: SnackAction(
+            label: 'Annuler',
+            onPressed: () {},
+            isOnlyRouteBack: false,
+          ),
+        );
+        await settleIn(tester);
 
-      expect(
-        tester.widget<SnackBar>(find.byType(SnackBar)).duration,
-        const Duration(seconds: 3),
-      );
-    });
+        expect(
+          tester.widget<SnackBar>(find.byType(SnackBar)).duration,
+          const Duration(seconds: 3),
+        );
+      },
+    );
   });
 
-  testWidgets('outcome() picks the tone so a call site cannot get it wrong',
-      (tester) async {
+  testWidgets('outcome() picks the tone so a call site cannot get it wrong', (
+    tester,
+  ) async {
     await pumpHost(tester);
     AppSnackBar.outcomeOn(
       key.currentState!,
@@ -132,8 +137,9 @@ void main() {
     );
   });
 
-  testWidgets('the newest message REPLACES the old one — it never queues',
-      (tester) async {
+  testWidgets('the newest message REPLACES the old one — it never queues', (
+    tester,
+  ) async {
     // Mirrors the web's useToast: a re-show resets the timer. Queueing behind a
     // 6s error would show stale feedback after the user has moved on.
     await pumpHost(tester);

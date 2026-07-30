@@ -19,10 +19,7 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Notifications WhatsApp'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
         ],
       ),
       body: SingleChildScrollView(
@@ -40,8 +37,11 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.trending_down,
-                      color: Colors.green, size: 32),
+                  const Icon(
+                    Icons.trending_down,
+                    color: Colors.green,
+                    size: 32,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -254,10 +254,7 @@ class _MessageTemplateCard extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () {},
-              ),
+              IconButton(icon: const Icon(Icons.edit), onPressed: () {}),
             ],
           ),
           const SizedBox(height: 12),

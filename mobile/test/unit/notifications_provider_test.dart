@@ -20,13 +20,13 @@ void main() {
   setUp(() => reset(service));
 
   AppNotification note(String id, {bool read = false}) => AppNotification(
-        id: id,
-        type: AppNotificationType.general,
-        title: 'title',
-        body: 'body',
-        createdAt: DateTime(2024),
-        read: read,
-      );
+    id: id,
+    type: AppNotificationType.general,
+    title: 'title',
+    body: 'body',
+    createdAt: DateTime(2024),
+    read: read,
+  );
 
   test('load populates the list and computes unreadCount', () async {
     when(() => service.getNotifications()).thenAnswer(
@@ -42,8 +42,9 @@ void main() {
   });
 
   test('load marks loadFailed and empties on error', () async {
-    when(() => service.getNotifications())
-        .thenAnswer((_) async => ApiResponse.error('boom'));
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.error('boom'));
 
     final provider = NotificationsProvider();
     await provider.load();
@@ -53,10 +54,12 @@ void main() {
   });
 
   test('markRead flips one item and persists it', () async {
-    when(() => service.getNotifications())
-        .thenAnswer((_) async => ApiResponse.success([note('a'), note('b')]));
-    when(() => service.markRead(any()))
-        .thenAnswer((_) async => ApiResponse.success(true));
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([note('a'), note('b')]));
+    when(
+      () => service.markRead(any()),
+    ).thenAnswer((_) async => ApiResponse.success(true));
 
     final provider = NotificationsProvider();
     await provider.load();
@@ -67,10 +70,12 @@ void main() {
   });
 
   test('markAllRead clears unread and persists', () async {
-    when(() => service.getNotifications())
-        .thenAnswer((_) async => ApiResponse.success([note('a'), note('b')]));
-    when(() => service.markAllRead())
-        .thenAnswer((_) async => ApiResponse.success(true));
+    when(
+      () => service.getNotifications(),
+    ).thenAnswer((_) async => ApiResponse.success([note('a'), note('b')]));
+    when(
+      () => service.markAllRead(),
+    ).thenAnswer((_) async => ApiResponse.success(true));
 
     final provider = NotificationsProvider();
     await provider.load();

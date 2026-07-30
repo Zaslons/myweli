@@ -60,11 +60,15 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
-        final favoritesProvider =
-            Provider.of<FavoritesProvider>(context, listen: false);
+        final favoritesProvider = Provider.of<FavoritesProvider>(
+          context,
+          listen: false,
+        );
         favoritesProvider.loadFavorites(authProvider.user!.id);
-        final appointmentProvider =
-            Provider.of<AppointmentProvider>(context, listen: false);
+        final appointmentProvider = Provider.of<AppointmentProvider>(
+          context,
+          listen: false,
+        );
         appointmentProvider.loadAppointments();
       }
     });
@@ -98,7 +102,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
         final first = available.first.startTime;
         final last = available.last.endTime;
         lines.add(
-            '${dayNames[day]}: ${Formatters.formatTimeShort(first)}-${Formatters.formatTimeShort(last)}');
+          '${dayNames[day]}: ${Formatters.formatTimeShort(first)}-${Formatters.formatTimeShort(last)}',
+        );
       }
     }
     return lines;
@@ -125,8 +130,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     );
     if (reason == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    final ok = await Provider.of<ProviderProvider>(context, listen: false)
-        .reportReview(reviewId, reason: reason);
+    final ok = await Provider.of<ProviderProvider>(
+      context,
+      listen: false,
+    ).reportReview(reviewId, reason: reason);
     AppSnackBar.outcomeOn(
       messenger,
       ok: ok,
@@ -151,8 +158,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: AppTheme.iconXL, color: AppColors.error),
+                  const Icon(
+                    Icons.error_outline,
+                    size: AppTheme.iconXL,
+                    color: AppColors.error,
+                  ),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     provider.error ?? 'Salon introuvable',
@@ -213,12 +223,16 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           ),
                           onPressed: () async {
                             if (!authProvider.isAuthenticated) {
-                              AppSnackBar.show(context,
-                                  'Connectez-vous pour ajouter aux favoris');
-                              final currentPath =
-                                  GoRouterState.of(context).uri.toString();
+                              AppSnackBar.show(
+                                context,
+                                'Connectez-vous pour ajouter aux favoris',
+                              );
+                              final currentPath = GoRouterState.of(
+                                context,
+                              ).uri.toString();
                               context.go(
-                                  '/login?returnTo=${Uri.encodeComponent(currentPath)}');
+                                '/login?returnTo=${Uri.encodeComponent(currentPath)}',
+                              );
                               return;
                             }
                             final messenger = ScaffoldMessenger.of(context);
@@ -226,14 +240,17 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             // way is a lie, and « Annuler » on a failed toggle
                             // would PERFORM the action instead of undoing it.
                             final ok = await favoritesProvider.toggleFavorite(
-                                userId, widget.providerId);
+                              userId,
+                              widget.providerId,
+                            );
                             AppSnackBar.outcomeOn(
                               messenger,
                               ok: ok,
                               success: isFavorite
                                   ? 'Retiré des favoris'
                                   : 'Ajouté aux favoris',
-                              error: favoritesProvider.error ??
+                              error:
+                                  favoritesProvider.error ??
                                   'Une erreur est survenue. Réessayez.',
                               action: !ok
                                   ? null
@@ -241,7 +258,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                       label: 'Annuler',
                                       onPressed: () =>
                                           favoritesProvider.toggleFavorite(
-                                              userId, widget.providerId),
+                                            userId,
+                                            widget.providerId,
+                                          ),
                                       // §15 as amended by A6: the heart itself
                                       // is a one-tap undo, so this keeps the
                                       // kind's 3s instead of occluding the
@@ -281,8 +300,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         child: Flex(
                           direction:
                               _headerStacked(context, verified: p.verified)
-                                  ? Axis.vertical
-                                  : Axis.horizontal,
+                              ? Axis.vertical
+                              : Axis.horizontal,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -290,20 +309,22 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             SizedBox(
                               width:
                                   _headerStacked(context, verified: p.verified)
-                                      ? 0
-                                      : AppTheme.spacingM,
+                                  ? 0
+                                  : AppTheme.spacingM,
                               height:
                                   _headerStacked(context, verified: p.verified)
-                                      ? AppTheme.spacingS
-                                      : 0,
+                                  ? AppTheme.spacingS
+                                  : 0,
                             ),
                             // Stacked, the Flex is vertical and an `Expanded`
                             // would fight the `SliverAppBar`'s bounded height;
                             // beside the logo it is what gives the name the rest
                             // of the row. So the wrapper differs by axis.
                             _HeaderTextBlock(
-                              stacked:
-                                  _headerStacked(context, verified: p.verified),
+                              stacked: _headerStacked(
+                                context,
+                                verified: p.verified,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
@@ -317,18 +338,20 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                           p.name,
                                           style: AppTextStyles.headlineMedium
                                               .copyWith(
-                                            color: AppColors.textPrimary,
-                                          ),
+                                                color: AppColors.textPrimary,
+                                              ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       if (p.verified) ...[
                                         const SizedBox(
-                                            width: AppTheme.spacingS),
+                                          width: AppTheme.spacingS,
+                                        ),
                                         const Padding(
                                           padding: EdgeInsets.only(
-                                              top: AppTheme.spacingXS),
+                                            top: AppTheme.spacingXS,
+                                          ),
                                           child: Icon(
                                             Icons.verified,
                                             size: AppTheme.iconS,
@@ -342,17 +365,19 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   const SizedBox(height: AppTheme.spacingS),
                                   Row(
                                     children: [
-                                      const Icon(Icons.location_on_outlined,
-                                          size: AppTheme.iconXS,
-                                          color: AppColors.textTertiary),
+                                      const Icon(
+                                        Icons.location_on_outlined,
+                                        size: AppTheme.iconXS,
+                                        color: AppColors.textTertiary,
+                                      ),
                                       const SizedBox(width: AppTheme.spacingXS),
                                       Expanded(
                                         child: Text(
                                           p.city ?? p.address,
-                                          style:
-                                              AppTextStyles.bodySmall.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
+                                          style: AppTextStyles.bodySmall
+                                              .copyWith(
+                                                color: AppColors.textSecondary,
+                                              ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -362,9 +387,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                   const SizedBox(height: AppTheme.spacingXS),
                                   Row(
                                     children: [
-                                      const Icon(Icons.star,
-                                          size: AppTheme.iconXS,
-                                          color: AppColors.starRating),
+                                      const Icon(
+                                        Icons.star,
+                                        size: AppTheme.iconXS,
+                                        color: AppColors.starRating,
+                                      ),
                                       const SizedBox(width: AppTheme.spacingXS),
                                       Text(
                                         p.rating.toStringAsFixed(1),
@@ -416,7 +443,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             // consumer providers exist in the pro app.
                             ? Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    vertical: AppTheme.spacingS),
+                                  vertical: AppTheme.spacingS,
+                                ),
                                 child: Text(
                                   'Connectez-vous pour voir vos rendez-vous.',
                                   style: AppTextStyles.bodySmall.copyWith(
@@ -425,12 +453,12 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 ),
                               )
                             : Consumer2<AuthProvider, AppointmentProvider>(
-                                builder: (context, authProvider,
-                                    appointmentProvider, _) {
+                                builder: (context, authProvider, appointmentProvider, _) {
                                   if (!authProvider.isAuthenticated) {
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: AppTheme.spacingS),
+                                        vertical: AppTheme.spacingS,
+                                      ),
                                       child: Text(
                                         'Connectez-vous pour voir vos rendez-vous.',
                                         style: AppTextStyles.bodySmall.copyWith(
@@ -439,17 +467,24 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                       ),
                                     );
                                   }
-                                  final atThisSalon = appointmentProvider
-                                      .appointments
-                                      .where((a) =>
-                                          a.providerId == widget.providerId)
-                                      .toList()
-                                    ..sort((a, b) => b.appointmentDate
-                                        .compareTo(a.appointmentDate));
+                                  final atThisSalon =
+                                      appointmentProvider.appointments
+                                          .where(
+                                            (a) =>
+                                                a.providerId ==
+                                                widget.providerId,
+                                          )
+                                          .toList()
+                                        ..sort(
+                                          (a, b) => b.appointmentDate.compareTo(
+                                            a.appointmentDate,
+                                          ),
+                                        );
                                   if (atThisSalon.isEmpty) {
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: AppTheme.spacingS),
+                                        vertical: AppTheme.spacingS,
+                                      ),
                                       child: Text(
                                         'Aucun rendez-vous dans ce salon.',
                                         style: AppTextStyles.bodySmall.copyWith(
@@ -476,63 +511,71 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                           for (final (i, a) in top.indexed) ...[
                                             if (i > 0)
                                               const SizedBox(
-                                                  width: AppTheme.spacingS),
-                                            Builder(builder: (context) {
-                                              final w = MediaQuery.of(context)
-                                                  .size
-                                                  .width;
-                                              final cardWidth = (w * 0.75)
-                                                  .clamp(260.0, 340.0);
-                                              final isPast = a.status ==
-                                                      AppointmentStatus
-                                                          .completed ||
-                                                  a.status ==
-                                                      AppointmentStatus
-                                                          .cancelled ||
-                                                  a.appointmentDate
-                                                      .isBefore(AppClock.now());
-                                              return SizedBox(
-                                                width: cardWidth,
-                                                child: CompactAppointmentTile(
-                                                  appointment: a,
-                                                  providerName: p.name,
-                                                  providerImageUrl:
-                                                      p.imageUrls.isNotEmpty
-                                                          ? p.imageUrls.first
-                                                          : null,
-                                                  hint: isPast
-                                                      ? 'Réserver à nouveau'
-                                                      : null,
-                                                  onTap: () {
-                                                    if (isPast) {
-                                                      // Past appointment → rebook the same
-                                                      // services/stylist.
-                                                      final uri = Uri(
-                                                        path: '/booking',
-                                                        queryParameters: {
-                                                          'providerId':
-                                                              widget.providerId,
-                                                          if (a.serviceIds
-                                                              .isNotEmpty)
-                                                            'serviceIds': a
+                                                width: AppTheme.spacingS,
+                                              ),
+                                            Builder(
+                                              builder: (context) {
+                                                final w = MediaQuery.of(
+                                                  context,
+                                                ).size.width;
+                                                final cardWidth = (w * 0.75)
+                                                    .clamp(260.0, 340.0);
+                                                final isPast =
+                                                    a.status ==
+                                                        AppointmentStatus
+                                                            .completed ||
+                                                    a.status ==
+                                                        AppointmentStatus
+                                                            .cancelled ||
+                                                    a.appointmentDate.isBefore(
+                                                      AppClock.now(),
+                                                    );
+                                                return SizedBox(
+                                                  width: cardWidth,
+                                                  child: CompactAppointmentTile(
+                                                    appointment: a,
+                                                    providerName: p.name,
+                                                    providerImageUrl:
+                                                        p.imageUrls.isNotEmpty
+                                                        ? p.imageUrls.first
+                                                        : null,
+                                                    hint: isPast
+                                                        ? 'Réserver à nouveau'
+                                                        : null,
+                                                    onTap: () {
+                                                      if (isPast) {
+                                                        // Past appointment → rebook the same
+                                                        // services/stylist.
+                                                        final uri = Uri(
+                                                          path: '/booking',
+                                                          queryParameters: {
+                                                            'providerId': widget
+                                                                .providerId,
+                                                            if (a
                                                                 .serviceIds
-                                                                .join(','),
-                                                          if (a.artistId !=
-                                                              null)
-                                                            'artistId':
-                                                                a.artistId!,
-                                                        },
-                                                      );
-                                                      context
-                                                          .push(uri.toString());
-                                                    } else {
-                                                      context.push(
-                                                          '/appointment/${a.id}');
-                                                    }
-                                                  },
-                                                ),
-                                              );
-                                            }),
+                                                                .isNotEmpty)
+                                                              'serviceIds': a
+                                                                  .serviceIds
+                                                                  .join(','),
+                                                            if (a.artistId !=
+                                                                null)
+                                                              'artistId':
+                                                                  a.artistId!,
+                                                          },
+                                                        );
+                                                        context.push(
+                                                          uri.toString(),
+                                                        );
+                                                      } else {
+                                                        context.push(
+                                                          '/appointment/${a.id}',
+                                                        );
+                                                      }
+                                                    },
+                                                  ),
+                                                );
+                                              },
+                                            ),
                                           ],
                                         ],
                                       ),
@@ -553,7 +596,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         ),
                         onHeaderTap: () {
                           setState(
-                              () => _servicesExpanded = !_servicesExpanded);
+                            () => _servicesExpanded = !_servicesExpanded,
+                          );
                         },
                         child: AnimatedCrossFade(
                           duration: AppMotion.base,
@@ -566,7 +610,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               if (p.services.isEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(
-                                      bottom: AppTheme.spacingM),
+                                    bottom: AppTheme.spacingM,
+                                  ),
                                   child: Text(
                                     'Aucun service pour le moment.',
                                     style: AppTextStyles.bodySmall.copyWith(
@@ -582,7 +627,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           ),
                           secondChild: Padding(
                             padding: const EdgeInsets.symmetric(
-                                vertical: AppTheme.spacingS),
+                              vertical: AppTheme.spacingS,
+                            ),
                             child: Text(
                               '${p.services.length} service${p.services.length > 1 ? 's' : ''} • Voir les tarifs',
                               style: AppTextStyles.bodySmall.copyWith(
@@ -604,22 +650,28 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               onTap: () {
                                 if (p.latitude == null || p.longitude == null) {
                                   AppSnackBar.show(
-                                      context, 'Localisation non disponible',
-                                      kind: SnackKind.error);
+                                    context,
+                                    'Localisation non disponible',
+                                    kind: SnackKind.error,
+                                  );
                                   return;
                                 }
                                 context.push('/favorites?providerId=${p.id}');
                               },
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusLarge),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusLarge,
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    vertical: AppTheme.spacingS),
+                                  vertical: AppTheme.spacingS,
+                                ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.map_outlined,
-                                        size: AppTheme.iconS,
-                                        color: AppColors.textTertiary),
+                                    const Icon(
+                                      Icons.map_outlined,
+                                      size: AppTheme.iconS,
+                                      color: AppColors.textTertiary,
+                                    ),
                                     const SizedBox(width: AppTheme.spacingSM),
                                     Expanded(
                                       child: Column(
@@ -630,15 +682,15 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                             p.address,
                                             style: AppTextStyles.bodyMedium
                                                 .copyWith(
-                                              color: AppColors.textPrimary,
-                                            ),
+                                                  color: AppColors.textPrimary,
+                                                ),
                                           ),
                                           Text(
                                             'Voir sur la carte',
                                             style: AppTextStyles.bodySmall
                                                 .copyWith(
-                                              color: AppColors.primary,
-                                            ),
+                                                  color: AppColors.primary,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -647,8 +699,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                         p.longitude != null)
                                       IconButton(
                                         tooltip: 'Itinéraire',
-                                        icon: const Icon(Icons.directions,
-                                            color: AppColors.primary),
+                                        icon: const Icon(
+                                          Icons.directions,
+                                          color: AppColors.primary,
+                                        ),
                                         onPressed: () {
                                           Helpers.launchNavigation(
                                             latitude: p.latitude!,
@@ -666,35 +720,42 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             // Phone
                             ConstrainedBox(
                               constraints: const BoxConstraints(
-                                  minHeight: 48), // §13.2 touch target
+                                minHeight: 48,
+                              ), // §13.2 touch target
                               child: InkWell(
                                 onTap: () async {
                                   final uri = Uri.parse(
-                                      'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
+                                    'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}',
+                                  );
                                   if (await canLaunchUrl(uri)) {
                                     await launchUrl(uri);
                                   }
                                 },
-                                borderRadius:
-                                    BorderRadius.circular(AppTheme.radiusLarge),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusLarge,
+                                ),
                                 child: Container(
                                   alignment: Alignment.center,
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: AppTheme.spacingS),
+                                    vertical: AppTheme.spacingS,
+                                  ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.phone_outlined,
-                                          size: AppTheme.iconS,
-                                          color: AppColors.textTertiary),
+                                      const Icon(
+                                        Icons.phone_outlined,
+                                        size: AppTheme.iconS,
+                                        color: AppColors.textTertiary,
+                                      ),
                                       const SizedBox(width: AppTheme.spacingSM),
                                       Expanded(
                                         child: Text(
                                           Formatters.formatPhoneNumber(
-                                              p.phoneNumber),
-                                          style:
-                                              AppTextStyles.bodyMedium.copyWith(
-                                            color: AppColors.textPrimary,
+                                            p.phoneNumber,
                                           ),
+                                          style: AppTextStyles.bodyMedium
+                                              .copyWith(
+                                                color: AppColors.textPrimary,
+                                              ),
                                         ),
                                       ),
                                     ],
@@ -707,38 +768,49 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               const _Divider(),
                               ConstrainedBox(
                                 constraints: const BoxConstraints(
-                                    minHeight: 48), // §13.2 touch target
+                                  minHeight: 48,
+                                ), // §13.2 touch target
                                 child: InkWell(
                                   onTap: () async {
-                                    final digits = p.whatsapp!
-                                        .replaceAll(RegExp(r'[^0-9]'), '');
-                                    final uri =
-                                        Uri.parse('https://wa.me/$digits');
+                                    final digits = p.whatsapp!.replaceAll(
+                                      RegExp(r'[^0-9]'),
+                                      '',
+                                    );
+                                    final uri = Uri.parse(
+                                      'https://wa.me/$digits',
+                                    );
                                     if (await canLaunchUrl(uri)) {
-                                      await launchUrl(uri,
-                                          mode: LaunchMode.externalApplication);
+                                      await launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      );
                                     }
                                   },
                                   borderRadius: BorderRadius.circular(
-                                      AppTheme.radiusLarge),
+                                    AppTheme.radiusLarge,
+                                  ),
                                   child: Container(
                                     alignment: Alignment.center,
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: AppTheme.spacingS),
+                                      vertical: AppTheme.spacingS,
+                                    ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.chat_outlined,
-                                            size: AppTheme.iconS,
-                                            color: AppColors.textTertiary),
+                                        const Icon(
+                                          Icons.chat_outlined,
+                                          size: AppTheme.iconS,
+                                          color: AppColors.textTertiary,
+                                        ),
                                         const SizedBox(
-                                            width: AppTheme.spacingSM),
+                                          width: AppTheme.spacingSM,
+                                        ),
                                         Expanded(
                                           child: Text(
                                             'WhatsApp',
                                             style: AppTextStyles.bodyMedium
                                                 .copyWith(
-                                              color: AppColors.textPrimary,
-                                            ),
+                                                  color: AppColors.textPrimary,
+                                                ),
                                           ),
                                         ),
                                       ],
@@ -751,33 +823,42 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             const _Divider(),
                             Padding(
                               padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingXS),
+                                vertical: AppTheme.spacingXS,
+                              ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.schedule_outlined,
-                                      size: AppTheme.iconS,
-                                      color: AppColors.textTertiary),
+                                  const Icon(
+                                    Icons.schedule_outlined,
+                                    size: AppTheme.iconS,
+                                    color: AppColors.textTertiary,
+                                  ),
                                   const SizedBox(width: AppTheme.spacingSM),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
-                                      children: _formatWorkingHours(
-                                              p.availability)
-                                          .map((line) => Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: AppTheme.spacingXS),
-                                                child: Text(
-                                                  line,
-                                                  style: AppTextStyles.bodySmall
-                                                      .copyWith(
-                                                    color:
-                                                        AppColors.textSecondary,
+                                      children:
+                                          _formatWorkingHours(p.availability)
+                                              .map(
+                                                (line) => Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        bottom:
+                                                            AppTheme.spacingXS,
+                                                      ),
+                                                  child: Text(
+                                                    line,
+                                                    style: AppTextStyles
+                                                        .bodySmall
+                                                        .copyWith(
+                                                          color: AppColors
+                                                              .textSecondary,
+                                                        ),
                                                   ),
                                                 ),
-                                              ))
-                                          .toList(),
+                                              )
+                                              .toList(),
                                     ),
                                   ),
                                 ],
@@ -793,7 +874,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         child: p.imageUrls.isEmpty
                             ? Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    vertical: AppTheme.spacingS),
+                                  vertical: AppTheme.spacingS,
+                                ),
                                 child: Text(
                                   'Aucune photo pour le moment.',
                                   style: AppTextStyles.bodySmall.copyWith(
@@ -806,7 +888,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 child: ListView.separated(
                                   scrollDirection: Axis.horizontal,
                                   itemCount: p.imageUrls.length,
-                                  separatorBuilder: (_, __) =>
+                                  separatorBuilder: (_, _) =>
                                       const SizedBox(width: AppTheme.spacingS),
                                   itemBuilder: (context, i) {
                                     return GestureDetector(
@@ -820,7 +902,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                         height: 120,
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(
-                                              AppTheme.radiusLarge),
+                                            AppTheme.radiusLarge,
+                                          ),
                                           child: TimedCachedImage(
                                             imageUrl: p.imageUrls[i],
                                             width: 160,
@@ -850,9 +933,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.star,
-                                    size: AppTheme.iconL,
-                                    color: AppColors.starRating),
+                                const Icon(
+                                  Icons.star,
+                                  size: AppTheme.iconL,
+                                  color: AppColors.starRating,
+                                ),
                                 const SizedBox(width: AppTheme.spacingSM),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,10 +960,13 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             ),
                             if (p.reviews.isNotEmpty) ...[
                               const SizedBox(height: AppTheme.spacingM),
-                              ...p.reviews.take(5).map(
+                              ...p.reviews
+                                  .take(5)
+                                  .map(
                                     (review) => Padding(
                                       padding: const EdgeInsets.only(
-                                          bottom: AppTheme.spacingS),
+                                        bottom: AppTheme.spacingS,
+                                      ),
                                       child: ReviewTile(
                                         review: review,
                                         onReport: () =>
@@ -889,78 +977,92 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             ],
                             if (!widget.preview)
                               Consumer2<AuthProvider, AppointmentProvider>(
-                                builder: (context, authProvider,
-                                    appointmentProvider, _) {
-                                  final isAuthenticated =
-                                      authProvider.isAuthenticated &&
+                                builder:
+                                    (
+                                      context,
+                                      authProvider,
+                                      appointmentProvider,
+                                      _,
+                                    ) {
+                                      final isAuthenticated =
+                                          authProvider.isAuthenticated &&
                                           authProvider.user != null;
-                                  final reviewableApptId = isAuthenticated
-                                      ? appointmentProvider
-                                          .latestCompletedAppointmentId(
-                                          widget.providerId,
-                                          authProvider.user!.id,
-                                        )
-                                      : null;
-                                  if (reviewableApptId == null) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  return Padding(
-                                    padding: const EdgeInsets.only(
-                                        top: AppTheme.spacingM),
-                                    child: InkWell(
-                                      onTap: () {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          builder: (ctx) => Padding(
-                                            padding: EdgeInsets.only(
-                                              bottom: MediaQuery.of(ctx)
-                                                  .viewInsets
-                                                  .bottom,
-                                            ),
-                                            child: SubmitReviewSheet(
-                                              providerId: widget.providerId,
-                                              appointmentId: reviewableApptId,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      borderRadius: BorderRadius.circular(
-                                          AppTheme.radiusLarge),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: AppTheme.spacingM,
-                                          horizontal: AppTheme.spacingS,
+                                      final reviewableApptId = isAuthenticated
+                                          ? appointmentProvider
+                                                .latestCompletedAppointmentId(
+                                                  widget.providerId,
+                                                  authProvider.user!.id,
+                                                )
+                                          : null;
+                                      if (reviewableApptId == null) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: AppTheme.spacingM,
                                         ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surface,
+                                        child: InkWell(
+                                          onTap: () {
+                                            showModalBottomSheet(
+                                              context: context,
+                                              isScrollControlled: true,
+                                              builder: (ctx) => Padding(
+                                                padding: EdgeInsets.only(
+                                                  bottom: MediaQuery.of(
+                                                    ctx,
+                                                  ).viewInsets.bottom,
+                                                ),
+                                                child: SubmitReviewSheet(
+                                                  providerId: widget.providerId,
+                                                  appointmentId:
+                                                      reviewableApptId,
+                                                ),
+                                              ),
+                                            );
+                                          },
                                           borderRadius: BorderRadius.circular(
-                                              AppTheme.radiusLarge),
-                                          border: Border.all(
-                                              color: AppColors.border),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.star_border,
-                                              size: AppTheme.iconL,
-                                              color: AppColors.textTertiary,
+                                            AppTheme.radiusLarge,
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: AppTheme.spacingM,
+                                              horizontal: AppTheme.spacingS,
                                             ),
-                                            const SizedBox(
-                                                width: AppTheme.spacingSM),
-                                            Text(
-                                              'Donner mon avis',
-                                              style: AppTextStyles.titleSmall
-                                                  .copyWith(
-                                                color: AppColors.textPrimary,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.surface,
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    AppTheme.radiusLarge,
+                                                  ),
+                                              border: Border.all(
+                                                color: AppColors.border,
                                               ),
                                             ),
-                                          ],
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.star_border,
+                                                  size: AppTheme.iconL,
+                                                  color: AppColors.textTertiary,
+                                                ),
+                                                const SizedBox(
+                                                  width: AppTheme.spacingSM,
+                                                ),
+                                                Text(
+                                                  'Donner mon avis',
+                                                  style: AppTextStyles
+                                                      .titleSmall
+                                                      .copyWith(
+                                                        color: AppColors
+                                                            .textPrimary,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                  );
-                                },
+                                      );
+                                    },
                               ),
                           ],
                         ),
@@ -1021,87 +1123,101 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: null,
-                            icon: const Icon(Icons.calendar_today,
-                                size: AppTheme.iconS),
+                            icon: const Icon(
+                              Icons.calendar_today,
+                              size: AppTheme.iconS,
+                            ),
                             label: const Text(
                               'Réserver (après la mise en ligne)',
                             ),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingM),
+                                vertical: AppTheme.spacingM,
+                              ),
                             ),
                           ),
                         ),
                       ],
                     )
-                  : Builder(builder: (context) {
-                      final call = OutlinedButton.icon(
-                        onPressed: () async {
-                          final uri = Uri.parse(
-                              'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri);
-                          }
-                        },
-                        icon: const Icon(Icons.phone_outlined,
-                            size: AppTheme.iconS),
-                        label: const Text('Appeler'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textPrimary,
-                          side: const BorderSide(color: AppColors.borderStrong),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: AppTheme.spacingM),
-                        ),
-                      );
-                      final book = ElevatedButton.icon(
-                        onPressed: () =>
-                            context.push('/booking?providerId=${p.id}'),
-                        icon: const Icon(Icons.calendar_today,
-                            size: AppTheme.iconS),
-                        label: const Text('Réserver'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.secondary,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: AppTheme.spacingM),
-                        ),
-                      );
+                  : Builder(
+                      builder: (context) {
+                        final call = OutlinedButton.icon(
+                          onPressed: () async {
+                            final uri = Uri.parse(
+                              'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}',
+                            );
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri);
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.phone_outlined,
+                            size: AppTheme.iconS,
+                          ),
+                          label: const Text('Appeler'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            side: const BorderSide(
+                              color: AppColors.borderStrong,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM,
+                            ),
+                          ),
+                        );
+                        final book = ElevatedButton.icon(
+                          onPressed: () =>
+                              context.push('/booking?providerId=${p.id}'),
+                          icon: const Icon(
+                            Icons.calendar_today,
+                            size: AppTheme.iconS,
+                          ),
+                          label: const Text('Réserver'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.secondary,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM,
+                            ),
+                          ),
+                        );
 
-                      // §13.3 (A11 C8): **a control's label may not break inside
-                      // a word.** « Appeler » is one token, and a 1:2 split of a
-                      // 328dp bar leaves it ~81dp while at 200% it wants ~105 —
-                      // so Flutter broke the word and the button read
-                      // « Appel » / « er ». A one-word label cannot wrap its way
-                      // out of that; the only honest fix is more width, so above
-                      // the threshold the bar stacks instead of splitting.
-                      //
-                      // The threshold is measured, not chosen: the break starts
-                      // between 1.3× and 1.5×. Same shape as
-                      // `ProviderCard._textBlockHeight` — a measured constant is
-                      // fine when a gate holds it, and `layout_test`'s
-                      // no-mid-word-break assertion is that gate.
-                      //
-                      // It is a TEXT-SCALE branch, not a width breakpoint (§10
-                      // still has none): what changed is how much room a word
-                      // needs, not how much room the screen has.
-                      if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
+                        // §13.3 (A11 C8): **a control's label may not break inside
+                        // a word.** « Appeler » is one token, and a 1:2 split of a
+                        // 328dp bar leaves it ~81dp while at 200% it wants ~105 —
+                        // so Flutter broke the word and the button read
+                        // « Appel » / « er ». A one-word label cannot wrap its way
+                        // out of that; the only honest fix is more width, so above
+                        // the threshold the bar stacks instead of splitting.
+                        //
+                        // The threshold is measured, not chosen: the break starts
+                        // between 1.3× and 1.5×. Same shape as
+                        // `ProviderCard._textBlockHeight` — a measured constant is
+                        // fine when a gate holds it, and `layout_test`'s
+                        // no-mid-word-break assertion is that gate.
+                        //
+                        // It is a TEXT-SCALE branch, not a width breakpoint (§10
+                        // still has none): what changed is how much room a word
+                        // needs, not how much room the screen has.
+                        if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(width: double.infinity, child: book),
+                              const SizedBox(height: AppTheme.spacingS),
+                              SizedBox(width: double.infinity, child: call),
+                            ],
+                          );
+                        }
+                        return Row(
                           children: [
-                            SizedBox(width: double.infinity, child: book),
-                            const SizedBox(height: AppTheme.spacingS),
-                            SizedBox(width: double.infinity, child: call),
+                            Expanded(child: call),
+                            const SizedBox(width: AppTheme.spacingSM),
+                            Expanded(flex: 2, child: book),
                           ],
                         );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(child: call),
-                          const SizedBox(width: AppTheme.spacingSM),
-                          Expanded(flex: 2, child: book),
-                        ],
-                      );
-                    }),
+                      },
+                    ),
             ),
           );
         },
@@ -1176,11 +1292,12 @@ class _FullScreenPhotoGalleryState extends State<_FullScreenPhotoGallery> {
             child: IconButton(
               tooltip: 'Fermer',
               onPressed: widget.onClose,
-              icon: const Icon(Icons.close,
-                  color: Colors.white, size: AppTheme.iconL),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black54,
+              icon: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: AppTheme.iconL,
               ),
+              style: IconButton.styleFrom(backgroundColor: Colors.black54),
             ),
           ),
           if (widget.imageUrls.length > 1)
@@ -1224,7 +1341,10 @@ class PageViewIndicator extends StatelessWidget {
             color: Colors.white,
             shadows: const [
               Shadow(
-                  color: Colors.black54, offset: Offset(0, 1), blurRadius: 2),
+                color: Colors.black54,
+                offset: Offset(0, 1),
+                blurRadius: 2,
+              ),
             ],
           ),
         );
@@ -1383,8 +1503,11 @@ class _SalonLogo extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.store_outlined,
-          size: AppTheme.iconL, color: AppColors.textTertiary),
+      child: const Icon(
+        Icons.store_outlined,
+        size: AppTheme.iconL,
+        color: AppColors.textTertiary,
+      ),
     );
   }
 }
@@ -1413,7 +1536,9 @@ class _ServiceTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
       padding: const EdgeInsets.symmetric(
-          vertical: AppTheme.spacingS, horizontal: AppTheme.spacingM),
+        vertical: AppTheme.spacingS,
+        horizontal: AppTheme.spacingM,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
@@ -1459,11 +1584,14 @@ class _ServiceTile extends StatelessWidget {
           const SizedBox(width: AppTheme.spacingS),
           Flexible(
             child: Text(
-              Formatters.formatPriceRange(service.price, service.priceMax,
-                  currency: context
-                      .read<ProviderProvider>()
-                      .selectedProvider
-                      ?.currency),
+              Formatters.formatPriceRange(
+                service.price,
+                service.priceMax,
+                currency: context
+                    .read<ProviderProvider>()
+                    .selectedProvider
+                    ?.currency,
+              ),
               textAlign: TextAlign.end,
               style: AppTextStyles.titleSmall.copyWith(
                 color: AppColors.primary,

@@ -15,24 +15,24 @@ void main() {
     bool hasSubmittedKyc = true,
     BusinessType businessType = BusinessType.salon,
     bool offerLive = true,
-  }) =>
-      buildOnboardingChecklist(
-        profileComplete: profileComplete,
-        locationSet: locationSet,
-        serviceCount: serviceCount,
-        staffCount: staffCount,
-        availabilitySet: availabilitySet,
-        depositConfigured: depositConfigured,
-        photoCount: photoCount,
-        verificationStatus: verificationStatus,
-        hasSubmittedKyc: hasSubmittedKyc,
-        businessType: businessType,
-        offerLive: offerLive,
-      );
+  }) => buildOnboardingChecklist(
+    profileComplete: profileComplete,
+    locationSet: locationSet,
+    serviceCount: serviceCount,
+    staffCount: staffCount,
+    availabilitySet: availabilitySet,
+    depositConfigured: depositConfigured,
+    photoCount: photoCount,
+    verificationStatus: verificationStatus,
+    hasSubmittedKyc: hasSubmittedKyc,
+    businessType: businessType,
+    offerLive: offerLive,
+  );
 
   OnboardingStepStatus statusOf(
-          List<OnboardingStep> steps, OnboardingStepKey key) =>
-      steps.firstWhere((s) => s.key == key).status;
+    List<OnboardingStep> steps,
+    OnboardingStepKey key,
+  ) => steps.firstWhere((s) => s.key == key).status;
 
   test('a fully-set salon has every step done and can go live', () {
     final steps = build();
@@ -43,49 +43,63 @@ void main() {
   test('fewer than 3 services blocks services and go-live', () {
     final steps = build(serviceCount: 2);
     expect(
-        statusOf(steps, OnboardingStepKey.services), OnboardingStepStatus.todo);
+      statusOf(steps, OnboardingStepKey.services),
+      OnboardingStepStatus.todo,
+    );
     expect(canGoLive(steps), isFalse);
   });
 
   test('the map pin gates go-live (pro-salon-lifecycle L2)', () {
     final steps = build(locationSet: false);
     expect(
-        statusOf(steps, OnboardingStepKey.location), OnboardingStepStatus.todo);
+      statusOf(steps, OnboardingStepKey.location),
+      OnboardingStepStatus.todo,
+    );
     expect(canGoLive(steps), isFalse);
   });
 
   test('staff is optional for a freelancer and does not block go-live', () {
     final steps = build(businessType: BusinessType.other, staffCount: 0);
-    expect(statusOf(steps, OnboardingStepKey.staff),
-        OnboardingStepStatus.optional);
+    expect(
+      statusOf(steps, OnboardingStepKey.staff),
+      OnboardingStepStatus.optional,
+    );
     expect(canGoLive(steps), isTrue);
   });
 
   test('staff is required for a salon', () {
-    expect(statusOf(build(staffCount: 0), OnboardingStepKey.staff),
-        OnboardingStepStatus.todo);
+    expect(
+      statusOf(build(staffCount: 0), OnboardingStepKey.staff),
+      OnboardingStepStatus.todo,
+    );
   });
 
   test('verification reflects the KYC state', () {
     expect(
-      statusOf(build(verificationStatus: VerificationStatus.verified),
-          OnboardingStepKey.verification),
+      statusOf(
+        build(verificationStatus: VerificationStatus.verified),
+        OnboardingStepKey.verification,
+      ),
       OnboardingStepStatus.done,
     );
     expect(
       statusOf(
-          build(
-              verificationStatus: VerificationStatus.pending,
-              hasSubmittedKyc: true),
-          OnboardingStepKey.verification),
+        build(
+          verificationStatus: VerificationStatus.pending,
+          hasSubmittedKyc: true,
+        ),
+        OnboardingStepKey.verification,
+      ),
       OnboardingStepStatus.inProgress,
     );
     expect(
       statusOf(
-          build(
-              verificationStatus: VerificationStatus.pending,
-              hasSubmittedKyc: false),
-          OnboardingStepKey.verification),
+        build(
+          verificationStatus: VerificationStatus.pending,
+          hasSubmittedKyc: false,
+        ),
+        OnboardingStepKey.verification,
+      ),
       OnboardingStepStatus.todo,
     );
   });
@@ -100,10 +114,14 @@ void main() {
   });
 
   test('photos gate go-live like the server (upload pipeline shipped)', () {
-    expect(statusOf(build(photoCount: 0), OnboardingStepKey.photos),
-        OnboardingStepStatus.todo);
-    expect(statusOf(build(photoCount: 3), OnboardingStepKey.photos),
-        OnboardingStepStatus.done);
+    expect(
+      statusOf(build(photoCount: 0), OnboardingStepKey.photos),
+      OnboardingStepStatus.todo,
+    );
+    expect(
+      statusOf(build(photoCount: 3), OnboardingStepKey.photos),
+      OnboardingStepStatus.done,
+    );
     expect(canGoLive(build(photoCount: 0)), isFalse);
   });
 
@@ -112,7 +130,9 @@ void main() {
     expect(statusOf(steps, OnboardingStepKey.offer), OnboardingStepStatus.todo);
     expect(canGoLive(steps), isFalse);
     expect(
-        statusOf(build(), OnboardingStepKey.offer), OnboardingStepStatus.done);
+      statusOf(build(), OnboardingStepKey.offer),
+      OnboardingStepStatus.done,
+    );
     expect(canGoLive(build()), isTrue);
   });
 

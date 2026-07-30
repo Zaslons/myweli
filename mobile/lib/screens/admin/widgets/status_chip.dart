@@ -28,8 +28,7 @@ class StatusChip extends StatelessWidget {
       'banned' ||
       'hidden' ||
       'cancelled' ||
-      'noshow' =>
-        AdminChipKind.danger,
+      'noshow' => AdminChipKind.danger,
       _ => AdminChipKind.neutral,
     };
     // A9: `StatusLabels.ofRaw` is normalisation-robust like the kind switch
@@ -46,33 +45,32 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final (Color fg, Color bg) = switch (kind) {
       AdminChipKind.ok => (
-          AppColors.success,
-          AppColors.success.withValues(alpha: 0.12)
-        ),
+        AppColors.success,
+        AppColors.success.withValues(alpha: 0.12),
+      ),
       AdminChipKind.pending => (
-          AppColors.warning,
-          AppColors.warning.withValues(alpha: 0.14)
-        ),
+        AppColors.warning,
+        AppColors.warning.withValues(alpha: 0.14),
+      ),
       AdminChipKind.danger => (
-          AppColors.error,
-          AppColors.error.withValues(alpha: 0.12)
-        ),
+        AppColors.error,
+        AppColors.error.withValues(alpha: 0.12),
+      ),
       AdminChipKind.neutral => (
-          AppColors.textSecondary,
-          AppColors.surfaceVariant
-        ),
+        AppColors.textSecondary,
+        AppColors.surfaceVariant,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingXS),
+        horizontal: AppTheme.spacingSM,
+        vertical: AppTheme.spacingXS,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppTheme.radiusPill),
       ),
-      child: Text(
-        label,
-        style: AppTextStyles.bodySmall.copyWith(color: fg),
-      ),
+      child: Text(label, style: AppTextStyles.bodySmall.copyWith(color: fg)),
     );
   }
 }

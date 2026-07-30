@@ -19,56 +19,67 @@ void main() {
   AdminService svc(MockClient c) =>
       AdminService(client: c, baseUrl: 'http://x', store: store);
 
-  test('provider detail splits entity + bookings; suspend updates status',
-      () async {
-    final p = AdminProviderDetailProvider(
-      service: svc(MockClient((req) async {
-        if (req.method == 'GET' && req.url.path == '/admin/providers/p1') {
-          return http.Response(
-            jsonEncode({
-              'id': 'p1',
-              'name': 'Beauté Divine',
-              'status': 'active',
-              'featured': true,
-              'recentAppointments': [
-                {'id': 'a1', 'status': 'completed', 'totalPrice': 15000},
-              ],
-            }),
-            200,
-          );
-        }
-        return http.Response(
-            jsonEncode({'id': 'p1', 'status': 'suspended'}), 200);
-      })),
-    );
+  test(
+    'provider detail splits entity + bookings; suspend updates status',
+    () async {
+      final p = AdminProviderDetailProvider(
+        service: svc(
+          MockClient((req) async {
+            if (req.method == 'GET' && req.url.path == '/admin/providers/p1') {
+              return http.Response(
+                jsonEncode({
+                  'id': 'p1',
+                  'name': 'Beauté Divine',
+                  'status': 'active',
+                  'featured': true,
+                  'recentAppointments': [
+                    {'id': 'a1', 'status': 'completed', 'totalPrice': 15000},
+                  ],
+                }),
+                200,
+              );
+            }
+            return http.Response(
+              jsonEncode({'id': 'p1', 'status': 'suspended'}),
+              200,
+            );
+          }),
+        ),
+      );
 
-    await p.load('p1');
-    expect(p.provider?['name'], 'Beauté Divine');
-    expect(p.provider!.containsKey('recentAppointments'), isFalse);
-    expect(p.appointments, hasLength(1));
+      await p.load('p1');
+      expect(p.provider?['name'], 'Beauté Divine');
+      expect(p.provider!.containsKey('recentAppointments'), isFalse);
+      expect(p.appointments, hasLength(1));
 
-    expect(await p.suspend('p1', 'abus'), isTrue);
-    expect(p.provider?['status'], 'suspended');
-    // The featured flag from the original load is preserved across the merge.
-    expect(p.provider?['featured'], true);
-  });
+      expect(await p.suspend('p1', 'abus'), isTrue);
+      expect(p.provider?['status'], 'suspended');
+      // The featured flag from the original load is preserved across the merge.
+      expect(p.provider?['featured'], true);
+    },
+  );
 
   test('user detail loads; ban updates status', () async {
     final p = AdminUserDetailProvider(
-      service: svc(MockClient((req) async {
-        if (req.method == 'GET' && req.url.path == '/admin/users/u1') {
+      service: svc(
+        MockClient((req) async {
+          if (req.method == 'GET' && req.url.path == '/admin/users/u1') {
+            return http.Response(
+              jsonEncode({
+                'id': 'u1',
+                'name': 'Awa',
+                'status': 'active',
+                'recentAppointments': [],
+              }),
+              200,
+            );
+          }
           return http.Response(
-            jsonEncode({
-              'id': 'u1',
-              'name': 'Awa',
-              'status': 'active',
-              'recentAppointments': [],
-            }),
+            jsonEncode({'id': 'u1', 'status': 'banned'}),
             200,
           );
-        }
-        return http.Response(jsonEncode({'id': 'u1', 'status': 'banned'}), 200);
-      })),
+        }),
+      ),
     );
 
     await p.load('u1');
@@ -80,8 +91,11 @@ void main() {
 
   test('detail load surfaces an error', () async {
     final p = AdminProviderDetailProvider(
-      service: svc(MockClient((req) async =>
-          http.Response(jsonEncode({'error': 'not_found'}), 404))),
+      service: svc(
+        MockClient(
+          (req) async => http.Response(jsonEncode({'error': 'not_found'}), 404),
+        ),
+      ),
     );
     await p.load('nope');
     expect(p.provider, isNull);

@@ -12,24 +12,26 @@ void main() {
   Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   Appointment appointment() => Appointment(
-        id: 'a1',
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: DateTime(2025, 5, 12, 10),
-        status: AppointmentStatus.completed,
-        totalPrice: 20000,
-        createdAt: DateTime(2025),
-      );
+    id: 'a1',
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    appointmentDate: DateTime(2025, 5, 12, 10),
+    status: AppointmentStatus.completed,
+    totalPrice: 20000,
+    createdAt: DateTime(2025),
+  );
 
   testWidgets('shows the hint when provided', (tester) async {
     await tester.pumpWidget(
-      wrap(CompactAppointmentTile(
-        appointment: appointment(),
-        providerName: 'Salon Excellence',
-        onTap: () {},
-        hint: 'Réserver à nouveau',
-      )),
+      wrap(
+        CompactAppointmentTile(
+          appointment: appointment(),
+          providerName: 'Salon Excellence',
+          onTap: () {},
+          hint: 'Réserver à nouveau',
+        ),
+      ),
     );
 
     expect(find.text('Réserver à nouveau'), findsOneWidget);
@@ -37,11 +39,13 @@ void main() {
 
   testWidgets('shows no hint when none is provided', (tester) async {
     await tester.pumpWidget(
-      wrap(CompactAppointmentTile(
-        appointment: appointment(),
-        providerName: 'Salon Excellence',
-        onTap: () {},
-      )),
+      wrap(
+        CompactAppointmentTile(
+          appointment: appointment(),
+          providerName: 'Salon Excellence',
+          onTap: () {},
+        ),
+      ),
     );
 
     expect(find.text('Réserver à nouveau'), findsNothing);

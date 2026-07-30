@@ -34,10 +34,10 @@ class ApiAuthService implements AuthServiceInterface {
     String? baseUrl,
     SessionStore? sessionStore,
     SessionStore? providerSessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _sessionStore = sessionStore ?? InMemorySessionStore(),
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore();
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _sessionStore = sessionStore ?? InMemorySessionStore(),
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore();
 
   final http.Client _client;
   final String _baseUrl;
@@ -75,10 +75,10 @@ class ApiAuthService implements AuthServiceInterface {
 
   @override
   Future<ApiResponse<User>> verifyOtp(String phoneNumber, String otp) async {
-    final res = await _post(
-      '/auth/otp/verify',
-      {'phoneNumber': phoneNumber, 'code': otp},
-    );
+    final res = await _post('/auth/otp/verify', {
+      'phoneNumber': phoneNumber,
+      'code': otp,
+    });
     return _loginFrom(res);
   }
 
@@ -153,10 +153,10 @@ class ApiAuthService implements AuthServiceInterface {
           code: 'no_id_token',
         );
       }
-      final fullName = [credential.givenName, credential.familyName]
-          .whereType<String>()
-          .join(' ')
-          .trim();
+      final fullName = [
+        credential.givenName,
+        credential.familyName,
+      ].whereType<String>().join(' ').trim();
       final res = await _post('/auth/apple', {
         'identityToken': identityToken,
         'nonce': rawNonce,
@@ -195,10 +195,10 @@ class ApiAuthService implements AuthServiceInterface {
 
   @override
   Future<ApiResponse<User>> verifyEmailOtp(String email, String code) async {
-    final res = await _post(
-      '/auth/email/otp/verify',
-      {'email': email, 'code': code},
-    );
+    final res = await _post('/auth/email/otp/verify', {
+      'email': email,
+      'code': code,
+    });
     return _loginFrom(res);
   }
 
@@ -244,16 +244,18 @@ class ApiAuthService implements AuthServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Utilisateur non connecté');
     }
-    final res = await _authed.send((token) => _client.patch(
-          _uri('/me'),
-          headers: _bearer(token),
-          body: jsonEncode({
-            if (name != null) 'name': name,
-            if (email != null) 'email': email,
-            if (avatarUrl != null) 'avatarUrl': avatarUrl,
-            if (phone != null) 'phone': phone,
-          }),
-        ));
+    final res = await _authed.send(
+      (token) => _client.patch(
+        _uri('/me'),
+        headers: _bearer(token),
+        body: jsonEncode({
+          'name': ?name,
+          'email': ?email,
+          'avatarUrl': ?avatarUrl,
+          'phone': ?phone,
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
 
@@ -283,8 +285,9 @@ class ApiAuthService implements AuthServiceInterface {
 
   @override
   Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
-    final res =
-        await _post('/auth/provider/otp/request', {'phoneNumber': phoneNumber});
+    final res = await _post('/auth/provider/otp/request', {
+      'phoneNumber': phoneNumber,
+    });
     if (res == null) return _networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
@@ -301,16 +304,17 @@ class ApiAuthService implements AuthServiceInterface {
     String phoneNumber,
     String otp,
   ) async {
-    final res = await _post(
-      '/auth/provider/otp/verify',
-      {'phoneNumber': phoneNumber, 'code': otp},
-    );
+    final res = await _post('/auth/provider/otp/verify', {
+      'phoneNumber': phoneNumber,
+      'code': otp,
+    });
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
 
     final body = _decode(res.body);
-    final provider =
-        ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
+    final provider = ProviderUser.fromJson(
+      body['provider'] as Map<String, dynamic>,
+    );
     _currentProvider = provider;
     _providerToken = body['accessToken'] as String;
     await _persistProviderSession(
@@ -326,8 +330,9 @@ class ApiAuthService implements AuthServiceInterface {
   /// Adopt + persist a FLAT ProviderSession body ({provider, accessToken,
   /// refreshToken}) — shared by logins, registration and invitation accepts.
   Future<ProviderUser> _adoptProviderSession(Map<String, dynamic> body) async {
-    final provider =
-        ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
+    final provider = ProviderUser.fromJson(
+      body['provider'] as Map<String, dynamic>,
+    );
     _currentProvider = provider;
     _providerToken = body['accessToken'] as String;
     await _persistProviderSession(
@@ -523,12 +528,12 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   Map<String, String> _proofBody(InvitationProof proof) => switch (proof) {
-        GoogleInvitationProof(:final idToken) => {'idToken': idToken},
-        EmailOtpInvitationProof(:final email, :final code) => {
-            'email': email,
-            'code': code,
-          },
-      };
+    GoogleInvitationProof(:final idToken) => {'idToken': idToken},
+    EmailOtpInvitationProof(:final email, :final code) => {
+      'email': email,
+      'code': code,
+    },
+  };
 
   @override
   Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
@@ -586,8 +591,9 @@ class ApiAuthService implements AuthServiceInterface {
     final raw = await _providerSessionStore.read();
     if (raw == null) return null;
     try {
-      final session =
-          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final session = ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
       _currentProvider = session.provider;
       _providerToken = session.token;
       return _currentProvider;
@@ -609,13 +615,16 @@ class ApiAuthService implements AuthServiceInterface {
     final raw = await _providerSessionStore.read();
     if (raw == null) return; // signed out — nothing to cache into
     try {
-      final session =
-          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final session = ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
       // copyWith keeps the R6 salon selection alongside the membership.
       await _providerSessionStore.save(
         jsonEncode(session.copyWith(membership: membership).toJson()),
       );
-    } catch (_) {/* a broken blob is repaired on the next login */}
+    } catch (_) {
+      /* a broken blob is repaired on the next login */
+    }
   }
 
   @override
@@ -623,8 +632,9 @@ class ApiAuthService implements AuthServiceInterface {
     final raw = await _providerSessionStore.read();
     if (raw == null) return;
     try {
-      final session =
-          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final session = ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
       await _providerSessionStore.save(
         jsonEncode(
           session
@@ -635,7 +645,9 @@ class ApiAuthService implements AuthServiceInterface {
               .toJson(),
         ),
       );
-    } catch (_) {/* a broken blob is repaired on the next login */}
+    } catch (_) {
+      /* a broken blob is repaired on the next login */
+    }
   }
 
   @override
@@ -643,8 +655,9 @@ class ApiAuthService implements AuthServiceInterface {
     final raw = await _providerSessionStore.read();
     if (raw == null) return null;
     try {
-      return ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
-          .selectedSalonId;
+      return ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).selectedSalonId;
     } catch (_) {
       return null;
     }
@@ -668,16 +681,17 @@ class ApiAuthService implements AuthServiceInterface {
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
   Map<String, String> _bearer(String token) => {
-        'content-type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+    'content-type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 
-  Future<http.Response?> _post(String path, Map<String, dynamic> body) =>
-      _send(() => _client.post(
-            _uri(path),
-            headers: const {'content-type': 'application/json'},
-            body: jsonEncode(body),
-          ));
+  Future<http.Response?> _post(String path, Map<String, dynamic> body) => _send(
+    () => _client.post(
+      _uri(path),
+      headers: const {'content-type': 'application/json'},
+      body: jsonEncode(body),
+    ),
+  );
 
   Future<http.Response?> _send(Future<http.Response> Function() run) async {
     try {

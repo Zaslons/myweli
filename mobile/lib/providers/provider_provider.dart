@@ -40,10 +40,7 @@ class ProviderProvider extends ChangeNotifier {
   ProviderSort get sort => _sort;
   bool get availableToday => _availableToday;
 
-  Future<void> loadProviders({
-    String? category,
-    String? searchQuery,
-  }) async {
+  Future<void> loadProviders({String? category, String? searchQuery}) async {
     _isLoading = true;
     _error = null;
     _selectedCategory = category;

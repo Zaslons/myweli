@@ -7,8 +7,9 @@ import '../support/pump_app.dart';
 void main() {
   Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
-  testWidgets('shows "Toutes les communes" when none is selected',
-      (tester) async {
+  testWidgets('shows "Toutes les communes" when none is selected', (
+    tester,
+  ) async {
     await tester.pumpWidget(wrap(CommunePill(commune: null, onTap: () {})));
     expect(find.text('Toutes les communes'), findsOneWidget);
   });

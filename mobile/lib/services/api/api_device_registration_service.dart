@@ -18,9 +18,9 @@ class ApiDeviceRegistrationService
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _sessionStore = sessionStore ?? InMemorySessionStore();
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _sessionStore = sessionStore ?? InMemorySessionStore();
 
   final http.Client _client;
   final String _baseUrl;
@@ -79,6 +79,7 @@ class ApiDeviceRegistrationService
   }
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
-  Map<String, String> _bearer(String token) =>
-      {'Authorization': 'Bearer $token'};
+  Map<String, String> _bearer(String token) => {
+    'Authorization': 'Bearer $token',
+  };
 }

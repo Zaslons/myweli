@@ -64,21 +64,21 @@ class CompactAppointmentTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 child:
                     (providerImageUrl != null && providerImageUrl!.isNotEmpty)
-                        ? TimedCachedImage(
-                            imageUrl: providerImageUrl!,
-                            width: 52,
-                            height: 52,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: 52,
-                            height: 52,
-                            color: AppColors.surface,
-                            child: const Icon(
-                              Icons.store_outlined,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
+                    ? TimedCachedImage(
+                        imageUrl: providerImageUrl!,
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        width: 52,
+                        height: 52,
+                        color: AppColors.surface,
+                        child: const Icon(
+                          Icons.store_outlined,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
               ),
               const SizedBox(width: AppTheme.spacingM),
               Expanded(
@@ -130,8 +130,9 @@ class CompactAppointmentTile extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.14),
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusPill),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusPill,
+                              ),
                             ),
                             child: Text(
                               StatusLabels.of(appointment.status),
@@ -144,26 +145,30 @@ class CompactAppointmentTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppTheme.spacingS),
-                    Builder(builder: (context) {
-                      // The booking renders in ITS salon's time (multi-pays).
-                      final wall = toSalonTime(
-                        appointment.appointmentDate,
-                        tz: appointment.providerTimezone,
-                      );
-                      return Text(
-                        '${Formatters.formatDateShort(wall)} • ${Formatters.formatTime(wall)}',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      );
-                    }),
+                    Builder(
+                      builder: (context) {
+                        // The booking renders in ITS salon's time (multi-pays).
+                        final wall = toSalonTime(
+                          appointment.appointmentDate,
+                          tz: appointment.providerTimezone,
+                        );
+                        return Text(
+                          '${Formatters.formatDateShort(wall)} • ${Formatters.formatTime(wall)}',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        );
+                      },
+                    ),
                     if (hint != null) ...[
                       const SizedBox(height: AppTheme.spacingS),
                       Row(
                         children: [
-                          const Icon(Icons.refresh,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textPrimary),
+                          const Icon(
+                            Icons.refresh,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textPrimary,
+                          ),
                           const SizedBox(width: AppTheme.spacingXS),
                           // Unflexed, this Text overflowed the Row by 217px at
                           // 200% — a Row gives its children infinite width, so

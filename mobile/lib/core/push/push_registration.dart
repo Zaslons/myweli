@@ -14,8 +14,8 @@ class PushRegistration {
   PushRegistration({
     required PushNotificationServiceInterface push,
     required DeviceRegistrationServiceInterface devices,
-  })  : _push = push,
-        _devices = devices {
+  }) : _push = push,
+       _devices = devices {
     _listenForRefresh();
   }
 
@@ -33,16 +33,16 @@ class PushRegistration {
           await _push.permissionStatus() == PushPermissionStatus.granted;
       if (!granted) return;
       await _registerCurrentToken();
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   /// Asks for push permission **once** at the first appropriate moment (consumer:
   /// after the first booking; pro: on the first dashboard visit). Shows
   /// [showRationale] if permission is undetermined; on accept, triggers the OS
   /// prompt and registers. Guarded by a persisted flag so we never nag.
-  Future<void> maybePromptOnce(
-    Future<bool> Function() showRationale,
-  ) async {
+  Future<void> maybePromptOnce(Future<bool> Function() showRationale) async {
     try {
       if (await _hasAsked()) return;
       final status = await _push.permissionStatus();
@@ -62,7 +62,9 @@ class PushRegistration {
       if (await _push.requestPermission() == PushPermissionStatus.granted) {
         await _registerCurrentToken();
       }
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   /// On logout — remove this device's token before the session is cleared.
@@ -71,7 +73,9 @@ class PushRegistration {
       final token = await _push.getToken();
       if (token == null) return;
       await _devices.unregister(token);
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   void dispose() {
@@ -85,7 +89,9 @@ class PushRegistration {
         if (await _push.permissionStatus() == PushPermissionStatus.granted) {
           await _devices.register(token, _platform());
         }
-      } catch (_) {/* best-effort */}
+      } catch (_) {
+        /* best-effort */
+      }
     });
   }
 

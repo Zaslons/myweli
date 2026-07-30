@@ -43,17 +43,21 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
       reasonRequired: false,
     );
     if (reason == null || !mounted) return;
-    await _run(() => context.read<AdminProvidersProvider>().suspend(id, reason),
-        'Salon suspendu');
+    await _run(
+      () => context.read<AdminProvidersProvider>().suspend(id, reason),
+      'Salon suspendu',
+    );
   }
 
   Future<void> _restore(String id) => _run(
-      () => context.read<AdminProvidersProvider>().restore(id),
-      'Salon réactivé');
+    () => context.read<AdminProvidersProvider>().restore(id),
+    'Salon réactivé',
+  );
 
   Future<void> _feature(String id, bool featured) => _run(
-      () => context.read<AdminProvidersProvider>().feature(id, featured),
-      featured ? 'Mis en avant' : 'Retiré de la mise en avant');
+    () => context.read<AdminProvidersProvider>().feature(id, featured),
+    featured ? 'Mis en avant' : 'Retiré de la mise en avant',
+  );
 
   Future<void> _run(Future<bool> Function() action, String okMsg) async {
     final p = context.read<AdminProvidersProvider>();
@@ -110,19 +114,28 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                   AdminRow(
                     onTap: () => context.push('/admin/providers/${r['id']}'),
                     cells: [
-                      Text('${r['name'] ?? '—'}',
-                          style: AppTextStyles.bodyMedium),
-                      Text('${r['commune'] ?? '—'}',
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: AppColors.textSecondary)),
+                      Text(
+                        '${r['name'] ?? '—'}',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                      Text(
+                        '${r['commune'] ?? '—'}',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child:
-                            StatusChip.forStatus('${r['status'] ?? 'active'}'),
+                        child: StatusChip.forStatus(
+                          '${r['status'] ?? 'active'}',
+                        ),
                       ),
-                      Text((r['rating'] as num?)?.toStringAsFixed(1) ?? '—',
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: AppColors.textSecondary)),
+                      Text(
+                        (r['rating'] as num?)?.toStringAsFixed(1) ?? '—',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       _actions(r, p.acting),
                     ],
                   ),
@@ -157,8 +170,9 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           child: AppButton(
             text: suspended ? 'Réactiver' : 'Suspendre',
             type: suspended ? AppButtonType.primary : AppButtonType.secondary,
-            onPressed:
-                acting ? null : () => suspended ? _restore(id) : _suspend(id),
+            onPressed: acting
+                ? null
+                : () => suspended ? _restore(id) : _suspend(id),
           ),
         ),
       ],

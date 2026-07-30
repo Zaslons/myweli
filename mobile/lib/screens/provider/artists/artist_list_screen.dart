@@ -31,8 +31,10 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final artistProvider =
-            Provider.of<ProArtistProvider>(context, listen: false);
+        final artistProvider = Provider.of<ProArtistProvider>(
+          context,
+          listen: false,
+        );
         artistProvider.loadArtists(_resolvedProviderId(context));
       }
     });
@@ -42,9 +44,7 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Employés'),
-      ),
+      appBar: AppBar(title: const Text('Employés')),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Ajouter un employé',
         onPressed: () => context.push('/pro/artist/new'),
@@ -68,8 +68,11 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.people_outline,
-                        size: AppTheme.iconXL, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.people_outline,
+                      size: AppTheme.iconXL,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun employé',
@@ -130,10 +133,7 @@ class _ArtistCard extends StatelessWidget {
   final Artist artist;
   final VoidCallback onTap;
 
-  const _ArtistCard({
-    required this.artist,
-    required this.onTap,
-  });
+  const _ArtistCard({required this.artist, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -160,8 +160,9 @@ class _ArtistCard extends StatelessWidget {
                       artist.name.isNotEmpty
                           ? artist.name[0].toUpperCase()
                           : '?',
-                      style: AppTextStyles.titleMedium
-                          .copyWith(color: AppColors.primary),
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: AppColors.primary,
+                      ),
                     )
                   : null,
             ),

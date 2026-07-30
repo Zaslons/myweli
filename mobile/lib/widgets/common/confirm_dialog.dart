@@ -55,14 +55,14 @@ class ConfirmDialog extends StatefulWidget {
     this.isDestructive = true,
     this.field,
     this.confirmWord,
-  })  : assert(
-          message == null || content == null,
-          'pass a plain message OR a rich content, not both',
-        ),
-        assert(
-          field == null || confirmWord == null,
-          'type-to-confirm IS the field',
-        );
+  }) : assert(
+         message == null || content == null,
+         'pass a plain message OR a rich content, not both',
+       ),
+       assert(
+         field == null || confirmWord == null,
+         'type-to-confirm IS the field',
+       );
 
   final String title;
 
@@ -154,8 +154,9 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
               ? TextButton.styleFrom(foregroundColor: AppColors.error)
               : null,
           onPressed: _canConfirm
-              ? () => Navigator.of(context)
-                  .pop(ConfirmResult(_controller.text.trim()))
+              ? () => Navigator.of(
+                  context,
+                ).pop(ConfirmResult(_controller.text.trim()))
               : null,
           child: Text(widget.confirmLabel),
         ),
@@ -164,7 +165,8 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
   }
 
   Widget? _buildContent(ConfirmField? field) {
-    final body = widget.content ??
+    final body =
+        widget.content ??
         (widget.message == null ? null : Text(widget.message!));
     if (!_hasInput) return body;
 
@@ -172,10 +174,7 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (body != null) ...[
-          body,
-          const SizedBox(height: AppTheme.spacingM),
-        ],
+        if (body != null) ...[body, const SizedBox(height: AppTheme.spacingM)],
         if (widget.confirmWord != null) ...[
           Text(
             'Tapez ${widget.confirmWord} pour confirmer',
@@ -253,16 +252,14 @@ Future<String?> showInputDialog(
   String? message,
   String cancelLabel = 'Annuler',
   bool isDestructive = false,
-}) async =>
-    (await showDialog<ConfirmResult>(
-      context: context,
-      builder: (_) => ConfirmDialog(
-        title: title,
-        confirmLabel: confirmLabel,
-        message: message,
-        cancelLabel: cancelLabel,
-        isDestructive: isDestructive,
-        field: field,
-      ),
-    ))
-        ?.text;
+}) async => (await showDialog<ConfirmResult>(
+  context: context,
+  builder: (_) => ConfirmDialog(
+    title: title,
+    confirmLabel: confirmLabel,
+    message: message,
+    cancelLabel: cancelLabel,
+    isDestructive: isDestructive,
+    field: field,
+  ),
+))?.text;

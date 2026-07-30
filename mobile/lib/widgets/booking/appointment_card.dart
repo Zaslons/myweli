@@ -61,8 +61,8 @@ class AppointmentCard extends StatelessWidget {
         // Get services for this appointment
         final services = provider != null
             ? provider.services
-                .where((s) => appointment.serviceIds.contains(s.id))
-                .toList()
+                  .where((s) => appointment.serviceIds.contains(s.id))
+                  .toList()
             : <Service>[];
 
         return GestureDetector(
@@ -82,8 +82,9 @@ class AppointmentCard extends StatelessWidget {
                   children: [
                     // Provider Image
                     ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusMedium),
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
                       child: provider != null && provider.imageUrls.isNotEmpty
                           ? TimedCachedImage(
                               imageUrl: provider.imageUrls.first,
@@ -95,9 +96,11 @@ class AppointmentCard extends StatelessWidget {
                               width: 80,
                               height: 80,
                               color: AppColors.surface,
-                              child: const Icon(Icons.store,
-                                  size: AppTheme.iconL,
-                                  color: AppColors.textTertiary),
+                              child: const Icon(
+                                Icons.store,
+                                size: AppTheme.iconL,
+                                color: AppColors.textTertiary,
+                              ),
                             ),
                     ),
                     const SizedBox(width: AppTheme.spacingM),
@@ -144,16 +147,19 @@ class AppointmentCard extends StatelessWidget {
                                     vertical: AppTheme.spacingXS,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _getStatusColor(appointment.status)
-                                        .withValues(alpha: 0.1),
+                                    color: _getStatusColor(
+                                      appointment.status,
+                                    ).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusSmall),
+                                      AppTheme.radiusSmall,
+                                    ),
                                   ),
                                   child: Text(
                                     StatusLabels.of(appointment.status),
                                     style: AppTextStyles.labelSmall.copyWith(
-                                      color:
-                                          _getStatusColor(appointment.status),
+                                      color: _getStatusColor(
+                                        appointment.status,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -164,7 +170,8 @@ class AppointmentCard extends StatelessWidget {
                             const SizedBox(height: AppTheme.spacingXS),
                             ConstrainedBox(
                               constraints: const BoxConstraints(
-                                  minHeight: 48), // §13.2 touch target
+                                minHeight: 48,
+                              ), // §13.2 touch target
                               child: Semantics(
                                 button: true,
                                 label: 'Voir sur la carte',
@@ -182,30 +189,37 @@ class AppointmentCard extends StatelessWidget {
                                       return;
                                     }
                                     context.push(
-                                        '/favorites?providerId=${provider.id}');
+                                      '/favorites?providerId=${provider.id}',
+                                    );
                                   },
                                   child: Center(
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.location_on,
-                                            size: AppTheme.iconXS,
-                                            color: AppColors.textTertiary),
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: AppTheme.iconXS,
+                                          color: AppColors.textTertiary,
+                                        ),
                                         const SizedBox(
-                                            width: AppTheme.spacingXS),
+                                          width: AppTheme.spacingXS,
+                                        ),
                                         Expanded(
                                           child: Text(
                                             provider.city ?? provider.address,
                                             style: AppTextStyles.bodySmall
                                                 .copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                        const Icon(Icons.map,
-                                            size: AppTheme.iconXS,
-                                            color: AppColors.textTertiary),
+                                        const Icon(
+                                          Icons.map,
+                                          size: AppTheme.iconXS,
+                                          color: AppColors.textTertiary,
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -217,7 +231,8 @@ class AppointmentCard extends StatelessWidget {
                               const SizedBox(height: AppTheme.spacingS),
                               ConstrainedBox(
                                 constraints: const BoxConstraints(
-                                    minHeight: 48), // §13.2 touch target
+                                  minHeight: 48,
+                                ), // §13.2 touch target
                                 child: Semantics(
                                   button: true,
                                   label: 'Itinéraire',
@@ -234,17 +249,20 @@ class AppointmentCard extends StatelessWidget {
                                     child: Center(
                                       child: Row(
                                         children: [
-                                          const Icon(Icons.directions,
-                                              size: AppTheme.iconXS,
-                                              color: AppColors.primary),
+                                          const Icon(
+                                            Icons.directions,
+                                            size: AppTheme.iconXS,
+                                            color: AppColors.primary,
+                                          ),
                                           const SizedBox(
-                                              width: AppTheme.spacingXS),
+                                            width: AppTheme.spacingXS,
+                                          ),
                                           Text(
                                             'Itinéraire',
                                             style: AppTextStyles.bodySmall
                                                 .copyWith(
-                                              color: AppColors.primary,
-                                            ),
+                                                  color: AppColors.primary,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -275,8 +293,11 @@ class AppointmentCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.store_mall_directory_outlined,
-                            size: AppTheme.iconXS, color: AppColors.info),
+                        const Icon(
+                          Icons.store_mall_directory_outlined,
+                          size: AppTheme.iconXS,
+                          color: AppColors.info,
+                        ),
                         const SizedBox(width: AppTheme.spacingXS),
                         Text(
                           'Réservé par votre salon',
@@ -309,8 +330,9 @@ class AppointmentCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusSmall),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusSmall,
+                          ),
                         ),
                         child: Text(
                           service.name,
@@ -349,9 +371,11 @@ class AppointmentCard extends StatelessWidget {
                       );
                       return Row(
                         children: [
-                          const Icon(Icons.person,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textTertiary),
+                          const Icon(
+                            Icons.person,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textTertiary,
+                          ),
                           const SizedBox(width: AppTheme.spacingS),
                           Expanded(
                             child: Text(
@@ -387,14 +411,19 @@ class AppointmentCard extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.calendar_today,
-                            size: AppTheme.iconXS,
-                            color: AppColors.textTertiary),
+                        const Icon(
+                          Icons.calendar_today,
+                          size: AppTheme.iconXS,
+                          color: AppColors.textTertiary,
+                        ),
                         const SizedBox(width: AppTheme.spacingS),
                         Text(
-                          Formatters.formatDateShort(toSalonTime(
+                          Formatters.formatDateShort(
+                            toSalonTime(
                               appointment.appointmentDate,
-                              tz: appointment.providerTimezone)),
+                              tz: appointment.providerTimezone,
+                            ),
+                          ),
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -404,14 +433,19 @@ class AppointmentCard extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.access_time,
-                            size: AppTheme.iconXS,
-                            color: AppColors.textTertiary),
+                        const Icon(
+                          Icons.access_time,
+                          size: AppTheme.iconXS,
+                          color: AppColors.textTertiary,
+                        ),
                         const SizedBox(width: AppTheme.spacingS),
                         Text(
-                          Formatters.formatTime(toSalonTime(
+                          Formatters.formatTime(
+                            toSalonTime(
                               appointment.appointmentDate,
-                              tz: appointment.providerTimezone)),
+                              tz: appointment.providerTimezone,
+                            ),
+                          ),
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -423,10 +457,13 @@ class AppointmentCard extends StatelessWidget {
                 const SizedBox(height: AppTheme.spacingS),
                 LabelValueRow(
                   label: 'Total:',
-                  value: Formatters.formatCurrency(appointment.totalPrice,
-                      currency: appointment.currency ??
-                          appointment.providerCurrency ??
-                          'XOF'),
+                  value: Formatters.formatCurrency(
+                    appointment.totalPrice,
+                    currency:
+                        appointment.currency ??
+                        appointment.providerCurrency ??
+                        'XOF',
+                  ),
                   labelStyle: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),

@@ -16,9 +16,7 @@ class LoyaltyProgramsScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Programmes de fidélité'),
-      ),
+      appBar: AppBar(title: const Text('Programmes de fidélité')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
@@ -246,10 +244,7 @@ class _LoyaltyProgramItem extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.edit), onPressed: () {}),
         ],
       ),
     );
@@ -330,10 +325,7 @@ class _CertificateCard extends StatelessWidget {
                   color: AppColors.primary,
                 ),
               ),
-              TextButton(
-                onPressed: () {},
-                child: const Text('Émettre'),
-              ),
+              TextButton(onPressed: () {}, child: const Text('Émettre')),
             ],
           ),
         ],

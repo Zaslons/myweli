@@ -50,8 +50,8 @@ String? defaultLengthVariant(Iterable<Service> services) {
 }
 
 String lengthVariantLabel(String key) => switch (key) {
-      'court' => 'Court',
-      'moyen' => 'Moyen',
-      'long' => 'Long',
-      _ => key,
-    };
+  'court' => 'Court',
+  'moyen' => 'Moyen',
+  'long' => 'Long',
+  _ => key,
+};

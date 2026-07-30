@@ -16,27 +16,32 @@ void main() {
   });
 
   Widget wrap(Widget child) => wrapApp(
-        providers: [ChangeNotifierProvider(create: (_) => ProviderProvider())],
-        home: Scaffold(body: child),
-      );
+    providers: [ChangeNotifierProvider(create: (_) => ProviderProvider())],
+    home: Scaffold(body: child),
+  );
 
   Appointment appt({String? clientName}) => Appointment(
-        id: 'a1',
-        userId: clientName == null ? 'u1' : 'manual',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: DateTime(2026, 6, 30, 10),
-        status: AppointmentStatus.confirmed,
-        totalPrice: 20000,
-        createdAt: DateTime(2026),
-        clientName: clientName,
-      );
+    id: 'a1',
+    userId: clientName == null ? 'u1' : 'manual',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    appointmentDate: DateTime(2026, 6, 30, 10),
+    status: AppointmentStatus.confirmed,
+    totalPrice: 20000,
+    createdAt: DateTime(2026),
+    clientName: clientName,
+  );
 
   testWidgets('shows the salon-entered badge when clientName is set', (
     tester,
   ) async {
     await tester.pumpWidget(
-      wrap(AppointmentCard(appointment: appt(clientName: 'Awa'), onTap: () {})),
+      wrap(
+        AppointmentCard(
+          appointment: appt(clientName: 'Awa'),
+          onTap: () {},
+        ),
+      ),
     );
     await tester.pump();
     expect(find.text('Réservé par votre salon'), findsOneWidget);

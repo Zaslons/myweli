@@ -7,16 +7,18 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 /// on the mock service + AuthProvider, incl. the contact-phone rules.
 void main() {
   group('MockAuthService — social + email login', () {
-    test('signInWithGoogle creates a user WITHOUT a phone (step follows)',
-        () async {
-      final service = MockAuthService();
-      final res = await service.signInWithGoogle();
-      expect(res.success, isTrue);
-      expect(res.data!.email, 'mock.google@myweli.test');
-      expect(res.data!.authProvider, 'google');
-      expect(res.data!.phoneNumber, isNull);
-      expect(res.data!.phoneVerified, isFalse);
-    });
+    test(
+      'signInWithGoogle creates a user WITHOUT a phone (step follows)',
+      () async {
+        final service = MockAuthService();
+        final res = await service.signInWithGoogle();
+        expect(res.success, isTrue);
+        expect(res.data!.email, 'mock.google@myweli.test');
+        expect(res.data!.authProvider, 'google');
+        expect(res.data!.phoneNumber, isNull);
+        expect(res.data!.phoneVerified, isFalse);
+      },
+    );
 
     test('same Google identity resolves to the same user', () async {
       final service = MockAuthService();
@@ -38,30 +40,36 @@ void main() {
       expect(await service.getCurrentUser(), isNotNull);
     });
 
-    test('email OTP: wrong code → otp_invalid; right code still works',
-        () async {
-      final service = MockAuthService();
-      await service.requestEmailOtp('a@test.com');
-      final wrong = await service.verifyEmailOtp('a@test.com', '000000');
-      expect(wrong.success, isFalse);
-      expect(wrong.code, 'otp_invalid');
-      final right =
-          await service.verifyEmailOtp('a@test.com', MockAuthService.demoOtp);
-      expect(right.success, isTrue);
-    });
+    test(
+      'email OTP: wrong code → otp_invalid; right code still works',
+      () async {
+        final service = MockAuthService();
+        await service.requestEmailOtp('a@test.com');
+        final wrong = await service.verifyEmailOtp('a@test.com', '000000');
+        expect(wrong.success, isFalse);
+        expect(wrong.code, 'otp_invalid');
+        final right = await service.verifyEmailOtp(
+          'a@test.com',
+          MockAuthService.demoOtp,
+        );
+        expect(right.success, isTrue);
+      },
+    );
 
-    test('updateUser(phone:) sets an UNVERIFIED contact phone; empty clears',
-        () async {
-      final service = MockAuthService();
-      await service.signInWithGoogle();
+    test(
+      'updateUser(phone:) sets an UNVERIFIED contact phone; empty clears',
+      () async {
+        final service = MockAuthService();
+        await service.signInWithGoogle();
 
-      final withPhone = await service.updateUser(phone: '+2250700000001');
-      expect(withPhone.data!.phoneNumber, '+2250700000001');
-      expect(withPhone.data!.phoneVerified, isFalse);
+        final withPhone = await service.updateUser(phone: '+2250700000001');
+        expect(withPhone.data!.phoneNumber, '+2250700000001');
+        expect(withPhone.data!.phoneVerified, isFalse);
 
-      final cleared = await service.updateUser(phone: '');
-      expect(cleared.data!.phoneNumber, isNull);
-    });
+        final cleared = await service.updateUser(phone: '');
+        expect(cleared.data!.phoneNumber, isNull);
+      },
+    );
   });
 
   group('AuthProvider — social + email login', () {

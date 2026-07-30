@@ -28,10 +28,14 @@ void main() {
         'businessType': Validators.requiredField('le type d’entreprise'),
       });
       expect(errors.validate({'businessType': ''}), isFalse);
-      expect(errors['businessType'], isNotNull,
-          reason: 'the message exists — the screen must bind it to an '
-              'errorText or an InlineFeedback, which is what the per-funnel '
-              'widget tests assert');
+      expect(
+        errors['businessType'],
+        isNotNull,
+        reason:
+            'the message exists — the screen must bind it to an '
+            'errorText or an InlineFeedback, which is what the per-funnel '
+            'widget tests assert',
+      );
     });
   });
 
@@ -40,18 +44,20 @@ void main() {
   /// cleared, so it sat on screen after the user had visibly fixed it.
   group('rule 2 applies to selection faults too', () {
     test('re-validating a selection clears it without a second submit', () {
-      final errors = FieldErrors({
-        'role': Validators.requiredField('un rôle'),
-      });
+      final errors = FieldErrors({'role': Validators.requiredField('un rôle')});
       expect(errors.validate({'role': ''}), isFalse);
       expect(errors['role'], isNotNull);
 
       // The user picks a role. Nothing is submitted yet.
       errors.revalidate('role', 'manager');
-      expect(errors['role'], isNull,
-          reason: 'the message must go the moment the user fixes the thing it '
-              'is about — a stale fault under a now-valid selection reads as '
-              'a broken form');
+      expect(
+        errors['role'],
+        isNull,
+        reason:
+            'the message must go the moment the user fixes the thing it '
+            'is about — a stale fault under a now-valid selection reads as '
+            'a broken form',
+      );
     });
   });
 }

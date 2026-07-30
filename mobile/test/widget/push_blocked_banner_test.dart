@@ -38,27 +38,21 @@ void main() {
   Widget host({
     required PushPermissionStatus status,
     Future<void> Function()? onOpen,
-  }) =>
-      wrapApp(
-        providers: [
-          ChangeNotifierProvider(
-              create: (_) => NotificationPreferencesProvider())
-        ],
-        home: NotificationPreferencesScreen(
-          permissionStatus: () async => status,
-          openSettings: onOpen ?? () async {},
-        ),
-      );
+  }) => wrapApp(
+    providers: [
+      ChangeNotifierProvider(create: (_) => NotificationPreferencesProvider()),
+    ],
+    home: NotificationPreferencesScreen(
+      permissionStatus: () async => status,
+      openSettings: onOpen ?? () async {},
+    ),
+  );
 
-  testWidgets(
-      'DENIED → the banner explains why the toggles can’t help, and '
+  testWidgets('DENIED → the banner explains why the toggles can’t help, and '
       '« Ouvrir les réglages » opens the OS settings', (tester) async {
     var opened = 0;
     await tester.pumpWidget(
-      host(
-        status: PushPermissionStatus.denied,
-        onOpen: () async => opened++,
-      ),
+      host(status: PushPermissionStatus.denied, onOpen: () async => opened++),
     );
     await tester.pumpAndSettle();
 
@@ -82,8 +76,9 @@ void main() {
     expect(find.text('Notifications push'), findsOneWidget);
   });
 
-  testWidgets('notDetermined → no banner (nothing to re-enable yet)',
-      (tester) async {
+  testWidgets('notDetermined → no banner (nothing to re-enable yet)', (
+    tester,
+  ) async {
     await tester.pumpWidget(host(status: PushPermissionStatus.notDetermined));
     await tester.pumpAndSettle();
 

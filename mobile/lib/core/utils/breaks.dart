@@ -4,7 +4,10 @@ import '../../models/availability.dart';
 /// A window that merely touches a break edge (ends exactly when the break
 /// starts, or starts exactly when it ends) does not overlap.
 bool overlapsBreak(
-    Map<int, List<TimeSlot>> breaks, DateTime start, DateTime end) {
+  Map<int, List<TimeSlot>> breaks,
+  DateTime start,
+  DateTime end,
+) {
   final dayBreaks = breaks[start.weekday - 1] ?? const [];
   for (final b in dayBreaks) {
     // Rebase the break's wall-clock onto [start]'s day IN THE SAME zone flag

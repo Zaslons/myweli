@@ -20,9 +20,9 @@ class ApiReviewService implements ReviewServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? sessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _sessionStore = sessionStore ?? InMemorySessionStore();
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _sessionStore = sessionStore ?? InMemorySessionStore();
 
   final http.Client _client;
   final String _baseUrl;
@@ -42,18 +42,20 @@ class ApiReviewService implements ReviewServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Connectez-vous pour publier un avis');
     }
-    final res = await _authed.send((t) => _client.post(
-          _uri('/appointments/${review.appointmentId}/review'),
-          headers: {
-            'Authorization': 'Bearer $t',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'rating': review.rating,
-            'text': review.text,
-            'photoUrls': review.photoUrls,
-          }),
-        ));
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri('/appointments/${review.appointmentId}/review'),
+        headers: {
+          'Authorization': 'Bearer $t',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'rating': review.rating,
+          'text': review.text,
+          'photoUrls': review.photoUrls,
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 201) return _errorFrom(res);
     return ApiResponse.success(
@@ -68,9 +70,9 @@ class ApiReviewService implements ReviewServiceInterface {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final uri = _uri('/providers/$providerId/reviews').replace(
-      queryParameters: {'page': '$page', 'pageSize': '$pageSize'},
-    );
+    final uri = _uri(
+      '/providers/$providerId/reviews',
+    ).replace(queryParameters: {'page': '$page', 'pageSize': '$pageSize'});
     final res = await _client.get(uri); // public
     if (res.statusCode != 200) return _errorFrom(res);
     final items =
@@ -90,17 +92,19 @@ class ApiReviewService implements ReviewServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Connectez-vous pour signaler un avis');
     }
-    final res = await _authed.send((t) => _client.post(
-          _uri('/reviews/$reviewId/report'),
-          headers: {
-            'Authorization': 'Bearer $t',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            if (reason != null && reason.trim().isNotEmpty)
-              'reason': reason.trim(),
-          }),
-        ));
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri('/reviews/$reviewId/report'),
+        headers: {
+          'Authorization': 'Bearer $t',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          if (reason != null && reason.trim().isNotEmpty)
+            'reason': reason.trim(),
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(null, message: 'Avis signalé');

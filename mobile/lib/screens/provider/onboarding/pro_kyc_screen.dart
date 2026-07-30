@@ -107,8 +107,11 @@ class _ProKycScreenState extends State<ProKycScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.lock_outline,
-                size: AppTheme.iconXS, color: AppColors.textTertiary),
+            const Icon(
+              Icons.lock_outline,
+              size: AppTheme.iconXS,
+              color: AppColors.textTertiary,
+            ),
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
@@ -185,8 +188,11 @@ class _ProKycScreenState extends State<ProKycScreen> {
     }
     final ok = await kyc.addDocument(type, source, contentType);
     if (!ok) {
-      AppSnackBar.showOn(messenger, kyc.error ?? 'Échec de l’envoi du document',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        kyc.error ?? 'Échec de l’envoi du document',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -316,8 +322,11 @@ class _DocumentTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(_icon(type),
-              size: AppTheme.iconM, color: AppColors.textSecondary),
+          Icon(
+            _icon(type),
+            size: AppTheme.iconM,
+            color: AppColors.textSecondary,
+          ),
           const SizedBox(width: AppTheme.spacingSM),
           Expanded(
             child: Column(
@@ -331,8 +340,9 @@ class _DocumentTile extends StatelessWidget {
                 Text(
                   provided ? 'Fourni · ${document!.fileName}' : 'À fournir',
                   style: AppTextStyles.bodySmall.copyWith(
-                    color:
-                        provided ? AppColors.success : AppColors.textTertiary,
+                    color: provided
+                        ? AppColors.success
+                        : AppColors.textTertiary,
                   ),
                 ),
               ],

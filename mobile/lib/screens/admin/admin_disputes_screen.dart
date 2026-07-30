@@ -77,8 +77,9 @@ class _AdminDisputesScreenState extends State<AdminDisputesScreen> {
                       ),
                       Text(
                         _date(d['createdAt']),
-                        style: AppTextStyles.bodyMedium
-                            .copyWith(color: AppColors.textSecondary),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),

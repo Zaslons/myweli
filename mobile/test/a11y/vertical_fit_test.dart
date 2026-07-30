@@ -63,8 +63,9 @@ void main() {
   setUp(() => freezeClock(kFixedNow));
 
   for (final scale in [1.0, 2.0]) {
-    testWidgets('the pro earnings empty tab fits a phone at ${scale}x',
-        (tester) async {
+    testWidgets('the pro earnings empty tab fits a phone at ${scale}x', (
+      tester,
+    ) async {
       final auth = await signInPro(tester);
       // `pumpAtWidth` would give this 1600dp of height, which is the whole
       // reason the defect has never been visible. Pin the real phone instead.
@@ -101,7 +102,8 @@ void main() {
       expect(
         tester.takeException(),
         isNull,
-        reason: 'the empty state does not fit the space the earnings tab '
+        reason:
+            'the empty state does not fit the space the earnings tab '
             'leaves it on a ${kFloorPhone.height.toInt()}dp phone at ${scale}x',
       );
       expectNoVerticalClip(tester, context: 'earnings empty tab at ${scale}x');

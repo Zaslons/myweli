@@ -17,10 +17,7 @@ import '../../widgets/provider/provider_card.dart';
 class ProviderListScreen extends StatefulWidget {
   final String? category;
 
-  const ProviderListScreen({
-    super.key,
-    this.category,
-  });
+  const ProviderListScreen({super.key, this.category});
 
   @override
   State<ProviderListScreen> createState() => _ProviderListScreenState();
@@ -173,7 +170,8 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
             color: active ? AppColors.primary : AppColors.surface,
             borderRadius: BorderRadius.circular(AppTheme.radiusPill),
             border: Border.all(
-                color: active ? AppColors.primary : AppColors.borderStrong),
+              color: active ? AppColors.primary : AppColors.borderStrong,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -182,8 +180,10 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
               const SizedBox(width: AppTheme.spacingS),
               Text(
                 label,
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: fg, fontWeight: FontWeight.w600),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -197,8 +197,9 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLarge)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusLarge),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -206,8 +207,12 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppTheme.spacingL,
-                  AppTheme.spacingL, AppTheme.spacingL, AppTheme.spacingS),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingL,
+                AppTheme.spacingL,
+                AppTheme.spacingL,
+                AppTheme.spacingS,
+              ),
               child: Text('Trier par', style: AppTextStyles.titleMedium),
             ),
             for (final option in ProviderSort.values)
@@ -245,8 +250,9 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
       final commune = provider.selectedCommune;
       return EmptyState(
         icon: Icons.search_off,
-        title:
-            commune != null ? 'Aucun salon à $commune' : 'Aucun salon trouvé',
+        title: commune != null
+            ? 'Aucun salon à $commune'
+            : 'Aucun salon trouvé',
         description: commune != null
             ? 'Essayez une autre commune ou élargissez la recherche.'
             : 'Essayez de modifier vos critères de recherche',

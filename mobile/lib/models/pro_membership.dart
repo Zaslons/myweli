@@ -36,23 +36,23 @@ const Set<String> _managerCaps = {
 /// The §2.2 preset matrix — used ONLY by the MOCK backend (the API always
 /// ships server-computed capabilities; clients never derive rights).
 Set<String> presetCapabilitiesFor(TeamRole role) => switch (role) {
-      TeamRole.owner => {
-          ..._managerCaps,
-          ProCap.financesView,
-          ProCap.depositManage,
-          ProCap.membersManage,
-          ProCap.subscriptionManage,
-          ProCap.salonPublish,
-        },
-      TeamRole.manager => _managerCaps,
-      TeamRole.reception => {
-          ProCap.journalViewAll,
-          ProCap.journalManageAll,
-          ..._ownCaps,
-          ProCap.clientsView,
-        },
-      TeamRole.staff => _ownCaps,
-    };
+  TeamRole.owner => {
+    ..._managerCaps,
+    ProCap.financesView,
+    ProCap.depositManage,
+    ProCap.membersManage,
+    ProCap.subscriptionManage,
+    ProCap.salonPublish,
+  },
+  TeamRole.manager => _managerCaps,
+  TeamRole.reception => {
+    ProCap.journalViewAll,
+    ProCap.journalManageAll,
+    ..._ownCaps,
+    ProCap.clientsView,
+  },
+  TeamRole.staff => _ownCaps,
+};
 
 /// The signed-in identity's membership in its acting salon — mirrors the
 /// `membership` block of GET /me/provider (team access R4a), with the salon
@@ -85,29 +85,35 @@ class ProMembership extends Equatable {
   String get roleLabel => teamRoleLabel(role);
 
   factory ProMembership.fromJson(Map<String, dynamic> json) => ProMembership(
-        role: TeamRole.values.firstWhere(
-          (e) => e.name == json['role'],
-          orElse: () => TeamRole.staff, // safe minimal fallback
-        ),
-        capabilities: ((json['capabilities'] as List?) ?? const [])
-            .cast<String>()
-            .toSet(),
-        artistId: json['artistId'] as String?,
-        artistName: json['artistName'] as String?,
-        salonId: json['salonId'] as String? ?? '',
-        salonName: json['salonName'] as String? ?? '',
-      );
+    role: TeamRole.values.firstWhere(
+      (e) => e.name == json['role'],
+      orElse: () => TeamRole.staff, // safe minimal fallback
+    ),
+    capabilities: ((json['capabilities'] as List?) ?? const [])
+        .cast<String>()
+        .toSet(),
+    artistId: json['artistId'] as String?,
+    artistName: json['artistName'] as String?,
+    salonId: json['salonId'] as String? ?? '',
+    salonName: json['salonName'] as String? ?? '',
+  );
 
   Map<String, dynamic> toJson() => {
-        'role': role.name,
-        'capabilities': capabilities.toList()..sort(),
-        'artistId': artistId,
-        'artistName': artistName,
-        'salonId': salonId,
-        'salonName': salonName,
-      };
+    'role': role.name,
+    'capabilities': capabilities.toList()..sort(),
+    'artistId': artistId,
+    'artistName': artistName,
+    'salonId': salonId,
+    'salonName': salonName,
+  };
 
   @override
-  List<Object?> get props =>
-      [role, capabilities, artistId, artistName, salonId, salonName];
+  List<Object?> get props => [
+    role,
+    capabilities,
+    artistId,
+    artistName,
+    salonId,
+    salonName,
+  ];
 }

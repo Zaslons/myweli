@@ -19,9 +19,7 @@ abstract class AppointmentServiceInterface {
 
   /// Upload a deposit-payment screenshot to **private** storage; returns the
   /// opaque object key to attach to a booking (no public URL).
-  Future<ApiResponse<String>> uploadDepositScreenshot({
-    required String source,
-  });
+  Future<ApiResponse<String>> uploadDepositScreenshot({required String source});
 
   /// Attach/replace the deposit screenshot on the caller's own pending booking
   /// (pay-later). Returns the updated appointment.

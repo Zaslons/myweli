@@ -53,8 +53,9 @@ void main() {
 
   for (final scale in [1.0, 2.0]) {
     for (final label in labels) {
-      testWidgets('« $label » fits a 360dp screen at ${scale}x',
-          (tester) async {
+      testWidgets('« $label » fits a 360dp screen at ${scale}x', (
+        tester,
+      ) async {
         await pumpAtWidth(
           tester,
           width: 360,
@@ -84,7 +85,8 @@ void main() {
         expect(
           para.size.width,
           lessThanOrEqualTo(button.width),
-          reason: '« $label » is ${para.size.width.toStringAsFixed(1)}dp wide '
+          reason:
+              '« $label » is ${para.size.width.toStringAsFixed(1)}dp wide '
               'inside a ${button.width.toStringAsFixed(1)}dp button, so it is '
               'painted outside the control. In debug that is a striped banner; '
               'in the release build users install, it is silently clipped.',
@@ -101,7 +103,8 @@ void main() {
         expect(
           para.overflow,
           isNot(TextOverflow.ellipsis),
-          reason: '« $label » is set to ellipsize. A control has to say what '
+          reason:
+              '« $label » is set to ellipsize. A control has to say what '
               'it does; §13.3 allows a control label to WRAP, not to be cut.',
         );
         expect(
@@ -141,12 +144,12 @@ void main() {
       text: TextSpan(text: 'Voir', style: p.text.style),
       textDirection: TextDirection.ltr,
       textScaler: p.textScaler,
-    )..layout())
-        .height;
+    )..layout()).height;
     expect(
       p.size.height,
       greaterThan(oneLine * 1.5),
-      reason: 'the label is ${p.size.height.toStringAsFixed(1)}dp tall and one '
+      reason:
+          'the label is ${p.size.height.toStringAsFixed(1)}dp tall and one '
           'line is ${oneLine.toStringAsFixed(1)} — so it rendered on a SINGLE '
           'line inside a 360dp screen at 200% text, where it needs 329dp of a '
           '~280dp box. That means it is being scaled down, not wrapped.',
@@ -174,7 +177,8 @@ void main() {
           body: Row(
             children: [
               const Expanded(
-                  child: AppButton(text: 'Rejoindre', onPressed: _noop)),
+                child: AppButton(text: 'Rejoindre', onPressed: _noop),
+              ),
               const SizedBox(width: AppTheme.spacingM),
               button,
             ],
@@ -182,8 +186,9 @@ void main() {
         ),
       );
 
-  testWidgets('an intrinsic-width button survives an unbounded slot',
-      (tester) async {
+  testWidgets('an intrinsic-width button survives an unbounded slot', (
+    tester,
+  ) async {
     // min + FlexFit.loose is what `isFullWidth: false` selects, and RenderFlex
     // permits exactly that under an unbounded main axis — it is the fix the
     // assertion text itself recommends. This is the InvitationCard shape as it
@@ -212,7 +217,8 @@ void main() {
     expect(
       row.right,
       lessThanOrEqualTo(360.0),
-      reason: 'the action row runs to ${row.right}dp on a 360dp screen — the '
+      reason:
+          'the action row runs to ${row.right}dp on a 360dp screen — the '
           'unbounded child took more than what was left',
     );
     expect(find.text('Refuser'), findsOneWidget);
@@ -229,8 +235,9 @@ void main() {
   // one offender was found, six red tests in `pro_invitations_screen_test.dart`
   // the moment the label became flexible. The rule is on `AppButton`'s doc.
 
-  testWidgets('an intrinsic-width button still shrink-wraps when it fits',
-      (tester) async {
+  testWidgets('an intrinsic-width button still shrink-wraps when it fits', (
+    tester,
+  ) async {
     // The regression `Flexible` could plausibly have caused: `isFullWidth:
     // false` means "be as wide as your label", and a flex child that took the
     // whole row would quietly turn every intrinsic button into a full-width one
@@ -252,7 +259,8 @@ void main() {
     expect(
       tester.getSize(find.byType(ElevatedButton)).width,
       lessThan(360 * 0.6),
-      reason: '« Réessayer » is one short word and its button should be short. '
+      reason:
+          '« Réessayer » is one short word and its button should be short. '
           'A full-width button here means Flexible is behaving like Expanded.',
     );
   });

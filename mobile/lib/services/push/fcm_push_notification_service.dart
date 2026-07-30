@@ -78,8 +78,11 @@ class FcmPushNotificationService implements PushNotificationServiceInterface {
     try {
       return _fcm.onTokenRefresh;
     } catch (e, s) {
-      AppLogger.error('Push: onTokenRefresh unavailable',
-          error: e, stackTrace: s);
+      AppLogger.error(
+        'Push: onTokenRefresh unavailable',
+        error: e,
+        stackTrace: s,
+      );
       return const Stream<String>.empty();
     }
   }

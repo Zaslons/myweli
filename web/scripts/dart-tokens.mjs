@@ -62,12 +62,28 @@ export function tokenCandidates(stripped) {
   )].map((m) => m[1]);
 }
 
-/** `static const Color name = Color(0xFFRRGGBB);` → { name: '#RRGGBB' } */
+/** `static const Color name = Color(0xFFRRGGBB);` → { name: '#RRGGBB' }
+ *
+ *  **The argument list may be split across lines, and that is not cosmetic.**
+ *  Dart's formatter picks its style from the package's LANGUAGE VERSION: below
+ *  3.7 it wraps after the `=`, at 3.7+ (the tall style) it breaks inside the
+ *  parens and adds a trailing comma —
+ *
+ *      static const Color secondary =        →   static const Color secondary = Color(
+ *          Color(0xFFD4AF37);                      0xFFD4AF37,
+ *                                                );
+ *
+ *  Raising `mobile/pubspec.yaml`'s floor to `^3.10.0` flipped 392 files into
+ *  that style and took six colours — `secondary`, `secondaryVariant`,
+ *  `surfaceVariant`, `divider`, `success`, `favorite` — out of this regex's
+ *  reach in one commit. **The candidate self-check caught it** (red, named all
+ *  six) rather than letting them silently stop crossing, which is drift
+ *  #1/#2/#6's exact mechanism and the reason that check exists. */
 export function parseColors(src) {
   const stripped = stripDartComments(src);
   const parsed = {};
   for (const m of stripped.matchAll(
-    /static const Color (\w+) =\s*Color\(0xFF([0-9A-Fa-f]{6})\);/g,
+    /static const Color (\w+) =\s*Color\(\s*0xFF([0-9A-Fa-f]{6}),?\s*\);/g,
   )) {
     parsed[m[1]] = `#${m[2].toUpperCase()}`;
   }
@@ -95,8 +111,11 @@ export function parseDoubles(src) {
 export function parseMotion(src) {
   const stripped = stripDartComments(src);
   const durations = {};
+  // Tolerant of the tall style for the same reason `parseColors` is — identical
+  // `Constructor(args);` shape, and whether it splits depends only on how long
+  // the line happens to be. These have not split yet; one rename is all it takes.
   for (const m of stripped.matchAll(
-    /static const Duration (\w+) =\s*Duration\(milliseconds: (\d+)\);/g,
+    /static const Duration (\w+) =\s*Duration\(\s*milliseconds:\s*(\d+),?\s*\);/g,
   )) {
     durations[m[1]] = Number(m[2]);
   }

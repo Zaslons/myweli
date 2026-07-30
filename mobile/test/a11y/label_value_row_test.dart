@@ -51,77 +51,77 @@ void main() {
   /// never renders.
   final pairs =
       <String, ({String label, String value, TextStyle? l, TextStyle? v})>{
-    // booking confirmation — the screen immediately before payment
-    'Total (range)': (
-      label: 'Total',
-      value: 'À partir de 25 000 FCFA',
-      l: AppTextStyles.bodyMedium,
-      v: null,
-    ),
-    'Acompte': (
-      label: 'Acompte (30%)',
-      value: '7 500 FCFA',
-      l: AppTextStyles.titleMedium,
-      v: AppTextStyles.titleLarge,
-    ),
-    'Solde': (
-      label: 'Solde à régler au salon',
-      value: '17 500 FCFA',
-      l: AppTextStyles.bodySmall,
-      v: null,
-    ),
-    // the booking hub's pinned summary bar
-    'hub Total': (
-      label: 'Total',
-      value: '25 000 FCFA',
-      l: AppTextStyles.titleMedium,
-      v: AppTextStyles.titleLarge,
-    ),
-    // deposit settings — the worst of the set at ~150dp over
-    'Acompte payé en ligne': (
-      label: 'Acompte payé en ligne',
-      value: '6 000 FCFA',
-      l: null,
-      v: AppTextStyles.bodyMedium,
-    ),
-    'Pourcentage': (
-      label: 'Pourcentage de l’acompte',
-      value: '30 %',
-      l: null,
-      v: AppTextStyles.titleMedium,
-    ),
-    'Solde au salon': (
-      label: 'Solde au salon',
-      value: '14 000 FCFA',
-      l: AppTextStyles.bodySmall,
-      v: null,
-    ),
-    // The four the first table missed.
-    'confirmation service': (
-      label: 'Tissage',
-      value: 'À partir de 15 000 FCFA',
-      l: AppTextStyles.bodyMedium,
-      v: AppTextStyles.bodyMedium,
-    ),
-    'manual booking Total': (
-      label: 'Total',
-      value: '25 000 FCFA',
-      l: AppTextStyles.bodyMedium,
-      v: AppTextStyles.titleMedium,
-    ),
-    'export count': (
-      label: 'Rendez-vous',
-      value: '128',
-      l: null,
-      v: AppTextStyles.bodyMedium,
-    ),
-    'appointment card Total:': (
-      label: 'Total:',
-      value: '15 000 FCFA',
-      l: AppTextStyles.bodyMedium,
-      v: AppTextStyles.titleMedium,
-    ),
-  };
+        // booking confirmation — the screen immediately before payment
+        'Total (range)': (
+          label: 'Total',
+          value: 'À partir de 25 000 FCFA',
+          l: AppTextStyles.bodyMedium,
+          v: null,
+        ),
+        'Acompte': (
+          label: 'Acompte (30%)',
+          value: '7 500 FCFA',
+          l: AppTextStyles.titleMedium,
+          v: AppTextStyles.titleLarge,
+        ),
+        'Solde': (
+          label: 'Solde à régler au salon',
+          value: '17 500 FCFA',
+          l: AppTextStyles.bodySmall,
+          v: null,
+        ),
+        // the booking hub's pinned summary bar
+        'hub Total': (
+          label: 'Total',
+          value: '25 000 FCFA',
+          l: AppTextStyles.titleMedium,
+          v: AppTextStyles.titleLarge,
+        ),
+        // deposit settings — the worst of the set at ~150dp over
+        'Acompte payé en ligne': (
+          label: 'Acompte payé en ligne',
+          value: '6 000 FCFA',
+          l: null,
+          v: AppTextStyles.bodyMedium,
+        ),
+        'Pourcentage': (
+          label: 'Pourcentage de l’acompte',
+          value: '30 %',
+          l: null,
+          v: AppTextStyles.titleMedium,
+        ),
+        'Solde au salon': (
+          label: 'Solde au salon',
+          value: '14 000 FCFA',
+          l: AppTextStyles.bodySmall,
+          v: null,
+        ),
+        // The four the first table missed.
+        'confirmation service': (
+          label: 'Tissage',
+          value: 'À partir de 15 000 FCFA',
+          l: AppTextStyles.bodyMedium,
+          v: AppTextStyles.bodyMedium,
+        ),
+        'manual booking Total': (
+          label: 'Total',
+          value: '25 000 FCFA',
+          l: AppTextStyles.bodyMedium,
+          v: AppTextStyles.titleMedium,
+        ),
+        'export count': (
+          label: 'Rendez-vous',
+          value: '128',
+          l: null,
+          v: AppTextStyles.bodyMedium,
+        ),
+        'appointment card Total:': (
+          label: 'Total:',
+          value: '15 000 FCFA',
+          l: AppTextStyles.bodyMedium,
+          v: AppTextStyles.titleMedium,
+        ),
+      };
 
   for (final width in [360.0, 375.0, 390.0]) {
     for (final scale in [1.0, 2.0]) {

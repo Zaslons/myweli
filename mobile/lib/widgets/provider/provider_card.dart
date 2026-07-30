@@ -40,11 +40,8 @@ class ProviderCard extends StatelessWidget {
   /// and the compact branch in [_buildGridCard] all have to agree on. They did
   /// not, and the card overflowed by 54dp inside a box this same file had
   /// measured for it — see the branch's own comment.
-  static double _textBlock(BuildContext context) => AppTheme.textScaledBound(
-        context,
-        constant: 0,
-        text: _textBlockHeight,
-      );
+  static double _textBlock(BuildContext context) =>
+      AppTheme.textScaledBound(context, constant: 0, text: _textBlockHeight);
 
   /// The height a horizontal carousel must give a grid card at the current OS
   /// text scale. Callers used to hard-code `280`, which clipped the card's text
@@ -124,7 +121,8 @@ class ProviderCard extends StatelessWidget {
           onTap: onTap,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final hasBoundedHeight = constraints.hasBoundedHeight &&
+              final hasBoundedHeight =
+                  constraints.hasBoundedHeight &&
                   constraints.maxHeight != double.infinity;
               // Unbounded → the card has all the room there is, so it is the
               // roomy layout by definition. This was a bare `280.0`, which is
@@ -147,19 +145,23 @@ class ProviderCard extends StatelessWidget {
               // ≈1.95×, and 54 in the gate at 2×. A constant that gates a
               // text-dependent branch has to move with the text (§13.3).
               final compact = maxH < carouselHeight(context);
-              final contentPadding =
-                  compact ? AppTheme.spacingS : AppTheme.spacingM;
+              final contentPadding = compact
+                  ? AppTheme.spacingS
+                  : AppTheme.spacingM;
               // Compact means the PICTURE absorbs the shorter box, because the
               // text block is the part that cannot shrink — so the image takes
               // what is LEFT, not a fraction of the total. `(maxH * 0.56)` was
               // the same mistake one layer down: a height derived from
               // something that does not track the font.
               final imageHeight = compact
-                  ? (maxH - contentPadding * 2 - textBlock)
-                      .clamp(_compactImageFloor, _imageHeight)
+                  ? (maxH - contentPadding * 2 - textBlock).clamp(
+                      _compactImageFloor,
+                      _imageHeight,
+                    )
                   : _imageHeight;
 
-              final hasBoundedWidth = constraints.hasBoundedWidth &&
+              final hasBoundedWidth =
+                  constraints.hasBoundedWidth &&
                   constraints.maxWidth != double.infinity;
               // Horizontal carousels often provide an unbounded width; in that case,
               // keep a fixed width so layout constraints stay valid.
@@ -203,12 +205,16 @@ class ProviderCard extends StatelessWidget {
                               behavior: HitTestBehavior.opaque,
                               onTap: () async {
                                 if (!authProvider.isAuthenticated) {
-                                  AppSnackBar.show(context,
-                                      'Connectez-vous pour ajouter aux favoris');
-                                  final currentPath =
-                                      GoRouterState.of(context).uri.toString();
+                                  AppSnackBar.show(
+                                    context,
+                                    'Connectez-vous pour ajouter aux favoris',
+                                  );
+                                  final currentPath = GoRouterState.of(
+                                    context,
+                                  ).uri.toString();
                                   context.go(
-                                      '/login?returnTo=${Uri.encodeComponent(currentPath)}');
+                                    '/login?returnTo=${Uri.encodeComponent(currentPath)}',
+                                  );
                                   return;
                                 }
 
@@ -223,7 +229,8 @@ class ProviderCard extends StatelessWidget {
                                   success: isFavorite
                                       ? 'Retiré des favoris'
                                       : 'Ajouté aux favoris',
-                                  error: favoritesProvider.error ??
+                                  error:
+                                      favoritesProvider.error ??
                                       'Une erreur est survenue. Réessayez.',
                                   action: !ok
                                       ? null
@@ -231,7 +238,9 @@ class ProviderCard extends StatelessWidget {
                                           label: 'Annuler',
                                           onPressed: () =>
                                               favoritesProvider.toggleFavorite(
-                                                  userId, provider.id),
+                                                userId,
+                                                provider.id,
+                                              ),
                                           isOnlyRouteBack: false,
                                         ),
                                 );
@@ -244,11 +253,13 @@ class ProviderCard extends StatelessWidget {
                                 child: Align(
                                   alignment: Alignment.topRight,
                                   child: Container(
-                                    padding:
-                                        const EdgeInsets.all(AppTheme.spacingS),
+                                    padding: const EdgeInsets.all(
+                                      AppTheme.spacingS,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.secondary
-                                          .withValues(alpha: 0.9),
+                                      color: AppColors.secondary.withValues(
+                                        alpha: 0.9,
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
@@ -299,9 +310,11 @@ class ProviderCard extends StatelessWidget {
                           const SizedBox(height: AppTheme.spacingXS),
                           Row(
                             children: [
-                              const Icon(Icons.star,
-                                  size: AppTheme.iconXS,
-                                  color: AppColors.starRating),
+                              const Icon(
+                                Icons.star,
+                                size: AppTheme.iconXS,
+                                color: AppColors.starRating,
+                              ),
                               const SizedBox(width: AppTheme.spacingXS),
                               Text(
                                 provider.rating.toStringAsFixed(1),
@@ -321,9 +334,11 @@ class ProviderCard extends StatelessWidget {
                           const SizedBox(height: AppTheme.spacingXS),
                           Row(
                             children: [
-                              const Icon(Icons.location_on,
-                                  size: AppTheme.iconXS,
-                                  color: AppColors.textTertiary),
+                              const Icon(
+                                Icons.location_on,
+                                size: AppTheme.iconXS,
+                                color: AppColors.textTertiary,
+                              ),
                               const SizedBox(width: AppTheme.spacingXS),
                               Expanded(
                                 child: Text(
@@ -397,12 +412,16 @@ class ProviderCard extends StatelessWidget {
                           behavior: HitTestBehavior.opaque,
                           onTap: () async {
                             if (!authProvider.isAuthenticated) {
-                              AppSnackBar.show(context,
-                                  'Connectez-vous pour ajouter aux favoris');
-                              final currentPath =
-                                  GoRouterState.of(context).uri.toString();
+                              AppSnackBar.show(
+                                context,
+                                'Connectez-vous pour ajouter aux favoris',
+                              );
+                              final currentPath = GoRouterState.of(
+                                context,
+                              ).uri.toString();
                               context.go(
-                                  '/login?returnTo=${Uri.encodeComponent(currentPath)}');
+                                '/login?returnTo=${Uri.encodeComponent(currentPath)}',
+                              );
                               return;
                             }
 
@@ -410,14 +429,17 @@ class ProviderCard extends StatelessWidget {
                             // The toggle can fail — a green snackbar on a failed
                             // toggle would also arm an « Annuler » that performs it.
                             final ok = await favoritesProvider.toggleFavorite(
-                                userId, provider.id);
+                              userId,
+                              provider.id,
+                            );
                             AppSnackBar.outcomeOn(
                               messenger,
                               ok: ok,
                               success: isFavorite
                                   ? 'Retiré des favoris'
                                   : 'Ajouté aux favoris',
-                              error: favoritesProvider.error ??
+                              error:
+                                  favoritesProvider.error ??
                                   'Une erreur est survenue. Réessayez.',
                               action: !ok
                                   ? null
@@ -437,11 +459,13 @@ class ProviderCard extends StatelessWidget {
                             child: Align(
                               alignment: Alignment.topRight,
                               child: Container(
-                                padding:
-                                    const EdgeInsets.all(AppTheme.spacingXS),
+                                padding: const EdgeInsets.all(
+                                  AppTheme.spacingXS,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary
-                                      .withValues(alpha: 0.9),
+                                  color: AppColors.secondary.withValues(
+                                    alpha: 0.9,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -478,9 +502,11 @@ class ProviderCard extends StatelessWidget {
                         const SizedBox(height: AppTheme.spacingXS),
                         Row(
                           children: [
-                            const Icon(Icons.star,
-                                size: AppTheme.iconXS,
-                                color: AppColors.starRating),
+                            const Icon(
+                              Icons.star,
+                              size: AppTheme.iconXS,
+                              color: AppColors.starRating,
+                            ),
                             const SizedBox(width: AppTheme.spacingXS),
                             Text(
                               provider.rating.toStringAsFixed(1),
@@ -500,9 +526,11 @@ class ProviderCard extends StatelessWidget {
                         const SizedBox(height: AppTheme.spacingXS),
                         Row(
                           children: [
-                            const Icon(Icons.location_on,
-                                size: AppTheme.iconXS,
-                                color: AppColors.textTertiary),
+                            const Icon(
+                              Icons.location_on,
+                              size: AppTheme.iconXS,
+                              color: AppColors.textTertiary,
+                            ),
                             const SizedBox(width: AppTheme.spacingXS),
                             Expanded(
                               child: Text(

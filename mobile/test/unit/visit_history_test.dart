@@ -10,17 +10,16 @@ void main() {
     required DateTime date,
     AppointmentStatus status = AppointmentStatus.confirmed,
     double total = 20000,
-  }) =>
-      Appointment(
-        id: id,
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: date,
-        status: status,
-        totalPrice: total,
-        createdAt: DateTime(2026),
-      );
+  }) => Appointment(
+    id: id,
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    appointmentDate: date,
+    status: status,
+    totalPrice: total,
+    createdAt: DateTime(2026),
+  );
 
   group('effectiveAppointmentStatus', () {
     test('cancelled stays cancelled, even in the future', () {

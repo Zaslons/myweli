@@ -136,19 +136,30 @@ void main() {
 
           if (name == 'the combined picker') {
             // C: it opens on the DATE step, so the month is the anchor.
-            expect(find.text('mars 2026'), findsOneWidget,
-                reason: 'C: the combined picker is not showing its date step '
-                    'at $at, so every assertion below is about nothing');
+            expect(
+              find.text('mars 2026'),
+              findsOneWidget,
+              reason:
+                  'C: the combined picker is not showing its date step '
+                  'at $at, so every assertion below is about nothing',
+            );
             // **The defect the goldens found and this file used to miss.**
             // « 11/03/2026 » has no space to break at, so a chip too narrow
             // for it splits the number itself.
             expectNoMidWordBreak(tester, '11/03/2026', at);
           } else {
-            expect(find.text('Heures'), findsOneWidget,
-                reason: 'C: $name is not on screen at $at, so every assertion '
-                    'below would be about nothing');
-            expectTokensWhole(tester,
-                name == 'the range picker' ? rangeTokens : leafTokens, at);
+            expect(
+              find.text('Heures'),
+              findsOneWidget,
+              reason:
+                  'C: $name is not on screen at $at, so every assertion '
+                  'below would be about nothing',
+            );
+            expectTokensWhole(
+              tester,
+              name == 'the range picker' ? rangeTokens : leafTokens,
+              at,
+            );
           }
 
           if (name == 'the range picker') {

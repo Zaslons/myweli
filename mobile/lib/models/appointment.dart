@@ -1,12 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum AppointmentStatus {
-  pending,
-  confirmed,
-  cancelled,
-  completed,
-  noShow,
-}
+enum AppointmentStatus { pending, confirmed, cancelled, completed, noShow }
 
 class Appointment extends Equatable {
   final String id;
@@ -96,31 +90,31 @@ class Appointment extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        userId,
-        providerId,
-        serviceIds,
-        artistId,
-        appointmentDate,
-        status,
-        totalPrice,
-        depositAmount,
-        balanceDue,
-        cancellationWindowHours,
-        clientName,
-        clientDisplayName,
-        clientPhone,
-        notes,
-        depositScreenshotUrl,
-        createdAt,
-        salonClientId,
-        clientNoShowCount,
-        arrivedAt,
-        durationMinutes,
-        currency,
-        providerTimezone,
-        providerCurrency,
-      ];
+    id,
+    userId,
+    providerId,
+    serviceIds,
+    artistId,
+    appointmentDate,
+    status,
+    totalPrice,
+    depositAmount,
+    balanceDue,
+    cancellationWindowHours,
+    clientName,
+    clientDisplayName,
+    clientPhone,
+    notes,
+    depositScreenshotUrl,
+    createdAt,
+    salonClientId,
+    clientNoShowCount,
+    arrivedAt,
+    durationMinutes,
+    currency,
+    providerTimezone,
+    providerCurrency,
+  ];
 
   Appointment copyWith({
     String? id,

@@ -17,9 +17,7 @@ class BookingJournalScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Journal de réservation'),
-      ),
+      appBar: AppBar(title: const Text('Journal de réservation')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
@@ -226,8 +224,11 @@ class _AppointmentCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.person_outline,
-                        size: 14, color: AppColors.textTertiary),
+                    const Icon(
+                      Icons.person_outline,
+                      size: 14,
+                      color: AppColors.textTertiary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       artist,
@@ -242,9 +243,7 @@ class _AppointmentCard extends StatelessWidget {
           ),
           Text(
             time,
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.primary,
-            ),
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.primary),
           ),
         ],
       ),

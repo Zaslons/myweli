@@ -74,8 +74,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final ok = await authProvider.uploadAvatar(source);
     if (!mounted) return;
     if (!ok) {
-      AppSnackBar.show(context, authProvider.error ?? 'Échec de l’envoi',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        authProvider.error ?? 'Échec de l’envoi',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -106,8 +109,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       AppSnackBar.show(context, 'Profil mis à jour', kind: SnackKind.success);
     } else {
       AppSnackBar.show(
-          context, authProvider.error ?? 'Erreur lors de la mise à jour',
-          kind: SnackKind.error);
+        context,
+        authProvider.error ?? 'Erreur lors de la mise à jour',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -115,9 +120,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Modifier le profil'),
-      ),
+      appBar: AppBar(title: const Text('Modifier le profil')),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;
@@ -138,7 +141,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   AppButton(
                     text: 'Se connecter',
                     onPressed: () => context.go(
-                        '/login?returnTo=${Uri.encodeComponent('/profile/edit')}'),
+                      '/login?returnTo=${Uri.encodeComponent('/profile/edit')}',
+                    ),
                     isFullWidth: false,
                   ),
                 ],
@@ -161,9 +165,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             radius: 44,
                             backgroundColor: AppColors.surface,
                             child: user.avatarUrl == null
-                                ? const Icon(Icons.person_outline,
+                                ? const Icon(
+                                    Icons.person_outline,
                                     size: AppTheme.iconL,
-                                    color: AppColors.textSecondary)
+                                    color: AppColors.textSecondary,
+                                  )
                                 : ClipOval(
                                     child: TimedCachedImage(
                                       imageUrl: user.avatarUrl!,
@@ -182,9 +188,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   width: 26,
                                   height: 26,
                                   child: BrandLoader(
-                                      size: AppTheme.iconS,
-                                      fast: true,
-                                      onDark: true),
+                                    size: AppTheme.iconS,
+                                    fast: true,
+                                    onDark: true,
+                                  ),
                                 ),
                               ),
                             ),
@@ -194,9 +201,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         onPressed: authProvider.isUploadingAvatar
                             ? null
                             : () => _pickAvatar(authProvider),
-                        child: Text(user.avatarUrl == null
-                            ? 'Ajouter une photo'
-                            : 'Changer la photo'),
+                        child: Text(
+                          user.avatarUrl == null
+                              ? 'Ajouter une photo'
+                              : 'Changer la photo',
+                        ),
                       ),
                     ],
                   ),

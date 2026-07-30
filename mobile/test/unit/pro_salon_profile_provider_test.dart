@@ -52,14 +52,16 @@ void main() {
   });
 
   test('load populates the listing; failure surfaces the error', () async {
-    when(() => providers.getProviderById('p1'))
-        .thenAnswer((_) async => ApiResponse.success(salon));
+    when(
+      () => providers.getProviderById('p1'),
+    ).thenAnswer((_) async => ApiResponse.success(salon));
     final p = ProSalonProfileProvider();
     await p.load('p1');
     expect(p.provider?.name, 'Salon Awa');
 
-    when(() => providers.getProviderById('p1'))
-        .thenAnswer((_) async => ApiResponse.error('boom'));
+    when(
+      () => providers.getProviderById('p1'),
+    ).thenAnswer((_) async => ApiResponse.error('boom'));
     await p.load('p1');
     expect(p.provider, isNull);
     expect(p.error, 'boom');
@@ -67,23 +69,25 @@ void main() {
 
   test('save sends the changes and refreshes the listing', () async {
     final updated = salon.copyWith(latitude: 5.36, longitude: -3.99);
-    when(() => pro.updateSalonProfile('p1', any()))
-        .thenAnswer((_) async => ApiResponse.success(updated));
+    when(
+      () => pro.updateSalonProfile('p1', any()),
+    ).thenAnswer((_) async => ApiResponse.success(updated));
 
     final p = ProSalonProfileProvider();
     final ok = await p.save('p1', {'latitude': 5.36, 'longitude': -3.99});
     expect(ok, isTrue);
     expect(p.provider?.latitude, 5.36);
     expect(p.isSaving, isFalse);
-    verify(() => pro.updateSalonProfile('p1', {
-          'latitude': 5.36,
-          'longitude': -3.99,
-        })).called(1);
+    verify(
+      () =>
+          pro.updateSalonProfile('p1', {'latitude': 5.36, 'longitude': -3.99}),
+    ).called(1);
   });
 
   test('a rejected save keeps the error visible', () async {
-    when(() => pro.updateSalonProfile('p1', any()))
-        .thenAnswer((_) async => ApiResponse.error('Numéro invalide'));
+    when(
+      () => pro.updateSalonProfile('p1', any()),
+    ).thenAnswer((_) async => ApiResponse.error('Numéro invalide'));
     final p = ProSalonProfileProvider();
     expect(await p.save('p1', {'phoneNumber': 'abc'}), isFalse);
     expect(p.error, 'Numéro invalide');

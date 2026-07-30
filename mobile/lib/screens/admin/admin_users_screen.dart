@@ -43,12 +43,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       reasonRequired: false,
     );
     if (reason == null || !mounted) return;
-    await _run(() => context.read<AdminUsersProvider>().ban(id, reason),
-        'Client banni');
+    await _run(
+      () => context.read<AdminUsersProvider>().ban(id, reason),
+      'Client banni',
+    );
   }
 
   Future<void> _unban(String id) => _run(
-      () => context.read<AdminUsersProvider>().unban(id), 'Client réactivé');
+    () => context.read<AdminUsersProvider>().unban(id),
+    'Client réactivé',
+  );
 
   Future<void> _run(Future<bool> Function() action, String okMsg) async {
     final p = context.read<AdminUsersProvider>();
@@ -103,15 +107,21 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   AdminRow(
                     onTap: () => context.push('/admin/users/${r['id']}'),
                     cells: [
-                      Text('${r['name'] ?? 'Client'}',
-                          style: AppTextStyles.bodyMedium),
-                      Text('${r['phoneNumber'] ?? '—'}',
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: AppColors.textSecondary)),
+                      Text(
+                        '${r['name'] ?? 'Client'}',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                      Text(
+                        '${r['phoneNumber'] ?? '—'}',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child:
-                            StatusChip.forStatus('${r['status'] ?? 'active'}'),
+                        child: StatusChip.forStatus(
+                          '${r['status'] ?? 'active'}',
+                        ),
                       ),
                       _action(r, p.acting),
                     ],

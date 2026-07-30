@@ -54,8 +54,10 @@ class _EarningsScreenState extends State<EarningsScreen>
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
     if (!authProvider.isAuthenticated || authProvider.provider == null) return;
 
-    final earningsProvider =
-        Provider.of<ProEarningsProvider>(context, listen: false);
+    final earningsProvider = Provider.of<ProEarningsProvider>(
+      context,
+      listen: false,
+    );
     // Period buckets on the ACTIVE SALON's days (salon_time.dart, MP2):
     // bounds are UTC instants of the salon's midnights.
     final tz = authProvider.salonTimezone;
@@ -72,10 +74,18 @@ class _EarningsScreenState extends State<EarningsScreen>
         break;
       case 1: // Week (Monday-start)
         final monday = today.subtract(Duration(days: today.weekday - 1));
-        startDate =
-            salonWallClockToUtc(monday.year, monday.month, monday.day, tz: tz);
-        endDate = salonWallClockToUtc(monday.year, monday.month, monday.day + 7,
-            tz: tz);
+        startDate = salonWallClockToUtc(
+          monday.year,
+          monday.month,
+          monday.day,
+          tz: tz,
+        );
+        endDate = salonWallClockToUtc(
+          monday.year,
+          monday.month,
+          monday.day + 7,
+          tz: tz,
+        );
         break;
       case 2: // Month
         startDate = salonWallClockToUtc(today.year, today.month, 1, tz: tz);
@@ -148,8 +158,9 @@ class _EarningsScreenState extends State<EarningsScreen>
             return Center(
               child: Text(
                 earningsProvider.error ?? 'Aucune donnée disponible',
-                style: AppTextStyles.bodyLarge
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             );
           }
@@ -172,8 +183,9 @@ class _EarningsScreenState extends State<EarningsScreen>
                   children: [
                     Text(
                       'Total',
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(color: AppColors.textSecondary),
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: AppTheme.spacingS),
                     Text(
@@ -182,8 +194,9 @@ class _EarningsScreenState extends State<EarningsScreen>
                         currency:
                             earnings.currency ?? authProvider.salonCurrency,
                       ),
-                      style: AppTextStyles.headlineLarge
-                          .copyWith(color: AppColors.primary),
+                      style: AppTextStyles.headlineLarge.copyWith(
+                        color: AppColors.primary,
+                      ),
                     ),
                   ],
                 ),
@@ -210,19 +223,27 @@ class _EarningsScreenState extends State<EarningsScreen>
                           final transaction = earnings.transactions[index];
                           return Card(
                             margin: const EdgeInsets.only(
-                                bottom: AppTheme.spacingM),
+                              bottom: AppTheme.spacingM,
+                            ),
                             child: ListTile(
-                              title: Text(Formatters.formatDateTime(toSalonTime(
-                                  transaction.date,
-                                  tz: authProvider.salonTimezone))),
+                              title: Text(
+                                Formatters.formatDateTime(
+                                  toSalonTime(
+                                    transaction.date,
+                                    tz: authProvider.salonTimezone,
+                                  ),
+                                ),
+                              ),
                               trailing: Text(
                                 Formatters.formatCurrency(
                                   transaction.amount,
-                                  currency: earnings.currency ??
+                                  currency:
+                                      earnings.currency ??
                                       authProvider.salonCurrency,
                                 ),
-                                style: AppTextStyles.titleMedium
-                                    .copyWith(color: AppColors.primary),
+                                style: AppTextStyles.titleMedium.copyWith(
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
                           );

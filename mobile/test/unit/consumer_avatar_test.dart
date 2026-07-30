@@ -45,14 +45,19 @@ void main() {
     setUp(() {
       reset(auth);
       when(() => auth.getCurrentUser()).thenAnswer((_) async => baseUser);
-      when(() => auth.updateUser(
-            name: any(named: 'name'),
-            email: any(named: 'email'),
-            avatarUrl: any(named: 'avatarUrl'),
-          )).thenAnswer((inv) async => ApiResponse.success(
-            baseUser.copyWith(
-                avatarUrl: inv.namedArguments[#avatarUrl] as String?),
-          ));
+      when(
+        () => auth.updateUser(
+          name: any(named: 'name'),
+          email: any(named: 'email'),
+          avatarUrl: any(named: 'avatarUrl'),
+        ),
+      ).thenAnswer(
+        (inv) async => ApiResponse.success(
+          baseUser.copyWith(
+            avatarUrl: inv.namedArguments[#avatarUrl] as String?,
+          ),
+        ),
+      );
     });
 
     test('uploads then saves the URL on the user', () async {

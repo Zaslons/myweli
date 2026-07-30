@@ -75,12 +75,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
         // Show a message that they need to sign in
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          AppSnackBar.show(context,
-              'Veuillez vous connecter pour confirmer votre réservation');
+          AppSnackBar.show(
+            context,
+            'Veuillez vous connecter pour confirmer votre réservation',
+          );
         });
 
-        context
-            .go('/login?returnTo=${Uri.encodeComponent(returnUrl.toString())}');
+        context.go(
+          '/login?returnTo=${Uri.encodeComponent(returnUrl.toString())}',
+        );
         return;
       }
 
@@ -103,13 +106,13 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     final salon = context.read<ProviderProvider>().selectedProvider;
     unawaited(
       context.read<MessagingProvider>().sendBookingConfirmation(
-            recipientPhone: phone,
-            providerName: salon?.name ?? 'le salon',
-            dateTime: widget.appointmentDateTime,
-            depositAmount: depositAmount,
-            tz: salon?.timezone,
-            currency: salon?.currency,
-          ),
+        recipientPhone: phone,
+        providerName: salon?.name ?? 'le salon',
+        dateTime: widget.appointmentDateTime,
+        depositAmount: depositAmount,
+        tz: salon?.timezone,
+        currency: salon?.currency,
+      ),
     );
   }
 
@@ -149,15 +152,19 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       if (!mounted) return;
       context.go('/bookings');
       AppSnackBar.show(
-          context, 'Acompte envoyé · en attente de confirmation du salon',
-          kind: SnackKind.success);
+        context,
+        'Acompte envoyé · en attente de confirmation du salon',
+        kind: SnackKind.success,
+      );
       return;
     }
 
     // No deposit required → book directly (provider will confirm).
     setState(() => _isLoading = true);
-    final appointmentProvider =
-        Provider.of<AppointmentProvider>(context, listen: false);
+    final appointmentProvider = Provider.of<AppointmentProvider>(
+      context,
+      listen: false,
+    );
     final success = await appointmentProvider.bookAppointment(
       providerId: widget.providerId,
       serviceIds: widget.serviceIds,
@@ -175,12 +182,16 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       if (!mounted) return;
       context.go('/bookings');
       AppSnackBar.show(
-          context, 'Réservation envoyée · en attente de confirmation du salon',
-          kind: SnackKind.success);
+        context,
+        'Réservation envoyée · en attente de confirmation du salon',
+        kind: SnackKind.success,
+      );
     } else {
       AppSnackBar.show(
-          context, appointmentProvider.error ?? 'Erreur lors de la réservation',
-          kind: SnackKind.error);
+        context,
+        appointmentProvider.error ?? 'Erreur lors de la réservation',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -188,9 +199,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Confirmer'),
-      ),
+      appBar: AppBar(title: const Text('Confirmer')),
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
           final p = provider.selectedProvider;
@@ -229,8 +238,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       // Provider
                       Row(
                         children: [
-                          const Icon(Icons.store,
-                              color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.store,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: AppTheme.spacingS),
                           Expanded(
                             child: Text(
@@ -242,36 +253,41 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       ),
                       const Divider(height: 24),
                       // Services
-                      ...selectedServices.map((service) => Padding(
-                            padding: const EdgeInsets.only(
-                                bottom: AppTheme.spacingS),
-                            // A12, found by the adversarial review after the
-                            // money rows below had already become
-                            // `LabelValueRow`s. **The static sweep could not
-                            // have found this one** — it has a flexed child, so
-                            // it is not the "Row with ≥2 unflexed Text" shape
-                            // the census counted; it is the crush, and the spec
-                            // says in writing that the crush is not statically
-                            // decidable. What it needed was a gate on this
-                            // screen, and A12 argued its way out of one.
-                            //
-                            // For a service with a `priceMax` the value is a
-                            // RANGE — « À partir de 15 000 FCFA » — which is
-                            // wide enough that `Expanded` hands the name 0dp
-                            // and the price still runs over: **81px at 360×2×**,
-                            // 66 at 375, 51 at 390, on the screen immediately
-                            // before payment.
-                            child: LabelValueRow(
-                              label: service.name,
-                              value: Formatters.formatPriceRange(
-                                  service.price, service.priceMax,
-                                  currency: p.currency),
-                              labelStyle: AppTextStyles.bodyMedium,
-                              valueStyle: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                      ...selectedServices.map(
+                        (service) => Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: AppTheme.spacingS,
+                          ),
+                          // A12, found by the adversarial review after the
+                          // money rows below had already become
+                          // `LabelValueRow`s. **The static sweep could not
+                          // have found this one** — it has a flexed child, so
+                          // it is not the "Row with ≥2 unflexed Text" shape
+                          // the census counted; it is the crush, and the spec
+                          // says in writing that the crush is not statically
+                          // decidable. What it needed was a gate on this
+                          // screen, and A12 argued its way out of one.
+                          //
+                          // For a service with a `priceMax` the value is a
+                          // RANGE — « À partir de 15 000 FCFA » — which is
+                          // wide enough that `Expanded` hands the name 0dp
+                          // and the price still runs over: **81px at 360×2×**,
+                          // 66 at 375, 51 at 390, on the screen immediately
+                          // before payment.
+                          child: LabelValueRow(
+                            label: service.name,
+                            value: Formatters.formatPriceRange(
+                              service.price,
+                              service.priceMax,
+                              currency: p.currency,
                             ),
-                          )),
+                            labelStyle: AppTextStyles.bodyMedium,
+                            valueStyle: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
                       // Artist
                       if (widget.artistId != null) ...[
                         const Divider(height: 24),
@@ -283,9 +299,11 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                             );
                             return Row(
                               children: [
-                                const Icon(Icons.person,
-                                    size: AppTheme.iconXS,
-                                    color: AppColors.textSecondary),
+                                const Icon(
+                                  Icons.person,
+                                  size: AppTheme.iconXS,
+                                  color: AppColors.textSecondary,
+                                ),
                                 const SizedBox(width: AppTheme.spacingS),
                                 Expanded(
                                   child: Text(
@@ -302,14 +320,19 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       // Date & Time
                       Row(
                         children: [
-                          const Icon(Icons.calendar_today,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.calendar_today,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: AppTheme.spacingS),
                           Text(
-                            Formatters.formatDateShort(toSalonTime(
+                            Formatters.formatDateShort(
+                              toSalonTime(
                                 widget.appointmentDateTime,
-                                tz: p.timezone)),
+                                tz: p.timezone,
+                              ),
+                            ),
                             style: AppTextStyles.bodyMedium,
                           ),
                         ],
@@ -317,14 +340,19 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       const SizedBox(height: AppTheme.spacingS),
                       Row(
                         children: [
-                          const Icon(Icons.access_time,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.access_time,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: AppTheme.spacingS),
                           Text(
-                            Formatters.formatTime(toSalonTime(
+                            Formatters.formatTime(
+                              toSalonTime(
                                 widget.appointmentDateTime,
-                                tz: p.timezone)),
+                                tz: p.timezone,
+                              ),
+                            ),
                             style: AppTextStyles.bodyMedium,
                           ),
                         ],
@@ -340,9 +368,11 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         const SizedBox(height: AppTheme.spacingS),
                         Row(
                           children: [
-                            const Icon(Icons.content_cut,
-                                size: AppTheme.iconXS,
-                                color: AppColors.textSecondary),
+                            const Icon(
+                              Icons.content_cut,
+                              size: AppTheme.iconXS,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: AppTheme.spacingS),
                             Text(
                               'Longueur : '
@@ -358,8 +388,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         label: 'Total',
                         value: hasRange
                             ? 'À partir de ${Formatters.formatCurrency(total, currency: p.currency)}'
-                            : Formatters.formatCurrency(total,
-                                currency: p.currency),
+                            : Formatters.formatCurrency(
+                                total,
+                                currency: p.currency,
+                              ),
                         labelStyle: AppTextStyles.bodyMedium.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -369,8 +401,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         LabelValueRow(
                           label:
                               'Acompte (${(p.depositPercentage * 100).round()}%)',
-                          value: Formatters.formatCurrency(depositAmount,
-                              currency: p.currency),
+                          value: Formatters.formatCurrency(
+                            depositAmount,
+                            currency: p.currency,
+                          ),
                           labelStyle: AppTextStyles.titleMedium,
                           valueStyle: AppTextStyles.titleLarge.copyWith(
                             color: AppColors.primary,
@@ -379,8 +413,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                         const SizedBox(height: AppTheme.spacingXS),
                         LabelValueRow(
                           label: 'Solde à régler au salon',
-                          value: Formatters.formatCurrency(balanceDue,
-                              currency: p.currency),
+                          value: Formatters.formatCurrency(
+                            balanceDue,
+                            currency: p.currency,
+                          ),
                           labelStyle: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textTertiary,
                           ),

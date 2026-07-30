@@ -56,8 +56,9 @@ bool get realFontsLoaded => _fontsLoaded;
 Future<void> loadRealFonts() async {
   if (_fontsLoaded) return;
 
-  final fonts =
-      Directory('${_flutterRoot()}/bin/cache/artifacts/material_fonts');
+  final fonts = Directory(
+    '${_flutterRoot()}/bin/cache/artifacts/material_fonts',
+  );
   if (!fonts.existsSync()) {
     throw StateError(
       'Font cache not found at ${fonts.path}. Goldens and the width gate need '
@@ -87,8 +88,8 @@ Future<void> _load(String family, Directory dir, List<String> files) async {
   for (final name in files) {
     loader.addFont(
       File('${dir.path}/$name').readAsBytes().then(
-            (bytes) => ByteData.view(Uint8List.fromList(bytes).buffer),
-          ),
+        (bytes) => ByteData.view(Uint8List.fromList(bytes).buffer),
+      ),
     );
   }
   await loader.load();

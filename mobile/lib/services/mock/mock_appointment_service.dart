@@ -85,7 +85,8 @@ class MockAppointmentService implements AppointmentServiceInterface {
     }
 
     // If user has no preference, pick an available artist who can do the selected services.
-    final resolvedArtistId = artistId ??
+    final resolvedArtistId =
+        artistId ??
         _pickArtistIdForBooking(
           providerId: providerId,
           serviceIds: serviceIds,
@@ -109,8 +110,9 @@ class MockAppointmentService implements AppointmentServiceInterface {
       status: AppointmentStatus.pending,
       totalPrice: totalPrice,
       depositAmount: depositAmount,
-      balanceDue:
-          (totalPrice - depositAmount).clamp(0.0, totalPrice).toDouble(),
+      balanceDue: (totalPrice - depositAmount)
+          .clamp(0.0, totalPrice)
+          .toDouble(),
       cancellationWindowHours: provider.cancellationWindowHours,
       notes: notes,
       depositScreenshotUrl: depositScreenshotUrl,
@@ -138,12 +140,16 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
     if (provider.artists.isEmpty) return null;
 
-    final eligible =
-        _eligibleArtistIdsFor(provider: provider, serviceIds: serviceIds);
+    final eligible = _eligibleArtistIdsFor(
+      provider: provider,
+      serviceIds: serviceIds,
+    );
     if (eligible.isEmpty) return null;
 
-    final duration =
-        _durationMinutesFor(providerId: providerId, serviceIds: serviceIds);
+    final duration = _durationMinutesFor(
+      providerId: providerId,
+      serviceIds: serviceIds,
+    );
     final start = appointmentDateTime;
     final end = appointmentDateTime.add(Duration(minutes: duration));
 
@@ -155,8 +161,11 @@ class MockAppointmentService implements AppointmentServiceInterface {
         final aptStart = apt.appointmentDate;
         final aptEnd = aptStart.add(
           Duration(
-              minutes: _durationMinutesFor(
-                  providerId: providerId, serviceIds: apt.serviceIds)),
+            minutes: _durationMinutesFor(
+              providerId: providerId,
+              serviceIds: apt.serviceIds,
+            ),
+          ),
         );
         return _overlaps(start, end, aptStart, aptEnd);
       });
@@ -328,18 +337,21 @@ class MockAppointmentService implements AppointmentServiceInterface {
         DateTime.utc(date.year, date.month, date.day).weekday - 1;
     final templateSlots =
         provider.availability.weeklySchedule[weekdayIndex] ?? const [];
-    final openingSlots = templateSlots
-        .where((s) => s.isAvailable)
-        .map((s) => salonDateTime(
-              date.year,
-              date.month,
-              date.day,
-              hour: s.startTime.hour,
-              minute: s.startTime.minute,
-              tz: tz,
-            ))
-        .toList()
-      ..sort((a, b) => a.compareTo(b));
+    final openingSlots =
+        templateSlots
+            .where((s) => s.isAvailable)
+            .map(
+              (s) => salonDateTime(
+                date.year,
+                date.month,
+                date.day,
+                hour: s.startTime.hour,
+                minute: s.startTime.minute,
+                tz: tz,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.compareTo(b));
 
     if (openingSlots.isEmpty) return ApiResponse.success([]);
 
@@ -348,11 +360,14 @@ class MockAppointmentService implements AppointmentServiceInterface {
         ? AppClock.now().toUtc().add(const Duration(hours: 1))
         : null;
 
-    final duration = durationMinutes ??
+    final duration =
+        durationMinutes ??
         (serviceIds == null
             ? 30
             : _durationMinutesFor(
-                providerId: providerId, serviceIds: serviceIds));
+                providerId: providerId,
+                serviceIds: serviceIds,
+              ));
     final durationBlocks = (duration / 30).ceil().clamp(1, 48);
 
     // Keep a gap between appointments (cleanup/setup) by padding each existing
@@ -366,8 +381,9 @@ class MockAppointmentService implements AppointmentServiceInterface {
       // Ensure provider opening slots cover the whole duration in 30-min increments.
       for (var i = 0; i < durationBlocks; i++) {
         final seg = start.add(Duration(minutes: 30 * i));
-        final exists = openingSlots
-            .any((t) => t.hour == seg.hour && t.minute == seg.minute);
+        final exists = openingSlots.any(
+          (t) => t.hour == seg.hour && t.minute == seg.minute,
+        );
         if (!exists) return false;
       }
 
@@ -389,8 +405,11 @@ class MockAppointmentService implements AppointmentServiceInterface {
           final aptStart = apt.appointmentDate;
           final aptEnd = aptStart.add(
             Duration(
-                minutes: _durationMinutesFor(
-                    providerId: providerId, serviceIds: apt.serviceIds)),
+              minutes: _durationMinutesFor(
+                providerId: providerId,
+                serviceIds: apt.serviceIds,
+              ),
+            ),
           );
           return _overlaps(
             start,
@@ -402,8 +421,10 @@ class MockAppointmentService implements AppointmentServiceInterface {
       }
 
       // Otherwise, require at least one eligible artist free for this time.
-      final eligible =
-          _eligibleArtistIdsFor(provider: provider, serviceIds: serviceIds);
+      final eligible = _eligibleArtistIdsFor(
+        provider: provider,
+        serviceIds: serviceIds,
+      );
       if (eligible.isEmpty) return true; // salons with no artists
 
       for (final aid in eligible) {
@@ -419,8 +440,11 @@ class MockAppointmentService implements AppointmentServiceInterface {
           final aptStart = apt.appointmentDate;
           final aptEnd = aptStart.add(
             Duration(
-                minutes: _durationMinutesFor(
-                    providerId: providerId, serviceIds: apt.serviceIds)),
+              minutes: _durationMinutesFor(
+                providerId: providerId,
+                serviceIds: apt.serviceIds,
+              ),
+            ),
           );
           return _overlaps(
             start,
@@ -458,8 +482,9 @@ class MockAppointmentService implements AppointmentServiceInterface {
       return provider.artists.map((a) => a.id).toList();
     }
 
-    final selectedServices =
-        provider.services.where((s) => serviceIds.contains(s.id)).toList();
+    final selectedServices = provider.services
+        .where((s) => serviceIds.contains(s.id))
+        .toList();
     if (selectedServices.isEmpty) {
       return provider.artists.map((a) => a.id).toList();
     }
@@ -480,15 +505,20 @@ class MockAppointmentService implements AppointmentServiceInterface {
       orElse: () => MockData.providers.first,
     );
     if (serviceIds.isEmpty) return 30;
-    final selected =
-        provider.services.where((s) => serviceIds.contains(s.id)).toList();
+    final selected = provider.services
+        .where((s) => serviceIds.contains(s.id))
+        .toList();
     if (selected.isEmpty) return 30;
     final sum = selected.fold<int>(0, (acc, s) => acc + s.durationMinutes);
     return sum <= 0 ? 30 : sum;
   }
 
   bool _overlaps(
-      DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) {
+    DateTime aStart,
+    DateTime aEnd,
+    DateTime bStart,
+    DateTime bEnd,
+  ) {
     return aStart.isBefore(bEnd) && bStart.isBefore(aEnd);
   }
 }

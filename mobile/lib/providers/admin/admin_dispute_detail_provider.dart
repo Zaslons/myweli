@@ -6,7 +6,7 @@ import '../../services/admin/admin_service.dart';
 /// plus the resolve action. Design: docs/design/admin-console-ui.md §3.
 class AdminDisputeDetailProvider extends ChangeNotifier {
   AdminDisputeDetailProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

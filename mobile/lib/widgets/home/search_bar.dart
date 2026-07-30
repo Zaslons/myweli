@@ -7,10 +7,7 @@ import '../../core/theme/text_styles.dart';
 class AppSearchBar extends StatelessWidget {
   final VoidCallback onTap;
 
-  const AppSearchBar({
-    super.key,
-    required this.onTap,
-  });
+  const AppSearchBar({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

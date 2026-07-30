@@ -95,16 +95,19 @@ class ServiceLocator {
     authService = AppConfig.useApiBackend
         ? ApiAuthService(
             sessionStore: SecureSessionStore(),
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockAuthService(sessionStore: SecureSessionStore());
     // Provider reads are the first slice swapped to the real backend (B1).
-    providerService =
-        AppConfig.useApiBackend ? ApiProviderService() : MockProviderService();
+    providerService = AppConfig.useApiBackend
+        ? ApiProviderService()
+        : MockProviderService();
     // The locality reference tree (multi-pays MP2) — public, cacheable.
-    localityService =
-        AppConfig.useApiBackend ? ApiLocalityService() : MockLocalityService();
+    localityService = AppConfig.useApiBackend
+        ? ApiLocalityService()
+        : MockLocalityService();
     // Appointments (book/list/cancel/reschedule/slots) — B-appt slice.
     appointmentService = AppConfig.useApiBackend
         ? ApiAppointmentService(sessionStore: SecureSessionStore())
@@ -130,55 +133,62 @@ class ServiceLocator {
     // real backend with provider silent refresh; the rest delegates to mock.
     proService = AppConfig.useApiBackend
         ? ApiProService(
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockProService();
     // Staff (artists) CRUD on the real backend (provider session + silent
     // refresh) when the backend is on.
     proArtistService = AppConfig.useApiBackend
         ? ApiProArtistService(
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockProArtistService();
     // The salon client base (module clients C1) — derived from bookings;
     // reads audited server-side.
     proClientsService = AppConfig.useApiBackend
         ? ApiProClientsService(
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockProClientsService();
     // KYC on the real backend: docs upload to private storage, submit + status
     // (provider session + silent refresh).
     proKycService = AppConfig.useApiBackend
         ? ApiProKycService(
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockProKycService();
     // The salon's offer & billing state (pricing pivot, team access R3).
     subscriptionService = AppConfig.useApiBackend
         ? ApiProSubscriptionService(
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockSubscriptionService();
     // Team & invitations (module access R3); the mock enforces the offer and
     // seat gates against the mock subscription so the demo mirrors prod.
     proTeamService = AppConfig.useApiBackend
         ? ApiProTeamService(
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockProTeamService(subscriptions: subscriptionService);
     // Real upload pipeline (compress → presigned direct-to-R2) with provider
     // silent refresh; mock echoes the source in demo mode.
     imageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
-            providerSessionStore:
-                SecureSessionStore(key: 'myweli_provider_session'),
+            providerSessionStore: SecureSessionStore(
+              key: 'myweli_provider_session',
+            ),
           )
         : MockImageUploadService();
     // Consumer review photos (P2b): same pipeline, CONSUMER session +

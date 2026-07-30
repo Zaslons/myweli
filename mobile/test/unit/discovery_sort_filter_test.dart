@@ -35,8 +35,7 @@ class _CapturingService implements ProviderServiceInterface {
   Future<ApiResponse<List<Provider>>> getNearbyProviders({
     double? latitude,
     double? longitude,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 double _minPrice(Provider p) {
@@ -86,10 +85,9 @@ void main() {
       final today = (await svc.getProviders(availableToday: true)).data!;
       expect(today.length, lessThanOrEqualTo(all.length));
       expect(
-          today.map((p) => p.id).toSet().difference(
-                all.map((p) => p.id).toSet(),
-              ),
-          isEmpty);
+        today.map((p) => p.id).toSet().difference(all.map((p) => p.id).toSet()),
+        isEmpty,
+      );
     });
   });
 }

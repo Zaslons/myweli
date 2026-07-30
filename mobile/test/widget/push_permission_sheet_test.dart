@@ -6,19 +6,20 @@ import '../support/pump_app.dart';
 
 void main() {
   Widget host(void Function(bool) onResult) => wrapApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async =>
-                  onResult(await showPushPermissionSheet(context)),
-              child: const Text('open'),
-            ),
-          ),
+    home: Scaffold(
+      body: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () async =>
+              onResult(await showPushPermissionSheet(context)),
+          child: const Text('open'),
         ),
-      );
+      ),
+    ),
+  );
 
-  testWidgets('renders the rationale and « Activer » returns true',
-      (tester) async {
+  testWidgets('renders the rationale and « Activer » returns true', (
+    tester,
+  ) async {
     bool? result;
     await tester.pumpWidget(host((r) => result = r));
     await tester.tap(find.text('open'));

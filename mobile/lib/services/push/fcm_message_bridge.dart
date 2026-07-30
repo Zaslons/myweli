@@ -29,7 +29,7 @@ Future<void> pushBackgroundHandler(RemoteMessage message) async {}
 /// Design: docs/design/push-notifications-app.md.
 class FcmMessageBridge {
   FcmMessageBridge(this._handler, {FlutterLocalNotificationsPlugin? local})
-      : _local = local ?? FlutterLocalNotificationsPlugin();
+    : _local = local ?? FlutterLocalNotificationsPlugin();
 
   final PushMessageHandler _handler;
   final FlutterLocalNotificationsPlugin _local;
@@ -48,10 +48,10 @@ class FcmMessageBridge {
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         await FirebaseMessaging.instance
             .setForegroundNotificationPresentationOptions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+              alert: true,
+              badge: true,
+              sound: true,
+            );
       } else {
         FirebaseMessaging.onMessage.listen(_showForeground);
       }
@@ -91,7 +91,8 @@ class FcmMessageBridge {
     // files our notifications under an unnamed default channel.
     await _local
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(
           const AndroidNotificationChannel(
             kPushChannelId,
@@ -125,8 +126,11 @@ class FcmMessageBridge {
         payload: jsonEncode(message.data),
       );
     } catch (e, s) {
-      AppLogger.error('Push: foreground display failed',
-          error: e, stackTrace: s);
+      AppLogger.error(
+        'Push: foreground display failed',
+        error: e,
+        stackTrace: s,
+      );
     }
   }
 

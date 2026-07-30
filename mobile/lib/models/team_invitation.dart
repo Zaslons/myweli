@@ -42,15 +42,21 @@ class TeamInvitation extends Equatable {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'providerId': providerId,
-        'salonName': salonName,
-        'role': role.name,
-        'roleLabel': roleLabel,
-        'expiresAt': expiresAt?.toIso8601String(),
-      };
+    'id': id,
+    'providerId': providerId,
+    'salonName': salonName,
+    'role': role.name,
+    'roleLabel': roleLabel,
+    'expiresAt': expiresAt?.toIso8601String(),
+  };
 
   @override
-  List<Object?> get props =>
-      [id, providerId, salonName, role, roleLabel, expiresAt];
+  List<Object?> get props => [
+    id,
+    providerId,
+    salonName,
+    role,
+    roleLabel,
+    expiresAt,
+  ];
 }

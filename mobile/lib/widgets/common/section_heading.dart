@@ -91,7 +91,7 @@ class SectionHeading extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          if (action != null) action!,
+          ?action,
         ],
       ),
     );

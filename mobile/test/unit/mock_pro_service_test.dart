@@ -23,20 +23,22 @@ void main() {
     expect(res.data!.providerId, 'provider1');
   });
 
-  test('updateService with no max / no variants yields a plain service',
-      () async {
-    final res = await service.updateService('service1', {
-      'name': 'Coupe Homme',
-      'description': '',
-      'price': 5000,
-      'priceMax': null,
-      'durationMinutes': 30,
-      'durationVariants': <String, dynamic>{},
-      'providerId': 'provider1',
-    });
+  test(
+    'updateService with no max / no variants yields a plain service',
+    () async {
+      final res = await service.updateService('service1', {
+        'name': 'Coupe Homme',
+        'description': '',
+        'price': 5000,
+        'priceMax': null,
+        'durationMinutes': 30,
+        'durationVariants': <String, dynamic>{},
+        'providerId': 'provider1',
+      });
 
-    expect(res.success, isTrue);
-    expect(res.data!.priceMax, isNull);
-    expect(res.data!.durationVariants.isEmpty, isTrue);
-  });
+      expect(res.success, isTrue);
+      expect(res.data!.priceMax, isNull);
+      expect(res.data!.durationVariants.isEmpty, isTrue);
+    },
+  );
 }

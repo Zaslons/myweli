@@ -25,8 +25,8 @@ class AppointmentListScreen extends StatefulWidget {
 }
 
 class _AppointmentListScreenState extends State<AppointmentListScreen>
-    // Two TabControllers (Calendrier/Liste + the list's status tabs).
-    with
+        // Two TabControllers (Calendrier/Liste + the list's status tabs).
+        with
         TickerProviderStateMixin {
   late TabController _mainTabController; // Calendar vs List
   late TabController _listTabController; // Today/Upcoming/Pending/All
@@ -40,8 +40,10 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final appointmentProvider =
-            Provider.of<ProAppointmentProvider>(context, listen: false);
+        final appointmentProvider = Provider.of<ProAppointmentProvider>(
+          context,
+          listen: false,
+        );
         // Load all appointments for calendar view
         appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
       }
@@ -55,8 +57,10 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
         return;
       }
 
-      final appointmentProvider =
-          Provider.of<ProAppointmentProvider>(context, listen: false);
+      final appointmentProvider = Provider.of<ProAppointmentProvider>(
+        context,
+        listen: false,
+      );
 
       if (_mainTabController.index == 0) {
         // Calendar view - load all appointments
@@ -79,8 +83,10 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
     if (!authProvider.isAuthenticated || authProvider.provider == null) return;
 
-    final appointmentProvider =
-        Provider.of<ProAppointmentProvider>(context, listen: false);
+    final appointmentProvider = Provider.of<ProAppointmentProvider>(
+      context,
+      listen: false,
+    );
     AppointmentStatus? status;
 
     switch (index) {
@@ -161,8 +167,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
               BrandRefresh(
                 onRefresh: () async {
                   if (authProvider.provider != null) {
-                    await appointmentProvider
-                        .loadAppointments(authProvider.activeSalonId ?? '');
+                    await appointmentProvider.loadAppointments(
+                      authProvider.activeSalonId ?? '',
+                    );
                   }
                 },
                 child: appointments.isEmpty
@@ -170,9 +177,11 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.event_busy,
-                                size: AppTheme.iconXL,
-                                color: AppColors.textSecondary),
+                            const Icon(
+                              Icons.event_busy,
+                              size: AppTheme.iconXL,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(height: AppTheme.spacingM),
                             Text(
                               'Aucun rendez-vous',
@@ -220,9 +229,11 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.event_busy,
-                                      size: AppTheme.iconXL,
-                                      color: AppColors.textSecondary),
+                                  const Icon(
+                                    Icons.event_busy,
+                                    size: AppTheme.iconXL,
+                                    color: AppColors.textSecondary,
+                                  ),
                                   const SizedBox(height: AppTheme.spacingM),
                                   Text(
                                     'Aucun rendez-vous',
@@ -241,7 +252,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                                 return _AppointmentCard(
                                   appointment: appointment,
                                   onTap: () => context.push(
-                                      '/pro/appointment/${appointment.id}'),
+                                    '/pro/appointment/${appointment.id}',
+                                  ),
                                 );
                               },
                             ),
@@ -261,10 +273,7 @@ class _AppointmentCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback onTap;
 
-  const _AppointmentCard({
-    required this.appointment,
-    required this.onTap,
-  });
+  const _AppointmentCard({required this.appointment, required this.onTap});
 
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
@@ -276,12 +285,15 @@ class _AppointmentCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         title: Text(
-          Formatters.formatDateTime(toSalonTime(
-            appointment.appointmentDate,
-            tz: context.read<ProAuthProvider>().salonTimezone,
-          )),
-          style:
-              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          Formatters.formatDateTime(
+            toSalonTime(
+              appointment.appointmentDate,
+              tz: context.read<ProAuthProvider>().salonTimezone,
+            ),
+          ),
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,15 +324,19 @@ class _AppointmentCard extends StatelessWidget {
                 ],
               ],
             ),
-            Text(Formatters.count(
-              appointment.serviceIds.length,
-              'service',
-              'services',
-            )),
-            Text(Formatters.formatCurrency(
-              appointment.totalPrice,
-              currency: context.read<ProAuthProvider>().salonCurrency,
-            )),
+            Text(
+              Formatters.count(
+                appointment.serviceIds.length,
+                'service',
+                'services',
+              ),
+            ),
+            Text(
+              Formatters.formatCurrency(
+                appointment.totalPrice,
+                currency: context.read<ProAuthProvider>().salonCurrency,
+              ),
+            ),
           ],
         ),
         trailing: Chip(

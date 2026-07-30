@@ -90,8 +90,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.serviceId != null && !_prefillDone) {
-      final serviceProvider =
-          Provider.of<ProServiceProvider>(context, listen: false);
+      final serviceProvider = Provider.of<ProServiceProvider>(
+        context,
+        listen: false,
+      );
       Service? service;
       for (final s in serviceProvider.services) {
         if (s.id == widget.serviceId) {
@@ -165,8 +167,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     }
 
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    final serviceProvider =
-        Provider.of<ProServiceProvider>(context, listen: false);
+    final serviceProvider = Provider.of<ProServiceProvider>(
+      context,
+      listen: false,
+    );
 
     final priceMaxText = _priceMaxController.text.trim();
     final durationVariants = _hasVariants
@@ -205,8 +209,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       Navigator.pop(context);
     } else {
       AppSnackBar.show(
-          context, serviceProvider.error ?? 'Erreur lors de la sauvegarde',
-          kind: SnackKind.error);
+        context,
+        serviceProvider.error ?? 'Erreur lors de la sauvegarde',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -220,8 +226,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
     if (!confirmed || !mounted) return;
 
-    final serviceProvider =
-        Provider.of<ProServiceProvider>(context, listen: false);
+    final serviceProvider = Provider.of<ProServiceProvider>(
+      context,
+      listen: false,
+    );
     final success = await serviceProvider.deleteService(widget.serviceId!);
 
     if (!mounted) return;
@@ -231,8 +239,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       Navigator.pop(context);
     } else {
       AppSnackBar.show(
-          context, serviceProvider.error ?? 'Erreur lors de la suppression',
-          kind: SnackKind.error);
+        context,
+        serviceProvider.error ?? 'Erreur lors de la suppression',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -241,9 +251,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.serviceId != null
-            ? 'Modifier le service'
-            : 'Nouveau service'),
+        title: Text(
+          widget.serviceId != null ? 'Modifier le service' : 'Nouveau service',
+        ),
       ),
       body: Consumer<ProServiceProvider>(
         builder: (context, serviceProvider, _) {
@@ -275,9 +285,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   controller: _priceController,
                   focusNode: _priceFocus,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   errorText: _errors['price'],
                   onChanged: (v) => setState(() {
                     _errors.revalidate('price', v);
@@ -294,9 +302,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   controller: _priceMaxController,
                   focusNode: _priceMaxFocus,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   errorText: _errors['priceMax'],
                   onChanged: (v) =>
                       setState(() => _errors.revalidate('priceMax', v)),
@@ -320,8 +326,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       selected: isSelected,
                       onSelected: (selected) {
                         if (selected) {
-                          setState(() =>
-                              _durationController.text = minutes.toString());
+                          setState(
+                            () => _durationController.text = minutes.toString(),
+                          );
                         }
                       },
                     );
@@ -334,9 +341,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   controller: _durationController,
                   focusNode: _durationFocus,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   errorText: _errors['duration'],
                   onChanged: (v) =>
                       setState(() => _errors.revalidate('duration', v)),
@@ -355,17 +360,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: _variantField('Court', _courtController),
-                      ),
+                      Expanded(child: _variantField('Court', _courtController)),
                       const SizedBox(width: AppTheme.spacingS),
-                      Expanded(
-                        child: _variantField('Moyen', _moyenController),
-                      ),
+                      Expanded(child: _variantField('Moyen', _moyenController)),
                       const SizedBox(width: AppTheme.spacingS),
-                      Expanded(
-                        child: _variantField('Long', _longController),
-                      ),
+                      Expanded(child: _variantField('Long', _longController)),
                     ],
                   ),
                 const SizedBox(height: AppTheme.spacingL),
@@ -425,8 +424,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                   TextButton(
                     onPressed: serviceProvider.isLoading ? null : _handleDelete,
-                    style:
-                        TextButton.styleFrom(foregroundColor: AppColors.error),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
                     child: const Text('Supprimer le service'),
                   ),
                 ],

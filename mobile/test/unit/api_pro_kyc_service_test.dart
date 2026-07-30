@@ -12,11 +12,13 @@ import 'package:myweli/services/interfaces/session_store.dart';
 ApiProKycService _service(MockClient client, {String? token = 'tok'}) {
   final store = InMemorySessionStore();
   if (token != null) {
-    store.save(jsonEncode({
-      'token': token,
-      'refreshToken': 'r1',
-      'provider': {'id': 'acc1', 'providerId': 'provider1'},
-    }));
+    store.save(
+      jsonEncode({
+        'token': token,
+        'refreshToken': 'r1',
+        'provider': {'id': 'acc1', 'providerId': 'provider1'},
+      }),
+    );
   }
   return ApiProKycService(
     client: client,
@@ -51,42 +53,43 @@ void main() {
     expect(res.data!.documents.single.key, 'kyc/acc1/a.jpg');
   });
 
-  test('uploadDocument signs (kyc) → POSTs to private storage → returns key',
-      () async {
-    // A real file to read bytes from.
-    final tmp = File(
-      '${Directory.systemTemp.path}/kyc_test_${DateTime.now().microsecondsSinceEpoch}.jpg',
-    )..writeAsBytesSync([1, 2, 3, 4]);
-    addTearDown(() => tmp.existsSync() ? tmp.deleteSync() : null);
+  test(
+    'uploadDocument signs (kyc) → POSTs to private storage → returns key',
+    () async {
+      // A real file to read bytes from.
+      final tmp = File(
+        '${Directory.systemTemp.path}/kyc_test_${DateTime.now().microsecondsSinceEpoch}.jpg',
+      )..writeAsBytesSync([1, 2, 3, 4]);
+      addTearDown(() => tmp.existsSync() ? tmp.deleteSync() : null);
 
-    final paths = <String>[];
-    final client = MockClient((req) async {
-      paths.add(req.url.path);
-      if (req.url.path == '/uploads/sign') {
-        expect((jsonDecode(req.body) as Map)['purpose'], 'kyc');
-        return http.Response(
-          jsonEncode({
-            'method': 'POST',
-            'uploadUrl': 'http://storage.local/kyc-bucket',
-            'fields': {'key': 'kyc/acc1/x.jpg'},
-            'key': 'kyc/acc1/x.jpg',
-            'maxBytes': 5242880,
-            'expiresInSeconds': 300,
-          }),
-          200,
-        );
-      }
-      return http.Response('', 204); // the storage upload
-    });
+      final paths = <String>[];
+      final client = MockClient((req) async {
+        paths.add(req.url.path);
+        if (req.url.path == '/uploads/sign') {
+          expect((jsonDecode(req.body) as Map)['purpose'], 'kyc');
+          return http.Response(
+            jsonEncode({
+              'method': 'POST',
+              'uploadUrl': 'http://storage.local/kyc-bucket',
+              'fields': {'key': 'kyc/acc1/x.jpg'},
+              'key': 'kyc/acc1/x.jpg',
+              'maxBytes': 5242880,
+              'expiresInSeconds': 300,
+            }),
+            200,
+          );
+        }
+        return http.Response('', 204); // the storage upload
+      });
 
-    final res = await _service(client).uploadDocument(
-      source: tmp.path,
-      contentType: 'image/jpeg',
-    );
-    expect(res.success, isTrue);
-    expect(res.data, 'kyc/acc1/x.jpg');
-    expect(paths, ['/uploads/sign', '/kyc-bucket']);
-  });
+      final res = await _service(
+        client,
+      ).uploadDocument(source: tmp.path, contentType: 'image/jpeg');
+      expect(res.success, isTrue);
+      expect(res.data, 'kyc/acc1/x.jpg');
+      expect(paths, ['/uploads/sign', '/kyc-bucket']);
+    },
+  );
 
   test('submitKyc POSTs the documents (type/fileName/key)', () async {
     Map<String, dynamic>? body;
@@ -95,8 +98,11 @@ void main() {
       expect(req.url.path, '/me/kyc');
       body = jsonDecode(req.body) as Map<String, dynamic>;
       return http.Response(
-        jsonEncode(
-            {'status': 'pending', 'documents': [], 'rejectionReason': null}),
+        jsonEncode({
+          'status': 'pending',
+          'documents': [],
+          'rejectionReason': null,
+        }),
         200,
       );
     });
@@ -118,8 +124,9 @@ void main() {
   });
 
   test('no provider session → fails fast without HTTP', () async {
-    final client =
-        MockClient((req) async => throw Exception('should not be called'));
+    final client = MockClient(
+      (req) async => throw Exception('should not be called'),
+    );
     final res = await _service(client, token: null).getKycStatus('acc1');
     expect(res.success, isFalse);
   });

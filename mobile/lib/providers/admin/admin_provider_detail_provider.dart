@@ -7,7 +7,7 @@ import '../../services/admin/admin_service.dart';
 /// suspend / restore / feature actions. Design: docs/design/admin-console-ui.md §3.
 class AdminProviderDetailProvider extends ChangeNotifier {
   AdminProviderDetailProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

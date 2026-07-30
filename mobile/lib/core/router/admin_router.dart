@@ -18,67 +18,58 @@ import '../../screens/admin/admin_users_screen.dart';
 /// out; dashboard when signed in and on the login screen). Each authed screen
 /// wraps itself in `AdminScaffold`. Design: docs/design/admin-console-ui.md.
 GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
-      initialLocation: '/admin/dashboard',
-      refreshListenable: auth,
-      redirect: (context, state) {
-        // Hold redirects until the stored session has been checked.
-        if (auth.restoring) {
-          return null;
-        }
-        final atLogin = state.uri.path == '/admin';
-        if (!auth.isAuthenticated) return atLogin ? null : '/admin';
-        if (atLogin) return '/admin/dashboard';
-        return null;
-      },
-      routes: [
-        GoRoute(path: '/admin', builder: (_, __) => const AdminLoginScreen()),
-        GoRoute(
-          path: '/admin/dashboard',
-          builder: (_, __) => const AdminDashboardScreen(),
-        ),
-        GoRoute(
-          path: '/admin/kyc',
-          builder: (_, __) => const AdminKycQueueScreen(),
-        ),
-        GoRoute(
-          path: '/admin/reviews',
-          builder: (_, __) => const AdminModerationScreen(),
-        ),
-        GoRoute(
-          path: '/admin/providers',
-          builder: (_, __) => const AdminProvidersScreen(),
-        ),
-        GoRoute(
-          path: '/admin/providers/:id',
-          builder: (_, state) =>
-              AdminProviderDetailScreen(id: state.pathParameters['id']!),
-        ),
-        GoRoute(
-          path: '/admin/users',
-          builder: (_, __) => const AdminUsersScreen(),
-        ),
-        GoRoute(
-          path: '/admin/users/:id',
-          builder: (_, state) =>
-              AdminUserDetailScreen(id: state.pathParameters['id']!),
-        ),
-        GoRoute(
-          path: '/admin/disputes',
-          builder: (_, __) => const AdminDisputesScreen(),
-        ),
-        GoRoute(
-          path: '/admin/disputes/:id',
-          builder: (_, state) =>
-              AdminDisputeDetailScreen(id: state.pathParameters['id']!),
-        ),
-        GoRoute(
-          path: '/admin/audit',
-          builder: (_, __) => const AdminAuditScreen(),
-        ),
-        GoRoute(
-          path: '/admin/kyc/:id',
-          builder: (_, state) =>
-              AdminKycDetailScreen(accountId: state.pathParameters['id']!),
-        ),
-      ],
-    );
+  initialLocation: '/admin/dashboard',
+  refreshListenable: auth,
+  redirect: (context, state) {
+    // Hold redirects until the stored session has been checked.
+    if (auth.restoring) {
+      return null;
+    }
+    final atLogin = state.uri.path == '/admin';
+    if (!auth.isAuthenticated) return atLogin ? null : '/admin';
+    if (atLogin) return '/admin/dashboard';
+    return null;
+  },
+  routes: [
+    GoRoute(path: '/admin', builder: (_, _) => const AdminLoginScreen()),
+    GoRoute(
+      path: '/admin/dashboard',
+      builder: (_, _) => const AdminDashboardScreen(),
+    ),
+    GoRoute(path: '/admin/kyc', builder: (_, _) => const AdminKycQueueScreen()),
+    GoRoute(
+      path: '/admin/reviews',
+      builder: (_, _) => const AdminModerationScreen(),
+    ),
+    GoRoute(
+      path: '/admin/providers',
+      builder: (_, _) => const AdminProvidersScreen(),
+    ),
+    GoRoute(
+      path: '/admin/providers/:id',
+      builder: (_, state) =>
+          AdminProviderDetailScreen(id: state.pathParameters['id']!),
+    ),
+    GoRoute(path: '/admin/users', builder: (_, _) => const AdminUsersScreen()),
+    GoRoute(
+      path: '/admin/users/:id',
+      builder: (_, state) =>
+          AdminUserDetailScreen(id: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/admin/disputes',
+      builder: (_, _) => const AdminDisputesScreen(),
+    ),
+    GoRoute(
+      path: '/admin/disputes/:id',
+      builder: (_, state) =>
+          AdminDisputeDetailScreen(id: state.pathParameters['id']!),
+    ),
+    GoRoute(path: '/admin/audit', builder: (_, _) => const AdminAuditScreen()),
+    GoRoute(
+      path: '/admin/kyc/:id',
+      builder: (_, state) =>
+          AdminKycDetailScreen(accountId: state.pathParameters['id']!),
+    ),
+  ],
+);

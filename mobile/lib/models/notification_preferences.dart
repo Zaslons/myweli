@@ -23,18 +23,17 @@ class NotificationPreferences extends Equatable {
     bool? reminders,
     bool? marketing,
     bool? push,
-  }) =>
-      NotificationPreferences(
-        reminders: reminders ?? this.reminders,
-        marketing: marketing ?? this.marketing,
-        push: push ?? this.push,
-      );
+  }) => NotificationPreferences(
+    reminders: reminders ?? this.reminders,
+    marketing: marketing ?? this.marketing,
+    push: push ?? this.push,
+  );
 
   Map<String, dynamic> toJson() => {
-        'reminders': reminders,
-        'marketing': marketing,
-        'push': push,
-      };
+    'reminders': reminders,
+    'marketing': marketing,
+    'push': push,
+  };
 
   factory NotificationPreferences.fromJson(Map<String, dynamic> json) =>
       NotificationPreferences(

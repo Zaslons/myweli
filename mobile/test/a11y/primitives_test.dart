@@ -21,8 +21,9 @@ void main() {
   // ---- expectNoVerticalClip ------------------------------------------------
 
   group('expectNoVerticalClip', () {
-    testWidgets('fails on a fixed height that cuts the text off',
-        (tester) async {
+    testWidgets('fails on a fixed height that cuts the text off', (
+      tester,
+    ) async {
       await pumpAtWidth(
         tester,
         width: 360,
@@ -43,7 +44,8 @@ void main() {
       expect(
         () => expectNoVerticalClip(tester),
         throwsA(isA<TestFailure>()),
-        reason: 'a 20dp box around three lines is the defect this exists for; '
+        reason:
+            'a 20dp box around three lines is the defect this exists for; '
             'if it passes, the sweep is decoration',
       );
     });
@@ -70,8 +72,9 @@ void main() {
       expectNoVerticalClip(tester);
     });
 
-    testWidgets('ignores a laid-out branch that is never painted',
-        (tester) async {
+    testWidgets('ignores a laid-out branch that is never painted', (
+      tester,
+    ) async {
       // `IndexedStack` lays every child out at its own size and paints one.
       // `DropdownButton` builds all its items that way, which is how the three
       // form dropdowns first reported « Institut de manucure » clipped into a
@@ -109,8 +112,9 @@ void main() {
   // ---- expectNoLegibilityCrush ---------------------------------------------
 
   group('expectNoLegibilityCrush', () {
-    testWidgets('fails when a flexed label is squeezed to a few characters',
-        (tester) async {
+    testWidgets('fails when a flexed label is squeezed to a few characters', (
+      tester,
+    ) async {
       await pumpAtWidth(
         tester,
         width: 360,
@@ -135,13 +139,15 @@ void main() {
       expect(
         () => expectNoLegibilityCrush(tester),
         throwsA(isA<TestFailure>()),
-        reason: 'the label has ~30dp here. If this passes, the threshold is '
+        reason:
+            'the label has ~30dp here. If this passes, the threshold is '
             'not measuring anything',
       );
     });
 
-    testWidgets('ignores a flexed label that FITS — the CommunePill case',
-        (tester) async {
+    testWidgets('ignores a flexed label that FITS — the CommunePill case', (
+      tester,
+    ) async {
       // The precondition that makes the whole primitive work: a `Flexible` in a
       // `mainAxisSize: min` row lays out at `min(intrinsic, available)`, so a
       // short label is narrow and entirely correct. Only `didExceedMaxLines`
@@ -169,8 +175,9 @@ void main() {
       expectNoLegibilityCrush(tester);
     });
 
-    testWidgets('ignores a multi-line label that uses both its lines',
-        (tester) async {
+    testWidgets('ignores a multi-line label that uses both its lines', (
+      tester,
+    ) async {
       // The false positive this primitive shipped with for one commit: the
       // predicate measured a SINGLE line, so a `maxLines: 2` header showing ~14
       // characters across two was reported as showing 7 and called a crush.
@@ -214,7 +221,8 @@ void main() {
             .renderObject<RenderParagraph>(find.text('Salon Excellence Beauté'))
             .didExceedMaxLines,
         isTrue,
-        reason: 'the fixture does not truncate, so expectNoLegibilityCrush '
+        reason:
+            'the fixture does not truncate, so expectNoLegibilityCrush '
             'skips it before `_prefixFits` is ever called',
       );
       expectNoLegibilityCrush(tester);
@@ -273,8 +281,9 @@ void main() {
     // The mirror: a one-line label narrower than its longest word is NOT a
     // mid-word break — it truncates. Reporting it here would duplicate
     // `expectNoLegibilityCrush` and make this helper unusable as a by-name gate.
-    testWidgets('ignores a one-line label that truncates instead of breaking',
-        (tester) async {
+    testWidgets('ignores a one-line label that truncates instead of breaking', (
+      tester,
+    ) async {
       await pumpAtWidth(
         tester,
         width: 360,
@@ -293,8 +302,11 @@ void main() {
               ),
               SizedBox(
                 width: 200,
-                child: Text('Salon Excellence',
-                    maxLines: 2, style: AppTextStyles.bodySmall),
+                child: Text(
+                  'Salon Excellence',
+                  maxLines: 2,
+                  style: AppTextStyles.bodySmall,
+                ),
               ),
             ],
           ),
@@ -306,8 +318,9 @@ void main() {
 
     // ...and if EVERY rendering is one-line, the call measured nothing. A
     // helper that returns quietly in that case is §21 row 67's failure mode.
-    testWidgets('fails loudly when every rendering is one-line',
-        (tester) async {
+    testWidgets('fails loudly when every rendering is one-line', (
+      tester,
+    ) async {
       await pumpAtWidth(
         tester,
         width: 360,
@@ -332,8 +345,9 @@ void main() {
   });
 
   group('expectTokensWhole', () {
-    testWidgets('fails when a two-digit day is wider than its box',
-        (tester) async {
+    testWidgets('fails when a two-digit day is wider than its box', (
+      tester,
+    ) async {
       // 20dp around « 20 » at 2×: the shape row 73 measured, reproduced with a
       // `SizedBox` so the failure is arithmetic rather than Material's.
       await pumpAtWidth(
@@ -352,32 +366,35 @@ void main() {
       expect(
         () => expectTokensWhole(tester, const ['20'], 'the falsifier'),
         throwsA(isA<TestFailure>()),
-        reason: 'a 20dp box cannot hold « 20 » at 2×. If this passes, the '
+        reason:
+            'a 20dp box cannot hold « 20 » at 2×. If this passes, the '
             'primitive is measuring nothing and row 67 has a seventh member',
       );
     });
 
     testWidgets(
-        'ignores a day that FITS — the assertion is not "any narrow box"',
-        (tester) async {
-      await pumpAtWidth(
-        tester,
-        width: 360,
-        scale: 2,
-        home: const Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 80,
-              child: Text('20', style: AppTextStyles.bodyMedium),
+      'ignores a day that FITS — the assertion is not "any narrow box"',
+      (tester) async {
+        await pumpAtWidth(
+          tester,
+          width: 360,
+          scale: 2,
+          home: const Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 80,
+                child: Text('20', style: AppTextStyles.bodyMedium),
+              ),
             ),
           ),
-        ),
-      );
-      expectTokensWhole(tester, const ['20'], 'the control');
-    });
+        );
+        expectTokensWhole(tester, const ['20'], 'the control');
+      },
+    );
 
-    testWidgets('fails LOUDLY when the day is not on screen at all',
-        (tester) async {
+    testWidgets('fails LOUDLY when the day is not on screen at all', (
+      tester,
+    ) async {
       // The vacuity guard. A picker that never opened would otherwise sweep
       // nothing and report clean — which is the failure mode `layout_test.dart`
       // calls "the assertion most likely to be deleted".
@@ -390,7 +407,8 @@ void main() {
       expect(
         () => expectTokensWhole(tester, const ['20'], 'the empty screen'),
         throwsA(isA<TestFailure>()),
-        reason: 'asserting about days that are not rendered must be an error, '
+        reason:
+            'asserting about days that are not rendered must be an error, '
             'not a pass',
       );
     });

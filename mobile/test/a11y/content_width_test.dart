@@ -47,7 +47,9 @@ void main() {
       tester,
       home: const ContentWidthCap(
         child: ColoredBox(
-            color: Color(0xFF000000), child: SizedBox.expand(key: key)),
+          color: Color(0xFF000000),
+          child: SizedBox.expand(key: key),
+        ),
       ),
     );
     await tester.pump();
@@ -58,7 +60,8 @@ void main() {
     expect(
       (await pumpCapAt(tester, 1024)).width,
       AppTheme.contentMaxWidth,
-      reason: '§10: text and forms never stretch past 720. A 1024dp window '
+      reason:
+          '§10: text and forms never stretch past 720. A 1024dp window '
           'must render a 720dp column, not a 1024dp one.',
     );
   });
@@ -69,18 +72,21 @@ void main() {
     expect(
       r.left,
       closeTo(1024 - r.right, 0.01),
-      reason: 'the column is ${r.left}dp from the left and ${1024 - r.right}dp '
+      reason:
+          'the column is ${r.left}dp from the left and ${1024 - r.right}dp '
           'from the right — a capped column that is not centred is a column '
           'shoved against one edge',
     );
   });
 
-  testWidgets('is the identity below 720 — every phone this ships to',
-      (tester) async {
+  testWidgets('is the identity below 720 — every phone this ships to', (
+    tester,
+  ) async {
     expect(
       (await pumpCapAt(tester, 390)).width,
       390,
-      reason: 'a ConstrainedBox(maxWidth: 720) under a tight 390 constraint '
+      reason:
+          'a ConstrainedBox(maxWidth: 720) under a tight 390 constraint '
           'passes it through, and Center on a child that already fills the '
           'width is a no-op. If this is not 390 the cap is doing something on '
           'a phone, which it must never do.',
@@ -95,8 +101,9 @@ void main() {
     );
   });
 
-  testWidgets('the gutters are painted, not left to the window',
-      (tester) async {
+  testWidgets('the gutters are painted, not left to the window', (
+    tester,
+  ) async {
     // **The fixture must not contain a ColoredBox of its own.** The first
     // version of this test pumped `ColoredBox(child: SizedBox.expand())` as the
     // subject and then asserted about `find.byType(ColoredBox).first` — which
@@ -120,15 +127,17 @@ void main() {
     expect(
       boxes,
       findsOneWidget,
-      reason: 'the cap paints exactly one background. Zero means the gutters '
+      reason:
+          'the cap paints exactly one background. Zero means the gutters '
           'are whatever the window was cleared to; more than one means this '
           'assertion no longer knows which box it is looking at',
     );
     expect(tester.widget<ColoredBox>(boxes).color, AppColors.background);
   });
 
-  testWidgets('MediaQuery.size follows the cap — it does not report the window',
-      (tester) async {
+  testWidgets('MediaQuery.size follows the cap — it does not report the window', (
+    tester,
+  ) async {
     // The defect this replaces was mine, introduced in C6 and found by review:
     // `MaterialApp` publishes the WINDOW size, the cap narrowed the tree, and
     // nothing reconciled the two. A screen reading `MediaQuery.of(context)
@@ -158,14 +167,16 @@ void main() {
     expect(
       seen.width,
       AppTheme.contentMaxWidth,
-      reason: 'a screen under the cap asked how wide it is and was told '
+      reason:
+          'a screen under the cap asked how wide it is and was told '
           '${seen.width} on a 1200dp window, while its box is 720. Anything '
           'that sizes or splits itself from MediaQuery is then wrong by 480dp.',
     );
     expect(
       seen.height,
       900,
-      reason: 'the cap constrains WIDTH. If height moved, the override is '
+      reason:
+          'the cap constrains WIDTH. If height moved, the override is '
           'doing more than it claims and SafeArea/keyboard maths follows it',
     );
   });
@@ -182,8 +193,9 @@ void main() {
   // aligned with the content reads as belonging to it, and a 1400dp bar on a
   // stretched window is the same defect §10 names for body copy. This test
   // exists so the next person reads a measurement instead of either account.
-  testWidgets('a SnackBar tracks the capped column, and that is deliberate',
-      (tester) async {
+  testWidgets('a SnackBar tracks the capped column, and that is deliberate', (
+    tester,
+  ) async {
     final messengerKey = GlobalKey<ScaffoldMessengerState>();
     pinSurface(tester, size: const Size(1024, 800));
     await tester.pumpWidget(
@@ -192,8 +204,9 @@ void main() {
         home: const ContentWidthCap(child: Scaffold(body: SizedBox.expand())),
       ),
     );
-    messengerKey.currentState!
-        .showSnackBar(const SnackBar(content: Text('mesure')));
+    messengerKey.currentState!.showSnackBar(
+      const SnackBar(content: Text('mesure')),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -201,7 +214,8 @@ void main() {
     expect(
       bar.width,
       lessThanOrEqualTo(AppTheme.contentMaxWidth),
-      reason: 'the bar is ${bar.width}dp in a 1024dp window. If this ever '
+      reason:
+          'the bar is ${bar.width}dp in a 1024dp window. If this ever '
           'exceeds 720 the SDK has moved the SnackBar out of the Scaffold\'s '
           'layout, and the docstring on ContentWidthCap needs rewriting.',
     );
@@ -212,8 +226,7 @@ void main() {
   // Discovered, not listed — the shape `motion_test.dart` uses for
   // `ReduceMotionObserver`: a fourth `main_*.dart` is covered the day it lands
   // rather than the day someone remembers this file.
-  group(
-      'every app root that should cap, does — and the one that must not,'
+  group('every app root that should cap, does — and the one that must not,'
       " doesn't", () {
     List<File> roots() => Directory('lib')
         .listSync()
@@ -243,27 +256,40 @@ void main() {
 
     test('the phone apps install the cap', () {
       final found = roots();
-      expect(found, isNotEmpty,
-          reason: 'no app root found — this test is resolving paths from the '
-              'wrong directory and would pass on an empty set');
+      expect(
+        found,
+        isNotEmpty,
+        reason:
+            'no app root found — this test is resolving paths from the '
+            'wrong directory and would pass on an empty set',
+      );
 
-      final capping =
-          found.where((f) => !f.path.endsWith('main_admin.dart')).toList();
-      expect(capping, isNotEmpty,
-          reason: 'every root found was main_admin.dart, so the assertion '
-              'below is empty-set-true — the guard above only checked the '
-              'set BEFORE this filter');
+      final capping = found
+          .where((f) => !f.path.endsWith('main_admin.dart'))
+          .toList();
+      expect(
+        capping,
+        isNotEmpty,
+        reason:
+            'every root found was main_admin.dart, so the assertion '
+            'below is empty-set-true — the guard above only checked the '
+            'set BEFORE this filter',
+      );
 
       final missing = capping
           .where((f) => !codeOf(f).contains('ContentWidthCap'))
           .map((f) => f.path)
           .toList();
 
-      expect(missing, isEmpty,
-          reason: '§10 caps text and forms at 720 on every phone surface. A '
-              'root without the cap stretches a French paragraph across a '
-              'tablet, and no other test can see it: nothing in this suite '
-              'renders an app root.');
+      expect(
+        missing,
+        isEmpty,
+        reason:
+            '§10 caps text and forms at 720 on every phone surface. A '
+            'root without the cap stretches a French paragraph across a '
+            'tablet, and no other test can see it: nothing in this suite '
+            'renders an app root.',
+      );
     });
 
     test('the admin console does NOT', () {
@@ -275,16 +301,21 @@ void main() {
       // `BoxConstraints(maxWidth: 380)` — a login card that is correctly
       // capped, in the app whose *console* must not be.
       final admin = File('lib/main_admin.dart');
-      expect(admin.existsSync(), isTrue,
-          reason: 'main_admin.dart moved — this pin is asserting about a file '
-              'that is not there, which is a pass for the wrong reason');
+      expect(
+        admin.existsSync(),
+        isTrue,
+        reason:
+            'main_admin.dart moved — this pin is asserting about a file '
+            'that is not there, which is a pass for the wrong reason',
+      );
 
       expect(
         // `codeOf`, not the raw bytes: a paragraph in main_admin.dart
         // explaining WHY it is excluded would otherwise redden its own pin.
         codeOf(admin).contains('ContentWidthCap'),
         isFalse,
-        reason: 'admin is a desktop console, and §10 says so itself: "fine for '
+        reason:
+            'admin is a desktop console, and §10 says so itself: "fine for '
             'the consumer app (its users hold phones) and wrong for admin". '
             'AdminScaffold is a top-level Row with a 240dp sidebar, and seven '
             'AdminDataTable call sites divide their width with Expanded '

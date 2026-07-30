@@ -59,17 +59,18 @@ void main() {
   /// The picker's screen, pumped directly. It is public for this reason: a
   /// route adds a `Navigator` and a transition to a subject that is a layout.
   Widget host(DateTime initial) => MyweliDatePickerScreen(
-        initialDate: initial,
-        firstDate: DateTime(initial.year, initial.month),
-        lastDate: initial.add(const Duration(days: 365)),
-      );
+    initialDate: initial,
+    firstDate: DateTime(initial.year, initial.month),
+    lastDate: initial.add(const Duration(days: 365)),
+  );
 
   for (final width in widths) {
     for (final scale in scales) {
       final at = '${width.toInt()}dp × ${scale.toInt()}× text';
 
-      testWidgets('every day number in the picker renders whole at $at',
-          (tester) async {
+      testWidgets('every day number in the picker renders whole at $at', (
+        tester,
+      ) async {
         // 780, not `pumpAtWidth`'s 1600 — see the header. This is the phone
         // row 73 was measured on.
         pinSurface(tester, size: Size(width, kFloorPhone.height));
@@ -83,7 +84,8 @@ void main() {
         expect(
           find.text('mars 2026'),
           findsOneWidget,
-          reason: 'C: the picker is not showing March 2026 at $at, so every '
+          reason:
+              'C: the picker is not showing March 2026 at $at, so every '
               'assertion below is about the wrong month or no month',
         );
 

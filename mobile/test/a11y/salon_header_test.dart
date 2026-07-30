@@ -28,36 +28,36 @@ void main() {
 
   /// `W − screen padding (24×2) − logo (72) − gap (16)`, then minus the badge.
   Widget header({required bool verified, required double width}) => Scaffold(
-        body: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingL),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(width: 72, height: 72),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Salon Excellence',
-                        style: AppTextStyles.headlineMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (verified) ...[
-                      const SizedBox(width: AppTheme.spacingS),
-                      const Icon(Icons.verified, size: AppTheme.iconS),
-                    ],
-                  ],
+    body: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingL),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 72, height: 72),
+          const SizedBox(width: AppTheme.spacingM),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Text(
+                    'Salon Excellence',
+                    style: AppTextStyles.headlineMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
+                if (verified) ...[
+                  const SizedBox(width: AppTheme.spacingS),
+                  const Icon(Icons.verified, size: AppTheme.iconS),
+                ],
+              ],
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   // **Per width, because the crossing moves with it.** A verified name box is
   // 196 / 211 / 226dp and « Excellence » is 134.85dp at 1×, so it breaks above
@@ -67,31 +67,34 @@ void main() {
   // the first version of this file over-generalised and went red.
   for (final (width, scale) in [(360.0, 1.5), (375.0, 1.6), (390.0, 1.7)]) {
     testWidgets(
-        'a verified salon breaks un-stacked at $scale× on ${width.toInt()}dp',
-        (tester) async {
-      await pumpAtWidth(
-        tester,
-        width: width,
-        scale: scale,
-        home: header(verified: true, width: width),
-      );
-      expect(
-        () => expectNoMidWordBreak(
+      'a verified salon breaks un-stacked at $scale× on ${width.toInt()}dp',
+      (tester) async {
+        await pumpAtWidth(
           tester,
-          'Salon Excellence',
-          '${width.toInt()}dp × $scale×',
-        ),
-        throwsA(isA<TestFailure>()),
-        reason: 'if this stops breaking, the 28dp badge no longer costs the '
-            'name its box and _headerStacksAboveVerified can be re-derived',
-      );
-    });
+          width: width,
+          scale: scale,
+          home: header(verified: true, width: width),
+        );
+        expect(
+          () => expectNoMidWordBreak(
+            tester,
+            'Salon Excellence',
+            '${width.toInt()}dp × $scale×',
+          ),
+          throwsA(isA<TestFailure>()),
+          reason:
+              'if this stops breaking, the 28dp badge no longer costs the '
+              'name its box and _headerStacksAboveVerified can be re-derived',
+        );
+      },
+    );
   }
 
   // …and the same geometry WITHOUT the badge is fine at 1.5×, which is why the
   // two thresholds are different numbers rather than one conservative one.
-  testWidgets('an unverified salon is still fine un-stacked at 1.5× on 360dp',
-      (tester) async {
+  testWidgets('an unverified salon is still fine un-stacked at 1.5× on 360dp', (
+    tester,
+  ) async {
     await pumpAtWidth(
       tester,
       width: 360,

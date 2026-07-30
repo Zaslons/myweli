@@ -14,10 +14,10 @@ class BeforeAfterPair extends Equatable {
   });
 
   Map<String, dynamic> toJson() => {
-        'before': before,
-        'after': after,
-        if (caption != null && caption!.isNotEmpty) 'caption': caption,
-      };
+    'before': before,
+    'after': after,
+    if (caption != null && caption!.isNotEmpty) 'caption': caption,
+  };
 
   factory BeforeAfterPair.fromJson(Map<String, dynamic> json) {
     final caption = (json['caption'] as String?)?.trim();

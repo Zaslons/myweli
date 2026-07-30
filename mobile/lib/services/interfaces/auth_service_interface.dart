@@ -21,8 +21,12 @@ abstract class AuthServiceInterface {
 
   /// [phone] sets the CONTACT phone (unverified until proven via SMS later);
   /// empty string clears it.
-  Future<ApiResponse<User>> updateUser(
-      {String? name, String? email, String? avatarUrl, String? phone});
+  Future<ApiResponse<User>> updateUser({
+    String? name,
+    String? email,
+    String? avatarUrl,
+    String? phone,
+  });
 
   /// Permanently delete the signed-in user's account. Irreversible.
   Future<ApiResponse<void>> deleteAccount();
@@ -30,7 +34,9 @@ abstract class AuthServiceInterface {
   // Provider methods — phone OTP dormant at launch (AUTH_METHODS-gated).
   Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber);
   Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-      String phoneNumber, String otp);
+    String phoneNumber,
+    String otp,
+  );
 
   // Pro auth overhaul (docs/design/pro-auth-social.md) — LOGIN-ONLY (a salon
   // is never auto-created; `provider_not_found` → offer registration).
@@ -47,9 +53,13 @@ abstract class AuthServiceInterface {
   /// (200 existing / 201 new bare member account) and persists the session
   /// exactly like a login.
   Future<ApiResponse<ProviderUser>> acceptProviderInvitation(
-      String invitationId, InvitationProof proof);
+    String invitationId,
+    InvitationProof proof,
+  );
   Future<ApiResponse<bool>> declineProviderInvitation(
-      String invitationId, InvitationProof proof);
+    String invitationId,
+    InvitationProof proof,
+  );
 
   /// Registration = identity + business fields in ONE submit (signs in too).
   /// The REQUIRED [phoneNumber] is the salon contact.

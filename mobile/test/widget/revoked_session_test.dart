@@ -47,8 +47,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-      'revoked → guard probe → sign-out → the login banner names '
+  testWidgets('revoked → guard probe → sign-out → the login banner names '
       'the salon', (tester) async {
     // FakeAsync-safe: the whole pre-pump flow uses REAL async (mock
     // delays + the guard's probe) inside runAsync.
@@ -67,8 +66,9 @@ void main() {
       expect(authProvider.isAuthenticated, isTrue);
 
       // The owner revokes fatou; her next 403 hits the guard.
-      final i =
-          MockData.teamMembers.indexWhere((m) => m.id == 'mem_reception2');
+      final i = MockData.teamMembers.indexWhere(
+        (m) => m.id == 'mem_reception2',
+      );
       MockData.teamMembers[i] = MockData.teamMembers[i].copyWith(
         status: TeamMemberStatus.revoked,
         revokedAt: DateTime.now(),

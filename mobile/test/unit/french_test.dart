@@ -67,12 +67,11 @@ void main() {
     return value;
   }
 
-  group(
-      '§21 row 29 — the booking date, which is the reason this is not a '
+  group('§21 row 29 — the booking date, which is the reason this is not a '
       'copy slice', () {
-    testWidgets(
-        'the house picker renders a French month, and has no input mode',
-        (tester) async {
+    testWidgets('the house picker renders a French month, and has no input mode', (
+      tester,
+    ) async {
       // **This test used to pump a live `showDatePicker` in input mode**, typing
       // `07/01/2026` and asserting it booked 7 January rather than 1 July —
       // `DefaultMaterialLocalizations.parseCompactDate`
@@ -103,14 +102,22 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('janvier 2026'), findsOneWidget,
-          reason: 'the month the user reads, in French, from '
-              'Formatters.formatMonthYear');
-      expect(find.byType(TextField), findsNothing,
-          reason: 'no input mode means the mm/dd/yyyy parse defect cannot be '
-              'reached from this app — which is WHY the pump above is gone. If '
-              'a text field ever returns to the picker, this fails and the '
-              'parser gate below stops being sufficient.');
+      expect(
+        find.text('janvier 2026'),
+        findsOneWidget,
+        reason:
+            'the month the user reads, in French, from '
+            'Formatters.formatMonthYear',
+      );
+      expect(
+        find.byType(TextField),
+        findsNothing,
+        reason:
+            'no input mode means the mm/dd/yyyy parse defect cannot be '
+            'reached from this app — which is WHY the pump above is gone. If '
+            'a text field ever returns to the picker, this fails and the '
+            'parser gate below stops being sufficient.',
+      );
     });
 
     testWidgets('…and the parser itself agrees', (tester) async {
@@ -126,35 +133,48 @@ void main() {
   });
 
   group('mechanism 1 — the Material defaults', () {
-    testWidgets('the date picker reads French, and starts the week on Monday',
-        (tester) async {
+    testWidgets('the date picker reads French, and starts the week on Monday', (
+      tester,
+    ) async {
       final l10n = await read(tester, MaterialLocalizations.of);
 
       // **All three reasons here described Material's date dialog, and A14a
       // routed around every one of them.** They are re-stated as what they now
       // guard rather than deleted, because the delegates are still app-wide and
       // still reachable from dozens of Material widgets we do use.
-      expect(l10n.formatMonthYear(DateTime(2026, 1, 15)), 'janvier 2026',
-          reason: 'no longer the picker — its month bar is '
-              'Formatters.formatMonthYear (myweli_month_grid.dart). This is the '
-              'delegate itself, which every remaining Material widget reads.');
-      expect(l10n.formatMediumDate(DateTime(2026, 9, 27)), contains('sept'),
-          reason:
-              'the claim that "the dialog headline reads « Wed, Sep 27 »" is '
-              'dead — the house picker has an AppBar reading « Choisir une '
-              'date » and never calls formatMediumDate. Kept as a delegate '
-              'assertion, not a picker one.');
-      expect(l10n.firstDayOfWeekIndex, 1,
-          reason: 'a French calendar starts on Monday. This no longer guards '
-              'the house grid, which derives Monday-first from DateTime.weekday '
-              'and Formatters.weekdayInitials — see formatters_test.dart, which '
-              'asserts « L M M J V S D » directly. So « S M T W T F S » can no '
-              'longer happen, and this now only guards Material widgets that '
-              'still read the delegate.');
+      expect(
+        l10n.formatMonthYear(DateTime(2026, 1, 15)),
+        'janvier 2026',
+        reason:
+            'no longer the picker — its month bar is '
+            'Formatters.formatMonthYear (myweli_month_grid.dart). This is the '
+            'delegate itself, which every remaining Material widget reads.',
+      );
+      expect(
+        l10n.formatMediumDate(DateTime(2026, 9, 27)),
+        contains('sept'),
+        reason:
+            'the claim that "the dialog headline reads « Wed, Sep 27 »" is '
+            'dead — the house picker has an AppBar reading « Choisir une '
+            'date » and never calls formatMediumDate. Kept as a delegate '
+            'assertion, not a picker one.',
+      );
+      expect(
+        l10n.firstDayOfWeekIndex,
+        1,
+        reason:
+            'a French calendar starts on Monday. This no longer guards '
+            'the house grid, which derives Monday-first from DateTime.weekday '
+            'and Formatters.weekdayInitials — see formatters_test.dart, which '
+            'asserts « L M M J V S D » directly. So « S M T W T F S » can no '
+            'longer happen, and this now only guards Material widgets that '
+            'still read the delegate.',
+      );
     });
 
-    testWidgets('the highest-frequency English string in the product',
-        (tester) async {
+    testWidgets('the highest-frequency English string in the product', (
+      tester,
+    ) async {
       // 51 reachable `AppBar`s, none of them passing `leading:` — every one
       // renders the implied `BackButton`, whose tooltip is this string. It is
       // absent from row 29's framing entirely.
@@ -162,18 +182,25 @@ void main() {
       expect(l10n.backButtonTooltip, 'Retour');
     });
 
-    testWidgets('A6’s parked question — the barrier a screen reader announces',
-        (tester) async {
-      final l10n = await read(tester, MaterialLocalizations.of);
-      // `isNot('Dismiss')` was the first form and it passes for ANY string,
-      // including 'Scrim' or ''. Assert the value.
-      expect(l10n.modalBarrierDismissLabel, 'Ignorer',
-          reason: 'this is the ONE thing row 29 did record, and it is the '
-              'smallest of them');
-    });
+    testWidgets(
+      'A6’s parked question — the barrier a screen reader announces',
+      (tester) async {
+        final l10n = await read(tester, MaterialLocalizations.of);
+        // `isNot('Dismiss')` was the first form and it passes for ANY string,
+        // including 'Scrim' or ''. Assert the value.
+        expect(
+          l10n.modalBarrierDismissLabel,
+          'Ignorer',
+          reason:
+              'this is the ONE thing row 29 did record, and it is the '
+              'smallest of them',
+        );
+      },
+    );
 
-    testWidgets('the time picker offers 24h even when the device says 12h',
-        (tester) async {
+    testWidgets('the time picker offers 24h even when the device says 12h', (
+      tester,
+    ) async {
       // The planned fix here was a MediaQuery override forcing 24h. Measured,
       // French does it alone: `MaterialLocalizationFr.timeOfDayFormatRaw` is
       // `HH_colon_mm`, and `timeOfDayFormat()` returns it unchanged when the
@@ -181,18 +208,24 @@ void main() {
       // was dropped, and this asserts the guarantee instead of assuming it.
       final format = await read(
         tester,
-        (context) => MaterialLocalizations.of(context)
-            .timeOfDayFormat(alwaysUse24HourFormat: false),
+        (context) => MaterialLocalizations.of(
+          context,
+        ).timeOfDayFormat(alwaysUse24HourFormat: false),
       );
-      expect(format, TimeOfDayFormat.HH_colon_mm,
-          reason: 'with the device toggle off a CI user gets a 12h dial with '
-              'English AM/PM buttons');
+      expect(
+        format,
+        TimeOfDayFormat.HH_colon_mm,
+        reason:
+            'with the device toggle off a CI user gets a 12h dial with '
+            'English AM/PM buttons',
+      );
     });
   });
 
   group('mechanism 2 — iOS, which reads a different delegate entirely', () {
-    testWidgets('the text-selection toolbar is French on iOS too',
-        (tester) async {
+    testWidgets('the text-selection toolbar is French on iOS too', (
+      tester,
+    ) async {
       // `adaptive_text_selection_toolbar.dart:211` routes iOS/macOS through
       // `CupertinoLocalizations`, and `app_theme.dart` never overrides
       // `platform:` — so this branch is live on every iPhone, across 50
@@ -233,9 +266,13 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('juillet 2026'), findsOneWidget,
-          reason: 'the consumer booking calendar renders « July 2026 » today, '
-              'directly above a French screen');
+      expect(
+        find.text('juillet 2026'),
+        findsOneWidget,
+        reason:
+            'the consumer booking calendar renders « July 2026 » today, '
+            'directly above a French screen',
+      );
     });
 
     test('and the mechanism behind it', () async {
@@ -247,9 +284,13 @@ void main() {
       // it is not measuring what it claims to.
       await initAppFormatting();
 
-      expect(DateFormat.yMMMM().format(DateTime(2026, 7)), 'juillet 2026',
-          reason: 'this is the exact call table_calendar makes '
-              '(calendar_header.dart:43) with a null locale');
+      expect(
+        DateFormat.yMMMM().format(DateTime(2026, 7)),
+        'juillet 2026',
+        reason:
+            'this is the exact call table_calendar makes '
+            '(calendar_header.dart:43) with a null locale',
+      );
     });
   });
 
@@ -297,9 +338,13 @@ void main() {
         // persisted for the life of the goldens.
         ...Directory('test/golden').listSync(recursive: true),
       ].whereType<File>().where((f) => f.path.endsWith('.dart')).toList();
-      expect(shells, isNotEmpty,
-          reason: 'resolving paths from the wrong directory would pass this '
-              'on an empty set');
+      expect(
+        shells,
+        isNotEmpty,
+        reason:
+            'resolving paths from the wrong directory would pass this '
+            'on an empty set',
+      );
 
       final offenders = <String>[];
       for (final file in shells) {
@@ -311,26 +356,33 @@ void main() {
         final apps = RegExp(r'MaterialApp(\.router)?\(').allMatches(src).length;
         if (apps == 0) continue;
         final delegates = 'localizationsDelegates:'.allMatches(src).length;
-        final locales = RegExp(r"supportedLocales:[^\n]*Locale\('fr'")
-            .allMatches(src)
-            .length;
+        final locales = RegExp(
+          r"supportedLocales:[^\n]*Locale\('fr'",
+        ).allMatches(src).length;
         if (delegates < apps || locales < apps) {
-          offenders.add('${file.path}  ($apps MaterialApp, '
-              '$delegates delegates, $locales fr locales)');
+          offenders.add(
+            '${file.path}  ($apps MaterialApp, '
+            '$delegates delegates, $locales fr locales)',
+          );
         }
       }
 
-      expect(offenders, isEmpty,
-          reason: 'a MaterialApp without BOTH the delegates and a French '
-              '`supportedLocales` falls back to DefaultMaterialLocalizations — '
-              'silently, because English IS supported. Counted per constructor '
-              'so one branch of a ternary cannot hide behind the other, and '
-              'comment lines are stripped so a commented-out line does not '
-              'count as wiring.');
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'a MaterialApp without BOTH the delegates and a French '
+            '`supportedLocales` falls back to DefaultMaterialLocalizations — '
+            'silently, because English IS supported. Counted per constructor '
+            'so one branch of a ternary cannot hide behind the other, and '
+            'comment lines are stripped so a commented-out line does not '
+            'count as wiring.',
+      );
     });
 
-    testWidgets('…and the APP ROOTS resolve it, not just the test shell',
-        (tester) async {
+    testWidgets('…and the APP ROOTS resolve it, not just the test shell', (
+      tester,
+    ) async {
       // The review's sharpest finding: every behavioural assertion in this
       // file pumps through `wrapApp`, which supplies the delegates ITSELF.
       // Deleting all of them from `lib/main*.dart` left all twelve green —
@@ -342,12 +394,20 @@ void main() {
       // both honest and cheap: build the same `MaterialApp` configuration the
       // roots declare, read from their source, and check it resolves fr_FR.
       final root = File('lib/main.dart').readAsStringSync();
-      expect(root, contains('GlobalMaterialLocalizations.delegates'),
-          reason: 'the plural — the singular pairing leaves Cupertino '
-              'unsupported for fr and fails every widget test');
-      expect(root, contains("supportedLocales: const [Locale('fr', 'FR')]"),
-          reason: 'with the country code: basicLocaleListResolution matches at '
-              'the language rung and would hand back a country-less locale');
+      expect(
+        root,
+        contains('GlobalMaterialLocalizations.delegates'),
+        reason:
+            'the plural — the singular pairing leaves Cupertino '
+            'unsupported for fr and fails every widget test',
+      );
+      expect(
+        root,
+        contains("supportedLocales: const [Locale('fr', 'FR')]"),
+        reason:
+            'with the country code: basicLocaleListResolution matches at '
+            'the language rung and would hand back a country-less locale',
+      );
     });
   });
 }

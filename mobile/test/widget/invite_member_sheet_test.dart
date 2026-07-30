@@ -33,16 +33,14 @@ class _SwitchableTeam implements ProTeamServiceInterface {
     required String email,
     required TeamRole role,
     String? artistId,
-  }) =>
-      inner.inviteMember(email: email, role: role, artistId: artistId);
+  }) => inner.inviteMember(email: email, role: role, artistId: artistId);
 
   @override
   Future<ApiResponse<TeamMember>> changeRole(
     String memberId, {
     required TeamRole role,
     String? artistId,
-  }) =>
-      inner.changeRole(memberId, role: role, artistId: artistId);
+  }) => inner.changeRole(memberId, role: role, artistId: artistId);
 
   @override
   Future<ApiResponse<TeamMember>> revokeMember(String memberId) =>
@@ -108,10 +106,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/host',
       routes: [
-        GoRoute(path: '/host', builder: (_, __) => const _SheetHost()),
+        GoRoute(path: '/host', builder: (_, _) => const _SheetHost()),
         GoRoute(
           path: '/pro/subscription',
-          builder: (_, __) => const Scaffold(body: Text('OFFRES')),
+          builder: (_, _) => const Scaffold(body: Text('OFFRES')),
         ),
       ],
     );
@@ -147,8 +145,9 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('step 1 ANSWERS an invalid email instead of going dead',
-      (tester) async {
+  testWidgets('step 1 ANSWERS an invalid email instead of going dead', (
+    tester,
+  ) async {
     // A7 rewrote this test with the code it guards. It used to assert
     // `button.onPressed == null` — that a bad e-mail left « Continuer »
     // disabled — which is precisely §14 rule 5's anti-pattern: a dead end with
@@ -168,16 +167,25 @@ void main() {
     final button = tester.widget<ElevatedButton>(
       find.widgetWithText(ElevatedButton, 'Continuer'),
     );
-    expect(button.onPressed, isNotNull,
-        reason: 'rule 5: never disabled to express "invalid"');
+    expect(
+      button.onPressed,
+      isNotNull,
+      reason: 'rule 5: never disabled to express "invalid"',
+    );
 
     await tester.tap(find.widgetWithText(ElevatedButton, 'Continuer'));
     await tester.pump();
 
-    expect(find.text('Saisissez une adresse e-mail valide.'), findsOneWidget,
-        reason: 'the press must answer, under the field');
-    expect(find.byType(SnackBar), findsNothing,
-        reason: '§14 rule 3 — a field fault is never a bar');
+    expect(
+      find.text('Saisissez une adresse e-mail valide.'),
+      findsOneWidget,
+      reason: 'the press must answer, under the field',
+    );
+    expect(
+      find.byType(SnackBar),
+      findsNothing,
+      reason: '§14 rule 3 — a field fault is never a bar',
+    );
     expect(
       find.text('À quelle adresse e-mail envoyer l’invitation ?'),
       findsOneWidget,
@@ -190,8 +198,7 @@ void main() {
     expect(find.text('Saisissez une adresse e-mail valide.'), findsNothing);
   });
 
-  testWidgets(
-      'step 2 shows the three role cards with the locked French '
+  testWidgets('step 2 shows the three role cards with the locked French '
       'summaries', (tester) async {
     await reachRoleStep(tester);
 
@@ -199,23 +206,25 @@ void main() {
     expect(find.text('Réception'), findsOneWidget);
     expect(find.text('Collaborateur'), findsOneWidget);
     expect(
-      find.text('Gère les rendez-vous, le catalogue et les disponibilités. '
-          'Ne voit pas les revenus.'),
+      find.text(
+        'Gère les rendez-vous, le catalogue et les disponibilités. '
+        'Ne voit pas les revenus.',
+      ),
       findsOneWidget,
     );
     expect(
-      find.text('Gère le planning et le fichier clients. Pas de catalogue '
-          'ni de réglages.'),
+      find.text(
+        'Gère le planning et le fichier clients. Pas de catalogue '
+        'ni de réglages.',
+      ),
       findsOneWidget,
     );
-    expect(
-      find.text('Voit uniquement son propre planning.'),
-      findsOneWidget,
-    );
+    expect(find.text('Voit uniquement son propre planning.'), findsOneWidget);
   });
 
-  testWidgets('Manager invite completes from step 2 with the snackbar',
-      (tester) async {
+  testWidgets('Manager invite completes from step 2 with the snackbar', (
+    tester,
+  ) async {
     await reachRoleStep(tester);
 
     await tester.tap(find.text('Manager'));
@@ -224,14 +233,10 @@ void main() {
     await settle(tester);
 
     expect(find.text('Invitation envoyée à ama@b.com'), findsOneWidget);
-    expect(
-      MockData.teamMembers.any((m) => m.email == 'ama@b.com'),
-      isTrue,
-    );
+    expect(MockData.teamMembers.any((m) => m.email == 'ama@b.com'), isTrue);
   });
 
-  testWidgets(
-      'Collaborateur requires the fiche step: picker + inline '
+  testWidgets('Collaborateur requires the fiche step: picker + inline '
       '« Créer une fiche » auto-selects the new employee', (tester) async {
     await reachRoleStep(tester);
 
@@ -258,8 +263,9 @@ void main() {
     expect(row.artistName, 'Fatou');
   });
 
-  testWidgets('a duplicate shows the inline member_exists copy',
-      (tester) async {
+  testWidgets('a duplicate shows the inline member_exists copy', (
+    tester,
+  ) async {
     await reachRoleStep(tester, email: 'awa.manager@myweli.test');
 
     await tester.tap(find.text('Manager'));
@@ -267,14 +273,12 @@ void main() {
     await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
-    expect(
-      find.text('Cette personne est déjà dans l’équipe.'),
-      findsOneWidget,
-    );
+    expect(find.text('Cette personne est déjà dans l’équipe.'), findsOneWidget);
   });
 
-  testWidgets('offer_required renders the CTA to the offer picker',
-      (tester) async {
+  testWidgets('offer_required renders the CTA to the offer picker', (
+    tester,
+  ) async {
     useOffer(live: false); // setup state — invites gated
     await reachRoleStep(tester);
 
@@ -284,8 +288,10 @@ void main() {
     await settle(tester);
 
     expect(
-      find.text('Choisissez d’abord votre offre pour inviter votre '
-          'équipe.'),
+      find.text(
+        'Choisissez d’abord votre offre pour inviter votre '
+        'équipe.',
+      ),
       findsOneWidget,
     );
     await tester.tap(find.text('Choisir mon offre'));

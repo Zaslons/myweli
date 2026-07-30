@@ -54,11 +54,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/pro/staff',
       routes: [
-        GoRoute(
-            path: '/pro/staff', builder: (_, __) => const StaffHomeScreen()),
+        GoRoute(path: '/pro/staff', builder: (_, _) => const StaffHomeScreen()),
         GoRoute(
           path: '/pro/appointment/:id',
-          builder: (_, __) => const Scaffold(body: Text('DETAIL')),
+          builder: (_, _) => const Scaffold(body: Text('DETAIL')),
         ),
       ],
     );
@@ -81,12 +80,14 @@ void main() {
     late ProAuthProvider authProvider;
     await tester.runAsync(() async {
       authProvider = ProAuthProvider();
-      for (var i = 0;
-          i < 60 &&
-              (authProvider.isLoading ||
-                  (authProvider.isAuthenticated &&
-                      authProvider.membership == null));
-          i++) {
+      for (
+        var i = 0;
+        i < 60 &&
+            (authProvider.isLoading ||
+                (authProvider.isAuthenticated &&
+                    authProvider.membership == null));
+        i++
+      ) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     });
@@ -110,8 +111,7 @@ void main() {
     }
   }
 
-  testWidgets(
-      'the 3 tabs render; Journée is the LOCKED own journal with '
+  testWidgets('the 3 tabs render; Journée is the LOCKED own journal with '
       'the boundary header, no chips, no FAB', (tester) async {
     await tester.pumpWidget(app(await readyAuth(tester)));
     await settle(tester);
@@ -122,10 +122,7 @@ void main() {
     expect(find.text('Profil'), findsOneWidget);
 
     // The boundary header (own-mode).
-    expect(
-      find.text('Salon Excellence — votre planning'),
-      findsOneWidget,
-    );
+    expect(find.text('Salon Excellence — votre planning'), findsOneWidget);
     // No artist chips (« Tous »), no manual-booking FAB, no Agenda action.
     expect(find.text('Tous'), findsNothing);
     expect(find.text('Nouveau'), findsNothing);
@@ -133,8 +130,7 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets(
-      'the long-press sheet offers ONLY Terminé + Non présenté on '
+  testWidgets('the long-press sheet offers ONLY Terminé + Non présenté on '
       'a confirmed own booking', (tester) async {
     await tester.pumpWidget(app(await readyAuth(tester)));
     await settle(tester);

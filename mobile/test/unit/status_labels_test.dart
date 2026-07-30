@@ -75,15 +75,15 @@ void main() {
   setUpAll(setupDependencyInjection);
 
   Appointment appointment(AppointmentStatus status) => Appointment(
-        id: 'a1',
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: DateTime(2026, 7, 20, 14, 30),
-        status: status,
-        totalPrice: 15000,
-        createdAt: DateTime(2026, 7, 1),
-      );
+    id: 'a1',
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    appointmentDate: DateTime(2026, 7, 20, 14, 30),
+    status: status,
+    totalPrice: 15000,
+    createdAt: DateTime(2026, 7, 1),
+  );
 
   group('the English leak — admin prints the raw enum', () {
     for (final entry in const {
@@ -98,9 +98,13 @@ void main() {
           home: Scaffold(body: StatusChip.forStatus(entry.key)),
         );
         await tester.pump();
-        expect(find.text(entry.value), findsOneWidget,
-            reason: 'the kind switch already routes this status, so the pill '
-                'is the right colour with the wrong word beside it');
+        expect(
+          find.text(entry.value),
+          findsOneWidget,
+          reason:
+              'the kind switch already routes this status, so the pill '
+              'is the right colour with the wrong word beside it',
+        );
       });
     }
   });
@@ -108,21 +112,23 @@ void main() {
   group('normalization — one status, however the API spells it', () {
     for (final raw in const ['noShow', 'NO_SHOW', 'no-show', 'noshow']) {
       testWidgets('$raw → « Absent »', (tester) async {
-        await pumpApp(
-          tester,
-          home: Scaffold(body: StatusChip.forStatus(raw)),
-        );
+        await pumpApp(tester, home: Scaffold(body: StatusChip.forStatus(raw)));
         await tester.pump();
-        expect(find.text('Absent'), findsOneWidget,
-            reason: 'the openapi enum is `noShow`; the kind switch already '
-                'normalises, and the label must too — that asymmetry is the '
-                'exact defect web fixed and mobile did not');
+        expect(
+          find.text('Absent'),
+          findsOneWidget,
+          reason:
+              'the openapi enum is `noShow`; the kind switch already '
+              'normalises, and the label must too — that asymmetry is the '
+              'exact defect web fixed and mobile did not',
+        );
       });
     }
   });
 
-  testWidgets('an UNKNOWN status shows « — », never the wire value',
-      (tester) async {
+  testWidgets('an UNKNOWN status shows « — », never the wire value', (
+    tester,
+  ) async {
     // Written because a mutation caught the gap: restoring the old
     // `?? raw` fallback kept every other assertion in this file green, since
     // they all test statuses the map knows. But falling back to the raw string
@@ -134,14 +140,18 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('rescheduled_by_salon'), findsNothing,
-        reason: 'an unrecognised wire value must never render');
+    expect(
+      find.text('rescheduled_by_salon'),
+      findsNothing,
+      reason: 'an unrecognised wire value must never render',
+    );
     expect(find.text('—'), findsOneWidget);
   });
 
   group('one vocabulary across the three surfaces', () {
-    testWidgets('the consumer card and the admin chip agree on noShow',
-        (tester) async {
+    testWidgets('the consumer card and the admin chip agree on noShow', (
+      tester,
+    ) async {
       await pumpApp(
         tester,
         // `AppointmentCard` reads the salon through a `Consumer` — the tile
@@ -155,7 +165,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<ProviderProvider>.value(
             value: ProviderProvider(),
-          )
+          ),
         ],
         home: Scaffold(
           body: Column(
@@ -171,9 +181,13 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Absent'), findsNWidgets(2),
-          reason: 'two surfaces, one word — today the admin one prints '
-              '« noShow »');
+      expect(
+        find.text('Absent'),
+        findsNWidgets(2),
+        reason:
+            'two surfaces, one word — today the admin one prints '
+            '« noShow »',
+      );
     });
 
     testWidgets('…and so does the compact tile', (tester) async {
@@ -224,21 +238,29 @@ void main() {
       'double quotes': 'AppointmentStatus.noShow: "Absent",',
     };
     for (final entry in shapes.entries) {
-      expect(keepsOwnVocabulary(entry.value), isTrue,
-          reason: '${entry.key} must be detected — this is how a sixth '
-              'vocabulary comes back');
+      expect(
+        keepsOwnVocabulary(entry.value),
+        isTrue,
+        reason:
+            '${entry.key} must be detected — this is how a sixth '
+            'vocabulary comes back',
+      );
     }
 
     // …and it must NOT flag the shapes that map the same enum to something
     // that is not a status word. A pin that cries wolf gets an allowlist.
     expect(
-        keepsOwnVocabulary(
-            'case AppointmentStatus.noShow:\n        label = deposit;'),
-        isFalse,
-        reason: 'the deposit-label switch is correct code');
-    expect(keepsOwnVocabulary('AppointmentStatus.noShow => AppColors.error,'),
-        isFalse,
-        reason: 'the colour switch is correct code');
+      keepsOwnVocabulary(
+        'case AppointmentStatus.noShow:\n        label = deposit;',
+      ),
+      isFalse,
+      reason: 'the deposit-label switch is correct code',
+    );
+    expect(
+      keepsOwnVocabulary('AppointmentStatus.noShow => AppColors.error,'),
+      isFalse,
+      reason: 'the colour switch is correct code',
+    );
   });
 
   test('no screen keeps its own status vocabulary (§17, §18)', () {
@@ -255,13 +277,17 @@ void main() {
         .map((f) => f.path)
         .toList();
 
-    expect(offenders, isEmpty,
-        reason: 'EIGHT separate vocabularies render noShow three different '
-            'ways — Absent ×6, « Non présenté » ×2, and the raw enum in '
-            'admin. (The census said five; the pin measured eight. It also '
-            'first said nine, until it stopped counting a colour switch and a '
-            'deposit-label switch as vocabularies.) One map, in $home, is what '
-            'keeps the three surfaces agreeing — and agreeing with the web '
-            'twin they were mirrored from.');
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'EIGHT separate vocabularies render noShow three different '
+          'ways — Absent ×6, « Non présenté » ×2, and the raw enum in '
+          'admin. (The census said five; the pin measured eight. It also '
+          'first said nine, until it stopped counting a colour switch and a '
+          'deposit-label switch as vocabularies.) One map, in $home, is what '
+          'keeps the three surfaces agreeing — and agreeing with the web '
+          'twin they were mirrored from.',
+    );
   });
 }

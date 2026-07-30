@@ -6,7 +6,7 @@ import '../../services/admin/admin_service.dart';
 /// router redirect. Design: docs/design/admin-console-ui.md.
 class AdminAuthProvider extends ChangeNotifier {
   AdminAuthProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

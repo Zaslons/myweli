@@ -88,7 +88,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     // surfaces they can't use (access R4b).
     final auth = context.read<ProAuthProvider>();
     context.go(
-        auth.isStaff ? '/pro/staff' : (widget.returnTo ?? '/pro/dashboard'));
+      auth.isStaff ? '/pro/staff' : (widget.returnTo ?? '/pro/dashboard'),
+    );
   }
 
   Future<void> _handleGoogle() async {
@@ -115,8 +116,11 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     final ok = await auth.acceptPendingInvitation(invitationId);
     if (!mounted) return;
     if (ok) {
-      AppSnackBar.showOn(messenger, 'Bienvenue dans l’équipe de $salonName !',
-          kind: SnackKind.success);
+      AppSnackBar.showOn(
+        messenger,
+        'Bienvenue dans l’équipe de $salonName !',
+        kind: SnackKind.success,
+      );
       _finish();
     }
   }
@@ -216,15 +220,17 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.person_off_outlined,
-                          color: AppColors.error),
+                      const Icon(
+                        Icons.person_off_outlined,
+                        color: AppColors.error,
+                      ),
                       const SizedBox(width: AppTheme.spacingS),
                       Expanded(
                         child: Text(
                           _revokedSalon == 'votre salon'
                               ? 'Votre accès à ce salon a été retiré.'
                               : 'Votre accès à $_revokedSalon a été '
-                                  'retiré.',
+                                    'retiré.',
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: AppColors.error,
                           ),
@@ -326,10 +332,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   InvitationCard(
                     invitation: invitation,
                     busy: auth.isLoading,
-                    onAccept: () => _acceptInvitation(
-                      invitation.id,
-                      invitation.salonName,
-                    ),
+                    onAccept: () =>
+                        _acceptInvitation(invitation.id, invitation.salonName),
                     onDecline: () => _declineInvitation(invitation.id),
                   ),
                   const SizedBox(height: AppTheme.spacingM),

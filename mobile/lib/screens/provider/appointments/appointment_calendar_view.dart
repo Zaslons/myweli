@@ -16,10 +16,7 @@ import '../../../providers/pro_auth_provider.dart';
 class AppointmentCalendarView extends StatefulWidget {
   final List<Appointment> appointments;
 
-  const AppointmentCalendarView({
-    super.key,
-    required this.appointments,
-  });
+  const AppointmentCalendarView({super.key, required this.appointments});
 
   @override
   State<AppointmentCalendarView> createState() =>
@@ -44,16 +41,18 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
   void initState() {
     super.initState();
     _selectedDay = _salonTodayNaive();
-    _selectedAppointments =
-        ValueNotifier(_getAppointmentsForDay(_selectedDay!));
+    _selectedAppointments = ValueNotifier(
+      _getAppointmentsForDay(_selectedDay!),
+    );
   }
 
   @override
   void didUpdateWidget(AppointmentCalendarView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.appointments != widget.appointments) {
-      _selectedAppointments.value =
-          _getAppointmentsForDay(_selectedDay ?? _salonTodayNaive());
+      _selectedAppointments.value = _getAppointmentsForDay(
+        _selectedDay ?? _salonTodayNaive(),
+      );
     }
   }
 
@@ -122,8 +121,9 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
                 setState(() {
                   _selectedDay = selectedDay;
                   _focusedDay = focusedDay;
-                  _selectedAppointments.value =
-                      _getAppointmentsForDay(selectedDay);
+                  _selectedAppointments.value = _getAppointmentsForDay(
+                    selectedDay,
+                  );
                 });
               }
             },
@@ -160,9 +160,11 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.event_busy,
-                          size: AppTheme.iconXL,
-                          color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.event_busy,
+                        size: AppTheme.iconXL,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(height: AppTheme.spacingM),
                       Text(
                         'Aucun rendez-vous',
@@ -185,8 +187,9 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
               }
 
               return ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingM,
+                ),
                 itemCount: appointments.length,
                 itemBuilder: (context, index) {
                   final appointment = appointments[index];
@@ -209,10 +212,7 @@ class _AppointmentCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback onTap;
 
-  const _AppointmentCard({
-    required this.appointment,
-    required this.onTap,
-  });
+  const _AppointmentCard({required this.appointment, required this.onTap});
 
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
@@ -224,8 +224,9 @@ class _AppointmentCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(
-          backgroundColor:
-              _getStatusColor(appointment.status).withValues(alpha: 0.2),
+          backgroundColor: _getStatusColor(
+            appointment.status,
+          ).withValues(alpha: 0.2),
           child: Icon(
             Icons.calendar_today,
             color: _getStatusColor(appointment.status),
@@ -233,24 +234,33 @@ class _AppointmentCard extends StatelessWidget {
           ),
         ),
         title: Text(
-          Formatters.formatTime(toSalonTime(appointment.appointmentDate,
-              tz: context.read<ProAuthProvider>().salonTimezone)),
-          style:
-              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          Formatters.formatTime(
+            toSalonTime(
+              appointment.appointmentDate,
+              tz: context.read<ProAuthProvider>().salonTimezone,
+            ),
+          ),
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: AppTheme.spacingXS),
-            Text(Formatters.count(
-              appointment.serviceIds.length,
-              'service',
-              'services',
-            )),
-            Text(Formatters.formatCurrency(
-              appointment.totalPrice,
-              currency: context.read<ProAuthProvider>().salonCurrency,
-            )),
+            Text(
+              Formatters.count(
+                appointment.serviceIds.length,
+                'service',
+                'services',
+              ),
+            ),
+            Text(
+              Formatters.formatCurrency(
+                appointment.totalPrice,
+                currency: context.read<ProAuthProvider>().salonCurrency,
+              ),
+            ),
           ],
         ),
         trailing: Chip(

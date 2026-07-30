@@ -18,8 +18,7 @@ void main() {
       );
     });
 
-    test(
-        'provisional → granted (iOS quiet notifications still ARRIVE, so the '
+    test('provisional → granted (iOS quiet notifications still ARRIVE, so the '
         'token is worth registering)', () {
       expect(
         mapAuthorizationStatus(AuthorizationStatus.provisional),

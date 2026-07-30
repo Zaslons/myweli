@@ -77,14 +77,22 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       // Abidjan; the slot reload after load() re-anchors everything.
       final dt = toSalonTime(widget.initialDateTime!, tz: _tz);
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
-      _selectedTime = salonDateTime(dt.year, dt.month, dt.day,
-          hour: dt.hour, minute: dt.minute, tz: _tz);
+      _selectedTime = salonDateTime(
+        dt.year,
+        dt.month,
+        dt.day,
+        hour: dt.hour,
+        minute: dt.minute,
+        tz: _tz,
+      );
       _selectionError = null;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       unawaited(context.read<LocalityProvider>().ensureLoaded());
-      await Provider.of<ProviderProvider>(context, listen: false)
-          .loadProviderById(widget.providerId);
+      await Provider.of<ProviderProvider>(
+        context,
+        listen: false,
+      ).loadProviderById(widget.providerId);
       if (!mounted) return;
       // Default the hair length once we know the services (drives slot length).
       final services = _selectedServices();
@@ -96,8 +104,10 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   }
 
   List<Service> _selectedServices() {
-    final p =
-        Provider.of<ProviderProvider>(context, listen: false).selectedProvider;
+    final p = Provider.of<ProviderProvider>(
+      context,
+      listen: false,
+    ).selectedProvider;
     if (p == null || widget.serviceIds.isEmpty) return const [];
     return p.services.where((s) => widget.serviceIds.contains(s.id)).toList();
   }
@@ -105,7 +115,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   Future<void> _loadAvailableSlots() async {
     setState(() => _loadingSlots = true);
     final services = _selectedServices();
-    final durationMinutes = widget.durationMinutes ??
+    final durationMinutes =
+        widget.durationMinutes ??
         (services.isEmpty
             ? 30
             : totalBookingDuration(services, _lengthVariant));
@@ -122,12 +133,14 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       _loadingSlots = false;
       // Keep the previously selected time if it is still available, otherwise reset.
       if (_selectedTime != null) {
-        final keep = _availableSlots.any((dt) =>
-            dt.year == _selectedTime!.year &&
-            dt.month == _selectedTime!.month &&
-            dt.day == _selectedTime!.day &&
-            dt.hour == _selectedTime!.hour &&
-            dt.minute == _selectedTime!.minute);
+        final keep = _availableSlots.any(
+          (dt) =>
+              dt.year == _selectedTime!.year &&
+              dt.month == _selectedTime!.month &&
+              dt.day == _selectedTime!.day &&
+              dt.hour == _selectedTime!.hour &&
+              dt.minute == _selectedTime!.minute,
+        );
         if (!keep) _selectedTime = null;
       }
     });
@@ -172,10 +185,12 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     }
 
     final serviceIds = widget.serviceIds.join(',');
-    final artistParam =
-        widget.artistId != null ? '&artistId=${widget.artistId}' : '';
-    final lengthParam =
-        _lengthVariant != null ? '&lengthVariant=$_lengthVariant' : '';
+    final artistParam = widget.artistId != null
+        ? '&artistId=${widget.artistId}'
+        : '';
+    final lengthParam = _lengthVariant != null
+        ? '&lengthVariant=$_lengthVariant'
+        : '';
     context.push(
       '/booking/confirm?providerId=${widget.providerId}&serviceIds=$serviceIds&dateTime=${dateTime.toIso8601String()}$artistParam$lengthParam',
     );
@@ -185,9 +200,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Date et heure'),
-      ),
+      appBar: AppBar(title: const Text('Date et heure')),
       body: Column(
         children: [
           Expanded(
@@ -197,9 +210,10 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (bookingHasVariants(
-                      context.watch<ProviderProvider>().selectedProvider == null
-                          ? const []
-                          : _selectedServices())) ...[
+                    context.watch<ProviderProvider>().selectedProvider == null
+                        ? const []
+                        : _selectedServices(),
+                  )) ...[
                     LengthVariantSelector(
                       available: availableLengthVariants(_selectedServices()),
                       selected: _lengthVariant,
@@ -255,11 +269,11 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                   SalonTimeHint(
                     tz: _tz,
                     countryLabel: context.watch<LocalityProvider>().countryName(
-                          context
-                              .read<ProviderProvider>()
-                              .selectedProvider
-                              ?.countryCode,
-                        ),
+                      context
+                          .read<ProviderProvider>()
+                          .selectedProvider
+                          ?.countryCode,
+                    ),
                     padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                   ),
                   const SizedBox(height: AppTheme.spacingM),
@@ -279,7 +293,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                       spacing: AppTheme.spacingS,
                       runSpacing: AppTheme.spacingS,
                       children: _availableSlots.map((slot) {
-                        final isSelected = _selectedTime != null &&
+                        final isSelected =
+                            _selectedTime != null &&
                             _selectedTime!.hour == slot.hour &&
                             _selectedTime!.minute == slot.minute;
 
@@ -292,8 +307,9 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                               color: isSelected
                                   ? AppColors.primary
                                   : AppColors.secondary,
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusMedium),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusMedium,
+                              ),
                               border: Border.all(
                                 color: isSelected
                                     ? AppColors.primary
@@ -304,7 +320,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                             child: Center(
                               child: Text(
                                 Formatters.formatTime(
-                                    toSalonTime(slot, tz: _tz)),
+                                  toSalonTime(slot, tz: _tz),
+                                ),
                                 style: AppTextStyles.bodyMedium.copyWith(
                                   color: isSelected
                                       ? AppColors.secondary
@@ -331,10 +348,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 InlineFeedback(_selectionError),
-                AppButton(
-                  text: 'Continuer',
-                  onPressed: _handleContinue,
-                ),
+                AppButton(text: 'Continuer', onPressed: _handleContinue),
               ],
             ),
           ),

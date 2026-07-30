@@ -73,7 +73,9 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> createArtist(
-      String providerId, Map<String, dynamic> data) async {
+    String providerId,
+    Map<String, dynamic> data,
+  ) async {
     _isLoading = true;
     notifyListeners();
 

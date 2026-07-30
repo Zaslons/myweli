@@ -42,16 +42,20 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Load providers so we can place markers
-      final providerProvider =
-          Provider.of<ProviderProvider>(context, listen: false);
+      final providerProvider = Provider.of<ProviderProvider>(
+        context,
+        listen: false,
+      );
       await providerProvider.loadProviders();
       if (!mounted) return;
 
       // Load favorites if user is authenticated (for heart markers)
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
-        final favoritesProvider =
-            Provider.of<FavoritesProvider>(context, listen: false);
+        final favoritesProvider = Provider.of<FavoritesProvider>(
+          context,
+          listen: false,
+        );
         await favoritesProvider.loadFavorites(authProvider.user!.id);
       }
 
@@ -161,14 +165,19 @@ class _MapScreenState extends State<MapScreen> {
         return Container(
           decoration: const BoxDecoration(
             color: AppColors.secondary,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXXL)),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(AppTheme.radiusXXL),
+            ),
           ),
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppTheme.spacingM,
-                  AppTheme.spacingM, AppTheme.spacingM, AppTheme.spacingL),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingL,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,8 +188,9 @@ class _MapScreenState extends State<MapScreen> {
                       height: 5,
                       decoration: BoxDecoration(
                         color: AppColors.divider,
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusPill),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusPill,
+                        ),
                       ),
                     ),
                   ),
@@ -190,8 +200,9 @@ class _MapScreenState extends State<MapScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppTheme.radiusXL),
                         child: TimedCachedImage(
-                          imageUrl:
-                              p.imageUrls.isNotEmpty ? p.imageUrls.first : '',
+                          imageUrl: p.imageUrls.isNotEmpty
+                              ? p.imageUrls.first
+                              : '',
                           width: 64,
                           height: 64,
                           fit: BoxFit.cover,
@@ -204,36 +215,42 @@ class _MapScreenState extends State<MapScreen> {
                           children: [
                             Text(
                               p.name,
-                              style: AppTextStyles.titleLarge
-                                  .copyWith(color: AppColors.textPrimary),
+                              style: AppTextStyles.titleLarge.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: AppTheme.spacingXS),
                             Row(
                               children: [
-                                const Icon(Icons.star,
-                                    size: AppTheme.iconXS,
-                                    color: AppColors.starRating),
+                                const Icon(
+                                  Icons.star,
+                                  size: AppTheme.iconXS,
+                                  color: AppColors.starRating,
+                                ),
                                 const SizedBox(width: AppTheme.spacingXS),
                                 Text(
                                   p.rating.toStringAsFixed(1),
-                                  style: AppTextStyles.bodySmall
-                                      .copyWith(color: AppColors.textSecondary),
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                                 const SizedBox(width: AppTheme.spacingS),
                                 Text(
                                   '(${p.reviewCount})',
-                                  style: AppTextStyles.bodySmall
-                                      .copyWith(color: AppColors.textTertiary),
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: AppTheme.spacingXS),
                             Text(
                               p.city ?? p.address,
-                              style: AppTextStyles.bodySmall
-                                  .copyWith(color: AppColors.textTertiary),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -241,7 +258,7 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                       Consumer2<AuthProvider, FavoritesProvider>(
-                        builder: (_, auth, favorites, __) {
+                        builder: (_, auth, favorites, _) {
                           final isFav = auth.isAuthenticated
                               ? favorites.isFavorite(p.id)
                               : false;
@@ -253,11 +270,14 @@ class _MapScreenState extends State<MapScreen> {
                               if (!auth.isAuthenticated || auth.user == null) {
                                 Navigator.of(sheetCtx).pop();
                                 parentContext.go(
-                                    '/login?returnTo=${Uri.encodeComponent('/favorites')}');
+                                  '/login?returnTo=${Uri.encodeComponent('/favorites')}',
+                                );
                                 return;
                               }
                               final ok = await favorites.toggleFavorite(
-                                  auth.user!.id, p.id);
+                                auth.user!.id,
+                                p.id,
+                              );
                               if (sheetCtx.mounted) {
                                 // A snackbar here would be pruned by the
                                 // sheet's ModalBarrier (§15/§10), so this one
@@ -267,10 +287,10 @@ class _MapScreenState extends State<MapScreen> {
                                   sheetCtx,
                                   ok
                                       ? (isFav
-                                          ? 'Retiré des favoris'
-                                          : 'Ajouté aux favoris')
+                                            ? 'Retiré des favoris'
+                                            : 'Ajouté aux favoris')
                                       : (favorites.error ??
-                                          'Une erreur est survenue. Réessayez.'),
+                                            'Une erreur est survenue. Réessayez.'),
                                 );
                               }
                             },
@@ -334,9 +354,9 @@ class _MapScreenState extends State<MapScreen> {
     final favoritesProvider = context.watch<FavoritesProvider>();
     final providers = providerProvider.providers;
 
-    return providers
-        .where((p) => p.latitude != null && p.longitude != null)
-        .map((p) {
+    return providers.where((p) => p.latitude != null && p.longitude != null).map((
+      p,
+    ) {
       final lat = p.latitude!;
       final lng = p.longitude!;
       final isFav = favoritesProvider.isFavorite(p.id);
@@ -356,11 +376,7 @@ class _MapScreenState extends State<MapScreen> {
               _mapController.move(LatLng(lat, lng), 14);
               _openProviderSheet(p);
             },
-            child: _SalonMarker(
-              icon: icon,
-              color: color,
-              isFavorite: isFav,
-            ),
+            child: _SalonMarker(icon: icon, color: color, isFavorite: isFav),
           ),
         ),
       );
@@ -390,16 +406,11 @@ class _MapScreenState extends State<MapScreen> {
     final providerMarkers = _buildProviderMarkers(context);
     final userMarker = _buildUserMarker();
 
-    final markers = <Marker>[
-      ...providerMarkers,
-      if (userMarker != null) userMarker,
-    ];
+    final markers = <Marker>[...providerMarkers, ?userMarker];
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Carte'),
-      ),
+      appBar: AppBar(title: const Text('Carte')),
       body: Stack(
         children: [
           FlutterMap(
@@ -443,8 +454,10 @@ class _MapScreenState extends State<MapScreen> {
                   padding: const EdgeInsets.all(AppTheme.spacingM),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline,
-                          color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.info_outline,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: AppTheme.spacingS),
                       Expanded(
                         child: Text(
@@ -472,8 +485,9 @@ class _MapScreenState extends State<MapScreen> {
                 FloatingActionButton(
                   heroTag: 'center_me',
                   tooltip: 'Me localiser',
-                  onPressed:
-                      (_position != null) ? _centerOnUser : _initLocation,
+                  onPressed: (_position != null)
+                      ? _centerOnUser
+                      : _initLocation,
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.secondary,
                   child: _locating
@@ -481,7 +495,10 @@ class _MapScreenState extends State<MapScreen> {
                           width: 20,
                           height: 20,
                           child: BrandLoader(
-                              size: AppTheme.iconS, fast: true, onDark: true),
+                            size: AppTheme.iconS,
+                            fast: true,
+                            onDark: true,
+                          ),
                         )
                       : const Icon(Icons.my_location),
                 ),
@@ -498,14 +515,8 @@ class _MapScreenState extends State<MapScreen> {
           if (index == 3) context.push('/notifications');
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Carte',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Carte'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Rendez-vous',
@@ -559,8 +570,11 @@ class _SalonMarker extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: const Icon(Icons.favorite,
-                  size: AppTheme.iconXS, color: Colors.white),
+              child: const Icon(
+                Icons.favorite,
+                size: AppTheme.iconXS,
+                color: Colors.white,
+              ),
             ),
           ),
       ],

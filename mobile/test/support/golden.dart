@@ -46,9 +46,9 @@ export 'settle.dart' show settleMocks;
 /// carries the message; `testWidgets` only takes a `bool?`.)
 final Object? kGoldensSkip =
     Platform.isLinux || Platform.environment['MYWELI_GOLDEN_LOCAL'] == '1'
-        ? null
-        : 'goldens are authored on Linux — run tool/update_goldens.sh '
-            '(or MYWELI_GOLDEN_LOCAL=1 to preview locally, without committing)';
+    ? null
+    : 'goldens are authored on Linux — run tool/update_goldens.sh '
+          '(or MYWELI_GOLDEN_LOCAL=1 to preview locally, without committing)';
 
 /// A phone — and **not the only surface that matters**, which is what this
 /// comment used to say (A11).
@@ -84,8 +84,7 @@ void goldenSurface(
   WidgetTester tester, {
   Size size = kGoldenPhone,
   double scale = 1.0,
-}) =>
-    pinSurface(tester, size: size, scale: scale);
+}) => pinSurface(tester, size: size, scale: scale);
 
 /// The app shell a golden renders in: the real theme, French locale, no banner.
 ///
@@ -96,13 +95,13 @@ void goldenSurface(
 /// `DefaultMaterialLocalizations` supports, so nothing ever complained. Every
 /// golden was photographed in English localizations while claiming French.
 Widget goldenApp({Widget? home, Widget? child}) => MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: goldenTheme(),
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      supportedLocales: const [Locale('fr', 'FR')],
-      locale: const Locale('fr', 'FR'),
-      home: home ?? Scaffold(body: child),
-    );
+  debugShowCheckedModeBanner: false,
+  theme: goldenTheme(),
+  localizationsDelegates: GlobalMaterialLocalizations.delegates,
+  supportedLocales: const [Locale('fr', 'FR')],
+  locale: const Locale('fr', 'FR'),
+  home: home ?? Scaffold(body: child),
+);
 
 /// Pumps a bare widget (the token catalogue: no DI, no async, no network).
 Future<void> pumpGolden(
@@ -184,21 +183,21 @@ class GoldenSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              fontFamily: kRealFont,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-              color: Color(0xFF8A8A8A),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingS),
-          child,
-          const SizedBox(height: AppTheme.spacingL),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontFamily: kRealFont,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          color: Color(0xFF8A8A8A),
+        ),
+      ),
+      const SizedBox(height: AppTheme.spacingS),
+      child,
+      const SizedBox(height: AppTheme.spacingL),
+    ],
+  );
 }

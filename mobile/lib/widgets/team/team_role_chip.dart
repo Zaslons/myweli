@@ -16,25 +16,23 @@ class TeamRoleChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final (bg, fg, borderColor) = switch (role) {
       TeamRole.owner => (
-          AppColors.gold.withValues(alpha: 0.12),
-          AppColors.gold,
-          AppColors.gold.withValues(alpha: 0.5),
-        ),
+        AppColors.gold.withValues(alpha: 0.12),
+        AppColors.gold,
+        AppColors.gold.withValues(alpha: 0.5),
+      ),
       TeamRole.manager => (
-          AppColors.primary,
-          AppColors.secondary,
-          AppColors.primary,
-        ),
-      _ => (
-          Colors.transparent,
-          AppColors.textSecondary,
-          AppColors.border,
-        ),
+        AppColors.primary,
+        AppColors.secondary,
+        AppColors.primary,
+      ),
+      _ => (Colors.transparent, AppColors.textSecondary, AppColors.border),
     };
 
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
+        horizontal: AppTheme.spacingS,
+        vertical: AppTheme.spacingXS,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

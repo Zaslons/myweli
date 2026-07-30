@@ -50,8 +50,9 @@ void main() {
       await expectGolden(tester, 'components_date_picker_w360');
     });
 
-    testWidgets('the date picker at 200% — every day still whole',
-        (tester) async {
+    testWidgets('the date picker at 200% — every day still whole', (
+      tester,
+    ) async {
       // The picture row 73 is about. At 1.95× Material rendered « 2 21 2 2 2 2
       // 2 »; the cell here is a rectangle rather than a circle, so it takes the
       // column's full width and grows downwards instead of clipping.

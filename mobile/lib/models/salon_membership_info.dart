@@ -38,17 +38,23 @@ class SalonMembershipInfo extends Equatable {
       );
 
   Map<String, dynamic> toJson() => {
-        'salonId': salonId,
-        'salonName': salonName,
-        'role': role.name,
-        'salonStatus': salonStatus,
-        'verified': verified,
-        if (imageUrl != null) 'imageUrl': imageUrl,
-      };
+    'salonId': salonId,
+    'salonName': salonName,
+    'role': role.name,
+    'salonStatus': salonStatus,
+    'verified': verified,
+    if (imageUrl != null) 'imageUrl': imageUrl,
+  };
 
   @override
-  List<Object?> get props =>
-      [salonId, salonName, role, salonStatus, verified, imageUrl];
+  List<Object?> get props => [
+    salonId,
+    salonName,
+    role,
+    salonStatus,
+    verified,
+    imageUrl,
+  ];
 }
 
 /// The GET /me/salons payload: the picker list + the SERVER-computed
@@ -60,11 +66,11 @@ class MySalonsResult extends Equatable {
   final bool canAddSalon;
 
   factory MySalonsResult.fromJson(Map<String, dynamic> json) => MySalonsResult(
-        items: ((json['items'] as List?) ?? const [])
-            .map((e) => SalonMembershipInfo.fromJson(e as Map<String, dynamic>))
-            .toList(growable: false),
-        canAddSalon: json['canAddSalon'] == true,
-      );
+    items: ((json['items'] as List?) ?? const [])
+        .map((e) => SalonMembershipInfo.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false),
+    canAddSalon: json['canAddSalon'] == true,
+  );
 
   @override
   List<Object?> get props => [items, canAddSalon];

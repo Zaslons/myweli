@@ -101,8 +101,9 @@ class AppButton extends StatelessWidget {
       return OutlinedButton(
         onPressed: isEnabled ? onPressed : null,
         style: OutlinedButton.styleFrom(
-          minimumSize:
-              isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
+          minimumSize: isFullWidth
+              ? const Size(double.infinity, 48)
+              : const Size(0, 48),
         ),
         child: isLoading
             ? const BrandLoader(size: AppTheme.iconS, fast: true)
@@ -133,8 +134,9 @@ class AppButton extends StatelessWidget {
         // primary@40% was #999 under white text — 2.21:1.
         disabledBackgroundColor: AppColors.surfaceVariant,
         disabledForegroundColor: AppColors.textDisabled,
-        minimumSize:
-            isFullWidth ? const Size(double.infinity, 48) : const Size(0, 48),
+        minimumSize: isFullWidth
+            ? const Size(double.infinity, 48)
+            : const Size(0, 48),
       ),
       child: isLoading
           ? const BrandLoader(size: AppTheme.iconS, fast: true, onDark: true)

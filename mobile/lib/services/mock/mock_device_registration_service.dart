@@ -22,7 +22,6 @@ class MockDeviceRegistrationService
     return ApiResponse.success(true);
   }
 
-  Future<void> _delay() => Future<void>.delayed(
-        const Duration(milliseconds: 50),
-      );
+  Future<void> _delay() =>
+      Future<void>.delayed(const Duration(milliseconds: 50));
 }

@@ -53,12 +53,17 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       final returnToParam = widget.returnTo != null
           ? '&returnTo=${Uri.encodeComponent(widget.returnTo!)}'
           : '';
-      unawaited(context.push(
-          '/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam'));
+      unawaited(
+        context.push(
+          '/verify-otp?phone=${Uri.encodeComponent(phoneNumber)}$returnToParam',
+        ),
+      );
     } else {
       AppSnackBar.show(
-          context, authProvider.error ?? 'Erreur lors de l’envoi du code',
-          kind: SnackKind.error);
+        context,
+        authProvider.error ?? 'Erreur lors de l’envoi du code',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -66,9 +71,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Connexion'),
-      ),
+      appBar: AppBar(title: const Text('Connexion')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppTheme.spacingL),

@@ -200,10 +200,12 @@ class _StoryViewerState extends State<StoryViewer>
                   return Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacingXS),
+                        horizontal: AppTheme.spacingXS,
+                      ),
                       child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusPill),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusPill,
+                        ),
                         child: Container(
                           height: 3,
                           color: Colors.white.withValues(alpha: 0.25),
@@ -215,8 +217,8 @@ class _StoryViewerState extends State<StoryViewer>
                                 final v = isPast
                                     ? 1.0
                                     : isCurrent
-                                        ? _progress.value
-                                        : 0.0;
+                                    ? _progress.value
+                                    : 0.0;
                                 return FractionallySizedBox(
                                   widthFactor: v,
                                   child: Container(color: Colors.white),

@@ -16,9 +16,7 @@ class OnlineBookingScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Réservation en ligne'),
-      ),
+      appBar: AppBar(title: const Text('Réservation en ligne')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
@@ -87,7 +85,7 @@ class OnlineBookingScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           AppColors.primary,
-                          AppColors.primary.withValues(alpha: 0.7)
+                          AppColors.primary.withValues(alpha: 0.7),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -104,8 +102,9 @@ class OnlineBookingScreen extends StatelessWidget {
                           height: 50,
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusMedium),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMedium,
+                            ),
                             border: Border.all(color: AppColors.border),
                           ),
                         ),
@@ -118,8 +117,9 @@ class OnlineBookingScreen extends StatelessWidget {
                             labelText: 'Code couleur',
                             hintText: '#675890',
                             border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusMedium),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusMedium,
+                              ),
                             ),
                           ),
                         ),
@@ -172,8 +172,11 @@ class OnlineBookingScreen extends StatelessWidget {
                                 color: AppColors.primary,
                               ),
                             ),
-                            const Icon(Icons.check_circle,
-                                color: Colors.green, size: 20),
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 20,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -204,14 +207,17 @@ class OnlineBookingScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(AppTheme.spacingM),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusMedium),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMedium,
+                            ),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.card_giftcard,
-                                  color: AppColors.secondary),
+                              const Icon(
+                                Icons.card_giftcard,
+                                color: AppColors.secondary,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Acheter un certificat ou abonnement',
@@ -220,8 +226,11 @@ class OnlineBookingScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.arrow_forward,
-                                  color: AppColors.secondary, size: 16),
+                              const Icon(
+                                Icons.arrow_forward,
+                                color: AppColors.secondary,
+                                size: 16,
+                              ),
                             ],
                           ),
                         ),

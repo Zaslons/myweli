@@ -10,8 +10,8 @@ class MockPushNotificationService implements PushNotificationServiceInterface {
   MockPushNotificationService({
     PushPermissionStatus initial = PushPermissionStatus.notDetermined,
     String token = 'mock-fcm-token',
-  })  : _status = initial,
-        _token = token;
+  }) : _status = initial,
+       _token = token;
 
   PushPermissionStatus _status;
   final String _token;
@@ -46,7 +46,6 @@ class MockPushNotificationService implements PushNotificationServiceInterface {
   void setStatus(PushPermissionStatus status) => _status = status;
   void emitRefresh(String token) => _refresh.add(token);
 
-  Future<void> _delay() => Future<void>.delayed(
-        const Duration(milliseconds: 50),
-      );
+  Future<void> _delay() =>
+      Future<void>.delayed(const Duration(milliseconds: 50));
 }

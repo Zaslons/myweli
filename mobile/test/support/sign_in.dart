@@ -44,18 +44,20 @@ Future<ProAuthProvider> signInPro(
     expect(res.signedIn, isTrue, reason: 'the mock refused the OTP for $email');
 
     auth = ProAuthProvider();
-    for (var i = 0;
-        i < 60 &&
-            (auth.isLoading ||
-                (auth.isAuthenticated && auth.membership == null));
-        i++) {
+    for (
+      var i = 0;
+      i < 60 &&
+          (auth.isLoading || (auth.isAuthenticated && auth.membership == null));
+      i++
+    ) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
   });
   expect(
     auth.isAuthenticated,
     isTrue,
-    reason: 'the pro session never landed for $email — every assertion after '
+    reason:
+        'the pro session never landed for $email — every assertion after '
         'this would be about a signed-out screen, which is a different screen',
   );
   return auth;
@@ -110,7 +112,8 @@ Future<AuthProvider> signInConsumer(
   expect(
     auth.isAuthenticated,
     isTrue,
-    reason: 'the consumer session never landed for $phoneNumber — every '
+    reason:
+        'the consumer session never landed for $phoneNumber — every '
         'assertion after this would be about a signed-out screen, which on '
         'MyBookingsScreen is literally a different screen (it redirects)',
   );

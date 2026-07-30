@@ -42,15 +42,12 @@ void main() {
         routerConfig: GoRouter(
           initialLocation: '/profile',
           routes: [
-            GoRoute(
-              path: '/profile',
-              builder: (_, __) => const ProfileScreen(),
-            ),
+            GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
             GoRoute(
               path: '/a-propos',
-              builder: (_, __) => const Scaffold(body: Text('À-PROPOS')),
+              builder: (_, _) => const Scaffold(body: Text('À-PROPOS')),
             ),
-            GoRoute(path: '/login', builder: (_, __) => const Scaffold()),
+            GoRoute(path: '/login', builder: (_, _) => const Scaffold()),
           ],
         ),
       ),
@@ -70,15 +67,17 @@ void main() {
     expect(
       find.text('À-PROPOS'),
       findsOneWidget,
-      reason: 'the row has rendered a chevron it does not honour since PR-0 — '
+      reason:
+          'the row has rendered a chevron it does not honour since PR-0 — '
           '`onTap` is simply absent (profile_screen.dart:130-134), so it looks '
           'tappable and is not. A store reviewer taps it looking for the '
           'privacy policy.',
     );
   });
 
-  testWidgets('the version comes from one place — on the About screen',
-      (tester) async {
+  testWidgets('the version comes from one place — on the About screen', (
+    tester,
+  ) async {
     // **The profile row no longer shows a version at all**, and that is the
     // fix: it printed « Version 1.0.0 » as a literal, a second copy of
     // `AppConstants.appVersion`, with `pubspec.yaml` holding a third. The
@@ -95,7 +94,8 @@ void main() {
     expect(
       find.text('Version 1.0.0'),
       findsOneWidget,
-      reason: 'and it reads as a human expects — the constant interpolated, '
+      reason:
+          'and it reads as a human expects — the constant interpolated, '
           'not printed raw',
     );
   });

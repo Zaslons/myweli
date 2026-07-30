@@ -38,8 +38,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final availabilityProvider =
-            Provider.of<ProAvailabilityProvider>(context, listen: false);
+        final availabilityProvider = Provider.of<ProAvailabilityProvider>(
+          context,
+          listen: false,
+        );
         availabilityProvider.loadAvailability(_resolvedProviderId(context));
       }
     });
@@ -49,9 +51,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Disponibilité'),
-      ),
+      appBar: AppBar(title: const Text('Disponibilité')),
       body: Consumer2<ProAuthProvider, ProAvailabilityProvider>(
         builder: (context, authProvider, availabilityProvider, _) {
           if (!authProvider.isAuthenticated) {
@@ -68,8 +68,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             return Center(
               child: Text(
                 availabilityProvider.error ?? 'Aucune disponibilité configurée',
-                style: AppTextStyles.bodyLarge
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             );
           }
@@ -77,8 +78,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           return BrandRefresh(
             onRefresh: () async {
               if (authProvider.provider != null) {
-                await availabilityProvider
-                    .loadAvailability(_resolvedProviderId(context));
+                await availabilityProvider.loadAvailability(
+                  _resolvedProviderId(context),
+                );
               }
             },
             child: SingleChildScrollView(
@@ -100,15 +102,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                   const SizedBox(height: AppTheme.spacingL),
                   Text(
                     'Pauses',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingXS),
                   Text(
                     'Une pause récurrente par jour (ex. déjeuner). '
                     'Aucun créneau ne sera proposé pendant ces heures.',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingS),
                   WeeklyHoursEditor(
@@ -127,8 +131,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                   const SizedBox(height: AppTheme.spacingL),
                   Text(
                     'Horaires de travail',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingM),
                   ...List.generate(7, (index) {
@@ -139,19 +144,21 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       dayName: dayName,
                       timeSlots: daySlots,
                       onEdit: () => _showEditDayDialog(
-                          context,
-                          index,
-                          dayName,
-                          daySlots,
-                          availabilityProvider,
-                          _resolvedProviderId(context)),
+                        context,
+                        index,
+                        dayName,
+                        daySlots,
+                        availabilityProvider,
+                        _resolvedProviderId(context),
+                      ),
                     );
                   }),
                   const SizedBox(height: AppTheme.spacingL),
                   Text(
                     'Dates bloquées',
-                    style: AppTextStyles.titleLarge
-                        .copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingSM),
                   if (availability.blockedDates.isEmpty)
@@ -159,13 +166,16 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       padding: const EdgeInsets.all(AppTheme.spacingM),
                       decoration: BoxDecoration(
                         color: AppColors.secondary,
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusLarge),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusLarge,
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline,
-                              color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.info_outline,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: AppTheme.spacingSM),
                           Expanded(
                             child: Text(
@@ -179,16 +189,18 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       ),
                     )
                   else
-                    ...availability.blockedDates.map((date) => _BlockedDateCard(
-                          date: date,
-                          onRemove: () => _removeBlockedDate(
-                            context,
-                            date,
-                            availability,
-                            availabilityProvider,
-                            _resolvedProviderId(context),
-                          ),
-                        )),
+                    ...availability.blockedDates.map(
+                      (date) => _BlockedDateCard(
+                        date: date,
+                        onRemove: () => _removeBlockedDate(
+                          context,
+                          date,
+                          availability,
+                          availabilityProvider,
+                          _resolvedProviderId(context),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: AppTheme.spacingSM),
                   OutlinedButton.icon(
                     onPressed: () => _showAddBlockedDateDialog(
@@ -217,7 +229,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       'Jeudi',
       'Vendredi',
       'Samedi',
-      'Dimanche'
+      'Dimanche',
     ];
     return days[dayIndex];
   }
@@ -276,7 +288,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Bloquer cette date ?',
-      message: 'Le ${Formatters.formatDate(selectedDate)}, votre salon '
+      message:
+          'Le ${Formatters.formatDate(selectedDate)}, votre salon '
           'n’acceptera aucune réservation.',
       confirmLabel: 'Bloquer',
       icon: Icons.block,
@@ -285,11 +298,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
     {
       final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
-        ..add(salonDateTime(
-            selectedDate.year, selectedDate.month, selectedDate.day,
-            tz: tz));
-      final updatedAvailability =
-          availability.copyWith(blockedDates: updatedBlockedDates);
+        ..add(
+          salonDateTime(
+            selectedDate.year,
+            selectedDate.month,
+            selectedDate.day,
+            tz: tz,
+          ),
+        );
+      final updatedAvailability = availability.copyWith(
+        blockedDates: updatedBlockedDates,
+      );
       await provider.updateAvailability(providerId, updatedAvailability);
       if (context.mounted && provider.error != null) {
         AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
@@ -338,10 +357,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     String providerId,
   ) async {
     final updatedBlockedDates = List<DateTime>.from(availability.blockedDates)
-      ..removeWhere((d) =>
-          d.year == date.year && d.month == date.month && d.day == date.day);
-    final updatedAvailability =
-        availability.copyWith(blockedDates: updatedBlockedDates);
+      ..removeWhere(
+        (d) =>
+            d.year == date.year && d.month == date.month && d.day == date.day,
+      );
+    final updatedAvailability = availability.copyWith(
+      blockedDates: updatedBlockedDates,
+    );
     await provider.updateAvailability(providerId, updatedAvailability);
     if (context.mounted && provider.error != null) {
       AppSnackBar.show(context, provider.error!, kind: SnackKind.error);
@@ -380,14 +402,18 @@ class _BufferSection extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.hourglass_bottom,
-                  size: AppTheme.iconS, color: AppColors.textSecondary),
+              const Icon(
+                Icons.hourglass_bottom,
+                size: AppTheme.iconS,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: AppTheme.spacingS),
               Flexible(
                 child: Text(
                   'Temps de battement',
-                  style: AppTextStyles.titleMedium
-                      .copyWith(color: AppColors.textPrimary),
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
@@ -396,8 +422,9 @@ class _BufferSection extends StatelessWidget {
           Text(
             'Pause automatique entre deux rendez-vous (nettoyage, '
             'préparation). Les créneaux proposés aux clients en tiennent compte.',
-            style: AppTextStyles.bodySmall
-                .copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: AppTheme.spacingS),
           Wrap(
@@ -437,14 +464,16 @@ class _DayScheduleCard extends StatelessWidget {
       child: ListTile(
         title: Text(
           dayName,
-          style:
-              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         subtitle: timeSlots.isEmpty
             ? Text(
                 'Fermé',
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               )
             : Wrap(
                 spacing: AppTheme.spacingS,
@@ -474,10 +503,7 @@ class _BlockedDateCard extends StatelessWidget {
   final DateTime date;
   final VoidCallback onRemove;
 
-  const _BlockedDateCard({
-    required this.date,
-    required this.onRemove,
-  });
+  const _BlockedDateCard({required this.date, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -487,8 +513,9 @@ class _BlockedDateCard extends StatelessWidget {
         leading: const Icon(Icons.block, color: AppColors.error),
         title: Text(
           Formatters.formatDate(date),
-          style:
-              AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         trailing: IconButton(
           tooltip: 'Supprimer',
@@ -563,9 +590,11 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.access_time,
-                            size: AppTheme.iconXL,
-                            color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.access_time,
+                          size: AppTheme.iconXL,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(height: AppTheme.spacingSM),
                         Text(
                           'Aucun créneau horaire',
@@ -641,9 +670,12 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
     final picked = await showMyweliTimeRangePicker(
       context: context,
       initialStart: startTime ?? const TimeOfDay(hour: 9, minute: 0),
-      initialEnd: endTime ??
+      initialEnd:
+          endTime ??
           TimeOfDay(
-              hour: startTime?.hour ?? 10, minute: startTime?.minute ?? 0),
+            hour: startTime?.hour ?? 10,
+            minute: startTime?.minute ?? 0,
+          ),
       helpText: index == null ? 'Nouveau créneau' : 'Modifier le créneau',
     );
 
@@ -709,25 +741,36 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
   }
 
   Future<void> _saveSchedule(
-      Availability availability, ProAvailabilityProvider provider) async {
-    final updatedSchedule =
-        Map<int, List<TimeSlot>>.from(availability.weeklySchedule);
+    Availability availability,
+    ProAvailabilityProvider provider,
+  ) async {
+    final updatedSchedule = Map<int, List<TimeSlot>>.from(
+      availability.weeklySchedule,
+    );
     updatedSchedule[widget.dayIndex] = _slots;
 
-    final updatedAvailability =
-        availability.copyWith(weeklySchedule: updatedSchedule);
+    final updatedAvailability = availability.copyWith(
+      weeklySchedule: updatedSchedule,
+    );
 
     final success = await provider.updateAvailability(
-        widget.providerId, updatedAvailability);
+      widget.providerId,
+      updatedAvailability,
+    );
     if (mounted) {
       if (success) {
-        AppSnackBar.show(context, 'Horaires enregistrés',
-            kind: SnackKind.success);
+        AppSnackBar.show(
+          context,
+          'Horaires enregistrés',
+          kind: SnackKind.success,
+        );
         Navigator.pop(context);
       } else {
         AppSnackBar.show(
-            context, provider.error ?? 'Erreur lors de l’enregistrement',
-            kind: SnackKind.error);
+          context,
+          provider.error ?? 'Erreur lors de l’enregistrement',
+          kind: SnackKind.error,
+        );
       }
     }
   }
@@ -760,8 +803,9 @@ class _TimeSlotCard extends StatelessWidget {
         ),
         title: Text(
           '${Formatters.formatTime(slot.startTime)} - ${Formatters.formatTime(slot.endTime)}',
-          style:
-              AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

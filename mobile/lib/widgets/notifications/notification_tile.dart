@@ -66,8 +66,9 @@ class NotificationTile extends StatelessWidget {
                 child: Icon(
                   _iconFor(notification.type),
                   size: AppTheme.iconS,
-                  color:
-                      unread ? AppColors.textPrimary : AppColors.textTertiary,
+                  color: unread
+                      ? AppColors.textPrimary
+                      : AppColors.textTertiary,
                 ),
               ),
               const SizedBox(width: AppTheme.spacingM),
@@ -104,17 +105,20 @@ class NotificationTile extends StatelessWidget {
                           Text(
                             notification.title,
                             style: unread
-                                ? AppTextStyles.titleSmall
-                                    .copyWith(color: AppColors.textPrimary)
-                                : AppTextStyles.bodyMedium
-                                    .copyWith(color: AppColors.textSecondary),
+                                ? AppTextStyles.titleSmall.copyWith(
+                                    color: AppColors.textPrimary,
+                                  )
+                                : AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 Formatters.formatRelative(
-                                    notification.createdAt),
+                                  notification.createdAt,
+                                ),
                                 style: AppTextStyles.bodySmall.copyWith(
                                   color: AppColors.textTertiary,
                                 ),

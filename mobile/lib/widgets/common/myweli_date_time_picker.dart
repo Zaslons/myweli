@@ -63,9 +63,10 @@ Future<({DateTime date, TimeOfDay time})?> showMyweliDateTimePicker({
     'show a range with no selectable day in it',
   );
   assert(
-      minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
-      'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
-      'grid arithmetic and never terminates the minutes loop');
+    minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
+    'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
+    'grid arithmetic and never terminates the minutes loop',
+  );
   return Navigator.of(context).push<({DateTime date, TimeOfDay time})>(
     MaterialPageRoute<({DateTime date, TimeOfDay time})>(
       fullscreenDialog: true,
@@ -188,10 +189,10 @@ class _MyweliDateTimePickerScreenState
   }
 
   void _pickDay(DateTime day) => setState(() {
-        _date = day;
-        _liftAboveFloor();
-        _onTimeStep = true;
-      });
+    _date = day;
+    _liftAboveFloor();
+    _onTimeStep = true;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -262,9 +263,9 @@ class _MyweliDateTimePickerScreenState
                   onPressed: _belowFloor
                       ? null
                       : () => Navigator.of(context).pop((
-                            date: _date,
-                            time: TimeOfDay(hour: _hour, minute: _minute),
-                          )),
+                          date: _date,
+                          time: TimeOfDay(hour: _hour, minute: _minute),
+                        )),
                 ),
               ),
             ],

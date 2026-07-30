@@ -48,8 +48,10 @@ void main() {
   Future<void> loginAs(WidgetTester tester, String email) async {
     await tester.runAsync(() async {
       await auth.requestProviderEmailOtp(email);
-      final res =
-          await auth.verifyProviderEmailOtp(email, MockAuthService.demoOtp);
+      final res = await auth.verifyProviderEmailOtp(
+        email,
+        MockAuthService.demoOtp,
+      );
       expect(res.signedIn, isTrue);
     });
   }
@@ -60,7 +62,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/dashboard',
-          builder: (_, __) => const DashboardScreen(),
+          builder: (_, _) => const DashboardScreen(),
         ),
       ],
     );
@@ -87,12 +89,14 @@ void main() {
     late ProAuthProvider authProvider;
     await tester.runAsync(() async {
       authProvider = ProAuthProvider();
-      for (var i = 0;
-          i < 60 &&
-              (authProvider.isLoading ||
-                  (authProvider.isAuthenticated &&
-                      authProvider.membership == null));
-          i++) {
+      for (
+        var i = 0;
+        i < 60 &&
+            (authProvider.isLoading ||
+                (authProvider.isAuthenticated &&
+                    authProvider.membership == null));
+        i++
+      ) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     });
@@ -107,8 +111,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-      'MANAGER: no money cards, no Configurer, catalogue kept, '
+  testWidgets('MANAGER: no money cards, no Configurer, catalogue kept, '
       'salonName header', (tester) async {
     await loginAs(tester, 'awa.manager@myweli.test');
     await tester.pumpWidget(app(await readyAuth(tester)));
@@ -124,8 +127,7 @@ void main() {
     expect(find.text('Analyses'), findsOneWidget);
   });
 
-  testWidgets(
-      'RÉCEPTION: stats + Rendez-vous + Clients only; empty '
+  testWidgets('RÉCEPTION: stats + Rendez-vous + Clients only; empty '
       'sections vanish', (tester) async {
     await loginAs(tester, 'fatou.reception@myweli.test');
     await tester.pumpWidget(app(await readyAuth(tester)));

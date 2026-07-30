@@ -85,9 +85,7 @@ class _LegalLink extends StatelessWidget {
             // Horizontal padding widens the box without adding height — the
             // sentence already costs four lines on a 390px login screen, and
             // §13.2 asks for a 48px TARGET, not 48px of whitespace.
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingXS,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingXS),
             child: Center(
               child: Text(
                 label,

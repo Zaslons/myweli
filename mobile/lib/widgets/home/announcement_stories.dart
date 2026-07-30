@@ -138,86 +138,95 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
               children: [
                 for (var index = 0; index < stories.length; index++) ...[
                   if (index > 0) const SizedBox(width: AppTheme.spacingS),
-                  Builder(builder: (context) {
-                    final s = stories[index];
-                    final isSeen = _seenIds.contains(s.id);
-                    final ringWidth =
-                        isSeen ? _seenRingWidth : _unseenRingWidth;
-                    final outerRadius =
-                        BorderRadius.circular(AppTheme.radiusXL);
-                    final innerRadius =
-                        BorderRadius.circular(AppTheme.radiusXL - ringWidth);
-                    return Semantics(
-                      button: true,
-                      label: '${s.title}, ${isSeen ? 'déjà vue' : 'nouvelle'}',
-                      child: InkWell(
-                        onTap: () => _open(context, stories, index),
-                        borderRadius: outerRadius,
-                        child: Container(
-                          width: _cardWidth(context, ringWidth),
-                          decoration: BoxDecoration(
-                            borderRadius: outerRadius,
-                            boxShadow: AppTheme.elevation1,
-                            // Unseen: gold ring. Seen: neutral “empty” ring.
-                            border: Border.all(
-                              color: isSeen ? AppColors.border : AppColors.gold,
-                              width: ringWidth,
+                  Builder(
+                    builder: (context) {
+                      final s = stories[index];
+                      final isSeen = _seenIds.contains(s.id);
+                      final ringWidth = isSeen
+                          ? _seenRingWidth
+                          : _unseenRingWidth;
+                      final outerRadius = BorderRadius.circular(
+                        AppTheme.radiusXL,
+                      );
+                      final innerRadius = BorderRadius.circular(
+                        AppTheme.radiusXL - ringWidth,
+                      );
+                      return Semantics(
+                        button: true,
+                        label:
+                            '${s.title}, ${isSeen ? 'déjà vue' : 'nouvelle'}',
+                        child: InkWell(
+                          onTap: () => _open(context, stories, index),
+                          borderRadius: outerRadius,
+                          child: Container(
+                            width: _cardWidth(context, ringWidth),
+                            decoration: BoxDecoration(
+                              borderRadius: outerRadius,
+                              boxShadow: AppTheme.elevation1,
+                              // Unseen: gold ring. Seen: neutral “empty” ring.
+                              border: Border.all(
+                                color: isSeen
+                                    ? AppColors.border
+                                    : AppColors.gold,
+                                width: ringWidth,
+                              ),
                             ),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(ringWidth),
-                            child: ClipRRect(
-                              borderRadius: innerRadius,
-                              child: Stack(
-                                children: [
-                                  // Thumbnail (fills the whole rectangle)
-                                  Positioned.fill(
-                                    child: SvgPicture.asset(
-                                      s.assetPath,
-                                      fit: BoxFit.cover,
+                            child: Padding(
+                              padding: EdgeInsets.all(ringWidth),
+                              child: ClipRRect(
+                                borderRadius: innerRadius,
+                                child: Stack(
+                                  children: [
+                                    // Thumbnail (fills the whole rectangle)
+                                    Positioned.fill(
+                                      child: SvgPicture.asset(
+                                        s.assetPath,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
-                                  ),
-                                  // Bottom fade + label (keeps title readable)
-                                  Positioned.fill(
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            Colors.transparent,
-                                            Colors.black
-                                                .withValues(alpha: 0.55),
-                                          ],
+                                    // Bottom fade + label (keeps title readable)
+                                    Positioned.fill(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withValues(
+                                                alpha: 0.55,
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  Positioned(
-                                    left: _titleInset,
-                                    right: _titleInset,
-                                    bottom: _titleInset,
-                                    child: Text(
-                                      s.title,
-                                      style: AppTextStyles.labelSmall.copyWith(
-                                        color: Colors.white,
-                                        // §13.6 second cue: unseen reads bold, seen regular.
-                                        fontWeight: isSeen
-                                            ? FontWeight.w500
-                                            : FontWeight.w700,
+                                    Positioned(
+                                      left: _titleInset,
+                                      right: _titleInset,
+                                      bottom: _titleInset,
+                                      child: Text(
+                                        s.title,
+                                        style: AppTextStyles.labelSmall.copyWith(
+                                          color: Colors.white,
+                                          // §13.6 second cue: unseen reads bold, seen regular.
+                                          fontWeight: isSeen
+                                              ? FontWeight.w500
+                                              : FontWeight.w700,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    },
+                  ),
                 ],
               ],
             ),
@@ -293,10 +302,10 @@ class _AnnouncementStoriesState extends State<AnnouncementStories> {
   /// **exactly 126.0 at 1×** and below, so the 1× golden does not move, while
   /// the image keeps its share and only the title block grows.
   static double _stripHeight(BuildContext context) => AppTheme.textScaledBound(
-        context,
-        constant: _baseStripHeight - _titleBlock,
-        text: _titleBlock,
-      );
+    context,
+    constant: _baseStripHeight - _titleBlock,
+    text: _titleBlock,
+  );
 
   /// The title's inset inside the clipped image (`Positioned(left/right/bottom)`).
   static const double _titleInset = AppTheme.spacingS;

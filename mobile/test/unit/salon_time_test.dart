@@ -74,43 +74,50 @@ void main() {
   });
 
   group('salonDateTime / salonWallClockToUtc (picker wall-clock = salon)', () {
-    test('builds the UTC instant of the salon wall-clock, serializes with Z',
-        () {
-      final picked = salonDateTime(2026, 7, 20, hour: 10, minute: 30);
-      expect(picked.isUtc, isTrue);
-      expect(picked.toIso8601String(), '2026-07-20T10:30:00.000Z');
-      // The same wall-clock in Libreville is one hour earlier as an instant.
-      final lbvPicked =
-          salonDateTime(2026, 7, 20, hour: 10, minute: 30, tz: lbv);
-      expect(lbvPicked.toIso8601String(), '2026-07-20T09:30:00.000Z');
-      expect(
-        salonWallClockToUtc(2026, 7, 20, hour: 9, tz: lbv),
-        DateTime.utc(2026, 7, 20, 8),
-      );
-    });
+    test(
+      'builds the UTC instant of the salon wall-clock, serializes with Z',
+      () {
+        final picked = salonDateTime(2026, 7, 20, hour: 10, minute: 30);
+        expect(picked.isUtc, isTrue);
+        expect(picked.toIso8601String(), '2026-07-20T10:30:00.000Z');
+        // The same wall-clock in Libreville is one hour earlier as an instant.
+        final lbvPicked = salonDateTime(
+          2026,
+          7,
+          20,
+          hour: 10,
+          minute: 30,
+          tz: lbv,
+        );
+        expect(lbvPicked.toIso8601String(), '2026-07-20T09:30:00.000Z');
+        expect(
+          salonWallClockToUtc(2026, 7, 20, hour: 9, tz: lbv),
+          DateTime.utc(2026, 7, 20, 8),
+        );
+      },
+    );
   });
 
   group('toSalonTime / salonNow', () {
-    test('toSalonTime renders the salon clock face, preserving the instant',
-        () {
-      final instant = DateTime.parse('2026-07-13T22:00:00+03:00');
-      final abidjan = toSalonTime(instant);
-      expect(abidjan.hour, 19); // 22:00+03:00 == 19:00 Abidjan
-      final libreville = toSalonTime(instant, tz: lbv);
-      expect(libreville.hour, 20); // == 20:00 Libreville
-      expect(
-        libreville.millisecondsSinceEpoch,
-        instant.millisecondsSinceEpoch, // same instant
-      );
-    });
+    test(
+      'toSalonTime renders the salon clock face, preserving the instant',
+      () {
+        final instant = DateTime.parse('2026-07-13T22:00:00+03:00');
+        final abidjan = toSalonTime(instant);
+        expect(abidjan.hour, 19); // 22:00+03:00 == 19:00 Abidjan
+        final libreville = toSalonTime(instant, tz: lbv);
+        expect(libreville.hour, 20); // == 20:00 Libreville
+        expect(
+          libreville.millisecondsSinceEpoch,
+          instant.millisecondsSinceEpoch, // same instant
+        );
+      },
+    );
 
     test('salonNow keeps the current instant', () {
       final before = DateTime.now().millisecondsSinceEpoch;
       final now = salonNow(tz: lbv);
-      expect(
-        (now.millisecondsSinceEpoch - before).abs() < 5000,
-        isTrue,
-      );
+      expect((now.millisecondsSinceEpoch - before).abs() < 5000, isTrue);
     });
   });
 

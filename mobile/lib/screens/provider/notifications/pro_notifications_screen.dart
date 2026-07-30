@@ -61,7 +61,8 @@ class _ProNotificationsScreenState extends State<ProNotificationsScreen>
   }
 
   Future<void> _refreshOsPermission() async {
-    final read = widget.permissionStatus ??
+    final read =
+        widget.permissionStatus ??
         serviceLocator.pushNotificationService.permissionStatus;
     final status = await read();
     if (!mounted) return;

@@ -27,21 +27,22 @@ class EmailOtpInvitationProof extends InvitationProof {
 /// accept them) · failure (machine `code` + French message).
 class ProviderLoginResult {
   const ProviderLoginResult.signedIn(ProviderUser this.provider)
-      : invitations = const [],
-        proof = null,
-        error = null,
-        code = null;
+    : invitations = const [],
+      proof = null,
+      error = null,
+      code = null;
 
   const ProviderLoginResult.invited(
-      this.invitations, InvitationProof this.proof)
-      : provider = null,
-        error = null,
-        code = null;
+    this.invitations,
+    InvitationProof this.proof,
+  ) : provider = null,
+      error = null,
+      code = null;
 
   const ProviderLoginResult.failure(String this.error, {this.code})
-      : provider = null,
-        invitations = const [],
-        proof = null;
+    : provider = null,
+      invitations = const [],
+      proof = null;
 
   final ProviderUser? provider;
   final List<TeamInvitation> invitations;

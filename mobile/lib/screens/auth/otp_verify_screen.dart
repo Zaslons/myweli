@@ -24,19 +24,17 @@ class OtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
   final String? returnTo;
 
-  const OtpVerifyScreen({
-    super.key,
-    required this.phoneNumber,
-    this.returnTo,
-  });
+  const OtpVerifyScreen({super.key, required this.phoneNumber, this.returnTo});
 
   @override
   State<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
 }
 
 class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
@@ -145,8 +143,10 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
       // Tell the OS the one-time code was used so it stops offering it.
       TextInput.finishAutofillContext();
       if (authProvider.user != null) {
-        final favoritesProvider =
-            Provider.of<FavoritesProvider>(context, listen: false);
+        final favoritesProvider = Provider.of<FavoritesProvider>(
+          context,
+          listen: false,
+        );
         unawaited(favoritesProvider.loadFavorites(authProvider.user!.id));
       }
       if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
@@ -179,8 +179,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     if (!mounted) return;
 
     if (success) {
-      AppSnackBar.show(context, 'Code renvoyé avec succès',
-          kind: SnackKind.success);
+      AppSnackBar.show(
+        context,
+        'Code renvoyé avec succès',
+        kind: SnackKind.success,
+      );
       setState(() {
         _inlineError = null;
         _hasError = false;
@@ -203,9 +206,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Vérification'),
-      ),
+      appBar: AppBar(title: const Text('Vérification')),
       body: SafeArea(
         child: SingleChildScrollView(
           // spacingM, not spacingL, and it is load-bearing rather than
@@ -279,16 +280,17 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                   _resendCooldown > 0
                       ? 'Renvoyer dans 0:${_resendCooldown.toString().padLeft(2, '0')}'
                       : (_entryDisabled
-                          ? 'Renvoyer un nouveau code'
-                          : 'Renvoyer le code'),
+                            ? 'Renvoyer un nouveau code'
+                            : 'Renvoyer le code'),
                 ),
               ),
               if (kDebugMode) ...[
                 const SizedBox(height: AppTheme.spacingXS),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      vertical: AppTheme.spacingS,
-                      horizontal: AppTheme.spacingSM),
+                    vertical: AppTheme.spacingS,
+                    horizontal: AppTheme.spacingSM,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),

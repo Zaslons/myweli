@@ -47,20 +47,19 @@ void main() {
     int minutes = 60,
     int noShow = 0,
     String? name,
-  }) =>
-      Appointment(
-        id: id,
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: DateTime.parse('2026-07-13T$time:00.000Z'),
-        status: AppointmentStatus.values.byName(status),
-        totalPrice: 10000,
-        durationMinutes: minutes,
-        clientNoShowCount: noShow,
-        clientName: name,
-        createdAt: DateTime.parse('2026-07-13T08:00:00.000Z'),
-      );
+  }) => Appointment(
+    id: id,
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    appointmentDate: DateTime.parse('2026-07-13T$time:00.000Z'),
+    status: AppointmentStatus.values.byName(status),
+    totalPrice: 10000,
+    durationMinutes: minutes,
+    clientNoShowCount: noShow,
+    clientName: name,
+    createdAt: DateTime.parse('2026-07-13T08:00:00.000Z'),
+  );
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR', null);
@@ -88,19 +87,19 @@ void main() {
       routes: [
         GoRoute(
           path: '/pro/journal',
-          builder: (_, __) => const ProJournalScreen(),
+          builder: (_, _) => const ProJournalScreen(),
         ),
         GoRoute(
           path: '/pro/appointment/new',
-          builder: (_, __) => const Scaffold(body: Text('MANUEL')),
+          builder: (_, _) => const Scaffold(body: Text('MANUEL')),
         ),
         GoRoute(
           path: '/pro/appointment/:id',
-          builder: (_, __) => const Scaffold(body: Text('DETAIL')),
+          builder: (_, _) => const Scaffold(body: Text('DETAIL')),
         ),
         GoRoute(
           path: '/pro/appointments',
-          builder: (_, __) => const Scaffold(body: Text('AGENDA')),
+          builder: (_, _) => const Scaffold(body: Text('AGENDA')),
         ),
       ],
     );
@@ -119,8 +118,9 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('renders timeline cards with the no-show badge + a gap slot',
-      (tester) async {
+  testWidgets('renders timeline cards with the no-show badge + a gap slot', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await settle(tester);
 
@@ -147,8 +147,9 @@ void main() {
     expect(find.text('DETAIL'), findsOneWidget);
   });
 
-  testWidgets('tapping a « Libre » gap opens prefilled manual booking',
-      (tester) async {
+  testWidgets('tapping a « Libre » gap opens prefilled manual booking', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await settle(tester);
     await tester.tap(find.textContaining('Libre'));
@@ -156,8 +157,9 @@ void main() {
     expect(find.text('MANUEL'), findsOneWidget);
   });
 
-  testWidgets('long-press surfaces the action sheet (Client arrivé)',
-      (tester) async {
+  testWidgets('long-press surfaces the action sheet (Client arrivé)', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await settle(tester);
     await tester.longPress(find.text('Koffi'));

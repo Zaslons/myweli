@@ -23,8 +23,7 @@ void main() {
         providerId: 'p1',
         weeklySchedule: const {},
         blockedDates: const [],
-      ).toJson()
-        ..remove('bufferMinutes');
+      ).toJson()..remove('bufferMinutes');
       expect(Availability.fromJson(json).bufferMinutes, 0);
     });
   });
@@ -37,8 +36,9 @@ void main() {
     void setBuffer(int minutes) {
       final i = MockData.providers.indexWhere((p) => p.id == providerId);
       MockData.providers[i] = MockData.providers[i].copyWith(
-        availability:
-            MockData.providers[i].availability.copyWith(bufferMinutes: minutes),
+        availability: MockData.providers[i].availability.copyWith(
+          bufferMinutes: minutes,
+        ),
       );
     }
 
@@ -63,8 +63,7 @@ void main() {
               date: day,
               serviceIds: serviceIds,
               artistId: artistId,
-            ))
-                .data!;
+            )).data!;
 
         setBuffer(0);
         final base = await slots();

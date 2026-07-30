@@ -40,7 +40,9 @@ void main() {
       final got = await service.getGalleryPhotos('provider3');
       expect(got.data, hasLength(2));
       expect(
-          got.data!.first, 'asset:assets/images/providers/spa_relax_photo.png');
+        got.data!.first,
+        'asset:assets/images/providers/spa_relax_photo.png',
+      );
     });
   });
 
@@ -64,8 +66,10 @@ void main() {
       expect(gallery.photos.length, initial + 1);
       expect(gallery.isUploading, isFalse);
 
-      final removed =
-          await gallery.removePhoto('provider1', gallery.photos.length - 1);
+      final removed = await gallery.removePhoto(
+        'provider1',
+        gallery.photos.length - 1,
+      );
       expect(removed, isTrue);
       expect(gallery.photos.length, initial);
     });

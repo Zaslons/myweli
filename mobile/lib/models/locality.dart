@@ -24,13 +24,13 @@ class LocalityArea extends Equatable {
   final double? lng;
 
   factory LocalityArea.fromJson(Map<String, dynamic> json) => LocalityArea(
-        id: json['id'] as String,
-        slug: json['slug'] as String,
-        name: json['name'] as String,
-        labelKind: json['labelKind'] as String? ?? 'commune',
-        lat: (json['lat'] as num?)?.toDouble(),
-        lng: (json['lng'] as num?)?.toDouble(),
-      );
+    id: json['id'] as String,
+    slug: json['slug'] as String,
+    name: json['name'] as String,
+    labelKind: json['labelKind'] as String? ?? 'commune',
+    lat: (json['lat'] as num?)?.toDouble(),
+    lng: (json['lng'] as num?)?.toDouble(),
+  );
 
   @override
   List<Object?> get props => [id, slug, name, labelKind, lat, lng];
@@ -56,16 +56,16 @@ class LocalityCity extends Equatable {
   final double? lng;
 
   factory LocalityCity.fromJson(Map<String, dynamic> json) => LocalityCity(
-        id: json['id'] as String,
-        slug: json['slug'] as String,
-        name: json['name'] as String,
-        timezone: json['timezone'] as String,
-        lat: (json['lat'] as num?)?.toDouble(),
-        lng: (json['lng'] as num?)?.toDouble(),
-        areas: ((json['areas'] as List?) ?? const [])
-            .map((a) => LocalityArea.fromJson(a as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as String,
+    slug: json['slug'] as String,
+    name: json['name'] as String,
+    timezone: json['timezone'] as String,
+    lat: (json['lat'] as num?)?.toDouble(),
+    lng: (json['lng'] as num?)?.toDouble(),
+    areas: ((json['areas'] as List?) ?? const [])
+        .map((a) => LocalityArea.fromJson(a as Map<String, dynamic>))
+        .toList(),
+  );
 
   @override
   List<Object?> get props => [id, slug, name, timezone, areas, lat, lng];
@@ -129,6 +129,12 @@ class LocalityCountry extends Equatable {
       );
 
   @override
-  List<Object?> get props =>
-      [code, name, currency, phonePrefix, operators, cities];
+  List<Object?> get props => [
+    code,
+    name,
+    currency,
+    phonePrefix,
+    operators,
+    cities,
+  ];
 }

@@ -42,7 +42,11 @@ Future<SemanticsHandle> pumpForA11y(
 }) async {
   pinSurface(tester, size: const Size(360, 1600));
   final handle = tester.ensureSemantics();
-  await pumpApp(tester, home: Scaffold(body: child), providers: providers);
+  await pumpApp(
+    tester,
+    home: Scaffold(body: child),
+    providers: providers,
+  );
   await tester.pumpAndSettle();
   return handle;
 }
@@ -85,7 +89,8 @@ Future<void> expectGrowsWithTextScale(
   expect(
     scaled,
     greaterThan(baseline),
-    reason: 'height is $baseline at 1× and $scaled at $scale× — it did not '
+    reason:
+        'height is $baseline at 1× and $scaled at $scale× — it did not '
         'grow, so the text is being clipped by a fixed bound (§13.3).',
   );
 }
@@ -111,7 +116,8 @@ Future<void> pumpAtTextScale(
   expect(
     realFontsLoaded,
     isTrue,
-    reason: 'pumpAtTextScale names Roboto in the theme, and nothing has loaded '
+    reason:
+        'pumpAtTextScale names Roboto in the theme, and nothing has loaded '
         'it — so every subject would silently render the placeholder square '
         'glyph again. Call `await loadRealFonts()` in setUpAll.',
   );
@@ -122,9 +128,9 @@ Future<void> pumpAtTextScale(
     theme: AppTheme.themeData(fontFamily: kRealFont),
     home: Builder(
       builder: (context) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(scale),
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(scale)),
         child: Scaffold(body: child),
       ),
     ),
@@ -187,7 +193,8 @@ Future<void> pumpAtWidth(
   expect(
     realFontsLoaded,
     isTrue,
-    reason: 'pumpAtWidth measures text, and no real font is loaded — every '
+    reason:
+        'pumpAtWidth measures text, and no real font is loaded — every '
         'width it reports would be the placeholder square glyph. Call '
         '`await loadRealFonts()` in setUpAll.',
   );
@@ -290,7 +297,8 @@ void expectNoMidWordBreak(WidgetTester tester, String text, String at) {
   expect(
     checked,
     greaterThan(0),
-    reason: 'every rendering of « $text » at $at is maxLines:1, so '
+    reason:
+        'every rendering of « $text » at $at is maxLines:1, so '
         'expectNoMidWordBreak asserted nothing — use expectNoLegibilityCrush',
   );
 }
@@ -421,23 +429,29 @@ void expectNoLegibilityCrush(
           break;
         }
       }
-      report.add('    « $text »  ${p.size.width.toStringAsFixed(1)}dp '
-          '→ $fits chars + …');
+      report.add(
+        '    « $text »  ${p.size.width.toStringAsFixed(1)}dp '
+        '→ $fits chars + …',
+      );
       continue;
     }
 
     final n = minChars < text.length ? minChars : text.length;
     if (!_prefixFits(p, text, n)) {
-      crushed.add('    « $text » has ${p.size.width.toStringAsFixed(1)}dp × '
-          '${p.maxLines ?? 1} line(s) and cannot show $n characters');
+      crushed.add(
+        '    « $text » has ${p.size.width.toStringAsFixed(1)}dp × '
+        '${p.maxLines ?? 1} line(s) and cannot show $n characters',
+      );
     }
   }
 
   if (minChars <= 0) {
     if (report.isNotEmpty) {
       // ignore: avoid_print
-      print('LEGIBILITY${context == null ? '' : ' ($context)'}:\n'
-          '${report.join('\n')}');
+      print(
+        'LEGIBILITY${context == null ? '' : ' ($context)'}:\n'
+        '${report.join('\n')}',
+      );
     }
     return;
   }
@@ -445,7 +459,8 @@ void expectNoLegibilityCrush(
   expect(
     crushed,
     isEmpty,
-    reason: 'a flexed label was squeezed below $minChars characters'
+    reason:
+        'a flexed label was squeezed below $minChars characters'
         '${context == null ? '' : ' at $context'}:\n${crushed.join('\n')}\n'
         'The ellipsis is declared, so nothing else in this suite can see it — '
         'but a label showing three characters says nothing. §13.3: the fix is '
@@ -555,14 +570,17 @@ void expectNoVerticalClip(WidgetTester tester, {String? context}) {
     final need = p.getMaxIntrinsicHeight(p.size.width);
     if (need <= p.size.height + _kHeightEpsilon) continue;
     final text = p.text.toPlainText();
-    cut.add('    « ${text.length > 40 ? '${text.substring(0, 40)}…' : text} » '
-        'needs ${need.toStringAsFixed(1)}dp in a '
-        '${p.size.height.toStringAsFixed(1)}dp box');
+    cut.add(
+      '    « ${text.length > 40 ? '${text.substring(0, 40)}…' : text} » '
+      'needs ${need.toStringAsFixed(1)}dp in a '
+      '${p.size.height.toStringAsFixed(1)}dp box',
+    );
   }
   expect(
     cut,
     isEmpty,
-    reason: 'text is clipped by a fixed height'
+    reason:
+        'text is clipped by a fixed height'
         '${context == null ? '' : ' at $context'}:\n${cut.join('\n')}\n'
         '§13.3: a box that contains text may not have a fixed height — use '
         '`minHeight`, or let it grow. A clip inside a bounded box throws '
@@ -620,7 +638,8 @@ void expectNoUndeclaredTruncation(
     } else if (!p.softWrap &&
         p.size.width + _kWidthEpsilon <
             p.getMaxIntrinsicWidth(double.infinity)) {
-      why = 'softWrap: false, needs '
+      why =
+          'softWrap: false, needs '
           '${p.getMaxIntrinsicWidth(double.infinity).toStringAsFixed(1)}dp '
           'in a ${p.size.width.toStringAsFixed(1)}dp box';
     } else {
@@ -636,7 +655,8 @@ void expectNoUndeclaredTruncation(
   expect(
     cut,
     isEmpty,
-    reason: '${context ?? 'this layout'} cuts text off without declaring it '
+    reason:
+        '${context ?? 'this layout'} cuts text off without declaring it '
         '(SYSTEM.md §13.3 — a label the user cannot finish reading is not a '
         'label):\n${cut.join('\n')}',
   );
@@ -697,13 +717,16 @@ void expectTokensWhole(
     final paragraphs = tester
         .renderObjectList<RenderParagraph>(
           find.descendant(
-              of: find.text(token), matching: find.byType(RichText)),
+            of: find.text(token),
+            matching: find.byType(RichText),
+          ),
         )
         .toList();
     expect(
       paragraphs,
       isNotEmpty,
-      reason: 'C: « $token » is not on screen at $at, so asking about it '
+      reason:
+          'C: « $token » is not on screen at $at, so asking about it '
           'asserted nothing. Name tokens the subject actually renders.',
     );
     for (final p in paragraphs) {
@@ -711,7 +734,8 @@ void expectTokensWhole(
       expect(
         p.size.width + _kWidthEpsilon,
         greaterThanOrEqualTo(needs),
-        reason: '« $token » has ${p.size.width.toStringAsFixed(1)}dp and '
+        reason:
+            '« $token » has ${p.size.width.toStringAsFixed(1)}dp and '
             'needs ${needs.toStringAsFixed(1)} at $at — it renders clipped, '
             'which is the shape of §21 row 73',
       );

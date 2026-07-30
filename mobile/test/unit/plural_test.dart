@@ -40,7 +40,8 @@ void main() {
       expect(
         Intl.plural(0, one: '0 salon', other: '0 salons'),
         '0 salons',
-        reason: 'if this is « 0 salon », the fallback locale changed and the '
+        reason:
+            'if this is « 0 salon », the fallback locale changed and the '
             'rest of this test no longer proves anything',
       );
 

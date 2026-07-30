@@ -136,8 +136,9 @@ class _AdminDisputeDetailScreenState extends State<AdminDisputeDetailScreen> {
           child: Text(
             'Aucun mouvement d’argent — Myweli ne détient pas les fonds. '
             'La résolution est consultative.',
-            style:
-                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
         ),
       ],

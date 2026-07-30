@@ -21,18 +21,18 @@ class Session {
   bool isExpired(DateTime now) => expiresAt != null && now.isAfter(expiresAt!);
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'refreshToken': refreshToken,
-        'user': user.toJson(),
-        'expiresAt': expiresAt?.toIso8601String(),
-      };
+    'token': token,
+    'refreshToken': refreshToken,
+    'user': user.toJson(),
+    'expiresAt': expiresAt?.toIso8601String(),
+  };
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
-        token: json['token'] as String,
-        refreshToken: json['refreshToken'] as String?,
-        user: User.fromJson(json['user'] as Map<String, dynamic>),
-        expiresAt: json['expiresAt'] == null
-            ? null
-            : DateTime.parse(json['expiresAt'] as String),
-      );
+    token: json['token'] as String,
+    refreshToken: json['refreshToken'] as String?,
+    user: User.fromJson(json['user'] as Map<String, dynamic>),
+    expiresAt: json['expiresAt'] == null
+        ? null
+        : DateTime.parse(json['expiresAt'] as String),
+  );
 }

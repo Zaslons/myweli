@@ -63,9 +63,7 @@ class _TeamScreenState extends State<TeamScreen> {
       isScrollControlled: true,
       builder: (_) => MultiProvider(
         providers: [
-          ChangeNotifierProvider.value(
-            value: context.read<ProTeamProvider>(),
-          ),
+          ChangeNotifierProvider.value(value: context.read<ProTeamProvider>()),
           ChangeNotifierProvider.value(
             value: context.read<ProArtistProvider>(),
           ),
@@ -162,7 +160,7 @@ class _TeamScreenState extends State<TeamScreen> {
           96, // clear the FAB
         ),
         itemCount: team.members.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: AppTheme.spacingS),
+        separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingS),
         itemBuilder: (context, index) {
           if (index == 0) return const _SeatsHeader();
           final member = team.members[index - 1];
@@ -207,8 +205,9 @@ class _SeatsHeader extends StatelessWidget {
               value: ratio.clamp(0.0, 1.0),
               minHeight: 6,
               backgroundColor: AppColors.surfaceVariant,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
             ),
           ),
         ],
@@ -256,33 +255,41 @@ class _MemberRow extends StatelessWidget {
   Widget? _subtitle() {
     final lines = <Widget>[];
     if (member.role == TeamRole.staff && member.artistName != null) {
-      lines.add(Text(
-        'Employé : ${member.artistName}',
-        style: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.textSecondary,
+      lines.add(
+        Text(
+          'Employé : ${member.artistName}',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
-      ));
+      );
     }
     if (member.status == TeamMemberStatus.revoked) {
-      lines.add(Text(
-        'Accès révoqué',
-        style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-      ));
+      lines.add(
+        Text(
+          'Accès révoqué',
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+        ),
+      );
     } else if (member.isPending) {
       if (member.expired) {
-        lines.add(Text(
-          'Expirée — renvoyez l’invitation',
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-        ));
-      } else {
-        lines.add(Text(
-          'Invitation envoyée'
-          '${member.expiresAt != null ? ' · expire le '
-              '${Formatters.formatDate(member.expiresAt!)}' : ''}',
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textTertiary,
+        lines.add(
+          Text(
+            'Expirée — renvoyez l’invitation',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
           ),
-        ));
+        );
+      } else {
+        lines.add(
+          Text(
+            'Invitation envoyée'
+            '${member.expiresAt != null ? ' · expire le '
+                      '${Formatters.formatDate(member.expiresAt!)}' : ''}',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          ),
+        );
       }
     }
     if (lines.isEmpty) return null;
@@ -336,13 +343,16 @@ class _MemberActionsSheet extends StatelessWidget {
                 'restant${member.resendsLeft > 1 ? 's' : ''})',
               ),
               enabled: member.resendsLeft > 0,
-              onTap:
-                  member.resendsLeft > 0 ? () => _resend(context, team) : null,
+              onTap: member.resendsLeft > 0
+                  ? () => _resend(context, team)
+                  : null,
             ),
           if (member.status != TeamMemberStatus.revoked)
             ListTile(
-              leading:
-                  const Icon(Icons.person_off_outlined, color: AppColors.error),
+              leading: const Icon(
+                Icons.person_off_outlined,
+                color: AppColors.error,
+              ),
               title: const Text(
                 'Révoquer l’accès',
                 style: TextStyle(color: AppColors.error),
@@ -396,15 +406,18 @@ class _MemberActionsSheet extends StatelessWidget {
     navigator.pop();
     if (ok) {
       AppSnackBar.showOn(
-          messenger, 'Rôle de ${member.email} : ${teamRoleLabel(role)}.',
-          kind: SnackKind.success);
+        messenger,
+        'Rôle de ${member.email} : ${teamRoleLabel(role)}.',
+        kind: SnackKind.success,
+      );
     } else {
       AppSnackBar.showOn(
-          messenger,
-          team.actionErrorCode == 'artist_required'
-              ? teamErrorMessage('artist_required')
-              : (team.actionError ?? 'Action impossible.'),
-          kind: SnackKind.error);
+        messenger,
+        team.actionErrorCode == 'artist_required'
+            ? teamErrorMessage('artist_required')
+            : (team.actionError ?? 'Action impossible.'),
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -427,7 +440,8 @@ class _MemberActionsSheet extends StatelessWidget {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Révoquer l’accès ?',
-      message: '${member.email} perdra immédiatement l’accès à $salonName. '
+      message:
+          '${member.email} perdra immédiatement l’accès à $salonName. '
           'Son compte MyWeli n’est pas supprimé.',
       confirmLabel: 'Révoquer',
     );

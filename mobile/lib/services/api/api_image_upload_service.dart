@@ -30,11 +30,11 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
     // consumer session + `purpose=review`; the defaults keep the pro gallery.
     String purpose = 'gallery',
     String refreshPath = '/auth/provider/refresh',
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _compress = compressor ?? _defaultCompress,
-        _purpose = purpose,
-        _sessionStore = providerSessionStore ?? InMemorySessionStore() {
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _compress = compressor ?? _defaultCompress,
+       _purpose = purpose,
+       _sessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -59,8 +59,9 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
     final raw = await _sessionStore.read();
     if (raw == null) return base;
     try {
-      final selected = (jsonDecode(raw)
-          as Map<String, dynamic>)['selectedSalonId'] as String?;
+      final selected =
+          (jsonDecode(raw) as Map<String, dynamic>)['selectedSalonId']
+              as String?;
       if (selected == null || selected.isEmpty) return base;
       return base.replace(queryParameters: {'salonId': selected});
     } catch (_) {
@@ -119,8 +120,10 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
 
     // 2. Upload the bytes straight to storage (the presign is the auth — no
     //    bearer here). The signed policy must see the form fields, then `file`.
-    final req =
-        http.MultipartRequest('POST', Uri.parse(ticket['uploadUrl'] as String));
+    final req = http.MultipartRequest(
+      'POST',
+      Uri.parse(ticket['uploadUrl'] as String),
+    );
     (ticket['fields'] as Map).forEach((k, v) {
       req.fields[k as String] = v as String;
     });

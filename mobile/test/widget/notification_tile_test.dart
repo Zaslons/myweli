@@ -9,13 +9,13 @@ void main() {
   Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   AppNotification note({bool read = false}) => AppNotification(
-        id: '1',
-        type: AppNotificationType.bookingConfirmed,
-        title: 'Rendez-vous confirmé',
-        body: 'Salon Excellence',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        read: read,
-      );
+    id: '1',
+    type: AppNotificationType.bookingConfirmed,
+    title: 'Rendez-vous confirmé',
+    body: 'Salon Excellence',
+    createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    read: read,
+  );
 
   testWidgets('renders the title and body', (tester) async {
     await tester.pumpWidget(

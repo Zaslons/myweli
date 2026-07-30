@@ -47,8 +47,11 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
       context.go('/admin/kyc');
       unawaited(p.loadQueue());
     } else {
-      AppSnackBar.showOn(messenger, p.actionError ?? 'Action impossible',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        p.actionError ?? 'Action impossible',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -70,18 +73,18 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
       context.go('/admin/kyc');
       unawaited(p.loadQueue());
     } else {
-      AppSnackBar.showOn(messenger, p.actionError ?? 'Action impossible',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        p.actionError ?? 'Action impossible',
+        kind: SnackKind.error,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AdminKycProvider>();
-    return AdminScaffold(
-      title: 'Vérification KYC',
-      child: _body(context, p),
-    );
+    return AdminScaffold(title: 'Vérification KYC', child: _body(context, p));
   }
 
   Widget _body(BuildContext context, AdminKycProvider p) {
@@ -113,17 +116,20 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
 
   Widget _info(Map<String, dynamic> d) {
     Widget row(String label, String value) => Padding(
-          padding: const EdgeInsets.only(bottom: AppTheme.spacingSM),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textTertiary)),
-              Text(value, style: AppTextStyles.bodyMedium),
-            ],
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingSM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
-        );
+          Text(value, style: AppTextStyles.bodyMedium),
+        ],
+      ),
+    );
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       decoration: BoxDecoration(
@@ -137,8 +143,10 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
           Row(
             children: [
               Expanded(
-                child: Text('${d['businessName'] ?? '—'}',
-                    style: AppTextStyles.titleMedium),
+                child: Text(
+                  '${d['businessName'] ?? '—'}',
+                  style: AppTextStyles.titleMedium,
+                ),
               ),
               StatusChip.forStatus(d['verificationStatus'] as String?),
             ],
@@ -160,9 +168,12 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
         Text('Documents', style: AppTextStyles.titleSmall),
         const SizedBox(height: AppTheme.spacingS),
         if (docs.isEmpty)
-          Text('Aucun document soumis.',
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textTertiary))
+          Text(
+            'Aucun document soumis.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          )
         else
           Wrap(
             spacing: AppTheme.spacingM,

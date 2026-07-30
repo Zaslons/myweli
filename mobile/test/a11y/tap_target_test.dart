@@ -64,8 +64,9 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('AppointmentCard — the location + itinéraire rows',
-      (tester) async {
+  testWidgets('AppointmentCard — the location + itinéraire rows', (
+    tester,
+  ) async {
     final handle = await pumpForA11y(
       tester,
       AppointmentCard(appointment: appt(), onTap: () {}),
@@ -164,8 +165,9 @@ void main() {
   // The two TIME controls take Flutter's guideline whole. The two DATE-bearing
   // ones cannot, and that is recorded rather than skipped — see below.
 
-  testWidgets('MyweliTimePickerScreen — every control meets the floor',
-      (tester) async {
+  testWidgets('MyweliTimePickerScreen — every control meets the floor', (
+    tester,
+  ) async {
     final handle = tester.ensureSemantics();
     await pumpAtWidth(
       tester,
@@ -179,8 +181,9 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('MyweliTimeRangePickerScreen — every control meets the floor',
-      (tester) async {
+  testWidgets('MyweliTimeRangePickerScreen — every control meets the floor', (
+    tester,
+  ) async {
     final handle = tester.ensureSemantics();
     await pumpAtWidth(
       tester,
@@ -220,8 +223,7 @@ void main() {
       today: DateTime(2026, 3, 11),
     ),
   }.entries) {
-    testWidgets(
-        '${subject.key} — 48 tall everywhere, width grid-bound only '
+    testWidgets('${subject.key} — 48 tall everywhere, width grid-bound only '
         'in the day cells', (tester) async {
       await pumpAtWidth(tester, width: 360, scale: 1, home: subject.value);
 
@@ -233,15 +235,25 @@ void main() {
       for (final day in const ['1', '11', '28']) {
         final cell = find
             .ancestor(
-                of: find.text(day), matching: find.byType(GestureDetector))
+              of: find.text(day),
+              matching: find.byType(GestureDetector),
+            )
             .first;
         final size = tester.getSize(cell);
-        expect(size.height, greaterThanOrEqualTo(48.0),
-            reason: '§13.2 on the axis a month grid CAN satisfy — day « $day » '
-                'measured ${size.width} × ${size.height}');
-        expect(size.width, greaterThan(40.0),
-            reason: 'grid-bound, but the column is (360 − 2×16)/7 ≈ 46.9 and a '
-                'much smaller number would mean the grid, not the floor, broke');
+        expect(
+          size.height,
+          greaterThanOrEqualTo(48.0),
+          reason:
+              '§13.2 on the axis a month grid CAN satisfy — day « $day » '
+              'measured ${size.width} × ${size.height}',
+        );
+        expect(
+          size.width,
+          greaterThan(40.0),
+          reason:
+              'grid-bound, but the column is (360 − 2×16)/7 ≈ 46.9 and a '
+              'much smaller number would mean the grid, not the floor, broke',
+        );
       }
 
       // The month bar's year toggle — the 40dp target this gate exists for.
@@ -249,10 +261,14 @@ void main() {
         of: find.text('mars 2026'),
         matching: find.byType(InkWell),
       );
-      expect(tester.getSize(toggle.first).height, greaterThanOrEqualTo(48.0),
-          reason: 'A14a shipped this at 40 — `spacingS` twice around a 24dp '
-              'line — and the Row around it is 48 because of the chevrons, so '
-              'it looked right and measured short');
+      expect(
+        tester.getSize(toggle.first).height,
+        greaterThanOrEqualTo(48.0),
+        reason:
+            'A14a shipped this at 40 — `spacingS` twice around a 24dp '
+            'line — and the Row around it is 48 because of the chevrons, so '
+            'it looked right and measured short',
+      );
     });
   }
 }

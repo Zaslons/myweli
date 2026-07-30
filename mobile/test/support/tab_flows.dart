@@ -47,13 +47,15 @@ Future<void> openEarningsAll(WidgetTester tester) async {
   expect(
     find.text('Aucune transaction'),
     findsNothing,
-    reason: 'the « Tout » tap did not land, or the salon has no takings at all '
+    reason:
+        'the « Tout » tap did not land, or the salon has no takings at all '
         '— either way the tab bar would be the only thing this measured',
   );
   expect(
     find.byType(ListTile),
     findsWidgets,
-    reason: 'no transaction ROW is on screen. The empty state is absent too, '
+    reason:
+        'no transaction ROW is on screen. The empty state is absent too, '
         'which means this is the `earnings == null` branch — an error message '
         'in a Center, and a picture of it would become the baseline',
   );
@@ -87,7 +89,8 @@ Future<void> openProList(WidgetTester tester) async {
   expect(
     find.byType(TabBar),
     findsNWidgets(2),
-    reason: 'the « Liste » page never built — its TabBar is the subject, and '
+    reason:
+        'the « Liste » page never built — its TabBar is the subject, and '
         'a TabBarView does not build a page it is not showing',
   );
 
@@ -97,7 +100,8 @@ Future<void> openProList(WidgetTester tester) async {
   expect(
     find.byType(Card),
     findsWidgets,
-    reason: '« Tous » is the tab that has rows; if this is empty the caller is '
+    reason:
+        '« Tous » is the tab that has rows; if this is empty the caller is '
         'measuring or photographing an empty state',
   );
 }

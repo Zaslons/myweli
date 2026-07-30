@@ -31,12 +31,14 @@ class AdminSearchField extends StatelessWidget {
         style: AppTextStyles.bodyMedium,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle:
-              AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+          hintStyle: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
           prefixIcon: const Icon(Icons.search, size: AppTheme.iconS),
           isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: AppTheme.spacingS,
+          ),
           filled: true,
           fillColor: AppColors.secondary,
           enabledBorder: OutlineInputBorder(

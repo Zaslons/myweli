@@ -7,8 +7,7 @@ import 'package:myweli/core/push/push_message_handler.dart';
 /// active one (R6).
 void main() {
   group('kPushChannelId', () {
-    test(
-        'equals the backend constant — a drift here silently drops every '
+    test('equals the backend constant — a drift here silently drops every '
         'background notification into the unnamed default channel', () {
       // backend/lib/src/push/fcm_v1_push_provider.dart:
       //   static const androidChannelId = 'myweli_default';
@@ -19,17 +18,15 @@ void main() {
   group('routeFromPushData', () {
     test('takes an allowlisted route', () {
       expect(
-        routeFromPushData(
-          {'route': '/appointment/a1'},
-          allowedPrefixes: kConsumerRoutePrefixes,
-        ),
+        routeFromPushData({
+          'route': '/appointment/a1',
+        }, allowedPrefixes: kConsumerRoutePrefixes),
         '/appointment/a1',
       );
       expect(
-        routeFromPushData(
-          {'route': '/pro/appointment/a1?salon=p1'},
-          allowedPrefixes: kProRoutePrefixes,
-        ),
+        routeFromPushData({
+          'route': '/pro/appointment/a1?salon=p1',
+        }, allowedPrefixes: kProRoutePrefixes),
         '/pro/appointment/a1?salon=p1',
       );
     });
@@ -37,25 +34,22 @@ void main() {
     test('drops a route this surface does not own (the allowlist)', () {
       // A pro route offered to the CONSUMER app, and vice-versa.
       expect(
-        routeFromPushData(
-          {'route': '/pro/appointment/a1'},
-          allowedPrefixes: kConsumerRoutePrefixes,
-        ),
+        routeFromPushData({
+          'route': '/pro/appointment/a1',
+        }, allowedPrefixes: kConsumerRoutePrefixes),
         isNull,
       );
       expect(
-        routeFromPushData(
-          {'route': '/appointment/a1'},
-          allowedPrefixes: kProRoutePrefixes,
-        ),
+        routeFromPushData({
+          'route': '/appointment/a1',
+        }, allowedPrefixes: kProRoutePrefixes),
         isNull,
       );
       // And anything that isn't an in-app path at all.
       expect(
-        routeFromPushData(
-          {'route': 'https://evil.example/steal'},
-          allowedPrefixes: kConsumerRoutePrefixes,
-        ),
+        routeFromPushData({
+          'route': 'https://evil.example/steal',
+        }, allowedPrefixes: kConsumerRoutePrefixes),
         isNull,
       );
     });
@@ -66,17 +60,15 @@ void main() {
         isNull,
       );
       expect(
-        routeFromPushData(
-          {'route': 42},
-          allowedPrefixes: kConsumerRoutePrefixes,
-        ),
+        routeFromPushData({
+          'route': 42,
+        }, allowedPrefixes: kConsumerRoutePrefixes),
         isNull,
       );
       expect(
-        routeFromPushData(
-          {'route': '  '},
-          allowedPrefixes: kConsumerRoutePrefixes,
-        ),
+        routeFromPushData({
+          'route': '  ',
+        }, allowedPrefixes: kConsumerRoutePrefixes),
         isNull,
       );
     });
@@ -112,28 +104,27 @@ void main() {
     setUp(() => routes = []);
 
     PushMessageHandler consumer({bool authed = true}) => PushMessageHandler(
-          navigate: (r) async => routes.add(r),
-          allowedRoutePrefixes: kConsumerRoutePrefixes,
-          isAuthenticated: () => authed,
-        );
+      navigate: (r) async => routes.add(r),
+      allowedRoutePrefixes: kConsumerRoutePrefixes,
+      isAuthenticated: () => authed,
+    );
 
     PushMessageHandler pro({
       required String activeSalon,
       bool switchSucceeds = true,
       List<String>? switched,
       bool authed = true,
-    }) =>
-        PushMessageHandler(
-          navigate: (r) async => routes.add(r),
-          allowedRoutePrefixes: kProRoutePrefixes,
-          isAuthenticated: () => authed,
-          salonSwitchFallbackRoute: '/pro/dashboard',
-          ensureSalon: (id) async {
-            if (id == activeSalon) return true; // already there
-            switched?.add(id);
-            return switchSucceeds;
-          },
-        );
+    }) => PushMessageHandler(
+      navigate: (r) async => routes.add(r),
+      allowedRoutePrefixes: kProRoutePrefixes,
+      isAuthenticated: () => authed,
+      salonSwitchFallbackRoute: '/pro/dashboard',
+      ensureSalon: (id) async {
+        if (id == activeSalon) return true; // already there
+        switched?.add(id);
+        return switchSucceeds;
+      },
+    );
 
     test('consumer: navigates to the booking', () async {
       await consumer().handleData({
@@ -155,31 +146,32 @@ void main() {
       expect(routes, ['/pro/appointment/a1?salon=p1']);
     });
 
-    test('pro on ANOTHER salon: switches FIRST, then opens the booking (R6)',
-        () async {
-      final switched = <String>[];
-      await pro(activeSalon: 'p1', switched: switched).handleData({
-        'event': 'new_booking',
-        'providerId': 'p2',
-        'route': '/pro/appointment/a9?salon=p2',
-      });
-      expect(switched, ['p2']); // switched before navigating
-      expect(routes, ['/pro/appointment/a9?salon=p2']);
-    });
-
     test(
-        'a feed row (no providerId key) still switches — the salon rides in '
+      'pro on ANOTHER salon: switches FIRST, then opens the booking (R6)',
+      () async {
+        final switched = <String>[];
+        await pro(activeSalon: 'p1', switched: switched).handleData({
+          'event': 'new_booking',
+          'providerId': 'p2',
+          'route': '/pro/appointment/a9?salon=p2',
+        });
+        expect(switched, ['p2']); // switched before navigating
+        expect(routes, ['/pro/appointment/a9?salon=p2']);
+      },
+    );
+
+    test('a feed row (no providerId key) still switches — the salon rides in '
         'the route', () async {
       final switched = <String>[];
-      await pro(activeSalon: 'p1', switched: switched).handleData({
-        'route': '/pro/appointment/a9?salon=p3',
-      });
+      await pro(
+        activeSalon: 'p1',
+        switched: switched,
+      ).handleData({'route': '/pro/appointment/a9?salon=p3'});
       expect(switched, ['p3']);
       expect(routes, ['/pro/appointment/a9?salon=p3']);
     });
 
-    test(
-        'a failed switch lands on the dashboard, never on a booking the '
+    test('a failed switch lands on the dashboard, never on a booking the '
         'active salon cannot resolve', () async {
       await pro(activeSalon: 'p1', switchSucceeds: false).handleData({
         'providerId': 'p2',
@@ -188,8 +180,7 @@ void main() {
       expect(routes, ['/pro/dashboard']);
     });
 
-    test(
-        'COLD START: a tap before the session lands is buffered, then '
+    test('COLD START: a tap before the session lands is buffered, then '
         'replayed by flushPending() when auth restores', () async {
       // The real shape: ONE handler whose auth predicate flips under it.
       var authed = false;

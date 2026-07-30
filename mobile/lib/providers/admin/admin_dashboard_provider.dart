@@ -5,7 +5,7 @@ import '../../services/admin/admin_service.dart';
 /// Loads the read-only marketplace-health KPI snapshot for the dashboard.
 class AdminDashboardProvider extends ChangeNotifier {
   AdminDashboardProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 

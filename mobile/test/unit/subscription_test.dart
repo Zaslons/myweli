@@ -23,15 +23,14 @@ void main() {
   SalonSubscription sample({
     SalonOfferStatus status = SalonOfferStatus.trial,
     bool unpublished = false,
-  }) =>
-      SalonSubscription(
-        tier: SalonTier.pro,
-        status: status,
-        trialEndsAt: DateTime.now().add(const Duration(days: 30)),
-        graceEndsAt: DateTime.now().add(const Duration(days: 37)),
-        unpublishedForBilling: unpublished,
-        seats: const SalonSeats(cap: 5, used: 2),
-      );
+  }) => SalonSubscription(
+    tier: SalonTier.pro,
+    status: status,
+    trialEndsAt: DateTime.now().add(const Duration(days: 30)),
+    graceEndsAt: DateTime.now().add(const Duration(days: 37)),
+    unpublishedForBilling: unpublished,
+    seats: const SalonSeats(cap: 5, used: 2),
+  );
 
   group('SalonSubscription model', () {
     test('parses the full DTO', () {
@@ -79,14 +78,14 @@ void main() {
 
   group('MockSubscriptionService — the offer arc', () {
     test('defaults to SETUP (no offer) → code no_offer', () async {
-      final res =
-          await MockSubscriptionService().getSalonSubscription('provider1');
+      final res = await MockSubscriptionService().getSalonSubscription(
+        'provider1',
+      );
       expect(res.success, isFalse);
       expect(res.code, 'no_offer');
     });
 
-    test(
-        'first choice starts the ONE 3-month trial; a switch keeps the '
+    test('first choice starts the ONE 3-month trial; a switch keeps the '
         'clock and changes the cap', () async {
       final svc = MockSubscriptionService();
       final chosen = await svc.chooseOffer('provider1', SalonTier.pro);
@@ -214,8 +213,9 @@ void main() {
     setUp(() => reset(service));
 
     test('load populates the salon state', () async {
-      when(() => service.getSalonSubscription('p1'))
-          .thenAnswer((_) async => ApiResponse.success(sample()));
+      when(
+        () => service.getSalonSubscription('p1'),
+      ).thenAnswer((_) async => ApiResponse.success(sample()));
       final p = ProSubscriptionProvider();
       await p.load('p1');
       expect(p.salon!.seats.used, 2);
@@ -224,8 +224,9 @@ void main() {
     });
 
     test('no_offer maps to the explicit SETUP state (not an error)', () async {
-      when(() => service.getSalonSubscription('p1'))
-          .thenAnswer((_) async => ApiResponse.error('', code: 'no_offer'));
+      when(
+        () => service.getSalonSubscription('p1'),
+      ).thenAnswer((_) async => ApiResponse.error('', code: 'no_offer'));
       final p = ProSubscriptionProvider();
       await p.load('p1');
       expect(p.isSetup, isTrue);
@@ -234,21 +235,23 @@ void main() {
     });
 
     test('load failure sets loadFailed', () async {
-      when(() => service.getSalonSubscription('p1'))
-          .thenAnswer((_) async => ApiResponse.error('boom'));
+      when(
+        () => service.getSalonSubscription('p1'),
+      ).thenAnswer((_) async => ApiResponse.error('boom'));
       final p = ProSubscriptionProvider();
       await p.load('p1');
       expect(p.loadFailed, isTrue);
       expect(p.salon, isNull);
     });
 
-    test(
-        'choose success updates the state in place; trial_used surfaces '
+    test('choose success updates the state in place; trial_used surfaces '
         'its code', () async {
-      when(() => service.getSalonSubscription('p1'))
-          .thenAnswer((_) async => ApiResponse.error('', code: 'no_offer'));
-      when(() => service.chooseOffer('p1', SalonTier.pro))
-          .thenAnswer((_) async => ApiResponse.success(sample()));
+      when(
+        () => service.getSalonSubscription('p1'),
+      ).thenAnswer((_) async => ApiResponse.error('', code: 'no_offer'));
+      when(
+        () => service.chooseOffer('p1', SalonTier.pro),
+      ).thenAnswer((_) async => ApiResponse.success(sample()));
       final p = ProSubscriptionProvider();
       await p.load('p1');
       expect(await p.choose('p1', SalonTier.pro), isTrue);

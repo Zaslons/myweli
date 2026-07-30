@@ -27,23 +27,23 @@ class KycDocument extends Equatable {
   List<Object?> get props => [type, fileName, key, submittedAt];
 
   Map<String, dynamic> toJson() => {
-        'type': type.name,
-        'fileName': fileName,
-        'key': key,
-        'submittedAt': submittedAt.toIso8601String(),
-      };
+    'type': type.name,
+    'fileName': fileName,
+    'key': key,
+    'submittedAt': submittedAt.toIso8601String(),
+  };
 
   factory KycDocument.fromJson(Map<String, dynamic> json) => KycDocument(
-        type: KycDocumentType.values.firstWhere(
-          (e) => e.name == json['type'],
-          orElse: () => KycDocumentType.idCard,
-        ),
-        fileName: json['fileName'] as String? ?? '',
-        key: json['key'] as String? ?? '',
-        submittedAt: json['submittedAt'] != null
-            ? DateTime.parse(json['submittedAt'] as String)
-            : DateTime.now(),
-      );
+    type: KycDocumentType.values.firstWhere(
+      (e) => e.name == json['type'],
+      orElse: () => KycDocumentType.idCard,
+    ),
+    fileName: json['fileName'] as String? ?? '',
+    key: json['key'] as String? ?? '',
+    submittedAt: json['submittedAt'] != null
+        ? DateTime.parse(json['submittedAt'] as String)
+        : DateTime.now(),
+  );
 }
 
 /// The provider's KYC state as returned by the service.
@@ -62,15 +62,15 @@ class KycStatus extends Equatable {
   List<Object?> get props => [status, documents, rejectionReason];
 
   factory KycStatus.fromJson(Map<String, dynamic> json) => KycStatus(
-        status: VerificationStatus.values.firstWhere(
-          (s) => s.name == json['status'],
-          orElse: () => VerificationStatus.pending,
-        ),
-        documents: ((json['documents'] as List?) ?? const [])
-            .map((e) => KycDocument.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        rejectionReason: json['rejectionReason'] as String?,
-      );
+    status: VerificationStatus.values.firstWhere(
+      (s) => s.name == json['status'],
+      orElse: () => VerificationStatus.pending,
+    ),
+    documents: ((json['documents'] as List?) ?? const [])
+        .map((e) => KycDocument.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    rejectionReason: json['rejectionReason'] as String?,
+  );
 }
 
 /// Whether a document type is required for a given business type. ID + selfie

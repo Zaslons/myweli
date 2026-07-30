@@ -22,7 +22,8 @@ void main() {
     reset(service);
     when(() => service.getKycStatus(any())).thenAnswer(
       (_) async => ApiResponse.success(
-          const KycStatus(status: VerificationStatus.pending)),
+        const KycStatus(status: VerificationStatus.pending),
+      ),
     );
     when(
       () => service.uploadDocument(
@@ -88,7 +89,8 @@ void main() {
       ),
     ).thenAnswer(
       (_) async => ApiResponse.success(
-          const KycStatus(status: VerificationStatus.pending)),
+        const KycStatus(status: VerificationStatus.pending),
+      ),
     );
 
     final p = ProKycProvider();

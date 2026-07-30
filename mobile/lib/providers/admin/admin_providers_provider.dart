@@ -7,7 +7,7 @@ import '../../services/admin/admin_service.dart';
 /// restore / feature. Design: docs/design/admin-console-ui.md §3.
 class AdminProvidersProvider extends ChangeNotifier {
   AdminProvidersProvider({AdminService? service})
-      : _service = service ?? adminService;
+    : _service = service ?? adminService;
 
   final AdminService _service;
 
@@ -75,7 +75,8 @@ class AdminProvidersProvider extends ChangeNotifier {
         // Replace the row with the returned (updated) provider; drop it if the
         // active status filter no longer matches.
         final updated = res.data!;
-        final keep = _statuses[_filter] == null ||
+        final keep =
+            _statuses[_filter] == null ||
             updated['status'] == _statuses[_filter];
         final next = <Map<String, dynamic>>[];
         for (final r in _items) {

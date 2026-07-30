@@ -58,7 +58,9 @@ class AuthProvider extends ChangeNotifier {
   void _syncPush() {
     try {
       unawaited(serviceLocator.pushRegistration.registerIfGranted());
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   Future<bool> sendOtp(String phoneNumber) async {
@@ -160,8 +162,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _authService.requestEmailOtp(email);
       if (response.success) {
-        _emailDevCode =
-            (response.data?.isNotEmpty ?? false) ? response.data : null;
+        _emailDevCode = (response.data?.isNotEmpty ?? false)
+            ? response.data
+            : null;
         _otpErrorCode = null;
         return true;
       }
@@ -188,7 +191,9 @@ class AuthProvider extends ChangeNotifier {
       // Unregister this device first — the call needs the live session.
       try {
         await serviceLocator.pushRegistration.unregister();
-      } catch (_) {/* best-effort */}
+      } catch (_) {
+        /* best-effort */
+      }
       await _authService.logout();
       _user = null;
       _error = null;
@@ -253,15 +258,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateUser(
-      {String? name, String? email, String? avatarUrl, String? phone}) async {
+  Future<bool> updateUser({
+    String? name,
+    String? email,
+    String? avatarUrl,
+    String? phone,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final response = await _authService.updateUser(
-          name: name, email: email, avatarUrl: avatarUrl, phone: phone);
+        name: name,
+        email: email,
+        avatarUrl: avatarUrl,
+        phone: phone,
+      );
       if (response.success && response.data != null) {
         _user = response.data;
         _error = null;

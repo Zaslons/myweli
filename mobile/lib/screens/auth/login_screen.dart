@@ -208,174 +208,163 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   List<Widget> _optionsStep(AuthProvider auth) => [
-        Text(
-          'Bienvenue',
-          style: AppTextStyles.headlineLarge.copyWith(
-            color: AppColors.textPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppTheme.spacingS),
-        Text(
-          'Connectez-vous pour réserver en quelques secondes.',
-          style: AppTextStyles.bodyLarge.copyWith(
-            color: AppColors.textSecondary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppTheme.spacingXL),
-        AppButton(
-          text: 'Continuer avec Google',
-          type: AppButtonType.secondary,
-          leading: const GoogleGLogo(),
-          onPressed: auth.isLoading ? null : _handleGoogle,
-        ),
-        if (_showApple) ...[
-          const SizedBox(height: AppTheme.spacingSM),
-          AppButton(
-            text: 'Continuer avec Apple',
-            onPressed: auth.isLoading ? null : _handleApple,
-          ),
-        ],
-        const SizedBox(height: AppTheme.spacingL),
-        Row(
-          children: [
-            const Expanded(child: Divider(color: AppColors.divider)),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
-              ),
-              child: Text(
-                'ou',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-            ),
-            const Expanded(child: Divider(color: AppColors.divider)),
-          ],
-        ),
-        const SizedBox(height: AppTheme.spacingL),
-        AppTextField(
-          controller: _emailController,
-          focusNode: _emailFocus,
-          label: 'Votre e-mail',
-          hint: 'exemple@email.com',
-          keyboardType: TextInputType.emailAddress,
-          errorText: _errors['email'],
-          onChanged: (v) => setState(() => _errors.revalidate('email', v)),
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        AppButton(
-          text: 'Continuer avec e-mail',
-          // §14 rule 5: disabled ONLY while submitting.
-          onPressed: auth.isLoading ? null : _sendEmailCode,
-          isLoading: auth.isLoading,
-        ),
-        // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
-        // — and `InlineFeedback` is a live region, which a hand-rolled red Text
-        // never was.
-        InlineFeedback(auth.error),
-      ];
-
-  List<Widget> _codeStep(AuthProvider auth) => [
-        Text(
-          'Entrez le code reçu par e-mail à ${_emailController.text.trim()}.',
-          style: AppTextStyles.bodyLarge.copyWith(
-            color: AppColors.textSecondary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppTheme.spacingL),
-        AppTextField(
-          controller: _codeController,
-          focusNode: _codeFocus,
-          label: 'Code à 6 chiffres',
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          errorText: _errors['code'],
-          onChanged: (v) => setState(() => _errors.revalidate('code', v)),
-        ),
-        if (auth.emailDevCode != null) ...[
-          const SizedBox(height: AppTheme.spacingXS),
-          Text(
-            'Code (dev) : ${auth.emailDevCode}',
+    Text(
+      'Bienvenue',
+      style: AppTextStyles.headlineLarge.copyWith(color: AppColors.textPrimary),
+      textAlign: TextAlign.center,
+    ),
+    const SizedBox(height: AppTheme.spacingS),
+    Text(
+      'Connectez-vous pour réserver en quelques secondes.',
+      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+      textAlign: TextAlign.center,
+    ),
+    const SizedBox(height: AppTheme.spacingXL),
+    AppButton(
+      text: 'Continuer avec Google',
+      type: AppButtonType.secondary,
+      leading: const GoogleGLogo(),
+      onPressed: auth.isLoading ? null : _handleGoogle,
+    ),
+    if (_showApple) ...[
+      const SizedBox(height: AppTheme.spacingSM),
+      AppButton(
+        text: 'Continuer avec Apple',
+        onPressed: auth.isLoading ? null : _handleApple,
+      ),
+    ],
+    const SizedBox(height: AppTheme.spacingL),
+    Row(
+      children: [
+        const Expanded(child: Divider(color: AppColors.divider)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+          child: Text(
+            'ou',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textTertiary,
             ),
-            textAlign: TextAlign.center,
           ),
-        ],
-        const SizedBox(height: AppTheme.spacingM),
-        AppButton(
-          text: 'Se connecter',
-          // The gate said 4 on a field labelled « Code à 6 chiffres » with
-          // maxLength 6 — a four-digit code walked through. Rule 5: disabled
-          // only while submitting; the code's own rule answers under the field.
-          onPressed: auth.isLoading ? null : _verifyEmailCode,
-          isLoading: auth.isLoading,
         ),
-        const SizedBox(height: AppTheme.spacingSM),
-        AppButton(
-          text: _resendCooldown > 0
-              ? 'Renvoyer le code (${_resendCooldown}s)'
-              : 'Renvoyer le code',
-          type: AppButtonType.text,
-          onPressed:
-              (auth.isLoading || _resendCooldown > 0) ? null : _sendEmailCode,
-        ),
-        const SizedBox(height: AppTheme.spacingXS),
-        AppButton(
-          text: 'Changer d’e-mail',
-          type: AppButtonType.text,
-          onPressed: auth.isLoading
-              ? null
-              : () => setState(() => _step = _LoginStep.options),
-        ),
-        // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
-        // — and `InlineFeedback` is a live region, which a hand-rolled red Text
-        // never was.
-        InlineFeedback(auth.error),
-      ];
+        const Expanded(child: Divider(color: AppColors.divider)),
+      ],
+    ),
+    const SizedBox(height: AppTheme.spacingL),
+    AppTextField(
+      controller: _emailController,
+      focusNode: _emailFocus,
+      label: 'Votre e-mail',
+      hint: 'exemple@email.com',
+      keyboardType: TextInputType.emailAddress,
+      errorText: _errors['email'],
+      onChanged: (v) => setState(() => _errors.revalidate('email', v)),
+    ),
+    const SizedBox(height: AppTheme.spacingM),
+    AppButton(
+      text: 'Continuer avec e-mail',
+      // §14 rule 5: disabled ONLY while submitting.
+      onPressed: auth.isLoading ? null : _sendEmailCode,
+      isLoading: auth.isLoading,
+    ),
+    // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
+    // — and `InlineFeedback` is a live region, which a hand-rolled red Text
+    // never was.
+    InlineFeedback(auth.error),
+  ];
+
+  List<Widget> _codeStep(AuthProvider auth) => [
+    Text(
+      'Entrez le code reçu par e-mail à ${_emailController.text.trim()}.',
+      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+      textAlign: TextAlign.center,
+    ),
+    const SizedBox(height: AppTheme.spacingL),
+    AppTextField(
+      controller: _codeController,
+      focusNode: _codeFocus,
+      label: 'Code à 6 chiffres',
+      keyboardType: TextInputType.number,
+      maxLength: 6,
+      errorText: _errors['code'],
+      onChanged: (v) => setState(() => _errors.revalidate('code', v)),
+    ),
+    if (auth.emailDevCode != null) ...[
+      const SizedBox(height: AppTheme.spacingXS),
+      Text(
+        'Code (dev) : ${auth.emailDevCode}',
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+        textAlign: TextAlign.center,
+      ),
+    ],
+    const SizedBox(height: AppTheme.spacingM),
+    AppButton(
+      text: 'Se connecter',
+      // The gate said 4 on a field labelled « Code à 6 chiffres » with
+      // maxLength 6 — a four-digit code walked through. Rule 5: disabled
+      // only while submitting; the code's own rule answers under the field.
+      onPressed: auth.isLoading ? null : _verifyEmailCode,
+      isLoading: auth.isLoading,
+    ),
+    const SizedBox(height: AppTheme.spacingSM),
+    AppButton(
+      text: _resendCooldown > 0
+          ? 'Renvoyer le code (${_resendCooldown}s)'
+          : 'Renvoyer le code',
+      type: AppButtonType.text,
+      onPressed: (auth.isLoading || _resendCooldown > 0)
+          ? null
+          : _sendEmailCode,
+    ),
+    const SizedBox(height: AppTheme.spacingXS),
+    AppButton(
+      text: 'Changer d’e-mail',
+      type: AppButtonType.text,
+      onPressed: auth.isLoading
+          ? null
+          : () => setState(() => _step = _LoginStep.options),
+    ),
+    // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
+    // — and `InlineFeedback` is a live region, which a hand-rolled red Text
+    // never was.
+    InlineFeedback(auth.error),
+  ];
 
   List<Widget> _phoneStep(AuthProvider auth) => [
-        Text(
-          'Votre numéro de téléphone',
-          style: AppTextStyles.headlineMedium.copyWith(
-            color: AppColors.textPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppTheme.spacingS),
-        Text(
-          'Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.',
-          style: AppTextStyles.bodyLarge.copyWith(
-            color: AppColors.textSecondary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppTheme.spacingL),
-        PhoneNumberField(
-          // A7 said this field sat outside any Form so the package's check
-          // "could never run here". That was measured FALSE: IntlPhoneField
-          // defaults to onUserInteraction and needs no Form, so it WAS judging
-          // from the first keystroke and overwriting our message. It is
-          // silenced at the widget now; FieldErrors is the only rule.
-          errorText: _errors['phone'],
-          onChanged: (e164) => setState(() {
-            _phoneNumber = e164;
-            _errors.revalidate('phone', e164);
-          }),
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        AppButton(
-          text: 'Continuer',
-          onPressed: auth.isLoading ? null : _savePhone,
-          isLoading: auth.isLoading,
-        ),
-        // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
-        // — and `InlineFeedback` is a live region, which a hand-rolled red Text
-        // never was.
-        InlineFeedback(auth.error),
-      ];
+    Text(
+      'Votre numéro de téléphone',
+      style: AppTextStyles.headlineMedium.copyWith(
+        color: AppColors.textPrimary,
+      ),
+      textAlign: TextAlign.center,
+    ),
+    const SizedBox(height: AppTheme.spacingS),
+    Text(
+      'Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.',
+      style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+      textAlign: TextAlign.center,
+    ),
+    const SizedBox(height: AppTheme.spacingL),
+    PhoneNumberField(
+      // A7 said this field sat outside any Form so the package's check
+      // "could never run here". That was measured FALSE: IntlPhoneField
+      // defaults to onUserInteraction and needs no Form, so it WAS judging
+      // from the first keystroke and overwriting our message. It is
+      // silenced at the widget now; FieldErrors is the only rule.
+      errorText: _errors['phone'],
+      onChanged: (e164) => setState(() {
+        _phoneNumber = e164;
+        _errors.revalidate('phone', e164);
+      }),
+    ),
+    const SizedBox(height: AppTheme.spacingM),
+    AppButton(
+      text: 'Continuer',
+      onPressed: auth.isLoading ? null : _savePhone,
+      isLoading: auth.isLoading,
+    ),
+    // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
+    // — and `InlineFeedback` is a live region, which a hand-rolled red Text
+    // never was.
+    InlineFeedback(auth.error),
+  ];
 }

@@ -33,15 +33,15 @@ enum _InviteStep { email, role, artist }
 
 /// Plain-French capability summaries for the role cards (spec-locked copy).
 String roleSummary(TeamRole role) => switch (role) {
-      TeamRole.manager =>
-        'Gère les rendez-vous, le catalogue et les disponibilités. '
-            'Ne voit pas les revenus.',
-      TeamRole.reception =>
-        'Gère le planning et le fichier clients. Pas de catalogue ni de '
-            'réglages.',
-      TeamRole.staff => 'Voit uniquement son propre planning.',
-      TeamRole.owner => '',
-    };
+  TeamRole.manager =>
+    'Gère les rendez-vous, le catalogue et les disponibilités. '
+        'Ne voit pas les revenus.',
+  TeamRole.reception =>
+    'Gère le planning et le fichier clients. Pas de catalogue ni de '
+        'réglages.',
+  TeamRole.staff => 'Voit uniquement son propre planning.',
+  TeamRole.owner => '',
+};
 
 class _InviteMemberSheetState extends State<InviteMemberSheet> {
   _InviteStep _step = _InviteStep.email;
@@ -110,8 +110,11 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
     if (!mounted) return;
     if (member != null) {
       Navigator.of(context).pop(member.email);
-      AppSnackBar.showOn(messenger, 'Invitation envoyée à ${member.email}',
-          kind: SnackKind.success);
+      AppSnackBar.showOn(
+        messenger,
+        'Invitation envoyée à ${member.email}',
+        kind: SnackKind.success,
+      );
     }
   }
 
@@ -167,8 +170,10 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
                     }),
                   ),
                 Expanded(
-                  child: Text('Inviter un membre',
-                      style: AppTextStyles.titleLarge),
+                  child: Text(
+                    'Inviter un membre',
+                    style: AppTextStyles.titleLarge,
+                  ),
                 ),
               ],
             ),
@@ -206,88 +211,79 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
   }
 
   List<Widget> _emailStep() => [
-        Text(
-          'À quelle adresse e-mail envoyer l’invitation ?',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        AppTextField(
-          label: 'E-mail du membre',
-          hint: 'exemple@email.com',
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          focusNode: _emailFocus,
-          errorText: _errors['email'],
-          onChanged: (v) => setState(() => _errors.revalidate('email', v)),
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        AppButton(
-          text: 'Continuer',
-          isFullWidth: true,
-          // §14 rule 5 — and the reason the errorText above is now reachable.
-          onPressed: _continueFromEmail,
-        ),
-      ];
+    Text(
+      'À quelle adresse e-mail envoyer l’invitation ?',
+      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+    ),
+    const SizedBox(height: AppTheme.spacingM),
+    AppTextField(
+      label: 'E-mail du membre',
+      hint: 'exemple@email.com',
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
+      focusNode: _emailFocus,
+      errorText: _errors['email'],
+      onChanged: (v) => setState(() => _errors.revalidate('email', v)),
+    ),
+    const SizedBox(height: AppTheme.spacingM),
+    AppButton(
+      text: 'Continuer',
+      isFullWidth: true,
+      // §14 rule 5 — and the reason the errorText above is now reachable.
+      onPressed: _continueFromEmail,
+    ),
+  ];
 
   List<Widget> _roleStep(ProTeamProvider team) => [
-        Text(
-          'Quel rôle pour $_email ?',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        for (final role in const [
-          TeamRole.manager,
-          TeamRole.reception,
-          TeamRole.staff,
-        ]) ...[
-          _RoleCard(
-            role: role,
-            selected: _role == role,
-            onTap: () => setState(() => _role = role),
-          ),
-          const SizedBox(height: AppTheme.spacingS),
-        ],
-        const SizedBox(height: AppTheme.spacingS),
-        // A role is a SELECTION — no field to sit under, so §14's fault lands
-        // form-level (the three-slot boundary).
-        InlineFeedback(_errors['role']),
-        AppButton(
-          text: _role == TeamRole.staff ? 'Continuer' : 'Envoyer l’invitation',
-          isFullWidth: true,
-          isLoading: team.isInviting,
-          onPressed: team.isInviting
-              ? null
-              : () {
-                  if (!_errors.validate({'role': _role?.name ?? ''})) {
-                    setState(() {});
-                    return;
-                  }
-                  if (_role == TeamRole.staff) {
-                    setState(() => _step = _InviteStep.artist);
-                  } else {
-                    _submit();
-                  }
-                },
-        ),
-      ];
+    Text(
+      'Quel rôle pour $_email ?',
+      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+    ),
+    const SizedBox(height: AppTheme.spacingM),
+    for (final role in const [
+      TeamRole.manager,
+      TeamRole.reception,
+      TeamRole.staff,
+    ]) ...[
+      _RoleCard(
+        role: role,
+        selected: _role == role,
+        onTap: () => setState(() => _role = role),
+      ),
+      const SizedBox(height: AppTheme.spacingS),
+    ],
+    const SizedBox(height: AppTheme.spacingS),
+    // A role is a SELECTION — no field to sit under, so §14's fault lands
+    // form-level (the three-slot boundary).
+    InlineFeedback(_errors['role']),
+    AppButton(
+      text: _role == TeamRole.staff ? 'Continuer' : 'Envoyer l’invitation',
+      isFullWidth: true,
+      isLoading: team.isInviting,
+      onPressed: team.isInviting
+          ? null
+          : () {
+              if (!_errors.validate({'role': _role?.name ?? ''})) {
+                setState(() {});
+                return;
+              }
+              if (_role == TeamRole.staff) {
+                setState(() => _step = _InviteStep.artist);
+              } else {
+                _submit();
+              }
+            },
+    ),
+  ];
 
   List<Widget> _artistStep(ProTeamProvider team) {
     final artists = context.watch<ProArtistProvider>();
     return [
-      Text(
-        'Associer à un membre de l’équipe',
-        style: AppTextStyles.titleSmall,
-      ),
+      Text('Associer à un membre de l’équipe', style: AppTextStyles.titleSmall),
       const SizedBox(height: AppTheme.spacingXS),
       Text(
         'Le collaborateur verra le planning de cette fiche employé.',
-        style: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.textSecondary,
-        ),
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
       ),
       const SizedBox(height: AppTheme.spacingM),
       if (artists.isLoading)

@@ -32,10 +32,10 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     String? baseUrl,
     SessionStore? sessionStore,
     ImageCompressor? compressor,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _sessionStore = sessionStore ?? InMemorySessionStore(),
-        _compress = compressor ?? _defaultCompress;
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _sessionStore = sessionStore ?? InMemorySessionStore(),
+       _compress = compressor ?? _defaultCompress;
 
   final http.Client _client;
   final String _baseUrl;
@@ -71,20 +71,20 @@ class ApiAppointmentService implements AppointmentServiceInterface {
       return ApiResponse.error('Connectez-vous pour réserver');
     }
     // Note: depositAmount is computed server-side from the provider's policy.
-    final res = await _authed.send((token) => _client.post(
-          _uri('/appointments'),
-          headers: _authHeaders(token),
-          body: jsonEncode({
-            'providerId': providerId,
-            'serviceIds': serviceIds,
-            'appointmentDateTime':
-                appointmentDateTime.toUtc().toIso8601String(),
-            if (artistId != null) 'artistId': artistId,
-            if (notes != null) 'notes': notes,
-            if (depositScreenshotUrl != null)
-              'depositScreenshotUrl': depositScreenshotUrl,
-          }),
-        ));
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/appointments'),
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'providerId': providerId,
+          'serviceIds': serviceIds,
+          'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
+          'artistId': ?artistId,
+          'notes': ?notes,
+          'depositScreenshotUrl': ?depositScreenshotUrl,
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 201) return _errorFrom(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
@@ -108,11 +108,13 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     }
 
     // 1. Presign a private, single-use upload to the deposit bucket.
-    final signRes = await _authed.send((token) => _client.post(
-          _uri('/uploads/sign'),
-          headers: _authHeaders(token),
-          body: jsonEncode({'contentType': 'image/jpeg', 'purpose': 'deposit'}),
-        ));
+    final signRes = await _authed.send(
+      (token) => _client.post(
+        _uri('/uploads/sign'),
+        headers: _authHeaders(token),
+        body: jsonEncode({'contentType': 'image/jpeg', 'purpose': 'deposit'}),
+      ),
+    );
     if (signRes == null) return _networkError();
     if (signRes.statusCode != 200) return _errorFrom(signRes);
     final ticket = _decode(signRes.body);
@@ -150,11 +152,13 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((token) => _client.post(
-          _uri('/appointments/$appointmentId/deposit'),
-          headers: _authHeaders(token),
-          body: jsonEncode({'screenshotKey': screenshotKey}),
-        ));
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/appointments/$appointmentId/deposit'),
+        headers: _authHeaders(token),
+        body: jsonEncode({'screenshotKey': screenshotKey}),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
@@ -167,10 +171,12 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((token) => _client.get(
-          _uri('/appointments/$appointmentId/deposit-screenshot'),
-          headers: _authHeaders(token),
-        ));
+    final res = await _authed.send(
+      (token) => _client.get(
+        _uri('/appointments/$appointmentId/deposit-screenshot'),
+        headers: _authHeaders(token),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(_decode(res.body)['url'] as String);
@@ -183,11 +189,12 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final uri = _uri('/appointments').replace(
-      queryParameters: {if (status != null) 'status': status.name},
+    final uri = _uri(
+      '/appointments',
+    ).replace(queryParameters: {if (status != null) 'status': status.name});
+    final res = await _authed.send(
+      (token) => _client.get(uri, headers: _authHeaders(token)),
     );
-    final res = await _authed
-        .send((token) => _client.get(uri, headers: _authHeaders(token)));
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     final items = (_decode(res.body)['items'] as List)
@@ -215,10 +222,12 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((token) => _client.post(
-          _uri('/appointments/$id/cancel'),
-          headers: _authHeaders(token),
-        ));
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/appointments/$id/cancel'),
+        headers: _authHeaders(token),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(null, message: 'Rendez-vous annulé');
@@ -232,13 +241,15 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((token) => _client.post(
-          _uri('/appointments/$id/reschedule'),
-          headers: _authHeaders(token),
-          body: jsonEncode({
-            'newDateTime': newDateTime.toUtc().toIso8601String(),
-          }),
-        ));
+    final res = await _authed.send(
+      (token) => _client.post(
+        _uri('/appointments/$id/reschedule'),
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'newDateTime': newDateTime.toUtc().toIso8601String(),
+        }),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
@@ -252,7 +263,8 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     String? artistId,
     int? durationMinutes,
   }) async {
-    final dateStr = '${date.year.toString().padLeft(4, '0')}-'
+    final dateStr =
+        '${date.year.toString().padLeft(4, '0')}-'
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';
     final uri = _uri('/availability').replace(
@@ -263,7 +275,7 @@ class ApiAppointmentService implements AppointmentServiceInterface {
           'serviceIds': serviceIds.join(','),
         if (durationMinutes != null) 'durationMinutes': '$durationMinutes',
         // Capacity model (K1): the chosen artist's own calendar governs.
-        if (artistId != null) 'artistId': artistId,
+        'artistId': ?artistId,
       },
     );
     final res = await _send(() => _client.get(uri)); // public
@@ -280,9 +292,9 @@ class ApiAppointmentService implements AppointmentServiceInterface {
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
   Map<String, String> _authHeaders(String token) => {
-        'content-type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+    'content-type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 
   Future<http.Response?> _send(Future<http.Response> Function() run) async {
     try {

@@ -37,8 +37,9 @@ void main() {
     expect(theme.inputDecorationTheme.errorMaxLines, greaterThan(1));
   });
 
-  testWidgets('providers are wired and the router branch renders',
-      (tester) async {
+  testWidgets('providers are wired and the router branch renders', (
+    tester,
+  ) async {
     await pumpApp(
       tester,
       providers: [ChangeNotifierProvider(create: (_) => _Counter())],

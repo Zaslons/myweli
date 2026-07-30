@@ -62,10 +62,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/pro/team',
       routes: [
-        GoRoute(path: '/pro/team', builder: (_, __) => const TeamScreen()),
+        GoRoute(path: '/pro/team', builder: (_, _) => const TeamScreen()),
         GoRoute(
           path: '/pro/subscription',
-          builder: (_, __) => const Scaffold(body: Text('OFFRES')),
+          builder: (_, _) => const Scaffold(body: Text('OFFRES')),
         ),
       ],
     );
@@ -87,8 +87,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-      'roster renders: owner pinned + chips + pending/expired '
+  testWidgets('roster renders: owner pinned + chips + pending/expired '
       'badges + artist link + the seats header', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
@@ -109,8 +108,7 @@ void main() {
     expect(find.text('Inviter un membre'), findsOneWidget); // the FAB
   });
 
-  testWidgets(
-      'the owner row is inert; a member row opens the actions '
+  testWidgets('the owner row is inert; a member row opens the actions '
       'sheet with the revoke confirmation copy', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
@@ -127,10 +125,7 @@ void main() {
     await tester.tap(find.text('Révoquer l’accès'));
     await settle(tester);
     expect(find.text('Révoquer l’accès ?'), findsOneWidget);
-    expect(
-      find.textContaining('perdra immédiatement l’accès'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('perdra immédiatement l’accès'), findsOneWidget);
     expect(
       find.textContaining('Son compte MyWeli n’est pas supprimé.'),
       findsOneWidget,
@@ -142,8 +137,7 @@ void main() {
     expect(find.text('Accès révoqué'), findsOneWidget);
   });
 
-  testWidgets(
-      'a pending row offers « Renvoyer l’invitation » with the '
+  testWidgets('a pending row offers « Renvoyer l’invitation » with the '
       'remaining budget', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);
@@ -153,8 +147,9 @@ void main() {
     expect(find.text('Renvoyer l’invitation (3 restants)'), findsOneWidget);
   });
 
-  testWidgets('a bare member account gets the owner-only guard',
-      (tester) async {
+  testWidgets('a bare member account gets the owner-only guard', (
+    tester,
+  ) async {
     auth.current = ProviderUser(
       id: 'member_1',
       phoneNumber: '',

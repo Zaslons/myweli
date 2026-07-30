@@ -104,13 +104,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
 
   @override
   void dispose() {
-    for (final c in [
-      _name,
-      _description,
-      _address,
-      _phone,
-      _whatsapp,
-    ]) {
+    for (final c in [_name, _description, _address, _phone, _whatsapp]) {
       c.dispose();
     }
     for (final f in [_nameFocus, _phoneFocus, _whatsappFocus]) {
@@ -144,8 +138,11 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
     setState(() => _locating = true);
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        AppSnackBar.showOn(messenger, 'Localisation désactivée',
-            kind: SnackKind.error);
+        AppSnackBar.showOn(
+          messenger,
+          'Localisation désactivée',
+          kind: SnackKind.error,
+        );
         return;
       }
       var permission = await Geolocator.checkPermission();
@@ -155,16 +152,21 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         AppSnackBar.showOn(
-            messenger, 'Autorisez la localisation pour vous placer',
-            kind: SnackKind.error);
+          messenger,
+          'Autorisez la localisation pour vous placer',
+          kind: SnackKind.error,
+        );
         return;
       }
       final pos = await Geolocator.getCurrentPosition();
       if (!mounted) return;
       setState(() => _pin = LatLng(pos.latitude, pos.longitude));
     } catch (_) {
-      AppSnackBar.showOn(messenger, 'Position indisponible',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        'Position indisponible',
+        kind: SnackKind.error,
+      );
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -218,8 +220,11 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
       AppSnackBar.show(context, 'Profil enregistré', kind: SnackKind.success);
       Navigator.of(context).pop();
     } else {
-      AppSnackBar.show(context, profile.error ?? 'Enregistrement impossible',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        profile.error ?? 'Enregistrement impossible',
+        kind: SnackKind.error,
+      );
     }
   }
 

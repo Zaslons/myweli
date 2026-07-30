@@ -16,25 +16,25 @@ void main() {
     String id = 'a1',
     AppointmentStatus status = AppointmentStatus.confirmed,
     DateTime? date,
-  }) =>
-      Appointment(
-        id: id,
-        userId: 'u1',
-        providerId: 'p1',
-        serviceIds: const ['s1'],
-        appointmentDate: date ?? DateTime(2026, 6, 1),
-        status: status,
-        totalPrice: 20000,
-        createdAt: DateTime(2026),
-      );
+  }) => Appointment(
+    id: id,
+    userId: 'u1',
+    providerId: 'p1',
+    serviceIds: const ['s1'],
+    appointmentDate: date ?? DateTime(2026, 6, 1),
+    status: status,
+    totalPrice: 20000,
+    createdAt: DateTime(2026),
+  );
 
   test('a no-show stays no-show and is excluded from visit history', () {
     final list = [
       appt(id: 'done', date: DateTime(2026, 6, 1)),
       appt(
-          id: 'absent',
-          date: DateTime(2026, 6, 2),
-          status: AppointmentStatus.noShow),
+        id: 'absent',
+        date: DateTime(2026, 6, 2),
+        status: AppointmentStatus.noShow,
+      ),
     ];
     expect(effectiveAppointmentStatus(list[1], now), AppointmentStatus.noShow);
     expect(visitHistory(list, now).map((a) => a.id), ['done']);
@@ -50,17 +50,20 @@ void main() {
 
     setUp(() {
       reset(service);
-      when(() => service.getProviderAppointments(
-            any(),
-            status: any(named: 'status'),
-            startDate: any(named: 'startDate'),
-            endDate: any(named: 'endDate'),
-          )).thenAnswer((_) async => ApiResponse.success([appt()]));
+      when(
+        () => service.getProviderAppointments(
+          any(),
+          status: any(named: 'status'),
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+        ),
+      ).thenAnswer((_) async => ApiResponse.success([appt()]));
     });
 
     test('marks the appointment as no-show on success', () async {
-      when(() => service.markNoShow(any()))
-          .thenAnswer((_) async => ApiResponse.success(true));
+      when(
+        () => service.markNoShow(any()),
+      ).thenAnswer((_) async => ApiResponse.success(true));
 
       final p = ProAppointmentProvider();
       await p.loadAppointments('p1');
@@ -71,8 +74,9 @@ void main() {
     });
 
     test('returns false and surfaces the error on failure', () async {
-      when(() => service.markNoShow(any()))
-          .thenAnswer((_) async => ApiResponse.error('boom'));
+      when(
+        () => service.markNoShow(any()),
+      ).thenAnswer((_) async => ApiResponse.error('boom'));
 
       final p = ProAppointmentProvider();
       await p.loadAppointments('p1');

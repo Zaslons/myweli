@@ -41,7 +41,9 @@ class MockProTeamService implements ProTeamServiceInterface {
       if (selected != null && selected.isNotEmpty) return selected;
       final account = await auth.getCurrentProvider();
       if (account?.providerId != null) return account!.providerId!;
-    } catch (_) {/* locator not wired (isolated tests) → the seeded salon */}
+    } catch (_) {
+      /* locator not wired (isolated tests) → the seeded salon */
+    }
     return 'provider1';
   }
 
@@ -70,8 +72,10 @@ class MockProTeamService implements ProTeamServiceInterface {
     await Future.delayed(AppConstants.mockDelay);
     final key = email.trim().toLowerCase();
     if (key.isEmpty || !key.contains('@')) {
-      return ApiResponse.error('Adresse e-mail invalide.',
-          code: 'invalid_input');
+      return ApiResponse.error(
+        'Adresse e-mail invalide.',
+        code: 'invalid_input',
+      );
     }
     if (role == TeamRole.owner) return _fail('invalid_role');
 
@@ -85,10 +89,12 @@ class MockProTeamService implements ProTeamServiceInterface {
     }
 
     final providerId = await _providerId();
-    final duplicate = MockData.teamMembers.any((m) =>
-        m.providerId == providerId &&
-        m.email == key &&
-        (m.status == TeamMemberStatus.active || (m.isPending && !m.expired)));
+    final duplicate = MockData.teamMembers.any(
+      (m) =>
+          m.providerId == providerId &&
+          m.email == key &&
+          (m.status == TeamMemberStatus.active || (m.isPending && !m.expired)),
+    );
     if (duplicate) return _fail('member_exists');
 
     // The R2a gates: a live offer + a free seat (per salon — R6).
@@ -107,7 +113,7 @@ class MockProTeamService implements ProTeamServiceInterface {
 
     final salonName =
         MockData.providers.where((p) => p.id == providerId).firstOrNull?.name ??
-            'Salon Excellence';
+        'Salon Excellence';
     final member = TeamMember(
       id: 'mem_${AppClock.now().millisecondsSinceEpoch}',
       providerId: providerId,
@@ -121,14 +127,16 @@ class MockProTeamService implements ProTeamServiceInterface {
       resendsLeft: 3,
     );
     MockData.teamMembers.add(member);
-    (MockData.teamInvitations[key] ??= []).add(TeamInvitation(
-      id: member.id,
-      providerId: providerId,
-      salonName: salonName,
-      role: role,
-      roleLabel: teamRoleLabel(role),
-      expiresAt: member.expiresAt,
-    ));
+    (MockData.teamInvitations[key] ??= []).add(
+      TeamInvitation(
+        id: member.id,
+        providerId: providerId,
+        salonName: salonName,
+        role: role,
+        roleLabel: teamRoleLabel(role),
+        expiresAt: member.expiresAt,
+      ),
+    );
     return ApiResponse.success(member, message: 'Invitation envoyée à $key');
   }
 
@@ -148,8 +156,9 @@ class MockProTeamService implements ProTeamServiceInterface {
     String? linkedArtist = member.artistId;
     String? linkedName = member.artistName;
     if (role == TeamRole.staff) {
-      final candidate =
-          (artistId != null && artistId.isNotEmpty) ? artistId : linkedArtist;
+      final candidate = (artistId != null && artistId.isNotEmpty)
+          ? artistId
+          : linkedArtist;
       if (candidate == null || candidate.isEmpty) {
         return _fail('artist_required');
       }
@@ -191,12 +200,16 @@ class MockProTeamService implements ProTeamServiceInterface {
     final member = MockData.teamMembers[i];
     if (member.isOwner) return _fail('owner_protected');
     if (!member.isPending) {
-      return ApiResponse.error('Ce membre est déjà actif.',
-          code: 'invalid_state');
+      return ApiResponse.error(
+        'Ce membre est déjà actif.',
+        code: 'invalid_state',
+      );
     }
     if (member.resendsLeft <= 0) {
-      return ApiResponse.error(resendBudgetExhaustedMessage,
-          code: 'invite_rate_limited');
+      return ApiResponse.error(
+        resendBudgetExhaustedMessage,
+        code: 'invite_rate_limited',
+      );
     }
     final updated = member.copyWith(
       expiresAt: AppClock.now().add(const Duration(days: 7)),
@@ -210,11 +223,13 @@ class MockProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<List<TeamInvitation>>> getMyInvitations() async {
     await Future.delayed(AppConstants.mockDelay);
-    final cards = MockData.teamInvitations[invitationEmail.toLowerCase()] ??
+    final cards =
+        MockData.teamInvitations[invitationEmail.toLowerCase()] ??
         const <TeamInvitation>[];
     final unexpired = cards
         .where(
-            (c) => c.expiresAt == null || c.expiresAt!.isAfter(AppClock.now()))
+          (c) => c.expiresAt == null || c.expiresAt!.isAfter(AppClock.now()),
+        )
         .toList();
     return ApiResponse.success(unexpired);
   }
@@ -242,16 +257,18 @@ class MockProTeamService implements ProTeamServiceInterface {
       return ApiResponse.success(activated);
     }
     // A card from another salon (roster not modeled) — synthesize the row.
-    return ApiResponse.success(TeamMember(
-      id: invitationId,
-      providerId: card.providerId,
-      email: key,
-      role: card.role,
-      status: TeamMemberStatus.active,
-      invitedAt: AppClock.now(),
-      accountId: 'member_$key',
-      acceptedAt: AppClock.now(),
-    ));
+    return ApiResponse.success(
+      TeamMember(
+        id: invitationId,
+        providerId: card.providerId,
+        email: key,
+        role: card.role,
+        status: TeamMemberStatus.active,
+        invitedAt: AppClock.now(),
+        accountId: 'member_$key',
+        acceptedAt: AppClock.now(),
+      ),
+    );
   }
 
   @override
@@ -283,7 +300,8 @@ class MockProTeamService implements ProTeamServiceInterface {
   }
 
   void _removeInvitationCard(TeamMember member) {
-    MockData.teamInvitations[member.email]
-        ?.removeWhere((c) => c.id == member.id);
+    MockData.teamInvitations[member.email]?.removeWhere(
+      (c) => c.id == member.id,
+    );
   }
 }

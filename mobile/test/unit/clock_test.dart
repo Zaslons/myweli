@@ -72,42 +72,45 @@ void main() {
       addTearDown(restore);
       expect(AppClock.now(), DateTime.utc(2026, 3, 11));
       restore();
-      expect(AppClock.now().difference(DateTime.now()).abs().inSeconds,
-          lessThan(5),
-          reason: 'a leaked freeze makes the NEXT test read a constant, which '
-              'passes far more often than it fails — so the restore is the '
-              'half of the seam that keeps the suite honest');
+      expect(
+        AppClock.now().difference(DateTime.now()).abs().inSeconds,
+        lessThan(5),
+        reason:
+            'a leaked freeze makes the NEXT test read a constant, which '
+            'passes far more often than it fails — so the restore is the '
+            'half of the seam that keeps the suite honest',
+      );
     });
   });
 
   group('§21 row 23 — the two screens that cannot be photographed', () {
     Widget journalApp() => wrapApp(
-          providers: [
-            ChangeNotifierProvider(create: (_) => ProAuthProvider()),
-            ChangeNotifierProvider(create: (_) => ProJournalProvider()),
-          ],
-          routerConfig: GoRouter(
-            initialLocation: '/pro/journal',
-            routes: [
-              GoRoute(
-                path: '/pro/journal',
-                builder: (_, __) => const ProJournalScreen(),
-              ),
-              GoRoute(
-                path: '/pro/appointment/new',
-                builder: (_, __) => const Scaffold(body: Text('MANUEL')),
-              ),
-              GoRoute(
-                path: '/pro/appointment/:id',
-                builder: (_, __) => const Scaffold(body: Text('DETAIL')),
-              ),
-              GoRoute(
-                path: '/pro/appointments',
-                builder: (_, __) => const Scaffold(body: Text('AGENDA')),
-              ),
-            ],
+      providers: [
+        ChangeNotifierProvider(create: (_) => ProAuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProJournalProvider()),
+      ],
+      routerConfig: GoRouter(
+        initialLocation: '/pro/journal',
+        routes: [
+          GoRoute(
+            path: '/pro/journal',
+            builder: (_, _) => const ProJournalScreen(),
           ),
-        );
+          GoRoute(
+            path: '/pro/appointment/new',
+            builder: (_, _) => const Scaffold(body: Text('MANUEL')),
+          ),
+          GoRoute(
+            path: '/pro/appointment/:id',
+            builder: (_, _) => const Scaffold(body: Text('DETAIL')),
+          ),
+          GoRoute(
+            path: '/pro/appointments',
+            builder: (_, _) => const Scaffold(body: Text('AGENDA')),
+          ),
+        ],
+      ),
+    );
 
     /// The house `settle()` ladder, **run eight times**.
     ///
@@ -129,8 +132,9 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('the journal week strip is the frozen week, not this week',
-        (tester) async {
+    testWidgets('the journal week strip is the frozen week, not this week', (
+      tester,
+    ) async {
       // Row 23 says the journal "prints TODAY's date into its header". Measured,
       // the header is STABLE — `isToday` is always true on the default path, so
       // it reads « Aujourd'hui » every day. The flake is the strip
@@ -144,18 +148,27 @@ void main() {
       await settle(tester);
 
       for (final day in ['9', '10', '11', '12', '13', '14', '15']) {
-        expect(find.text(day), findsWidgets,
-            reason: 'the strip must render the FROZEN week. Today it renders '
-                'the machine’s, which is why this screen has never been '
-                'goldened.');
+        expect(
+          find.text(day),
+          findsWidgets,
+          reason:
+              'the strip must render the FROZEN week. Today it renders '
+              'the machine’s, which is why this screen has never been '
+              'goldened.',
+        );
       }
-      expect(find.text('Aujourd’hui'), findsOneWidget,
-          reason: 'and the header stays « Aujourd’hui » — the part row 23 '
-              'blamed is the part that was already fine');
+      expect(
+        find.text('Aujourd’hui'),
+        findsOneWidget,
+        reason:
+            'and the header stays « Aujourd’hui » — the part row 23 '
+            'blamed is the part that was already fine',
+      );
     });
 
-    testWidgets('…and a different frozen week gives a different strip',
-        (tester) async {
+    testWidgets('…and a different frozen week gives a different strip', (
+      tester,
+    ) async {
       // The other leg. Without it the assertion above is satisfied by a strip
       // that renders 9–15 unconditionally — which is what a badly-written fix
       // (hard-coding the fixture date) would produce.
@@ -166,10 +179,13 @@ void main() {
       for (final day in ['15', '16', '17', '18', '19', '20', '21']) {
         expect(find.text(day), findsWidgets);
       }
-      expect(find.text('9'), findsNothing,
-          reason:
-              'March must not leak into June — the strip follows the clock, '
-              'it is not pinned to the fixture');
+      expect(
+        find.text('9'),
+        findsNothing,
+        reason:
+            'March must not leak into June — the strip follows the clock, '
+            'it is not pinned to the fixture',
+      );
     });
 
     test('the dashboard month bucket follows the frozen clock', () async {
@@ -200,11 +216,15 @@ void main() {
       freezeClock(kMonthEdgeNow);
       final monthEdge = (await service.getDashboardStats('provider1')).data!;
 
-      expect(midMonth.monthRevenue, isNot(monthEdge.monthRevenue),
-          reason: 'the month bucket must follow the FROZEN clock. Equal means '
-              'the mock still reads the machine — and `MockData.appointments` '
-              'is `static final`, memoised at first touch, so no zone-based '
-              'fix could ever have reached it either.');
+      expect(
+        midMonth.monthRevenue,
+        isNot(monthEdge.monthRevenue),
+        reason:
+            'the month bucket must follow the FROZEN clock. Equal means '
+            'the mock still reads the machine — and `MockData.appointments` '
+            'is `static final`, memoised at first touch, so no zone-based '
+            'fix could ever have reached it either.',
+      );
     });
   });
 }

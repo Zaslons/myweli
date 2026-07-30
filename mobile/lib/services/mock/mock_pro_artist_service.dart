@@ -11,8 +11,9 @@ class MockProArtistService implements ProArtistServiceInterface {
 
   List<Artist> _getOrInit(String providerId) {
     if (!_store.containsKey(providerId)) {
-      _store[providerId] =
-          List.from(MockData.getArtistsForProvider(providerId));
+      _store[providerId] = List.from(
+        MockData.getArtistsForProvider(providerId),
+      );
     }
     return _store[providerId]!;
   }
@@ -22,8 +23,9 @@ class MockProArtistService implements ProArtistServiceInterface {
   void _syncProvider(String providerId) {
     final i = MockData.providers.indexWhere((p) => p.id == providerId);
     if (i != -1 && _store.containsKey(providerId)) {
-      MockData.providers[i] = MockData.providers[i]
-          .copyWith(artists: List.from(_store[providerId]!));
+      MockData.providers[i] = MockData.providers[i].copyWith(
+        artists: List.from(_store[providerId]!),
+      );
     }
   }
 
@@ -73,7 +75,8 @@ class MockProArtistService implements ProArtistServiceInterface {
           name: data['name'] as String? ?? a.name,
           imageUrl: data['imageUrl'] as String? ?? a.imageUrl,
           specialization: data['specialization'] as String? ?? a.specialization,
-          workingHours: data['workingHours'] as Map<int, List<TimeSlot>>? ??
+          workingHours:
+              data['workingHours'] as Map<int, List<TimeSlot>>? ??
               a.workingHours,
         );
         entry.value[idx] = found;

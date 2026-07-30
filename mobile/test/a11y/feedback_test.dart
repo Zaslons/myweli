@@ -30,15 +30,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  testWidgets('a snackbar IS a live region — that is the announcement',
-      (tester) async {
+  testWidgets('a snackbar IS a live region — that is the announcement', (
+    tester,
+  ) async {
     final handle = tester.ensureSemantics();
     await tester.pumpWidget(
       wrapApp(scaffoldMessengerKey: key, home: const Scaffold()),
     );
 
-    AppSnackBar.showOn(key.currentState!, 'Rendez-vous accepté',
-        kind: SnackKind.success);
+    AppSnackBar.showOn(
+      key.currentState!,
+      'Rendez-vous accepté',
+      kind: SnackKind.success,
+    );
     await settleIn(tester);
 
     // The node that carries the flag is the one wrapping the CONTENT — the
@@ -47,7 +51,8 @@ void main() {
     expect(
       tester.getSemantics(find.text('Rendez-vous accepté')),
       containsSemantics(isLiveRegion: true, label: 'Rendez-vous accepté'),
-      reason: 'the live region is the mechanism TalkBack and VoiceOver both '
+      reason:
+          'the live region is the mechanism TalkBack and VoiceOver both '
           'support — and the ONLY one on Android. If this goes red, the app '
           'stopped announcing feedback and no SemanticsService call will fix '
           'it (supportsAnnounce is false there).',
@@ -71,48 +76,56 @@ void main() {
   });
 
   testWidgets(
-      'a snackbar under an open sheet is PRUNED — feedback belongs inside the '
-      'modal', (tester) async {
-    // `ModalBarrier` renders `BlockSemantics(ExcludeSemantics(…))`, so a bar
-    // raised while a sheet is open is invisible to a screen reader AND painted
-    // under the scrim (§10). This is the mobile twin of the web's B5 finding
-    // (`aria-modal` pruned the toast). A6 converted six such sites to inline
-    // in-sheet errors; this gate keeps them converted.
-    final handle = tester.ensureSemantics();
-    pinSurface(tester, size: const Size(360, 1600));
-    await tester.pumpWidget(wrapApp(
-      scaffoldMessengerKey: key,
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: ElevatedButton(
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                builder: (_) => const SizedBox(height: 200),
+    'a snackbar under an open sheet is PRUNED — feedback belongs inside the '
+    'modal',
+    (tester) async {
+      // `ModalBarrier` renders `BlockSemantics(ExcludeSemantics(…))`, so a bar
+      // raised while a sheet is open is invisible to a screen reader AND painted
+      // under the scrim (§10). This is the mobile twin of the web's B5 finding
+      // (`aria-modal` pruned the toast). A6 converted six such sites to inline
+      // in-sheet errors; this gate keeps them converted.
+      final handle = tester.ensureSemantics();
+      pinSurface(tester, size: const Size(360, 1600));
+      await tester.pumpWidget(
+        wrapApp(
+          scaffoldMessengerKey: key,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => showModalBottomSheet<void>(
+                    context: context,
+                    builder: (_) => const SizedBox(height: 200),
+                  ),
+                  child: const Text('open sheet'),
+                ),
               ),
-              child: const Text('open sheet'),
             ),
           ),
         ),
-      ),
-    ));
-    await tester.tap(find.text('open sheet'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+      );
+      await tester.tap(find.text('open sheet'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
-    AppSnackBar.showOn(key.currentState!, 'Impossible d’ouvrir Wave',
-        kind: SnackKind.error);
-    await settleIn(tester);
+      AppSnackBar.showOn(
+        key.currentState!,
+        'Impossible d’ouvrir Wave',
+        kind: SnackKind.error,
+      );
+      await settleIn(tester);
 
-    // It is on screen…
-    expect(find.text('Impossible d’ouvrir Wave'), findsOneWidget);
-    // …and unreachable by semantics — which is the whole point.
-    expect(
-      find.bySemanticsLabel('Impossible d’ouvrir Wave'),
-      findsNothing,
-      reason: 'BlockSemantics prunes it — so this message must be raised '
-          'INSIDE the sheet, not through the messenger',
-    );
-    handle.dispose();
-  });
+      // It is on screen…
+      expect(find.text('Impossible d’ouvrir Wave'), findsOneWidget);
+      // …and unreachable by semantics — which is the whole point.
+      expect(
+        find.bySemanticsLabel('Impossible d’ouvrir Wave'),
+        findsNothing,
+        reason:
+            'BlockSemantics prunes it — so this message must be raised '
+            'INSIDE the sheet, not through the messenger',
+      );
+      handle.dispose();
+    },
+  );
 }

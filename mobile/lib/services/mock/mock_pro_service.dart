@@ -140,15 +140,15 @@ class MockProService implements ProServiceInterface {
   /// Salons the account OWNS in the mock world: the scalar link ∪ active
   /// owner rows (the R6 mirror of the backend's owned set).
   Set<String> _ownedSalonIds(ProviderUser account) => {
-        if (account.providerId != null) account.providerId!,
-        for (final m in MockData.teamMembers)
-          if (m.role == TeamRole.owner &&
-              m.status == TeamMemberStatus.active &&
-              (m.accountId == account.id ||
-                  (account.email != null &&
-                      m.email == account.email!.toLowerCase())))
-            m.providerId,
-      };
+    if (account.providerId != null) account.providerId!,
+    for (final m in MockData.teamMembers)
+      if (m.role == TeamRole.owner &&
+          m.status == TeamMemberStatus.active &&
+          (m.accountId == account.id ||
+              (account.email != null &&
+                  m.email == account.email!.toLowerCase())))
+        m.providerId,
+  };
 
   bool _canAddSalon(ProviderUser account) {
     try {
@@ -156,7 +156,9 @@ class MockProService implements ProServiceInterface {
       if (subs is MockSubscriptionService) {
         return subs.hasLiveReseauAmong(_ownedSalonIds(account));
       }
-    } catch (_) {/* locator not wired (isolated tests) */}
+    } catch (_) {
+      /* locator not wired (isolated tests) */
+    }
     return false;
   }
 
@@ -171,7 +173,7 @@ class MockProService implements ProServiceInterface {
     // Owned + member ACTIVE rows, joined against the salon list.
     final ids = <String>{...owned};
     final roleById = <String, TeamRole>{
-      for (final id in owned) id: TeamRole.owner
+      for (final id in owned) id: TeamRole.owner,
     };
     for (final m in MockData.teamMembers) {
       if (m.status != TeamMemberStatus.active) continue;
@@ -185,14 +187,16 @@ class MockProService implements ProServiceInterface {
     for (final id in ids) {
       final salon = MockData.providers.where((p) => p.id == id).firstOrNull;
       if (salon == null) continue;
-      items.add(SalonMembershipInfo(
-        salonId: id,
-        salonName: salon.name,
-        role: roleById[id] ?? TeamRole.staff,
-        salonStatus: MockData.draftSalonIds.contains(id) ? 'draft' : 'active',
-        verified: salon.verified,
-        imageUrl: salon.imageUrls.isNotEmpty ? salon.imageUrls.first : null,
-      ));
+      items.add(
+        SalonMembershipInfo(
+          salonId: id,
+          salonName: salon.name,
+          role: roleById[id] ?? TeamRole.staff,
+          salonStatus: MockData.draftSalonIds.contains(id) ? 'draft' : 'active',
+          verified: salon.verified,
+          imageUrl: salon.imageUrls.isNotEmpty ? salon.imageUrls.first : null,
+        ),
+      );
     }
     items.sort((a, b) {
       final aOwner = a.isOwner ? 0 : 1;
@@ -239,16 +243,18 @@ class MockProService implements ProServiceInterface {
       ),
     );
     MockData.draftSalonIds.add(id);
-    MockData.teamMembers.add(TeamMember(
-      id: 'mem_add_$id',
-      providerId: id,
-      email: account.email ?? account.phoneNumber,
-      role: TeamRole.owner,
-      status: TeamMemberStatus.active,
-      invitedAt: AppClock.now(),
-      accountId: account.id,
-      acceptedAt: AppClock.now(),
-    ));
+    MockData.teamMembers.add(
+      TeamMember(
+        id: 'mem_add_$id',
+        providerId: id,
+        email: account.email ?? account.phoneNumber,
+        role: TeamRole.owner,
+        status: TeamMemberStatus.active,
+        invitedAt: AppClock.now(),
+        accountId: account.id,
+        acceptedAt: AppClock.now(),
+      ),
+    );
     return ApiResponse.success(
       SalonMembershipInfo(
         salonId: id,
@@ -263,11 +269,13 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-      String providerId) async {
+    String providerId,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
 
-    final appointments =
-        MockData.appointments.where((a) => a.providerId == providerId).toList();
+    final appointments = MockData.appointments
+        .where((a) => a.providerId == providerId)
+        .toList();
 
     // §18/A10 — every one of these five boundaries was the DEVICE's, not the
     // salon's. `DateTime(today.year, today.month, today.day)` builds local
@@ -293,15 +301,18 @@ class MockProService implements ProServiceInterface {
       return appDate.isAfter(todayStart) && appDate.isBefore(todayEnd);
     }).length;
 
-    final pendingRequests =
-        appointments.where((a) => a.status == AppointmentStatus.pending).length;
+    final pendingRequests = appointments
+        .where((a) => a.status == AppointmentStatus.pending)
+        .length;
 
-    final todayRevenue = appointments.where((a) {
-      final appDate = a.appointmentDate;
-      return appDate.isAfter(todayStart) &&
-          appDate.isBefore(todayEnd) &&
-          a.status == AppointmentStatus.confirmed;
-    }).fold<double>(0, (sum, a) => sum + a.totalPrice);
+    final todayRevenue = appointments
+        .where((a) {
+          final appDate = a.appointmentDate;
+          return appDate.isAfter(todayStart) &&
+              appDate.isBefore(todayEnd) &&
+              a.status == AppointmentStatus.confirmed;
+        })
+        .fold<double>(0, (sum, a) => sum + a.totalPrice);
 
     // Monday-anchored, from the SALON's weekday — `today.weekday` was the
     // device's, so a salon and its owner on either side of midnight bucketed
@@ -319,27 +330,36 @@ class MockProService implements ProServiceInterface {
       salon.day - (salon.weekday - 1) + 7,
       tz: tz,
     );
-    final weekRevenue = appointments.where((a) {
-      final appDate = a.appointmentDate;
-      return appDate.isAfter(weekStart) &&
-          appDate.isBefore(weekEnd) &&
-          a.status == AppointmentStatus.confirmed;
-    }).fold<double>(0, (sum, a) => sum + a.totalPrice);
+    final weekRevenue = appointments
+        .where((a) {
+          final appDate = a.appointmentDate;
+          return appDate.isAfter(weekStart) &&
+              appDate.isBefore(weekEnd) &&
+              a.status == AppointmentStatus.confirmed;
+        })
+        .fold<double>(0, (sum, a) => sum + a.totalPrice);
 
     final monthStart = salonWallClockToUtc(salon.year, salon.month, 1, tz: tz);
-    final monthEnd =
-        salonWallClockToUtc(salon.year, salon.month + 1, 1, tz: tz);
-    final monthRevenue = appointments.where((a) {
-      final appDate = a.appointmentDate;
-      return appDate.isAfter(monthStart) &&
-          appDate.isBefore(monthEnd) &&
-          a.status == AppointmentStatus.confirmed;
-    }).fold<double>(0, (sum, a) => sum + a.totalPrice);
+    final monthEnd = salonWallClockToUtc(
+      salon.year,
+      salon.month + 1,
+      1,
+      tz: tz,
+    );
+    final monthRevenue = appointments
+        .where((a) {
+          final appDate = a.appointmentDate;
+          return appDate.isAfter(monthStart) &&
+              appDate.isBefore(monthEnd) &&
+              a.status == AppointmentStatus.confirmed;
+        })
+        .fold<double>(0, (sum, a) => sum + a.totalPrice);
 
     // Field-gate the money figures like the server (R1): absent without
     // finances.view — absence is a valid state, not an error.
     final row = await _currentMemberRow();
-    final canSeeMoney = row == null ||
+    final canSeeMoney =
+        row == null ||
         presetCapabilitiesFor(row.role).contains(ProCap.financesView);
     final stats = DashboardStats(
       todayAppointments: todayAppointments,
@@ -362,14 +382,16 @@ class MockProService implements ProServiceInterface {
   }) async {
     await Future.delayed(AppConstants.mockDelay);
 
-    var appointments =
-        MockData.appointments.where((a) => a.providerId == providerId).toList();
+    var appointments = MockData.appointments
+        .where((a) => a.providerId == providerId)
+        .toList();
 
     // T40 mirror: a Collaborateur sees their own artist's bookings only.
     final row = await _currentMemberRow();
     if (row != null && row.role == TeamRole.staff) {
-      appointments =
-          appointments.where((a) => a.artistId == row.artistId).toList();
+      appointments = appointments
+          .where((a) => a.artistId == row.artistId)
+          .toList();
     }
 
     if (status != null) {
@@ -378,17 +400,21 @@ class MockProService implements ProServiceInterface {
 
     if (startDate != null) {
       appointments = appointments
-          .where((a) =>
-              a.appointmentDate.isAfter(startDate) ||
-              a.appointmentDate.isAtSameMomentAs(startDate))
+          .where(
+            (a) =>
+                a.appointmentDate.isAfter(startDate) ||
+                a.appointmentDate.isAtSameMomentAs(startDate),
+          )
           .toList();
     }
 
     if (endDate != null) {
       appointments = appointments
-          .where((a) =>
-              a.appointmentDate.isBefore(endDate) ||
-              a.appointmentDate.isAtSameMomentAs(endDate))
+          .where(
+            (a) =>
+                a.appointmentDate.isBefore(endDate) ||
+                a.appointmentDate.isAtSameMomentAs(endDate),
+          )
           .toList();
     }
 
@@ -415,7 +441,9 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<bool>> rejectAppointment(
-      String appointmentId, String? reason) async {
+    String appointmentId,
+    String? reason,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     // In real implementation, update appointment status
     return ApiResponse.success(true);
@@ -423,7 +451,8 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<bool>> markAppointmentComplete(
-      String appointmentId) async {
+    String appointmentId,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     // In real implementation, update appointment status
     return ApiResponse.success(true);
@@ -432,8 +461,9 @@ class MockProService implements ProServiceInterface {
   @override
   Future<ApiResponse<bool>> markNoShow(String appointmentId) async {
     await Future.delayed(AppConstants.mockDelay);
-    final index =
-        MockData.appointments.indexWhere((a) => a.id == appointmentId);
+    final index = MockData.appointments.indexWhere(
+      (a) => a.id == appointmentId,
+    );
     if (index == -1) {
       return ApiResponse.error('Rendez-vous introuvable');
     }
@@ -464,8 +494,9 @@ class MockProService implements ProServiceInterface {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     // Pricing pivot (R2a/R3): publishing requires a live offer — mirror the
     // server's `offer` missing-key so the demo exercises the real flow.
-    final sub = await serviceLocator.subscriptionService
-        .getSalonSubscription(providerId);
+    final sub = await serviceLocator.subscriptionService.getSalonSubscription(
+      providerId,
+    );
     if (!sub.success || !(sub.data?.isLive ?? false)) {
       return ApiResponse.error(
         'Choisissez votre offre avant la mise en ligne.',
@@ -484,8 +515,9 @@ class MockProService implements ProServiceInterface {
   @override
   Future<ApiResponse<bool>> markArrived(String appointmentId) async {
     await Future.delayed(AppConstants.mockDelay);
-    final index =
-        MockData.appointments.indexWhere((a) => a.id == appointmentId);
+    final index = MockData.appointments.indexWhere(
+      (a) => a.id == appointmentId,
+    );
     if (index == -1) return ApiResponse.error('Rendez-vous introuvable');
     MockData.appointments[index] = MockData.appointments[index].copyWith(
       arrivedAt: AppClock.now(),
@@ -506,14 +538,16 @@ class MockProService implements ProServiceInterface {
         .firstOrNull;
     final key = salonDayKey(date, tz: tz);
     final row = await _currentMemberRow();
-    final ownArtist =
-        (row != null && row.role == TeamRole.staff) ? row.artistId : null;
-    final all = MockData.appointments
-        .where((a) => a.providerId == providerId)
-        .where((a) => ownArtist == null || a.artistId == ownArtist)
-        .where((a) => salonDayKey(a.appointmentDate, tz: tz) == key)
-        .toList()
-      ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+    final ownArtist = (row != null && row.role == TeamRole.staff)
+        ? row.artistId
+        : null;
+    final all =
+        MockData.appointments
+            .where((a) => a.providerId == providerId)
+            .where((a) => ownArtist == null || a.artistId == ownArtist)
+            .where((a) => salonDayKey(a.appointmentDate, tz: tz) == key)
+            .toList()
+          ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
     final artistIds = {
       for (final a in all)
         if (a.artistId != null) a.artistId!,
@@ -571,10 +605,12 @@ class MockProService implements ProServiceInterface {
       totalPrice: total,
       // Walk-in / phone booking: no online deposit, paid in person.
       balanceDue: total,
-      clientName:
-          (clientName != null && clientName.isNotEmpty) ? clientName : null,
-      clientPhone:
-          (clientPhone != null && clientPhone.isNotEmpty) ? clientPhone : null,
+      clientName: (clientName != null && clientName.isNotEmpty)
+          ? clientName
+          : null,
+      clientPhone: (clientPhone != null && clientPhone.isNotEmpty)
+          ? clientPhone
+          : null,
       notes: notes,
       artistId: artistId,
       createdAt: AppClock.now(),
@@ -582,10 +618,7 @@ class MockProService implements ProServiceInterface {
     MockData.appointments.add(appointment);
 
     // sendSmsInvite is honoured by the notifications backend (not in the mock).
-    return ApiResponse.success(
-      appointment,
-      message: 'Rendez-vous créé',
-    );
+    return ApiResponse.success(appointment, message: 'Rendez-vous créé');
   }
 
   @override
@@ -600,7 +633,8 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<Service>>> getProviderServices(
-      String providerId) async {
+    String providerId,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     final services = MockData.getServicesForProvider(providerId);
     return ApiResponse.success(services);
@@ -683,8 +717,9 @@ class MockProService implements ProServiceInterface {
     await Future.delayed(AppConstants.mockDelay);
     final index = MockData.providers.indexWhere((p) => p.id == providerId);
     if (index != -1) {
-      MockData.providers[index] = MockData.providers[index]
-          .copyWith(imageUrls: List<String>.from(imageUrls));
+      MockData.providers[index] = MockData.providers[index].copyWith(
+        imageUrls: List<String>.from(imageUrls),
+      );
     }
     return ApiResponse.success(List<String>.from(imageUrls));
   }
@@ -699,7 +734,8 @@ class MockProService implements ProServiceInterface {
       orElse: () => MockData.providers.first,
     );
     return ApiResponse.success(
-        List<BeforeAfterPair>.from(provider.beforeAfters));
+      List<BeforeAfterPair>.from(provider.beforeAfters),
+    );
   }
 
   @override
@@ -710,15 +746,17 @@ class MockProService implements ProServiceInterface {
     await Future.delayed(AppConstants.mockDelay);
     final index = MockData.providers.indexWhere((p) => p.id == providerId);
     if (index != -1) {
-      MockData.providers[index] = MockData.providers[index]
-          .copyWith(beforeAfters: List<BeforeAfterPair>.from(pairs));
+      MockData.providers[index] = MockData.providers[index].copyWith(
+        beforeAfters: List<BeforeAfterPair>.from(pairs),
+      );
     }
     return ApiResponse.success(List<BeforeAfterPair>.from(pairs));
   }
 
   @override
   Future<ApiResponse<Availability>> getProviderAvailability(
-      String providerId) async {
+    String providerId,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     final provider = MockData.providers.firstWhere(
       (p) => p.id == providerId,
@@ -736,8 +774,9 @@ class MockProService implements ProServiceInterface {
     // Persist so consumer slot computation sees the change (e.g. buffers).
     final index = MockData.providers.indexWhere((p) => p.id == providerId);
     if (index != -1) {
-      MockData.providers[index] =
-          MockData.providers[index].copyWith(availability: availability);
+      MockData.providers[index] = MockData.providers[index].copyWith(
+        availability: availability,
+      );
     }
     return ApiResponse.success(availability);
   }
@@ -750,22 +789,27 @@ class MockProService implements ProServiceInterface {
   }) async {
     await Future.delayed(AppConstants.mockDelay);
 
-    var appointments =
-        MockData.appointments.where((a) => a.providerId == providerId).toList();
+    var appointments = MockData.appointments
+        .where((a) => a.providerId == providerId)
+        .toList();
 
     if (startDate != null) {
       appointments = appointments
-          .where((a) =>
-              a.appointmentDate.isAfter(startDate) ||
-              a.appointmentDate.isAtSameMomentAs(startDate))
+          .where(
+            (a) =>
+                a.appointmentDate.isAfter(startDate) ||
+                a.appointmentDate.isAtSameMomentAs(startDate),
+          )
           .toList();
     }
 
     if (endDate != null) {
       appointments = appointments
-          .where((a) =>
-              a.appointmentDate.isBefore(endDate) ||
-              a.appointmentDate.isAtSameMomentAs(endDate))
+          .where(
+            (a) =>
+                a.appointmentDate.isBefore(endDate) ||
+                a.appointmentDate.isAtSameMomentAs(endDate),
+          )
           .toList();
     }
 
@@ -775,13 +819,15 @@ class MockProService implements ProServiceInterface {
 
     final transactions = appointments
         .where((a) => a.status == AppointmentStatus.completed)
-        .map((a) => EarningsTransaction(
-              id: 'transaction_${a.id}',
-              appointmentId: a.id,
-              amount: a.totalPrice,
-              date: a.appointmentDate,
-              status: 'completed',
-            ))
+        .map(
+          (a) => EarningsTransaction(
+            id: 'transaction_${a.id}',
+            appointmentId: a.id,
+            amount: a.totalPrice,
+            date: a.appointmentDate,
+            status: 'completed',
+          ),
+        )
         .toList();
 
     // Multi-pays MP1 mirror: the ledger carries the salon's currency.
@@ -789,11 +835,13 @@ class MockProService implements ProServiceInterface {
       (p) => p.id == providerId,
       orElse: () => MockData.providers.first,
     );
-    return ApiResponse.success(EarningsData(
-      totalEarnings: totalEarnings,
-      currency: salon.currency,
-      transactions: transactions,
-    ));
+    return ApiResponse.success(
+      EarningsData(
+        totalEarnings: totalEarnings,
+        currency: salon.currency,
+        transactions: transactions,
+      ),
+    );
   }
 
   @override

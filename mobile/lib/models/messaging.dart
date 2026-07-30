@@ -68,19 +68,27 @@ class OutboundMessage extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [id, recipientPhone, channel, template, params, body, status, createdAt];
+  List<Object?> get props => [
+    id,
+    recipientPhone,
+    channel,
+    template,
+    params,
+    body,
+    status,
+    createdAt,
+  ];
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'recipientPhone': recipientPhone,
-        'channel': channel.name,
-        'template': template.name,
-        'params': params,
-        'body': body,
-        'status': status.name,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'recipientPhone': recipientPhone,
+    'channel': channel.name,
+    'template': template.name,
+    'params': params,
+    'body': body,
+    'status': status.name,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory OutboundMessage.fromJson(Map<String, dynamic> json) =>
       OutboundMessage(

@@ -28,10 +28,7 @@ import '../../widgets/review/submit_review_sheet.dart';
 class AppointmentDetailScreen extends StatefulWidget {
   final String appointmentId;
 
-  const AppointmentDetailScreen({
-    super.key,
-    required this.appointmentId,
-  });
+  const AppointmentDetailScreen({super.key, required this.appointmentId});
 
   @override
   State<AppointmentDetailScreen> createState() =>
@@ -69,9 +66,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       final name = (artistId == null || artistId.isEmpty)
           ? null
           : res.data?.artists
-              .where((a) => a.id == artistId)
-              .map((a) => a.name)
-              .firstOrNull;
+                .where((a) => a.id == artistId)
+                .map((a) => a.name)
+                .firstOrNull;
       setState(() {
         _providerCountryCode = res.data?.countryCode;
         if (name != null) _artistName = name;
@@ -92,17 +89,22 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final p = res.data;
     final raw = whatsapp ? p?.whatsapp : p?.phoneNumber;
     if (!res.success || p == null || raw == null || raw.isEmpty) {
-      AppSnackBar.showOn(messenger,
-          whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
+        kind: SnackKind.error,
+      );
       return;
     }
     final uri = whatsapp
         ? Uri.parse('https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}')
         : Uri.parse('tel:${raw.replaceAll(RegExp(r'\s'), '')}');
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      AppSnackBar.showOn(messenger, 'Impossible d’ouvrir l’application.',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        'Impossible d’ouvrir l’application.',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -158,13 +160,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     child: Text(
                       outcome.depositForfeited
                           ? 'Annulation à moins de '
-                              '${appointment.cancellationWindowHours} h : '
-                              'votre acompte de '
-                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                              'ne sera pas remboursé.'
+                                '${appointment.cancellationWindowHours} h : '
+                                'votre acompte de '
+                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                                'ne sera pas remboursé.'
                           : 'Votre acompte de '
-                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                              'sera remboursé.',
+                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                                'sera remboursé.',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: outcome.depositForfeited
                             ? AppColors.error
@@ -193,16 +195,21 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       context.pop();
       AppSnackBar.show(context, 'Rendez-vous annulé', kind: SnackKind.success);
     } else {
-      AppSnackBar.show(context, provider.error ?? 'Erreur lors de l’annulation',
-          kind: SnackKind.error);
+      AppSnackBar.show(
+        context,
+        provider.error ?? 'Erreur lors de l’annulation',
+        kind: SnackKind.error,
+      );
     }
   }
 
   Future<void> _handleReschedule(Appointment appointment) async {
     final serviceIds = appointment.serviceIds.join(',');
-    final artistParam =
-        appointment.artistId != null ? '&artistId=${appointment.artistId}' : '';
-    final uri = '/booking/date-time?providerId=${appointment.providerId}'
+    final artistParam = appointment.artistId != null
+        ? '&artistId=${appointment.artistId}'
+        : '';
+    final uri =
+        '/booking/date-time?providerId=${appointment.providerId}'
         '&serviceIds=$serviceIds&returnToHub=1'
         '&dateTime=${appointment.appointmentDate.toIso8601String()}$artistParam';
 
@@ -228,8 +235,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   /// Pay-later: open the deposit sheet in submit mode (the booking exists). The
   /// salon's Mobile Money handle comes from the provider's deposit policy.
   Future<void> _handleSendDeposit(Appointment appointment) async {
-    final providerProvider =
-        Provider.of<ProviderProvider>(context, listen: false);
+    final providerProvider = Provider.of<ProviderProvider>(
+      context,
+      listen: false,
+    );
     await providerProvider.loadProviderById(appointment.providerId);
     if (!mounted) return;
     final p = providerProvider.selectedProvider;
@@ -246,8 +255,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     );
     if (sent != true || !mounted) return;
     AppSnackBar.show(
-        context, 'Acompte envoyé. En attente de confirmation du salon.',
-        kind: SnackKind.success);
+      context,
+      'Acompte envoyé. En attente de confirmation du salon.',
+      kind: SnackKind.success,
+    );
   }
 
   /// View the screenshot the consumer already submitted (signed URL).
@@ -268,8 +279,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         ),
       );
     } else {
-      AppSnackBar.showOn(messenger, res.error ?? 'Capture indisponible',
-          kind: SnackKind.error);
+      AppSnackBar.showOn(
+        messenger,
+        res.error ?? 'Capture indisponible',
+        kind: SnackKind.error,
+      );
     }
   }
 
@@ -277,8 +291,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   /// confirmation (view proof) → confirmé. Myweli never holds the money.
   Widget _depositSection(Appointment a) {
     final hasProof = a.depositScreenshotUrl != null;
-    final amount = Formatters.formatCurrency(a.depositAmount,
-        currency: a.currency ?? a.providerCurrency ?? 'XOF');
+    final amount = Formatters.formatCurrency(
+      a.depositAmount,
+      currency: a.currency ?? a.providerCurrency ?? 'XOF',
+    );
 
     IconData icon;
     String label;
@@ -286,10 +302,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     Widget? action;
 
     Widget viewProofButton() => AppButton(
-          text: 'Voir ma capture',
-          type: AppButtonType.secondary,
-          onPressed: () => _viewMyProof(a),
-        );
+      text: 'Voir ma capture',
+      type: AppButtonType.secondary,
+      onPressed: () => _viewMyProof(a),
+    );
 
     switch (a.status) {
       case AppointmentStatus.confirmed:
@@ -329,8 +345,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           const SizedBox(height: AppTheme.spacingXS),
           Text(
             hint,
-            style:
-                AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
         ],
         if (action != null) ...[
@@ -347,8 +364,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   /// app (Myweli never writes the entry). Design: docs/design/appointment-calendar.md.
   Future<void> _addToCalendar(Appointment appointment) async {
     final messenger = ScaffoldMessenger.of(context);
-    final providerProvider =
-        Provider.of<ProviderProvider>(context, listen: false);
+    final providerProvider = Provider.of<ProviderProvider>(
+      context,
+      listen: false,
+    );
     await providerProvider.loadProviderById(appointment.providerId);
     if (!mounted) return;
     final p = providerProvider.selectedProvider;
@@ -386,8 +405,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   Future<void> _leaveReview(Appointment appointment) async {
-    final providerProvider =
-        Provider.of<ProviderProvider>(context, listen: false);
+    final providerProvider = Provider.of<ProviderProvider>(
+      context,
+      listen: false,
+    );
     await providerProvider.loadProviderById(appointment.providerId);
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -407,9 +428,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Détails'),
-      ),
+      appBar: AppBar(title: const Text('Détails')),
       body: Consumer<AppointmentProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.selectedAppointment == null) {
@@ -423,8 +442,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: AppTheme.iconXL, color: AppColors.error),
+                  const Icon(
+                    Icons.error_outline,
+                    size: AppTheme.iconXL,
+                    color: AppColors.error,
+                  ),
                   const SizedBox(height: AppTheme.spacingM),
                   Text(
                     provider.error ?? 'Rendez-vous non trouvé',
@@ -461,17 +483,23 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       _InfoRow(
                         icon: Icons.calendar_today,
                         label: 'Date',
-                        value: Formatters.formatDate(toSalonTime(
+                        value: Formatters.formatDate(
+                          toSalonTime(
                             appointment.appointmentDate,
-                            tz: appointment.providerTimezone)),
+                            tz: appointment.providerTimezone,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: AppTheme.spacingM),
                       _InfoRow(
                         icon: Icons.access_time,
                         label: 'Heure',
-                        value: Formatters.formatTime(toSalonTime(
+                        value: Formatters.formatTime(
+                          toSalonTime(
                             appointment.appointmentDate,
-                            tz: appointment.providerTimezone)),
+                            tz: appointment.providerTimezone,
+                          ),
+                        ),
                       ),
                       SalonTimeHint(
                         tz: appointment.providerTimezone,
@@ -492,10 +520,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       _InfoRow(
                         icon: Icons.attach_money,
                         label: 'Prix total',
-                        value: Formatters.formatCurrency(appointment.totalPrice,
-                            currency: appointment.currency ??
-                                appointment.providerCurrency ??
-                                'XOF'),
+                        value: Formatters.formatCurrency(
+                          appointment.totalPrice,
+                          currency:
+                              appointment.currency ??
+                              appointment.providerCurrency ??
+                              'XOF',
+                        ),
                       ),
                       if (appointment.depositAmount > 0) ...[
                         const SizedBox(height: AppTheme.spacingM),
@@ -505,10 +536,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           icon: Icons.account_balance_wallet_outlined,
                           label: 'Solde à régler au salon',
                           value: Formatters.formatCurrency(
-                              appointment.balanceDue,
-                              currency: appointment.currency ??
-                                  appointment.providerCurrency ??
-                                  'XOF'),
+                            appointment.balanceDue,
+                            currency:
+                                appointment.currency ??
+                                appointment.providerCurrency ??
+                                'XOF',
+                          ),
                         ),
                       ],
                       if (appointment.notes != null &&
@@ -609,10 +642,7 @@ class _InfoRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingXS),
-              Text(
-                value,
-                style: AppTextStyles.bodyMedium,
-              ),
+              Text(value, style: AppTextStyles.bodyMedium),
             ],
           ),
         ),

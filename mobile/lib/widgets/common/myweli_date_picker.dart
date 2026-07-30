@@ -92,10 +92,10 @@ Future<DateTime?> showMyweliDatePicker({
 /// through the same reschedule flow.
 DateTime clampToRange(DateTime initial, DateTime first, DateTime last) =>
     initial.isBefore(first)
-        ? first
-        : initial.isAfter(last)
-            ? last
-            : initial;
+    ? first
+    : initial.isAfter(last)
+    ? last
+    : initial;
 
 /// The picker's screen. Public so tests can pump it without a route.
 class MyweliDatePickerScreen extends StatelessWidget {

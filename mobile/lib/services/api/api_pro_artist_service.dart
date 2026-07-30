@@ -22,9 +22,9 @@ class ApiProArtistService implements ProArtistServiceInterface {
     http.Client? client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+       _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
@@ -65,11 +65,13 @@ class ApiProArtistService implements ProArtistServiceInterface {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send((t) => _client.post(
-          _uri('/providers/$providerId/artists'),
-          headers: _bearer(t),
-          body: jsonEncode(_wire(data)),
-        ));
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri('/providers/$providerId/artists'),
+        headers: _bearer(t),
+        body: jsonEncode(_wire(data)),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 201) return _errorFrom(res);
     return ApiResponse.success(Artist.fromJson(_decode(res.body)));
@@ -82,11 +84,13 @@ class ApiProArtistService implements ProArtistServiceInterface {
   ) async {
     final pid = await _providerId();
     if (pid == null) return ApiResponse.error('Compte non lié à un salon');
-    final res = await _authed.send((t) => _client.patch(
-          _uri('/providers/$pid/artists/$artistId'),
-          headers: _bearer(t),
-          body: jsonEncode(_wire(data)),
-        ));
+    final res = await _authed.send(
+      (t) => _client.patch(
+        _uri('/providers/$pid/artists/$artistId'),
+        headers: _bearer(t),
+        body: jsonEncode(_wire(data)),
+      ),
+    );
     if (res == null) return _networkError();
     if (res.statusCode != 200) return _errorFrom(res);
     return ApiResponse.success(Artist.fromJson(_decode(res.body)));
@@ -130,9 +134,9 @@ class ApiProArtistService implements ProArtistServiceInterface {
     final raw = await _providerSessionStore.read();
     if (raw == null) return null;
     try {
-      return ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
-          .provider
-          .providerId;
+      return ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).provider.providerId;
     } catch (_) {
       return null;
     }

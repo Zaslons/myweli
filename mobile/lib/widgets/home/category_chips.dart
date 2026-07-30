@@ -8,10 +8,7 @@ import '../../core/theme/text_styles.dart';
 class CategoryChips extends StatelessWidget {
   final String? selectedCategory;
 
-  const CategoryChips({
-    super.key,
-    this.selectedCategory,
-  });
+  const CategoryChips({super.key, this.selectedCategory});
 
   static const categories = [
     {'id': 'all', 'name': 'Tous', 'icon': Icons.all_inclusive},
@@ -31,15 +28,14 @@ class CategoryChips extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
       child: Row(
-        children: [
-          for (final category in categories) _chip(context, category),
-        ],
+        children: [for (final category in categories) _chip(context, category)],
       ),
     );
   }
 
   Widget _chip(BuildContext context, Map<String, Object> category) {
-    final isSelected = selectedCategory == category['id'] ||
+    final isSelected =
+        selectedCategory == category['id'] ||
         (selectedCategory == null && category['id'] == 'all');
 
     return Padding(

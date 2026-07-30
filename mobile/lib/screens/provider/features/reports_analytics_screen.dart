@@ -16,9 +16,7 @@ class ReportsAnalyticsScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Rapports et analyses'),
-      ),
+      appBar: AppBar(title: const Text('Rapports et analyses')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
@@ -60,27 +58,48 @@ class ReportsAnalyticsScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Text('Lun',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
-                      Text('Mar',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
-                      Text('Mer',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
-                      Text('Jeu',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
-                      Text('Ven',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
-                      Text('Sam',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
-                      Text('Dim',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textTertiary)),
+                      Text(
+                        'Lun',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      Text(
+                        'Mar',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      Text(
+                        'Mer',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      Text(
+                        'Jeu',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      Text(
+                        'Ven',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      Text(
+                        'Sam',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      Text(
+                        'Dim',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -238,8 +257,9 @@ class _PopularItem extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: percentage,
                     backgroundColor: AppColors.surface,
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
                     minHeight: 8,
                   ),
                 ),
@@ -328,9 +348,7 @@ class _EmployeeStatCard extends StatelessWidget {
           ),
           Text(
             revenue,
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.primary,
-            ),
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.primary),
           ),
         ],
       ),
@@ -371,8 +389,14 @@ class _LineChartPainter extends CustomPainter {
         (points[i - 1].dx + points[i].dx) / 2,
         points[i].dy,
       );
-      path.cubicTo(controlPoint1.dx, controlPoint1.dy, controlPoint2.dx,
-          controlPoint2.dy, points[i].dx, points[i].dy);
+      path.cubicTo(
+        controlPoint1.dx,
+        controlPoint1.dy,
+        controlPoint2.dx,
+        controlPoint2.dy,
+        points[i].dx,
+        points[i].dy,
+      );
     }
 
     // Create fill path by copying the path and closing it
@@ -386,8 +410,14 @@ class _LineChartPainter extends CustomPainter {
         (points[i - 1].dx + points[i].dx) / 2,
         points[i].dy,
       );
-      fillPath.cubicTo(controlPoint1.dx, controlPoint1.dy, controlPoint2.dx,
-          controlPoint2.dy, points[i].dx, points[i].dy);
+      fillPath.cubicTo(
+        controlPoint1.dx,
+        controlPoint1.dy,
+        controlPoint2.dx,
+        controlPoint2.dy,
+        points[i].dx,
+        points[i].dy,
+      );
     }
     fillPath.lineTo(size.width * 0.7, size.height);
     fillPath.lineTo(size.width * 0.1, size.height);
