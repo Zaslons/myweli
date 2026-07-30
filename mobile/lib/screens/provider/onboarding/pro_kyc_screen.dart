@@ -156,9 +156,24 @@ class _ProKycScreenState extends State<ProKycScreen> {
     final String source;
     final String contentType;
     if (AppConfig.useApiBackend) {
-      final picked = await FilePicker.platform.pickFiles(
+      // **`FilePicker.pickFiles`, not `FilePicker.platform.pickFiles`** —
+      // file_picker 11.0.0 refactored the class to static methods and removed
+      // the `platform` getter entirely, so the old form no longer resolves.
+      //
+      // **`compressionQuality: 30` is passed explicitly, and that is the whole
+      // reason this line is not a one-word edit.** 10.0.0 moved the default
+      // from 30 to **0** — i.e. no compression — and we were relying on the
+      // default. A KYC photo from a modern phone camera then uploads at full
+      // size, straight into the presigned POST's
+      // `['content-length-range', 0, 5 MB]` policy
+      // (`upload_signing_service.dart:35`): R2 rejects it *after* the user has
+      // already spent the bytes, which on Ivorian mobile data is the expensive
+      // way to fail. 30 is what shipped before this bump; keeping it named
+      // means the next default change cannot move it silently.
+      final picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+        compressionQuality: 30,
       );
       final path = picked?.files.single.path;
       if (path == null) return;
