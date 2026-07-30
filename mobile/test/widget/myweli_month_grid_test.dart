@@ -34,7 +34,7 @@ void main() {
             child: SingleChildScrollView(
               child: MyweliMonthGrid(
                 month: DateTime(2026, 3),
-                selectedDay: selected,
+                selectedDays: {if (selected != null) CalendarDay.of(selected)},
                 onDayTap: (_) {},
               ),
             ),
@@ -183,6 +183,46 @@ void main() {
         reason:
             'the assertion above must be able to fail — otherwise it certifies '
             'nothing about selection, only that a cell exists',
+      );
+      handle.dispose();
+    });
+
+    testWidgets('a day from the SALON seam is selected, not silently dropped', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      // **Exactly what `salonToday(tz:)` returns** — `salon_time.dart:74` ends
+      // `return DateTime.utc(s.year, s.month, s.day);`. The grid builds its
+      // cells with `DateTime(y, m, d)`, local. `DateTime.==` compares
+      // microseconds **and `isUtc`**, so `Set<DateTime>.contains` is false
+      // between these two and every day renders unselected — silently, with no
+      // error and no clue.
+      await pumpMonth(
+        tester,
+        scaler: TextScaler.noScaling,
+        selected: DateTime.utc(2026, 3, 15),
+      );
+
+      expect(
+        tester.getSemantics(
+          find
+              .ancestor(of: find.text('15'), matching: find.byType(Semantics))
+              .first,
+        ),
+        matchesSemantics(
+          isButton: true,
+          isSelected: true,
+          hasSelectedState: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          hasTapAction: true,
+          label: 'dimanche 15 mars 2026',
+        ),
+        reason:
+            'the selection must be a CALENDAR-DAY identity, not a DateTime one. '
+            'A14e seeds this set from `availability.blockedDates` through '
+            '`toSalonTime`, which returns a `TZDateTime` — a third flavour '
+            'again. Comparing instants where the domain is days is the bug.',
       );
       handle.dispose();
     });

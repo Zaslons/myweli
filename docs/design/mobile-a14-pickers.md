@@ -957,3 +957,19 @@ refusal to resync `_month` in `didUpdateWidget` (`:343-350`) is the fix for
 A quieter consequence, also recorded: without resync the pro calendar **cannot
 programmatically jump to a month**, so there is no « Aujourd'hui » button. Nobody
 has asked for one.
+
+### 17.1.1 The trap was watched, not just described
+
+The migration went through `Set<DateTime>` **on purpose**, so §16.3 would be a
+measurement rather than an argument. Seeding the grid with
+`DateTime.utc(2026, 3, 15)` — byte-for-byte what `salonToday(tz:)` returns — and
+asking the cell what it announces:
+
+```
+Which: missing flags: isSelected
+```
+
+Then `CalendarDay`, and green. Without that step the type would have been
+justified by reasoning about `DateTime.==` rather than by a failure, and this
+register's whole complaint is that reasoning of that kind has been wrong on
+nearly every slice.

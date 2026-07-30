@@ -38,6 +38,66 @@ bool isSameDay(DateTime a, DateTime b) =>
 /// Midnight on [d]'s calendar day. Private: no caller outside this file yet.
 DateTime _dayOf(DateTime d) => DateTime(d.year, d.month, d.day);
 
+/// A calendar day as an **identity** — year, month, day. No time, no zone.
+///
+/// **It exists because `Set<DateTime>` is a trap in this file** (A14c §16.3).
+/// `DateTime.==` compares microseconds *and `isUtc`*, and the salon-time seam
+/// hands out UTC-flagged date-only values — `salonToday` ends
+/// `return DateTime.utc(s.year, s.month, s.day)` (`salon_time.dart:74`) — while
+/// this grid builds its cells local. A `Set<DateTime>` seeded from `salonToday`
+/// therefore **contains nothing**, silently: no error, no clue, every day
+/// unselected. Measured red before this type existed.
+///
+/// A14e makes it worse rather than better: it seeds the set from
+/// `availability.blockedDates` through `toSalonTime`, which returns a
+/// `TZDateTime` — a **third** flavour of the same day.
+///
+/// [isSameDay] already solved the single-day case by comparing fields. This is
+/// the same answer in a shape a `Set` and a `Map` can use. It stays in this file
+/// beside [isSameDay] for the same reason that helper does; it moves to
+/// `core/utils/` the day a second family wants it, not before.
+@immutable
+class CalendarDay implements Comparable<CalendarDay> {
+  const CalendarDay(this.year, this.month, this.day);
+
+  CalendarDay.of(DateTime d) : year = d.year, month = d.month, day = d.day;
+
+  final int year;
+  final int month;
+  final int day;
+
+  /// Local midnight on this day — what [MyweliMonthGrid] hands to `onDayTap`,
+  /// and what a caller feeds to `Formatters`.
+  ///
+  /// **Never what a caller persists.** A stored instant goes through
+  /// `salonDateTime(year, month, day, tz:)`, because only the call site knows
+  /// the salon's zone (§18). Composing a `DateTime` here would be device-local,
+  /// which is the exact shape `availability_screen` got wrong once already.
+  DateTime toDateTime() => DateTime(year, month, day);
+
+  bool isBefore(CalendarDay other) => compareTo(other) < 0;
+
+  @override
+  int compareTo(CalendarDay o) => year != o.year
+      ? year.compareTo(o.year)
+      : month != o.month
+      ? month.compareTo(o.month)
+      : day.compareTo(o.day);
+
+  @override
+  bool operator ==(Object other) =>
+      other is CalendarDay &&
+      other.year == year &&
+      other.month == month &&
+      other.day == day;
+
+  @override
+  int get hashCode => Object.hash(year, month, day);
+
+  @override
+  String toString() => 'CalendarDay($year-$month-$day)';
+}
+
 /// « mars 2026 » between two chevrons, with the label toggling a year list.
 class MyweliMonthBar extends StatelessWidget {
   const MyweliMonthBar({
@@ -214,7 +274,7 @@ class MyweliMonthGrid extends StatelessWidget {
     super.key,
     required this.month,
     required this.onDayTap,
-    this.selectedDay,
+    this.selectedDays = const <CalendarDay>{},
     this.today,
     this.firstDate,
     this.lastDate,
@@ -225,8 +285,17 @@ class MyweliMonthGrid extends StatelessWidget {
 
   final ValueChanged<DateTime> onDayTap;
 
-  /// The chosen day, or null — the pro calendar opens with nothing chosen.
-  final DateTime? selectedDay;
+  /// The chosen days. Empty means nothing chosen.
+  ///
+  /// **One selection concept, not two** (§17.1). A `selectedDay` alongside a
+  /// `selectedDays` would need an `assert` to keep them apart and would cost
+  /// every future reader the question "which one wins". The migration was three
+  /// lines, because the grid has exactly one caller and the navigator two.
+  ///
+  /// The **toggle-vs-replace policy lives in the page**, which is the seam this
+  /// file's header argues for: the picker pops on tap, A14e's multi-picker
+  /// toggles a set, and the grid paints what it is told.
+  final Set<CalendarDay> selectedDays;
 
   /// The salon's today, for the « aujourd'hui » marker.
   ///
@@ -277,9 +346,7 @@ class MyweliMonthGrid extends StatelessWidget {
                       ? SizedBox(height: _cellHeight(context))
                       : _DayCell(
                           day: day,
-                          selected:
-                              selectedDay != null &&
-                              isSameDay(day, selectedDay!),
+                          selected: selectedDays.contains(CalendarDay.of(day)),
                           isToday: today != null && isSameDay(day, today!),
                           enabled: _enabled(day),
                           onPick: onDayTap,
@@ -306,7 +373,7 @@ class MyweliMonthNavigator extends StatefulWidget {
     required this.firstDate,
     required this.lastDate,
     required this.onDayTap,
-    this.selectedDay,
+    this.selectedDays = const <CalendarDay>{},
     this.today,
   });
 
@@ -314,7 +381,7 @@ class MyweliMonthNavigator extends StatefulWidget {
   final DateTime firstDate;
   final DateTime lastDate;
   final ValueChanged<DateTime> onDayTap;
-  final DateTime? selectedDay;
+  final Set<CalendarDay> selectedDays;
   final DateTime? today;
 
   @override
@@ -394,7 +461,7 @@ class _MyweliMonthNavigatorState extends State<MyweliMonthNavigator> {
               ),
               child: MyweliMonthGrid(
                 month: _month,
-                selectedDay: widget.selectedDay,
+                selectedDays: widget.selectedDays,
                 today: widget.today,
                 firstDate: widget.firstDate,
                 lastDate: widget.lastDate,
