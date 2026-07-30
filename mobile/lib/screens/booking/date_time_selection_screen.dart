@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
@@ -9,11 +11,15 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
+import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/salon_time_hint.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
   final String providerId;
@@ -39,7 +45,24 @@ class DateTimeSelectionScreen extends StatefulWidget {
 }
 
 class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
-  DateTime _selectedDate = DateTime.now();
+  /// The VIEWED salon's timezone (multi-pays MP2) — null until the provider
+  /// loads (the Abidjan fallback keeps the first frame correct).
+  String? get _tz =>
+      context.read<ProviderProvider>().selectedProvider?.timezone;
+
+  /// The salon "today" as a NAIVE date — table_calendar compares its naive
+  /// day cells field-to-field (never `.toUtc()` these).
+  DateTime _salonTodayNaive() {
+    final s = salonNow(tz: _tz);
+    return DateTime(s.year, s.month, s.day);
+  }
+
+  static DateTime _todayNaiveDefault() {
+    final s = salonNow();
+    return DateTime(s.year, s.month, s.day);
+  }
+
+  DateTime _selectedDate = _todayNaiveDefault();
   DateTime? _selectedTime;
   List<DateTime> _availableSlots = [];
   bool _loadingSlots = true;
@@ -49,11 +72,17 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   void initState() {
     super.initState();
     if (widget.initialDateTime != null) {
-      final dt = widget.initialDateTime!;
+      // Prefill reads the instant as SALON wall-clock (salon_time.dart).
+      // The provider isn't loaded yet — the tz getter falls back to
+      // Abidjan; the slot reload after load() re-anchors everything.
+      final dt = toSalonTime(widget.initialDateTime!, tz: _tz);
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
-      _selectedTime = DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute);
+      _selectedTime = salonDateTime(dt.year, dt.month, dt.day,
+          hour: dt.hour, minute: dt.minute, tz: _tz);
+      _selectionError = null;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(context.read<LocalityProvider>().ensureLoaded());
       await Provider.of<ProviderProvider>(context, listen: false)
           .loadProviderById(widget.providerId);
       if (!mounted) return;
@@ -105,7 +134,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   }
 
   void _onDateSelected(DateTime date, DateTime focusedDate) {
-    if (date.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+    // Reject days before the SALON's today (naive-vs-naive compare).
+    if (date.isBefore(_salonTodayNaive())) {
       return;
     }
     setState(() {
@@ -115,20 +145,25 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     _loadAvailableSlots();
   }
 
+  /// A7/§14 — see `service_selection_screen`: a dead snackbar behind a
+  /// disabled button, now a live form-level message behind an open one.
+  String? _selectionError;
+
   void _handleContinue() {
     if (_selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une heure')),
-      );
+      setState(() => _selectionError = 'Choisissez une heure pour continuer.');
       return;
     }
+    setState(() => _selectionError = null);
 
-    final dateTime = DateTime(
+    // The chosen wall-clock IS salon time — serializes with a Z.
+    final dateTime = salonDateTime(
       _selectedDate.year,
       _selectedDate.month,
       _selectedDate.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
+      hour: _selectedTime!.hour,
+      minute: _selectedTime!.minute,
+      tz: _tz,
     );
 
     if (widget.returnToHub) {
@@ -179,9 +214,16 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                   ],
                   // Calendar
                   TableCalendar(
-                    firstDay: DateTime.now(),
-                    lastDay: DateTime.now().add(const Duration(days: 90)),
+                    // A9: the package default is `StartingDayOfWeek.sunday`,
+                    // which is a separate defect from the English month name
+                    // above it — `Intl.defaultLocale` fixes the words, not the
+                    // grid. The pro calendar already passes this.
+                    startingDayOfWeek: StartingDayOfWeek.monday,
+                    firstDay: _salonTodayNaive(),
+                    lastDay: _salonTodayNaive().add(const Duration(days: 90)),
                     focusedDay: _selectedDate,
+                    // The « today » ring follows the SALON's today.
+                    currentDay: _salonTodayNaive(),
                     selectedDayPredicate: (day) {
                       return day.year == _selectedDate.year &&
                           day.month == _selectedDate.month &&
@@ -204,13 +246,23 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                       titleCentered: true,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.spacingL),
                   // Time Slots
                   const Text(
                     'Heures disponibles',
                     style: AppTextStyles.titleLarge,
                   ),
-                  const SizedBox(height: 16),
+                  SalonTimeHint(
+                    tz: _tz,
+                    countryLabel: context.watch<LocalityProvider>().countryName(
+                          context
+                              .read<ProviderProvider>()
+                              .selectedProvider
+                              ?.countryCode,
+                        ),
+                    padding: const EdgeInsets.only(top: AppTheme.spacingXS),
+                  ),
+                  const SizedBox(height: AppTheme.spacingM),
                   if (_loadingSlots)
                     const Center(child: LoadingIndicator())
                   else if (_availableSlots.isEmpty)
@@ -224,8 +276,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                     )
                   else
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: AppTheme.spacingS,
+                      runSpacing: AppTheme.spacingS,
                       children: _availableSlots.map((slot) {
                         final isSelected = _selectedTime != null &&
                             _selectedTime!.hour == slot.hour &&
@@ -245,13 +297,14 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                               border: Border.all(
                                 color: isSelected
                                     ? AppColors.primary
-                                    : AppColors.border,
+                                    : AppColors.borderStrong,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
                             child: Center(
                               child: Text(
-                                Formatters.formatTime(slot),
+                                Formatters.formatTime(
+                                    toSalonTime(slot, tz: _tz)),
                                 style: AppTextStyles.bodyMedium.copyWith(
                                   color: isSelected
                                       ? AppColors.secondary
@@ -274,9 +327,15 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
               color: AppColors.secondary,
               boxShadow: AppTheme.elevation3,
             ),
-            child: AppButton(
-              text: 'Continuer',
-              onPressed: _selectedTime == null ? null : _handleContinue,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InlineFeedback(_selectionError),
+                AppButton(
+                  text: 'Continuer',
+                  onPressed: _handleContinue,
+                ),
+              ],
             ),
           ),
         ],

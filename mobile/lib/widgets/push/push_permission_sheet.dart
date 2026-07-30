@@ -59,14 +59,14 @@ class _PushPermissionSheet extends StatelessWidget {
                   height: 4,
                   decoration: BoxDecoration(
                     color: AppColors.divider,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                   ),
                 ),
               ),
               const SizedBox(height: AppTheme.spacingL),
               const Icon(
                 Icons.notifications_active_outlined,
-                size: 40,
+                size: AppTheme.iconL,
                 color: AppColors.textPrimary,
               ),
               const SizedBox(height: AppTheme.spacingM),

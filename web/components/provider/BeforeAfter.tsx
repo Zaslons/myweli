@@ -9,7 +9,7 @@ export function BeforeAfter({ pairs }: { pairs: Pair[] }) {
   if (!pairs || pairs.length === 0) return null;
   return (
     <section className="px-m py-l">
-      <h2 className="text-xl font-semibold text-textPrimary">Avant / Après</h2>
+      <h2 className="text-titleLarge font-semibold text-textPrimary">Avant / Après</h2>
       <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2">
         {pairs.map((p, i) => (
           <figure
@@ -18,7 +18,7 @@ export function BeforeAfter({ pairs }: { pairs: Pair[] }) {
           >
             <div className="grid grid-cols-2 gap-xs">
               <div>
-                <div className="relative h-32 w-full overflow-hidden rounded">
+                <div className="relative h-32 w-full overflow-hidden rounded-sm">
                   <Image
                     src={p.before}
                     alt="Avant"
@@ -28,12 +28,12 @@ export function BeforeAfter({ pairs }: { pairs: Pair[] }) {
                     className="object-cover"
                   />
                 </div>
-                <figcaption className="mt-xs text-center text-xs text-textTertiary">
+                <figcaption className="mt-xs text-center text-bodySmall text-textTertiary">
                   Avant
                 </figcaption>
               </div>
               <div>
-                <div className="relative h-32 w-full overflow-hidden rounded">
+                <div className="relative h-32 w-full overflow-hidden rounded-sm">
                   <Image
                     src={p.after}
                     alt="Après"
@@ -43,13 +43,13 @@ export function BeforeAfter({ pairs }: { pairs: Pair[] }) {
                     className="object-cover"
                   />
                 </div>
-                <figcaption className="mt-xs text-center text-xs text-textTertiary">
+                <figcaption className="mt-xs text-center text-bodySmall text-textTertiary">
                   Après
                 </figcaption>
               </div>
             </div>
             {p.caption ? (
-              <figcaption className="mt-s text-sm text-textSecondary">
+              <figcaption className="mt-s text-bodyMedium text-textSecondary">
                 {p.caption}
               </figcaption>
             ) : null}

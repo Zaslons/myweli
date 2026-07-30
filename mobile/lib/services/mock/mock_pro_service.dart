@@ -1,14 +1,266 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/di/dependency_injection.dart';
+import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_time.dart';
+import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
+import '../../models/journal_day.dart';
 import '../../models/payment.dart';
+import '../../models/pro_membership.dart';
+import '../../models/provider.dart';
+import '../../models/provider_user.dart';
+import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
+import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
+import 'mock_subscription_service.dart';
 
 class MockProService implements ProServiceInterface {
+  /// The current mock session's ACTIVE roster row, or null for owners /
+  /// signed-out (access R4b — role-aware mock world). Resolved through the
+  /// auth service like the real backend resolves through the token.
+  Future<TeamMember?> _currentMemberRow() async {
+    final ProviderUser? account;
+    try {
+      account = await serviceLocator.authService.getCurrentProvider();
+    } catch (_) {
+      // Locator not wired (isolated unit tests) → owner-shaped world.
+      return null;
+    }
+    if (account == null || account.providerId != null) return null;
+    for (final m in MockData.teamMembers) {
+      if (m.status != TeamMemberStatus.active) continue;
+      if (m.accountId == account.id ||
+          (account.email != null && m.email == account.email!.toLowerCase())) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  /// R6: the account's ACTIVE row inside [salonId] — the owner scalar, an
+  /// owner row, or a member row. Null = no active membership there (the
+  /// uniform per-salon denial).
+  Future<TeamMember?> _rowInSalon(ProviderUser account, String salonId) async {
+    for (final m in MockData.teamMembers) {
+      if (m.providerId != salonId) continue;
+      if (m.status != TeamMemberStatus.active) continue;
+      if (m.accountId == account.id ||
+          (account.email != null && m.email == account.email!.toLowerCase())) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  /// The persisted salon selection (best-effort — isolated unit tests may
+  /// run without the locator wired).
+  Future<String?> _selection() async {
+    try {
+      return await serviceLocator.authService.getSelectedProviderSalon();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final account = await serviceLocator.authService.getCurrentProvider();
+    if (account == null) {
+      return ApiResponse.error('Non connecté', code: 'unauthorized');
+    }
+
+    String resolvedSalonId;
+    TeamRole role;
+    String? artistId;
+    String? artistName;
+    final selected = salonId ?? await _selection();
+    if (selected != null && selected.isNotEmpty) {
+      // R6 explicit selection: an ACTIVE membership there or a UNIFORM
+      // per-salon denial (never the sign-out signal — mirrors the backend).
+      if (account.providerId == selected) {
+        resolvedSalonId = selected;
+        role = TeamRole.owner;
+      } else {
+        final row = await _rowInSalon(account, selected);
+        if (row == null) {
+          return ApiResponse.error(
+            'Action réservée aux membres du salon.',
+            code: 'forbidden',
+          );
+        }
+        resolvedSalonId = selected;
+        role = row.role;
+        artistId = row.artistId;
+        artistName = row.artistName;
+      }
+    } else if (account.providerId != null) {
+      resolvedSalonId = account.providerId!;
+      role = TeamRole.owner;
+    } else {
+      final row = await _currentMemberRow();
+      if (row == null) {
+        // Memberships gone → the revoked signal (mirrors the backend R4a).
+        return ApiResponse.error(
+          'Votre accès à ce salon a été retiré.',
+          code: 'not_a_member',
+        );
+      }
+      resolvedSalonId = row.providerId;
+      role = row.role;
+      artistId = row.artistId;
+      artistName = row.artistName;
+    }
+    final salonId0 = resolvedSalonId;
+
+    final salon = MockData.providers.firstWhere(
+      (p) => p.id == salonId0,
+      orElse: () => MockData.providers.first,
+    );
+    return ApiResponse.success(
+      MyProviderInfo(
+        salon: salon,
+        membership: ProMembership(
+          role: role,
+          capabilities: presetCapabilitiesFor(role),
+          artistId: artistId,
+          artistName: artistName,
+          salonId: salon.id,
+          salonName: salon.name,
+        ),
+      ),
+    );
+  }
+
+  /// Salons the account OWNS in the mock world: the scalar link ∪ active
+  /// owner rows (the R6 mirror of the backend's owned set).
+  Set<String> _ownedSalonIds(ProviderUser account) => {
+        if (account.providerId != null) account.providerId!,
+        for (final m in MockData.teamMembers)
+          if (m.role == TeamRole.owner &&
+              m.status == TeamMemberStatus.active &&
+              (m.accountId == account.id ||
+                  (account.email != null &&
+                      m.email == account.email!.toLowerCase())))
+            m.providerId,
+      };
+
+  bool _canAddSalon(ProviderUser account) {
+    try {
+      final subs = serviceLocator.subscriptionService;
+      if (subs is MockSubscriptionService) {
+        return subs.hasLiveReseauAmong(_ownedSalonIds(account));
+      }
+    } catch (_) {/* locator not wired (isolated tests) */}
+    return false;
+  }
+
+  @override
+  Future<ApiResponse<MySalonsResult>> getMySalons() async {
+    await Future.delayed(AppConstants.mockDelay);
+    final account = await serviceLocator.authService.getCurrentProvider();
+    if (account == null) {
+      return ApiResponse.error('Non connecté', code: 'unauthorized');
+    }
+    final owned = _ownedSalonIds(account);
+    // Owned + member ACTIVE rows, joined against the salon list.
+    final ids = <String>{...owned};
+    final roleById = <String, TeamRole>{
+      for (final id in owned) id: TeamRole.owner
+    };
+    for (final m in MockData.teamMembers) {
+      if (m.status != TeamMemberStatus.active) continue;
+      if (m.accountId == account.id ||
+          (account.email != null && m.email == account.email!.toLowerCase())) {
+        ids.add(m.providerId);
+        roleById.putIfAbsent(m.providerId, () => m.role);
+      }
+    }
+    final items = <SalonMembershipInfo>[];
+    for (final id in ids) {
+      final salon = MockData.providers.where((p) => p.id == id).firstOrNull;
+      if (salon == null) continue;
+      items.add(SalonMembershipInfo(
+        salonId: id,
+        salonName: salon.name,
+        role: roleById[id] ?? TeamRole.staff,
+        salonStatus: MockData.draftSalonIds.contains(id) ? 'draft' : 'active',
+        verified: salon.verified,
+        imageUrl: salon.imageUrls.isNotEmpty ? salon.imageUrls.first : null,
+      ));
+    }
+    items.sort((a, b) {
+      final aOwner = a.isOwner ? 0 : 1;
+      final bOwner = b.isOwner ? 0 : 1;
+      if (aOwner != bOwner) return aOwner - bOwner;
+      return a.salonName.toLowerCase().compareTo(b.salonName.toLowerCase());
+    });
+    return ApiResponse.success(
+      MySalonsResult(items: items, canAddSalon: _canAddSalon(account)),
+    );
+  }
+
+  @override
+  Future<ApiResponse<SalonMembershipInfo>> addSalon({
+    required String businessName,
+    required BusinessType businessType,
+    String? phoneNumber,
+    String? address,
+    String? areaId,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final account = await serviceLocator.authService.getCurrentProvider();
+    if (account == null) {
+      return ApiResponse.error('Non connecté', code: 'unauthorized');
+    }
+    final name = businessName.trim();
+    if (name.isEmpty) {
+      return ApiResponse.error('Nom requis', code: 'invalid_input');
+    }
+    if (!_canAddSalon(account)) {
+      return ApiResponse.error(
+        teamErrorMessage('reseau_required'),
+        code: 'reseau_required',
+      );
+    }
+    // The new DRAFT salon in its own free SETUP state (no offer row).
+    final id = 'provider_add_${AppClock.now().millisecondsSinceEpoch}';
+    MockData.providers.add(
+      MockData.providers.first.copyWith(
+        id: id,
+        name: name,
+        artists: const [],
+        verified: account.verificationStatus == VerificationStatus.verified,
+      ),
+    );
+    MockData.draftSalonIds.add(id);
+    MockData.teamMembers.add(TeamMember(
+      id: 'mem_add_$id',
+      providerId: id,
+      email: account.email ?? account.phoneNumber,
+      role: TeamRole.owner,
+      status: TeamMemberStatus.active,
+      invitedAt: AppClock.now(),
+      accountId: account.id,
+      acceptedAt: AppClock.now(),
+    ));
+    return ApiResponse.success(
+      SalonMembershipInfo(
+        salonId: id,
+        salonName: name,
+        role: TeamRole.owner,
+        salonStatus: 'draft',
+        verified: account.verificationStatus == VerificationStatus.verified,
+      ),
+      message: 'Salon créé',
+    );
+  }
+
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
       String providerId) async {
@@ -17,9 +269,24 @@ class MockProService implements ProServiceInterface {
     final appointments =
         MockData.appointments.where((a) => a.providerId == providerId).toList();
 
-    final today = DateTime.now();
-    final todayStart = DateTime(today.year, today.month, today.day);
-    final todayEnd = todayStart.add(const Duration(days: 1));
+    // §18/A10 — every one of these five boundaries was the DEVICE's, not the
+    // salon's. `DateTime(today.year, today.month, today.day)` builds local
+    // midnight, which §18 forbids outright; it is invisible in Abidjan (UTC+0,
+    // where the two agree) and wrong in every other wave. `salonDayBoundsUtc`
+    // exists for exactly this and had no caller here.
+    // THIS salon's timezone, not the default. The first fix routed all five
+    // boundaries through the salon-time helpers and omitted `tz:` on every one,
+    // so they fell back to `kSalonTz` — correct in Abidjan and wrong in every
+    // other wave, which is the exact property the violation had before. The
+    // lookup is the one this file already uses at `getJournalDay`.
+    final tz = MockData.providers
+        .where((p) => p.id == providerId)
+        .map((p) => p.timezone)
+        .firstOrNull;
+    final salon = salonNow(tz: tz);
+    final bounds = salonDayBoundsUtc(tz: tz);
+    final todayStart = bounds.startUtc;
+    final todayEnd = bounds.endUtc;
 
     final todayAppointments = appointments.where((a) {
       final appDate = a.appointmentDate;
@@ -36,8 +303,22 @@ class MockProService implements ProServiceInterface {
           a.status == AppointmentStatus.confirmed;
     }).fold<double>(0, (sum, a) => sum + a.totalPrice);
 
-    final weekStart = todayStart.subtract(Duration(days: today.weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 7));
+    // Monday-anchored, from the SALON's weekday — `today.weekday` was the
+    // device's, so a salon and its owner on either side of midnight bucketed
+    // into different weeks. `salonWallClockToUtc` normalises out-of-range days,
+    // so `day - (weekday - 1)` crossing a month is arithmetic, not a special case.
+    final weekStart = salonWallClockToUtc(
+      salon.year,
+      salon.month,
+      salon.day - (salon.weekday - 1),
+      tz: tz,
+    );
+    final weekEnd = salonWallClockToUtc(
+      salon.year,
+      salon.month,
+      salon.day - (salon.weekday - 1) + 7,
+      tz: tz,
+    );
     final weekRevenue = appointments.where((a) {
       final appDate = a.appointmentDate;
       return appDate.isAfter(weekStart) &&
@@ -45,8 +326,9 @@ class MockProService implements ProServiceInterface {
           a.status == AppointmentStatus.confirmed;
     }).fold<double>(0, (sum, a) => sum + a.totalPrice);
 
-    final monthStart = DateTime(today.year, today.month, 1);
-    final monthEnd = DateTime(today.year, today.month + 1, 1);
+    final monthStart = salonWallClockToUtc(salon.year, salon.month, 1, tz: tz);
+    final monthEnd =
+        salonWallClockToUtc(salon.year, salon.month + 1, 1, tz: tz);
     final monthRevenue = appointments.where((a) {
       final appDate = a.appointmentDate;
       return appDate.isAfter(monthStart) &&
@@ -54,12 +336,17 @@ class MockProService implements ProServiceInterface {
           a.status == AppointmentStatus.confirmed;
     }).fold<double>(0, (sum, a) => sum + a.totalPrice);
 
+    // Field-gate the money figures like the server (R1): absent without
+    // finances.view — absence is a valid state, not an error.
+    final row = await _currentMemberRow();
+    final canSeeMoney = row == null ||
+        presetCapabilitiesFor(row.role).contains(ProCap.financesView);
     final stats = DashboardStats(
       todayAppointments: todayAppointments,
       pendingRequests: pendingRequests,
-      todayRevenue: todayRevenue,
-      weekRevenue: weekRevenue,
-      monthRevenue: monthRevenue,
+      todayRevenue: canSeeMoney ? todayRevenue : null,
+      weekRevenue: canSeeMoney ? weekRevenue : null,
+      monthRevenue: canSeeMoney ? monthRevenue : null,
       totalAppointments: appointments.length,
     );
 
@@ -77,6 +364,13 @@ class MockProService implements ProServiceInterface {
 
     var appointments =
         MockData.appointments.where((a) => a.providerId == providerId).toList();
+
+    // T40 mirror: a Collaborateur sees their own artist's bookings only.
+    final row = await _currentMemberRow();
+    if (row != null && row.role == TeamRole.staff) {
+      appointments =
+          appointments.where((a) => a.artistId == row.artistId).toList();
+    }
 
     if (status != null) {
       appointments = appointments.where((a) => a.status == status).toList();
@@ -150,6 +444,97 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<Provider>> updateSalonProfile(
+    String providerId,
+    Map<String, dynamic> changes,
+  ) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final index = MockData.providers.indexWhere((p) => p.id == providerId);
+    if (index == -1) return ApiResponse.error('Salon introuvable');
+    final merged = Provider.fromJson({
+      ...MockData.providers[index].toJson(),
+      ...changes,
+    });
+    MockData.providers[index] = merged;
+    return ApiResponse.success(merged, message: 'Profil enregistré');
+  }
+
+  @override
+  Future<ApiResponse<bool>> publishSalon(String providerId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    // Pricing pivot (R2a/R3): publishing requires a live offer — mirror the
+    // server's `offer` missing-key so the demo exercises the real flow.
+    final sub = await serviceLocator.subscriptionService
+        .getSalonSubscription(providerId);
+    if (!sub.success || !(sub.data?.isLive ?? false)) {
+      return ApiResponse.error(
+        'Choisissez votre offre avant la mise en ligne.',
+        code: 'offer_required',
+      );
+    }
+    return ApiResponse.success(true, message: 'Votre salon est en ligne');
+  }
+
+  @override
+  Future<ApiResponse<void>> deleteProviderAccount() async {
+    await Future.delayed(AppConstants.mockDelay);
+    return ApiResponse.success(null, message: 'Compte supprimé');
+  }
+
+  @override
+  Future<ApiResponse<bool>> markArrived(String appointmentId) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final index =
+        MockData.appointments.indexWhere((a) => a.id == appointmentId);
+    if (index == -1) return ApiResponse.error('Rendez-vous introuvable');
+    MockData.appointments[index] = MockData.appointments[index].copyWith(
+      arrivedAt: AppClock.now(),
+    );
+    return ApiResponse.success(true);
+  }
+
+  @override
+  Future<ApiResponse<JournalDay>> getJournalDay(
+    String providerId,
+    DateTime date,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    // Day keys in THIS salon's timezone (multi-pays MP2 mock fidelity).
+    final tz = MockData.providers
+        .where((p) => p.id == providerId)
+        .map((p) => p.timezone)
+        .firstOrNull;
+    final key = salonDayKey(date, tz: tz);
+    final row = await _currentMemberRow();
+    final ownArtist =
+        (row != null && row.role == TeamRole.staff) ? row.artistId : null;
+    final all = MockData.appointments
+        .where((a) => a.providerId == providerId)
+        .where((a) => ownArtist == null || a.artistId == ownArtist)
+        .where((a) => salonDayKey(a.appointmentDate, tz: tz) == key)
+        .toList()
+      ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+    final artistIds = {
+      for (final a in all)
+        if (a.artistId != null) a.artistId!,
+    };
+    return ApiResponse.success(
+      JournalDay(
+        date: key,
+        hours: const JournalHours(
+          open: '09:00',
+          close: '18:00',
+          breaks: [JournalBreak(start: '12:30', end: '13:30')],
+        ),
+        artists: [
+          for (final id in artistIds) JournalArtist(id: id, name: 'Artiste'),
+        ],
+        appointments: all,
+      ),
+    );
+  }
+
+  @override
   Future<ApiResponse<Appointment>> createManualBooking({
     required String providerId,
     required List<String> serviceIds,
@@ -157,6 +542,7 @@ class MockProService implements ProServiceInterface {
     String? clientName,
     String? clientPhone,
     String? notes,
+    String? artistId,
     bool sendSmsInvite = false,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -176,7 +562,7 @@ class MockProService implements ProServiceInterface {
     }
 
     final appointment = Appointment(
-      id: 'manual_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'manual_${AppClock.now().millisecondsSinceEpoch}',
       userId: 'manual',
       providerId: providerId,
       serviceIds: serviceIds,
@@ -190,7 +576,8 @@ class MockProService implements ProServiceInterface {
       clientPhone:
           (clientPhone != null && clientPhone.isNotEmpty) ? clientPhone : null,
       notes: notes,
-      createdAt: DateTime.now(),
+      artistId: artistId,
+      createdAt: AppClock.now(),
     );
     MockData.appointments.add(appointment);
 
@@ -227,7 +614,7 @@ class MockProService implements ProServiceInterface {
     await Future.delayed(AppConstants.mockDelay);
     // In real implementation, create service
     final service = Service(
-      id: 'service_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'service_${AppClock.now().millisecondsSinceEpoch}',
       name: serviceData['name'] as String,
       description: serviceData['description'] as String? ?? '',
       price: (serviceData['price'] as num).toDouble(),
@@ -397,8 +784,14 @@ class MockProService implements ProServiceInterface {
             ))
         .toList();
 
+    // Multi-pays MP1 mirror: the ledger carries the salon's currency.
+    final salon = MockData.providers.firstWhere(
+      (p) => p.id == providerId,
+      orElse: () => MockData.providers.first,
+    );
     return ApiResponse.success(EarningsData(
       totalEarnings: totalEarnings,
+      currency: salon.currency,
       transactions: transactions,
     ));
   }
@@ -427,7 +820,7 @@ class MockProService implements ProServiceInterface {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,
-    MobileMoneyOperator? mobileMoneyOperator,
+    String? mobileMoneyOperator,
     String? mobileMoneyNumber,
   }) async {
     await Future.delayed(AppConstants.mockDelay);

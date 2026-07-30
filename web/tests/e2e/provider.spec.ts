@@ -29,10 +29,55 @@ test('provider page renders sections + valid structured data', async ({
   expect(types.some((t) => localBusinessTypes.includes(t))).toBe(true);
 });
 
-test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
+test('gallery: tap a photo → fullscreen lightbox (parity 2.6)', async ({
   page,
 }) => {
   await page.goto('/beaute-divine');
+  await page.getByRole('button', { name: 'Agrandir la photo 1' }).click();
+  const box = page.getByRole('dialog', { name: 'Photo du salon' });
+  await expect(box).toBeVisible();
+  await box.click({ position: { x: 8, y: 8 } });
+  await expect(box).toBeHidden();
+});
+
+test('reviews: photo lightbox + anonymous « Signaler » prompts login (P2b)', async ({
+  page,
+}) => {
+  await page.goto('/beaute-divine');
+
+  // The stub review carries one photo → thumbnail, then the lightbox.
+  const thumb = page.getByRole('button', {
+    name: 'Agrandir la photo',
+    exact: true,
+  });
+  await expect(thumb).toBeVisible();
+  await thumb.click();
+  const lightbox = page.getByRole('dialog', { name: 'Photo de l’avis' });
+  await expect(lightbox).toBeVisible();
+  await lightbox.click({ position: { x: 8, y: 8 } }); // backdrop closes
+  await expect(lightbox).toBeHidden();
+
+  // « Signaler » signed-out → the login prompt with returnTo.
+  await page.getByRole('button', { name: 'Signaler', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Signaler', exact: true })
+    .click();
+  await expect(page.getByText('pour signaler cet avis.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Connectez-vous' })).toHaveAttribute(
+    'href',
+    '/connexion?returnTo=/beaute-divine',
+  );
+});
+
+test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
+  page,
+}) => {
+  // Hermetic: the lazy Localisation map must not fetch CARTO from CI.
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
+  await page.goto('/beaute-divine');
+
+  // T52/15.1: the « Vérifié » badge on the hero (stub salon is verified).
+  await expect(page.getByText('✔ Vérifié')).toBeVisible();
 
   // Avant/Après section (seeded pair).
   await expect(
@@ -40,8 +85,9 @@ test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   ).toBeVisible();
   await expect(page.getByText('Avant', { exact: true }).first()).toBeVisible();
 
-  // Interactive map (OpenStreetMap embed).
-  await expect(page.locator('iframe[title^="Carte"]')).toHaveCount(1);
+  // Localisation: the shared MapLibre map mounts lazily on approach.
+  await page.locator('[aria-label^="Carte"]').scrollIntoViewIfNeeded();
+  await expect(page.locator('.maplibregl-map')).toBeVisible();
 
   // Booking panel: "À partir de" + a Réserver link to the funnel.
   await expect(

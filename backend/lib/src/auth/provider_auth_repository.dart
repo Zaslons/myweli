@@ -80,6 +80,10 @@ typedef ProviderVerifyResult = ({
 /// attempt/resend budget, mirroring the consumer flow. In-memory now; a Postgres
 /// impl satisfies the same interface in a follow-up.
 abstract interface class ProviderAuthRepository {
+  /// Link a salon to an account (salon provisioning —
+  /// docs/design/pro-salon-lifecycle.md §2). Idempotent.
+  Future<void> linkProvider(String accountId, String providerId);
+
   // Phone OTP — dormant at launch (AUTH_METHODS gates the routes).
   Future<OtpRequestResult> requestOtp(String phoneNumber);
   Future<ProviderVerifyResult> verifyOtp(String phoneNumber, String code);
@@ -154,6 +158,24 @@ abstract interface class ProviderAuthRepository {
     required String status,
     String? rejectionReason,
   });
+
+  /// Erase the account identity (audit 11.5 — AUTH-004 for pros): the account
+  /// row (KYC docs live on it), its OTP state and EVERY refresh token go; all
+  /// sessions die. The salon LISTING is handled by the caller (unpublished,
+  /// not destroyed). Returns false when the id is unknown.
+  Future<bool> deleteAccount(String accountId);
+
+  /// A BARE member account for an invitation-accept (module `access` R2b):
+  /// no business fields, no salon — the membership is the relationship.
+  /// Verifies identity exactly like [register] (email OTP consumed here;
+  /// Google/Apple verified by the route). Dedup like register.
+  Future<ProviderVerifyResult> createMemberAccount({
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
+  });
 }
 
 class _Otp {
@@ -177,6 +199,11 @@ class _Refresh {
 }
 
 class InMemoryProviderAuthRepository implements ProviderAuthRepository {
+  @override
+  Future<void> linkProvider(String accountId, String providerId) async {
+    _byId[accountId]?.providerId = providerId;
+  }
+
   InMemoryProviderAuthRepository({
     required TokenService tokens,
     required bool isProd,
@@ -417,6 +444,57 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     );
   }
 
+  @override
+  Future<ProviderVerifyResult> createMemberAccount({
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
+  }) async {
+    final emailKey = email.trim().toLowerCase();
+    if (authProvider == 'email') {
+      final error = _checkOtpIn(_emailOtps, emailKey, emailCode ?? '');
+      if (error != null) {
+        return (ok: false, error: error, provider: null, tokens: null);
+      }
+    }
+    if (_byEmail.containsKey(emailKey) ||
+        (googleSub != null && _bySocial.containsKey('google:$googleSub')) ||
+        (appleSub != null && _bySocial.containsKey('apple:$appleSub'))) {
+      return (
+        ok: false,
+        error: 'provider_exists',
+        provider: null,
+        tokens: null,
+      );
+    }
+    // Bare: no business fields, no phone, NO salon (the R1 provisioning
+    // guard keeps ensureSalon away from membership-holding accounts).
+    final account = ProviderAccount(
+      id: _newId('provider'),
+      phoneNumber: '',
+      businessName: '',
+      businessType: 'other',
+      email: emailKey,
+      emailVerified: true,
+      authProvider: authProvider,
+      googleSub: googleSub,
+      appleSub: appleSub,
+      createdAt: DateTime.now().toUtc(),
+    );
+    _byId[account.id] = account;
+    _byEmail[emailKey] = account;
+    if (googleSub != null) _bySocial['google:$googleSub'] = account;
+    if (appleSub != null) _bySocial['apple:$appleSub'] = account;
+    return (
+      ok: true,
+      error: null,
+      provider: account,
+      tokens: _issueInFamily(account.id, _newId('fam')),
+    );
+  }
+
   /// Check a code in [store]; null = valid. [consume] removes it on success —
   /// login keeps `consume: false` on the not-found path (see verifyEmailOtp).
   String? _checkOtpIn(
@@ -523,6 +601,24 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
 
   void _revokeFamily(String familyId) =>
       _refreshByHash.removeWhere((_, r) => r.familyId == familyId);
+
+  @override
+  Future<bool> deleteAccount(String accountId) async {
+    final account = _byId.remove(accountId);
+    if (account == null) return false;
+    if (account.phoneNumber.isNotEmpty) {
+      _byPhone.remove(account.phoneNumber);
+      _otps.remove(account.phoneNumber);
+    }
+    final email = account.email?.toLowerCase();
+    if (email != null) {
+      _byEmail.remove(email);
+      _emailOtps.remove(email);
+    }
+    _bySocial.removeWhere((_, a) => a.id == accountId);
+    _refreshByHash.removeWhere((_, r) => r.accountId == accountId);
+    return true;
+  }
 
   ({String? code, String? devCode, int expiresInSeconds})? _issueOtp(
     String phoneNumber,

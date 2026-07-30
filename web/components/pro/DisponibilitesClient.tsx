@@ -1,28 +1,39 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Card } from '../Card';
+import { ErrorState } from '../ErrorState';
 import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
+import { DayHoursEditor } from './DayHoursEditor';
 import {
   type Availability,
   type DayForm,
   BUFFER_PRESETS,
+  daysToSchedule,
+  scheduleToDays,
   toApi,
   toEditable,
   validateHours,
 } from '../../lib/pro/availability';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
+import { ChipButton } from '../Chip';
 
 export function DisponibilitesClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState('');
   const [base, setBase] = useState<Availability | null>(null);
   const [days, setDays] = useState<DayForm[]>([]);
+  // Audit 3.8: « Pauses » — one recurring break per day (ex. déjeuner);
+  // hatches the journal grid and blocks slots.
+  const [breakDays, setBreakDays] = useState<DayForm[]>([]);
   const [buffer, setBuffer] = useState(0);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [newDate, setNewDate] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +63,7 @@ export function DisponibilitesClient() {
       setProviderId(me.profile.provider.id);
       setBase(a);
       setDays(toEditable(a));
+      setBreakDays(scheduleToDays(a?.breaks, { start: '12:30', end: '13:30' }));
       setBuffer(a.bufferMinutes ?? 0);
       setBlocked(a.blockedDates ?? []);
       setLoading(false);
@@ -59,7 +71,12 @@ export function DisponibilitesClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
+
+  function patchBreak(i: number, patch: Partial<DayForm>) {
+    setBreakDays((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+    setSaved(false);
+  }
 
   function patchDay(i: number, patch: Partial<DayForm>) {
     setDays((ds) => ds.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
@@ -74,12 +91,13 @@ export function DisponibilitesClient() {
     }
     setBusy(true);
     setError(null);
+    const breaks = daysToSchedule(breakDays, (base as Availability)?.breaks);
     const obj = toApi(days, {
       ...(base as Availability),
       bufferMinutes: buffer,
       blockedDates: blocked,
     });
-    const r = await saveAvailability(providerId, obj);
+    const r = await saveAvailability(providerId, { ...obj, breaks });
     setBusy(false);
     if (!r.ok) {
       setError('L’enregistrement a échoué. Réessayez.');
@@ -89,88 +107,78 @@ export function DisponibilitesClient() {
     setSaved(true);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (loadError) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Disponibilités" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const inputCls =
-    'rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
+    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Disponibilités</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Disponibilités</h1>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">Horaires</h2>
+      <Card as="section" className="mt-l">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Horaires</h2>
         <div className="mt-m space-y-s">
-          {days.map((d, i) => (
-            <div key={d.key} className="flex flex-wrap items-center gap-m">
-              <span className="w-28 text-textPrimary">{d.label}</span>
-              <label className="flex items-center gap-s text-sm text-textSecondary">
-                <input
-                  type="checkbox"
-                  checked={d.open}
-                  onChange={(e) => patchDay(i, { open: e.target.checked })}
-                />
-                Ouvert
-              </label>
-              {d.open ? (
-                <span className="flex items-center gap-s">
-                  <input
-                    type="time"
-                    aria-label={`${d.label} début`}
-                    className={inputCls}
-                    value={d.start}
-                    onChange={(e) => patchDay(i, { start: e.target.value })}
-                  />
-                  <span className="text-textTertiary">à</span>
-                  <input
-                    type="time"
-                    aria-label={`${d.label} fin`}
-                    className={inputCls}
-                    value={d.end}
-                    onChange={(e) => patchDay(i, { end: e.target.value })}
-                  />
-                </span>
-              ) : (
-                <span className="text-sm text-textTertiary">Fermé</span>
-              )}
-            </div>
-          ))}
+          <DayHoursEditor days={days} onPatch={patchDay} />
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">
+      <Card as="section" className="mt-l">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Pauses</h2>
+        <p className="mt-xs text-bodyMedium text-textSecondary">
+          Une pause récurrente par jour (ex. déjeuner). Elle bloque les
+          créneaux et apparaît hachurée dans la journée.
+        </p>
+        <div className="mt-m">
+          <DayHoursEditor
+            days={breakDays}
+            onLabel="Pause"
+            offLabel="Aucune"
+            onPatch={patchBreak}
+          />
+        </div>
+      </Card>
+
+      <Card as="section" className="mt-l">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Tampon entre rendez-vous
         </h2>
+        {/* B9's adversarial review found this: a five-item, mutually-exclusive
+            selection row — the same control family as the tab strips — at
+            **38px**, ten under §13.2's floor, on a route B9's own overflow
+            matrix now visits. It escaped the class-string sweep only because it
+            already wraps, which is why row 7h's "0 remaining" was wrong a fifth
+            time. `ChipButton` is the primitive for exactly this (its docstring:
+            "an INTERACTIVE chip: selection, filter, toggle"), it carries the
+            floor, and `RevenusClient.tsx:95` already uses it in this identical
+            `flex flex-wrap gap-s` shape. The hand-rolled version also used
+            `border-border` where §16 requires `borderStrong` on an outlined
+            chip. */}
         <div className="mt-m flex flex-wrap gap-s">
           {BUFFER_PRESETS.map((m) => (
-            <button
+            <ChipButton
               key={m}
-              type="button"
+              selected={buffer === m}
               onClick={() => {
                 setBuffer(m);
                 setSaved(false);
               }}
-              className={`rounded-lg border px-m py-s text-sm ${
-                buffer === m
-                  ? 'border-primary bg-primary text-secondary'
-                  : 'border-border bg-surface text-textPrimary'
-              }`}
             >
               {m} min
-            </button>
+            </ChipButton>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">Dates bloquées</h2>
+      <Card as="section" className="mt-l">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">Dates bloquées</h2>
         <div className="mt-m flex flex-wrap items-center gap-s">
           <input
             type="date"
+            aria-label="Date à bloquer"
             className={inputCls}
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
@@ -192,9 +200,13 @@ export function DisponibilitesClient() {
             {blocked.map((date) => (
               <li
                 key={date}
-                className="flex items-center justify-between gap-m text-sm"
+                className="flex items-center justify-between gap-m text-bodyMedium"
               >
-                <span className="text-textPrimary">{formatDateFr(date)}</span>
+                <span className="text-textPrimary">
+                  {/* Midday anchor: a blocked DATE is a salon-day identifier,
+                      stable at any wave offset (multi-pays MP3). */}
+                  {formatDateFr(`${date}T12:00:00.000Z`)}
+                </span>
                 <button
                   type="button"
                   className="text-textTertiary underline"
@@ -209,16 +221,17 @@ export function DisponibilitesClient() {
             ))}
           </ul>
         ) : (
-          <p className="mt-s text-sm text-textTertiary">Aucune date bloquée.</p>
+          <p className="mt-s text-bodyMedium text-textTertiary">Aucune date bloquée.</p>
         )}
-      </section>
+      </Card>
 
-      {error ? <p className="mt-m text-sm text-error">{error}</p> : null}
-      {saved ? (
-        <p className="mt-m text-sm text-textSecondary">
-          Disponibilités enregistrées.
-        </p>
-      ) : null}
+      {error ? <p role="alert" className="mt-m text-bodyMedium text-error">{error}</p> : null}
+      <p
+        role="status"
+        className={saved ? 'mt-m text-bodyMedium text-textSecondary' : 'sr-only'}
+      >
+        {saved ? 'Disponibilités enregistrées.' : ''}
+      </p>
 
       <div className="mt-l">
         <Button disabled={busy} onClick={save}>

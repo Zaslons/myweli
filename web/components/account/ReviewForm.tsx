@@ -1,17 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { isValidRating } from '../../lib/account/extras';
+import {
+  addPhoto,
+  canAddPhoto,
+  removePhoto,
+  uploadReviewPhoto,
+} from '../../lib/account/review-photos';
 import { submitReview } from '../../lib/api/account';
 import { Button } from '../Button';
+import { TextField } from '../TextField';
 
-/// Leave a review on a completed booking (1–5 stars + optional text).
+/// Leave a review on a completed booking (1–5 stars + optional text +
+/// up to 3 photos — the app's submit sheet, parity 2.13).
 export function ReviewForm({ appointmentId }: { appointmentId: string }) {
   const [rating, setRating] = useState(0);
+  const starRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [text, setText] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  async function onPickPhoto(file: File | undefined) {
+    if (!file || !canAddPhoto(photos)) return;
+    setUploading(true);
+    setError(null);
+    const url = await uploadReviewPhoto(file);
+    setUploading(false);
+    if (!url) {
+      setError('Échec de l’envoi de la photo. Réessayez.');
+      return;
+    }
+    setPhotos((cur) => addPhoto(cur, url));
+  }
 
   async function submit() {
     if (!isValidRating(rating)) {
@@ -23,6 +49,7 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
     const r = await submitReview(appointmentId, {
       rating,
       text: text.trim() || undefined,
+      photoUrls: photos.length > 0 ? photos : undefined,
     });
     setBusy(false);
     if (!r.ok) {
@@ -34,37 +61,119 @@ export function ReviewForm({ appointmentId }: { appointmentId: string }) {
 
   if (done) {
     return (
-      <p className="text-sm text-textSecondary">Merci pour votre avis&nbsp;!</p>
+      <p
+        ref={focusOnMount}
+        tabIndex={-1}
+        className="text-bodyLarge text-textSecondary"
+      >
+        Merci pour votre avis&nbsp;!
+      </p>
     );
   }
 
   return (
     <div>
       <p className="font-medium text-textPrimary">Laisser un avis</p>
-      <div className="mt-s flex gap-xs" role="radiogroup" aria-label="Note">
+      {/* §13.2: each star is a ≥48px target and adjacent targets sit ≥8px
+          apart (they were 24px glyphs 4px apart — both violations measured).
+          B5 (row 21): a REAL radio group — pick-one-of-five, not five toggles.
+          aria-pressed buttons inside a radiogroup are invalid ARIA children;
+          radios carry aria-checked on the CHOSEN value (the fill still paints
+          rating >= n), one roving tab stop, and arrows move + select. */}
+      <div className="mt-s flex gap-s" role="radiogroup" aria-label="Note">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
+            role="radio"
             aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
-            aria-pressed={rating >= n}
+            aria-checked={rating === n}
+            tabIndex={n === (rating || 1) ? 0 : -1}
             onClick={() => setRating(n)}
-            className={`text-2xl ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
+            onKeyDown={(e) => {
+              // APG radio pattern: arrows WRAP at the edges.
+              const next =
+                e.key === 'ArrowRight' || e.key === 'ArrowDown'
+                  ? (n % 5) + 1
+                  : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+                    ? ((n + 3) % 5) + 1
+                    : null;
+              if (next === null) return;
+              e.preventDefault();
+              setRating(next);
+              starRefs.current[next - 1]?.focus();
+            }}
+            ref={(el) => {
+              starRefs.current[n - 1] = el;
+            }}
+            className={`flex min-h-12 min-w-12 items-center justify-center text-iconM ${rating >= n ? 'text-textPrimary' : 'text-textTertiary'}`}
           >
             ★
           </button>
         ))}
       </div>
-      <textarea
+      <TextField
+        className="mt-s"
+        label="Votre expérience (optionnelle)"
+        multiline
+        rows={3}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={3}
-        placeholder="Votre expérience (optionnel)"
-        className="mt-s w-full rounded-lg border border-border bg-surface px-m py-s text-textPrimary"
       />
-      {error ? <p className="mt-xs text-sm text-error">{error}</p> : null}
+      {/* Photos (≤3), like the app's sheet. */}
       <div className="mt-s">
-        <Button disabled={busy} onClick={submit}>
+        {photos.length > 0 ? (
+          <div className="flex gap-s">
+            {photos.map((url, i) => (
+              <span key={url} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`Pièce jointe ${i + 1}`}
+                  className="h-16 w-16 rounded-lg object-cover"
+                />
+                {/* §13.2: the 48px TARGET is the button; the visible pill is the
+                    inner span, unmoved at the thumb's corner. */}
+                <button
+                  type="button"
+                  aria-label={`Retirer la photo ${i + 1}`}
+                  onClick={() => setPhotos((cur) => removePhoto(cur, i))}
+                  className="absolute -right-s -top-s flex h-12 w-12 items-center justify-center"
+                >
+                  <span className="rounded-pill bg-primary px-xs text-iconXS text-secondary">
+                    ✕
+                  </span>
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {canAddPhoto(photos) ? (
+          <div className="mt-s">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              aria-label="Photo de l’avis"
+              onChange={(e) => {
+                onPickPhoto(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            <Button
+              variant="secondary"
+              isLoading={uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              Ajouter une photo
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      {error ? <p role="alert" className="mt-xs text-bodyMedium text-error">{error}</p> : null}
+      <div className="mt-s">
+        <Button disabled={busy || uploading} onClick={submit}>
           Envoyer l’avis
         </Button>
       </div>

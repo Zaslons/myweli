@@ -3,13 +3,27 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/clients_repository.dart';
+import 'package:myweli_backend/src/clients/clients_service.dart';
+import 'package:myweli_backend/src/clients/provider_audit_log.dart';
+import 'package:myweli_backend/src/favorites_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_outbox_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_prefs_repository.dart';
 import 'package:myweli_backend/src/messaging/messaging_provider.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
+import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
+import 'package:myweli_backend/src/notifications/notifications_repository.dart';
+import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/reviews_repository.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/auth/otp/request.dart' as otp_request;
@@ -46,6 +60,47 @@ void main() {
     ).thenReturn(const AuthMethods(AuthMethods.defaults));
     when(() => context.read<TokenService>()).thenReturn(ts);
     when(() => context.read<MessagingService>()).thenReturn(messaging);
+    when(() => context.read<ClientsService>()).thenReturn(() {
+      final providerAuth = InMemoryProviderAuthRepository(
+        tokens: ts,
+        isProd: false,
+      );
+      return ClientsService(
+        providerAuth,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        repo,
+        InMemoryClientsRepository(),
+        InMemoryAppointmentRepository(),
+        InMemoryProviderAuditLogRepository(),
+      );
+    }());
+    // L1: `DELETE /me` now delegates the whole cascade to the erasure service.
+    // A REAL one over empty in-memory repos, not a mock — this test's point is
+    // that the user row actually disappears, and a stub would assert nothing.
+    when(() => context.read<UserErasureService>()).thenReturn(() {
+      final providerAuth = InMemoryProviderAuthRepository(
+        tokens: ts,
+        isProd: false,
+      );
+      return UserErasureService(
+        repo,
+        InMemoryDeviceTokenRepository(),
+        InMemoryNotificationsRepository(),
+        InMemoryNotificationPrefsRepository(),
+        InMemoryFavoritesRepository(),
+        InMemoryReviewsRepository(),
+        InMemoryAppointmentRepository(),
+        ClientsService(
+          providerAuth,
+          MembershipService(InMemoryMembershipRepository(), providerAuth),
+          repo,
+          InMemoryClientsRepository(),
+          InMemoryAppointmentRepository(),
+          InMemoryProviderAuditLogRepository(),
+        ),
+        const FakeStorageService(),
+      );
+    }());
     return context;
   }
 

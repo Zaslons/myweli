@@ -1,16 +1,54 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../models/pro_membership.dart';
 import '../../../models/provider_user.dart';
+import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/provider/salon_picker_sheet.dart';
+import '../../../widgets/team/team_role_chip.dart';
 
-class ProProfileScreen extends StatelessWidget {
+class ProProfileScreen extends StatefulWidget {
   const ProProfileScreen({super.key});
+
+  @override
+  State<ProProfileScreen> createState() => _ProProfileScreenState();
+}
+
+class _ProProfileScreenState extends State<ProProfileScreen> {
+  /// R6: open the « Mes salons » switcher; route the add flow and the
+  /// staff-shell reshape after a switch.
+  Future<void> _openSalonPicker() async {
+    final result = await showSalonPicker(context);
+    if (!mounted || result == null) return;
+    if (result == 'add') {
+      unawaited(context.push('/pro/salons/nouveau'));
+      return;
+    }
+    final auth = context.read<ProAuthProvider>();
+    context.go(auth.isStaff ? '/pro/staff' : '/pro/dashboard');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // The « Invitations » row only appears when the identity has pending
+    // team invitations (module access R3).
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<ProTeamProvider>().loadMyInvitations(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,126 +70,301 @@ class ProProfileScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacingM),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Nom de l\'entreprise',
-                          style: AppTextStyles.titleMedium
-                              .copyWith(color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          provider.businessName,
-                          style: AppTextStyles.bodyLarge
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Type d\'entreprise',
-                          style: AppTextStyles.titleMedium
-                              .copyWith(color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _getBusinessTypeLabel(provider.businessType),
-                          style: AppTextStyles.bodyLarge
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
-                        if (provider.address != null) ...[
-                          const SizedBox(height: 16),
+                if (authProvider.role != TeamRole.owner)
+                  // Member header (access R4b): a personal card — the salon
+                  // is not theirs to edit.
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppTheme.spacingM),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  (provider.name?.isNotEmpty ?? false)
+                                      ? provider.name!
+                                      : (provider.email ?? ''),
+                                  style: AppTextStyles.titleMedium.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              TeamRoleChip(role: authProvider.role),
+                            ],
+                          ),
+                          if (provider.email != null) ...[
+                            const SizedBox(height: AppTheme.spacingS),
+                            Text(
+                              provider.email!,
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: AppTheme.spacingM),
                           Text(
-                            'Adresse',
+                            'Salon',
                             style: AppTextStyles.titleMedium
                                 .copyWith(color: AppColors.textPrimary),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppTheme.spacingS),
                           Text(
-                            provider.address!,
+                            authProvider.salonName,
                             style: AppTextStyles.bodyLarge
                                 .copyWith(color: AppColors.textSecondary),
                           ),
                         ],
-                        const SizedBox(height: 16),
-                        Text(
-                          'Téléphone',
-                          style: AppTextStyles.titleMedium
-                              .copyWith(color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          provider.phoneNumber,
-                          style: AppTextStyles.bodyLarge
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.checklist_rounded),
-                    title: const Text('Configurer mon profil'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/onboarding'),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.verified_user_outlined),
-                    title: const Text('Vérification'),
-                    subtitle: Text(
-                      _verificationLabel(provider.verificationStatus),
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: _verificationColor(provider.verificationStatus),
                       ),
                     ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/verification'),
+                  )
+                else
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppTheme.spacingM),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Nom de l’entreprise',
+                            style: AppTextStyles.titleMedium
+                                .copyWith(color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: AppTheme.spacingS),
+                          Text(
+                            provider.businessName,
+                            style: AppTextStyles.bodyLarge
+                                .copyWith(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: AppTheme.spacingM),
+                          Text(
+                            'Type d’entreprise',
+                            style: AppTextStyles.titleMedium
+                                .copyWith(color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: AppTheme.spacingS),
+                          Text(
+                            _getBusinessTypeLabel(provider.businessType),
+                            style: AppTextStyles.bodyLarge
+                                .copyWith(color: AppColors.textSecondary),
+                          ),
+                          if (provider.address != null) ...[
+                            const SizedBox(height: AppTheme.spacingM),
+                            Text(
+                              'Adresse',
+                              style: AppTextStyles.titleMedium
+                                  .copyWith(color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: AppTheme.spacingS),
+                            Text(
+                              provider.address!,
+                              style: AppTextStyles.bodyLarge
+                                  .copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
+                          const SizedBox(height: AppTheme.spacingM),
+                          Text(
+                            'Téléphone',
+                            style: AppTextStyles.titleMedium
+                                .copyWith(color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: AppTheme.spacingS),
+                          Text(
+                            provider.phoneNumber,
+                            style: AppTextStyles.bodyLarge
+                                .copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.spacingM),
+                // « Mes salons » (R6): every membership + the switcher — for
+                // ALL roles (a member can belong to several salons too).
                 Card(
                   child: ListTile(
-                    leading: const Icon(Icons.workspace_premium_outlined),
-                    title: const Text('Mon abonnement'),
+                    leading: const Icon(Icons.storefront),
+                    title: const Text('Mes salons'),
+                    subtitle: Text(
+                      authProvider.hasMultipleSalons
+                          ? '${authProvider.salons.length} salons — '
+                              'actif : ${authProvider.salonName}'
+                          : authProvider.salonName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/subscription'),
+                    onTap: _openSalonPicker,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingM),
+                // Role-gated rows (access R4b) — UI hiding is convenience;
+                // the routes 403 server-side regardless.
+                if (authProvider.can(ProCap.salonPublish)) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.checklist_rounded),
+                      title: const Text('Configurer mon profil'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/onboarding'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingM),
+                ],
+                if (authProvider.can(ProCap.profileManage)) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.storefront_outlined),
+                      title: const Text('Profil du salon'),
+                      subtitle: const Text('Infos publiques, catégorie, carte'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/salon-profile'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingM),
+                ],
+                if (authProvider.can(ProCap.salonPublish)) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.verified_user_outlined),
+                      title: const Text('Vérification'),
+                      subtitle: Text(
+                        _verificationLabel(provider.verificationStatus),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color:
+                              _verificationColor(provider.verificationStatus),
+                        ),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/verification'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingM),
+                ],
+                if (authProvider.can(ProCap.membersManage)) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.group_outlined),
+                      title: const Text('Équipe'),
+                      subtitle: const Text('Invitez et gérez vos accès'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/team'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+                ],
+                Consumer<ProTeamProvider>(
+                  builder: (context, team, _) => team.invitationCount == 0
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: AppTheme.spacingS),
+                          child: Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.mail_outline),
+                              title: const Text('Invitations'),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppTheme.spacingS,
+                                      vertical: AppTheme.spacingXS,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(
+                                        AppTheme.radiusSmall,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '${team.invitationCount}',
+                                      style: AppTextStyles.labelSmall.copyWith(
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              ),
+                              onTap: () => context.push('/pro/invitations'),
+                            ),
+                          ),
+                        ),
+                ),
+                if (authProvider.can(ProCap.subscriptionManage)) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.workspace_premium_outlined),
+                      title: const Text('Mon abonnement'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/subscription'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+                ],
+                if (authProvider.can(ProCap.depositManage)) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.payments_outlined),
+                      title: const Text('Paramètres d’acompte'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/deposit-settings'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+                ],
+                if (authProvider.can(ProCap.catalogueManage)) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.photo_library_outlined),
+                      title: const Text('Photos du salon'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/photos'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.compare_outlined),
+                      title: const Text('Avant / Après'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/before-after'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+                ],
+                if (authProvider.can(ProCap.salonPublish))
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.download_outlined),
+                      title: const Text('Mes données'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/pro/data-export'),
+                    ),
+                  ),
+                const SizedBox(height: AppTheme.spacingL),
+                // L1 — legal is NOT capability-gated: every role, and a signed-out store
+                // reviewer, must reach the privacy policy. Above « Déconnexion » so
+                // `pro_profile_role_test`'s existing scroll ladder still reaches it.
+                // Hand-written in this file's own `Card { ListTile }` idiom rather
+                // than `SettingsTile`: its thirteen rows are all built this way, and
+                // unifying them is a refactor that does not belong in a
+                // store-submission change.
                 Card(
                   child: ListTile(
-                    leading: const Icon(Icons.payments_outlined),
-                    title: const Text('Paramètres d\'acompte'),
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('À propos'),
+                    subtitle:
+                        const Text('Confidentialité, CGU, mentions légales'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/deposit-settings'),
+                    onTap: () => context.push('/a-propos'),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.photo_library_outlined),
-                    title: const Text('Photos du salon'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/photos'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.compare_outlined),
-                    title: const Text('Avant / Après'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/pro/before-after'),
-                  ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingM),
+
                 AppButton(
                   text: 'Déconnexion',
                   type: AppButtonType.secondary,
@@ -162,12 +375,57 @@ class ProProfileScreen extends StatelessWidget {
                     }
                   },
                 ),
+                const SizedBox(height: AppTheme.spacingSM),
+                // Audit 11.5 (AUTH-004 pros): definitive account deletion.
+                AppButton(
+                  text: 'Supprimer mon compte',
+                  type: AppButtonType.text,
+                  onPressed: () => _deleteAccount(context, authProvider),
+                ),
               ],
             ),
           );
         },
       ),
     );
+  }
+
+  /// Double-confirm deletion (audit 11.5): warn, call the self-scoped
+  /// DELETE, map `future_bookings`, then sign out.
+  Future<void> _deleteAccount(
+    BuildContext context,
+    ProAuthProvider authProvider,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer votre compte ?',
+      message: 'Cette action est définitive. Votre salon sera retiré de '
+          'MyWeli. Pensez à exporter vos données avant.',
+      confirmLabel: 'Supprimer définitivement',
+      icon: Icons.warning_amber_rounded,
+      // A6 closes the ladder's asymmetry: the CONSUMER account delete has
+      // asked you to type SUPPRIMER since it shipped, while the PRO salon
+      // delete — the same irreversible + high-value rung, and a whole salon —
+      // asked for one tap. §15 says both get type-to-confirm.
+      confirmWord: 'SUPPRIMER',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final res = await serviceLocator.proService.deleteProviderAccount();
+    if (!res.success) {
+      AppSnackBar.showOn(
+          messenger,
+          res.code == 'future_bookings'
+              ? 'Terminez ou annulez vos rendez-vous à venir avant de '
+                  'supprimer votre compte.'
+              : res.error ?? 'La suppression a échoué.',
+          kind: SnackKind.error);
+      return;
+    }
+    await authProvider.logout();
+    router.go('/pro/login');
   }
 
   String _getBusinessTypeLabel(BusinessType type) {

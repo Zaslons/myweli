@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/pro_auth_provider.dart';
+import '../../screens/profile/about_screen.dart';
 import '../../screens/provider/appointments/appointment_list_screen.dart';
 import '../../screens/provider/appointments/pro_appointment_detail_screen.dart';
 import '../../screens/provider/appointments/pro_manual_booking_screen.dart';
@@ -11,18 +12,29 @@ import '../../screens/provider/auth/pro_login_screen.dart';
 import '../../screens/provider/auth/pro_register_screen.dart';
 import '../../screens/provider/auth/pro_splash_screen.dart';
 import '../../screens/provider/availability/availability_screen.dart';
+import '../../screens/provider/clients/client_detail_screen.dart';
+import '../../screens/provider/clients/client_list_screen.dart';
 import '../../screens/provider/dashboard/dashboard_screen.dart';
 import '../../screens/provider/earnings/earnings_screen.dart';
+import '../../screens/provider/journal/pro_journal_screen.dart';
+import '../../screens/provider/notifications/pro_notifications_screen.dart';
 import '../../screens/provider/onboarding/pro_kyc_screen.dart';
 import '../../screens/provider/onboarding/pro_onboarding_screen.dart';
 import '../../screens/provider/photos/pro_before_after_screen.dart';
 import '../../screens/provider/photos/pro_photos_screen.dart';
+import '../../screens/provider/profile/pro_data_export_screen.dart';
 import '../../screens/provider/profile/pro_profile_screen.dart';
+import '../../screens/provider/profile/pro_salon_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
+import '../../screens/provider/salons/add_salon_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
+import '../../screens/provider/staff/staff_home_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
+import '../../screens/provider/team/pro_invitations_screen.dart';
+import '../../screens/provider/team/team_screen.dart';
+import '../../screens/providers/provider_detail_screen.dart';
 
 class ProRouter {
   static final GoRouter router = GoRouter(
@@ -49,10 +61,40 @@ class ProRouter {
       // /pro/verify-otp unrouted — phone-OTP login is dormant at launch
       // (AUTH_METHODS gates the backend; ProOtpVerifyScreen kept for the
       // Termii-era phone VERIFICATION reuse). docs/design/pro-auth-social.md.
+      // The Collaborateur shell (access R4b): Journée · Calendrier · Profil.
+      GoRoute(
+        path: '/pro/staff',
+        name: 'pro-staff',
+        builder: (context, state) => const StaffHomeScreen(),
+      ),
       GoRoute(
         path: '/pro/dashboard',
         name: 'pro-dashboard',
         builder: (context, state) => const DashboardScreen(),
+      ),
+      // The salon's notification centre — the provider-directed events
+      // (docs/design/push-notifications-fcm.md §10). Opened by the dashboard
+      // bell and by a tapped push.
+      GoRoute(
+        path: '/pro/notifications',
+        name: 'pro-notifications',
+        builder: (context, state) => const ProNotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/pro/clients',
+        name: 'pro-clients',
+        builder: (context, state) => const ClientListScreen(),
+      ),
+      GoRoute(
+        path: '/pro/clients/:id',
+        name: 'pro-client-detail',
+        builder: (context, state) =>
+            ClientDetailScreen(clientId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/pro/journal',
+        name: 'pro-journal',
+        builder: (context, state) => const ProJournalScreen(),
       ),
       GoRoute(
         path: '/pro/appointments',
@@ -63,14 +105,31 @@ class ProRouter {
         // Registered before ':id' so "new" isn't matched as an appointment id.
         path: '/pro/appointment/new',
         name: 'pro-appointment-new',
-        builder: (context, state) => const ProManualBookingScreen(),
+        builder: (context, state) {
+          // Prefill from the client card (module clients C1c).
+          final extra = state.extra as Map<String, dynamic>?;
+          final dt = extra?['dateTime'] as String?;
+          return ProManualBookingScreen(
+            initialClientName: extra?['clientName'] as String?,
+            initialClientPhone: extra?['clientPhone'] as String?,
+            initialDateTime: dt == null ? null : DateTime.tryParse(dt),
+            initialArtistId: extra?['artistId'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/pro/appointment/:id',
         name: 'pro-appointment-detail',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return ProAppointmentDetailScreen(appointmentId: id);
+          // `?salon=` — a salon notification (push OR feed row) may belong to
+          // another of the account's salons; the screen switches to it before
+          // loading (R6). See docs/design/push-notifications-fcm.md §10.
+          final salonId = state.uri.queryParameters['salon'];
+          return ProAppointmentDetailScreen(
+            appointmentId: id,
+            salonId: salonId,
+          );
         },
       ),
       GoRoute(
@@ -120,11 +179,16 @@ class ProRouter {
         builder: (context, state) => const ProProfileScreen(),
       ),
       GoRoute(
+        path: '/pro/salon-profile',
+        name: 'pro-salon-profile',
+        builder: (context, state) => const ProSalonProfileScreen(),
+      ),
+      GoRoute(
         path: '/pro/deposit-settings',
         name: 'pro-deposit-settings',
         builder: (context, state) {
           final providerId =
-              context.read<ProAuthProvider>().provider?.providerId ?? '';
+              context.read<ProAuthProvider>().activeSalonId ?? '';
           return DepositSettingsScreen(providerId: providerId);
         },
       ),
@@ -133,10 +197,36 @@ class ProRouter {
         name: 'pro-subscription',
         builder: (context, state) => const ProSubscriptionScreen(),
       ),
+      // Team access R3 (docs/design/team-access-r3-app.md).
+      GoRoute(
+        path: '/pro/team',
+        name: 'pro-team',
+        builder: (context, state) => const TeamScreen(),
+      ),
+      GoRoute(
+        path: '/pro/salons/nouveau',
+        name: 'pro-add-salon',
+        builder: (context, state) => const AddSalonScreen(),
+      ),
+      GoRoute(
+        path: '/pro/invitations',
+        name: 'pro-invitations',
+        builder: (context, state) => const ProInvitationsScreen(),
+      ),
       GoRoute(
         path: '/pro/verification',
         name: 'pro-verification',
         builder: (context, state) => const ProKycScreen(),
+      ),
+      GoRoute(
+        path: '/pro/apercu',
+        name: 'pro-apercu',
+        builder: (context, state) {
+          // Owner preview of the public listing (pro-salon-lifecycle B5).
+          final providerId =
+              context.read<ProAuthProvider>().activeSalonId ?? '';
+          return ProviderDetailScreen(providerId: providerId, preview: true);
+        },
       ),
       GoRoute(
         path: '/pro/onboarding',
@@ -147,6 +237,18 @@ class ProRouter {
         path: '/pro/earnings',
         name: 'pro-earnings',
         builder: (context, state) => const EarningsScreen(),
+      ),
+      GoRoute(
+        path: '/pro/data-export',
+        name: 'pro-data-export',
+        builder: (context, state) => const ProDataExportScreen(),
+      ),
+      // L1 — the SAME screen the consumer app registers at the same path. One
+      // legal surface, two apps, no capability gate: legal is not a permission.
+      GoRoute(
+        path: '/a-propos',
+        name: 'pro-about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/pro/photos',

@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/artist.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/pro_artist_service_interface.dart';
 
-class ProArtistProvider extends ChangeNotifier {
+class ProArtistProvider extends ChangeNotifier implements SalonScoped {
   final ProArtistServiceInterface _artistService =
       serviceLocator.proArtistService;
   final ImageUploadServiceInterface _uploadService =
@@ -151,5 +152,16 @@ class ProArtistProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _artists = [];
+    _isLoading = false;
+    _isUploadingAvatar = false;
+    _avatarProgress = 0;
+    _error = null;
+    notifyListeners();
   }
 }

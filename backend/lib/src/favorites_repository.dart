@@ -10,6 +10,10 @@ abstract interface class FavoritesRepository {
 
   /// Remove a favorite (idempotent — removing a non-favorite is a no-op).
   Future<void> remove(String userId, String providerId);
+  // ---- Privacy (L1 erasure) ------------------------------------------------
+
+  /// Every favourite this subject holds. Called on account erasure.
+  Future<void> deleteForUser(String userId);
 }
 
 class InMemoryFavoritesRepository implements FavoritesRepository {
@@ -30,4 +34,7 @@ class InMemoryFavoritesRepository implements FavoritesRepository {
   Future<void> remove(String userId, String providerId) async {
     _byUser[userId]?.remove(providerId);
   }
+
+  @override
+  Future<void> deleteForUser(String userId) async => _byUser.remove(userId);
 }

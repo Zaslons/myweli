@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/review.dart';
 import '../services/interfaces/review_service_interface.dart';
 
-class ProReviewsProvider extends ChangeNotifier {
+class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
   final ReviewServiceInterface _reviewService = serviceLocator.reviewService;
 
   List<Review> _reviews = [];
@@ -44,5 +45,15 @@ class ProReviewsProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _reviews = [];
+    _isLoading = false;
+    _error = null;
+    _currentProviderId = null;
+    notifyListeners();
   }
 }

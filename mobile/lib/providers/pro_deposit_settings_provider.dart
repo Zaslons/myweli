@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
-import '../models/payment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Holds the editable deposit policy for the signed-in provider and persists it
 /// through [ProServiceInterface].
-class ProDepositSettingsProvider extends ChangeNotifier {
+class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
 
   bool _isLoading = false;
@@ -16,7 +16,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
   bool _depositRequired = false;
   double _depositPercentage = 0.30;
   int _cancellationWindowHours = 24;
-  MobileMoneyOperator? _mobileMoneyOperator;
+  String? _mobileMoneyOperator;
   String _mobileMoneyNumber = '';
 
   bool get isLoading => _isLoading;
@@ -26,7 +26,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
   bool get depositRequired => _depositRequired;
   double get depositPercentage => _depositPercentage;
   int get cancellationWindowHours => _cancellationWindowHours;
-  MobileMoneyOperator? get mobileMoneyOperator => _mobileMoneyOperator;
+  String? get mobileMoneyOperator => _mobileMoneyOperator;
   String get mobileMoneyNumber => _mobileMoneyNumber;
 
   void setDepositRequired(bool value) {
@@ -34,7 +34,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setMobileMoneyOperator(MobileMoneyOperator value) {
+  void setMobileMoneyOperator(String value) {
     _mobileMoneyOperator = value;
     notifyListeners();
   }
@@ -100,7 +100,7 @@ class ProDepositSettingsProvider extends ChangeNotifier {
         _error = null;
         return true;
       }
-      _error = response.error ?? "Erreur lors de l'enregistrement";
+      _error = response.error ?? 'Erreur lors de l’enregistrement';
       return false;
     } catch (e) {
       _error = e.toString();
@@ -109,5 +109,20 @@ class ProDepositSettingsProvider extends ChangeNotifier {
       _isSaving = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _isLoading = false;
+    _isSaving = false;
+    _loadFailed = false;
+    _error = null;
+    _depositRequired = false;
+    _depositPercentage = 0.30;
+    _cancellationWindowHours = 24;
+    _mobileMoneyOperator = null;
+    _mobileMoneyNumber = '';
+    notifyListeners();
   }
 }

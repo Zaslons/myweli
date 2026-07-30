@@ -97,5 +97,23 @@ void main() {
       expect(provider.outbox, isNotEmpty);
       expect(provider.outbox.last.template, MessageTemplate.bookingConfirmed);
     });
+
+    test(
+        'the confirmation renders the SALON wall-clock + FCFA for XAF '
+        '(multi-pays MP2)', () async {
+      final provider = MessagingProvider();
+      await provider.sendBookingConfirmation(
+        recipientPhone: '+2410701020305',
+        providerName: 'Institut Libreville',
+        dateTime: DateTime.utc(2026, 6, 23, 9), // = 10:00 in Libreville
+        depositAmount: 6000,
+        tz: 'Africa/Libreville',
+        currency: 'XAF',
+      );
+      final body = provider.outbox.last.body;
+      expect(body, contains('10:00')); // salon wall-clock, not 09:00Z
+      expect(body, contains('FCFA')); // XAF reads FCFA
+      expect(body, isNot(contains('XAF')));
+    });
   });
 }

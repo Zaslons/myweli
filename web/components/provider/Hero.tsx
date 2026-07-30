@@ -1,4 +1,6 @@
 import Image from 'next/image';
+import { Chip } from '../Chip';
+import { Rating } from '../Rating';
 import type { Provider } from '../../lib/api/providers';
 import { categoryLabelFr } from '../../lib/seo/jsonld';
 import { BookingCta } from '../BookingCta';
@@ -23,13 +25,18 @@ export function ProviderHero({ provider }: { provider: Provider }) {
         </div>
       ) : null}
       <div className="px-m py-l">
-        <p className="text-sm text-textTertiary">{sub}</p>
-        <h1 className="mt-xs text-3xl font-semibold text-textPrimary">
+        <p className="text-bodyMedium text-textTertiary">{sub}</p>
+        <h1 className="mt-xs flex items-center gap-s text-headlineMedium font-semibold text-textPrimary">
           {provider.name}
+          {provider.verified ? (
+            <Chip variant="tinted" tint="info">
+              ✔ Vérifié
+            </Chip>
+          ) : null}
         </h1>
         {provider.reviewCount > 0 ? (
-          <p className="mt-xs text-sm text-textSecondary">
-            ★ {provider.rating.toFixed(1)} · {provider.reviewCount} avis
+          <p className="mt-xs text-bodyMedium text-textSecondary">
+            <Rating value={provider.rating} count={provider.reviewCount} />
           </p>
         ) : null}
         <div className="mt-m">

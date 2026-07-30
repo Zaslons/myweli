@@ -27,6 +27,20 @@ class Appointment extends Equatable {
   /// Walk-in client details for a manually-entered booking (no app account).
   /// Null for bookings made by an app user.
   final String? clientName;
+
+  /// Who the booking is FOR, as the salon should see it (A13).
+  ///
+  /// **Not the same field as [clientName], deliberately.** `clientName` is the
+  /// name the SALON typed on a manually-created booking — the pro app gates its
+  /// « Réservé par votre salon » badge on it being non-null — and the backend writes
+  /// it as `null` for every app-originated booking. So the pro app rendered the
+  /// literal « Client » for every booking made through the consumer app.
+  ///
+  /// The backend resolves this one from the salon's own client record, which is
+  /// written at booking time and anonymised when the user erases their account.
+  /// **Absent when the salon may not see it**: it is stripped together with
+  /// `clientPhone` on off-day bookings for an own-scope Collaborateur.
+  final String? clientDisplayName;
   final String? clientPhone;
   final String? notes;
 
@@ -34,6 +48,24 @@ class Appointment extends Equatable {
   /// paid directly to the salon; Myweli doesn't process it).
   final String? depositScreenshotUrl;
   final DateTime createdAt;
+
+  /// PROVIDER VIEW ONLY (module clients C1): the salon-client row this booking
+  /// resolves to, and the client's no-show count at this salon (the badge —
+  /// neutral at 1, red from 2). Null on consumer payloads.
+  final String? salonClientId;
+  final int? clientNoShowCount;
+
+  /// Journal J1b: the in-day « Client arrivé » stamp + total service duration
+  /// (for grid geometry). Provider-view/enriched fields.
+  final DateTime? arrivedAt;
+  final int? durationMinutes;
+
+  /// Multi-pays MP2 (multi-pays-end-version.md §3–4): the record's stamped
+  /// currency + the salon's market facts enriched onto consumer reads —
+  /// every display renders the SALON's clock and currency.
+  final String? currency;
+  final String? providerTimezone;
+  final String? providerCurrency;
 
   const Appointment({
     required this.id,
@@ -48,10 +80,18 @@ class Appointment extends Equatable {
     this.balanceDue = 0,
     this.cancellationWindowHours = 24,
     this.clientName,
+    this.clientDisplayName,
     this.clientPhone,
     this.notes,
     this.depositScreenshotUrl,
     required this.createdAt,
+    this.salonClientId,
+    this.clientNoShowCount,
+    this.arrivedAt,
+    this.durationMinutes,
+    this.currency,
+    this.providerTimezone,
+    this.providerCurrency,
   });
 
   @override
@@ -68,10 +108,18 @@ class Appointment extends Equatable {
         balanceDue,
         cancellationWindowHours,
         clientName,
+        clientDisplayName,
         clientPhone,
         notes,
         depositScreenshotUrl,
         createdAt,
+        salonClientId,
+        clientNoShowCount,
+        arrivedAt,
+        durationMinutes,
+        currency,
+        providerTimezone,
+        providerCurrency,
       ];
 
   Appointment copyWith({
@@ -87,10 +135,18 @@ class Appointment extends Equatable {
     double? balanceDue,
     int? cancellationWindowHours,
     String? clientName,
+    String? clientDisplayName,
     String? clientPhone,
     String? notes,
     String? depositScreenshotUrl,
     DateTime? createdAt,
+    String? salonClientId,
+    int? clientNoShowCount,
+    DateTime? arrivedAt,
+    int? durationMinutes,
+    String? currency,
+    String? providerTimezone,
+    String? providerCurrency,
   }) {
     return Appointment(
       id: id ?? this.id,
@@ -106,10 +162,18 @@ class Appointment extends Equatable {
       cancellationWindowHours:
           cancellationWindowHours ?? this.cancellationWindowHours,
       clientName: clientName ?? this.clientName,
+      clientDisplayName: clientDisplayName ?? this.clientDisplayName,
       clientPhone: clientPhone ?? this.clientPhone,
       notes: notes ?? this.notes,
       depositScreenshotUrl: depositScreenshotUrl ?? this.depositScreenshotUrl,
       createdAt: createdAt ?? this.createdAt,
+      salonClientId: salonClientId ?? this.salonClientId,
+      clientNoShowCount: clientNoShowCount ?? this.clientNoShowCount,
+      arrivedAt: arrivedAt ?? this.arrivedAt,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      currency: currency ?? this.currency,
+      providerTimezone: providerTimezone ?? this.providerTimezone,
+      providerCurrency: providerCurrency ?? this.providerCurrency,
     );
   }
 
@@ -127,10 +191,18 @@ class Appointment extends Equatable {
       'balanceDue': balanceDue,
       'cancellationWindowHours': cancellationWindowHours,
       'clientName': clientName,
+      'clientDisplayName': clientDisplayName,
       'clientPhone': clientPhone,
       'notes': notes,
       'depositScreenshotUrl': depositScreenshotUrl,
       'createdAt': createdAt.toIso8601String(),
+      if (salonClientId != null) 'salonClientId': salonClientId,
+      if (clientNoShowCount != null) 'clientNoShowCount': clientNoShowCount,
+      if (arrivedAt != null) 'arrivedAt': arrivedAt!.toIso8601String(),
+      if (durationMinutes != null) 'durationMinutes': durationMinutes,
+      if (currency != null) 'currency': currency,
+      if (providerTimezone != null) 'providerTimezone': providerTimezone,
+      if (providerCurrency != null) 'providerCurrency': providerCurrency,
     };
   }
 
@@ -151,10 +223,20 @@ class Appointment extends Equatable {
       balanceDue: (json['balanceDue'] as num?)?.toDouble() ?? 0,
       cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       clientName: json['clientName'] as String?,
+      clientDisplayName: json['clientDisplayName'] as String?,
       clientPhone: json['clientPhone'] as String?,
       notes: json['notes'] as String?,
       depositScreenshotUrl: json['depositScreenshotUrl'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      salonClientId: json['salonClientId'] as String?,
+      clientNoShowCount: (json['clientNoShowCount'] as num?)?.toInt(),
+      arrivedAt: json['arrivedAt'] == null
+          ? null
+          : DateTime.tryParse(json['arrivedAt'] as String),
+      durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
+      currency: json['currency'] as String?,
+      providerTimezone: json['providerTimezone'] as String?,
+      providerCurrency: json['providerCurrency'] as String?,
     );
   }
 }

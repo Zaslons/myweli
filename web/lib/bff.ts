@@ -81,13 +81,26 @@ export function respond(result: ApiResult): NextResponse {
 type RawAppt = Record<string, unknown> & {
   providerId?: string;
   serviceIds?: string[];
+  artistId?: string | null;
   userId?: string;
+  providerTimezone?: string | null;
+  providerCurrency?: string | null;
+  providerCountryCode?: string | null;
 };
 
 type ProviderSummary = {
   name?: string;
   slug?: string;
   services?: { id: string; name: string }[];
+  artists?: { id: string; name: string }[];
+  phoneNumber?: string | null;
+  whatsapp?: string | null;
+  depositMobileMoneyOperator?: string | null;
+  depositMobileMoneyNumber?: string | null;
+  /// Multi-pays MP1 market fields (public) — the consumer carriers.
+  timezone?: string | null;
+  currency?: string | null;
+  countryCode?: string | null;
 };
 
 async function providerSummary(id: string): Promise<ProviderSummary> {
@@ -102,9 +115,25 @@ function enrichOneWith(a: RawAppt, p: ProviderSummary) {
     ...a,
     providerName: p.name,
     providerSlug: p.slug,
+    // Parity 1.6: contact actions on the consumer detail (public fields).
+    providerPhone: p.phoneNumber ?? null,
+    providerWhatsapp: p.whatsapp ?? null,
+    // Parity 1.8: show the chosen spécialiste on the consumer detail.
+    artistName: a.artistId
+      ? ((p.artists ?? []).find((x) => x.id === a.artistId)?.name ?? null)
+      : null,
     serviceNames: (a.serviceIds ?? [])
       .map((id) => byId.get(id))
       .filter((n): n is string => Boolean(n)),
+    // K2: the detail's deposit-attach block shows the salon's Mobile Money
+    // coordinates (public policy fields, not PII).
+    depositMobileMoneyOperator: p.depositMobileMoneyOperator ?? null,
+    depositMobileMoneyNumber: p.depositMobileMoneyNumber ?? null,
+    // Multi-pays carriers: the backend stamps these on enriched payloads
+    // (MP1); the provider summary backfills pre-MP1 rows.
+    providerTimezone: a.providerTimezone ?? p.timezone ?? null,
+    providerCurrency: a.providerCurrency ?? p.currency ?? null,
+    providerCountryCode: a.providerCountryCode ?? p.countryCode ?? null,
     salonEntered: a.userId === 'manual',
   };
 }

@@ -2,12 +2,15 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
@@ -18,8 +21,13 @@ class _MockRequestContext extends Mock implements RequestContext {}
 
 class _MockNotifier extends Mock implements BookingNotifier {}
 
+class _MockSalonNotifier extends Mock implements SalonNotifier {}
+
 void main() {
-  setUpAll(() => registerFallbackValue(MessageTemplate.bookingConfirmed));
+  setUpAll(() {
+    registerFallbackValue(MessageTemplate.bookingConfirmed);
+    registerFallbackValue(SalonEvent.newBooking);
+  });
   late InMemoryAppointmentRepository appts;
   late InMemoryProviderAuthRepository providerAuth;
   late DepositService service;
@@ -61,7 +69,11 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
-    service = DepositService(appts, providerAuth, const FakeStorageService());
+    service = DepositService(
+      appts,
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
+      const FakeStorageService(),
+    );
     final p1 = await providerAuth.register(
       email: 'reg8@test.pro',
       authProvider: 'google',
@@ -158,6 +170,10 @@ void main() {
       when(() => context.read<TokenService>()).thenReturn(tokens);
       when(() => context.read<DepositService>()).thenReturn(service);
       final notifier = _MockNotifier();
+      // The salon team also hears about an attached justificatif (design §10).
+      final salonNotifier = _MockSalonNotifier();
+      when(() => salonNotifier.notify(any(), any())).thenAnswer((_) async {});
+      when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
       when(() => notifier.notify(any(), any())).thenAnswer((_) async {});
       when(() => context.read<BookingNotifier>()).thenReturn(notifier);
       return context;

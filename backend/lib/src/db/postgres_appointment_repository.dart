@@ -33,8 +33,6 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           '@balance_due, @cancellation_window_hours, @client_name:text, '
           '@client_phone:text, @notes:text, @deposit_screenshot_url:text, '
           '@created_at:timestamptz) '
-          "ON CONFLICT (provider_id, appointment_date) "
-          "WHERE (status IN ('pending', 'confirmed')) DO NOTHING "
           'RETURNING *',
         ),
         parameters: {
@@ -58,11 +56,12 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           'created_at': DateTime.parse(a['createdAt'] as String),
         },
       );
-      if (result.isEmpty) return null; // exact-start conflict (unique index)
+      if (result.isEmpty) return null;
       return _toDto(result.first.toColumnMap());
     } on ServerException catch (e) {
-      // Duration-overlap exclusion (btree_gist, 23P01) → the slot is taken.
-      if (e.code == '23P01') return null;
+      // Per-artist guards (migration 0026): exact-start unique (23505) or
+      // duration-overlap exclusion (23P01) → the slot is taken.
+      if (e.code == '23P01' || e.code == '23505') return null;
       rethrow;
     }
   }
@@ -157,6 +156,16 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       sets.add('deposit_screenshot_url = @dsu:text');
       params['dsu'] = changes['depositScreenshotUrl'];
     }
+    if (changes.containsKey('arrivedAt')) {
+      sets.add('arrived_at = @arrived:timestamptz');
+      params['arrived'] = changes['arrivedAt'] == null
+          ? null
+          : DateTime.parse(changes['arrivedAt'] as String);
+    }
+    if (changes.containsKey('artistId')) {
+      sets.add('artist_id = @artist:text');
+      params['artist'] = changes['artistId'];
+    }
     if (sets.isEmpty) return byId(id);
     try {
       final result = await _pool.execute(
@@ -198,6 +207,7 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       'notes': r['notes'],
       'depositScreenshotUrl': r['deposit_screenshot_url'],
       'createdAt': (r['created_at'] as DateTime).toUtc().toIso8601String(),
+      'arrivedAt': (r['arrived_at'] as DateTime?)?.toUtc().toIso8601String(),
     };
   }
 
@@ -233,6 +243,32 @@ class PostgresAppointmentRepository implements AppointmentRepository {
               .toUtc()
               .toIso8601String(),
         },
+    ];
+  }
+
+  @override
+  Future<List<String>> anonymizeUser(String userId) async {
+    // One round-trip, and deliberately so. Postgres has no `RETURNING OLD.*`,
+    // and the deposit keys must be read BEFORE the column is cleared — a CTE
+    // reads the pre-statement snapshot, so "the key I returned" and "the key I
+    // cleared" are the same set by construction rather than by luck.
+    final rows = await _pool.execute(
+      Sql.named('''
+WITH victims AS (
+  SELECT deposit_screenshot_url AS key FROM appointments
+   WHERE user_id = @uid AND deposit_screenshot_url IS NOT NULL
+), cleared AS (
+  UPDATE appointments
+     SET client_name = NULL, client_phone = NULL, notes = NULL,
+         deposit_screenshot_url = NULL
+   WHERE user_id = @uid
+)
+SELECT key FROM victims'''),
+      parameters: {'uid': userId},
+    );
+    return [
+      for (final r in rows)
+        if (r[0] case final String k) k,
     ];
   }
 }

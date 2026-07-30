@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/onboarding.dart';
 import '../models/availability.dart';
@@ -8,7 +9,7 @@ import '../models/provider_user.dart';
 /// Loads the inputs each onboarding step depends on (services, staff,
 /// availability, deposit policy, listing photos, KYC) and exposes the computed
 /// checklist + progress.
-class ProOnboardingProvider extends ChangeNotifier {
+class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   bool _isLoading = false;
   bool _loadFailed = false;
   String? _error;
@@ -20,6 +21,31 @@ class ProOnboardingProvider extends ChangeNotifier {
   List<OnboardingStep> get steps => _steps;
   bool get readyToGoLive => canGoLive(_steps);
   ({int done, int total}) get progress => onboardingProgress(_steps);
+
+  bool _isPublishing = false;
+  bool get isPublishing => _isPublishing;
+
+  /// Machine code of the last publish failure (`offer_required` → the
+  /// screen CTAs to the offer picker).
+  String? _publishErrorCode;
+  String? get publishErrorCode => _publishErrorCode;
+
+  /// Take the salon live (docs/design/pro-salon-lifecycle.md B3). The server
+  /// re-checks the gate; `incomplete` surfaces its message. True on success.
+  Future<bool> publish(String providerId) async {
+    _isPublishing = true;
+    _error = null;
+    _publishErrorCode = null;
+    notifyListeners();
+    final res = await serviceLocator.proService.publishSalon(providerId);
+    _isPublishing = false;
+    if (!res.success) {
+      _error = res.error ?? 'La mise en ligne a échoué';
+      _publishErrorCode = res.code;
+    }
+    notifyListeners();
+    return res.success;
+  }
 
   Future<void> load(ProviderUser proUser) async {
     _isLoading = true;
@@ -34,6 +60,9 @@ class ProOnboardingProvider extends ChangeNotifier {
       var availabilitySet = false;
       var depositConfigured = false;
       var photoCount = 0;
+      var profileComplete = false;
+      var locationSet = false;
+      var offerLive = false;
 
       // A brand-new pro has no public listing yet — counts stay 0.
       if (providerId != null && providerId.isNotEmpty) {
@@ -55,6 +84,20 @@ class ProOnboardingProvider extends ChangeNotifier {
         final listing =
             await serviceLocator.providerService.getProviderById(providerId);
         photoCount = listing.data?.imageUrls.length ?? 0;
+        // Mirror the server's publish gate (pro-salon-lifecycle):
+        // profile = description + address + commune; location = the map pin.
+        final l = listing.data;
+        profileComplete = l != null &&
+            l.description.trim().isNotEmpty &&
+            l.address.trim().isNotEmpty &&
+            (l.commune ?? '').trim().isNotEmpty;
+        locationSet = l?.latitude != null && l?.longitude != null;
+
+        // Pricing pivot: a live offer (trial/paid/grace) gates go-live.
+        // `no_offer` (setup) and failures both read as todo — soft-fail.
+        final sub = await serviceLocator.subscriptionService
+            .getSalonSubscription(providerId);
+        offerLive = sub.success && (sub.data?.isLive ?? false);
       }
 
       final kyc = await serviceLocator.proKycService.getKycStatus(proUser.id);
@@ -62,7 +105,8 @@ class ProOnboardingProvider extends ChangeNotifier {
       final hasSubmittedKyc = kyc.data?.documents.isNotEmpty ?? false;
 
       _steps = buildOnboardingChecklist(
-        profileComplete: proUser.businessName.isNotEmpty,
+        profileComplete: profileComplete,
+        locationSet: locationSet,
         serviceCount: serviceCount,
         staffCount: staffCount,
         availabilitySet: availabilitySet,
@@ -71,6 +115,7 @@ class ProOnboardingProvider extends ChangeNotifier {
         verificationStatus: verificationStatus,
         hasSubmittedKyc: hasSubmittedKyc,
         businessType: proUser.businessType,
+        offerLive: offerLive,
       );
       _loadFailed = false;
     } catch (e) {
@@ -85,4 +130,16 @@ class ProOnboardingProvider extends ChangeNotifier {
   bool _hasAvailableSlot(Availability availability) =>
       availability.weeklySchedule.values
           .any((slots) => slots.any((s) => s.isAvailable));
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _isLoading = false;
+    _loadFailed = false;
+    _error = null;
+    _steps = const [];
+    _isPublishing = false;
+    _publishErrorCode = null;
+    notifyListeners();
+  }
 }

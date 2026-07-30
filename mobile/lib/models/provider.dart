@@ -3,7 +3,6 @@ import 'package:equatable/equatable.dart';
 import 'artist.dart';
 import 'availability.dart';
 import 'before_after_pair.dart';
-import 'payment.dart';
 import 'review.dart';
 import 'service.dart';
 
@@ -14,6 +13,15 @@ class Provider extends Equatable {
   final String address;
   final String? city;
   final String? commune;
+
+  /// Multi-pays MP2 (multi-pays-end-version.md §2): the salon's locality
+  /// (an Area id from GET /localities) + the market facts DERIVED from it
+  /// server-side — never client-written (threat T57).
+  final String? areaId;
+  final String? citySlug;
+  final String? countryCode; // ISO-3166 alpha-2
+  final String? timezone; // IANA — feeds every salon-time helper
+  final String? currency; // ISO-4217 — feeds every money formatter
   final double? latitude;
   final double? longitude;
   final List<String> imageUrls;
@@ -27,12 +35,18 @@ class Provider extends Equatable {
   final String phoneNumber;
   final String? whatsapp;
   final String category; // 'salon', 'barber', 'spa', etc.
+
+  /// Server-owned « Vérifié » badge (KYC approved — T52).
+  final bool verified;
   final bool depositRequired;
   final double depositPercentage;
 
   /// Mobile Money handle the deposit is sent to (the deposit is paid directly
-  /// client→salon — Myweli holds nothing). Null until the salon configures it.
-  final MobileMoneyOperator? depositMobileMoneyOperator;
+  /// client→salon — Myweli holds nothing). Null until the salon configures
+  /// it. The value is an operator id from the salon COUNTRY's catalog
+  /// (GET /localities — multi-pays MP2; labels/deep links render from the
+  /// catalog, never from a client enum).
+  final String? depositMobileMoneyOperator;
   final String? depositMobileMoneyNumber;
 
   /// Hours before the appointment within which a cancellation forfeits the
@@ -47,6 +61,11 @@ class Provider extends Equatable {
     required this.address,
     this.city,
     this.commune,
+    this.areaId,
+    this.citySlug,
+    this.countryCode,
+    this.timezone,
+    this.currency,
     this.latitude,
     this.longitude,
     required this.imageUrls,
@@ -60,6 +79,7 @@ class Provider extends Equatable {
     required this.phoneNumber,
     this.whatsapp,
     required this.category,
+    this.verified = false,
     this.depositRequired = false,
     this.depositPercentage = 0.30,
     this.depositMobileMoneyOperator,
@@ -76,6 +96,11 @@ class Provider extends Equatable {
         address,
         city,
         commune,
+        areaId,
+        citySlug,
+        countryCode,
+        timezone,
+        currency,
         latitude,
         longitude,
         imageUrls,
@@ -89,6 +114,7 @@ class Provider extends Equatable {
         phoneNumber,
         whatsapp,
         category,
+        verified,
         depositRequired,
         depositPercentage,
         depositMobileMoneyOperator,
@@ -104,6 +130,11 @@ class Provider extends Equatable {
     String? address,
     String? city,
     String? commune,
+    String? areaId,
+    String? citySlug,
+    String? countryCode,
+    String? timezone,
+    String? currency,
     double? latitude,
     double? longitude,
     List<String>? imageUrls,
@@ -117,9 +148,10 @@ class Provider extends Equatable {
     String? phoneNumber,
     String? whatsapp,
     String? category,
+    bool? verified,
     bool? depositRequired,
     double? depositPercentage,
-    MobileMoneyOperator? depositMobileMoneyOperator,
+    String? depositMobileMoneyOperator,
     String? depositMobileMoneyNumber,
     int? cancellationWindowHours,
     List<Review>? reviews,
@@ -131,6 +163,11 @@ class Provider extends Equatable {
       address: address ?? this.address,
       city: city ?? this.city,
       commune: commune ?? this.commune,
+      areaId: areaId ?? this.areaId,
+      citySlug: citySlug ?? this.citySlug,
+      countryCode: countryCode ?? this.countryCode,
+      timezone: timezone ?? this.timezone,
+      currency: currency ?? this.currency,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       imageUrls: imageUrls ?? this.imageUrls,
@@ -144,6 +181,7 @@ class Provider extends Equatable {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       whatsapp: whatsapp ?? this.whatsapp,
       category: category ?? this.category,
+      verified: verified ?? this.verified,
       depositRequired: depositRequired ?? this.depositRequired,
       depositPercentage: depositPercentage ?? this.depositPercentage,
       depositMobileMoneyOperator:
@@ -164,6 +202,11 @@ class Provider extends Equatable {
       'address': address,
       'city': city,
       'commune': commune,
+      'areaId': areaId,
+      'citySlug': citySlug,
+      'countryCode': countryCode,
+      'timezone': timezone,
+      'currency': currency,
       'latitude': latitude,
       'longitude': longitude,
       'imageUrls': imageUrls,
@@ -177,9 +220,10 @@ class Provider extends Equatable {
       'phoneNumber': phoneNumber,
       'whatsapp': whatsapp,
       'category': category,
+      'verified': verified,
       'depositRequired': depositRequired,
       'depositPercentage': depositPercentage,
-      'depositMobileMoneyOperator': depositMobileMoneyOperator?.name,
+      'depositMobileMoneyOperator': depositMobileMoneyOperator,
       'depositMobileMoneyNumber': depositMobileMoneyNumber,
       'cancellationWindowHours': cancellationWindowHours,
       'reviews': reviews.map((r) => r.toJson()).toList(),
@@ -194,6 +238,11 @@ class Provider extends Equatable {
       address: json['address'] as String,
       city: json['city'] as String?,
       commune: json['commune'] as String?,
+      areaId: json['areaId'] as String?,
+      citySlug: json['citySlug'] as String?,
+      countryCode: json['countryCode'] as String?,
+      timezone: json['timezone'] as String?,
+      currency: json['currency'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       imageUrls: List<String>.from(json['imageUrls'] as List),
@@ -216,15 +265,11 @@ class Provider extends Equatable {
       phoneNumber: json['phoneNumber'] as String,
       whatsapp: json['whatsapp'] as String?,
       category: json['category'] as String,
+      verified: json['verified'] as bool? ?? false,
       depositRequired: json['depositRequired'] as bool? ?? false,
       depositPercentage:
           (json['depositPercentage'] as num?)?.toDouble() ?? 0.30,
-      depositMobileMoneyOperator: json['depositMobileMoneyOperator'] == null
-          ? null
-          : MobileMoneyOperator.values.firstWhere(
-              (e) => e.name == json['depositMobileMoneyOperator'],
-              orElse: () => MobileMoneyOperator.wave,
-            ),
+      depositMobileMoneyOperator: json['depositMobileMoneyOperator'] as String?,
       depositMobileMoneyNumber: json['depositMobileMoneyNumber'] as String?,
       cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       reviews: json['reviews'] != null

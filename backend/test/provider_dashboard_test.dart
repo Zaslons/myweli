@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -18,6 +20,7 @@ void main() {
   late ProviderDashboardService service;
   final tokens = TokenService(secret: 'test-secret');
   late String accountId; // linked to provider1
+  late InMemoryMembershipRepository memberships;
   late String token;
 
   final now = DateTime.now().toUtc();
@@ -54,7 +57,11 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
-    service = ProviderDashboardService(providerAuth, appts);
+    memberships = InMemoryMembershipRepository();
+    service = ProviderDashboardService(
+      MembershipService(memberships, providerAuth),
+      appts,
+    );
     final reg = await providerAuth.register(
       email: 'reg1@test.pro',
       authProvider: 'google',
@@ -110,6 +117,38 @@ void main() {
         (await service.statsFor(accountId, 'provider2')).error,
         'forbidden',
       );
+    });
+
+    test('STAFF has no dashboard (journal.view.all required — R4a assert); '
+        'a MANAGER reads it with the money fields field-gated (R1)', () async {
+      await seed(id: 'a1', status: 'confirmed', when: todayAt(9), price: 5000);
+      Future<String> member(String email, String role) async {
+        final sent = await providerAuth.requestEmailOtp(email);
+        final created = await providerAuth.createMemberAccount(
+          email: email,
+          authProvider: 'email',
+          emailCode: sent.devCode,
+        );
+        final row = await memberships.invite(
+          providerId: 'provider1',
+          email: email,
+          role: role,
+          artistId: role == 'staff' ? 'artist1' : null,
+          expiresAt: DateTime.now().add(const Duration(days: 7)),
+        );
+        await memberships.activate(row.id, created.provider!.id);
+        return created.provider!.id;
+      }
+
+      final staffId = await member('staff@dash.pro', 'staff');
+      expect((await service.statsFor(staffId, 'provider1')).error, 'forbidden');
+
+      final managerId = await member('mgr@dash.pro', 'manager');
+      final r = await service.statsFor(managerId, 'provider1');
+      expect(r.ok, isTrue);
+      expect(r.data!['todayAppointments'], 1);
+      expect(r.data!.containsKey('todayRevenue'), isFalse);
+      expect(r.data!.containsKey('monthRevenue'), isFalse);
     });
   });
 

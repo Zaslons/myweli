@@ -4,10 +4,12 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/widgets/review/review_tile.dart';
 
+import '../support/pump_app.dart';
+
 void main() {
   setUpAll(() => initializeDateFormatting('fr_FR', null));
 
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => wrapApp(home: Scaffold(body: child));
 
   Review review({bool verified = false, String? artistName}) => Review(
         id: 'r1',
@@ -38,5 +40,19 @@ void main() {
     await tester.pumpWidget(wrap(ReviewTile(review: review())));
 
     expect(find.text('Réservation vérifiée'), findsNothing);
+  });
+
+  testWidgets('« Signaler » shows only with the callback and taps through',
+      (tester) async {
+    // Read-only (pro Avis screen): no action.
+    await tester.pumpWidget(wrap(ReviewTile(review: review())));
+    expect(find.text('Signaler'), findsNothing);
+
+    var reported = false;
+    await tester.pumpWidget(
+      wrap(ReviewTile(review: review(), onReport: () => reported = true)),
+    );
+    await tester.tap(find.text('Signaler'));
+    expect(reported, isTrue);
   });
 }

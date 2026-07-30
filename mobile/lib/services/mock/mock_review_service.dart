@@ -42,4 +42,13 @@ class MockReviewService implements ReviewServiceInterface {
         : all.sublist(start, (start + pageSize).clamp(0, all.length));
     return ApiResponse.success(items);
   }
+
+  @override
+  Future<ApiResponse<void>> reportReview(
+    String reviewId, {
+    String? reason,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    return ApiResponse.success(null, message: 'Avis signalé');
+  }
 }

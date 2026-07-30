@@ -1,12 +1,15 @@
+import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart';
 import '../../models/before_after_pair.dart';
-import '../../models/payment.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
 import '../../models/review.dart';
 import '../../models/service.dart';
+import '../../models/team_invitation.dart';
+import '../../models/team_member.dart';
 import '../../models/user.dart';
 
 class MockData {
@@ -33,6 +36,9 @@ class MockData {
       phoneNumber: '+225 07 11 22 33 44',
       name: 'Jean Kouassi',
       businessName: 'Salon Excellence',
+      // R6: the demo owner signs in by email (matches the owner roster rows
+      // on provider1 AND provider2 — the multi-salon switcher demo).
+      email: 'jean@salon-excellence.test',
       businessType: BusinessType.barber,
       address: 'Cocody, Angré 7ème Tranche',
       verificationStatus: VerificationStatus.verified,
@@ -49,6 +55,36 @@ class MockData {
       verificationStatus: VerificationStatus.verified,
       createdAt: DateTime(2024, 1, 15),
       providerId: 'provider2',
+    ),
+    // Team-member accounts (access R4b): BARE — no providerId (that field
+    // means salon OWNERSHIP); their salon resolves via the roster rows.
+    // Email-OTP login (code 123456) as each demos the role-shaped app.
+    ProviderUser(
+      id: 'member_awa',
+      phoneNumber: '',
+      name: 'Awa Traoré',
+      businessName: '',
+      businessType: BusinessType.other,
+      email: 'awa.manager@myweli.test',
+      createdAt: DateTime(2026, 6, 2),
+    ),
+    ProviderUser(
+      id: 'member_fatou',
+      phoneNumber: '',
+      name: 'Fatou Bamba',
+      businessName: '',
+      businessType: BusinessType.other,
+      email: 'fatou.reception@myweli.test',
+      createdAt: DateTime(2026, 6, 10),
+    ),
+    ProviderUser(
+      id: 'member_sonia',
+      phoneNumber: '',
+      name: 'Sonia Koné',
+      businessName: '',
+      businessType: BusinessType.other,
+      email: 'sonia.staff@myweli.test',
+      createdAt: DateTime(2026, 6, 15),
     ),
   ];
 
@@ -251,10 +287,16 @@ class MockData {
     Provider(
       id: 'provider1',
       name: 'Salon Excellence',
-      description: 'Salon de coiffure moderne au cœur d\'Abidjan',
+      description: 'Salon de coiffure moderne au cœur d’Abidjan',
       address: 'Cocody, Angré 7ème Tranche',
       commune: 'Cocody',
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'cocody',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.3600,
       longitude: -4.0083,
       imageUrls: const [
@@ -307,9 +349,15 @@ class MockData {
       commune: 'Marcory',
       depositRequired: true,
       depositPercentage: 0.50,
-      depositMobileMoneyOperator: MobileMoneyOperator.wave,
+      depositMobileMoneyOperator: 'wave',
       depositMobileMoneyNumber: '+225 05 44 55 66 77',
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'marcory',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.2800,
       longitude: -4.0500,
       imageUrls: const [
@@ -344,6 +392,12 @@ class MockData {
       commune: 'Yopougon',
       depositRequired: false,
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'yopougon',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.3200,
       longitude: -4.0800,
       imageUrls: const [
@@ -374,9 +428,15 @@ class MockData {
       id: 'provider4',
       name: 'Barber Shop Pro',
       description: 'Salon de coiffure pour hommes',
-      address: 'Plateau, Avenue Franchet d\'Esperey',
+      address: 'Plateau, Avenue Franchet d’Esperey',
       commune: 'Plateau',
       city: 'Abidjan',
+      // Multi-pays market facts (mirrors the MP1 backend seed).
+      areaId: 'plateau',
+      citySlug: 'abidjan',
+      countryCode: 'CI',
+      timezone: kSalonTz,
+      currency: 'XOF',
       latitude: 5.3200,
       longitude: -4.0300,
       imageUrls: const [
@@ -396,7 +456,7 @@ class MockData {
         ),
         Service(
           id: 'service10',
-          name: 'Rasage à l\'ancienne',
+          name: 'Rasage à l’ancienne',
           description: 'Rasage avec rasoir',
           price: 3500,
           durationMinutes: 15,
@@ -446,7 +506,7 @@ class MockData {
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
-      text: 'Bon salon, un peu d\'attente le samedi. Service soigné.',
+      text: 'Bon salon, un peu d’attente le samedi. Service soigné.',
       verified: true,
       artistName: 'Kouassi Jean',
       createdAt: DateTime(2025, 1, 8),
@@ -500,50 +560,86 @@ class MockData {
   ];
 
   // Sample Appointments
-  static final List<Appointment> appointments = [
-    Appointment(
-      id: 'appointment1',
-      userId: 'user1',
-      providerId: 'provider1',
-      serviceIds: const ['service1'],
-      appointmentDate: DateTime.now().add(const Duration(days: 2)),
-      status: AppointmentStatus.confirmed,
-      totalPrice: 5000,
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    Appointment(
-      id: 'appointment2',
-      userId: 'user1',
-      providerId: 'provider2',
-      serviceIds: const ['service4'],
-      appointmentDate: DateTime.now().add(const Duration(days: 5)),
-      status: AppointmentStatus.pending,
-      totalPrice: 15000,
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-    // Completed booking so user1 can see "Donner mon avis" on Salon Excellence (provider1)
-    Appointment(
-      id: 'appointment_completed1',
-      userId: 'user1',
-      providerId: 'provider1',
-      serviceIds: const ['service1'],
-      appointmentDate: DateTime.now().subtract(const Duration(days: 10)),
-      status: AppointmentStatus.completed,
-      totalPrice: 5000,
-      createdAt: DateTime.now().subtract(const Duration(days: 15)),
-    ),
-    // Completed booking so user2 can see "Donner mon avis" on Beauté Divine (provider2)
-    Appointment(
-      id: 'appointment_completed2',
-      userId: 'user2',
-      providerId: 'provider2',
-      serviceIds: const ['service4'],
-      appointmentDate: DateTime.now().subtract(const Duration(days: 7)),
-      status: AppointmentStatus.completed,
-      totalPrice: 15000,
-      createdAt: DateTime.now().subtract(const Duration(days: 10)),
-    ),
-  ];
+  //
+  // A10: seeded through [AppClock] and RE-seedable. The list instance stays
+  // `static final` on purpose — `mock_pro_service.dart:409,459` assign elements
+  // (accept / decline) and `:551` appends (manual booking), so a getter that
+  // recomputed per access would silently discard every write. Same shape as
+  // [resetTeam]: clear the list, refill it from the seed.
+  static final List<Appointment> appointments = _seedAppointments();
+
+  /// A13. These four seeded **no client name at all**, which is why
+  /// `pro_journal_day.png` and `pro_appointment_list_w360.png` both photograph
+  /// four rows reading « Client » — the mock faithfully reproduced the backend
+  /// bug (`booking_service.dart` writes `clientName: null` for every
+  /// app-originated booking) and the goldens recorded it as if it were the
+  /// design.
+  ///
+  /// `clientDisplayName` is what the backend now resolves from the salon's own
+  /// client record, so the mock sets the same thing: the name of the user who
+  /// actually made the booking. `clientName` stays null — these are app
+  /// bookings, not salon-entered ones, and the « Réservé par votre salon » badge
+  /// must keep meaning what it says.
+  static List<Appointment> _seedAppointments() => [
+        Appointment(
+          id: 'appointment1',
+          userId: 'user1',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDate: AppClock.now().add(const Duration(days: 2)),
+          status: AppointmentStatus.confirmed,
+          totalPrice: 5000,
+          clientDisplayName: 'Jean Kouassi',
+          createdAt: AppClock.now().subtract(const Duration(days: 1)),
+        ),
+        Appointment(
+          id: 'appointment2',
+          userId: 'user1',
+          providerId: 'provider2',
+          serviceIds: const ['service4'],
+          appointmentDate: AppClock.now().add(const Duration(days: 5)),
+          status: AppointmentStatus.pending,
+          totalPrice: 15000,
+          clientDisplayName: 'Jean Kouassi',
+          createdAt: AppClock.now().subtract(const Duration(hours: 2)),
+        ),
+        // Completed booking so user1 can see "Donner mon avis" on Salon Excellence (provider1)
+        Appointment(
+          id: 'appointment_completed1',
+          userId: 'user1',
+          providerId: 'provider1',
+          serviceIds: const ['service1'],
+          appointmentDate: AppClock.now().subtract(const Duration(days: 10)),
+          status: AppointmentStatus.completed,
+          totalPrice: 5000,
+          clientDisplayName: 'Jean Kouassi',
+          createdAt: AppClock.now().subtract(const Duration(days: 15)),
+        ),
+        // Completed booking so user2 can see "Donner mon avis" on Beauté Divine (provider2)
+        Appointment(
+          id: 'appointment_completed2',
+          userId: 'user2',
+          providerId: 'provider2',
+          serviceIds: const ['service4'],
+          appointmentDate: AppClock.now().subtract(const Duration(days: 7)),
+          status: AppointmentStatus.completed,
+          totalPrice: 15000,
+          clientDisplayName: 'Marie Diallo',
+          createdAt: AppClock.now().subtract(const Duration(days: 10)),
+        ),
+      ];
+
+  /// Re-seed the appointments at the CURRENT [AppClock] instant.
+  ///
+  /// The seeds are relative (`now + 2 days`, `now - 10 days`), so a frozen clock
+  /// only reaches them if they are rebuilt after the freeze — otherwise the list
+  /// keeps whatever instant first touched it, per isolate. `freezeClock` calls
+  /// this so a freeze is never half-done.
+  static void resetAppointments() {
+    appointments
+      ..clear()
+      ..addAll(_seedAppointments());
+  }
 
   // Helper to generate time slots
   // Note: These slots use today's date as a template, but the actual date
@@ -554,7 +650,7 @@ class MockData {
     int endHour,
   ) {
     final slots = <TimeSlot>[];
-    final now = DateTime.now();
+    final now = AppClock.now();
 
     // Generate 30-minute slots from startHour to endHour
     for (int hour = startHour; hour < endHour; hour++) {
@@ -578,5 +674,174 @@ class MockData {
     }
 
     return slots;
+  }
+
+  // ---- Team access (module access R3) --------------------------------------
+  // provider1's roster (« Salon Excellence ») + invitee-facing cards keyed by
+  // email. Mutable so accepts/declines/revokes flow through the demo; call
+  // [resetTeam] in test setUp to avoid cross-test bleed.
+
+  static List<TeamMember> _seedTeamMembers() => [
+        TeamMember(
+          id: 'mem_owner1',
+          providerId: 'provider1',
+          email: 'jean@salon-excellence.test',
+          role: TeamRole.owner,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2024, 1, 1),
+          accountId: 'provider_user1',
+          acceptedAt: DateTime(2024, 1, 1),
+        ),
+        TeamMember(
+          id: 'mem_manager1',
+          providerId: 'provider1',
+          email: 'awa.manager@myweli.test',
+          role: TeamRole.manager,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2026, 6, 1),
+          accountId: 'member_awa',
+          acceptedAt: DateTime(2026, 6, 2),
+        ),
+        TeamMember(
+          id: 'mem_staff1',
+          providerId: 'provider1',
+          email: 'invitee@myweli.test',
+          role: TeamRole.staff,
+          status: TeamMemberStatus.invited,
+          invitedAt: AppClock.now().subtract(const Duration(days: 2)),
+          artistId: 'artist2',
+          artistName: 'Diallo Amadou',
+          expiresAt: AppClock.now().add(const Duration(days: 5)),
+          resendsLeft: 3,
+        ),
+        // ACTIVE members backing the R4b role demos (accounts seeded above).
+        TeamMember(
+          id: 'mem_reception2',
+          providerId: 'provider1',
+          email: 'fatou.reception@myweli.test',
+          role: TeamRole.reception,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2026, 6, 10),
+          accountId: 'member_fatou',
+          acceptedAt: DateTime(2026, 6, 11),
+        ),
+        TeamMember(
+          id: 'mem_staff2',
+          providerId: 'provider1',
+          email: 'sonia.staff@myweli.test',
+          role: TeamRole.staff,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2026, 6, 15),
+          accountId: 'member_sonia',
+          acceptedAt: DateTime(2026, 6, 16),
+          artistId: 'artist1',
+          artistName: 'Kouassi Jean',
+        ),
+        TeamMember(
+          id: 'mem_reception1',
+          providerId: 'provider1',
+          email: 'retard@myweli.test',
+          role: TeamRole.reception,
+          status: TeamMemberStatus.invited,
+          invitedAt: AppClock.now().subtract(const Duration(days: 9)),
+          expiresAt: AppClock.now().subtract(const Duration(days: 2)),
+          resendsLeft: 1,
+          expired: true,
+        ),
+        // R6 multi-salons: the demo owner ALSO owns provider2 (« Beauté
+        // Divine ») — the « Mes salons » switcher is demo-able offline.
+        // Per-salon rosters/seats filter by providerId, so provider1's
+        // counts are untouched.
+        TeamMember(
+          id: 'mem_owner2',
+          providerId: 'provider2',
+          email: 'jean@salon-excellence.test',
+          role: TeamRole.owner,
+          status: TeamMemberStatus.active,
+          invitedAt: DateTime(2024, 1, 1),
+          accountId: 'provider_user1',
+          acceptedAt: DateTime(2024, 1, 1),
+        ),
+      ];
+
+  static Map<String, List<TeamInvitation>> _seedTeamInvitations() => {
+        'invitee@myweli.test': [
+          TeamInvitation(
+            id: 'mem_staff1',
+            providerId: 'provider1',
+            salonName: 'Salon Excellence',
+            role: TeamRole.staff,
+            roleLabel: 'Collaborateur',
+            expiresAt: AppClock.now().add(const Duration(days: 5)),
+          ),
+        ],
+        'mock.google@salon.test': [
+          TeamInvitation(
+            id: 'mem_google1',
+            providerId: 'provider2',
+            salonName: 'Beauté Divine',
+            role: TeamRole.manager,
+            roleLabel: 'Manager',
+            expiresAt: AppClock.now().add(const Duration(days: 6)),
+          ),
+        ],
+        // Expired card — the accept path's invitation_expired scenario.
+        'retard@myweli.test': [
+          TeamInvitation(
+            id: 'mem_reception1',
+            providerId: 'provider1',
+            salonName: 'Salon Excellence',
+            role: TeamRole.reception,
+            roleLabel: 'Réception',
+            expiresAt: AppClock.now().subtract(const Duration(days: 2)),
+          ),
+        ],
+      };
+
+  static final List<TeamMember> teamMembers = _seedTeamMembers();
+
+  /// Invitee-facing pending cards, keyed by lowercased email.
+  static final Map<String, List<TeamInvitation>> teamInvitations =
+      _seedTeamInvitations();
+
+  /// R6: mock salons created via « Ajouter un salon » — rendered as DRAFT
+  /// in « Mes salons » (the Provider model carries no status client-side).
+  static final Set<String> draftSalonIds = {};
+
+  /// Seats in use — owner + active + unexpired pending (mirrors the
+  /// backend), PER SALON (R6 multi-salons).
+  static int teamSeatsUsed({String providerId = 'provider1'}) => teamMembers
+      .where((m) =>
+          m.providerId == providerId &&
+          (m.status == TeamMemberStatus.active || (m.isPending && !m.expired)))
+      .length;
+
+  /// Restore the seeded roster/cards (tests: call in setUp). Also re-seeds
+  /// the three member ACCOUNTS (R4b role demos) if a test stripped them.
+  static void resetTeam() {
+    draftSalonIds.clear();
+    teamMembers
+      ..clear()
+      ..addAll(_seedTeamMembers());
+    teamInvitations
+      ..clear()
+      ..addAll(_seedTeamInvitations());
+    for (final email in const [
+      'awa.manager@myweli.test',
+      'fatou.reception@myweli.test',
+      'sonia.staff@myweli.test',
+    ]) {
+      if (!providerUsers.any((p) => p.email == email)) {
+        final id = 'member_${email.split('.').first}';
+        providerUsers.add(ProviderUser(
+          id: id,
+          phoneNumber: '',
+          businessName: '',
+          businessType: BusinessType.other,
+          email: email,
+          createdAt: DateTime(2026, 6, 1),
+        ));
+      }
+    }
   }
 }

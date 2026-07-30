@@ -5,6 +5,10 @@
 /// `mobile/lib/models/provider.dart`). It is replaced by a Postgres-backed
 /// repository in a later slice — the route handlers depend only on this small
 /// surface (`query` + `byId`), so that swap stays localized.
+library;
+
+import 'slug.dart' show isReservedSlug;
+
 /// Read access to providers. In-memory now; a Postgres impl (B3b) satisfies the
 /// same interface, so the route handlers are unchanged when the store swaps.
 abstract interface class ProvidersRepository {
@@ -101,6 +105,17 @@ abstract interface class ProvidersRepository {
   /// Remove an artist; false if not found under [providerId].
   Future<bool> deleteArtist(String providerId, String artistId);
 
+  /// Create a minimal DRAFT salon for a new pro account (docs/design/
+  /// pro-salon-lifecycle.md §2): seed-shaped document, empty catalogue,
+  /// `status: 'draft'` (hidden from every public surface until published),
+  /// unique slug derived from [name]. Returns the created provider.
+  Future<Map<String, dynamic>> createSalon({
+    required String name,
+    required String category,
+    required String phoneNumber,
+    String? address,
+  });
+
   // --- Admin marketplace management — design: docs/design/admin-console.md §12
   /// Set a provider's `status` (`active`/`suspended`). Suspended → excluded from
   /// discovery + new bookings. Returns the updated provider, or null.
@@ -134,7 +149,10 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   }) async {
     final list =
         _all.where((p) {
-            if (p['status'] == 'suspended') return false; // hide suspended
+            // Hide suspended AND unpublished drafts (T51).
+            if (p['status'] == 'suspended' || p['status'] == 'draft') {
+              return false;
+            }
             if (category != null &&
                 category.isNotEmpty &&
                 p['category'] != category) {
@@ -342,6 +360,33 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   }
 
   @override
+  Future<Map<String, dynamic>> createSalon({
+    required String name,
+    required String category,
+    required String phoneNumber,
+    String? address,
+  }) async {
+    final id = 'provider_${DateTime.now().microsecondsSinceEpoch}';
+    var slug = slugifySalonName(name);
+    var n = 2;
+    // Reserved slugs (multi-pays MP1): taxonomy roots / city slugs / web
+    // routes are never claimable — « Coiffure » becomes coiffure-2.
+    while (isReservedSlug(slug) || await bySlug(slug) != null) {
+      slug = '${slugifySalonName(name)}-${n++}';
+    }
+    final salon = draftSalonDocument(
+      id: id,
+      slug: slug,
+      name: name,
+      category: category,
+      phoneNumber: phoneNumber,
+      address: address,
+    );
+    _all.add(salon);
+    return salon;
+  }
+
+  @override
   Future<Map<String, dynamic>?> setStatus(
     String providerId,
     String status,
@@ -443,6 +488,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Rue des Jardins, Cocody, Abidjan',
     'city': 'Abidjan',
     'commune': 'Cocody',
+    'areaId': 'cocody',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.3599,
     'longitude': -3.9871,
     'imageUrls': <String>['asset:assets/images/salon1.jpg'],
@@ -473,6 +523,7 @@ final List<Map<String, dynamic>> seedProviders = [
     'phoneNumber': '+2250707010101',
     'whatsapp': '+2250707010101',
     'category': 'salon',
+    'verified': true,
     'depositRequired': false,
     'depositPercentage': 0.30,
     'depositMobileMoneyOperator': null,
@@ -488,6 +539,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Boulevard Latrille, Cocody, Abidjan',
     'city': 'Abidjan',
     'commune': 'Cocody',
+    'areaId': 'cocody',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.3712,
     'longitude': -3.9923,
     'imageUrls': <String>['asset:assets/images/salon2.jpg'],
@@ -510,6 +566,7 @@ final List<Map<String, dynamic>> seedProviders = [
     'phoneNumber': '+2250544556677',
     'whatsapp': '+2250544556677',
     'category': 'salon',
+    'verified': true,
     'depositRequired': true,
     'depositPercentage': 0.50,
     'depositMobileMoneyOperator': 'wave',
@@ -525,6 +582,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Avenue Principale, Yopougon, Abidjan',
     'city': 'Abidjan',
     'commune': 'Yopougon',
+    'areaId': 'yopougon',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.3456,
     'longitude': -4.0712,
     'imageUrls': <String>['asset:assets/images/barber1.jpg'],
@@ -546,6 +608,7 @@ final List<Map<String, dynamic>> seedProviders = [
     'phoneNumber': '+2250708090910',
     'whatsapp': null,
     'category': 'barber',
+    'verified': true,
     'depositRequired': false,
     'depositPercentage': 0.30,
     'depositMobileMoneyOperator': null,
@@ -561,6 +624,11 @@ final List<Map<String, dynamic>> seedProviders = [
     'address': 'Zone 4, Marcory, Abidjan',
     'city': 'Abidjan',
     'commune': 'Marcory',
+    'areaId': 'marcory',
+    'citySlug': 'abidjan',
+    'countryCode': 'CI',
+    'timezone': 'Africa/Abidjan',
+    'currency': 'XOF',
     'latitude': 5.2998,
     'longitude': -3.9876,
     'imageUrls': <String>['asset:assets/images/nails1.jpg'],
@@ -583,6 +651,7 @@ final List<Map<String, dynamic>> seedProviders = [
     'phoneNumber': '+2250101020203',
     'whatsapp': '+2250101020203',
     'category': 'nails',
+    'verified': true,
     'depositRequired': false,
     'depositPercentage': 0.30,
     'depositMobileMoneyOperator': null,
@@ -591,3 +660,74 @@ final List<Map<String, dynamic>> seedProviders = [
     'reviews': <Map<String, dynamic>>[],
   },
 ];
+
+/// URL slug from a salon name: lowercased, accents stripped, non-alphanumerics
+/// collapsed to single dashes (`Ébène & Co` → `ebene-co`).
+String slugifySalonName(String name) {
+  const accents = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
+  const plain = 'aaaaaaceeeeiiiinooooouuuuyy';
+  final lower = name.trim().toLowerCase();
+  final sb = StringBuffer();
+  for (final ch in lower.split('')) {
+    final i = accents.indexOf(ch);
+    sb.write(i >= 0 ? plain[i] : ch);
+  }
+  final slug = sb
+      .toString()
+      .replaceAll(RegExp('[^a-z0-9]+'), '-')
+      .replaceAll(RegExp('(^-+|-+\$)'), '');
+  return slug.isEmpty ? 'salon' : slug;
+}
+
+/// The minimal seed-shaped provider document a fresh registration gets
+/// (docs/design/pro-salon-lifecycle.md §2). Everything the read slices touch
+/// is present; the catalogue starts empty; `status: 'draft'` keeps it off
+/// every public surface until `POST /providers/{id}/publish`.
+Map<String, dynamic> draftSalonDocument({
+  required String id,
+  required String slug,
+  required String name,
+  required String category,
+  required String phoneNumber,
+  String? address,
+}) => {
+  'id': id,
+  'slug': slug,
+  'name': name,
+  'description': '',
+  'address': address ?? '',
+  'city': 'Abidjan',
+  'commune': null,
+  // Multi-pays Wave-0 defaults — re-derived on every areaId write
+  // (docs/design/multi-pays-end-version.md §2; registration is
+  // CI-scoped until a multi-country registration UX exists).
+  'areaId': null,
+  'citySlug': null,
+  'countryCode': 'CI',
+  'timezone': 'Africa/Abidjan',
+  'currency': 'XOF',
+  'latitude': null,
+  'longitude': null,
+  'imageUrls': <String>[],
+  'logoUrl': null,
+  'rating': 0,
+  'reviewCount': 0,
+  'services': <Map<String, dynamic>>[],
+  'artists': <Map<String, dynamic>>[],
+  'availability': {
+    'providerId': id,
+    'weeklySchedule': <String, dynamic>{},
+    'blockedDates': <String>[],
+    'bufferMinutes': 0,
+  },
+  'phoneNumber': phoneNumber,
+  'whatsapp': phoneNumber,
+  'category': category,
+  'depositRequired': false,
+  'depositPercentage': 0.0,
+  'depositMobileMoneyOperator': null,
+  'depositMobileMoneyNumber': null,
+  'cancellationWindowHours': 24,
+  'status': 'draft',
+  'verified': false,
+};

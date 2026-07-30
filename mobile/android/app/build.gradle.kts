@@ -5,6 +5,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase (push — docs/design/push-notifications-app.md). The google-services
+// plugin HARD-FAILS when a flavor's google-services.json is missing, so we
+// apply it only once the config is actually there. That keeps a fresh clone —
+// and every build before the Firebase project exists — working. The config is
+// added per flavor (each has its own applicationId): see DEPLOYMENT.md §B4.
+val hasFirebaseConfig = listOf("consumer", "pro").any {
+    file("src/$it/google-services.json").exists()
+}
+if (hasFirebaseConfig) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.myweli.myweli"
     compileSdk = flutter.compileSdkVersion
@@ -13,6 +25,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications needs java.time on older Androids.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -21,7 +35,8 @@ android {
 
     defaultConfig {
         // Application IDs are set per flavor (consumer / pro) below.
-        minSdk = flutter.minSdkVersion
+        // Floor pinned for Firebase (23) + flutter_local_notifications (24).
+        minSdk = maxOf(24, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -52,6 +67,11 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    // Backs isCoreLibraryDesugaringEnabled above.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

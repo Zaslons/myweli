@@ -1,19 +1,38 @@
-import type { ProAppointment } from './today';
+import { salonDayKey, salonFormatter } from '../time';
+import { apptDayKey, type ProAppointment } from './today';
 
 /// Pure helpers for the pro « Rendez-vous » views (Calendrier + Liste).
-/// Unit-tested. Mirrors the app's appointment screen filters.
+/// Unit-tested. Mirrors the app's appointment screen filters. Day identity
+/// comes from the salon-time seam (lib/time.ts); the Date objects inside the
+/// month grid are midnight-UTC anchors used as day IDENTIFIERS, so their
+/// UTC arithmetic is zone-agnostic calendar math, not display logic.
 
 export type ListTab = 'today' | 'upcoming' | 'pending' | 'all';
 
 export const LIST_TABS: { key: ListTab; label: string }[] = [
-  { key: 'today', label: "Aujourd'hui" },
+  // §17.1 — the curly apostrophe. This was the ONE rendered « Aujourd'hui » in
+  // web/ spelled with U+0027 while `lib/pro/nav.ts:19`, `AujourdhuiClient` and
+  // the dash page all use U+2019: "the same word, two spellings, one app",
+  // which is the exact sentence §17.1 was written for. Spotted in a browser
+  // while checking B9's own strip.
+  { key: 'today', label: 'Aujourd’hui' },
   { key: 'upcoming', label: 'À venir' },
   { key: 'pending', label: 'En attente' },
   { key: 'all', label: 'Tous' },
 ];
 
-export function dateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+export function dateKey(d: Date, tz?: string): string {
+  return salonDayKey(d, tz);
+}
+
+/// The identity key of a month-grid day ANCHOR (a midnight-UTC Date used as
+/// a day identifier — zone-agnostic calendar math, NOT display; never pass a
+/// real instant here).
+export function anchorKey(d: Date): string {
+  const y = String(d.getUTCFullYear()).padStart(4, '0');
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function addDays(d: Date, n: number): Date {
@@ -27,17 +46,23 @@ export function addMonths(d: Date, n: number): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
 }
 
+/// Bookings on a SALON day key (multi-pays MP3: the instant's salon day, not
+/// the ISO string's UTC prefix).
 export function appointmentsOnDate(
   items: ProAppointment[],
   key: string,
+  tz?: string,
 ): ProAppointment[] {
   return items
-    .filter((a) => a.appointmentDate.slice(0, 10) === key)
+    .filter((a) => apptDayKey(a, tz) === key)
     .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate));
 }
 
-export function daysWithBookings(items: ProAppointment[]): Set<string> {
-  return new Set(items.map((a) => a.appointmentDate.slice(0, 10)));
+export function daysWithBookings(
+  items: ProAppointment[],
+  tz?: string,
+): Set<string> {
+  return new Set(items.map((a) => apptDayKey(a, tz)));
 }
 
 /// A 6×7 Monday-start matrix of dates for the month containing `focused`.
@@ -59,12 +84,8 @@ export function monthMatrix(focused: Date): Date[][] {
   return weeks;
 }
 
-export function monthLabelFr(d: Date): string {
-  return new Intl.DateTimeFormat('fr-FR', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
+export function monthLabelFr(d: Date, tz?: string): string {
+  return salonFormatter({ month: 'long', year: 'numeric' }, tz).format(d);
 }
 
 /// Liste sub-tab filters, mirroring the app (Aujourd'hui/À venir/En attente/Tous).
@@ -72,18 +93,19 @@ export function filterList(
   items: ProAppointment[],
   tab: ListTab,
   now: Date = new Date(),
+  tz?: string,
 ): ProAppointment[] {
-  const k = dateKey(now);
+  const k = dateKey(now, tz);
   const sorted = [...items].sort((a, b) =>
     a.appointmentDate.localeCompare(b.appointmentDate),
   );
   switch (tab) {
     case 'today':
-      return sorted.filter((a) => a.appointmentDate.slice(0, 10) === k);
+      return sorted.filter((a) => apptDayKey(a, tz) === k);
     case 'upcoming':
       return sorted.filter(
         (a) =>
-          a.appointmentDate.slice(0, 10) >= k &&
+          apptDayKey(a, tz) >= k &&
           (a.status === 'pending' || a.status === 'confirmed'),
       );
     case 'pending':

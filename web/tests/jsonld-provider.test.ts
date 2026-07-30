@@ -26,6 +26,17 @@ describe('provider JSON-LD', () => {
     expect(ld.makesOffer[0].priceCurrency).toBe('XOF');
   });
 
+  it("a foreign-market salon carries ITS currency + country (multi-pays MP3)", () => {
+    const gabon = localBusinessJsonLd(
+      { ...providerFixture, currency: 'XAF', countryCode: 'GA' },
+      'https://myweli.ci/institut-belle-vue',
+    );
+    expect(gabon.makesOffer[0].priceCurrency).toBe('XAF');
+    expect(gabon.address.addressCountry).toBe('GA');
+    // Missing market fields (pre-backfill rows) keep the Wave-0 fallbacks.
+    expect(ld.makesOffer[0].priceCurrency).toBe('XOF');
+  });
+
   it('builds a FAQPage and a BreadcrumbList', () => {
     const faq = faqJsonLd([{ question: 'Q ?', answer: 'A.' }]);
     expect(faq['@type']).toBe('FAQPage');

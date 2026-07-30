@@ -5,6 +5,7 @@ import 'package:myweli/models/provider_user.dart';
 void main() {
   List<OnboardingStep> build({
     bool profileComplete = true,
+    bool locationSet = true,
     int serviceCount = 3,
     int staffCount = 1,
     bool availabilitySet = true,
@@ -13,9 +14,11 @@ void main() {
     VerificationStatus verificationStatus = VerificationStatus.verified,
     bool hasSubmittedKyc = true,
     BusinessType businessType = BusinessType.salon,
+    bool offerLive = true,
   }) =>
       buildOnboardingChecklist(
         profileComplete: profileComplete,
+        locationSet: locationSet,
         serviceCount: serviceCount,
         staffCount: staffCount,
         availabilitySet: availabilitySet,
@@ -24,6 +27,7 @@ void main() {
         verificationStatus: verificationStatus,
         hasSubmittedKyc: hasSubmittedKyc,
         businessType: businessType,
+        offerLive: offerLive,
       );
 
   OnboardingStepStatus statusOf(
@@ -40,6 +44,13 @@ void main() {
     final steps = build(serviceCount: 2);
     expect(
         statusOf(steps, OnboardingStepKey.services), OnboardingStepStatus.todo);
+    expect(canGoLive(steps), isFalse);
+  });
+
+  test('the map pin gates go-live (pro-salon-lifecycle L2)', () {
+    final steps = build(locationSet: false);
+    expect(
+        statusOf(steps, OnboardingStepKey.location), OnboardingStepStatus.todo);
     expect(canGoLive(steps), isFalse);
   });
 
@@ -79,20 +90,30 @@ void main() {
     );
   });
 
-  test('verification and photos do not block go-live', () {
+  test('verification and deposit do not block go-live (server mirror)', () {
     final steps = build(
       verificationStatus: VerificationStatus.pending,
       hasSubmittedKyc: false,
-      photoCount: 0,
+      depositConfigured: false,
     );
     expect(canGoLive(steps), isTrue);
   });
 
-  test('photos are optional until enough are present', () {
+  test('photos gate go-live like the server (upload pipeline shipped)', () {
     expect(statusOf(build(photoCount: 0), OnboardingStepKey.photos),
-        OnboardingStepStatus.optional);
+        OnboardingStepStatus.todo);
     expect(statusOf(build(photoCount: 3), OnboardingStepKey.photos),
         OnboardingStepStatus.done);
+    expect(canGoLive(build(photoCount: 0)), isFalse);
+  });
+
+  test('the OFFER gates go-live (pricing pivot — team access R2a/R3)', () {
+    final steps = build(offerLive: false);
+    expect(statusOf(steps, OnboardingStepKey.offer), OnboardingStepStatus.todo);
+    expect(canGoLive(steps), isFalse);
+    expect(
+        statusOf(build(), OnboardingStepKey.offer), OnboardingStepStatus.done);
+    expect(canGoLive(build()), isTrue);
   });
 
   test('progress ignores optional steps', () {
@@ -102,8 +123,9 @@ void main() {
       photoCount: 0,
     );
     final p = onboardingProgress(steps);
-    // actionable = profile, services, availability, deposit, verification
-    expect(p.total, 5);
-    expect(p.done, 5);
+    // actionable = profile, location, services, availability, deposit,
+    // verification, photos, offer (staff optional for a freelancer).
+    expect(p.total, 8);
+    expect(p.done, 7); // photos still todo
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../clients/clients_service.dart';
 import '../providers_repository.dart';
 import 'appointment_repository.dart';
 import 'slot_service.dart';
@@ -18,11 +19,20 @@ typedef BookingResult = ({
 /// (double-booking prevention). Bookings are created `pending` (the salon
 /// confirms; Myweli never auto-confirms on payment — PRD OQ-1).
 class BookingService {
-  BookingService(this._providers, this._appointments, this._slots);
+  BookingService(
+    this._providers,
+    this._appointments,
+    this._slots, {
+    ClientsService? clients,
+  }) : _clients = clients;
 
   final ProvidersRepository _providers;
   final AppointmentRepository _appointments;
   final SlotService _slots;
+
+  /// Module `clients`: every booking upserts the salon's client row
+  /// ("derived, not entered" — docs/modules/clients.md). Best-effort.
+  final ClientsService? _clients;
   final Random _random = Random.secure();
 
   Future<BookingResult> book({
@@ -41,7 +51,8 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
-    if (provider['status'] == 'suspended') {
+    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
+      // Draft salons are not live yet (T51) — same refusal as suspended.
       return (ok: false, error: 'provider_suspended', appointment: null);
     }
 
@@ -68,11 +79,17 @@ class BookingService {
 
     // The server decides availability: the requested time must be a free slot
     // (rejects past/closed/break/already-booked, and non-aligned times).
+    // Capacity model (booking-capacity-web-hub.md): the check is per-artist
+    // when one is chosen; « Sans préférence » needs a free capable chair.
     final slotResult = await _slots.availableSlots(
       providerId: providerId,
       date: appointmentDateTime,
       serviceIds: serviceIds,
+      artistId: artistId,
     );
+    if (!slotResult.ok) {
+      return (ok: false, error: slotResult.error, appointment: null);
+    }
     final wanted = appointmentDateTime.toUtc();
     final isFree = (slotResult.slots ?? const []).any(
       (s) => s.isAtSameMomentAs(wanted),
@@ -88,6 +105,9 @@ class BookingService {
     final appointment = {
       'id':
           'appt_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}',
+      // Multi-pays §4: financial records are stamped with the salon's
+      // currency at write time (immutable — the Fresha rule).
+      'currency': provider['currency'] ?? 'XOF',
       'userId': userId,
       'providerId': providerId,
       'serviceIds': serviceIds,
@@ -111,6 +131,7 @@ class BookingService {
       // Lost the race — the DB rejected a concurrent booking for this slot.
       return (ok: false, error: 'slot_unavailable', appointment: null);
     }
+    await _clients?.recordBooking(created);
     return (ok: true, error: null, appointment: created);
   }
 
@@ -119,9 +140,10 @@ class BookingService {
   /// created **`confirmed`** with **no online deposit** and a sentinel
   /// `userId` (`'manual'` — no app account). Unlike [book] it does **not**
   /// validate the slot engine — the salon owns its calendar — so any time
-  /// (past/now/future, off-grid) is allowed; the DB partial unique index still
-  /// rejects an exact-start collision with a non-cancelled booking
-  /// (→ `slot_unavailable`). Authz (the caller manages [providerId]) is the
+  /// (past/now/future, off-grid) is allowed; the PER-ARTIST DB guards
+  /// (migration 0026) still reject a same-artist collision
+  /// (→ `slot_unavailable`); unassigned manual bookings are unguarded by
+  /// design (§2.2 of booking-capacity-web-hub.md — the salon's own entry). Authz (the caller manages [providerId]) is the
   /// route's responsibility. (Design: docs/design/pro-manual-booking.md.)
   Future<BookingResult> bookManual({
     required String providerId,
@@ -139,7 +161,8 @@ class BookingService {
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
     }
-    if (provider['status'] == 'suspended') {
+    if (provider['status'] == 'suspended' || provider['status'] == 'draft') {
+      // Draft salons are not live yet (T51) — same refusal as suspended.
       return (ok: false, error: 'provider_suspended', appointment: null);
     }
 
@@ -166,6 +189,8 @@ class BookingService {
     final appointment = {
       'id':
           'manual_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}',
+      // Multi-pays §4: stamped with the salon's currency at write time.
+      'currency': provider['currency'] ?? 'XOF',
       'userId': 'manual', // walk-in / phone client — no app account
       'providerId': providerId,
       'serviceIds': serviceIds,
@@ -188,6 +213,7 @@ class BookingService {
     if (created == null) {
       return (ok: false, error: 'slot_unavailable', appointment: null);
     }
+    await _clients?.recordBooking(created);
     return (ok: true, error: null, appointment: created);
   }
 }

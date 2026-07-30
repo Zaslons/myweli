@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 
+import 'access/membership_repository.dart';
+import 'access/membership_service.dart';
+import 'access/salon_directory_service.dart';
+import 'access/team_service.dart';
 import 'admin/admin_auth_repository.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/admin_provider_service.dart';
@@ -14,6 +18,7 @@ import 'admin/moderation_service.dart';
 import 'appointments/appointment_lifecycle_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
+import 'appointments/journal_service.dart';
 import 'appointments/pro_appointment_service.dart';
 import 'appointments/slot_service.dart';
 import 'auth/auth_methods.dart';
@@ -21,29 +26,38 @@ import 'auth/auth_repository.dart';
 import 'auth/id_token_verifier.dart';
 import 'auth/provider_auth_repository.dart';
 import 'auth/tokens.dart';
+import 'clients/clients_repository.dart';
+import 'clients/clients_service.dart';
+import 'clients/provider_audit_log.dart';
 import 'db/database.dart';
 import 'db/migrations.dart';
 import 'db/postgres_admin_auth_repository.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
+import 'db/postgres_clients_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
+import 'db/postgres_membership_repository.dart';
 import 'db/postgres_messaging_outbox_repository.dart';
 import 'db/postgres_messaging_prefs_repository.dart';
 import 'db/postgres_notification_prefs_repository.dart';
 import 'db/postgres_notifications_repository.dart';
+import 'db/postgres_provider_audit_repository.dart';
 import 'db/postgres_provider_auth_repository.dart';
 import 'db/postgres_providers_repository.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
+import 'db/postgres_salon_subscription_repository.dart';
 import 'deposit_service.dart';
 import 'email/email_provider.dart';
 import 'email/resend_email_provider.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
 import 'kyc_service.dart';
+import 'localities/localities_repository.dart';
+import 'localities/localities_service.dart';
 import 'messaging/booking_notifier.dart';
 import 'messaging/messaging_outbox_repository.dart';
 import 'messaging/messaging_prefs_repository.dart';
@@ -51,9 +65,12 @@ import 'messaging/messaging_provider.dart';
 import 'messaging/messaging_service.dart';
 import 'messaging/reminder_log_repository.dart';
 import 'messaging/reminder_scheduler.dart';
+import 'messaging/salon_notifier.dart';
 import 'messaging/twilio_messaging_provider.dart';
 import 'notifications/notification_prefs_repository.dart';
 import 'notifications/notifications_repository.dart';
+import 'privacy/user_erasure_service.dart';
+import 'provider_account_service.dart';
 import 'provider_catalog_service.dart';
 import 'provider_dashboard_service.dart';
 import 'provider_earnings_service.dart';
@@ -65,7 +82,11 @@ import 'push/push_provider.dart';
 import 'push/push_service.dart';
 import 'reviews_repository.dart';
 import 'reviews_service.dart';
+import 'salon_provisioning_service.dart';
 import 'storage/storage_service.dart';
+import 'subscription/salon_subscription_repository.dart';
+import 'subscription/salon_subscription_service.dart';
+import 'subscription/subscription_scheduler.dart';
 import 'upload_signing_service.dart';
 
 /// Composition root: process-wide singletons built from env
@@ -195,6 +216,16 @@ final ProvidersRepository providersRepository = _pool == null
     ? InMemoryProvidersRepository()
     : PostgresProvidersRepository(_pool!);
 
+/// Multi-pays MP1 — the locality reference tree
+/// (docs/design/multi-pays-end-version.md §2).
+final LocalitiesRepository localitiesRepository = _pool == null
+    ? InMemoryLocalitiesRepository()
+    : PostgresLocalitiesRepository(_pool!);
+
+final LocalitiesService localitiesService = LocalitiesService(
+  localitiesRepository,
+);
+
 final ProviderAuthRepository providerAuthRepository = _pool == null
     ? InMemoryProviderAuthRepository(tokens: tokenService, isProd: _isProd)
     : PostgresProviderAuthRepository(
@@ -225,18 +256,51 @@ final SlotService slotService = SlotService(
   appointmentRepository,
 );
 
+final ClientsRepository clientsRepository = _pool == null
+    ? InMemoryClientsRepository()
+    : PostgresClientsRepository(_pool!);
+
+final ProviderAuditLogRepository providerAuditLogRepository = _pool == null
+    ? InMemoryProviderAuditLogRepository()
+    : PostgresProviderAuditLogRepository(_pool!);
+
+/// Module `clients` C1 (docs/design/clients-c1.md).
+final ClientsService clientsService = ClientsService(
+  providerAuthRepository,
+  membershipService,
+  authRepository,
+  clientsRepository,
+  appointmentRepository,
+  providerAuditLogRepository,
+);
+
 final BookingService bookingService = BookingService(
   providersRepository,
   appointmentRepository,
   slotService,
+  clients: clientsService,
 );
 
 final AppointmentLifecycleService appointmentLifecycleService =
-    AppointmentLifecycleService(appointmentRepository, slotService);
+    AppointmentLifecycleService(
+      appointmentRepository,
+      slotService,
+      providers: providersRepository,
+    );
 
 final ProAppointmentService proAppointmentService = ProAppointmentService(
-  providerAuthRepository,
+  membershipService,
   appointmentRepository,
+  clients: clientsService,
+  providers: providersRepository,
+);
+
+/// Journal day view (module journal J1 — docs/design/journal-j1-grid.md).
+final JournalService journalService = JournalService(
+  membershipService,
+  providersRepository,
+  appointmentRepository,
+  clientsService,
 );
 
 /// Object storage for image uploads. Configured → R2 (S3-compatible); else a
@@ -289,19 +353,102 @@ final List<String> _galleryAllowedOrigins = () {
 final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   providersRepository,
   providerAuthRepository,
+  membershipService,
   allowedImageOrigins: _galleryAllowedOrigins,
+  localities: localitiesService,
 );
 
 final UploadSigningService uploadSigningService = UploadSigningService(
   providerAuthRepository,
+  membershipService,
   storageService,
 );
 
 final KycService kycService = KycService(providerAuthRepository);
 
+/// Salon lifecycle (docs/design/pro-salon-lifecycle.md): draft creation at
+/// registration + the /me/provider self-heal + the publish gate.
+/// Module `access` (R1): membership rows + the per-request capability
+/// resolver every tenant-authz decision now goes through.
+final MembershipRepository membershipRepository = _pool == null
+    ? InMemoryMembershipRepository()
+    : PostgresMembershipRepository(_pool!);
+
+final MembershipService membershipService = MembershipService(
+  membershipRepository,
+  providerAuthRepository,
+);
+
+final ProviderAccountService providerAccountService = ProviderAccountService(
+  providerAuthRepository,
+  providersRepository,
+  appointmentRepository,
+  storageService,
+  membershipRepository,
+  // L1/T59 — a deleted salon owner's phone must stop ringing too.
+  devices: deviceTokenRepository,
+  notifications: notificationsRepository,
+);
+
+/// The pricing pivot (R2a): salon offers + the daily warning/enforcement
+/// walk. Enforcement is config-driven (SUBSCRIPTION_ENFORCEMENT, default
+/// off — cold-start leniency).
+final SalonSubscriptionRepository salonSubscriptionRepository = _pool == null
+    ? InMemorySalonSubscriptionRepository()
+    : PostgresSalonSubscriptionRepository(_pool!);
+
+final SalonSubscriptionService salonSubscriptionService =
+    SalonSubscriptionService(
+      salonSubscriptionRepository,
+      membershipService,
+      membershipRepository,
+      providersRepository,
+      providerAuthRepository,
+    );
+
+/// R6 — « Mes salons »: the multi-salon directory + « Ajouter un salon ».
+final SalonDirectoryService salonDirectoryService = SalonDirectoryService(
+  membershipRepository,
+  membershipService,
+  providersRepository,
+  salonSubscriptionService,
+  providerAuthRepository,
+);
+
+final bool subscriptionEnforcement =
+    (_envOrNull('SUBSCRIPTION_ENFORCEMENT') ?? 'off').toLowerCase() == 'on';
+
+final SubscriptionScheduler subscriptionScheduler = SubscriptionScheduler(
+  salonSubscriptionRepository,
+  membershipRepository,
+  providersRepository,
+  emailProvider,
+  pushService,
+  enforce: subscriptionEnforcement,
+);
+
+/// Module `access` R2b: invitations + Equipe mutations (owner-gated,
+/// audited, offer/seat-gated).
+final TeamService teamService = TeamService(
+  membershipRepository,
+  membershipService,
+  providersRepository,
+  salonSubscriptionService,
+  emailProvider,
+  providerAuditLogRepository,
+);
+
+final SalonProvisioningService salonProvisioningService =
+    SalonProvisioningService(
+      providersRepository,
+      providerAuthRepository,
+      membershipRepository,
+      subscriptions: salonSubscriptionService,
+    );
+
 final DepositService depositService = DepositService(
   appointmentRepository,
-  providerAuthRepository,
+  membershipService,
   storageService,
 );
 
@@ -317,6 +464,8 @@ final AdminKycService adminKycService = AdminKycService(
   providerAuthRepository,
   storageService,
   auditLogRepository,
+  providersRepository,
+  membershipRepository,
 );
 
 final ModerationService moderationService = ModerationService(
@@ -329,6 +478,7 @@ final AdminProviderService adminProviderService = AdminProviderService(
   providersRepository,
   appointmentRepository,
   auditLogRepository,
+  salonSubscriptionService,
 );
 
 final AdminUserService adminUserService = AdminUserService(
@@ -358,11 +508,16 @@ final AnalyticsService analyticsService = AnalyticsService(
 );
 
 final ProviderDashboardService providerDashboardService =
-    ProviderDashboardService(providerAuthRepository, appointmentRepository);
+    ProviderDashboardService(
+      membershipService,
+      appointmentRepository,
+      providers: providersRepository,
+    );
 
 final ProviderEarningsService providerEarningsService = ProviderEarningsService(
-  providerAuthRepository,
+  membershipService,
   appointmentRepository,
+  providers: providersRepository,
 );
 
 final ReviewsService reviewsService = ReviewsService(
@@ -483,6 +638,32 @@ final BookingNotifier bookingNotifier = BookingNotifier(
   notificationPrefsRepository,
 );
 
+/// Consumer account erasure (L1, threat T59 — docs/design/account-deletion-erasure.md).
+/// Declared here rather than beside `clientsService` because it needs the
+/// notification stack, which is defined further down this file.
+final UserErasureService userErasureService = UserErasureService(
+  authRepository,
+  deviceTokenRepository,
+  notificationsRepository,
+  notificationPrefsRepository,
+  favoritesRepository,
+  reviewsRepository,
+  appointmentRepository,
+  clientsService,
+  storageService,
+);
+
+/// The provider-directed sibling: turns client-driven booking events into
+/// SALON-team notifications (push + in-app feed), scoped by team capabilities.
+/// Design: docs/design/push-notifications-fcm.md §10.
+final SalonNotifier salonNotifier = SalonNotifier(
+  membershipRepository,
+  pushService,
+  notificationsRepository,
+  notificationPrefsRepository,
+  providersRepository,
+);
+
 final ReminderLogRepository reminderLogRepository = _pool == null
     ? InMemoryReminderLogRepository()
     : PostgresReminderLogRepository(_pool!);
@@ -510,6 +691,11 @@ Future<void> initializeDatabase() async {
     // Move services/availability out of the provider JSONB into the normalized
     // catalogue tables (single source of truth). See migration 0005.
     await backfillCatalogueIfNeeded(pool);
+    // Multi-pays MP1: seed the locality reference tree, then stamp the salon
+    // market fields onto pre-MP1 provider documents
+    // (docs/design/multi-pays-end-version.md §2).
+    await seedLocalitiesIfEmpty(pool);
+    await backfillSalonMarketIfNeeded(pool);
   }
   // Seed the super-admin from env (idempotent), after migrations so the table
   // exists. Runs in both modes; no-op when ADMIN_EMAIL/ADMIN_PASSWORD are unset.

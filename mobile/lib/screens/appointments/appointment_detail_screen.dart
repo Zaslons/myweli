@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/calendar_event.dart';
 import '../../core/utils/cancellation_policy.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
+import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 
@@ -38,91 +45,145 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<AppointmentProvider>(context, listen: false);
       provider.loadAppointmentById(widget.appointmentId);
+      // The country label of the « heure du salon » hint reads the tree.
+      context.read<LocalityProvider>().ensureLoaded();
     });
+  }
+
+  // ONE lazy provider fetch per appointment: the chosen spécialiste
+  // (parity 1.8 — the payload carries only artistId) AND the salon's
+  // country for the hint label (multi-pays MP2).
+  String? _artistName;
+  String? _providerCountryCode;
+  String? _providerLookupFor;
+
+  void _maybeResolveProviderFacts(Appointment appointment) {
+    if (_providerLookupFor == appointment.providerId) return;
+    _providerLookupFor = appointment.providerId;
+    final artistId = appointment.artistId;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final res = await serviceLocator.providerService.getProviderById(
+        appointment.providerId,
+      );
+      if (!mounted) return;
+      final name = (artistId == null || artistId.isEmpty)
+          ? null
+          : res.data?.artists
+              .where((a) => a.id == artistId)
+              .map((a) => a.name)
+              .firstOrNull;
+      setState(() {
+        _providerCountryCode = res.data?.countryCode;
+        if (name != null) _artistName = name;
+      });
+    });
+  }
+
+  /// « Appeler »/« WhatsApp » (parity 1.6): resolve the salon's public
+  /// coordinates, then launch the dialer / wa.me (provider-detail idiom).
+  Future<void> _contactSalon(
+    Appointment appointment, {
+    required bool whatsapp,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await serviceLocator.providerService.getProviderById(
+      appointment.providerId,
+    );
+    final p = res.data;
+    final raw = whatsapp ? p?.whatsapp : p?.phoneNumber;
+    if (!res.success || p == null || raw == null || raw.isEmpty) {
+      AppSnackBar.showOn(messenger,
+          whatsapp ? 'WhatsApp indisponible.' : 'Numéro indisponible.',
+          kind: SnackKind.error);
+      return;
+    }
+    final uri = whatsapp
+        ? Uri.parse('https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}')
+        : Uri.parse('tel:${raw.replaceAll(RegExp(r'\s'), '')}');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      AppSnackBar.showOn(messenger, 'Impossible d’ouvrir l’application.',
+          kind: SnackKind.error);
+    }
   }
 
   Future<void> _handleCancel(Appointment appointment) async {
     final provider = Provider.of<AppointmentProvider>(context, listen: false);
     final outcome = cancellationOutcome(
       appointmentDate: appointment.appointmentDate,
-      now: DateTime.now(),
+      now: AppClock.now(),
       windowHours: appointment.cancellationWindowHours,
       depositAmount: appointment.depositAmount,
     );
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler le rendez-vous ?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
-            if (appointment.depositAmount > 0) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingM),
-                decoration: BoxDecoration(
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Annuler le rendez-vous ?',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
+          if (appointment.depositAmount > 0) ...[
+            const SizedBox(height: AppTheme.spacingSM),
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              decoration: BoxDecoration(
+                // §13.1: `errorLight`/`successLight` are foregrounds (4.66:1 ON
+                // white). Used as a fill they put `error` ink at 2.00:1 and
+                // `success` ink at 1.85:1 — both illegible. A neutral tint
+                // carries the ink (9.19:1 / 15.98:1) and the semantic hue moves
+                // to the border, beside the glyph that already distinguishes it.
+                color: AppColors.surfaceVariant,
+                border: Border.all(
                   color: outcome.depositForfeited
-                      ? AppColors.errorLight
-                      : AppColors.successLight,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                      ? AppColors.error
+                      : AppColors.success,
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    outcome.depositForfeited
+                        ? Icons.warning_amber_rounded
+                        : Icons.info_outline,
+                    size: AppTheme.iconS,
+                    color: outcome.depositForfeited
+                        ? AppColors.error
+                        : AppColors.success,
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Expanded(
+                    child: Text(
                       outcome.depositForfeited
-                          ? Icons.warning_amber_rounded
-                          : Icons.info_outline,
-                      size: 18,
-                      color: outcome.depositForfeited
-                          ? AppColors.error
-                          : AppColors.success,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        outcome.depositForfeited
-                            ? 'Annulation à moins de '
-                                '${appointment.cancellationWindowHours} h : '
-                                'votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount)} '
-                                'ne sera pas remboursé.'
-                            : 'Votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount)} '
-                                'sera remboursé.',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: outcome.depositForfeited
-                              ? AppColors.error
-                              : AppColors.textPrimary,
-                        ),
+                          ? 'Annulation à moins de '
+                              '${appointment.cancellationWindowHours} h : '
+                              'votre acompte de '
+                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                              'ne sera pas remboursé.'
+                          : 'Votre acompte de '
+                              '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
+                              'sera remboursé.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: outcome.depositForfeited
+                            ? AppColors.error
+                            : AppColors.textPrimary,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Oui, annuler',
-              style: TextStyle(color: AppColors.error),
             ),
-          ),
+          ],
         ],
       ),
+      // §15: label the button with the VERB, never « Oui ». The consequence —
+      // whether the deposit is forfeited — is the computed body above.
+      confirmLabel: 'Annuler le rendez-vous',
+      cancelLabel: 'Garder',
     );
-
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
 
     final success = await provider.cancelAppointment(widget.appointmentId);
 
@@ -130,19 +191,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     if (success) {
       context.pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rendez-vous annulé'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      AppSnackBar.show(context, 'Rendez-vous annulé', kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Erreur lors de l\'annulation'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.show(context, provider.error ?? 'Erreur lors de l’annulation',
+          kind: SnackKind.error);
     }
   }
 
@@ -165,13 +217,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Rendez-vous reporté' : (provider.error ?? 'Erreur'),
-        ),
-        backgroundColor: success ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcome(
+      context,
+      ok: success,
+      success: 'Rendez-vous reporté',
+      error: provider.error ?? 'Erreur',
     );
   }
 
@@ -190,15 +240,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       balanceDue: appointment.balanceDue,
       providerName: p?.name ?? 'le salon',
       depositOperator: p?.depositMobileMoneyOperator,
+      depositCountryCode: p?.countryCode,
       depositNumber: p?.depositMobileMoneyNumber,
+      currency: appointment.currency ?? p?.currency,
     );
     if (sent != true || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Acompte envoyé. En attente de confirmation du salon.'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    AppSnackBar.show(
+        context, 'Acompte envoyé. En attente de confirmation du salon.',
+        kind: SnackKind.success);
   }
 
   /// View the screenshot the consumer already submitted (signed URL).
@@ -219,9 +268,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         ),
       );
     } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(res.error ?? 'Capture indisponible')),
-      );
+      AppSnackBar.showOn(messenger, res.error ?? 'Capture indisponible',
+          kind: SnackKind.error);
     }
   }
 
@@ -229,7 +277,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   /// confirmation (view proof) → confirmé. Myweli never holds the money.
   Widget _depositSection(Appointment a) {
     final hasProof = a.depositScreenshotUrl != null;
-    final amount = Formatters.formatCurrency(a.depositAmount);
+    final amount = Formatters.formatCurrency(a.depositAmount,
+        currency: a.currency ?? a.providerCurrency ?? 'XOF');
 
     IconData icon;
     String label;
@@ -259,7 +308,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           label = 'Acompte à envoyer';
           hint = 'Payez le salon directement, puis joignez une capture.';
           action = AppButton(
-            text: "Envoyer l'acompte",
+            text: 'Envoyer l’acompte',
             icon: Icons.send_outlined,
             onPressed: () => _handleSendDeposit(a),
           );
@@ -277,7 +326,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       children: [
         _InfoRow(icon: icon, label: label, value: amount),
         if (hint != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             hint,
             style:
@@ -285,7 +334,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           ),
         ],
         if (action != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacingS),
           action,
         ],
       ],
@@ -324,18 +373,15 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         totalDurationMinutes: totalDuration,
         depositAmount: appointment.depositAmount,
         balanceDue: appointment.balanceDue,
+        currency: appointment.currency ?? appointment.providerCurrency,
       ),
     );
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Rendez-vous ajouté à votre calendrier'
-              : 'Impossible d\'ouvrir le calendrier',
-        ),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Rendez-vous ajouté à votre calendrier',
+      error: 'Impossible d’ouvrir le calendrier',
     );
   }
 
@@ -371,14 +417,15 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           }
 
           final appointment = provider.selectedAppointment;
+          if (appointment != null) _maybeResolveProviderFacts(appointment);
           if (appointment == null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error_outline,
-                      size: 64, color: AppColors.error),
-                  const SizedBox(height: 16),
+                      size: AppTheme.iconXL, color: AppColors.error),
+                  const SizedBox(height: AppTheme.spacingM),
                   Text(
                     provider.error ?? 'Rendez-vous non trouvé',
                     style: AppTextStyles.bodyMedium.copyWith(
@@ -414,37 +461,59 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                       _InfoRow(
                         icon: Icons.calendar_today,
                         label: 'Date',
-                        value:
-                            Formatters.formatDate(appointment.appointmentDate),
+                        value: Formatters.formatDate(toSalonTime(
+                            appointment.appointmentDate,
+                            tz: appointment.providerTimezone)),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppTheme.spacingM),
                       _InfoRow(
                         icon: Icons.access_time,
                         label: 'Heure',
-                        value:
-                            Formatters.formatTime(appointment.appointmentDate),
+                        value: Formatters.formatTime(toSalonTime(
+                            appointment.appointmentDate,
+                            tz: appointment.providerTimezone)),
                       ),
-                      const SizedBox(height: 16),
+                      SalonTimeHint(
+                        tz: appointment.providerTimezone,
+                        countryLabel: context
+                            .watch<LocalityProvider>()
+                            .countryName(_providerCountryCode),
+                        padding: const EdgeInsets.only(top: AppTheme.spacingXS),
+                      ),
+                      if (_artistName != null) ...[
+                        const SizedBox(height: AppTheme.spacingM),
+                        _InfoRow(
+                          icon: Icons.person_outline,
+                          label: 'Spécialiste',
+                          value: _artistName!,
+                        ),
+                      ],
+                      const SizedBox(height: AppTheme.spacingM),
                       _InfoRow(
                         icon: Icons.attach_money,
                         label: 'Prix total',
-                        value:
-                            Formatters.formatCurrency(appointment.totalPrice),
+                        value: Formatters.formatCurrency(appointment.totalPrice,
+                            currency: appointment.currency ??
+                                appointment.providerCurrency ??
+                                'XOF'),
                       ),
                       if (appointment.depositAmount > 0) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         _depositSection(appointment),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         _InfoRow(
                           icon: Icons.account_balance_wallet_outlined,
                           label: 'Solde à régler au salon',
-                          value:
-                              Formatters.formatCurrency(appointment.balanceDue),
+                          value: Formatters.formatCurrency(
+                              appointment.balanceDue,
+                              currency: appointment.currency ??
+                                  appointment.providerCurrency ??
+                                  'XOF'),
                         ),
                       ],
                       if (appointment.notes != null &&
                           appointment.notes!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         _InfoRow(
                           icon: Icons.note,
                           label: 'Notes',
@@ -454,25 +523,25 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppTheme.spacingL),
                 // Action Buttons
                 if (appointment.status != AppointmentStatus.cancelled &&
                     appointment.status != AppointmentStatus.completed) ...[
-                  if (appointment.appointmentDate.isAfter(DateTime.now())) ...[
+                  if (appointment.appointmentDate.isAfter(AppClock.now())) ...[
                     AppButton(
                       text: 'Reporter',
                       icon: Icons.event_repeat,
                       isLoading: provider.isLoading,
                       onPressed: () => _handleReschedule(appointment),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     AppButton(
                       text: 'Ajouter au calendrier',
                       type: AppButtonType.secondary,
                       icon: Icons.event_available,
                       onPressed: () => _addToCalendar(appointment),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                   ],
                   AppButton(
                     text: 'Annuler le rendez-vous',
@@ -480,7 +549,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     isLoading: provider.isLoading,
                     onPressed: () => _handleCancel(appointment),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (appointment.status == AppointmentStatus.completed) ...[
                   AppButton(
@@ -488,17 +557,19 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     icon: Icons.rate_review_outlined,
                     onPressed: () => _leaveReview(appointment),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacingS),
                 ],
                 AppButton(
                   text: 'Appeler',
                   icon: Icons.phone,
-                  onPressed: () {
-                    // Would open phone dialer in real app
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fonctionnalité à venir')),
-                    );
-                  },
+                  onPressed: () => _contactSalon(appointment, whatsapp: false),
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                AppButton(
+                  text: 'WhatsApp',
+                  icon: Icons.chat_outlined,
+                  type: AppButtonType.secondary,
+                  onPressed: () => _contactSalon(appointment, whatsapp: true),
                 ),
               ],
             ),
@@ -525,8 +596,8 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: AppColors.textSecondary),
-        const SizedBox(width: 12),
+        Icon(icon, size: AppTheme.iconS, color: AppColors.textSecondary),
+        const SizedBox(width: AppTheme.spacingSM),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,7 +608,7 @@ class _InfoRow extends StatelessWidget {
                   color: AppColors.textTertiary,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.spacingXS),
               Text(
                 value,
                 style: AppTextStyles.bodyMedium,

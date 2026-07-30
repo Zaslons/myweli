@@ -14,7 +14,7 @@ class ProviderProvider extends ChangeNotifier {
   // Lazy so constructing ProviderProvider doesn't require these registered.
   ReviewServiceInterface get _reviewService => serviceLocator.reviewService;
   ImageUploadServiceInterface get _uploadService =>
-      serviceLocator.imageUploadService;
+      serviceLocator.reviewImageUploadService;
 
   List<Provider> _providers = [];
   List<Provider> _featuredProviders = [];
@@ -174,6 +174,12 @@ class ProviderProvider extends ChangeNotifier {
   Future<String?> uploadReviewPhoto(String source) async {
     final res = await _uploadService.uploadImage(source: source);
     return res.success ? res.data : null;
+  }
+
+  /// Reports a review for moderation (FR-REV-005 — parity 2.14).
+  Future<bool> reportReview(String reviewId, {String? reason}) async {
+    final res = await _reviewService.reportReview(reviewId, reason: reason);
+    return res.success;
   }
 
   /// Submits a review through the service, then reflects it locally.

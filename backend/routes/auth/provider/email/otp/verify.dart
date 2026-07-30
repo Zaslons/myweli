@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/responses.dart';
@@ -32,5 +33,29 @@ Future<Response> onRequest(RequestContext context) async {
     email,
     code,
   );
+  return _withInvitationBridge(context, result, email);
+}
+
+/// The invitation bridge (module `access` R2b): a verified identity with no
+/// account but PENDING invitations gets 202 {invitations} instead of the
+/// 404 — the client shows « {Salon} vous invite comme {Rôle} ».
+Future<Response> _withInvitationBridge(
+  RequestContext context,
+  ProviderVerifyResult result,
+  String? verifiedEmail,
+) async {
+  if (result.error == 'provider_not_found' &&
+      verifiedEmail != null &&
+      verifiedEmail.isNotEmpty) {
+    final invitations = await context.read<TeamService>().pendingInvitationsFor(
+      verifiedEmail,
+    );
+    if (invitations.isNotEmpty) {
+      return Response.json(
+        statusCode: HttpStatus.accepted,
+        body: {'invitations': invitations},
+      );
+    }
+  }
   return providerSessionResponse(result);
 }

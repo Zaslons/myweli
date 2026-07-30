@@ -1,4 +1,6 @@
+import '../access/membership_repository.dart';
 import '../auth/provider_auth_repository.dart';
+import '../providers_repository.dart';
 import '../storage/storage_service.dart';
 import 'audit_log_repository.dart';
 
@@ -10,11 +12,25 @@ typedef AdminResult = ({bool ok, String? error, Object? data});
 /// private ID documents, and approves/rejects verification — every decision
 /// written to the audit log.
 class AdminKycService {
-  AdminKycService(this._providers, this._storage, this._audit);
+  AdminKycService(
+    this._providers,
+    this._storage,
+    this._audit,
+    this._listings,
+    this._memberships,
+  );
 
   final ProviderAuthRepository _providers;
   final StorageService _storage;
   final AuditLogRepository _audit;
+
+  /// The public salon listing — approve/reject denormalizes `verified` onto
+  /// it so consumer surfaces can render the « Vérifié » badge (audit 15.1).
+  final ProvidersRepository _listings;
+
+  /// R6: the badge fans out to EVERY salon the account owns (T52) — the
+  /// scalar link plus active owner membership rows.
+  final MembershipRepository _memberships;
 
   static const _docTtl = Duration(minutes: 5);
 
@@ -70,6 +86,7 @@ class AdminKycService {
       status: 'verified',
     );
     if (updated == null) return (ok: false, error: 'not_found', data: null);
+    await _fanOutBadge(updated, verified: true);
     await _audit.append((
       actorAdminId: adminId,
       action: 'kyc.approve',
@@ -95,6 +112,7 @@ class AdminKycService {
       rejectionReason: reason.trim(),
     );
     if (updated == null) return (ok: false, error: 'not_found', data: null);
+    await _fanOutBadge(updated, verified: false);
     await _audit.append((
       actorAdminId: adminId,
       action: 'kyc.reject',
@@ -104,5 +122,21 @@ class AdminKycService {
       metadata: const {},
     ));
     return (ok: true, error: null, data: updated.toJson());
+  }
+
+  /// The verified badge on every OWNED salon (R6 fan-out): {scalar link} ∪
+  /// {active owner membership rows}. Member-only salons are never touched.
+  Future<void> _fanOutBadge(
+    ProviderAccount account, {
+    required bool verified,
+  }) async {
+    final owned = <String>{
+      if (account.providerId != null) account.providerId!,
+      for (final m in await _memberships.listForAccount(account.id))
+        if (m.role == 'owner' && m.status == 'active') m.providerId,
+    };
+    for (final id in owned) {
+      await _listings.updateProfile(id, {'verified': verified});
+    }
   }
 }

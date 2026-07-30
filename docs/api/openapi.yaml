@@ -317,31 +317,332 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [auth]
-      summary: Delete the signed-in user's own account (B2)
+      summary: Erase the signed-in user's own account (B2 · L1 · threat T59)
+      description: >-
+        Consumers only — a provider token gets 403; pros delete through
+        `DELETE /me/provider`. Irreversible, and idempotent: a second call
+        returns 404.
+
+
+        **Settle the agenda first.** A pending or confirmed booking in the future
+        → **409 `future_bookings`**; cancel it and retry. Same rule, and the same
+        code, as the provider path: a salon holds a slot for a named person, and
+        an account that vanishes without cancelling leaves a booking the salon
+        can neither contact nor fill. The gate runs before any erasure, so a 409
+        is never a partial deletion.
+
+
+        **Deleted** — the profile and its credentials; OTP rows and every
+        refresh token; device tokens (so push STOPS); the notification feed and
+        its preferences; favourites; reports this user filed.
+
+
+        **Stored files — best-effort.** Deposit screenshots and review photos are
+        erased, and their keys carry the user id so leaving them served would
+        defeat the anonymisation. A storage outage does not block the account
+        erasure, and the keys cannot be re-derived afterwards, so a file may
+        survive: the user-facing copy says so rather than promising deletion.
+
+
+        **Anonymised, not deleted** — reviews keep their rating and text and lose
+        their author and their photos, because the rating is a public aggregate
+        the salon earned and removing it would re-score a business, while the
+        photos are the person's own; appointments keep the booking and lose the
+        client name, phone and notes, so the salon can still reconcile its
+        takings; the salon-side client card is unlinked and its name and phone
+        cleared, while the salon's own tags and notes on that card stay as its
+        business record (T48).
+
+
+        **Retained, deliberately** — the transactional message log, which is
+        keyed by phone number rather than by account (and numbers get
+        reassigned); and any recorded objection to being contacted, precisely
+        so it keeps protecting the person after the account is gone.
+
+
+        This list is the contract three surfaces paraphrase: the
+        `/suppression-compte` page, the in-app confirmation dialog, and the
+        privacy policy. Design: docs/design/account-deletion-erasure.md.
       security: [{ bearerAuth: [] }]
       responses:
-        '204': { description: Deleted }
+        '204': { description: Erased }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: No such user — also the idempotent second call }
+        '409':
+          description: >-
+            `future_bookings` — cancel the upcoming appointment(s) first.
 
   /me/provider:
     get:
       tags: [auth]
-      summary: The signed-in provider's own account + managed salon (web M7)
+      summary: The signed-in provider's account + acting salon + membership (web M7 · access R4a)
       description: >-
-        Provider-only; the salon is resolved server-side from the account (never
-        a client id). Non-provider or unlinked account → 403.
+        Provider-only; the salon DEFAULTS server-side from the account
+        (owner) or the active membership (team member). R6: `?salonId=`
+        selects among the caller's ACTIVE memberships — invalid → uniform
+        403 `forbidden` (T55). The response carries the caller's MEMBERSHIP
+        (role + server-computed capabilities + the staff artist link) so
+        clients shape by role. Non-provider or unlinked account → 403
+        `forbidden`; a REVOKED member on the NO-PARAM path (memberships
+        exist, none active) → 403 `not_a_member` — the revoked-mid-session
+        signal (a per-salon denial never signs out the whole session).
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
-          description: The provider account + its salon
+          description: The provider account + its salon + the caller's membership
           content:
             application/json:
               schema:
                 type: object
-                required: [account, provider]
+                required: [account, provider, membership]
                 properties:
                   account: { $ref: '#/components/schemas/ProviderUser' }
                   provider: { $ref: '#/components/schemas/Provider' }
+                  membership: { $ref: '#/components/schemas/Membership' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Not a provider / unlinked (`forbidden`), or a revoked member
+            (`not_a_member`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [auth]
+      summary: Delete the provider ACCOUNT (audit 11.5 — AUTH-004 for pros)
+      description: >
+        Self-scoped and irreversible. Future pending/confirmed bookings in
+        ANY owned salon block the deletion (409 `future_bookings` — settle
+        every agenda first; R6). EVERY salon the account owns is unpublished
+        (`status → draft`, hidden from every public surface by T51) while
+        bookings/reviews/CRM keep resolving; member-only salons are
+        untouched; the
+        account row, its KYC documents (rows AND the private storage
+        objects), OTP state and every refresh token are erased — all
+        sessions die. Threat T53.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Account deleted; salon unpublished. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Future pending/confirmed bookings exist (`future_bookings`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /me/provider/members:
+    get:
+      tags: [team]
+      summary: The salon's team — members + pending invitations (access R2b)
+      description: >
+        Owner-only (`members.manage`, threat T36); the salon DEFAULTS from
+        the caller's membership — R6: `?salonId=` selects among ACTIVE
+        memberships (invalid → uniform 403, T55). Owner first; invited rows
+        carry `expiresAt`/`resendsLeft` and an `expired` flag.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
+      responses:
+        '200':
+          description: The member list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [team]
+      summary: Invite a team member by email (access R2b)
+      description: >
+        Owner-only. Role ∈ manager/reception/staff (`invalid_role`); staff
+        requires a salon-owned `artistId` (`artist_required` /
+        `artist_not_found`). 409 `member_exists` (already active or
+        pending), `offer_required` (no live offer — R2a pricing pivot),
+        `seat_limit` (offer seats full). 429 `invite_rate_limited`
+        (per-salon daily cap, threat T37). Sends the branded invitation
+        email (7-day validity). R6: `?salonId=` selects the salon.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [manager, reception, staff] }
+                artistId: { type: string, description: Required when role=staff. }
+      responses:
+        '201':
+          description: Invitation created (the pending member row)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /me/provider/members/{memberId}:
+    patch:
+      tags: [team]
+      summary: Change a member's role (access R2b)
+      description: >
+        Owner-only. The OWNER row is immutable → 403 `owner_protected`
+        (threat T36). role=staff requires a salon-owned `artistId`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [manager, reception, staff] }
+                artistId: { type: string }
+      responses:
+        '200':
+          description: Updated member
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /me/provider/members/{memberId}/revoke:
+    post:
+      tags: [team]
+      summary: Revoke a member's access (access R2b)
+      description: >
+        Owner-only, idempotent. Effective on the member's very next request —
+        capability resolution is per-request, never cached (threat T38).
+        The owner row → 403 `owner_protected`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
+      responses:
+        '200':
+          description: Revoked member row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /me/provider/members/{memberId}/resend:
+    post:
+      tags: [team]
+      summary: Re-send a pending invitation (access R2b)
+      description: >
+        Owner-only; resets the 7-day window. Budget of 3 resends per
+        invitation → 429 `invite_rate_limited` when exhausted (threat T37).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
+      responses:
+        '200':
+          description: Refreshed invitation row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /me/provider/invitations:
+    get:
+      tags: [team]
+      summary: The signed-in pro identity's pending invitations (access R2b)
+      description: >
+        Keyed on the ACCOUNT's verified email — never a client-supplied one
+        (threat T37). Any provider session may call it (bare member accounts
+        included).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Pending invitation cards
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitations]
+                properties:
+                  invitations:
+                    type: array
+                    items: { $ref: '#/components/schemas/TeamInvitation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /me/provider/invitations/{invitationId}/accept:
+    post:
+      tags: [team]
+      summary: Accept an invitation under the current session (access R2b)
+      description: >
+        The session is the identity proof; the invitation must target the
+        account's own verified email (403). Expired → 409
+        `invitation_expired`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Activated member row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /me/provider/invitations/{invitationId}/decline:
+    post:
+      tags: [team]
+      summary: Decline an invitation under the current session (access R2b)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Declined (the invitation row is deleted)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [declined]
+                properties:
+                  declined: { type: boolean }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -499,14 +800,102 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /me/salons:
+    get:
+      tags: [team]
+      summary: "« Mes salons » — every ACTIVE membership + the add-salon gate (access R6)"
+      description: >
+        Provider-only. Every salon the caller holds an ACTIVE membership in
+        (owned first, then salonName), each with the caller's role there and
+        the salon's status/badge — the switcher payload. `canAddSalon` is
+        SERVER-computed (≥1 owned salon on a live Réseau offer, under the
+        salon cap — clients never derive rights). A bare account gets
+        `{items: [], canAddSalon: false}`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The caller's salons + the add gate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, canAddSalon]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SalonMembership' }
+                  canAddSalon: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [team]
+      summary: "« Ajouter un salon » — an additional draft salon (access R6, Réseau-gated)"
+      description: >
+        Provider-only (threat T55). Requires ≥1 OWNED salon with a live
+        (trial/paid/grace) Réseau offer → else 403 `reseau_required`; capped
+        at 20 owned salons → 409 `salon_limit`. Creates a DRAFT salon (own
+        setup state — its own offer, its own trial, its own publish gate; no
+        subscription row) plus the owner membership row; the account's
+        default salon link is untouched. The « Vérifié » badge is inherited
+        when the account's KYC is approved (T52). `phoneNumber` defaults to
+        the account's.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [businessName, businessType]
+              properties:
+                businessName: { type: string }
+                businessType:
+                  type: string
+                  enum: [salon, barber, spa, nailSalon, massage, other]
+                phoneNumber: { type: string }
+                address: { type: string }
+                areaId:
+                  type: string
+                  description: >-
+                    Optional locality pick (an `Area.id` from GET /localities)
+                    — market facts derive from it (400 `invalid_area` when
+                    unknown).
+      responses:
+        '201':
+          description: The new draft salon's directory entry
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [salon]
+                properties:
+                  salon: { $ref: '#/components/schemas/SalonMembership' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Not a provider (`forbidden`), or no live Réseau offer on any
+            owned salon (`reseau_required`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: The owned-salon cap is reached (`salon_limit`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /me/subscription:
     get:
       tags: [provider]
-      summary: The signed-in provider's plan & trial status (FR-PRO-SUB-001) — derived
+      summary: LEGACY plan status (compat shape; the real model is per-salon)
       description: >
-        Provider-role, self-scoped. Derived from the account's signup date (no
-        billing state in V1): Pro during the 90-day trial, else Free.
+        Provider-role, self-scoped; derived from the acting salon's offer
+        (fallback: the account-age derivation). R6: `?salonId=` selects
+        among the caller's ACTIVE memberships (invalid → 403 `forbidden`).
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: The caller's subscription status
@@ -591,6 +980,9 @@ paths:
         `idToken` (Google) · `identityToken` (+`nonce`) (Apple) · `email`+`code`
         (email OTP via /auth/provider/email/otp/request). The contact
         `phoneNumber` is REQUIRED. Returns a live ProviderSession (201).
+        Also provisions the account's linked DRAFT salon (publicly invisible
+        until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy
+        salon-less accounts self-heal on `GET /me/provider`).
         Design: docs/design/pro-auth-social.md.
       requestBody:
         required: true
@@ -606,6 +998,13 @@ paths:
                   enum: [salon, barber, spa, nailSalon, massage, other]
                 phoneNumber: { type: string, description: E.164 — required salon contact. }
                 address: { type: string }
+                areaId:
+                  type: string
+                  description: >-
+                    Optional locality pick (an `Area.id` from GET /localities)
+                    — the salon's commune/city/timezone/currency DERIVE from
+                    it server-side (multi-pays MP1; unknown → 400
+                    `invalid_area`).
                 providerId: { type: string }
                 idToken: { type: string, description: Google ID token (identity proof). }
                 identityToken: { type: string, description: Apple identity token. }
@@ -630,7 +1029,9 @@ paths:
       summary: Salon sign-in with a Google ID token (LOGIN-ONLY, auth overhaul P4)
       description: >
         Verified against Google's JWKS. A salon is never auto-created — no
-        account → 404 `provider_not_found` (the client offers registration).
+        account → 404 `provider_not_found` (the client offers registration),
+        UNLESS the verified email holds pending team invitations (module
+        `access` R2b) → 202 with the invitation cards.
       requestBody:
         required: true
         content:
@@ -646,6 +1047,19 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProviderSession' }
+        '202':
+          description: >-
+            No account, but the email has pending team invitations — the
+            client shows the « Invitations » step instead of registration.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitations]
+                properties:
+                  invitations:
+                    type: array
+                    items: { $ref: '#/components/schemas/TeamInvitation' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -710,7 +1124,9 @@ paths:
       summary: Verify a salon email OTP (LOGIN-ONLY)
       description: >
         A correct code with no salon returns 404 `provider_not_found` WITHOUT
-        consuming the code (the register call reuses it).
+        consuming the code (the register call reuses it) — UNLESS the email
+        holds pending team invitations (module `access` R2b) → 202 with the
+        invitation cards (code also left unconsumed for the accept call).
       requestBody:
         required: true
         content:
@@ -727,7 +1143,99 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProviderSession' }
+        '202':
+          description: >-
+            No account, but the email has pending team invitations — the
+            client shows the « Invitations » step instead of registration.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitations]
+                properties:
+                  invitations:
+                    type: array
+                    items: { $ref: '#/components/schemas/TeamInvitation' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /auth/provider/invitations/accept:
+    post:
+      tags: [auth]
+      summary: Accept a team invitation, creating the member account if needed (access R2b)
+      description: >
+        Unauthenticated but identity-PROVEN — `{invitationId, idToken}`
+        (Google, verified email) or `{invitationId, email, code}` (the email
+        OTP from the login attempt, still unconsumed). An existing account is
+        signed in and joined (200); otherwise a bare member account (no
+        salon) is created and joined (201). The invitation must target the
+        proven email (403) and be unexpired (409 `invitation_expired`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invitationId]
+              properties:
+                invitationId: { type: string }
+                idToken: { type: string, description: Google ID token path. }
+                email: { type: string, format: email, description: Email-OTP path. }
+                code: { type: string, description: Email-OTP path. }
+      responses:
+        '200':
+          description: Accepted under the existing account (flat ProviderSession)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProviderSession' }
+        '201':
+          description: Member account created + invitation accepted (flat ProviderSession)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProviderSession' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Invitation expired (`invitation_expired`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/provider/invitations/decline:
+    post:
+      tags: [auth]
+      summary: Decline a team invitation without creating anything (access R2b)
+      description: >
+        Same identity proof as the accept (`idToken` or `email`+`code`; the
+        OTP is validated WITHOUT being consumed). The invitation must target
+        the proven email (403).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invitationId]
+              properties:
+                invitationId: { type: string }
+                idToken: { type: string }
+                email: { type: string, format: email }
+                code: { type: string }
+      responses:
+        '200':
+          description: Declined (the invitation row is deleted)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [declined]
+                properties:
+                  declined: { type: boolean }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /auth/provider/otp/verify:
@@ -785,6 +1293,25 @@ paths:
               schema: { $ref: '#/components/schemas/TokenPair' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /localities:
+    get:
+      tags: [system]
+      summary: The public locality reference tree (multi-pays MP1)
+      description: >-
+        Countries → Mobile-Money operator catalog + cities → areas
+        (communes/quartiers). Read-only seeded reference data — the source of
+        every locality picker, discovery filter, SEO landing family and the
+        salon's derived timezone/currency (threat T56: no write endpoint
+        exists; clients build payment deep links ONLY from the closed
+        `deepLinkKind` vocabulary). Cacheable (`Cache-Control: public,
+        max-age=3600`).
+      responses:
+        '200':
+          description: The tree
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalityTree' }
 
   /providers:
     get:
@@ -856,6 +1383,13 @@ paths:
                 commune: { type: string, nullable: true }
                 phoneNumber: { type: string, description: E.164. }
                 whatsapp: { type: string, nullable: true, description: E.164. }
+                latitude:
+                  type: number
+                  description: Map pin (pro-salon-lifecycle L1); PAIRED with longitude, −90..90.
+                longitude: { type: number, description: Paired with latitude, −180..180. }
+                category:
+                  type: string
+                  enum: [salon, barber, spa, nails, massage]
       responses:
         '200':
           description: The updated provider
@@ -1207,6 +1741,45 @@ paths:
                   pageSize: { type: integer }
                   total: { type: integer }
 
+  /providers/{id}/publish:
+    post:
+      tags: [providers]
+      summary: Take the salon live (pro-salon-lifecycle)
+      description: >
+        Owner-only (the token's account must own {id} — T50). Flips the salon
+        from `draft` to `active` when the server-computed go-live gate passes
+        (PRD FR-PRO-ONB-001): profile (description + address + commune), ≥3
+        active services, ≥3 photos, at least one open weekday. Incomplete →
+        409 `incomplete` with the missing checklist keys. Idempotent for an
+        already-active salon. Drafts are invisible on every public surface
+        (discovery, by-slug, sitemap) and refuse bookings (T51).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The (now) active provider
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Provider' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The go-live gate failed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, missing]
+                properties:
+                  error: { type: string, enum: [incomplete] }
+                  missing:
+                    type: array
+                    items:
+                      type: string
+                      enum: [profile, location, services, photos, availability, offer]
+
   /providers/{id}/deposit-policy:
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
@@ -1228,6 +1801,8 @@ paths:
       summary: Replace a salon's deposit policy wholesale (B-deposit)
       description: >
         Server-authoritative (booking derives each deposit from this).
+        **Enabling deposits requires a KYC-VERIFIED account** (T52) →
+        403 `verification_required` otherwise.
         Validated: `depositPercentage` 0..1 (and > 0 when required);
         `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum;
         `mobileMoneyNumber` E.164. **When `depositRequired` is true, the Mobile
@@ -1295,6 +1870,59 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /providers/{id}/subscription:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [providers]
+      summary: The salon's offer state (pricing pivot — R2a)
+      description: >
+        Owner-only (`subscription.manage`, threat T54). 404 while the salon
+        is in the free setup state (no offer chosen). Status lifecycle:
+        `trial` → (`paid`)* → `grace` (7 days) → `expired`; expiry leads to
+        UNPUBLISH (draft, T51) — never a data lockout.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The derived offer state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonSubscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [providers]
+      summary: Choose or switch the salon's offer (3 mois offerts)
+      description: >
+        Owner-only. The FIRST choice starts the salon's ONE 3-month trial;
+        switches keep the clock; once `expired`, re-choosing → 409
+        `trial_used` (payment is manual — « Nous contacter », admin-recorded).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier: { type: string, enum: [pro, business, reseau] }
+      responses:
+        '200':
+          description: The new offer state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonSubscription' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Trial already used (`trial_used`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /providers/{id}/appointments:
     parameters:
       - { in: path, name: id, required: true, schema: { type: string } }
@@ -1347,6 +1975,8 @@ paths:
     post:
       tags: [uploads]
       summary: Presign a direct-to-storage upload (B-upload, B-kyc)
+      parameters:
+        - { $ref: '#/components/parameters/SalonSelector' }
       description: >
         Provider-only. Returns a short-lived presigned **multipart POST** to
         object storage (Cloudflare R2). The object key is built server-side from
@@ -1360,8 +1990,11 @@ paths:
         pdf`. **`purpose=deposit`** → **consumer-only** (a `user` token), a
         **separate** private bucket (`R2_DEPOSIT_BUCKET`, kept apart from KYC),
         prefix `deposit/{userId}`, returns the `key` only (payment proof is never
-        public; images only). Role is gated **per purpose**: `deposit` requires
-        `user`; `gallery`/`kyc` require `provider`.
+        public; images only). **`purpose=review`** → **consumer-only**, the
+        public bucket (review tiles render the photos), prefix
+        `review/{userId}`, returns `publicUrl` (images only; review submit
+        caps `photoUrls` at 6). Role is gated **per purpose**:
+        `deposit`/`review` require `user`; `gallery`/`kyc` require `provider`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -1374,7 +2007,7 @@ paths:
                 contentType:
                   type: string
                   enum: [image/jpeg, image/png, image/webp, application/pdf]
-                purpose: { type: string, enum: [gallery, kyc, deposit] }
+                purpose: { type: string, enum: [gallery, kyc, deposit, review] }
       responses:
         '200':
           description: A presigned upload ticket
@@ -1385,6 +2018,232 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /providers/{id}/clients:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [clients]
+      summary: The salon's client base (module clients C1)
+      description: >
+        Provider-authenticated + ownership-scoped (capability `clients.view` —
+        owner-only until the access module). Paginated, sorted by last visit;
+        `query` matches name substring or phone digits (≥2); `tag` filters.
+        Every read is AUDITED (threat T46). Page 1 carries `availableTags`
+        (presets VIP/Fidèle/À risque + the salon's custom tags).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: query, schema: { type: string } }
+        - { in: query, name: tag, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, default: 20, maximum: 50 } }
+      responses:
+        '200':
+          description: The salon's clients
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClientList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [clients]
+      summary: Add a client manually (phone REQUIRED — the dedupe/link key)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name: { type: string }
+                phone: { type: string, description: E.164 }
+                note: { type: string, description: Optional first note (≤500). }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClient' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 'That phone already has a row: `client_exists` + `clientId`.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  clientId: { type: string }
+
+  /providers/{id}/clients/{clientId}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+    get:
+      tags: [clients]
+      summary: The client card (stats + upcoming + notes; read audited)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The card
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClientCard' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [clients]
+      summary: Update the tag set (≤10 tags, each ≤24 chars)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClient' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/clients/{clientId}/visits:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+    get:
+      tags: [clients]
+      summary: The client's visit history AT THIS SALON (paginated, newest first)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, default: 20, maximum: 50 } }
+      responses:
+        '200':
+          description: Salon-scoped appointments
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppointmentList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/clients/{clientId}/notes:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+    post:
+      tags: [clients]
+      summary: Add an internal note (≤500 chars; team-only, never consumer-visible)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 500 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonClientNote' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/clients/{clientId}/notes/{noteId}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+      - { in: path, name: clientId, required: true, schema: { type: string } }
+      - { in: path, name: noteId, required: true, schema: { type: string } }
+    delete:
+      tags: [clients]
+      summary: Delete a note (author or owner)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /providers/{id}/journal:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [journal]
+      summary: The journal day view in ONE payload (module journal J1)
+      description: >
+        Provider-authenticated + ownership-scoped (threat T41). Hours/breaks
+        for the weekday (null when closed/blocked), the artist columns, and
+        the day's appointments (ALL statuses, ascending) enriched with
+        salonClientId / clientDisplayName / clientNoShowCount / arrivedAt.
+        OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a)
+        receive their own artist's column and bookings only, and BOTH
+        `clientPhone` AND `clientDisplayName` are masked on any day other than
+        today (the same-day contact rule; A13 widened it to the name, because a
+        member browsing days they do not work would otherwise rebuild the salon's
+        client list one date at a time). The `date`
+        names a calendar day in the SALON's timezone (multi-pays MP1).
+        Design: docs/design/journal-j1-grid.md.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: date, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: The day
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JournalDay' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /appointments/{id}/arrive:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [journal]
+      summary: « Client arrivé » (journal J2) — stamp arrivedAt
+      description: >
+        Provider-only + ownership. CONFIRMED bookings, on their calendar day
+        (UTC) only; idempotent (repeat → 200 with the same state). Wrong
+        state/day → 409 (`invalid_state` / `not_today`). Threat T43.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The updated appointment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Not confirmed, or not its calendar day
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /appointments:
     get:
       tags: [appointments]
@@ -1394,8 +2253,12 @@ paths:
         provider-entered (manual) bookings made to the account's OTP-verified
         phone** (auto-sync, FR-APPT-008 — the match phone is resolved
         server-side, never from the request); a **provider** token returns the
-        bookings of the salon it manages (the account's linked `providerId`). A
-        provider account not yet linked to a Provider gets 403.
+        bookings of the salon it acts in (owner link or active membership).
+        OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access
+        R4a) get their own artist's bookings only, with `clientPhone` and
+        `clientDisplayName` (A13) masked off-day. A provider account with no salon and no active membership
+        gets 403. R6: a provider `?salonId=` selects among the caller's
+        ACTIVE memberships (invalid → uniform 403, T55).
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query
@@ -1403,6 +2266,7 @@ paths:
           schema:
             type: string
             enum: [pending, confirmed, cancelled, completed, noShow]
+        - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
           description: The caller's appointments (own, or the salon's for a provider)
@@ -1613,13 +2477,15 @@ paths:
       summary: Move an appointment to a new time (B-life; B-pro-resched)
       description: >
         Role-aware: a `user` reschedules their own booking; a `provider`
-        reschedules one of its own salon's bookings (ownership by the account's
-        linked providerId → 403 cross-salon/unlinked). Both re-validate the new
-        slot (→ 409 slot_unavailable for past/closed/taken). Deposit + balance
-        carry over unchanged.
+        reschedules one of its acting salon's bookings (membership-resolved;
+        the service cross-checks the appointment's salon → 403 cross-salon).
+        R6: `?salonId=` selects the acting salon among ACTIVE memberships.
+        Both re-validate the new slot (→ 409 slot_unavailable for
+        past/closed/taken). Deposit + balance carry over unchanged.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/SalonSelector' }
       requestBody:
         required: true
         content:
@@ -1629,6 +2495,12 @@ paths:
               required: [newDateTime]
               properties:
                 newDateTime: { type: string, format: date-time }
+                artistId:
+                  type: string
+                  description: >
+                    PROVIDER ONLY (journal J1 drag-across-columns): reassign
+                    the booking's artist; must belong to the salon → else 400
+                    `invalid_artist`.
       responses:
         '200':
           description: The rescheduled appointment
@@ -1734,12 +2606,23 @@ paths:
         - in: query
           name: date
           required: true
+          description: A calendar day in the SALON's timezone (multi-pays MP1).
           schema: { type: string, format: date, example: '2026-06-25' }
         - in: query
           name: serviceIds
           description: Comma-separated; sums their durations if durationMinutes is absent.
           schema: { type: string }
         - { in: query, name: durationMinutes, schema: { type: integer } }
+        - in: query
+          name: artistId
+          description: >
+            Per-artist capacity (booking-capacity-web-hub.md): slots free for
+            THIS artist (capable + within their hours + no assigned overlap,
+            with the unassigned pool still leaving a chair). Absent =
+            « Sans préférence » — free while ANY capable chair remains; when
+            every chair is taken the slot is not bookable at all. Unknown
+            artist → 400 invalid_artist.
+          schema: { type: string }
       responses:
         '200':
           description: The bookable starts (may be empty if closed/blocked/full)
@@ -2109,6 +2992,38 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/providers/{id}/subscription/paid:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [admin]
+      summary: Record a manual subscription payment (audited — T54)
+      description: >
+        Extends `paidUntil` by `months` (1–24) from max(now, current);
+        republishes a billing-unpublished salon when the publish gate passes;
+        reopens the warning cycle.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [months]
+              properties:
+                months: { type: integer, minimum: 1, maximum: 24 }
+                reason: { type: string }
+      responses:
+        '200':
+          description: The updated offer state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalonSubscription' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /admin/providers/{id}/suspend:
     post:
       tags: [admin]
@@ -2395,6 +3310,19 @@ components:
         refresh via /auth/refresh (rotating opaque refresh token). Applied to
         protected routes (e.g. /me) as those slices land — see docs/BACKEND.md §3.1.
 
+  parameters:
+    SalonSelector:
+      name: salonId
+      in: query
+      required: false
+      schema: { type: string }
+      description: >-
+        R6 multi-salons: select the acting salon among the caller's ACTIVE
+        memberships. Absent → the caller's default salon (legacy behavior).
+        Any invalid selection (never-member, revoked-there, unknown id) is a
+        uniform 403 `forbidden` — no membership-existence oracle (threat
+        T55) — and never auto-provisions.
+
   responses:
     BadRequest:
       description: Invalid input
@@ -2497,6 +3425,75 @@ components:
         status: { type: string, enum: [active, banned] }
         createdAt: { type: string, format: date-time }
 
+    Membership:
+      type: object
+      description: >
+        The signed-in caller's membership in the acting salon (module
+        `access` R4a): the preset role, its SERVER-computed capabilities
+        (clients never derive rights), and the Collaborateur's artist link.
+      required: [role, capabilities]
+      properties:
+        role: { type: string, enum: [owner, manager, reception, staff] }
+        capabilities:
+          type: array
+          items: { type: string }
+          description: Sorted capability names, e.g. journal.view.own.
+        artistId: { type: string, nullable: true }
+        artistName: { type: string, nullable: true }
+
+    SalonMembership:
+      type: object
+      description: >
+        One « Mes salons » entry (module `access` R6): a salon the caller
+        holds an ACTIVE membership in, with their role there and enough
+        salon surface for the switcher (name, status, badge, thumb).
+      required: [salonId, salonName, role, salonStatus, verified]
+      properties:
+        salonId: { type: string }
+        salonName: { type: string }
+        role: { type: string, enum: [owner, manager, reception, staff] }
+        salonStatus: { type: string, enum: [draft, active, suspended] }
+        verified: { type: boolean }
+        imageUrl: { type: string, nullable: true }
+
+    TeamMember:
+      type: object
+      description: >
+        A salon team row (module `access` R2b) — the owner, an active
+        member, or a pending invitation.
+      required: [id, providerId, email, role, status, invitedAt]
+      properties:
+        id: { type: string }
+        providerId: { type: string }
+        accountId: { type: string, nullable: true }
+        email: { type: string }
+        role: { type: string, enum: [owner, manager, reception, staff] }
+        artistId: { type: string, nullable: true }
+        artistName: { type: string, nullable: true }
+        status: { type: string, enum: [active, invited, revoked] }
+        invitedAt: { type: string, format: date-time }
+        acceptedAt: { type: string, format: date-time, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        resendsLeft: { type: integer }
+        expired:
+          type: boolean
+          description: True when an invited row is past its expiry.
+
+    TeamInvitation:
+      type: object
+      description: >
+        A pending-invitation card as shown to the INVITEE (module `access`
+        R2b) — no salon internals beyond the name.
+      required: [id, providerId, salonName, role, roleLabel, expiresAt]
+      properties:
+        id: { type: string }
+        providerId: { type: string }
+        salonName: { type: string }
+        role: { type: string, enum: [manager, reception, staff] }
+        roleLabel: { type: string, description: French label (Manager / Réception / Collaborateur). }
+        expiresAt: { type: string, format: date-time }
+
     ProviderSession:
       type: object
       description: >
@@ -2555,6 +3552,22 @@ components:
           items: { type: string }
         artistId: { type: string, nullable: true }
         appointmentDate: { type: string, format: date-time }
+        currency:
+          type: string
+          nullable: true
+          description: >-
+            Stamped from the salon at creation (multi-pays §4 — immutable);
+            absent on pre-MP1 rows (read as the salon's).
+        providerTimezone:
+          type: string
+          nullable: true
+          description: >-
+            Consumer-read enrichment (multi-pays MP1) — the salon's IANA
+            timezone, for salon-time rendering.
+        providerCurrency:
+          type: string
+          nullable: true
+          description: Consumer-read enrichment — the salon's ISO-4217 currency.
         durationMinutes:
           type: integer
           description: >
@@ -2567,11 +3580,167 @@ components:
         depositAmount: { type: number }
         balanceDue: { type: number }
         cancellationWindowHours: { type: integer }
-        clientName: { type: string, nullable: true }
+        clientName:
+          type: string
+          nullable: true
+          description: >
+            The name the SALON typed, on a manually-created booking. NULL for
+            every app-originated booking — the app already knows who the user
+            is. The CONSUMER booking list gates its « Réservé par votre salon »
+            badge on this being non-null, so it must not be repurposed as
+            "the client's name"; `clientDisplayName` is that.
+        clientDisplayName:
+          type: string
+          nullable: true
+          description: >
+            Who the booking is for, as the salon should see it — resolved from
+            the salon's own client record (`salon_clients.display_name`), which
+            is written at booking time and anonymised to « Client » when the
+            user erases their account. Provider-facing reads only. **Masked
+            together with `clientPhone` on off-day bookings for an own-scope
+            Collaborateur** (BACKEND.md T40/R4a), so a restricted member cannot
+            reconstruct the client base by browsing dates.
         clientPhone: { type: string, nullable: true }
         notes: { type: string, nullable: true }
         depositScreenshotUrl: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        arrivedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            « Client arrivé » (journal J2) — stamped by the salon on a
+            confirmed booking on its calendar day. Read-only.
+        salonClientId:
+          type: string
+          nullable: true
+          description: >
+            PROVIDER VIEW ONLY (module clients C1): the salon-client row this
+            booking resolves to — links the pro detail to the client card.
+        clientNoShowCount:
+          type: integer
+          nullable: true
+          description: >
+            PROVIDER VIEW ONLY: the client's no-show count at this salon
+            (server-computed) — the accept-screen badge (neutral at 1, red
+            from 2).
+
+    JournalDay:
+      type: object
+      description: One payload renders the whole journal grid (journal J1).
+      required: [date, artists, appointments]
+      properties:
+        date: { type: string, format: date }
+        hours:
+          type: object
+          nullable: true
+          description: Null when the salon is closed or the date is blocked.
+          properties:
+            open: { type: string, example: '09:00' }
+            close: { type: string, example: '18:00' }
+            breaks:
+              type: array
+              items:
+                type: object
+                properties:
+                  start: { type: string }
+                  end: { type: string }
+        artists:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              imageUrl: { type: string, nullable: true }
+        appointments:
+          type: array
+          items: { $ref: '#/components/schemas/Appointment' }
+
+    AppointmentList:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Appointment' }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+
+    SalonClient:
+      type: object
+      description: >
+        A salon's client (module clients C1) — DERIVED from bookings (platform
+        users + walk-in guests keyed by phone). `linked` = has a MyWeli
+        account. Salon-scoped: never exposes cross-salon data (threat T45).
+      required: [id, displayName, tags, linked, createdAt]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        phone: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        lastVisitAt: { type: string, format: date-time, nullable: true }
+        linked: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    SalonClientListItem:
+      allOf:
+        - { $ref: '#/components/schemas/SalonClient' }
+        - type: object
+          required: [visits, noShows]
+          properties:
+            visits: { type: integer, description: Completed visits at this salon. }
+            noShows: { type: integer }
+
+    SalonClientList:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SalonClientListItem' }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        availableTags:
+          type: array
+          items: { type: string }
+          description: Page 1 only — presets + the salon's custom tags.
+
+    SalonClientStats:
+      type: object
+      required: [visits, spentFcfa, noShows, cancellations]
+      properties:
+        visits: { type: integer }
+        spentFcfa: { type: number }
+        noShows: { type: integer }
+        cancellations: { type: integer }
+
+    SalonClientNote:
+      type: object
+      description: Internal team note — NEVER consumer-visible (threat T47).
+      required: [id, authorName, body, createdAt]
+      properties:
+        id: { type: string }
+        authorName: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    SalonClientCard:
+      allOf:
+        - { $ref: '#/components/schemas/SalonClient' }
+        - type: object
+          required: [stats, notes]
+          properties:
+            stats: { $ref: '#/components/schemas/SalonClientStats' }
+            upcoming:
+              { $ref: '#/components/schemas/Appointment' }
+            notes:
+              type: array
+              items: { $ref: '#/components/schemas/SalonClientNote' }
 
     DurationVariants:
       type: object
@@ -2790,7 +3959,9 @@ components:
         mobileMoneyOperator:
           type: string
           nullable: true
-          enum: [wave, orangeMoney, mtnMoMo, moov]
+          description: >-
+            An operator id from the salon COUNTRY's catalog
+            (GET /localities → country.operators — multi-pays MP1).
         mobileMoneyNumber:
           type: string
           nullable: true
@@ -2833,6 +4004,26 @@ components:
         marketing: { type: boolean, description: Marketing/promotional messages (ARTCI opt-out). }
         push: { type: boolean, description: Device push notifications. }
 
+    SalonSubscription:
+      type: object
+      description: >
+        The salon's offer state (pricing pivot — R2a). Billing state lives in
+        its own table and NEVER enters public provider payloads (T54).
+      required: [tier, status, trialEndsAt, graceEndsAt, seats]
+      properties:
+        tier: { type: string, enum: [pro, business, reseau] }
+        status: { type: string, enum: [trial, paid, grace, expired] }
+        trialEndsAt: { type: string, format: date-time }
+        paidUntil: { type: string, format: date-time, nullable: true }
+        graceEndsAt: { type: string, format: date-time }
+        unpublishedForBilling: { type: boolean }
+        seats:
+          type: object
+          required: [cap, used]
+          properties:
+            cap: { type: integer, description: Places for the tier (owner + team, invited included). }
+            used: { type: integer }
+
     Subscription:
       type: object
       description: >
@@ -2869,7 +4060,12 @@ components:
       properties:
         totalEarnings:
           type: number
-          description: Σ totalPrice of completed bookings in range (FCFA).
+          description: Σ totalPrice of completed bookings in range.
+        currency:
+          type: string
+          description: >-
+            The salon's ISO-4217 currency (multi-pays MP1); XOF/XAF display
+            as « FCFA ».
         transactions:
           type: array
           items: { $ref: '#/components/schemas/EarningsTransaction' }
@@ -2881,6 +4077,10 @@ components:
         id: { type: string }
         appointmentId: { type: string }
         amount: { type: number }
+        currency:
+          type: string
+          nullable: true
+          description: The stamped record currency (multi-pays §4).
         date: { type: string, format: date-time }
         status: { type: string, description: '"completed".' }
 
@@ -2901,6 +4101,69 @@ components:
           items: { type: string }
         depositRequired: { type: boolean }
 
+    LocalityTree:
+      type: object
+      required: [countries]
+      properties:
+        countries:
+          type: array
+          items: { $ref: '#/components/schemas/LocalityCountry' }
+
+    LocalityCountry:
+      type: object
+      required: [code, name, currency, phonePrefix, operators, cities]
+      properties:
+        code: { type: string, description: ISO-3166 alpha-2 (e.g. CI). }
+        name: { type: string }
+        currency: { type: string, description: ISO-4217 (e.g. XOF). }
+        phonePrefix: { type: string, description: E.164 prefix (e.g. +225). }
+        operators:
+          type: array
+          items: { $ref: '#/components/schemas/MomoOperator' }
+        cities:
+          type: array
+          items: { $ref: '#/components/schemas/LocalityCity' }
+
+    LocalityCity:
+      type: object
+      required: [id, slug, name, timezone, areas]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        timezone: { type: string, description: IANA — drives every salon in the city. }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        areas:
+          type: array
+          items: { $ref: '#/components/schemas/LocalityArea' }
+
+    LocalityArea:
+      type: object
+      required: [id, slug, name, labelKind]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        labelKind:
+          type: string
+          enum: [commune, quartier, arrondissement]
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+
+    MomoOperator:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string, description: The wire value used by deposit policies. }
+        label: { type: string }
+        deepLinkKind:
+          type: string
+          nullable: true
+          description: >-
+            Closed vocabulary driving client payment deep links (`wave`
+            today) — clients never build links from payload URLs (T56).
+
     Provider:
       type: object
       description: Full provider detail. Mirrors Provider.toJson() field-for-field.
@@ -2908,11 +4171,42 @@ components:
       properties:
         id: { type: string }
         slug: { type: string, description: URL slug for the public web page (myweli.ci/<slug>). }
+        status:
+          type: string
+          enum: [draft, active, suspended]
+          description: >
+            Server-owned lifecycle (pro-salon-lifecycle): `draft` until the
+            owner publishes; public reads only ever return `active`.
+        verified:
+          type: boolean
+          description: >
+            Server-owned « Vérifié » badge — denormalized from the account's
+            KYC status on admin approve/reject (T52; consumer trust signal).
         name: { type: string }
         description: { type: string }
         address: { type: string }
         city: { type: string, nullable: true }
         commune: { type: string, nullable: true }
+        areaId:
+          type: string
+          nullable: true
+          description: >-
+            The salon's locality (an `Area.id` from GET /localities). Market
+            facts below DERIVE from it server-side (multi-pays MP1, T57).
+        citySlug: { type: string, nullable: true }
+        countryCode: { type: string, nullable: true, description: ISO-3166 alpha-2. }
+        timezone:
+          type: string
+          nullable: true
+          description: >-
+            IANA — derived from the salon's city; every displayed time and
+            day boundary uses it (salon time). Never client-writable.
+        currency:
+          type: string
+          nullable: true
+          description: >-
+            ISO-4217 — derived from the salon's country at creation, immutable
+            self-serve; XOF/XAF display as « FCFA ».
         latitude: { type: number, nullable: true }
         longitude: { type: number, nullable: true }
         imageUrls:
@@ -2936,7 +4230,9 @@ components:
         depositMobileMoneyOperator:
           type: string
           nullable: true
-          enum: [wave, orangeMoney, mtnMoMo, moov]
+          description: >-
+            An operator id from the salon COUNTRY's catalog
+            (GET /localities → country.operators — multi-pays MP1).
         depositMobileMoneyNumber: { type: string, nullable: true }
         cancellationWindowHours: { type: integer }
         artists:

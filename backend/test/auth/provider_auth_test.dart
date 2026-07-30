@@ -3,11 +3,19 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/salon_provisioning_service.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
+import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/auth/provider/email/otp/request.dart' as pe_request;
@@ -214,12 +222,14 @@ void main() {
 
   group('routes', () {
     late InMemoryProviderAuthRepository repo;
+    late InMemoryProvidersRepository salons;
     late AuthMethods methods;
     late GoogleIdTokenVerifier google;
     late EmailProvider email;
 
     setUp(() {
       repo = InMemoryProviderAuthRepository(tokens: ts(), isProd: false);
+      salons = InMemoryProvidersRepository([]);
       methods = const AuthMethods(AuthMethods.defaults);
       google = _FakeGoogle(_googleClaims);
       email = LogEmailProvider();
@@ -232,6 +242,29 @@ void main() {
       when(() => context.read<AuthMethods>()).thenReturn(methods);
       when(() => context.read<GoogleIdTokenVerifier>()).thenReturn(google);
       when(() => context.read<EmailProvider>()).thenReturn(email);
+      when(() => context.read<SalonProvisioningService>()).thenReturn(
+        SalonProvisioningService(salons, repo, InMemoryMembershipRepository()),
+      );
+      // The R2b login bridge reads TeamService on provider_not_found; an
+      // empty membership store keeps the legacy 404 behaviour under test.
+      final bridgeMembers = InMemoryMembershipRepository();
+      final bridgeResolver = MembershipService(bridgeMembers, repo);
+      when(() => context.read<TeamService>()).thenReturn(
+        TeamService(
+          bridgeMembers,
+          bridgeResolver,
+          salons,
+          SalonSubscriptionService(
+            InMemorySalonSubscriptionRepository(),
+            bridgeResolver,
+            bridgeMembers,
+            salons,
+            repo,
+          ),
+          email,
+          InMemoryProviderAuditLogRepository(),
+        ),
+      );
       return context;
     }
 
@@ -264,6 +297,17 @@ void main() {
         expect((body['provider'] as Map)['businessName'], 'Élégance');
         expect(body['accessToken'], isNotEmpty);
         expect(body['refreshToken'], isNotEmpty);
+
+        // Salon lifecycle (pro-salon-lifecycle.md): registration PROVISIONS
+        // a linked DRAFT salon — the dashboard works from second one.
+        final providerId = (body['provider'] as Map)['providerId'] as String?;
+        expect(providerId, isNotNull);
+        final salon = await salons.byId(providerId!);
+        expect(salon, isNotNull);
+        expect(salon!['status'], 'draft');
+        expect(salon['name'], 'Élégance');
+        // …and drafts are NOT discoverable (T51).
+        expect(await salons.query(), isEmpty);
 
         final dup = await p_register.onRequest(
           ctx(
@@ -449,5 +493,35 @@ void main() {
       );
       expect(res.statusCode, HttpStatus.methodNotAllowed);
     });
+  });
+
+  group('deleteAccount (audit 11.5 — T53)', () {
+    test(
+      'erases every lookup + kills all sessions; unknown id → false',
+      () async {
+        final repo = InMemoryProviderAuthRepository(
+          tokens: ts(),
+          isProd: false,
+        );
+        final reg = await registerGoogle(repo, providerId: 'p1');
+        final accountId = reg.provider!.id;
+        final refreshToken = reg.tokens!.refreshToken;
+
+        expect(await repo.deleteAccount(accountId), isTrue);
+
+        // Identity gone from every index.
+        expect(await repo.accountById(accountId), isNull);
+        final relogin = await repo.loginWithSocial(
+          provider: 'google',
+          sub: 'g-sub-1',
+        );
+        expect(relogin.error, 'provider_not_found');
+        // Sessions dead: the refresh token no longer works.
+        final refreshed = await repo.refresh(refreshToken);
+        expect(refreshed.ok, isFalse);
+
+        expect(await repo.deleteAccount('nope'), isFalse);
+      },
+    );
   });
 }

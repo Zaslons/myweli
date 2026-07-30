@@ -8,7 +8,7 @@ description: >-
   editing a page/route, component, API client call, auth/session code, styling,
   metadata/SEO/structured data, or web tests/CI — even if the user does not
   explicitly ask to "check the rules." It enforces the web architecture +
-  conventions (docs/WEB.md), the web design system (docs/design/WEB-DESIGN-STANDARDS.md),
+  conventions (docs/WEB.md), the web design system (docs/design/WEB-SYSTEM.md + docs/design/SYSTEM.md),
   the per-page spec + UX-first rule, the SEO/AEO/GEO requirements, **feature
   parity with the mobile apps**, the **install-the-app push**, security
   (httpOnly-cookie auth, CORS, server authority, public-field allowlist),
@@ -22,12 +22,12 @@ description: >-
 
 The always-on checklist for `web/` (the Next.js web surface). It makes sure the
 rules in **[docs/WEB.md](../../../docs/WEB.md)** (architecture, conventions,
-security, performance, testing, DoD) and **[docs/design/WEB-DESIGN-STANDARDS.md](../../../docs/design/WEB-DESIGN-STANDARDS.md)**
-(the web design system) are actually consulted and applied on every web change —
+security, performance, testing, DoD) and **[docs/design/WEB-SYSTEM.md](../../../docs/design/WEB-SYSTEM.md)**
+(the web design system — shared tokens/rules in **[docs/design/SYSTEM.md](../../../docs/design/SYSTEM.md)**) are actually consulted and applied on every web change —
 the web mirror of `myweli-dev-guardrails` / `myweli-backend-guardrails`.
 
 > **Source of truth:** [docs/WEB.md](../../../docs/WEB.md) +
-> [docs/design/WEB-DESIGN-STANDARDS.md](../../../docs/design/WEB-DESIGN-STANDARDS.md) +
+> [docs/design/WEB-SYSTEM.md](../../../docs/design/WEB-SYSTEM.md) + [docs/design/SYSTEM.md](../../../docs/design/SYSTEM.md) +
 > the part's [docs/design/web-*.md](../../../docs/design/) spec +
 > [docs/api/openapi.yaml](../../../docs/api/openapi.yaml) (the contract) +
 > the umbrella [docs/design/public-web.md](../../../docs/design/public-web.md).
@@ -43,19 +43,22 @@ the web mirror of `myweli-dev-guardrails` / `myweli-backend-guardrails`.
   If a slice would ship less than the app's equivalent, flag it.
 - **Push the mobile app.** Every appropriate surface nudges **download/use the
   mobile app** (smart banner / "Télécharger l'app" / deferred deep link) — web
-  converts, the app deepens. Use the standard install component (WEB-DESIGN-STANDARDS).
+  converts, the app deepens. Use the standard install component (WEB-SYSTEM §13).
 
 ## Before writing code
 0. **Write the design spec first.** Before any non-trivial page/slice, **invoke
-   this skill, re-confirm it fits public-web.md / WEB.md / WEB-DESIGN-STANDARDS /
+   this skill, re-confirm it fits public-web.md / WEB.md / WEB-SYSTEM + SYSTEM /
    the security model / the architecture, then write a detailed
    `docs/design/web-<part>.md` spec _before_ code** (goal & scope, UX/flows, all
    states, the API/DTO slice, the **page's SEO/AEO/GEO schema**, copy, perf,
    tests, rollout, open questions). **Align first, then build;** cross-link it
    from the ROADMAP + the code it governs. (Memory: `design-spec-per-part`.)
-1. **UX first + check the standards (Step 0).** Re-read WEB-DESIGN-STANDARDS (tokens,
-   components, responsive/desktop rules, four-states, French, a11y) **and** the
-   part spec; design *to* the system — never invent a color/size/one-off. Produce
+1. **UX first + check the design system (Step 0).** Re-read **WEB-SYSTEM** (Tailwind
+   token mapping, the closed theme, semantic HTML, **focus & keyboard**, **forms +
+   ARIA**, live regions, dialogs, responsive/desktop, SEO, the install push) **and**
+   **SYSTEM.md** (the shared tokens, four states, a11y, forms, feedback, microcopy)
+   **and** the part spec; design *to* the system — never invent a color/size/one-off;
+   if the system lacks it, **add it to the system first**. Produce
    a short UX plan (goal, flow, all states, edge cases, copy) and **get sign-off**
    before building user-facing work.
 2. **Locate it in the plan.** Which FR + milestone (public-web.md §11)? Stay in
@@ -70,8 +73,13 @@ the web mirror of `myweli-dev-guardrails` / `myweli-backend-guardrails`.
 - **Data:** all API access goes through the **generated typed client**
   (from `openapi.yaml`) — never hand-rolled fetch types; the server is the
   authority on prices/ids/status.
-- **Design tokens only** — the shared palette/spacing/type via Tailwind/CSS
-  variables; no literal hex/px one-offs (WEB-DESIGN-STANDARDS §tokens).
+- **Design tokens only** — the shared palette/spacing/type via the **closed** Tailwind
+  theme; no literal hex/px, **no arbitrary values** (`z-[1100]`, `py-[2px]`) — a
+  missing token gets added to the theme (WEB-SYSTEM §1–§2).
+- **Accessibility is not a later pass** (WEB-SYSTEM §4–§8): semantic HTML (`<button>`,
+  no clickable `<div>`, no heading skips) · a **visible `:focus-visible` ring** ·
+  every input has a real `<label htmlFor>` + `aria-invalid`/`aria-describedby`
+  (a placeholder is not a label) · toasts announce (`aria-live`) · dialogs trap focus.
 - **Four states on every page/section:** loading · empty · error · success.
 - **French copy**; FCFA/phone/date formatting; Ivorian taxonomy.
 - **SEO/AEO/GEO inline** (every public page): SSR HTML, `<title>`/meta/canonical/OG,
@@ -92,7 +100,11 @@ Treat any unchecked box as "not done":
       negative tests (no session, expired, cross-user → denied).
 - [ ] **Contract:** types regenerated from `openapi.yaml`; **no drift**.
 - [ ] **All four states** present; **French**; formatters; CI locale fit.
-- [ ] **Design tokens** only (no literal colors/sizes); shared components reused.
+- [ ] **Design tokens** only (no literal colors/sizes, **no arbitrary values**); shared components reused.
+- [ ] **Accessibility (WEB-SYSTEM §4–§8):** semantic HTML + correct heading order ·
+      keyboard-reachable with a **visible focus ring** · every input **labelled**
+      (`htmlFor`) with errors tied to it (`aria-invalid`/`aria-describedby`) ·
+      toasts announce (`aria-live`) · dialogs trap + restore focus · **axe clean**.
 - [ ] **SEO/AEO/GEO:** metadata + JSON-LD present & valid; sitemap/robots updated;
       answer-first content; brand entity intact.
 - [ ] **Parity:** the page matches the mobile app's equivalent capability (or the
@@ -112,5 +124,5 @@ Treat any unchecked box as "not done":
 
 ## Keep the guardrails honest
 When a real decision changes a rule (new pattern, revised budget, resolved
-question), update **docs/WEB.md** / **WEB-DESIGN-STANDARDS.md** (and the contract)
+question), update **docs/WEB.md** / **WEB-SYSTEM.md** / **SYSTEM.md** (and the contract)
 in the same change. Stale rules are worse than no rules.

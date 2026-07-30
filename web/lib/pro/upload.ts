@@ -9,6 +9,7 @@ type SignResponse = {
   uploadUrl?: string;
   fields?: Record<string, string>;
   publicUrl?: string;
+  key?: string;
 };
 
 export async function uploadGalleryImage(file: File): Promise<string | null> {
@@ -31,4 +32,31 @@ export async function uploadGalleryImage(file: File): Promise<string | null> {
   });
   if (!up.ok) return null; // storage POST returns 2xx (e.g. 204)
   return sign.publicUrl;
+}
+
+/// KYC document upload (docs/design/web-pro-kyc.md): same presign +
+/// direct-to-storage POST, but `purpose=kyc` → a PRIVATE bucket under the
+/// caller's `kyc/{accountId}/` prefix; only the opaque key comes back.
+export async function uploadKycDocument(
+  file: File,
+): Promise<{ key: string; fileName: string } | null> {
+  const signRes = await fetch('/api/pro/uploads/sign', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ contentType: file.type, purpose: 'kyc' }),
+  });
+  if (!signRes.ok) return null;
+  const sign = (await signRes.json().catch(() => ({}))) as SignResponse;
+  if (!sign.uploadUrl || !sign.key) return null;
+
+  const form = new FormData();
+  for (const [k, v] of Object.entries(sign.fields ?? {})) form.append(k, v);
+  form.append('file', file);
+
+  const up = await fetch(sign.uploadUrl, {
+    method: sign.method ?? 'POST',
+    body: form,
+  });
+  if (!up.ok) return null;
+  return { key: sign.key, fileName: file.name };
 }

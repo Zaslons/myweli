@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/provider_catalog_service.dart';
@@ -35,7 +37,11 @@ void main() {
       tokens: tokens,
       isProd: false,
     );
-    catalog = ProviderCatalogService(providers, providerAuth);
+    catalog = ProviderCatalogService(
+      providers,
+      providerAuth,
+      MembershipService(InMemoryMembershipRepository(), providerAuth),
+    );
     final reg = await providerAuth.register(
       email: 'reg3@test.pro',
       authProvider: 'google',
@@ -306,6 +312,7 @@ void main() {
         final scoped = ProviderCatalogService(
           providers,
           providerAuth,
+          MembershipService(InMemoryMembershipRepository(), providerAuth),
           allowedImageOrigins: const ['https://cdn.myweli.com', 'asset:'],
         );
         // In-origin + asset placeholder pass.
@@ -339,6 +346,25 @@ void main() {
         'mobileMoneyOperator': op,
         'mobileMoneyNumber': number,
       };
+
+      // T52 (parity audit 8.1): an UNVERIFIED salon cannot enable deposits.
+      final gated = await catalog.updateDepositPolicy(
+        accountId,
+        'provider1',
+        validBody(),
+      );
+      expect(gated.error, 'verification_required');
+      // …but can still store a policy with deposits OFF.
+      expect(
+        (await catalog.updateDepositPolicy(accountId, 'provider1', {
+          'depositRequired': false,
+          'depositPercentage': 0,
+          'cancellationWindowHours': 24,
+        })).ok,
+        isTrue,
+      );
+
+      await providerAuth.setVerification(accountId, status: 'verified');
 
       // Replace, then read back (DTO uses the mobileMoney* names).
       final saved = await catalog.updateDepositPolicy(
@@ -725,6 +751,9 @@ void main() {
 
     test('deposit policy: GET → 200; PUT replaces → 200; bad → 400; '
         'cross-salon → 403; bad verb → 405', () async {
+      // T52: the PUT below enables deposits — needs a verified account.
+      await providerAuth.setVerification(accountId, status: 'verified');
+
       final got = await deposit_route.onRequest(
         ctx(req('GET', '/providers/provider1/deposit-policy', bearer: token)),
         'provider1',
@@ -909,6 +938,48 @@ void main() {
       expect(
         (await catalog.updateProfile(accountId, 'provider1', {
           'slug': 'x',
+        })).error,
+        'invalid_input',
+      );
+    });
+
+    test('profile: the map pin + category (pro-salon-lifecycle L1)', () async {
+      // A valid pair lands.
+      final ok = await catalog.updateProfile(accountId, 'provider1', {
+        'latitude': 5.3601,
+        'longitude': -3.9905,
+        'category': 'barber',
+      });
+      expect(ok.ok, isTrue);
+      final p = (await providers.byId('provider1'))!;
+      expect(p['latitude'], 5.3601);
+      expect(p['longitude'], -3.9905);
+      expect(p['category'], 'barber');
+
+      // Half a pair, out-of-range, junk category → invalid_input.
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'latitude': 5.36,
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'latitude': 123.0,
+          'longitude': -3.99,
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'latitude': '5.36',
+          'longitude': '-3.99',
+        })).error,
+        'invalid_input',
+      );
+      expect(
+        (await catalog.updateProfile(accountId, 'provider1', {
+          'category': 'bank',
         })).error,
         'invalid_input',
       );

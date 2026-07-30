@@ -16,10 +16,14 @@ const profile: ProfileForm = {
   name: 'Beauté Divine',
   description: 'Salon',
   address: 'Cocody',
+  areaId: null,
   commune: 'Cocody',
   city: 'Abidjan',
   phoneNumber: '+2250700000000',
   whatsapp: '',
+  category: 'salon',
+  latitude: null,
+  longitude: null,
 };
 
 describe('pro profile form', () => {
@@ -39,7 +43,37 @@ describe('pro profile form', () => {
       city: null,
       phoneNumber: '+2250700000000',
       whatsapp: null,
+      category: 'salon',
     });
+  });
+
+  it('an areaId REPLACES the name fields — the server derives them (MP3)', () => {
+    const payload = buildProfilePayload({ ...profile, areaId: 'marcory' });
+    expect(payload.areaId).toBe('marcory');
+    expect('commune' in payload).toBe(false);
+    expect('city' in payload).toBe(false);
+    // No areaId (legacy / tree-down fallback) → the free-text path stands.
+    expect(buildProfilePayload(profile).commune).toBe('Cocody');
+    expect('areaId' in buildProfilePayload(profile)).toBe(false);
+  });
+
+  it('profileToForm carries the stored areaId (MP3)', () => {
+    expect(profileToForm({ areaId: 'cocody' }).areaId).toBe('cocody');
+    expect(profileToForm({}).areaId).toBeNull();
+  });
+
+  it('the map pin rides along only once PLACED (paired — L1)', () => {
+    const placed = buildProfilePayload({
+      ...profile,
+      latitude: 5.36,
+      longitude: -3.99,
+    });
+    expect(placed.latitude).toBe(5.36);
+    expect(placed.longitude).toBe(-3.99);
+    // Unplaced → the keys are absent (the backend requires the pair).
+    const unplaced = buildProfilePayload(profile);
+    expect('latitude' in unplaced).toBe(false);
+    expect('longitude' in unplaced).toBe(false);
   });
 
   it('profileToForm fills from a provider record', () => {

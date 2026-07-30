@@ -12,6 +12,7 @@ import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_kyc_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -37,13 +38,11 @@ class _ProKycScreenState extends State<ProKycScreen> {
   Future<void> _submit(ProviderUser pro, ProKycProvider kyc) async {
     final ok = await kyc.submit(pro.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? 'Documents soumis pour vérification' : (kyc.error ?? 'Erreur'),
-        ),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcome(
+      context,
+      ok: ok,
+      success: 'Documents soumis pour vérification',
+      error: kyc.error ?? 'Erreur',
     );
   }
 
@@ -91,7 +90,7 @@ class _ProKycScreenState extends State<ProKycScreen> {
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         for (final type in KycDocumentType.values) ...[
           _DocumentTile(
             type: type,
@@ -102,15 +101,15 @@ class _ProKycScreenState extends State<ProKycScreen> {
             onAdd: () => _provideDoc(context, kyc, type),
             onRemove: () => kyc.removeDocument(type),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacingS),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingS),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.lock_outline,
-                size: 16, color: AppColors.textTertiary),
-            const SizedBox(width: 8),
+                size: AppTheme.iconXS, color: AppColors.textTertiary),
+            const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
                 'Les acomptes sont activés une fois votre compte vérifié. '
@@ -132,7 +131,7 @@ class _ProKycScreenState extends State<ProKycScreen> {
                 : null,
           ),
           if (!kyc.hasRequiredDocuments(pro.businessType)) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.spacingS),
             Text(
               'Ajoutez les documents requis pour soumettre.',
               textAlign: TextAlign.center,
@@ -157,9 +156,24 @@ class _ProKycScreenState extends State<ProKycScreen> {
     final String source;
     final String contentType;
     if (AppConfig.useApiBackend) {
-      final picked = await FilePicker.platform.pickFiles(
+      // **`FilePicker.pickFiles`, not `FilePicker.platform.pickFiles`** —
+      // file_picker 11.0.0 refactored the class to static methods and removed
+      // the `platform` getter entirely, so the old form no longer resolves.
+      //
+      // **`compressionQuality: 30` is passed explicitly, and that is the whole
+      // reason this line is not a one-word edit.** 10.0.0 moved the default
+      // from 30 to **0** — i.e. no compression — and we were relying on the
+      // default. A KYC photo from a modern phone camera then uploads at full
+      // size, straight into the presigned POST's
+      // `['content-length-range', 0, 5 MB]` policy
+      // (`upload_signing_service.dart:35`): R2 rejects it *after* the user has
+      // already spent the bytes, which on Ivorian mobile data is the expensive
+      // way to fail. 30 is what shipped before this bump; keeping it named
+      // means the next default change cannot move it silently.
+      final picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+        compressionQuality: 30,
       );
       final path = picked?.files.single.path;
       if (path == null) return;
@@ -171,12 +185,8 @@ class _ProKycScreenState extends State<ProKycScreen> {
     }
     final ok = await kyc.addDocument(type, source, contentType);
     if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(kyc.error ?? 'Échec de l’envoi du document'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, kyc.error ?? 'Échec de l’envoi du document',
+          kind: SnackKind.error);
     }
   }
 
@@ -251,8 +261,8 @@ class _StatusBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(width: 12),
+          Icon(icon, color: color, size: AppTheme.iconM),
+          const SizedBox(width: AppTheme.spacingSM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +271,7 @@ class _StatusBanner extends StatelessWidget {
                   title,
                   style: AppTextStyles.titleSmall.copyWith(color: color),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   subtitle,
                   style: AppTextStyles.bodySmall.copyWith(color: color),
@@ -306,8 +316,9 @@ class _DocumentTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(_icon(type), size: 22, color: AppColors.textSecondary),
-          const SizedBox(width: 12),
+          Icon(_icon(type),
+              size: AppTheme.iconM, color: AppColors.textSecondary),
+          const SizedBox(width: AppTheme.spacingSM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +327,7 @@ class _DocumentTile extends StatelessWidget {
                   _label(type) + (required ? '' : ' (optionnel)'),
                   style: AppTextStyles.bodyMedium,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   provided ? 'Fourni · ${document!.fileName}' : 'À fournir',
                   style: AppTextStyles.bodySmall.copyWith(
@@ -329,17 +340,17 @@ class _DocumentTile extends StatelessWidget {
           ),
           if (uploading)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingSM),
               child: SizedBox(
                 width: 18,
                 height: 18,
-                child: BrandLoader(size: 20, fast: true),
+                child: BrandLoader(size: AppTheme.iconS, fast: true),
               ),
             )
           else if (!readOnly) ...[
             if (provided)
               IconButton(
-                icon: const Icon(Icons.close, size: 18),
+                icon: const Icon(Icons.close, size: AppTheme.iconS),
                 color: AppColors.textTertiary,
                 onPressed: onRemove,
                 tooltip: 'Retirer',
@@ -357,13 +368,13 @@ class _DocumentTile extends StatelessWidget {
   String _label(KycDocumentType type) {
     switch (type) {
       case KycDocumentType.idCard:
-        return 'Pièce d\'identité (CNI / passeport)';
+        return 'Pièce d’identité (CNI / passeport)';
       case KycDocumentType.selfie:
         return 'Photo du visage';
       case KycDocumentType.businessRegistration:
         return 'Registre de commerce (RCCM)';
       case KycDocumentType.addressProof:
-        return 'Justificatif d\'adresse';
+        return 'Justificatif d’adresse';
     }
   }
 

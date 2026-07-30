@@ -1,5 +1,8 @@
 /// Pure helpers for the pro service form. Unit-tested.
 
+/// Audit 3.2: per-hair-length durations (minutes) — {} = no variants.
+export type DurationVariants = { court?: number; moyen?: number; long?: number };
+
 export type Service = {
   id: string;
   name: string;
@@ -8,6 +11,9 @@ export type Service = {
   priceMax?: number | null;
   durationMinutes?: number;
   active?: boolean;
+  /// Audit 3.1: who can perform it — empty = toute l'équipe.
+  artistIds?: string[];
+  durationVariants?: DurationVariants;
 };
 
 export type ServiceInput = {
@@ -17,6 +23,8 @@ export type ServiceInput = {
   priceMax: number | null;
   durationMinutes: number;
   active: boolean;
+  artistIds: string[];
+  durationVariants: DurationVariants;
 };
 
 export type ServiceForm = {
@@ -26,6 +34,12 @@ export type ServiceForm = {
   priceMax: string;
   durationMinutes: string;
   active: boolean;
+  artistIds: string[];
+  /// The app's toggle: off saves {} (clears); on saves only the filled keys.
+  hasVariants: boolean;
+  variantCourt: string;
+  variantMoyen: string;
+  variantLong: string;
 };
 
 export const emptyServiceForm: ServiceForm = {
@@ -35,9 +49,16 @@ export const emptyServiceForm: ServiceForm = {
   priceMax: '',
   durationMinutes: '',
   active: true,
+  artistIds: [],
+  hasVariants: false,
+  variantCourt: '',
+  variantMoyen: '',
+  variantLong: '',
 };
 
 export function serviceToForm(s: Service): ServiceForm {
+  const v = s.durationVariants ?? {};
+  const hasVariants = v.court != null || v.moyen != null || v.long != null;
   return {
     name: s.name ?? '',
     description: s.description ?? '',
@@ -45,6 +66,11 @@ export function serviceToForm(s: Service): ServiceForm {
     priceMax: s.priceMax != null ? String(s.priceMax) : '',
     durationMinutes: s.durationMinutes != null ? String(s.durationMinutes) : '',
     active: s.active ?? true,
+    artistIds: s.artistIds ?? [],
+    hasVariants,
+    variantCourt: v.court != null ? String(v.court) : '',
+    variantMoyen: v.moyen != null ? String(v.moyen) : '',
+    variantLong: v.long != null ? String(v.long) : '',
   };
 }
 
@@ -67,7 +93,26 @@ export function validateService(f: ServiceForm): string | null {
   return null;
 }
 
+/// Mirrors the app's parser: blank/invalid/≤0 minute fields are omitted.
+function parseVariant(text: string): number | undefined {
+  const n = Number(text.trim());
+  return text.trim() && Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
 export function buildServicePayload(f: ServiceForm): ServiceInput {
+  const variants: DurationVariants = f.hasVariants
+    ? {
+        ...(parseVariant(f.variantCourt) != null
+          ? { court: parseVariant(f.variantCourt) }
+          : {}),
+        ...(parseVariant(f.variantMoyen) != null
+          ? { moyen: parseVariant(f.variantMoyen) }
+          : {}),
+        ...(parseVariant(f.variantLong) != null
+          ? { long: parseVariant(f.variantLong) }
+          : {}),
+      }
+    : {};
   return {
     name: f.name.trim(),
     description: f.description.trim(),
@@ -75,6 +120,8 @@ export function buildServicePayload(f: ServiceForm): ServiceInput {
     priceMax: f.priceMax.trim() ? Number(f.priceMax) : null,
     durationMinutes: Number(f.durationMinutes),
     active: f.active,
+    artistIds: f.artistIds,
+    durationVariants: variants,
   };
 }
 
@@ -84,22 +131,40 @@ export type Artist = {
   id: string;
   name: string;
   specialization?: string | null;
+  /// Audit 3.5: the avatar (the app's photo upload).
+  imageUrl?: string | null;
+  /// Audit 3.4: per-staff weekly hours — {} = inherits the salon's.
+  workingHours?: Record<string, { startTime: string; endTime: string }[]>;
 };
 
 export type ArtistInput = {
   name: string;
   specialization: string | null;
+  imageUrl: string | null;
+  workingHours: Record<string, { startTime: string; endTime: string }[]>;
 };
 
 export type ArtistForm = {
   name: string;
   specialization: string;
+  imageUrl: string | null;
+  workingHours: Record<string, { startTime: string; endTime: string }[]>;
 };
 
-export const emptyArtistForm: ArtistForm = { name: '', specialization: '' };
+export const emptyArtistForm: ArtistForm = {
+  name: '',
+  specialization: '',
+  imageUrl: null,
+  workingHours: {},
+};
 
 export function artistToForm(a: Artist): ArtistForm {
-  return { name: a.name ?? '', specialization: a.specialization ?? '' };
+  return {
+    name: a.name ?? '',
+    specialization: a.specialization ?? '',
+    imageUrl: a.imageUrl ?? null,
+    workingHours: a.workingHours ?? {},
+  };
 }
 
 export function validateArtist(f: ArtistForm): string | null {
@@ -111,5 +176,7 @@ export function buildArtistPayload(f: ArtistForm): ArtistInput {
   return {
     name: f.name.trim(),
     specialization: f.specialization.trim() ? f.specialization.trim() : null,
+    imageUrl: f.imageUrl,
+    workingHours: f.workingHours,
   };
 }

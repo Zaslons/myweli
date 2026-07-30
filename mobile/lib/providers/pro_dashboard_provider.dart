@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
+import '../core/access/pro_access_guard.dart';
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
-class ProDashboardProvider extends ChangeNotifier {
+class ProDashboardProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
 
   DashboardStats? _stats;
@@ -31,6 +33,7 @@ class ProDashboardProvider extends ChangeNotifier {
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des statistiques';
+        ProAccessGuard.report(response.code);
         _stats = null;
       }
     } catch (e) {
@@ -46,6 +49,16 @@ class ProDashboardProvider extends ChangeNotifier {
     _stats = null;
     _currentProviderId = null;
     _error = null;
+    notifyListeners();
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _stats = null;
+    _isLoading = false;
+    _error = null;
+    _currentProviderId = null;
     notifyListeners();
   }
 }

@@ -1,4 +1,6 @@
 import '../../models/api_response.dart';
+import '../../models/pro_membership.dart';
+import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
 import '../../models/user.dart';
 
@@ -31,12 +33,23 @@ abstract class AuthServiceInterface {
       String phoneNumber, String otp);
 
   // Pro auth overhaul (docs/design/pro-auth-social.md) — LOGIN-ONLY (a salon
-  // is never auto-created; `provider_not_found` → offer registration):
-  Future<ApiResponse<ProviderUser>> signInProviderWithGoogle();
-  Future<ApiResponse<ProviderUser>> signInProviderWithApple();
+  // is never auto-created; `provider_not_found` → offer registration).
+  // Team access R3: a verified identity with PENDING invitations comes back
+  // as [ProviderLoginResult.invited] (the 202 bridge) instead of the 404;
+  // Apple has no bridge in the contract (never `.invited`).
+  Future<ProviderLoginResult> signInProviderWithGoogle();
+  Future<ProviderLoginResult> signInProviderWithApple();
   Future<ApiResponse<String>> requestProviderEmailOtp(String email);
-  Future<ApiResponse<ProviderUser>> verifyProviderEmailOtp(
-      String email, String code);
+  Future<ProviderLoginResult> verifyProviderEmailOtp(String email, String code);
+
+  /// Accept/decline a team invitation from the LOGIN flow (unauthenticated,
+  /// identity-proven — team access R2b). Accept signs the invitee in
+  /// (200 existing / 201 new bare member account) and persists the session
+  /// exactly like a login.
+  Future<ApiResponse<ProviderUser>> acceptProviderInvitation(
+      String invitationId, InvitationProof proof);
+  Future<ApiResponse<bool>> declineProviderInvitation(
+      String invitationId, InvitationProof proof);
 
   /// Registration = identity + business fields in ONE submit (signs in too).
   /// The REQUIRED [phoneNumber] is the salon contact.
@@ -45,6 +58,7 @@ abstract class AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   });
   Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
     required String email,
@@ -53,8 +67,22 @@ abstract class AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   });
 
   Future<ProviderUser?> getCurrentProvider();
   Future<void> logoutProvider();
+
+  /// Team access R4b: cache the last-fetched membership INSIDE the persisted
+  /// provider session (instant cold-start shaping; refreshed from
+  /// GET /me/provider each start). No-op when signed out.
+  Future<void> cacheProviderMembership(ProMembership? membership);
+  Future<ProMembership?> getCachedProviderMembership();
+
+  /// R6 multi-salons: persist/restore the switched-to salon INSIDE the
+  /// provider session (cold-start continuity; `null` = the default salon).
+  /// The API layer reads it to scope the session-resolved endpoints; the
+  /// server revalidates the membership on every request (T55).
+  Future<void> setSelectedProviderSalon(String? salonId);
+  Future<String?> getSelectedProviderSalon();
 }

@@ -94,7 +94,9 @@ class AnalyticsService {
 
   /// North Star (FR-WEB-AD-006 / §17): completed bookings per ISO week ×
   /// commune over the last [weeks]. Weeks are bucketed in Dart (Monday start)
-  /// so both repo backends agree.
+  /// so both repo backends agree. PLATFORM-level buckets stay UTC by design
+  /// (multi-pays MP1): cross-market ops reporting needs one clock, not each
+  /// salon's.
   Future<AdminResult> northStar({int weeks = 12}) async {
     final w = weeks.clamp(1, 52);
     final from = _weekStart(

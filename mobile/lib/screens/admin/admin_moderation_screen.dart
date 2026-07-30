@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_moderation_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import 'widgets/admin_data_table.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
@@ -44,6 +46,7 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       context,
       title: 'Masquer cet avis ?',
       confirmLabel: 'Masquer',
+      isDestructive: true,
       hint: 'Motif interne (optionnel)',
       reasonRequired: false,
     );
@@ -66,8 +69,11 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await action();
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? okMsg : (p.actionError ?? 'Échec'))),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: okMsg,
+      error: p.actionError ?? 'Échec',
     );
   }
 
@@ -79,7 +85,7 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       actions: [
         IconButton(
           tooltip: 'Rafraîchir',
-          icon: const Icon(Icons.refresh, size: 20),
+          icon: const Icon(Icons.refresh, size: AppTheme.iconS),
           onPressed: () => _segment == 0 ? p.loadReported() : p.loadHidden(),
         ),
       ],
@@ -128,7 +134,11 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: StatusChip(
-                  label: '${r['reportCount'] ?? 1} signalement(s)',
+                  label: Formatters.count(
+                    (r['reportCount'] as int?) ?? 1,
+                    'signalement',
+                    'signalements',
+                  ),
                   kind: ((r['reportCount'] as num?) ?? 1) >= 2
                       ? AdminChipKind.danger
                       : AdminChipKind.pending,
@@ -167,9 +177,14 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
                 text: '${r['text'] ?? ''}',
                 sub: 'par ${r['userName'] ?? 'Client'}',
               ),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: StatusChip(label: 'masqué', kind: AdminChipKind.danger),
+                // A9: was a hardcoded lowercase « masqué » while every other
+                // console table renders « Masqué » through the shared
+                // vocabulary — the same lowercase/capitalised split ④ fixed in
+                // the chip itself. `forStatus` supplies both the word and the
+                // kind, so there is nothing left to keep in sync by hand.
+                child: StatusChip.forStatus('hidden'),
               ),
               _actions([
                 _btn('Restaurer', () => _restore('${r['id']}'), p.acting,
@@ -192,19 +207,20 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       children: [
         Row(
           children: [
-            const Icon(Icons.star, size: 13, color: AppColors.starRating),
-            const SizedBox(width: 4),
+            const Icon(Icons.star,
+                size: AppTheme.iconXS, color: AppColors.starRating),
+            const SizedBox(width: AppTheme.spacingXS),
             Text('$rating/5',
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.textSecondary)),
           ],
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppTheme.spacingXS),
         Text(text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodyMedium),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppTheme.spacingXS),
         Text(sub,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -215,8 +231,8 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
   }
 
   Widget _actions(List<Widget> buttons) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: AppTheme.spacingS,
+        runSpacing: AppTheme.spacingS,
         children: buttons,
       );
 
@@ -251,7 +267,7 @@ class _Segments extends StatelessWidget {
         color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
       ),
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(AppTheme.spacingXS),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -265,22 +281,36 @@ class _Segments extends StatelessWidget {
   Widget _seg(String label, int index) {
     final active = selected == index;
     return Builder(
-      builder: (context) => InkWell(
-        onTap: () => onSelect(index),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: active ? AppColors.secondary : Colors.transparent,
+      builder: (context) => ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+        child: Semantics(
+          button: true,
+          selected: active,
+          inMutuallyExclusiveGroup: true,
+          label: label,
+          child: InkWell(
+            onTap: () => onSelect(index),
             borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-            border: active ? Border.all(color: AppColors.border) : null,
-          ),
-          child: Text(
-            label,
-            style:
-                (active ? AppTextStyles.titleSmall : AppTextStyles.bodyMedium)
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingM, vertical: AppTheme.spacingS),
+              decoration: BoxDecoration(
+                color: active ? AppColors.secondary : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border:
+                    active ? Border.all(color: AppColors.borderStrong) : null,
+              ),
+              child: Text(
+                label,
+                style: (active
+                        ? AppTextStyles.titleSmall
+                        : AppTextStyles.bodyMedium)
                     .copyWith(
-              color: active ? AppColors.textPrimary : AppColors.textSecondary,
+                  color:
+                      active ? AppColors.textPrimary : AppColors.textSecondary,
+                ),
+              ),
             ),
           ),
         ),

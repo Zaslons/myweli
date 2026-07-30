@@ -3,17 +3,25 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/a11y/reduce_motion.dart';
+import '../../core/constants/booking_horizons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/rebook.dart';
+import '../../core/utils/salon_time.dart';
 import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/label_value_row.dart';
+import '../../widgets/common/myweli_date_picker.dart';
 
 class BookingDraft {
   final String providerId;
@@ -89,7 +97,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   // Distinguish "not picked yet" vs "picked 'no preference'".
   bool _artistChosen = false;
 
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = salonToday();
   List<DateTime> _availableSlotsForSelectedDate = const [];
   bool _isLoadingSlots = false;
   int _slotsRequestId = 0;
@@ -179,10 +187,15 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     return '$count services';
   }
 
+  /// The VIEWED salon's timezone (multi-pays MP2; null → Abidjan).
+  String? get _tz =>
+      context.read<ProviderProvider>().selectedProvider?.timezone;
+
   String _dateTimeLabel() {
     final dt = _draft.dateTime;
     if (dt == null) return 'Choisir';
-    return '${Formatters.formatDateShort(dt)} • ${Formatters.formatTime(dt)}';
+    final wall = toSalonTime(dt, tz: _tz);
+    return '${Formatters.formatDateShort(wall)} • ${Formatters.formatTime(wall)}';
   }
 
   bool _artistCanDoServices(
@@ -198,11 +211,15 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Future<void> _scrollTo(GlobalKey key) async {
     final ctx = key.currentContext;
     if (ctx == null) return;
+    // §9/A8: the app moves the page here, not the user — the involuntary case
+    // reduced motion exists for. `Duration.zero` makes `ensureVisible` jump
+    // instead of glide; the section still ends up on screen, which is the whole
+    // point of the call.
     await Scrollable.ensureVisible(
       ctx,
       alignment: 0.08,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
+      duration: reduceMotionOf(context) ? Duration.zero : AppMotion.emphasis,
+      curve: AppMotion.emphasisCurve,
     );
   }
 
@@ -245,7 +262,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Future<void> _advance(models.Provider p) async {
     final next = _nextSection(p);
     _activateSection(next);
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    // One frame's yield, not an animation: nothing moves.
+    await Future<void>.delayed(const Duration(milliseconds: 1)); // ds-ignore
     if (!mounted) return;
     if (next == _HubSection.services) {
       await _scrollTo(_servicesKey);
@@ -321,10 +339,9 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     final serviceIds = _draft.serviceIds;
     if (serviceIds.isEmpty) return null;
 
-    final startDay = DateTime.now();
+    final startDay = salonToday(tz: _tz);
     for (var i = 0; i <= daysAhead; i++) {
-      final d = DateTime(startDay.year, startDay.month, startDay.day)
-          .add(Duration(days: i));
+      final d = startDay.add(Duration(days: i));
       final slots = await appointmentProvider.getAvailableTimeSlots(
         providerId: widget.providerId,
         date: d,
@@ -337,19 +354,27 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     return null;
   }
 
+  /// A7/§14: two SELECTION faults with no field to own them, so they land
+  /// form-level. Both were snackbars, and both were DEAD — `canConfirm` was the
+  /// exact conjunction of their negations, so neither could ever fire.
+  /// §14 rule 2 applies to selection faults too: cleared the moment the user
+  /// changes the selection, not on the next submit. The review found the stale
+  /// message surviving on six screens, which reads as a form that has stopped
+  /// listening.
+  String? _selectionError;
+
   Future<void> _confirm(models.Provider p) async {
     if (_draft.serviceIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choisissez au moins un service')),
-      );
+      setState(() =>
+          _selectionError = 'Choisissez au moins un service pour continuer.');
       return;
     }
     if (_draft.dateTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choisissez une date et une heure')),
-      );
+      setState(() =>
+          _selectionError = 'Choisissez une date et une heure pour continuer.');
       return;
     }
+    setState(() => _selectionError = null);
 
     final qs = <String, String>{
       'providerId': widget.providerId,
@@ -365,9 +390,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir la confirmation')),
-      );
+      AppSnackBar.show(context, 'Impossible d’ouvrir la confirmation',
+          kind: SnackKind.error);
     }
   }
 
@@ -398,8 +422,6 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
 
           final totalPrice = _totalPrice(p);
           final totalDuration = _totalDurationMinutes(p);
-          final canConfirm =
-              _draft.serviceIds.isNotEmpty && _draft.dateTime != null;
 
           return Padding(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -421,7 +443,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(p.name, style: AppTextStyles.titleLarge),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppTheme.spacingXS),
                             Text(
                               p.address,
                               style: AppTextStyles.bodySmall
@@ -450,8 +472,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               return _SelectableRow(
                                 title: s.name,
                                 subtitle: s.durationVariants.isNotEmpty
-                                    ? '${Formatters.formatPriceRange(s.price, s.priceMax)} • durée selon la longueur'
-                                    : '${Formatters.formatDuration(s.durationMinutes)} • ${Formatters.formatPriceRange(s.price, s.priceMax)}',
+                                    ? '${Formatters.formatPriceRange(s.price, s.priceMax, currency: p.currency)} • durée selon la longueur'
+                                    : '${Formatters.formatDuration(s.durationMinutes)} • ${Formatters.formatPriceRange(s.price, s.priceMax, currency: p.currency)}',
                                 selected: selected,
                                 onTap: () async {
                                   _setEntryPointIfNeeded(
@@ -479,6 +501,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     // new selection.
                                     final selected = _selectedServices(p);
                                     if (!bookingHasVariants(selected)) {
+                                      _selectionError = null;
                                       _draft = _draft.copyWith(
                                           clearLengthVariant: true);
                                     } else if (_draft.lengthVariant == null ||
@@ -551,6 +574,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 durationFor: (length) => totalBookingDuration(
                                     _selectedServices(p), length),
                                 onChanged: (length) async {
+                                  _selectionError = null;
                                   setState(() => _draft =
                                       _draft.copyWith(lengthVariant: length));
                                   await _validateSelectedDateTime(
@@ -586,6 +610,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           children: [
                             _SelectableRow(
                               title: 'Pas de préférence',
+                              mutuallyExclusive: true,
                               subtitle: 'Le salon choisit pour vous',
                               selected:
                                   _artistChosen && _draft.artistId == null,
@@ -608,7 +633,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 }
                               },
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: AppTheme.spacingS),
                             ...p.artists.map((a) {
                               final selected =
                                   _artistChosen && _draft.artistId == a.id;
@@ -621,6 +646,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 opacity: canDoSelectedServices ? 1.0 : 0.45,
                                 child: _SelectableRow(
                                   title: a.name,
+                                  mutuallyExclusive: true,
                                   subtitle: a.specialization ?? 'Spécialiste',
                                   selected: selected,
                                   enabled: canDoSelectedServices,
@@ -717,12 +743,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   _selectedDate.month,
                                   _selectedDate.day,
                                 );
-                                final picked = await showDatePicker(
+                                final picked = await showMyweliDatePicker(
                                   context: context,
                                   initialDate: initial,
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now()
-                                      .add(const Duration(days: 365)),
+                                  firstDate: salonToday(tz: _tz),
+                                  lastDate:
+                                      salonToday(tz: _tz).add(kBookingHorizon),
+                                  today: salonToday(tz: _tz),
                                 );
                                 if (!mounted || picked == null) return;
                                 setState(() => _selectedDate = picked);
@@ -735,13 +762,14 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                             const SizedBox(height: AppTheme.spacingS),
                             if (_isLoadingSlots)
                               const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingSM),
                                 child: Center(child: LoadingIndicator()),
                               )
                             else if (_availableSlotsForSelectedDate.isEmpty)
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTheme.spacingS),
                                 child: Text(
                                   'Aucun créneau disponible',
                                   style: AppTextStyles.bodySmall
@@ -750,14 +778,15 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               )
                             else
                               Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
+                                spacing: AppTheme.spacingS,
+                                runSpacing: AppTheme.spacingS,
                                 children:
                                     _availableSlotsForSelectedDate.map((slot) {
                                   final selected = _draft.dateTime != null &&
                                       _draft.dateTime!.isAtSameMomentAs(slot);
                                   return ChoiceChip(
-                                    label: Text(Formatters.formatTime(slot)),
+                                    label: Text(Formatters.formatTime(
+                                        toSalonTime(slot, tz: _tz))),
                                     selected: selected,
                                     onSelected: (_) async {
                                       _setEntryPointIfNeeded(
@@ -775,11 +804,12 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                           : AppColors.textPrimary,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(999),
+                                      borderRadius: BorderRadius.circular(
+                                          AppTheme.radiusPill),
                                       side: BorderSide(
                                         color: selected
                                             ? AppColors.primary
-                                            : AppColors.border,
+                                            : AppColors.borderStrong,
                                       ),
                                     ),
                                     backgroundColor: AppColors.secondary,
@@ -792,7 +822,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 _draft.dateTime != null) ...[
                               const SizedBox(height: AppTheme.spacingS),
                               Text(
-                                'Prochain créneau: ${Formatters.formatDateShort(_draft.dateTime!)} • ${Formatters.formatTime(_draft.dateTime!)}',
+                                'Prochain créneau: ${_dateTimeLabel()}',
                                 style: AppTextStyles.bodySmall
                                     .copyWith(color: AppColors.textSecondary),
                               ),
@@ -815,19 +845,16 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Total', style: AppTextStyles.titleMedium),
-                          Text(
-                            Formatters.formatCurrency(totalPrice),
-                            style: AppTextStyles.titleLarge
-                                .copyWith(color: AppColors.primary),
-                          ),
-                        ],
+                      LabelValueRow(
+                        label: 'Total',
+                        value: Formatters.formatCurrency(totalPrice,
+                            currency: p.currency),
+                        labelStyle: AppTextStyles.titleMedium,
+                        valueStyle: AppTextStyles.titleLarge
+                            .copyWith(color: AppColors.primary),
                       ),
                       if (totalDuration > 0) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppTheme.spacingXS),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
@@ -838,7 +865,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                         ),
                       ],
                       if (!_artistChosen && p.artists.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: AppTheme.spacingS),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
@@ -848,15 +875,19 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           ),
                         ),
                       ],
+                      InlineFeedback(_selectionError),
                       const SizedBox(height: AppTheme.spacingM),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: canConfirm ? () => _confirm(p) : null,
+                          // §14 rule 5 — and what makes the two messages above
+                          // reachable for the first time.
+                          onPressed: () => _confirm(p),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.secondary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: AppTheme.spacingM),
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(AppTheme.radiusLarge),
@@ -902,57 +933,69 @@ class _HubSectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.secondary,
         borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        border:
-            Border.all(color: expanded ? AppColors.primary : AppColors.border),
+        border: Border.all(
+            color: expanded ? AppColors.primary : AppColors.borderStrong),
         boxShadow: AppTheme.elevation1,
       ),
       child: Column(
         children: [
-          InkWell(
-            onTap: onHeaderTap,
-            borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(icon, color: AppColors.textPrimary),
-                ),
-                const SizedBox(width: AppTheme.spacingM),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          ConstrainedBox(
+            constraints:
+                const BoxConstraints(minHeight: 48), // §13.2 touch target
+            child: Semantics(
+              button: true,
+              expanded: expanded,
+              label: title,
+              child: InkWell(
+                onTap: onHeaderTap,
+                borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+                child: Center(
+                  child: Row(
                     children: [
-                      Text(title, style: AppTextStyles.titleSmall),
-                      const SizedBox(height: 4),
-                      Text(
-                        value,
-                        style: AppTextStyles.bodyMedium
-                            .copyWith(color: AppColors.textPrimary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusPill),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Icon(icon, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(width: AppTheme.spacingM),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title, style: AppTextStyles.titleSmall),
+                            const SizedBox(height: AppTheme.spacingXS),
+                            Text(
+                              value,
+                              style: AppTextStyles.bodyMedium
+                                  .copyWith(color: AppColors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: expanded ? 0.25 : 0.0,
+                        duration: AppMotion.base,
+                        curve: AppMotion.baseCurve,
+                        child: const Icon(Icons.chevron_right,
+                            color: AppColors.textTertiary),
                       ),
                     ],
                   ),
                 ),
-                AnimatedRotation(
-                  turns: expanded ? 0.25 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: const Icon(Icons.chevron_right,
-                      color: AppColors.textTertiary),
-                ),
-              ],
+              ),
             ),
           ),
           AnimatedSize(
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeInOut,
+            duration: AppMotion.base,
+            curve: AppMotion.baseCurve,
             child: expanded
                 ? Padding(
                     padding: const EdgeInsets.only(top: AppTheme.spacingM),
@@ -971,6 +1014,7 @@ class _SelectableRow extends StatelessWidget {
   final String? subtitle;
   final bool selected;
   final bool enabled;
+  final bool mutuallyExclusive;
   final VoidCallback onTap;
 
   const _SelectableRow({
@@ -978,59 +1022,70 @@ class _SelectableRow extends StatelessWidget {
     this.subtitle,
     required this.selected,
     this.enabled = true,
+    this.mutuallyExclusive = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = enabled ? AppColors.textPrimary : AppColors.textTertiary;
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(7),
-                border: Border.all(
-                    color: selected ? AppColors.primary : AppColors.border),
-                color: selected
-                    ? AppColors.primary.withValues(alpha: 0.12)
-                    : Colors.transparent,
+    return Semantics(
+      label: title,
+      enabled: enabled ? null : false,
+      checked: mutuallyExclusive ? null : selected,
+      selected: mutuallyExclusive ? selected : null,
+      inMutuallyExclusiveGroup: mutuallyExclusive ? true : null,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSM),
+          child: Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  border: Border.all(
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.borderStrong),
+                  color: selected
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                ),
+                child: selected
+                    ? const Icon(Icons.check,
+                        size: AppTheme.iconS, color: AppColors.primary)
+                    : null,
               ),
-              child: selected
-                  ? const Icon(Icons.check, size: 18, color: AppColors.primary)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.bodyMedium.copyWith(color: color),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+              const SizedBox(width: AppTheme.spacingSM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle!,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textSecondary),
-                      maxLines: 2,
+                      title,
+                      style: AppTextStyles.bodyMedium.copyWith(color: color),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: AppTheme.spacingXS),
+                      Text(
+                        subtitle!,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textSecondary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1048,30 +1103,40 @@ class _DatePickerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+      child: Semantics(
+        button: true,
+        label: Formatters.formatDate(date),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(color: AppColors.border),
-          color: AppColors.secondary,
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.event, color: AppColors.textSecondary, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                Formatters.formatDate(date),
-                style: AppTextStyles.bodyMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingSM, vertical: AppTheme.spacingSM),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              border: Border.all(color: AppColors.borderStrong),
+              color: AppColors.secondary,
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textTertiary),
-          ],
+            child: Row(
+              children: [
+                const Icon(Icons.event,
+                    color: AppColors.textSecondary, size: AppTheme.iconS),
+                const SizedBox(width: AppTheme.spacingSM),
+                Expanded(
+                  child: Text(
+                    Formatters.formatDate(date),
+                    style: AppTextStyles.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+              ],
+            ),
+          ),
         ),
       ),
     );

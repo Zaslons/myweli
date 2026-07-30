@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -6,21 +7,32 @@ import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/api_response.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../providers/pro_journal_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 
 class ProAppointmentDetailScreen extends StatefulWidget {
   final String appointmentId;
 
+  /// The salon this booking belongs to (`?salon=` — a notification may point
+  /// at another of the account's salons). Null → whatever is active.
+  final String? salonId;
+
   const ProAppointmentDetailScreen({
     super.key,
     required this.appointmentId,
+    this.salonId,
   });
 
   @override
@@ -33,14 +45,28 @@ class _ProAppointmentDetailScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-      if (authProvider.isAuthenticated && authProvider.provider != null) {
-        final appointmentProvider =
-            Provider.of<ProAppointmentProvider>(context, listen: false);
-        appointmentProvider.loadAppointments(authProvider.provider!.id);
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  /// Loads the booking — switching salon FIRST when the notification that
+  /// brought us here belongs to another of the account's salons (R6;
+  /// `switchSalon` returns true immediately when it's already the active one
+  /// and resets every salon-scoped provider otherwise).
+  Future<void> _load() async {
+    final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated || authProvider.provider == null) return;
+
+    final wanted = widget.salonId;
+    if (wanted != null && wanted != authProvider.activeSalonId) {
+      await authProvider.switchSalon(wanted);
+    }
+    if (!mounted) return;
+
+    final appointmentProvider =
+        Provider.of<ProAppointmentProvider>(context, listen: false);
+    await appointmentProvider.loadAppointments(
+      authProvider.activeSalonId ?? '',
+    );
   }
 
   @override
@@ -52,6 +78,10 @@ class _ProAppointmentDetailScreenState
       ),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
+          // Collaborateur (access R4b §5.3): own bookings only reach this
+          // screen (server own-filters); the allowed acts are Terminé /
+          // Absent — everything else hides (and 403s server-side anyway).
+          final ownMode = authProvider.isStaff;
           final appointment = appointmentProvider.appointments.firstWhere(
             (a) => a.id == widget.appointmentId,
             orElse: () => Appointment(
@@ -59,10 +89,10 @@ class _ProAppointmentDetailScreenState
               userId: '',
               providerId: '',
               serviceIds: const [],
-              appointmentDate: DateTime.now(),
+              appointmentDate: AppClock.now(),
               status: AppointmentStatus.pending,
               totalPrice: 0,
-              createdAt: DateTime.now(),
+              createdAt: AppClock.now(),
             ),
           );
 
@@ -77,38 +107,114 @@ class _ProAppointmentDetailScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Module clients C1c: who's coming — with the no-show
+                        // badge at the accept moment (story #5) + card link.
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                appointment.clientDisplayName ??
+                                    appointment.clientName ??
+                                    'Client',
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.titleMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            if ((appointment.clientNoShowCount ?? 0) >= 1)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppTheme.spacingS,
+                                  vertical: AppTheme.spacingXS,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ((appointment.clientNoShowCount ??
+                                              0) >=
+                                          2)
+                                      ? AppColors.error.withValues(alpha: 0.1)
+                                      : AppColors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusSmall,
+                                  ),
+                                ),
+                                child: Text(
+                                  appointment.clientNoShowCount == 1
+                                      ? '1 absence'
+                                      : '${appointment.clientNoShowCount} absences',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color:
+                                        ((appointment.clientNoShowCount ?? 0) >=
+                                                2)
+                                            ? AppColors.error
+                                            : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (appointment.salonClientId != null && !ownMode)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minHeight: 48,
+                            ), // §13.2 touch target
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => context.push(
+                                '/pro/clients/${appointment.salonClientId}',
+                              ),
+                              child: Container(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.only(
+                                    top: AppTheme.spacingXS),
+                                child: Text(
+                                  'Voir la fiche client',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Date et heure',
                           style: AppTextStyles.titleMedium
                               .copyWith(color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Text(
-                          Formatters.formatDateTime(
-                              appointment.appointmentDate),
+                          Formatters.formatDateTime(toSalonTime(
+                            appointment.appointmentDate,
+                            tz: authProvider.salonTimezone,
+                          )),
                           style: AppTextStyles.bodyLarge
                               .copyWith(color: AppColors.textSecondary),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Statut',
                           style: AppTextStyles.titleMedium
                               .copyWith(color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Chip(
-                          label: Text(_getStatusText(appointment.status)),
+                          label: Text(StatusLabels.of(appointment.status)),
                           backgroundColor: _getStatusColor(appointment.status),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'Prix total',
                           style: AppTextStyles.titleMedium
                               .copyWith(color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.spacingS),
                         Text(
-                          Formatters.formatCurrency(appointment.totalPrice),
+                          Formatters.formatCurrency(
+                            appointment.totalPrice,
+                            currency: authProvider.salonCurrency,
+                          ),
                           style: AppTextStyles.headlineSmall
                               .copyWith(color: AppColors.primary),
                         ),
@@ -117,24 +223,25 @@ class _ProAppointmentDetailScreenState
                           Row(
                             children: [
                               const Icon(Icons.savings_outlined,
-                                  size: 18, color: AppColors.textSecondary),
-                              const SizedBox(width: 8),
+                                  size: AppTheme.iconS,
+                                  color: AppColors.textSecondary),
+                              const SizedBox(width: AppTheme.spacingS),
                               Expanded(
                                 child: Text(
                                   'Acompte annoncé : '
-                                  '${Formatters.formatCurrency(appointment.depositAmount)}',
+                                  '${Formatters.formatCurrency(appointment.depositAmount, currency: authProvider.salonCurrency)}',
                                   style: AppTextStyles.bodyMedium,
                                 ),
                               ),
                             ],
                           ),
                           Text(
-                            'Confirmez le rendez-vous une fois l\'acompte reçu '
+                            'Confirmez le rendez-vous une fois l’acompte reçu '
                             'sur votre compte Mobile Money.',
                             style: AppTextStyles.bodySmall
                                 .copyWith(color: AppColors.textTertiary),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppTheme.spacingS),
                           _DepositProof(
                             appointmentId: appointment.id,
                             hasProof: appointment.depositScreenshotUrl != null,
@@ -144,22 +251,22 @@ class _ProAppointmentDetailScreenState
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                if (appointment.status == AppointmentStatus.pending) ...[
+                const SizedBox(height: AppTheme.spacingL),
+                if (!ownMode &&
+                    appointment.status == AppointmentStatus.pending) ...[
                   AppButton(
                     text: 'Accepter',
                     onPressed: () async {
                       final success = await appointmentProvider
                           .acceptAppointment(appointment.id);
                       if (success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Rendez-vous accepté')),
-                        );
+                        AppSnackBar.show(context, 'Rendez-vous accepté',
+                            kind: SnackKind.success);
                         Navigator.pop(context);
                       }
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppTheme.spacingSM),
                   AppButton(
                     text: 'Rejeter',
                     type: AppButtonType.secondary,
@@ -167,62 +274,80 @@ class _ProAppointmentDetailScreenState
                       final success = await appointmentProvider
                           .rejectAppointment(appointment.id, null);
                       if (success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Rendez-vous rejeté')),
-                        );
+                        AppSnackBar.show(context, 'Rendez-vous rejeté',
+                            kind: SnackKind.success);
                         Navigator.pop(context);
                       }
                     },
                   ),
                 ] else if (appointment.status ==
                     AppointmentStatus.confirmed) ...[
+                  // Same-day gate for « Client arrivé » — the ACTIVE SALON's
+                  // day, never the device's (the server re-checks anyway).
+                  if (!ownMode &&
+                      appointment.arrivedAt == null &&
+                      isSameSalonDay(
+                          appointment.appointmentDate, AppClock.now(),
+                          tz: authProvider.salonTimezone)) ...[
+                    AppButton(
+                      text: 'Client arrivé',
+                      icon: Icons.how_to_reg_outlined,
+                      type: AppButtonType.secondary,
+                      onPressed: () async {
+                        final ok = await context
+                            .read<ProJournalProvider>()
+                            .arrive(appointment.id);
+                        if (!context.mounted) return;
+                        AppSnackBar.outcome(
+                          context,
+                          ok: ok,
+                          success: 'Arrivée enregistrée',
+                          error: 'Impossible d’enregistrer l’arrivée.',
+                        );
+                        if (ok && authProvider.provider != null) {
+                          await appointmentProvider.loadAppointments(
+                            authProvider.activeSalonId ?? '',
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: AppTheme.spacingSM),
+                  ],
                   AppButton(
                     text: 'Marquer comme terminé',
                     onPressed: () async {
                       final success = await appointmentProvider
                           .markComplete(appointment.id);
                       if (success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Rendez-vous terminé')),
-                        );
+                        AppSnackBar.show(context, 'Rendez-vous terminé',
+                            kind: SnackKind.success);
                         Navigator.pop(context);
                       }
                     },
                   ),
-                  if (!appointment.appointmentDate.isAfter(DateTime.now())) ...[
-                    const SizedBox(height: 12),
+                  if (!appointment.appointmentDate.isAfter(AppClock.now())) ...[
+                    const SizedBox(height: AppTheme.spacingSM),
                     AppButton(
                       text: 'Marquer comme absent',
                       type: AppButtonType.secondary,
                       onPressed: () async {
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Client absent ?'),
-                            content: const Text(
-                              'Le client ne s\'est pas présenté. L\'acompte '
-                              'est conservé selon votre politique d\'annulation.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Annuler'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Confirmer'),
-                              ),
-                            ],
-                          ),
+                        final confirmed = await showConfirmDialog(
+                          context,
+                          title: 'Client absent ?',
+                          message: 'Le client ne s’est pas présenté. '
+                              'L’acompte est conservé selon votre politique '
+                              'd’annulation.',
+                          confirmLabel: 'Marquer absent',
+                          // Not a deletion — a state change. §15: red is for
+                          // destruction; spending it here would dilute it.
+                          isDestructive: false,
                         );
-                        if (confirmed != true || !context.mounted) return;
+                        if (!confirmed || !context.mounted) return;
                         final success = await appointmentProvider
                             .markNoShow(appointment.id);
                         if (success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Marqué comme absent')),
-                          );
+                          AppSnackBar.show(context, 'Marqué comme absent',
+                              kind: SnackKind.success);
                           Navigator.pop(context);
                         }
                       },
@@ -239,21 +364,6 @@ class _ProAppointmentDetailScreenState
 
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
-
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
-    }
-  }
 }
 
 /// Salon-side view of the consumer's deposit screenshot. The image is private;

@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.da
 import 'package:myweli_backend/src/auth/principal.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_models.dart';
+import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/responses.dart';
 
 /// `POST /appointments/{id}/cancel` — cancel the caller's own booking.
@@ -25,6 +26,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
       context.read<BookingNotifier>().notify(
         result.appointment,
         MessageTemplate.cancelled,
+      ),
+    );
+    // This route is the CLIENT's own cancellation (ownership-checked above) —
+    // the salon team hears about it too (the pro « reject » path is a
+    // different route, and the salon doesn't notify itself).
+    unawaited(
+      context.read<SalonNotifier>().notify(
+        result.appointment,
+        SalonEvent.clientCancelled,
       ),
     );
   }

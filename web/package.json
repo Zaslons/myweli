@@ -12,9 +12,12 @@
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "lhci": "lhci autorun",
-    "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o lib/api/schema.ts"
+    "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o lib/api/schema.ts",
+    "gen:tokens": "node scripts/gen-tokens.mjs"
   },
   "dependencies": {
+    "@vis.gl/react-maplibre": "^8.1.1",
+    "maplibre-gl": "^5.24.0",
     "next": "^14.2.5",
     "openapi-fetch": "^0.12.2",
     "react": "^18.3.1",
@@ -22,6 +25,7 @@
     "react-phone-number-input": "^3.4.17"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@lhci/cli": "^0.14.0",
     "@playwright/test": "^1.47.2",
     "@testing-library/jest-dom": "^6.4.8",
@@ -33,6 +37,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.5",
+    "eslint-plugin-tailwindcss": "^3.18.3",
     "jsdom": "^24.1.1",
     "openapi-typescript": "^7.4.0",
     "postcss": "^8.4.41",

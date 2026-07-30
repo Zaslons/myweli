@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/availability.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
-class ProAvailabilityProvider extends ChangeNotifier {
+class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
 
   Availability? _availability;
@@ -73,5 +74,15 @@ class ProAvailabilityProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _availability = null;
+    _isLoading = false;
+    _error = null;
+    _currentProviderId = null;
+    notifyListeners();
   }
 }

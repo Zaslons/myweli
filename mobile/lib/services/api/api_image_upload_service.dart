@@ -26,21 +26,47 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
     String? baseUrl,
     SessionStore? providerSessionStore,
     ImageCompressor? compressor,
+    // P2b (audit 2.13): consumer review photos reuse this pipeline with a
+    // consumer session + `purpose=review`; the defaults keep the pro gallery.
+    String purpose = 'gallery',
+    String refreshPath = '/auth/provider/refresh',
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _compress = compressor ?? _defaultCompress {
+        _compress = compressor ?? _defaultCompress,
+        _purpose = purpose,
+        _sessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
       baseUrl: _baseUrl,
-      store: providerSessionStore ?? InMemorySessionStore(),
-      refreshPath: '/auth/provider/refresh',
+      store: _sessionStore,
+      refreshPath: refreshPath,
     );
   }
 
   final http.Client _client;
   final String _baseUrl;
   final ImageCompressor _compress;
+  final String _purpose;
+  final SessionStore _sessionStore;
   late final RefreshingHttpClient _authed;
+
+  /// R6: gallery uploads follow the switched-to salon (`?salonId=` on the
+  /// sign call; keys scope server-side, T55). Other purposes stay
+  /// account/user-scoped.
+  Future<Uri> _signUri() async {
+    final base = Uri.parse('$_baseUrl/uploads/sign');
+    if (_purpose != 'gallery') return base;
+    final raw = await _sessionStore.read();
+    if (raw == null) return base;
+    try {
+      final selected = (jsonDecode(raw)
+          as Map<String, dynamic>)['selectedSalonId'] as String?;
+      if (selected == null || selected.isEmpty) return base;
+      return base.replace(queryParameters: {'salonId': selected});
+    } catch (_) {
+      return base;
+    }
+  }
 
   static Future<Uint8List?> _defaultCompress(String source) =>
       FlutterImageCompress.compressWithFile(
@@ -73,13 +99,13 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
 
     // 1. Ask the backend to presign a direct-to-storage upload.
     final signRes = await _authed.send(
-      (t) => _client.post(
-        Uri.parse('$_baseUrl/uploads/sign'),
+      (t) async => _client.post(
+        await _signUri(),
         headers: {
           'Authorization': 'Bearer $t',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'contentType': 'image/jpeg', 'purpose': 'gallery'}),
+        body: jsonEncode({'contentType': 'image/jpeg', 'purpose': _purpose}),
       ),
     );
     if (signRes == null) {

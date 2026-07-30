@@ -14,6 +14,14 @@ import '../auth/tokens.dart';
 /// before login; provider-role JWT on verify) expressed in SQL, parameterized.
 /// OTP lives in its own table so it can't collide with consumer OTPs.
 class PostgresProviderAuthRepository implements ProviderAuthRepository {
+  @override
+  Future<void> linkProvider(String accountId, String providerId) async {
+    await _pool.execute(
+      Sql.named('UPDATE provider_users SET provider_id = @pid WHERE id = @id'),
+      parameters: {'pid': providerId, 'id': accountId},
+    );
+  }
+
   PostgresProviderAuthRepository(
     this._pool, {
     required TokenService tokens,
@@ -246,6 +254,66 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
           'asub': appleSub,
           'addr': address,
           'pid': providerId,
+        },
+      );
+      await tx.execute(
+        Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+        parameters: {'e': emailKey},
+      );
+      final account = _toAccount(rows.first.toColumnMap());
+      final tokens = await _issueInFamily(tx, account.id, _newId('fam'));
+      return (ok: true, error: null, provider: account, tokens: tokens);
+    });
+  }
+
+  @override
+  Future<ProviderVerifyResult> createMemberAccount({
+    required String email,
+    required String authProvider,
+    String? emailCode,
+    String? googleSub,
+    String? appleSub,
+  }) async {
+    final emailKey = email.trim().toLowerCase();
+    if (authProvider == 'email') {
+      final error = await _checkEmailOtp(emailKey, emailCode ?? '');
+      if (error != null) {
+        return (ok: false, error: error, provider: null, tokens: null);
+      }
+    }
+    final exists = await _pool.execute(
+      Sql.named(
+        'SELECT 1 FROM provider_users WHERE lower(email) = @e '
+        'OR (google_sub IS NOT NULL AND google_sub = @gs:text) '
+        'OR (apple_sub IS NOT NULL AND apple_sub = @asub:text)',
+      ),
+      parameters: {'e': emailKey, 'gs': googleSub, 'asub': appleSub},
+    );
+    if (exists.isNotEmpty) {
+      return (
+        ok: false,
+        error: 'provider_exists',
+        provider: null,
+        tokens: null,
+      );
+    }
+    // Bare member account (module `access` R2b): no business fields, no
+    // salon — the membership is the relationship.
+    return _pool.runTx((tx) async {
+      final rows = await tx.execute(
+        Sql.named(
+          'INSERT INTO provider_users '
+          '(id, phone_number, business_name, business_type, email, '
+          'email_verified, auth_provider, google_sub, apple_sub) '
+          "VALUES (@id, '', '', 'other', @e, true, @ap, @gs:text, "
+          '@asub:text) RETURNING *',
+        ),
+        parameters: {
+          'id': _newId('provider'),
+          'e': emailKey,
+          'ap': authProvider,
+          'gs': googleSub,
+          'asub': appleSub,
         },
       );
       await tx.execute(
@@ -525,6 +593,36 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     final decoded = raw is String ? jsonDecode(raw) : raw;
     if (decoded is! List) return const [];
     return [for (final e in decoded) Map<String, dynamic>.from(e as Map)];
+  }
+
+  @override
+  Future<bool> deleteAccount(String accountId) async {
+    final account = await accountById(accountId);
+    if (account == null) return false;
+    // Sessions first: every refresh token of the account dies.
+    await _pool.execute(
+      Sql.named('DELETE FROM provider_refresh_tokens WHERE account_id = @a'),
+      parameters: {'a': accountId},
+    );
+    final email = account.email?.toLowerCase();
+    if (email != null) {
+      await _pool.execute(
+        Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
+        parameters: {'e': email},
+      );
+    }
+    if (account.phoneNumber.isNotEmpty) {
+      await _pool.execute(
+        Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
+        parameters: {'p': account.phoneNumber},
+      );
+    }
+    // The row carries the KYC docs (kyc_docs jsonb) — they go with it.
+    final res = await _pool.execute(
+      Sql.named('DELETE FROM provider_users WHERE id = @id'),
+      parameters: {'id': accountId},
+    );
+    return res.affectedRows > 0;
   }
 
   String _newId(String prefix) =>

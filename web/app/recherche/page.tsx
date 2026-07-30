@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { HomeSearch } from '../../components/home/HomeSearch';
-import { ProviderCard } from '../../components/provider/ProviderCard';
+import { RechercheClient } from '../../components/discovery/RechercheClient';
+import { getLocalityTree } from '../../lib/api/localities';
 import { searchProviders } from '../../lib/api/providers';
 
 // Results are query-dependent + thin → render on demand, noindex (the indexed
@@ -11,21 +11,42 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
+const SORTS = ['relevance', 'rating', 'price'] as const;
+type Sort = (typeof SORTS)[number];
+
 export default async function RecherchePage({
   searchParams,
 }: {
-  searchParams: { q?: string; commune?: string; category?: string };
+  searchParams: {
+    q?: string;
+    commune?: string;
+    category?: string;
+    sort?: string;
+    dispo?: string;
+  };
 }) {
   const q = searchParams.q ?? '';
   const commune = searchParams.commune ?? '';
   const category = searchParams.category ?? '';
+  // Parity 2.1/2.2 — the app's sort (default Pertinence) + availability pill.
+  const sort: Sort = (SORTS as readonly string[]).includes(
+    searchParams.sort ?? '',
+  )
+    ? (searchParams.sort as Sort)
+    : 'relevance';
+  const dispo = searchParams.dispo === '1';
 
-  const results = await searchProviders({
-    q: q || undefined,
-    commune: commune || undefined,
-    category: category || undefined,
-    pageSize: 24,
-  });
+  const [results, tree] = await Promise.all([
+    searchProviders({
+      q: q || undefined,
+      commune: commune || undefined,
+      category: category || undefined,
+      sort,
+      availableToday: dispo || undefined,
+      pageSize: 24,
+    }),
+    getLocalityTree(),
+  ]);
 
   const title = q
     ? `Recherche : ${q}`
@@ -34,27 +55,20 @@ export default async function RecherchePage({
       : 'Tous les salons';
 
   return (
-    <main className="mx-auto max-w-5xl px-m py-l">
-      <h1 className="text-2xl font-semibold text-textPrimary">{title}</h1>
-      <div className="mt-m max-w-3xl">
-        <HomeSearch defaultService={q} defaultCommune={commune} />
-      </div>
-      <p className="mt-m text-sm text-textTertiary">
-        {results.length} salon{results.length > 1 ? 's' : ''}
-      </p>
-      <div className="mt-m">
-        {results.length === 0 ? (
-          <div className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-            Aucun salon trouvé. Essayez une autre recherche ou une autre commune.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3">
-            {results.map((p) => (
-              <ProviderCard key={p.id} provider={p} />
-            ))}
-          </div>
-        )}
-      </div>
+    // Full-width — the map is part of the screen (no container box); the
+    // search header lives inside the split's left column
+    // (docs/design/web-discovery-map.md §2).
+    <main>
+      <RechercheClient
+        title={title}
+        results={results}
+        q={q}
+        commune={commune}
+        category={category}
+        sort={sort}
+        dispo={dispo}
+        tree={tree}
+      />
     </main>
   );
 }

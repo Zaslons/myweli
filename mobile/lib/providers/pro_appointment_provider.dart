@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/pro_access_guard.dart';
+import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
-class ProAppointmentProvider extends ChangeNotifier {
+class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   final ProServiceInterface _proService = serviceLocator.proService;
 
   List<Appointment> _appointments = [];
@@ -37,6 +39,7 @@ class ProAppointmentProvider extends ChangeNotifier {
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des rendez-vous';
+        ProAccessGuard.report(response.code);
         _appointments = [];
       }
     } catch (e) {
@@ -66,7 +69,7 @@ class ProAppointmentProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _error = response.error ?? 'Erreur lors de l\'acceptation';
+        _error = response.error ?? 'Erreur lors de l’acceptation';
         notifyListeners();
         return false;
       }
@@ -213,6 +216,7 @@ class ProAppointmentProvider extends ChangeNotifier {
     String? clientName,
     String? clientPhone,
     String? notes,
+    String? artistId,
     bool sendSmsInvite = false,
   }) async {
     _isLoading = true;
@@ -227,6 +231,7 @@ class ProAppointmentProvider extends ChangeNotifier {
         clientName: clientName,
         clientPhone: clientPhone,
         notes: notes,
+        artistId: artistId,
         sendSmsInvite: sendSmsInvite,
       );
       if (response.success && response.data != null) {
@@ -244,5 +249,14 @@ class ProAppointmentProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// R6 multi-salons: drop the previous salon's data on a switch.
+  @override
+  void resetForSalonSwitch() {
+    _appointments = [];
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
   }
 }

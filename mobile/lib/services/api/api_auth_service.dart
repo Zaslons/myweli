@@ -8,9 +8,12 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
+import '../../models/pro_membership.dart';
+import '../../models/provider_login_result.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
 import '../../models/session.dart';
+import '../../models/team_invitation.dart';
 import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
@@ -320,15 +323,9 @@ class ApiAuthService implements AuthServiceInterface {
 
   // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
 
-  /// Shared FLAT ProviderSession handling for every provider login endpoint.
-  Future<ApiResponse<ProviderUser>> _providerLoginFrom(
-    http.Response? res, {
-    int expected = 200,
-  }) async {
-    if (res == null) return _networkError();
-    if (res.statusCode != expected) return _errorFrom(res);
-
-    final body = _decode(res.body);
+  /// Adopt + persist a FLAT ProviderSession body ({provider, accessToken,
+  /// refreshToken}) — shared by logins, registration and invitation accepts.
+  Future<ProviderUser> _adoptProviderSession(Map<String, dynamic> body) async {
     final provider =
         ProviderUser.fromJson(body['provider'] as Map<String, dynamic>);
     _currentProvider = provider;
@@ -338,7 +335,54 @@ class ApiAuthService implements AuthServiceInterface {
       _providerToken!,
       body['refreshToken'] as String?,
     );
+    return provider;
+  }
+
+  /// Shared FLAT ProviderSession handling for every provider login endpoint.
+  Future<ApiResponse<ProviderUser>> _providerLoginFrom(
+    http.Response? res, {
+    int expected = 200,
+  }) async {
+    if (res == null) return _networkError();
+    if (res.statusCode != expected) return _errorFrom(res);
+    final provider = await _adoptProviderSession(_decode(res.body));
     return ApiResponse.success(provider, message: 'Connexion réussie');
+  }
+
+  /// Three-way login outcome (team access R3): 200 → signed in ·
+  /// 202 → pending invitations (the R2b bridge; [proof] re-proves the
+  /// identity on the accept/decline calls) · else → failure with the
+  /// machine code.
+  Future<ProviderLoginResult> _providerLoginResultFrom(
+    http.Response? res, {
+    InvitationProof? proof,
+  }) async {
+    if (res == null) {
+      return const ProviderLoginResult.failure(
+        'Connexion au serveur impossible',
+      );
+    }
+    if (res.statusCode == 200) {
+      final provider = await _adoptProviderSession(_decode(res.body));
+      return ProviderLoginResult.signedIn(provider);
+    }
+    if (res.statusCode == 202 && proof != null) {
+      final body = _decode(res.body);
+      final invitations = (body['invitations'] as List? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(TeamInvitation.fromJson)
+          .toList();
+      if (invitations.isNotEmpty) {
+        return ProviderLoginResult.invited(invitations, proof);
+      }
+    }
+    String? code;
+    try {
+      code = _decode(res.body)['error'] as String?;
+    } catch (_) {
+      code = null;
+    }
+    return ProviderLoginResult.failure(_messageFor(code), code: code);
   }
 
   /// Native Google sign-in → the ID token (aud = the web client, allowlisted).
@@ -353,14 +397,20 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ApiResponse<ProviderUser>> signInProviderWithGoogle() async {
+  Future<ProviderLoginResult> signInProviderWithGoogle() async {
     try {
       final idToken = await _googleIdToken();
-      if (idToken == null) return ApiResponse.error('', code: 'cancelled');
+      if (idToken == null) {
+        return const ProviderLoginResult.failure('', code: 'cancelled');
+      }
       final res = await _post('/auth/provider/google', {'idToken': idToken});
-      return _providerLoginFrom(res);
+      // The very idToken just verified re-proves the identity on accept.
+      return _providerLoginResultFrom(
+        res,
+        proof: GoogleInvitationProof(idToken),
+      );
     } catch (_) {
-      return ApiResponse.error(
+      return const ProviderLoginResult.failure(
         'Connexion Google impossible.',
         code: 'google_failed',
       );
@@ -368,7 +418,7 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ApiResponse<ProviderUser>> signInProviderWithApple() async {
+  Future<ProviderLoginResult> signInProviderWithApple() async {
     try {
       final rawNonce = _randomNonce();
       final credential = await SignInWithApple.getAppleIDCredential(
@@ -380,7 +430,7 @@ class ApiAuthService implements AuthServiceInterface {
       );
       final identityToken = credential.identityToken;
       if (identityToken == null) {
-        return ApiResponse.error(
+        return const ProviderLoginResult.failure(
           'Connexion Apple impossible.',
           code: 'no_id_token',
         );
@@ -389,17 +439,18 @@ class ApiAuthService implements AuthServiceInterface {
         'identityToken': identityToken,
         'nonce': rawNonce,
       });
-      return _providerLoginFrom(res);
+      // No 202 bridge on the Apple route (contract) — never `.invited`.
+      return _providerLoginResultFrom(res);
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
-        return ApiResponse.error('', code: 'cancelled');
+        return const ProviderLoginResult.failure('', code: 'cancelled');
       }
-      return ApiResponse.error(
+      return const ProviderLoginResult.failure(
         'Connexion Apple impossible.',
         code: 'apple_failed',
       );
     } catch (_) {
-      return ApiResponse.error(
+      return const ProviderLoginResult.failure(
         'Connexion Apple impossible.',
         code: 'apple_failed',
       );
@@ -423,7 +474,7 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<ApiResponse<ProviderUser>> verifyProviderEmailOtp(
+  Future<ProviderLoginResult> verifyProviderEmailOtp(
     String email,
     String code,
   ) async {
@@ -431,8 +482,53 @@ class ApiAuthService implements AuthServiceInterface {
       'email': email,
       'code': code,
     });
-    return _providerLoginFrom(res);
+    // A 202 leaves the code UNCONSUMED server-side — the accept reuses it.
+    return _providerLoginResultFrom(
+      res,
+      proof: EmailOtpInvitationProof(email, code),
+    );
   }
+
+  @override
+  Future<ApiResponse<ProviderUser>> acceptProviderInvitation(
+    String invitationId,
+    InvitationProof proof,
+  ) async {
+    final res = await _post('/auth/provider/invitations/accept', {
+      'invitationId': invitationId,
+      ..._proofBody(proof),
+    });
+    if (res == null) return _networkError();
+    // 200 = accepted under an existing account · 201 = bare member account
+    // created — BOTH carry a live flat ProviderSession.
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      return _errorFrom(res);
+    }
+    final provider = await _adoptProviderSession(_decode(res.body));
+    return ApiResponse.success(provider, message: 'Invitation acceptée');
+  }
+
+  @override
+  Future<ApiResponse<bool>> declineProviderInvitation(
+    String invitationId,
+    InvitationProof proof,
+  ) async {
+    final res = await _post('/auth/provider/invitations/decline', {
+      'invitationId': invitationId,
+      ..._proofBody(proof),
+    });
+    if (res == null) return _networkError();
+    if (res.statusCode != 200) return _errorFrom(res);
+    return ApiResponse.success(true);
+  }
+
+  Map<String, String> _proofBody(InvitationProof proof) => switch (proof) {
+        GoogleInvitationProof(:final idToken) => {'idToken': idToken},
+        EmailOtpInvitationProof(:final email, :final code) => {
+            'email': email,
+            'code': code,
+          },
+      };
 
   @override
   Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
@@ -440,6 +536,7 @@ class ApiAuthService implements AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   }) async {
     try {
       final idToken = await _googleIdToken();
@@ -450,6 +547,7 @@ class ApiAuthService implements AuthServiceInterface {
         'businessName': businessName,
         'businessType': businessType.name,
         if (address != null && address.isNotEmpty) 'address': address,
+        if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
       });
       return _providerLoginFrom(res, expected: 201);
     } catch (_) {
@@ -468,6 +566,7 @@ class ApiAuthService implements AuthServiceInterface {
     required String businessName,
     required BusinessType businessType,
     String? address,
+    String? areaId,
   }) async {
     final res = await _post('/auth/provider/register', {
       'email': email,
@@ -476,6 +575,7 @@ class ApiAuthService implements AuthServiceInterface {
       'businessName': businessName,
       'businessType': businessType.name,
       if (address != null && address.isNotEmpty) 'address': address,
+      if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
     });
     return _providerLoginFrom(res, expected: 201);
   }
@@ -502,6 +602,65 @@ class ApiAuthService implements AuthServiceInterface {
     _currentProvider = null;
     _providerToken = null;
     await _providerSessionStore.clear();
+  }
+
+  @override
+  Future<void> cacheProviderMembership(ProMembership? membership) async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return; // signed out — nothing to cache into
+    try {
+      final session =
+          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      // copyWith keeps the R6 salon selection alongside the membership.
+      await _providerSessionStore.save(
+        jsonEncode(session.copyWith(membership: membership).toJson()),
+      );
+    } catch (_) {/* a broken blob is repaired on the next login */}
+  }
+
+  @override
+  Future<void> setSelectedProviderSalon(String? salonId) async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return;
+    try {
+      final session =
+          ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      await _providerSessionStore.save(
+        jsonEncode(
+          session
+              .copyWith(
+                selectedSalonId: salonId,
+                clearSelectedSalon: salonId == null,
+              )
+              .toJson(),
+        ),
+      );
+    } catch (_) {/* a broken blob is repaired on the next login */}
+  }
+
+  @override
+  Future<String?> getSelectedProviderSalon() async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      return ProviderSession.fromJson(jsonDecode(raw) as Map<String, dynamic>)
+          .selectedSalonId;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<ProMembership?> getCachedProviderMembership() async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      return ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).membership;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ---- helpers --------------------------------------------------------------
@@ -577,6 +736,12 @@ class ApiAuthService implements AuthServiceInterface {
 
   String _messageFor(String? code) {
     switch (code) {
+      // L2: the one error on this surface the user can actually resolve — so it
+      // says WHAT to do. A bare « échec » leaves them with an account they
+      // cannot close and no idea why.
+      case 'future_bookings':
+        return 'Annulez vos rendez-vous à venir avant de supprimer votre '
+            'compte.';
       case 'otp_none':
         return 'Aucun code actif. Demandez un nouveau code.';
       case 'otp_expired':
@@ -603,6 +768,8 @@ class ApiAuthService implements AuthServiceInterface {
         return 'Compte suspendu.';
       case 'auth_method_disabled':
         return 'Méthode de connexion indisponible.';
+      case 'invitation_expired':
+        return 'Cette invitation a expiré. Demandez au salon de la renvoyer.';
       default:
         return 'Une erreur est survenue.';
     }
