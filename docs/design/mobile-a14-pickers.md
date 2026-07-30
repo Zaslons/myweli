@@ -973,3 +973,117 @@ Then `CalendarDay`, and green. Without that step the type would have been
 justified by reasoning about `DateTime.==` rather than by a failure, and this
 register's whole complaint is that reasoning of that kind has been wrong on
 nearly every slice.
+
+## 18. The pro calendar, measured for the first time
+
+Row 75 says the weekday row *"clips at 1×, today"* on two live screens and that
+*"nothing has ever measured it — no golden, no a11y subject"*. **Both halves are
+true, and the reason the screen escaped is one line long.**
+
+Calendrier is `TabController` **index 0 — the default**. It is what renders on
+first pump. And both instruments aimed at this screen call `openProList(tester)`
+as their *second statement*, whose entire job is to tap from Calendrier to
+Liste. `layout_test.dart:249` and `pro_screens_golden_test.dart:345` each
+navigate off the calendar before measuring anything. The new subjects are the
+old ones **minus** a line.
+
+Measured, at 360dp × **1×**:
+
+```
+« lun. » needs 20.0dp in a 16.0dp box
+« mar. » needs 20.0dp in a 16.0dp box
+… all seven, twice each
+```
+
+Red at all six configurations. `daysOfWeekHeight: 16.0` around a 20dp line,
+summed into a `SizedBox(height:)`. Two things the register did not contain: the
+labels are « lun. » « mar. » « mer. », **not** the house « L M M J V S D » that
+`Formatters.weekdayInitials()` renders; and the clip is **doubled**, because the
+package keeps neighbouring month pages alive in a `PageView`.
+
+### 18.0 What the conversion found that the clip did not
+
+**The page had no room for an honest calendar.** `table_calendar` pins
+`rowHeight: 52.0`, so a calendar that refuses to grow makes the layout around it
+look fine too. The moment the house grid sized from the text, the view's
+`Column` overflowed by **40 pixels** at 2×, on all three widths.
+
+**And the 40 was width, not height.** Measured rather than reasoned: card margin
+16 + card padding 16 + the navigator's own page inset 16 = **48 a side**, leaving
+**37.7dp** a column against the **44.9** §2.1 requires. So « 15 » wrapped to two
+lines — 2 × 48 + 8 = 104 in a 64 box, exactly 40 over. The first hypothesis
+(the empty state overflowing) was wrong and a probe said so.
+
+The page inset belongs to the page: `shrinkWrap` now selects `spacingS` when
+embedded and `spacingM` when the navigator *is* the page. With the card at
+`spacingS` the embedded column is **46.86dp** — the same number the full-screen
+picker gets, which is the invariant worth stating instead of two values that
+happen to work.
+
+**Pull-to-refresh was dead on quiet days.** `BrandRefresh` needs a scrollable and
+the only one here was the inner `ListView`, which the empty branch replaced with
+a `Center`. One `CustomScrollView` fixes the overflow and the gesture together.
+
+**`_focusedDay` was never state** — mutated without `setState` in
+`onPageChanged`, never read back. Deleted rather than ported.
+
+**`eventLoader` ran 42 times a build**, each call `.where()`-ing every
+appointment with a `context.read` *and* a `toSalonTime` inside the loop, because
+`_tz` was a getter re-read per element: ~4,200 provider lookups and ~4,200
+timezone conversions **per frame** at 100 appointments — and the marker builder
+then asked only `events.isNotEmpty`. Now one indexing pass per data change.
+
+### 18.1 The empty-state lockout
+
+`appointment_list_screen` replaced the whole calendar with a centred « Aucun
+rendez-vous » whenever the salon had none — so a **new salon could not open its
+calendar at all**, could not browse forward to plan, and the calendar's own
+per-day empty state (« Aucun rendez-vous **pour mercredi 11 mars 2026** », which
+names the day) was unreachable and never photographed.
+
+A calendar with nothing in it is not an error state. It is a calendar.
+
+### 18.2 The dead screen, and the pin it freed
+
+`booking_journal_screen` is `FeatureFlags`-dead behind a `const false` with zero
+references. Converted rather than deleted — the dependency is going, so the
+choice was convert or delete, and a V2 screen someone will un-shelve is worth
+more converted. Its three `DateTime.now()` reads went with it, taking its
+`salon_time_pin_test.dart` entry: **seven allow-listed files become six**.
+
+**Then the pin went red on that same file** — for a `DateTime.now()` that existed
+only inside the comment explaining the three real ones had just been removed.
+The pin matched raw source.
+
+A gate that reddens when you *document* fixing it is a gate people route around,
+and it cuts the other way harder: a **commented-out** call would keep a file
+looking like an offender forever, so the allow-list entry justifying it could
+never be retired. `stripDartComments` now runs first, with a falsifiability case.
+
+The web side had the identical hole and records the identical lesson —
+`scripts/dart-tokens.mjs` strips comments because *"every parser hole below
+traced back to reading comments as code"*. Same defect, same answer, two
+languages apart.
+
+### 18.3 Two visible changes, and a picture
+
+« Today » is a **ring**, not a 50 %-alpha primary fill, and the day cell is a
+**rounded rectangle**, not a circle. Both are forced by §2.1's arithmetic (a
+circle needs ~1.1dp more than a 360dp column has at 2×) and by §13's rule against
+meaning carried by colour alone.
+
+`pro_appointment_calendar_w360.png` is **the first picture this screen has ever
+had**. Regenerating produced **exactly one new PNG and moved no existing one** —
+which is the check that `markers: null` keeps A14a's geometry byte-for-byte and
+that §16.1's fix is linear-scale-neutral.
+
+**There is no before/after pair, and saying so is more honest than implying
+one.** The "before" evidence is the measurement above — `« lun. » needs 20.0dp
+in a 16.0dp box`, seven labels, at 1× — which is stronger than a photograph of
+the same thing.
+
+**A real phone is tested separately, because the matrix does not use one.**
+`pumpAtWidth` defaults to `height: 1600` so full content can be measured without
+scroll clipping; nothing in it exercises the real vertical budget. The calendar
+is the screen where that matters, so `appointment_calendar_view_test.dart` pumps
+`kFloorPhone` (360×780) at 1× and 2× directly.
