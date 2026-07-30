@@ -135,6 +135,36 @@ sockets — every optimizer call becomes an instant local 400 — but it silentl
 makes every `next/image` a broken image, which is a landmine for any future test
 that asserts one rendered.
 
+## Follow-up: the trace immediately caught a second one, in this file's own PR
+
+Within an hour of B12 landing, `Web — e2e` went red on **main** and on A14b's
+branch — three runs across two branches, always
+`focus.spec.ts:54 › keyboard focus wears the ring; a clicked button does not`.
+It passes 3/3 locally.
+
+**B12 is the trigger, and the honest reading is that it did its job.**
+`trace: 'retain-on-failure'` instruments every action, and the added latency
+moved the sample in a test that was always sampling a race:
+
+```ts
+const clicked = await outlineOf(search);   // one-shot evaluate, no retry
+expect(clicked.outlineStyle === 'none' || …).toBe(true);
+```
+
+`locator.evaluate` resolves **once**. `expect(locator).toHaveCSS(...)` re-queries
+until it matches; a bare `evaluate` fed into `expect(value)` does not. All three
+call sites in `focus.spec.ts` read it that way, so each was a single sample of a
+value the browser is still settling — the same class of defect as the
+`networkidle` wait above, in the same suite, found the same week.
+
+Fixed by wrapping all three in `expect.poll`. The helper still reads its four
+properties in one `evaluate`, because `toHaveCSS` takes one property at a time
+and the focus ring is a set.
+
+**Recorded rather than reverted.** Turning the trace back off would have hidden
+this, and the trace is exactly what turned a rare CI-only red into a
+reproducible three-in-a-row that could be diagnosed.
+
 ## Verification
 
 ```bash
