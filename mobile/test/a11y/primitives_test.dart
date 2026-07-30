@@ -331,7 +331,7 @@ void main() {
     });
   });
 
-  group('expectDayNumbersWhole', () {
+  group('expectTokensWhole', () {
     testWidgets('fails when a two-digit day is wider than its box',
         (tester) async {
       // 20dp around « 20 » at 2×: the shape row 73 measured, reproduced with a
@@ -350,7 +350,7 @@ void main() {
         ),
       );
       expect(
-        () => expectDayNumbersWhole(tester, const ['20'], 'the falsifier'),
+        () => expectTokensWhole(tester, const ['20'], 'the falsifier'),
         throwsA(isA<TestFailure>()),
         reason: 'a 20dp box cannot hold « 20 » at 2×. If this passes, the '
             'primitive is measuring nothing and row 67 has a seventh member',
@@ -373,7 +373,7 @@ void main() {
           ),
         ),
       );
-      expectDayNumbersWhole(tester, const ['20'], 'the control');
+      expectTokensWhole(tester, const ['20'], 'the control');
     });
 
     testWidgets('fails LOUDLY when the day is not on screen at all',
@@ -388,7 +388,7 @@ void main() {
         home: const Scaffold(body: SizedBox.shrink()),
       );
       expect(
-        () => expectDayNumbersWhole(tester, const ['20'], 'the empty screen'),
+        () => expectTokensWhole(tester, const ['20'], 'the empty screen'),
         throwsA(isA<TestFailure>()),
         reason: 'asserting about days that are not rendered must be an error, '
             'not a pass',

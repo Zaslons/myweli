@@ -90,12 +90,29 @@ class Formatters {
         '${formatCurrency(max, currency: currency)}';
   }
 
-  /// Format date: "Lundi 15 janvier 2024"
+  /// Format date: « lundi 15 janvier 2024 ».
+  ///
+  /// **Lowercase.** French does not capitalise weekday or month names, so the
+  /// code was right and this docstring — which said « Lundi » — was wrong, for
+  /// the helper's whole life. Found by A14b writing the first test it has ever
+  /// had, which is the argument for having written it.
+  ///
+  /// *(An earlier draft of this note said "for three years". `formatters.dart`
+  /// entered the repo at `75a28d8`, about five and a half weeks earlier — the
+  /// number was invented, in a correction about an invented claim.)*
+  ///
+  /// It is now **every day cell's accessibility label** in the house calendar
+  /// (`myweli_month_grid.dart`), so what it returns is what a screen-reader user
+  /// hears.
   static String formatDate(DateTime date) {
     return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date);
   }
 
-  /// Format date short: "15/01/2024"
+  /// Format date short: « 15/01/2024 » — **day first**, both parts padded.
+  ///
+  /// Day-first is not cosmetic: `03/11/2026` is a different date to a French
+  /// reader than to an English one, which is what §21 row 29 was about on the
+  /// input side.
   static String formatDateShort(DateTime date) {
     return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
   }
@@ -131,7 +148,28 @@ class Formatters {
     return DateFormat('HH:mm', 'fr_FR').format(time);
   }
 
-  /// Format date and time: "Lundi 15 janvier 2024 à 14:30"
+  /// « 14:30 » from an hour and a minute, with no date and no clock (A14b).
+  ///
+  /// [formatTime] needs a `DateTime`, and a wall-clock time the user is *picking*
+  /// has no date yet — inventing one to format it is how `DateTime(2000, 1, 1,
+  /// h, m)` ends up in a widget. This takes the two numbers.
+  ///
+  /// It lives here because it is the **third** spelling of one job:
+  /// `weekly_hours_editor.dart` had a private `_fmt` doing exactly this with two
+  /// `padLeft`s, and `formatTimeShort` renders the other house style («&nbsp;9h00&nbsp;»).
+  /// A13 found four spellings of the plural rule coexisting and disagreeing at
+  /// one value; two spellings of zero-padding is the same shape, earlier.
+  ///
+  /// 24-hour, always, with no AM/PM branch — `french_test.dart` asserts fr
+  /// resolves to `TimeOfDayFormat.HH_colon_mm`, and §18's salon clock is the
+  /// only clock this app displays.
+  static String formatHourMinute(int hour, int minute) =>
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+  /// Format date and time: « lundi 15 janvier 2024 à 14:30 » — lowercase, for
+  /// [formatDate]'s reason. The first pass at that correction fixed the
+  /// docstring 69 lines above and left this one saying « Lundi », which is the
+  /// same defect surviving in the same file.
   static String formatDateTime(DateTime dateTime) {
     return '${formatDate(dateTime)} à ${formatTime(dateTime)}';
   }

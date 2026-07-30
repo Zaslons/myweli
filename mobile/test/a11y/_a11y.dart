@@ -642,7 +642,14 @@ void expectNoUndeclaredTruncation(
   );
 }
 
-/// **Every day number renders whole** (A14, SYSTEM.md §21 row 73).
+/// **Every named token renders whole** (A14, SYSTEM.md §21 row 73).
+///
+/// **Renamed TO `expectTokensWhole` from `expectDayNumbersWhole` in A14b**, because the mechanism was
+/// never about days: it takes arbitrary strings and asserts each one's paragraph
+/// is at least as wide as the glyphs it must paint. A14b's time picker needs
+/// exactly that for « 09 » and « 23 », and a second near-identical helper is how
+/// A13 found four spellings of one plural rule coexisting. One predicate, one
+/// name, two callers.
 ///
 /// The defect this exists for was found on hardware, not by any of the six
 /// assertions above: at `accessibility-large` (≈1.95×) on a 360×780pt iPhone,
@@ -664,43 +671,50 @@ void expectNoUndeclaredTruncation(
 ///   gate. For a two-character token that hand-off goes nowhere.
 ///
 /// So the predicate is borrowed and the skip is deliberately dropped: a day
-/// number is a **single unbreakable token**, so `maxLines: 1` does not save it —
-/// there is no second line for the digit to move to, and the excess is simply
-/// not painted.
+/// number — or an hour, or a minute — is a **single unbreakable token**, so
+/// `maxLines: 1` does not save it: there is no second line for the digit to move
+/// to, and the excess is simply not painted.
 ///
 /// Applied **by name**, like [expectNoMidWordBreak] and for the same reason: it
 /// asserts about a value the user reads as one token, and a sweep would have no
 /// way to tell a day number from a heading.
-void expectDayNumbersWhole(
+void expectTokensWhole(
   WidgetTester tester,
-  Iterable<String> days,
+  Iterable<String> tokens,
   String at,
 ) {
-  var checked = 0;
-  for (final day in days) {
+  // **The vacuity guard is PER TOKEN, and it was not always.** The first version
+  // accumulated one `checked` counter across the whole list, so a caller could
+  // pass three tokens, have two of them absent from the screen, and still pass
+  // on the strength of the third. A14b's review found exactly that: the range
+  // picker opens at 09:00, so « 01 » and « 02 » were nowhere on it, and six of
+  // eighteen gate runs were measuring a single paragraph while the comment above
+  // them claimed both columns.
+  //
+  // A token you asked about and that is not there is the caller's mistake, and
+  // it should read as one.
+  for (final token in tokens) {
     final paragraphs = tester
         .renderObjectList<RenderParagraph>(
-          find.descendant(of: find.text(day), matching: find.byType(RichText)),
+          find.descendant(
+              of: find.text(token), matching: find.byType(RichText)),
         )
         .toList();
+    expect(
+      paragraphs,
+      isNotEmpty,
+      reason: 'C: « $token » is not on screen at $at, so asking about it '
+          'asserted nothing. Name tokens the subject actually renders.',
+    );
     for (final p in paragraphs) {
-      checked += 1;
       final needs = p.getMaxIntrinsicWidth(double.infinity);
       expect(
         p.size.width + _kWidthEpsilon,
         greaterThanOrEqualTo(needs),
-        reason: 'the day « $day » has ${p.size.width.toStringAsFixed(1)}dp and '
+        reason: '« $token » has ${p.size.width.toStringAsFixed(1)}dp and '
             'needs ${needs.toStringAsFixed(1)} at $at — it renders clipped, '
-            'which is §21 row 73',
+            'which is the shape of §21 row 73',
       );
     }
   }
-  // The vacuity guard every assertion in this file carries: a picker that never
-  // opened, or a month that does not contain these days, would otherwise report
-  // a clean sweep of nothing.
-  expect(
-    checked,
-    greaterThan(0),
-    reason: 'C: none of $days is on screen at $at, so this asserted nothing',
-  );
 }
