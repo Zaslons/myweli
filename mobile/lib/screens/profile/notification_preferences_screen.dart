@@ -1,18 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/di/dependency_injection.dart';
+import '../../core/push/system_settings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/notification_preferences_provider.dart';
+import '../../services/interfaces/push_notification_service_interface.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/push/push_blocked_banner.dart';
 
 /// Consumer notification preferences (FR-NOTIF-004): three opt-out toggles,
 /// each persisted (optimistic, revert on failure). The backend respects these
-/// at send time. Design: docs/design/notification-preferences.md.
+/// at send time.
+///
+/// It also surfaces the OS-level state: once notifications are DENIED in the
+/// system settings, none of these toggles can bring them back, so the screen
+/// says so and offers the way out (docs/design/push-notifications-app.md).
+/// Design: docs/design/notification-preferences.md.
 class NotificationPreferencesScreen extends StatefulWidget {
-  const NotificationPreferencesScreen({super.key});
+  const NotificationPreferencesScreen({
+    super.key,
+    this.openSettings = openSystemNotificationSettings,
+    this.permissionStatus,
+  });
+
+  /// Test seams.
+  final SettingsOpener openSettings;
+  final Future<PushPermissionStatus> Function()? permissionStatus;
 
   @override
   State<NotificationPreferencesScreen> createState() =>
@@ -20,13 +38,38 @@ class NotificationPreferencesScreen extends StatefulWidget {
 }
 
 class _NotificationPreferencesScreenState
-    extends State<NotificationPreferencesScreen> {
+    extends State<NotificationPreferencesScreen> with WidgetsBindingObserver {
+  bool _osDenied = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NotificationPreferencesProvider>().load();
+      _refreshOsPermission();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from the system settings: the banner must disappear the
+    // moment the user has enabled notifications there.
+    if (state == AppLifecycleState.resumed) _refreshOsPermission();
+  }
+
+  Future<void> _refreshOsPermission() async {
+    final read = widget.permissionStatus ??
+        serviceLocator.pushNotificationService.permissionStatus;
+    final status = await read();
+    if (!mounted) return;
+    setState(() => _osDenied = status == PushPermissionStatus.denied);
   }
 
   Future<void> _toggle(Future<bool> Function() action) async {
@@ -34,13 +77,9 @@ class _NotificationPreferencesScreenState
     final provider = context.read<NotificationPreferencesProvider>();
     final ok = await action();
     if (!ok && mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content:
-              Text(provider.error ?? 'Impossible d\'enregistrer. Réessayez.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger, provider.error ?? 'Impossible d’enregistrer. Réessayez.',
+          kind: SnackKind.error);
     }
   }
 
@@ -61,8 +100,8 @@ class _NotificationPreferencesScreenState
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.error_outline,
-                        size: 64, color: AppColors.error),
-                    const SizedBox(height: 16),
+                        size: AppTheme.iconXL, color: AppColors.error),
+                    const SizedBox(height: AppTheme.spacingM),
                     Text(
                       provider.error ?? 'Erreur lors du chargement',
                       textAlign: TextAlign.center,
@@ -70,7 +109,7 @@ class _NotificationPreferencesScreenState
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppTheme.spacingM),
                     AppButton(
                       text: 'Réessayer',
                       type: AppButtonType.secondary,
@@ -86,6 +125,8 @@ class _NotificationPreferencesScreenState
           return ListView(
             padding: const EdgeInsets.all(AppTheme.spacingM),
             children: [
+              if (_osDenied)
+                PushBlockedBanner(onOpenSettings: widget.openSettings),
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.secondary,
@@ -122,8 +163,8 @@ class _NotificationPreferencesScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(Icons.info_outline,
-                      size: 18, color: AppColors.textTertiary),
-                  const SizedBox(width: 8),
+                      size: AppTheme.iconS, color: AppColors.textTertiary),
+                  const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(
                       'Les confirmations et changements de rendez-vous sont '

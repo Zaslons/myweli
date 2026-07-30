@@ -1,4 +1,5 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../models/api_response.dart';
 import '../../models/app_notification.dart';
 import '../../models/notification_preferences.dart';
@@ -9,7 +10,7 @@ class MockNotificationService implements NotificationServiceInterface {
   NotificationPreferences _prefs = const NotificationPreferences();
 
   static List<AppNotification> _seed() {
-    final now = DateTime.now();
+    final now = AppClock.now();
     return [
       AppNotification(
         id: 'notif1',
@@ -40,7 +41,7 @@ class MockNotificationService implements NotificationServiceInterface {
         id: 'notif4',
         type: AppNotificationType.reviewRequest,
         title: 'Donnez votre avis',
-        body: "Comment s'est passé votre rendez-vous ?",
+        body: 'Comment s’est passé votre rendez-vous ?',
         createdAt: now.subtract(const Duration(days: 3)),
         read: true,
         route: '/bookings',

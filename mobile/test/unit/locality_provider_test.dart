@@ -66,6 +66,6 @@ void main() {
     expect(p.operatorInfo('wave')!.deepLinkKind, 'wave');
     expect(p.operatorInfo('orangeMoney')!.label, 'Orange Money');
     expect(p.operatorInfo('mpesa'), isNull);
-    expect(p.countryName('CI'), "Côte d'Ivoire");
+    expect(p.countryName('CI'), 'Côte d’Ivoire');
   });
 }

@@ -19,6 +19,8 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 /// serviceLocator fields are late-final — swap scenarios via a delegate.
 class _SwitchableTeam implements ProTeamServiceInterface {
   ProTeamServiceInterface inner = MockProTeamService();
@@ -113,12 +115,12 @@ void main() {
         ),
       ],
     );
-    return MultiProvider(
+    return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProTeamProvider()),
         ChangeNotifierProvider(create: (_) => ProArtistProvider()),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      routerConfig: router,
     );
   }
 
@@ -145,20 +147,47 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('step 1 gates on a valid email', (tester) async {
+  testWidgets('step 1 ANSWERS an invalid email instead of going dead',
+      (tester) async {
+    // A7 rewrote this test with the code it guards. It used to assert
+    // `button.onPressed == null` — that a bad e-mail left « Continuer »
+    // disabled — which is precisely §14 rule 5's anti-pattern: a dead end with
+    // no explanation. Worse, the disabled button was what made this sheet's
+    // `errorText` unreachable: the only field-anchored error in the product,
+    // and it could never render.
     await openSheet(tester);
 
     expect(
-      find.text('À quelle adresse e-mail envoyer l\'invitation ?'),
+      find.text('À quelle adresse e-mail envoyer l’invitation ?'),
       findsOneWidget,
     );
-    // Invalid email keeps « Continuer » disabled.
+
     await tester.enterText(find.byType(TextField).first, 'pas-un-email');
     await tester.pump();
+
     final button = tester.widget<ElevatedButton>(
       find.widgetWithText(ElevatedButton, 'Continuer'),
     );
-    expect(button.onPressed, isNull);
+    expect(button.onPressed, isNotNull,
+        reason: 'rule 5: never disabled to express "invalid"');
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Continuer'));
+    await tester.pump();
+
+    expect(find.text('Saisissez une adresse e-mail valide.'), findsOneWidget,
+        reason: 'the press must answer, under the field');
+    expect(find.byType(SnackBar), findsNothing,
+        reason: '§14 rule 3 — a field fault is never a bar');
+    expect(
+      find.text('À quelle adresse e-mail envoyer l’invitation ?'),
+      findsOneWidget,
+      reason: 'and it must not advance to the role step',
+    );
+
+    // Rule 2: fixing it clears the message without another submit.
+    await tester.enterText(find.byType(TextField).first, 'ama@b.com');
+    await tester.pump();
+    expect(find.text('Saisissez une adresse e-mail valide.'), findsNothing);
   });
 
   testWidgets(
@@ -191,7 +220,7 @@ void main() {
 
     await tester.tap(find.text('Manager'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
     expect(find.text('Invitation envoyée à ama@b.com'), findsOneWidget);
@@ -211,7 +240,7 @@ void main() {
     await tester.tap(find.text('Continuer'));
     await settle(tester);
 
-    expect(find.text('Associer à un membre de l\'équipe'), findsOneWidget);
+    expect(find.text('Associer à un membre de l’équipe'), findsOneWidget);
     expect(find.text('Kouassi Jean'), findsOneWidget); // seeded fiche
 
     // Inline create.
@@ -222,7 +251,7 @@ void main() {
     await tester.tap(find.text('Créer la fiche'));
     await settle(tester);
 
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
     expect(find.text('Invitation envoyée à ama@b.com'), findsOneWidget);
     final row = MockData.teamMembers.singleWhere((m) => m.email == 'ama@b.com');
@@ -235,11 +264,11 @@ void main() {
 
     await tester.tap(find.text('Manager'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
     expect(
-      find.text('Cette personne est déjà dans l\'équipe.'),
+      find.text('Cette personne est déjà dans l’équipe.'),
       findsOneWidget,
     );
   });
@@ -251,11 +280,11 @@ void main() {
 
     await tester.tap(find.text('Manager'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.tap(find.text('Envoyer l’invitation'));
     await settle(tester);
 
     expect(
-      find.text('Choisissez d\'abord votre offre pour inviter votre '
+      find.text('Choisissez d’abord votre offre pour inviter votre '
           'équipe.'),
       findsOneWidget,
     );

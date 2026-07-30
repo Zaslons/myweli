@@ -43,6 +43,24 @@ const RULES: { name: string; pattern: RegExp; allow: string[]; hint: string }[] 
       allow: ['lib/time.ts'],
       hint: 'the salon zone is SALON_TZ (lib/time.ts), not a UTC literal',
     },
+    {
+      // Multi-pays MP3: per-salon timezones come from the API; the Wave-0
+      // fallback lives ONLY in SALON_TZ.
+      name: "no 'Africa/Abidjan' literal outside the seam",
+      pattern: /'Africa\/Abidjan'/,
+      allow: ['lib/time.ts'],
+      hint: 'use SALON_TZ — or better, thread the salon tz (lib/time.ts)',
+    },
+    {
+      // Multi-pays MP3: wall-clock → instant goes through
+      // salonWallClockToUtc; a `T${…}:00.000Z` template is the old
+      // hardcoded-UTC construction (midday ANCHORS `T12:00:00.000Z` are
+      // fine — day identifiers, no interpolated time).
+      name: 'no hand-built wall-clock instants',
+      pattern: /T\$\{[^}]*\}:00\.000Z/,
+      allow: ['lib/time.ts'],
+      hint: 'build instants with salonWallClockToUtc()/isoAt()/combineDateTime()',
+    },
   ];
 
 describe('salon-time grep pins', () => {

@@ -46,6 +46,7 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
         title: const Text('Employés'),
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Ajouter un employé',
         onPressed: () => context.push('/pro/artist/new'),
         child: const Icon(Icons.add),
       ),
@@ -68,8 +69,8 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.people_outline,
-                        size: 64, color: AppColors.textSecondary),
-                    const SizedBox(height: 16),
+                        size: AppTheme.iconXL, color: AppColors.textSecondary),
+                    const SizedBox(height: AppTheme.spacingM),
                     Text(
                       'Aucun employé',
                       style: AppTextStyles.titleLarge.copyWith(
@@ -77,15 +78,15 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppTheme.spacingS),
                     Text(
-                      'Ajoutez vos employés pour qu\'ils apparaissent dans le flux de réservation.',
+                      'Ajoutez vos employés pour qu’ils apparaissent dans le flux de réservation.',
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.textTertiary,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppTheme.spacingL),
                     AppButton(
                       text: 'Ajouter un employé',
                       onPressed: () => context.push('/pro/artist/new'),
@@ -179,7 +180,7 @@ class _ArtistCard extends StatelessWidget {
                   ),
                   if (artist.specialization != null &&
                       artist.specialization!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.spacingXS),
                     Text(
                       artist.specialization!,
                       style: AppTextStyles.bodyMedium.copyWith(

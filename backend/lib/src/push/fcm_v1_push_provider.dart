@@ -16,6 +16,11 @@ class FcmV1PushProvider implements PushProvider {
   }) : _tokenSource = tokenSource,
        _client = client ?? http.Client();
 
+  /// The Android notification channel every MyWeli push lands in — created by
+  /// the app at boot and declared in its manifest as the default. Changing it
+  /// here means changing it there (`kPushChannelId`).
+  static const androidChannelId = 'myweli_default';
+
   final String projectId;
   final AccessTokenSource _tokenSource;
   final http.Client _client;
@@ -45,6 +50,17 @@ class FcmV1PushProvider implements PushProvider {
           'token': token,
           'notification': {'title': title, 'body': body},
           if (data.isNotEmpty) 'data': data,
+          // Per-platform delivery options (design §9): bookings are
+          // time-sensitive, so both platforms get the high-priority path, and
+          // Android lands in the app's declared channel (otherwise a
+          // background notification would fall into the unnamed default one).
+          'android': {
+            'priority': 'high',
+            'notification': {'channel_id': androidChannelId},
+          },
+          'apns': {
+            'headers': {'apns-priority': '10'},
+          },
         },
       });
       try {

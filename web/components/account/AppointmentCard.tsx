@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { StatusChip } from '../StatusChip';
 import {
   type Appointment,
   statusLabelFr,
@@ -17,27 +18,31 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           <p className="font-medium text-textPrimary">
             {appt.providerName ?? 'Salon'}
           </p>
-          <p className="mt-xs text-sm text-textSecondary">
-            {formatDateTimeFr(appt.appointmentDate)}
+          <p className="mt-xs text-bodyMedium text-textSecondary">
+            {formatDateTimeFr(
+              appt.appointmentDate,
+              appt.providerTimezone ?? undefined,
+            )}
           </p>
           {appt.serviceNames && appt.serviceNames.length > 0 ? (
-            <p className="mt-xs text-sm text-textTertiary">
+            <p className="mt-xs text-bodyMedium text-textTertiary">
               {appt.serviceNames.join(', ')}
             </p>
           ) : null}
           {appt.salonEntered ? (
-            <p className="mt-xs text-xs text-textTertiary">
+            <p className="mt-xs text-bodySmall text-textTertiary">
               Réservé par votre salon
             </p>
           ) : null}
         </div>
         <div className="text-right">
-          <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
-            {statusLabelFr(appt.status)}
-          </span>
+          <StatusChip status={appt.status} />
           {typeof appt.totalPrice === 'number' ? (
-            <p className="mt-s text-sm text-textPrimary">
-              {formatFcfa(appt.totalPrice)}
+            <p className="mt-s text-bodyMedium text-textPrimary">
+              {formatFcfa(
+                appt.totalPrice,
+                appt.currency ?? appt.providerCurrency ?? undefined,
+              )}
             </p>
           ) : null}
         </div>

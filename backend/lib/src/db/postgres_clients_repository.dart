@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:postgres/postgres.dart';
 
 import '../clients/clients_repository.dart';
+import '../privacy/anonymized_identity.dart';
 
 /// Postgres-backed [ClientsRepository] (tables `salon_clients` +
 /// `salon_client_notes`, migration `0024`). `tags` is jsonb (the codebase
@@ -221,10 +222,10 @@ LIMIT @limit OFFSET @offset
   Future<void> anonymizeUser(String userId) async {
     await _pool.execute(
       Sql.named(
-        "UPDATE salon_clients SET user_id = NULL, display_name = 'Client', "
+        'UPDATE salon_clients SET user_id = NULL, display_name = @label, '
         'phone = NULL, updated_at = now() WHERE user_id = @uid',
       ),
-      parameters: {'uid': userId},
+      parameters: {'label': anonymousClientLabel, 'uid': userId},
     );
   }
 

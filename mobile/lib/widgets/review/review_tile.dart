@@ -35,6 +35,7 @@ class ReviewTile extends StatelessWidget {
               top: 4,
               right: 4,
               child: IconButton(
+                tooltip: 'Fermer',
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -62,81 +63,108 @@ class ReviewTile extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppTheme.spacingSM),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      review.userName,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (review.verified) ...[
-                    const SizedBox(width: 8),
-                    const _VerifiedBadge(),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  ...List.generate(
-                    5,
-                    (i) => Icon(
-                      i < review.rating ? Icons.star : Icons.star_border,
-                      size: 14,
-                      color: AppColors.starRating,
-                    ),
-                  ),
-                  if (review.artistName != null &&
-                      review.artistName!.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'avec ${review.artistName}',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
+              // §13.5 — the review's informational block (name, verified badge,
+              // stars, date, text) announces as one sentence; the photo
+              // thumbnails and « Signaler » below stay OUTSIDE the merge, as
+              // their own tap nodes.
+              MergeSemantics(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // A11 C5: a `Row` here overflowed by 21dp at 360×2×. The
+                    // name was `Flexible`, but the badge was not — and a pill
+                    // whose own label doubles cannot shrink, so the name went to
+                    // zero and the badge ran off the tile. Same answer as
+                    // `SectionHeading`: the badge drops to its own line rather
+                    // than squeezing the name it belongs to.
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppTheme.spacingS,
+                      runSpacing: AppTheme.spacingXS,
+                      children: [
+                        Text(
+                          review.userName,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        if (review.verified) const _VerifiedBadge(),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Row(
+                      children: [
+                        // The rating lives only in the star fill — give it a
+                        // spoken value so it isn't inaudible to a screen reader.
+                        Semantics(
+                          label: 'Note : ${review.rating} sur 5',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              5,
+                              (i) => Icon(
+                                i < review.rating
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                size: AppTheme.iconXS,
+                                color: AppColors.starRating,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (review.artistName != null &&
+                            review.artistName!.isNotEmpty) ...[
+                          const SizedBox(width: AppTheme.spacingS),
+                          Flexible(
+                            child: Text(
+                              'avec ${review.artistName}',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Text(
+                      Formatters.formatDateShort(review.createdAt),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
                       ),
                     ),
+                    if (review.text.isNotEmpty) ...[
+                      const SizedBox(height: AppTheme.spacingXS),
+                      Text(
+                        review.text,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                Formatters.formatDateShort(review.createdAt),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
                 ),
               ),
-              if (review.text.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  review.text,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
               if (review.photoUrls.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacingS),
                 SizedBox(
                   height: 64,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: review.photoUrls.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: AppTheme.spacingS),
                     itemBuilder: (context, index) {
                       final url = review.photoUrls[index];
                       return GestureDetector(
@@ -163,8 +191,10 @@ class ReviewTile extends StatelessWidget {
                     onPressed: onReport,
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
+                      // §13.2: the default (padded) tap target keeps the compact
+                      // visual but guarantees a ≥48 hit area — shrinkWrap opted
+                      // out of exactly that.
                       minimumSize: const Size(0, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
                       'Signaler',
@@ -188,19 +218,29 @@ class _VerifiedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingS, vertical: AppTheme.spacingXS),
       decoration: BoxDecoration(
         color: AppColors.success.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified, size: 12, color: AppColors.success),
-          const SizedBox(width: 3),
-          Text(
-            'Réservation vérifiée',
-            style: AppTextStyles.labelSmall.copyWith(color: AppColors.success),
+          const Icon(Icons.verified,
+              size: AppTheme.iconXS, color: AppColors.success),
+          const SizedBox(width: AppTheme.spacingXS),
+          // A11 C5: « Réservation vérifiée » is 20 characters inside a pill, and
+          // at 200% it wants 225dp in the 212dp the tile can offer. `Flexible`
+          // lets the label WRAP inside the pill rather than run out of it —
+          // deliberately not an ellipsis, because « Réservation véri… » on a
+          // trust badge is worse than a two-line badge.
+          Flexible(
+            child: Text(
+              'Réservation vérifiée',
+              style:
+                  AppTextStyles.labelSmall.copyWith(color: AppColors.success),
+            ),
           ),
         ],
       ),

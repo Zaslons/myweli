@@ -15,6 +15,7 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
+import '../../widgets/common/section_heading.dart';
 import '../../widgets/home/announcement_stories.dart';
 import '../../widgets/home/category_chips.dart';
 import '../../widgets/home/search_bar.dart';
@@ -105,13 +106,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: AppTheme.spacingS),
                       InkWell(
                         onTap: () => context.push('/profile'),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusPill),
                         child: Container(
-                          width: 44,
-                          height: 44,
+                          width: 48, // §13.2 touch target
+                          height: 48, // §13.2 touch target
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusPill),
                             border: Border.all(color: AppColors.border),
                           ),
                           child: const Icon(
@@ -188,7 +192,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         SizedBox(
-                          height: 280,
+                          // The carousel is long, so it stays a LAZY ListView —
+                          // which means it needs a bounded height. The bound was
+                          // the constant 280, and the card measures 332 at 200%:
+                          // a silent clip (§13.3). The card owns the arithmetic,
+                          // since only it knows which share is image and which is
+                          // text — a caller scaling the whole 280 drags the
+                          // image's share up with it.
+                          height: ProviderCard.carouselHeight(context),
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(
@@ -246,55 +257,53 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Derniers rendez-vous',
-                                style: AppTextStyles.titleLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => context.push('/bookings'),
-                                child: const Text('Voir tout'),
-                              ),
-                            ],
+                          SectionHeading(
+                            title: 'Derniers rendez-vous',
+                            action: TextButton(
+                              onPressed: () => context.push('/bookings'),
+                              child: const Text('Voir tout'),
+                            ),
                           ),
                           const SizedBox(height: AppTheme.spacingS),
-                          SizedBox(
-                            height: 92,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: top.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: AppTheme.spacingS),
-                              itemBuilder: (context, i) {
-                                final a = top[i];
-                                final p = providerProvider.providers
-                                    .where((p) => p.id == a.providerId)
-                                    .firstOrNull;
-                                final providerName = p?.name ?? 'Salon';
-                                final providerImageUrl =
-                                    (p != null && p.imageUrls.isNotEmpty)
-                                        ? p.imageUrls.first
-                                        : null;
-
-                                final w = MediaQuery.of(context).size.width;
-                                final cardWidth =
-                                    (w * 0.86).clamp(280.0, 360.0);
-
-                                return SizedBox(
-                                  width: cardWidth,
-                                  child: CompactAppointmentTile(
-                                    appointment: a,
-                                    providerName: providerName,
-                                    providerImageUrl: providerImageUrl,
-                                    onTap: () =>
-                                        context.push('/appointment/${a.id}'),
-                                  ),
-                                );
-                              },
+                          // At most 3 tiles, so there is nothing to virtualise —
+                          // and the tile's height grows SUPER-linearly with the
+                          // text scale (96 → 176 at 200%, because the title wraps),
+                          // so no computed bound is safe. An intrinsic strip needs
+                          // no arithmetic at all: IntrinsicHeight + stretch keeps
+                          // the tiles equal-height, and the strip tracks the
+                          // tallest one at every scale (§13.3).
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (final (i, a) in top.indexed) ...[
+                                    if (i > 0)
+                                      const SizedBox(width: AppTheme.spacingS),
+                                    Builder(builder: (context) {
+                                      final p = providerProvider.providers
+                                          .where((p) => p.id == a.providerId)
+                                          .firstOrNull;
+                                      final w =
+                                          MediaQuery.of(context).size.width;
+                                      return SizedBox(
+                                        width: (w * 0.86).clamp(280.0, 360.0),
+                                        child: CompactAppointmentTile(
+                                          appointment: a,
+                                          providerName: p?.name ?? 'Salon',
+                                          providerImageUrl: (p != null &&
+                                                  p.imageUrls.isNotEmpty)
+                                              ? p.imageUrls.first
+                                              : null,
+                                          onTap: () => context
+                                              .push('/appointment/${a.id}'),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -333,24 +342,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             horizontal: AppTheme.spacingM,
                             vertical: AppTheme.spacingS,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Mes favoris',
-                                style: AppTextStyles.titleLarge.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => context.push('/favorites'),
-                                child: const Text('Voir la carte'),
-                              ),
-                            ],
+                          child: SectionHeading(
+                            title: 'Mes favoris',
+                            action: TextButton(
+                              onPressed: () => context.push('/favorites'),
+                              child: const Text('Voir la carte'),
+                            ),
                           ),
                         ),
                         SizedBox(
-                          height: 280,
+                          // The carousel is long, so it stays a LAZY ListView —
+                          // which means it needs a bounded height. The bound was
+                          // the constant 280, and the card measures 332 at 200%:
+                          // a silent clip (§13.3). The card owns the arithmetic,
+                          // since only it knows which share is image and which is
+                          // text — a caller scaling the whole 280 drags the
+                          // image's share up with it.
+                          height: ProviderCard.carouselHeight(context),
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(

@@ -83,6 +83,9 @@ type RawAppt = Record<string, unknown> & {
   serviceIds?: string[];
   artistId?: string | null;
   userId?: string;
+  providerTimezone?: string | null;
+  providerCurrency?: string | null;
+  providerCountryCode?: string | null;
 };
 
 type ProviderSummary = {
@@ -94,6 +97,10 @@ type ProviderSummary = {
   whatsapp?: string | null;
   depositMobileMoneyOperator?: string | null;
   depositMobileMoneyNumber?: string | null;
+  /// Multi-pays MP1 market fields (public) — the consumer carriers.
+  timezone?: string | null;
+  currency?: string | null;
+  countryCode?: string | null;
 };
 
 async function providerSummary(id: string): Promise<ProviderSummary> {
@@ -122,6 +129,11 @@ function enrichOneWith(a: RawAppt, p: ProviderSummary) {
     // coordinates (public policy fields, not PII).
     depositMobileMoneyOperator: p.depositMobileMoneyOperator ?? null,
     depositMobileMoneyNumber: p.depositMobileMoneyNumber ?? null,
+    // Multi-pays carriers: the backend stamps these on enriched payloads
+    // (MP1); the provider summary backfills pre-MP1 rows.
+    providerTimezone: a.providerTimezone ?? p.timezone ?? null,
+    providerCurrency: a.providerCurrency ?? p.currency ?? null,
+    providerCountryCode: a.providerCountryCode ?? p.countryCode ?? null,
     salonEntered: a.userId === 'manual',
   };
 }

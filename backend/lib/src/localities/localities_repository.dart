@@ -95,7 +95,11 @@ class MomoOperator {
 const List<Country> seedCountries = [
   Country(
     code: 'CI',
-    name: "Côte d'Ivoire",
+    // A9/§17.1: a DISPLAY label, not an identifier — the mobile fallback and
+    // the mock both render the typographic apostrophe, so the wire value has to
+    // agree or the booking-date hint flips spelling the moment /localities
+    // resolves. The `code` below is the identifier; it is untouched.
+    name: 'Côte d’Ivoire',
     currency: 'XOF',
     phonePrefix: '+225',
   ),

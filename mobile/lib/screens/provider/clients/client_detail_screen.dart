@@ -3,11 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/status_labels.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/appointment.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -175,8 +178,8 @@ class _Header extends StatelessWidget {
                           const SizedBox(width: AppTheme.spacingXS),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                              horizontal: AppTheme.spacingS,
+                              vertical: AppTheme.spacingXS,
                             ),
                             decoration: BoxDecoration(
                               color: AppColors.surfaceVariant,
@@ -185,9 +188,8 @@ class _Header extends StatelessWidget {
                             ),
                             child: Text(
                               'MyWeli',
-                              style: AppTextStyles.bodySmall.copyWith(
+                              style: AppTextStyles.labelSmall.copyWith(
                                 color: AppColors.textTertiary,
-                                fontSize: 10,
                               ),
                             ),
                           ),
@@ -269,12 +271,11 @@ class _StatsStrip extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.spacingXS),
                 Text(
                   label,
-                  style: AppTextStyles.bodySmall.copyWith(
+                  style: AppTextStyles.labelSmall.copyWith(
                     color: AppColors.textSecondary,
-                    fontSize: 10,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -336,9 +337,8 @@ class _UpcomingCard extends StatelessWidget {
           children: [
             Text(
               'PROCHAIN RENDEZ-VOUS',
-              style: AppTextStyles.bodySmall.copyWith(
+              style: AppTextStyles.labelSmall.copyWith(
                 color: AppColors.textTertiary,
-                fontSize: 10,
               ),
             ),
             const SizedBox(height: AppTheme.spacingXS),
@@ -378,20 +378,39 @@ class _NotesSection extends StatefulWidget {
 
 class _NotesSectionState extends State<_NotesSection> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
+
+  // A7/§14 — including the save failure, which used to vanish.
+  late final _errors =
+      FieldErrors({'note': Validators.requiredField('une note')});
   bool _busy = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   Future<void> _add() async {
+    // §14 rule 5: the button is no longer disabled on an empty box.
+    if (!_errors.validate({'note': _controller.text})) {
+      setState(() {});
+      _focus.requestFocus();
+      return;
+    }
     setState(() => _busy = true);
     final ok = await widget.onAdd(_controller.text.trim());
     if (mounted) {
       setState(() => _busy = false);
-      if (ok) _controller.clear();
+      if (ok) {
+        _controller.clear();
+      } else {
+        // A failure used to be swallowed whole: the note stayed in the box and
+        // nothing said why.
+        setState(
+            () => _errors.set('note', 'Enregistrement impossible. Réessayez.'));
+      }
     }
   }
 
@@ -421,10 +440,12 @@ class _NotesSectionState extends State<_NotesSection> {
           const SizedBox(height: AppTheme.spacingS),
           AppTextField(
             controller: _controller,
+            focusNode: _focus,
             hint: 'Ajouter une note…',
             maxLength: 500,
             maxLines: 2,
-            onChanged: (_) => setState(() {}),
+            errorText: _errors['note'],
+            onChanged: (v) => setState(() => _errors.revalidate('note', v)),
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -432,8 +453,7 @@ class _NotesSectionState extends State<_NotesSection> {
               text: 'Ajouter',
               isFullWidth: false,
               isLoading: _busy,
-              onPressed:
-                  (_busy || _controller.text.trim().isEmpty) ? null : _add,
+              onPressed: _busy ? null : _add,
             ),
           ),
           const SizedBox(height: AppTheme.spacingS),
@@ -464,7 +484,7 @@ class _NotesSectionState extends State<_NotesSection> {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppTheme.spacingXS),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -475,13 +495,22 @@ class _NotesSectionState extends State<_NotesSection> {
                               color: AppColors.textTertiary,
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () => widget.onDelete(n.id),
-                            child: Text(
-                              'Supprimer',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textTertiary,
-                                decoration: TextDecoration.underline,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minHeight: 48,
+                            ), // §13.2 touch target
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => widget.onDelete(n.id),
+                              child: Center(
+                                widthFactor: 1,
+                                child: Text(
+                                  'Supprimer',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -501,14 +530,6 @@ class _VisitsSection extends StatelessWidget {
   const _VisitsSection({required this.visits});
 
   final List<Appointment> visits;
-
-  static const _statusFr = {
-    AppointmentStatus.pending: 'En attente',
-    AppointmentStatus.confirmed: 'Confirmé',
-    AppointmentStatus.completed: 'Terminé',
-    AppointmentStatus.cancelled: 'Annulé',
-    AppointmentStatus.noShow: 'Non présenté',
-  };
 
   Color _statusColor(AppointmentStatus s) => switch (s) {
         AppointmentStatus.completed => AppColors.success,
@@ -572,7 +593,7 @@ class _VisitsSection extends StatelessWidget {
                     ),
                     const SizedBox(width: AppTheme.spacingS),
                     Text(
-                      _statusFr[v.status] ?? v.status.name,
+                      StatusLabels.of(v.status),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: _statusColor(v.status),
                       ),
@@ -597,6 +618,9 @@ class _TagSheet extends StatefulWidget {
 }
 
 class _TagSheetState extends State<_TagSheet> {
+  /// A7/§14: the custom-tag field's fault. Its three rules were silent no-ops.
+  String? _tagError;
+
   late final List<String> _tags = List.of(widget.initial);
   final _customController = TextEditingController();
   bool _busy = false;
@@ -669,16 +693,37 @@ class _TagSheetState extends State<_TagSheet> {
             label: 'Tag personnalisé',
             hint: 'Ex : Mariée juin',
             maxLength: 24,
+            errorText: _tagError,
+            onChanged: (_) {
+              if (_tagError != null) setState(() => _tagError = null);
+            },
             suffixIcon: IconButton(
+              tooltip: 'Ajouter le tag',
               icon: const Icon(Icons.add),
               onPressed: () {
                 final t = _customController.text.trim();
-                if (t.isNotEmpty && !_tags.contains(t) && _tags.length < 10) {
-                  setState(() {
-                    _tags.add(t);
-                    _customController.clear();
-                  });
+                // Three rules used to fail in complete silence — the button was
+                // ENABLED, the user tapped, and nothing happened at all. A7
+                // wrote this block once and the edit silently did not apply;
+                // the review caught the resulting dead `errorText`, which is
+                // the very bug this slice exists to kill.
+                final fault = t.isEmpty
+                    ? 'Saisissez un tag.'
+                    : _tags.contains(t)
+                        ? 'Ce tag est déjà ajouté.'
+                        : _tags.length >= 10
+                            ? 'Vous avez atteint 10 tags — retirez-en un '
+                                'pour en ajouter.'
+                            : null;
+                if (fault != null) {
+                  setState(() => _tagError = fault);
+                  return;
                 }
+                setState(() {
+                  _tagError = null;
+                  _tags.add(t);
+                  _customController.clear();
+                });
               },
             ),
           ),

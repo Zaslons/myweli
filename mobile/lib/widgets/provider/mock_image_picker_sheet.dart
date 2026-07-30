@@ -31,7 +31,7 @@ Future<String?> showMockImagePicker(BuildContext context) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Choisir une image', style: AppTextStyles.titleLarge),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.spacingXS),
           Text(
             'Exemples (sélection simulée — l’appareil photo / la galerie '
             'arriveront avec le backend).',
@@ -43,8 +43,8 @@ Future<String?> showMockImagePicker(BuildContext context) {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
+            mainAxisSpacing: AppTheme.spacingSM,
+            crossAxisSpacing: AppTheme.spacingSM,
             children: _sampleImages.map((url) {
               return GestureDetector(
                 onTap: () => Navigator.pop(ctx, url),

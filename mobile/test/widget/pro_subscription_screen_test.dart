@@ -15,6 +15,8 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/pump_app.dart';
+
 class _SwitchableAuth extends MockAuthService {
   ProviderUser? current;
 
@@ -73,12 +75,12 @@ void main() {
     subs.inner = MockSubscriptionService(); // setup state
   });
 
-  Widget app() => MultiProvider(
+  Widget app() => wrapApp(
         providers: [
           ChangeNotifierProvider(create: (_) => ProAuthProvider()),
           ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
         ],
-        child: const MaterialApp(home: ProSubscriptionScreen()),
+        home: const ProSubscriptionScreen(),
       );
 
   Future<void> settle(WidgetTester tester) async {
@@ -136,10 +138,10 @@ void main() {
     expect(find.textContaining('Offre Pro choisie'), findsOneWidget);
     expect(find.textContaining('Essai gratuit'), findsOneWidget);
     await scrollTo(tester, find.text('Votre offre'));
-    await scrollTo(tester, find.text('Changer d\'offre').first);
+    await scrollTo(tester, find.text('Changer d’offre').first);
     await scrollTo(
       tester,
-      find.text('Le changement d\'offre conserve votre période d\'essai.'),
+      find.text('Le changement d’offre conserve votre période d’essai.'),
     );
   });
 
@@ -171,7 +173,7 @@ void main() {
     // `.first` throws on an empty candidate set while scrolling — reach
     // the Business card by its (unique) name first.
     await scrollTo(tester, find.text('Business'));
-    await tester.tap(find.text('Changer d\'offre').first);
+    await tester.tap(find.text('Changer d’offre').first);
     await settle(tester);
     // The trial-used notice lands ABOVE the cards — scroll back up.
     for (var i = 0;

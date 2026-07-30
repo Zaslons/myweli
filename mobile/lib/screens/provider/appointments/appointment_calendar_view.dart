@@ -9,6 +9,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 
@@ -160,15 +161,16 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.event_busy,
-                          size: 64, color: AppColors.textSecondary),
-                      const SizedBox(height: 16),
+                          size: AppTheme.iconXL,
+                          color: AppColors.textSecondary),
+                      const SizedBox(height: AppTheme.spacingM),
                       Text(
                         'Aucun rendez-vous',
                         style: AppTextStyles.titleLarge.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppTheme.spacingS),
                       Text(
                         _selectedDay != null
                             ? 'pour ${Formatters.formatDate(_selectedDay!)}'
@@ -215,21 +217,6 @@ class _AppointmentCard extends StatelessWidget {
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
 
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -242,7 +229,7 @@ class _AppointmentCard extends StatelessWidget {
           child: Icon(
             Icons.calendar_today,
             color: _getStatusColor(appointment.status),
-            size: 20,
+            size: AppTheme.iconS,
           ),
         ),
         title: Text(
@@ -254,8 +241,12 @@ class _AppointmentCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Text('${appointment.serviceIds.length} service(s)'),
+            const SizedBox(height: AppTheme.spacingXS),
+            Text(Formatters.count(
+              appointment.serviceIds.length,
+              'service',
+              'services',
+            )),
             Text(Formatters.formatCurrency(
               appointment.totalPrice,
               currency: context.read<ProAuthProvider>().salonCurrency,
@@ -264,7 +255,7 @@ class _AppointmentCard extends StatelessWidget {
         ),
         trailing: Chip(
           label: Text(
-            _getStatusText(appointment.status),
+            StatusLabels.of(appointment.status),
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
           backgroundColor: _getStatusColor(appointment.status),

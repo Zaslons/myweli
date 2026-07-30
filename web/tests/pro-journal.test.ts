@@ -62,9 +62,28 @@ describe('journal geometry', () => {
     expect(nowLineTop(new Date('2026-07-13T07:00:00.000Z'), '2026-07-13', hours)).toBeNull();
   });
 
-  it('isoAt snaps a drop to a UTC quarter-hour', () => {
+  it('isoAt snaps a drop to a SALON quarter-hour (offset-aware — MP3)', () => {
     expect(isoAt('2026-07-13', 607)).toBe('2026-07-13T10:00:00.000Z');
     expect(isoAt('2026-07-13', 619)).toBe('2026-07-13T10:15:00.000Z'); // 10:19→10:15
+    // A 10:00 drop on a Libreville grid is 09:00Z — the wall-clock is the
+    // salon's, not UTC.
+    expect(isoAt('2026-07-13', 600, 'Africa/Libreville')).toBe(
+      '2026-07-13T09:00:00.000Z',
+    );
+  });
+
+  it('minutesOfDay follows the salon zone (MP3)', () => {
+    expect(
+      minutesOfDay('2026-07-13T14:15:00.000Z', 'Africa/Libreville'),
+    ).toBe(15 * 60 + 15);
+  });
+
+  it('the now-line follows the salon zone (MP3)', () => {
+    const hours = { open: '09:00', close: '18:00', breaks: [] };
+    // 08:30Z = 09:30 Libreville → 30 px past open on ITS 13th.
+    const at = new Date('2026-07-13T08:30:00.000Z');
+    expect(nowLineTop(at, '2026-07-13', hours, 'Africa/Libreville')).toBe(30);
+    expect(nowLineTop(at, '2026-07-13', hours)).toBeNull(); // Abidjan: before open
   });
 
   it('statusKey derives « arrived » from confirmed + arrivedAt', () => {

@@ -6,8 +6,20 @@
 useDefault = true
 
 [allowlist]
-description = "Dependency-lockfile integrity checksums are not secrets"
+description = "Lockfile checksums and PUBLIC client identifiers are not secrets"
 paths = [
   # CocoaPods pod checksums (e.g. AppAuth/GTMAppAuth) trip generic-api-key.
   '''mobile/ios/Podfile\.lock''',
+
+  # Firebase CLIENT config (push — docs/design/push-notifications-app.md).
+  # These ship inside the APK/IPA: anyone can extract them, and Google
+  # designs them as public identifiers (access is governed by the backend
+  # and by Firebase rules, not by hiding the api_key). Their `AIza…` value
+  # trips gitleaks' gcp-api-key rule, which is the false positive here.
+  #
+  # The FCM *server* credential (FCM_PRIVATE_KEY) is a real secret and lives
+  # ONLY in Render's env — never in this repo. Same posture as
+  # AppConfig.googleServerClientId.
+  '''mobile/android/app/src/(consumer|pro)/google-services\.json''',
+  '''mobile/ios/.*GoogleService-Info.*\.plist''',
 ]

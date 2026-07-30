@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -8,23 +10,30 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
+import { operatorsFor } from '../../lib/api/localities';
 import {
   type DepositForm,
-  OPERATORS,
   buildDepositPayload,
   depositToForm,
   validateDeposit,
 } from '../../lib/pro/deposit';
+import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 const input =
-  'w-full rounded-lg border border-border bg-surface px-m py-s text-textPrimary';
+  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 export function AcompteClient() {
   const router = useRouter();
+  // Multi-pays MP3: the operator list is the salon COUNTRY's catalog
+  // (GET /localities) — the backend validates against the same source.
+  const localities = useLocalities();
+  const [countryCode, setCountryCode] = useState<string | null>(null);
   const [providerId, setProviderId] = useState('');
   const [form, setForm] = useState<DepositForm | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +59,7 @@ export function AcompteClient() {
       const dp = await getDepositPolicy(pid);
       if (!active) return;
       setProviderId(pid);
+      setCountryCode(me.profile.provider.countryCode ?? null);
       setVerified(me.profile.account.verificationStatus === 'verified');
       setForm(depositToForm(dp.status === 200 ? dp.policy : undefined));
       setLoading(false);
@@ -57,11 +67,11 @@ export function AcompteClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (loadError || !form) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Acompte" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   function set<K extends keyof DepositForm>(k: K, v: DepositForm[K]) {
@@ -95,12 +105,12 @@ export function AcompteClient() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-textPrimary">Acompte</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Acompte</h1>
 
       {/* T52: deposits are verified-only — the server enforces it; this
           mirrors the rule with guidance. */}
       {!verified ? (
-        <div className="mt-l rounded-xl border border-border bg-surface p-m text-sm text-textSecondary">
+        <div className="mt-l rounded-xl border border-border bg-surface p-m text-bodyLarge text-textSecondary">
           Les acomptes sont disponibles après la vérification de votre
           compte.{' '}
           <Link href="/pro/verification" className="underline">
@@ -109,7 +119,7 @@ export function AcompteClient() {
         </div>
       ) : null}
 
-      <section className="mt-l space-y-m rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l space-y-m">
         <label
           className={`flex items-center gap-s text-textPrimary ${
             verified ? '' : 'opacity-50'
@@ -126,7 +136,7 @@ export function AcompteClient() {
 
         {form.required ? (
           <>
-            <label className="block text-sm text-textTertiary">
+            <label className="block text-bodyMedium text-textTertiary">
               Pourcentage de l’acompte (%)
               <input
                 className={input}
@@ -135,22 +145,37 @@ export function AcompteClient() {
                 onChange={(e) => set('percent', e.target.value)}
               />
             </label>
-            <label className="block text-sm text-textTertiary">
+            <label className="block text-bodyMedium text-textTertiary">
               Opérateur Mobile Money
-              <select
-                className={input}
-                value={form.operator}
-                onChange={(e) => set('operator', e.target.value)}
-              >
-                <option value="">— Choisir —</option>
-                {OPERATORS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {localities.loading ? (
+                <select className={input} disabled>
+                  <option>Chargement…</option>
+                </select>
+              ) : localities.error ? (
+                <span className="mt-xs flex items-center gap-s">
+                  <span role="alert" className="flex-1 text-bodyMedium text-error">
+                    Liste des opérateurs indisponible.
+                  </span>
+                  <Button variant="secondary" onClick={localities.retry}>
+                    Réessayer
+                  </Button>
+                </span>
+              ) : (
+                <select
+                  className={input}
+                  value={form.operator}
+                  onChange={(e) => set('operator', e.target.value)}
+                >
+                  <option value="">— Choisir —</option>
+                  {operatorsFor(localities.tree, countryCode).map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
-            <label className="block text-sm text-textTertiary">
+            <label className="block text-bodyMedium text-textTertiary">
               Numéro Mobile Money
               <input
                 className={input}
@@ -161,7 +186,7 @@ export function AcompteClient() {
           </>
         ) : null}
 
-        <label className="block text-sm text-textTertiary">
+        <label className="block text-bodyMedium text-textTertiary">
           Fenêtre d’annulation (heures)
           <input
             className={input}
@@ -171,14 +196,17 @@ export function AcompteClient() {
           />
         </label>
 
-        {error ? <p className="text-sm text-error">{error}</p> : null}
-        {saved ? (
-          <p className="text-sm text-textSecondary">Acompte enregistré.</p>
-        ) : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
+        <p
+          role="status"
+          className={saved ? 'text-bodyMedium text-textSecondary' : 'sr-only'}
+        >
+          {saved ? 'Acompte enregistré.' : ''}
+        </p>
         <Button disabled={busy} onClick={save}>
           Enregistrer
         </Button>
-      </section>
+      </Card>
     </div>
   );
 }

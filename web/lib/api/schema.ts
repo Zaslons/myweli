@@ -510,7 +510,22 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** Delete the signed-in user's own account (B2) */
+        /**
+         * Erase the signed-in user's own account (B2 · L1 · threat T59)
+         * @description Consumers only — a provider token gets 403; pros delete through `DELETE /me/provider`. Irreversible, and idempotent: a second call returns 404.
+         *
+         *     **Settle the agenda first.** A pending or confirmed booking in the future → **409 `future_bookings`**; cancel it and retry. Same rule, and the same code, as the provider path: a salon holds a slot for a named person, and an account that vanishes without cancelling leaves a booking the salon can neither contact nor fill. The gate runs before any erasure, so a 409 is never a partial deletion.
+         *
+         *     **Deleted** — the profile and its credentials; OTP rows and every refresh token; device tokens (so push STOPS); the notification feed and its preferences; favourites; reports this user filed.
+         *
+         *     **Stored files — best-effort.** Deposit screenshots and review photos are erased, and their keys carry the user id so leaving them served would defeat the anonymisation. A storage outage does not block the account erasure, and the keys cannot be re-derived afterwards, so a file may survive: the user-facing copy says so rather than promising deletion.
+         *
+         *     **Anonymised, not deleted** — reviews keep their rating and text and lose their author and their photos, because the rating is a public aggregate the salon earned and removing it would re-score a business, while the photos are the person's own; appointments keep the booking and lose the client name, phone and notes, so the salon can still reconcile its takings; the salon-side client card is unlinked and its name and phone cleared, while the salon's own tags and notes on that card stay as its business record (T48).
+         *
+         *     **Retained, deliberately** — the transactional message log, which is keyed by phone number rather than by account (and numbers get reassigned); and any recorded objection to being contacted, precisely so it keeps protecting the person after the account is gone.
+         *
+         *     This list is the contract three surfaces paraphrase: the `/suppression-compte` page, the in-app confirmation dialog, and the privacy policy. Design: docs/design/account-deletion-erasure.md.
+         */
         delete: {
             parameters: {
                 query?: never;
@@ -520,7 +535,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Deleted */
+                /** @description Erased */
                 204: {
                     headers: {
                         [name: string]: unknown;
@@ -528,6 +543,21 @@ export interface paths {
                     content?: never;
                 };
                 401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description No such user — also the idempotent second call */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description `future_bookings` — cancel the upcoming appointment(s) first. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
             };
         };
         options?: never;
@@ -3787,7 +3817,7 @@ export interface paths {
         };
         /**
          * The journal day view in ONE payload (module journal J1)
-         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientNoShowCount / arrivedAt. OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a) receive their own artist's column and bookings only, and `clientPhone` is masked on any day other than today (the same-day contact rule). The `date` names a calendar day in the SALON's timezone (multi-pays MP1). Design: docs/design/journal-j1-grid.md.
+         * @description Provider-authenticated + ownership-scoped (threat T41). Hours/breaks for the weekday (null when closed/blocked), the artist columns, and the day's appointments (ALL statuses, ascending) enriched with salonClientId / clientDisplayName / clientNoShowCount / arrivedAt. OWN-SCOPE callers (Collaborateur, `journal.view.own` — T40, access R4a) receive their own artist's column and bookings only, and BOTH `clientPhone` AND `clientDisplayName` are masked on any day other than today (the same-day contact rule; A13 widened it to the name, because a member browsing days they do not work would otherwise rebuild the salon's client list one date at a time). The `date` names a calendar day in the SALON's timezone (multi-pays MP1). Design: docs/design/journal-j1-grid.md.
          */
         get: {
             parameters: {
@@ -3889,7 +3919,7 @@ export interface paths {
         };
         /**
          * List the caller's appointments (B-appt)
-         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it acts in (owner link or active membership). OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access R4a) get their own artist's bookings only, with `clientPhone` masked off-day. A provider account with no salon and no active membership gets 403. R6: a provider `?salonId=` selects among the caller's ACTIVE memberships (invalid → uniform 403, T55).
+         * @description Role-scoped: a **user** token returns that user's own bookings **plus provider-entered (manual) bookings made to the account's OTP-verified phone** (auto-sync, FR-APPT-008 — the match phone is resolved server-side, never from the request); a **provider** token returns the bookings of the salon it acts in (owner link or active membership). OWN-SCOPE members (Collaborateur, `journal.view.own` — T40, access R4a) get their own artist's bookings only, with `clientPhone` and `clientDisplayName` (A13) masked off-day. A provider account with no salon and no active membership gets 403. R6: a provider `?salonId=` selects among the caller's ACTIVE memberships (invalid → uniform 403, T55).
          */
         get: {
             parameters: {
@@ -6017,7 +6047,10 @@ export interface components {
             depositAmount?: number;
             balanceDue?: number;
             cancellationWindowHours?: number;
+            /** @description The name the SALON typed, on a manually-created booking. NULL for every app-originated booking — the app already knows who the user is. The CONSUMER booking list gates its « Réservé par votre salon » badge on this being non-null, so it must not be repurposed as "the client's name"; `clientDisplayName` is that. */
             clientName?: string | null;
+            /** @description Who the booking is for, as the salon should see it — resolved from the salon's own client record (`salon_clients.display_name`), which is written at booking time and anonymised to « Client » when the user erases their account. Provider-facing reads only. **Masked together with `clientPhone` on off-day bookings for an own-scope Collaborateur** (BACKEND.md T40/R4a), so a restricted member cannot reconstruct the client base by browsing dates. */
+            clientDisplayName?: string | null;
             clientPhone?: string | null;
             notes?: string | null;
             depositScreenshotUrl?: string | null;

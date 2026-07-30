@@ -11,7 +11,9 @@ import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../providers/pro_team_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/team/team_role_chip.dart';
@@ -95,7 +97,7 @@ class _TeamScreenState extends State<TeamScreen> {
         body: const EmptyState(
           icon: Icons.group_outlined,
           title: 'Réservé au propriétaire',
-          description: 'L\'équipe du salon est gérée par son propriétaire.',
+          description: 'L’équipe du salon est gérée par son propriétaire.',
         ),
       );
     }
@@ -269,7 +271,7 @@ class _MemberRow extends StatelessWidget {
     } else if (member.isPending) {
       if (member.expired) {
         lines.add(Text(
-          'Expirée — renvoyez l\'invitation',
+          'Expirée — renvoyez l’invitation',
           style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
         ));
       } else {
@@ -330,7 +332,7 @@ class _MemberActionsSheet extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.forward_to_inbox_outlined),
               title: Text(
-                'Renvoyer l\'invitation (${member.resendsLeft} '
+                'Renvoyer l’invitation (${member.resendsLeft} '
                 'restant${member.resendsLeft > 1 ? 's' : ''})',
               ),
               enabled: member.resendsLeft > 0,
@@ -342,7 +344,7 @@ class _MemberActionsSheet extends StatelessWidget {
               leading:
                   const Icon(Icons.person_off_outlined, color: AppColors.error),
               title: const Text(
-                'Révoquer l\'accès',
+                'Révoquer l’accès',
                 style: TextStyle(color: AppColors.error),
               ),
               onTap: () => _revoke(context, team),
@@ -393,24 +395,16 @@ class _MemberActionsSheet extends StatelessWidget {
     final ok = await team.changeRole(member.id, role: role);
     navigator.pop();
     if (ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Rôle de ${member.email} : ${teamRoleLabel(role)}.',
-          ),
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger, 'Rôle de ${member.email} : ${teamRoleLabel(role)}.',
+          kind: SnackKind.success);
     } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            team.actionErrorCode == 'artist_required'
-                ? teamErrorMessage('artist_required')
-                : (team.actionError ?? 'Action impossible.'),
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(
+          messenger,
+          team.actionErrorCode == 'artist_required'
+              ? teamErrorMessage('artist_required')
+              : (team.actionError ?? 'Action impossible.'),
+          kind: SnackKind.error);
     }
   }
 
@@ -419,54 +413,35 @@ class _MemberActionsSheet extends StatelessWidget {
     final navigator = Navigator.of(context);
     final ok = await team.resend(member.id);
     navigator.pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Invitation renvoyée à ${member.email}.'
-              : (team.actionError ?? 'Renvoi impossible.'),
-        ),
-        backgroundColor: ok ? null : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Invitation renvoyée à ${member.email}.',
+      error: team.actionError ?? 'Renvoi impossible.',
     );
   }
 
   Future<void> _revoke(BuildContext context, ProTeamProvider team) async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Révoquer l\'accès ?'),
-        content: Text(
-          '${member.email} perdra immédiatement l\'accès à $salonName. '
-          'Son compte MyWeli n\'est pas supprimé.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Révoquer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Révoquer l’accès ?',
+      message: '${member.email} perdra immédiatement l’accès à $salonName. '
+          'Son compte MyWeli n’est pas supprimé.',
+      confirmLabel: 'Révoquer',
     );
-    if (confirmed != true) return;
+    // No `mounted` here by design: this is a stateless row, and the messenger
+    // and navigator were captured BEFORE the dialog — the census flagged the
+    // old `confirmed != true` as a missing guard, but the capture is the fix.
+    if (!confirmed) return;
     final ok = await team.revoke(member.id);
     navigator.pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Accès de ${member.email} révoqué.'
-              : (team.actionError ?? 'Révocation impossible.'),
-        ),
-        backgroundColor: ok ? null : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Accès de ${member.email} révoqué.',
+      error: team.actionError ?? 'Révocation impossible.',
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../providers/pro_team_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/team/invitation_card.dart';
@@ -36,15 +37,11 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     final member = await team.acceptMyInvitation(invitationId);
     if (!mounted) return;
     setState(() => _busyId = null);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          member != null
-              ? 'Vous avez rejoint $salonName'
-              : (team.actionError ?? 'Invitation impossible à accepter.'),
-        ),
-        backgroundColor: member != null ? null : AppColors.error,
-      ),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: member != null,
+      success: 'Vous avez rejoint $salonName',
+      error: team.actionError ?? 'Invitation impossible à accepter.',
     );
   }
 
@@ -56,12 +53,8 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     if (!mounted) return;
     setState(() => _busyId = null);
     if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(team.actionError ?? 'Refus impossible.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, team.actionError ?? 'Refus impossible.',
+          kind: SnackKind.error);
     }
   }
 

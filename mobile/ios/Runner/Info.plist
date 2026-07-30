@@ -79,5 +79,10 @@
 			</array>
 		</dict>
 	</array>
-	</dict>
+		<!-- Push: lets APNs wake the app for a notification. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+</dict>
 </plist>

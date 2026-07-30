@@ -24,7 +24,7 @@ class _NavGroup {
 // Litiges / Audit as they ship (no dead links).
 const _groups = [
   _NavGroup('Vue', [
-    _NavItem('/admin/dashboard', Icons.dashboard_outlined, "Vue d'ensemble"),
+    _NavItem('/admin/dashboard', Icons.dashboard_outlined, 'Vue d’ensemble'),
   ]),
   _NavGroup('Modération', [
     _NavItem('/admin/kyc', Icons.verified_user_outlined, 'KYC'),
@@ -105,7 +105,7 @@ class _TopBar extends StatelessWidget {
               padding: const EdgeInsets.only(right: AppTheme.spacingS),
               child: IconButton(
                 tooltip: 'Retour',
-                icon: const Icon(Icons.arrow_back, size: 20),
+                icon: const Icon(Icons.arrow_back, size: AppTheme.iconS),
                 onPressed: () => context.canPop()
                     ? context.pop()
                     : context.go(_parentPath(context)),
@@ -141,11 +141,13 @@ class _Sidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            padding: const EdgeInsets.fromLTRB(AppTheme.spacingL,
+                AppTheme.spacingL, AppTheme.spacingL, AppTheme.spacingM),
             child: Row(
               children: [
-                const Icon(Icons.spa, size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
+                const Icon(Icons.spa,
+                    size: AppTheme.iconS, color: AppColors.primary),
+                const SizedBox(width: AppTheme.spacingS),
                 Text('Myweli · Admin', style: AppTextStyles.titleMedium),
               ],
             ),
@@ -156,7 +158,11 @@ class _Sidebar extends StatelessWidget {
               children: [
                 for (final group in _groups) ...[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppTheme.spacingL,
+                        AppTheme.spacingSM,
+                        AppTheme.spacingL,
+                        AppTheme.spacingXS),
                     child: Text(
                       group.title,
                       style: AppTextStyles.bodySmall
@@ -174,7 +180,8 @@ class _Sidebar extends StatelessWidget {
           ),
           const Divider(height: 1, color: AppColors.divider),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+            padding: const EdgeInsets.fromLTRB(AppTheme.spacingL,
+                AppTheme.spacingS, AppTheme.spacingS, AppTheme.spacingS),
             child: Row(
               children: [
                 Expanded(
@@ -186,7 +193,7 @@ class _Sidebar extends StatelessWidget {
                 ),
                 IconButton(
                   tooltip: 'Déconnexion',
-                  icon: const Icon(Icons.logout, size: 18),
+                  icon: const Icon(Icons.logout, size: AppTheme.iconS),
                   onPressed: () => context.read<AdminAuthProvider>().logout(),
                 ),
               ],
@@ -207,37 +214,44 @@ class _NavTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: active ? AppColors.surfaceVariant : Colors.transparent,
-      child: InkWell(
-        onTap: () => context.go(item.path),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: active ? AppColors.primary : Colors.transparent,
-                width: 3,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
+        child: InkWell(
+          onTap: () => context.go(item.path),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingM, vertical: AppTheme.spacingSM),
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: active ? AppColors.primary : Colors.transparent,
+                  width: 3,
+                ),
               ),
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                item.icon,
-                size: 18,
-                color: active ? AppColors.textPrimary : AppColors.textSecondary,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                item.label,
-                style: (active
-                        ? AppTextStyles.titleSmall
-                        : AppTextStyles.bodyMedium)
-                    .copyWith(
+            child: Row(
+              children: [
+                Icon(
+                  item.icon,
+                  size: AppTheme.iconS,
                   color:
                       active ? AppColors.textPrimary : AppColors.textSecondary,
                 ),
-              ),
-            ],
+                const SizedBox(width: AppTheme.spacingSM),
+                Text(
+                  item.label,
+                  style: (active
+                          ? AppTextStyles.titleSmall
+                          : AppTextStyles.bodyMedium)
+                      .copyWith(
+                    color: active
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

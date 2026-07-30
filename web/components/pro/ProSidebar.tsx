@@ -1,20 +1,42 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
+import { useIsDesktop } from '../../lib/pro/use-is-desktop';
+import { Skeleton } from '../Skeleton';
 import { ProLogoutButton } from './ProLogoutButton';
 import { TeamRoleChip } from './TeamRoleChip';
 import { useProMembership } from './ProMembershipContext';
 
-/// Sidebar nav — capability-filtered per role (team access R5b). The width
-/// is constant (w-60) and loading shows skeleton rows, so the filter never
-/// shifts layout. R6 multi-salons: the salon block at the top is the
-/// « Mes salons » SWITCHER for every role (a member can belong to several
-/// salons too); « Ajouter un salon » appears when the server-computed gate
-/// is open. Members keep their identity block (email + role chip).
-export function ProSidebar() {
+/// Whether the nav's active-route highlight should light up for [href].
+/// « Aujourd'hui » (/pro) matches exactly; every other entry also stays active
+/// on its detail routes (/pro/rendez-vous → …/[id]).
+function isActive(pathname: string | null, href: string): boolean {
+  if (!pathname) return false;
+  if (href === '/pro') return pathname === '/pro';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/// The pro dashboard's navigation (team access R5b — capability-filtered per
+/// role). At `lg+` it is a persistent sidebar; below `lg` it is the off-canvas
+/// drawer that `ProShell` opens (WEB-SYSTEM §9) — ONE instance either way, so the
+/// e2e/RTL selectors never see a duplicate. R6 multi-salons: the salon block at
+/// the top is the « Mes salons » SWITCHER for every role; « Ajouter un salon »
+/// appears when the server-computed gate is open. Members keep their identity
+/// block (email + role chip).
+///
+/// [open] drives the drawer slide (ignored at `lg+`); [onClose] is provided only
+/// in drawer mode and renders the mobile close button.
+export function ProSidebar({
+  open = false,
+  onClose,
+}: {
+  open?: boolean;
+  onClose?: () => void;
+}) {
   const {
     loading,
     membership,
@@ -26,16 +48,29 @@ export function ProSidebar() {
     canAddSalon,
     switchSalon,
   } = useProMembership();
+  const pathname = usePathname();
+  const isDesktop = useIsDesktop();
   const entries = navForMembership(membership);
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState(false);
 
   const switchable = salons.length > 1 || canAddSalon;
 
-  async function pick(salonId: string, isActive: boolean) {
-    if (isActive) {
-      setOpen(false);
+  // Keep the CLOSED drawer out of the tab order on a phone (it's translated
+  // off-screen, but still focusable without this). Set via a ref, not a JSX
+  // prop, because React 18 doesn't recognise `inert`. Guarded on `isDesktop` so
+  // the desktop column — and jsdom, where `isDesktop` stays true — is never
+  // inert, which is what keeps the existing RTL test able to find these buttons.
+  const asideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = asideRef.current;
+    if (el) el.inert = !open && !isDesktop;
+  }, [open, isDesktop]);
+
+  async function pick(salonId: string, active: boolean) {
+    if (active) {
+      setMenuOpen(false);
       return;
     }
     setSwitching(salonId);
@@ -46,16 +81,35 @@ export function ProSidebar() {
       setSwitchError(true);
       return;
     }
-    setOpen(false);
+    setMenuOpen(false);
   }
 
   return (
-    <aside className="w-60 shrink-0 border-r border-divider bg-secondary p-m">
-      <p className="px-s text-lg font-semibold text-textPrimary">MyWeli Pro</p>
+    <aside
+      ref={asideRef}
+      id="pro-sidebar-nav"
+      aria-label="Navigation du salon"
+      className={`fixed inset-y-0 left-0 z-modal w-60 overflow-y-auto border-r border-divider bg-secondary p-m transition-transform duration-base motion-reduce:transition-none lg:static lg:z-auto lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:transition-none ${
+        open ? 'translate-x-0 shadow-xl lg:shadow-none' : '-translate-x-full'
+      }`}
+    >
+      <div className="flex items-center justify-between px-s">
+        <p className="text-titleLarge font-semibold text-textPrimary">MyWeli Pro</p>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer le menu"
+            className="-m-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
+        ) : null}
+      </div>
       {loading ? (
         <div className="mt-l space-y-xs" aria-hidden="true">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="mx-s h-8 rounded-lg bg-surfaceVariant" />
+            <Skeleton key={i} className="mx-s h-8" />
           ))}
         </div>
       ) : (
@@ -68,43 +122,61 @@ export function ProSidebar() {
                 <button
                   type="button"
                   aria-label="Changer de salon"
-                  aria-expanded={open}
+                  aria-expanded={menuOpen}
                   onClick={() => {
-                    setOpen((o) => !o);
+                    setMenuOpen((o) => !o);
                     setSwitchError(false);
                   }}
-                  className="flex w-full items-center justify-between gap-xs rounded-lg border border-border bg-surface px-s py-xs text-left text-sm text-textPrimary hover:bg-surfaceVariant"
+                  className="flex min-h-12 w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                 >
+                  {/* clip-ok: chrome in a 240px rail, not content. The button's
+                      accessible name carries the whole string, and the salon's
+                      full name is on `/pro/profil` (the field that sets it) and
+                      on `/pro/apercu`. Checked rather than assumed: it is NOT
+                      the dashboard `h1` — that reads « Aujourd'hui » for an
+                      owner and only names the salon in the staff branch
+                      (`AujourdhuiClient.tsx:109`). */}
                   <span className="truncate">{salonName}</span>
                   <span aria-hidden="true" className="text-textTertiary">
                     ▾
                   </span>
                 </button>
               ) : (
-                <p className="truncate rounded-lg border border-border bg-surface px-s py-xs text-sm text-textSecondary">
+                // clip-ok: the single-salon variant of the switcher above —
+                // same rail, same name, same recovery path. (A `//` comment,
+                // not `{/* */}`: inside a ternary's parentheses this is an
+                // expression position, and a JSX comment there is a syntax
+                // error.)
+                <p className="truncate rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textSecondary">
                   {salonName}
                 </p>
               )}
-              {open ? (
-                <div className="absolute inset-x-s z-20 mt-xs rounded-lg border border-border bg-secondary py-xs shadow-lg">
+              {menuOpen ? (
+                <div className="absolute inset-x-s z-dropdown mt-xs rounded-lg border border-border bg-secondary py-xs shadow-lg">
                   {salons.map((s) => {
-                    const isActive = s.salonId === providerId;
+                    const active = s.salonId === providerId;
                     return (
                       <button
                         key={s.salonId}
                         type="button"
                         disabled={switching !== null}
-                        onClick={() => pick(s.salonId, isActive)}
-                        className="flex w-full items-center justify-between gap-xs px-s py-s text-left text-sm text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
+                        onClick={() => pick(s.salonId, active)}
+                        className="flex min-h-12 w-full items-center justify-between gap-xs px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
                       >
                         <span className="min-w-0">
+                          {/* clip-ok: one row per salon this account owns, in
+                              the same 240px rail. The button's accessible name
+                              is the full string, and picking a salon puts its
+                              name in the rail and its profile one click away.
+                              A chooser among the pro's OWN salons is the case
+                              where a prefix is enough to tell them apart. */}
                           <span className="block truncate">{s.salonName}</span>
-                          <span className="block text-xs text-textTertiary">
+                          <span className="block text-bodySmall text-textTertiary">
                             {ROLE_LABELS[s.role as TeamRole]}
                             {s.salonStatus === 'draft' ? ' · Brouillon' : ''}
                           </span>
                         </span>
-                        {isActive ? (
+                        {active ? (
                           <span aria-hidden="true" className="shrink-0">
                             ✓
                           </span>
@@ -117,8 +189,8 @@ export function ProSidebar() {
                       <div className="my-xs border-t border-divider" />
                       <Link
                         href="/pro/salons/nouveau"
-                        onClick={() => setOpen(false)}
-                        className="block px-s py-s text-sm text-textPrimary underline hover:bg-surfaceVariant"
+                        onClick={() => setMenuOpen(false)}
+                        className="block px-s py-s text-bodyMedium text-textPrimary underline hover:bg-surfaceVariant"
                       >
                         Ajouter un salon
                       </Link>
@@ -127,7 +199,7 @@ export function ProSidebar() {
                 </div>
               ) : null}
               {switchError ? (
-                <p className="mt-xs text-xs text-error">
+                <p role="alert" className="mt-xs text-bodySmall text-error">
                   Changement impossible — votre accès à ce salon a peut-être
                   été retiré.
                 </p>
@@ -135,20 +207,28 @@ export function ProSidebar() {
             </div>
           ) : null}
           <nav className="mt-l space-y-xs">
-            {entries.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="block rounded-lg px-s py-s text-sm text-textPrimary hover:bg-surfaceVariant"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {entries.map((item) => {
+              const active = isActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex min-h-12 items-center rounded-lg px-s text-bodyMedium hover:bg-surfaceVariant ${
+                    active
+                      ? 'bg-surfaceVariant font-medium text-textPrimary'
+                      : 'text-textPrimary'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
           {membership && role && role !== 'owner' ? (
             <div className="mt-l space-y-xs rounded-lg border border-border bg-surface p-s">
               {email ? (
-                <p className="break-all text-xs text-textSecondary">{email}</p>
+                <p className="break-all text-bodySmall text-textSecondary">{email}</p>
               ) : null}
               <TeamRoleChip role={role as TeamRole} />
             </div>

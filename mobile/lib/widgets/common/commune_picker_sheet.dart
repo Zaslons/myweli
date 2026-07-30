@@ -8,6 +8,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../models/locality.dart';
 import '../../providers/locality_provider.dart';
+import 'inline_feedback.dart';
 
 /// Result of the commune picker. `commune == null` means "all communes".
 /// The picker returns `null` (not a [CommuneChoice]) when dismissed without a
@@ -51,6 +52,11 @@ class _CommunePickerSheet extends StatefulWidget {
 class _CommunePickerSheetState extends State<_CommunePickerSheet> {
   String _query = '';
   bool _locating = false;
+
+  /// A6: this sheet is a modal, so its failures render inside it — a snackbar
+  /// raised here never reaches a screen reader (BlockSemantics) and paints
+  /// under the scrim.
+  String? _error;
 
   @override
   void initState() {
@@ -107,9 +113,9 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    // A6: this sheet IS a modal — a snackbar raised here is pruned from the
+    // semantics tree and painted under the scrim. The message renders inside.
+    setState(() => _error = message);
   }
 
   @override
@@ -130,13 +136,18 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: AppTheme.spacingS),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+              child: InlineFeedback(_error),
+            ),
             Center(
               child: Container(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                 ),
               ),
             ),
@@ -156,6 +167,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Fermer',
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -186,7 +198,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
     if (!locality.isLoaded && locality.isLoading) {
       return const Padding(
         padding: EdgeInsets.all(AppTheme.spacingXL),
-        child: Center(child: BrandLoader(size: 32)),
+        child: Center(child: BrandLoader(size: AppTheme.iconL)),
       );
     }
     if (!locality.isLoaded && locality.error != null) {
@@ -219,7 +231,7 @@ class _CommunePickerSheetState extends State<_CommunePickerSheet> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: BrandLoader(size: 20, fast: true),
+                  child: BrandLoader(size: AppTheme.iconS, fast: true),
                 )
               : const Icon(
                   Icons.my_location,

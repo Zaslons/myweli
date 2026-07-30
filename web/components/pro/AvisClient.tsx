@@ -1,6 +1,10 @@
 'use client';
 
 import Image from 'next/image';
+import { Card } from '../Card';
+import { Rating } from '../Rating';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Review } from '../../lib/api/providers';
@@ -8,6 +12,7 @@ import { getMyProvider, listProviderReviews } from '../../lib/api/pro';
 import { formatDateFr } from '../../lib/format';
 import { reviewStats } from '../../lib/pro/reviews';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 
 /// « Avis » (docs/design/web-pro-reviews.md) — the pro app's ReviewsScreen,
 /// web-adapted: summary card (average + 5→1 distribution) over the review
@@ -18,6 +23,8 @@ export function AvisClient() {
   const [items, setItems] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  // The active salon's timezone (multi-pays MP3) — review dates in SALON time.
+  const [salonTz, setSalonTz] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -37,6 +44,7 @@ export function AvisClient() {
     }
     const pid = me.profile.provider.id;
     setProviderId(pid);
+    setSalonTz(me.profile.provider.timezone ?? undefined);
     const r = await listProviderReviews(pid, 1);
     if (r.status !== 200) {
       setError(true);
@@ -63,16 +71,11 @@ export function AvisClient() {
     setPage((p) => p + 1);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     return (
       <div>
-        <p className="text-error">Impossible de charger les avis.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Avis" message="Impossible de charger les avis." onRetry={load} />
       </div>
     );
   }
@@ -81,36 +84,36 @@ export function AvisClient() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Avis</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Avis</h1>
 
       {items.length === 0 ? (
-        <div className="mt-l rounded-xl border border-border bg-secondary p-xl text-center">
-          <p className="text-lg font-medium text-textSecondary">Aucun avis</p>
-          <p className="mt-xs text-sm text-textTertiary">
-            Les avis de vos clients apparaîtront ici
-          </p>
-        </div>
+        <EmptyState
+          className="mt-l"
+          icon="star"
+          title="Aucun avis"
+          description="Les avis de vos clients apparaîtront ici."
+        />
       ) : (
         <>
           {/* Summary card — the app's average + 5→1 distribution */}
-          <section className="mt-l flex flex-wrap items-center gap-l rounded-xl border border-border bg-secondary p-l">
+          <Card as="section" className="mt-l flex flex-wrap items-center gap-l">
             <div>
-              <p className="text-3xl font-semibold text-textPrimary">
-                ★ {stats.average.toFixed(1)}
+              <p className="text-headlineMedium font-semibold text-textPrimary">
+                <Rating value={stats.average} />
               </p>
-              <p className="mt-xs text-sm text-textSecondary">
+              <p className="mt-xs text-bodyMedium text-textSecondary">
                 {total} avis
               </p>
             </div>
             <dl className="min-w-56 flex-1">
               {stats.distribution.map((d) => (
                 <div key={d.rating} className="flex items-center gap-s py-xs">
-                  <dt className="w-8 shrink-0 text-sm text-textSecondary">
+                  <dt className="w-8 shrink-0 text-bodyMedium text-textSecondary">
                     {d.rating} ★
                   </dt>
                   <dd className="flex flex-1 items-center gap-s">
                     <div
-                      className="h-2 flex-1 overflow-hidden rounded-full bg-surface"
+                      className="h-2 flex-1 overflow-hidden rounded-pill bg-surface"
                       role="progressbar"
                       aria-label={`${d.rating} étoiles`}
                       aria-valuenow={d.count}
@@ -118,18 +121,18 @@ export function AvisClient() {
                       aria-valuemax={stats.count}
                     >
                       <div
-                        className="h-full rounded-full bg-primary"
+                        className="h-full rounded-pill bg-primary"
                         style={{ width: `${d.pct}%` }}
                       />
                     </div>
-                    <span className="w-6 shrink-0 text-right text-sm text-textSecondary">
+                    <span className="w-6 shrink-0 text-right text-bodyMedium text-textSecondary">
                       {d.count}
                     </span>
                   </dd>
                 </div>
               ))}
             </dl>
-          </section>
+          </Card>
 
           {/* Review cards */}
           <ul className="mt-m space-y-s">
@@ -139,7 +142,7 @@ export function AvisClient() {
                 className="rounded-xl border border-border bg-secondary p-m"
               >
                 <div className="flex items-start gap-m">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface font-medium text-textPrimary">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-surface font-medium text-textPrimary">
                     {(r.userName || '?').slice(0, 1).toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -147,23 +150,23 @@ export function AvisClient() {
                       <p className="font-medium text-textPrimary">
                         {r.userName}
                       </p>
-                      <p
-                        className="text-sm text-primary"
-                        aria-label={`${r.rating} étoiles sur 5`}
-                      >
-                        {'★'.repeat(Math.round(r.rating))}
-                        <span className="text-textTertiary">
-                          {'★'.repeat(5 - Math.round(r.rating))}
-                        </span>
+                      <p className="text-bodyMedium text-primary">
+                        <span aria-hidden="true">
+                          {'★'.repeat(Math.round(r.rating))}
+                          <span className="text-textTertiary">
+                            {'★'.repeat(5 - Math.round(r.rating))}
+                          </span>
+                        </span>{' '}
+                        <span className="text-textSecondary">{r.rating}/5</span>
                       </p>
                     </div>
-                    <p className="mt-xs text-xs text-textTertiary">
-                      {formatDateFr(r.createdAt)}
+                    <p className="mt-xs text-bodySmall text-textTertiary">
+                      {formatDateFr(r.createdAt, salonTz)}
                       {r.serviceName ? ` · ${r.serviceName}` : ''}
                       {r.artistName ? ` · avec ${r.artistName}` : ''}
                     </p>
                     {r.text ? (
-                      <p className="mt-s text-sm text-textSecondary">{r.text}</p>
+                      <p className="mt-s text-bodyLarge text-textSecondary">{r.text}</p>
                     ) : null}
                     {(r.photoUrls ?? []).length > 0 ? (
                       <div className="mt-s flex flex-wrap gap-s">
@@ -187,8 +190,8 @@ export function AvisClient() {
 
           {items.length < total ? (
             <div className="mt-m">
-              <Button variant="secondary" disabled={busy} onClick={loadMore}>
-                {busy ? 'Chargement…' : 'Charger plus'}
+              <Button variant="secondary" isLoading={busy} onClick={loadMore}>
+                Charger plus
               </Button>
             </div>
           ) : null}

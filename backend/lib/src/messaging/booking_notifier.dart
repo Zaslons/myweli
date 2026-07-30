@@ -65,14 +65,17 @@ class BookingNotifier {
       if (userId != null) {
         final body = renderTemplate(template, params);
         if (prefs.push && allowCategory) {
+          final id = appointment['id'];
           await _push.sendToUser(
             userId,
             title: _pushTitle(template),
             body: body,
             data: {
               'template': template.name,
-              if (appointment['id'] != null)
-                'appointmentId': '${appointment['id']}',
+              if (id != null) 'appointmentId': '$id',
+              // Where a tap lands in the consumer app (design §9). The feed
+              // row keeps '/bookings' — the web center maps that path.
+              'route': id != null ? '/appointment/$id' : '/bookings',
             },
           );
         }

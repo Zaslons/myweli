@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createArtistReturning, inviteMember } from '../../lib/api/pro';
 import type { Artist } from '../../lib/pro/catalogue';
 import {
@@ -12,6 +12,7 @@ import {
   validateInviteEmail,
 } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 
 const ROLE_ORDER: TeamRoleInput[] = ['manager', 'reception', 'staff'];
 const ROLE_LABELS: Record<TeamRoleInput, string> = {
@@ -47,13 +48,6 @@ export function InviteMemberDialog({
   // the matching CTA (offer_required/seat_limit → the picker).
   const [errorCode, setErrorCode] = useState<string | undefined>();
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const checked = validateInviteEmail(stepEmail);
   const cta = teamErrorCta(errorCode);
@@ -102,18 +96,9 @@ export function InviteMemberDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Inviter un membre"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-m"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-lg font-semibold text-textPrimary">
-          Inviter un membre
-        </h2>
+    <Modal title="Inviter un membre" onClose={onClose}>
 
-        <label className="mt-m block text-sm text-textSecondary">
+        <label className="mt-m block text-bodyMedium text-textSecondary">
           Adresse e-mail
           <input
             type="email"
@@ -122,17 +107,18 @@ export function InviteMemberDialog({
             value={stepEmail}
             onChange={(e) => setStepEmail(e.target.value)}
             placeholder="collaborateur@exemple.com"
-            className="mt-xs w-full rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+            className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
         </label>
 
         <fieldset className="mt-m">
-          <legend className="text-sm text-textSecondary">Rôle</legend>
+          <legend className="text-bodyMedium text-textSecondary">Rôle</legend>
           <div className="mt-xs flex flex-col gap-s">
             {ROLE_ORDER.map((r) => (
               <button
                 key={r}
                 type="button"
+                aria-pressed={role === r}
                 onClick={() => {
                   setRole(r);
                   setErrorCode(undefined);
@@ -143,10 +129,15 @@ export function InviteMemberDialog({
                     : 'border-border bg-surface'
                 }`}
               >
-                <span className="block text-sm font-medium text-textPrimary">
+                <span className="block text-labelLarge font-medium text-textPrimary">
                   {ROLE_LABELS[r]}
                 </span>
-                <span className="mt-[2px] block text-xs text-textTertiary">
+                <span
+                  // ds-ignore: 2px optical nudge; below the 4px grid floor (see ChangeRoleDialog — the
+                  // same role-row).
+                  // eslint-disable-next-line tailwindcss/no-arbitrary-value
+                  className="mt-[2px] block text-bodySmall text-textTertiary"
+                >
                   {ROLE_SUMMARIES[r]}
                 </span>
               </button>
@@ -156,14 +147,20 @@ export function InviteMemberDialog({
 
         {role === 'staff' ? (
           <div className="mt-m">
-            <p className="text-sm text-textSecondary">Fiche employé</p>
+            <label
+              htmlFor="invite-fiche"
+              className="text-bodyMedium text-textSecondary"
+            >
+              Fiche employé
+            </label>
             {creatingFiche ? (
               <div className="mt-xs flex gap-s">
                 <input
+                  id="invite-fiche"
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <Button
                   onClick={createFiche}
@@ -175,9 +172,10 @@ export function InviteMemberDialog({
             ) : (
               <div className="mt-xs flex gap-s">
                 <select
+                  id="invite-fiche"
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
+                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (
@@ -194,19 +192,19 @@ export function InviteMemberDialog({
                 </Button>
               </div>
             )}
-            <p className="mt-xs text-xs text-textTertiary">
+            <p className="mt-xs text-bodySmall text-textTertiary">
               Un collaborateur ne voit que le planning de sa fiche.
             </p>
           </div>
         ) : null}
 
         {errorCode ? (
-          <p className="mt-s text-sm text-error">
+          <p role="alert" className="mt-s text-bodyMedium text-error">
             {teamErrorMessage(errorCode, 'invite')}
           </p>
         ) : null}
         {cta ? (
-          <a href={cta.href} className="mt-xs block text-sm underline">
+          <a href={cta.href} className="mt-xs block text-bodyMedium underline">
             {cta.label}
           </a>
         ) : null}
@@ -219,7 +217,6 @@ export function InviteMemberDialog({
             Envoyer l’invitation
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

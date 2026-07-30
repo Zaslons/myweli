@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'appointments/appointment_repository.dart';
 import 'auth/auth_repository.dart';
+import 'privacy/anonymized_identity.dart';
 import 'providers_repository.dart';
 import 'reviews_repository.dart';
 
@@ -101,7 +102,8 @@ class ReviewsService {
     final artistName = artistId == null
         ? null
         : _nameOf(provider['artists'], artistId);
-    final userName = (await _auth.userById(userId))?.name ?? 'Client';
+    final userName =
+        (await _auth.userById(userId))?.name ?? anonymousClientLabel;
 
     final review = {
       'id':

@@ -1,70 +1,114 @@
+import '../forms/field_errors.dart';
+
+/// Design: docs/design/mobile-a7-forms.md · SYSTEM.md §14.
+///
+/// **One rule per concept, product-wide.** Before A7 this file held five
+/// statics with two callers, while the screens carried their own copies: the
+/// e-mail format existed **five times** (this file's, plus the same loose
+/// `^[^@\s]+@[^@\s]+\.[^@\s]+$` pasted into four funnels), so two different
+/// definitions of "valid e-mail" shipped in one app; `required` had seven
+/// inline duplicates; and `otp`/`phoneNumber` had **zero** callers while three
+/// live screens gated a « Code à 6 chiffres » field on `length < 4`.
+///
+/// Every message says what to DO, not what happened (§14 rule 4).
+///
+/// The return type is `String?` and the parameter is nullable, so each static
+/// is usable both as a bare check and — thanks to Dart's contravariant
+/// parameter subtyping — directly as a [FieldValidator] in a [FieldErrors] map.
 class Validators {
-  /// Validates an international phone number in E.164 (`+` then 8–15 digits) —
-  /// mirrors the backend. The country-code picker ([PhoneNumberField]) also
-  /// enforces per-country length; this is the generic fallback check.
-  static String? phoneNumber(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Le numéro de téléphone est requis';
-    }
-    final cleaned = value.replaceAll(RegExp(r'[\s\-()]'), '');
-    if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(cleaned)) {
-      return 'Numéro de téléphone invalide';
-    }
-    return null;
-  }
+  // ---- Identity -------------------------------------------------------------
 
-  /// Validates OTP code (6 digits)
-  static String? otp(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Le code est requis';
-    }
-
-    if (value.length != 6) {
-      return 'Le code doit contenir 6 chiffres';
-    }
-
-    if (!RegExp(r'^\d{6}$').hasMatch(value)) {
-      return 'Le code doit contenir uniquement des chiffres';
-    }
-
-    return null;
-  }
-
-  /// Validates name
-  static String? name(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Le nom est requis';
-    }
-
-    if (value.length < 2) {
-      return 'Le nom doit contenir au moins 2 caractères';
-    }
-
-    return null;
-  }
-
-  /// Validates email (optional)
+  /// A required e-mail. The **one** definition; the four funnel copies died
+  /// with A7.
   static String? email(String? value) {
-    if (value == null || value.isEmpty) {
-      return null; // Email is optional
+    if (value == null || value.trim().isEmpty) {
+      return 'Saisissez une adresse e-mail.';
     }
-
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-
-    if (!emailRegex.hasMatch(value)) {
-      return 'Adresse email invalide';
-    }
-
-    return null;
+    return _emailFormat.hasMatch(value.trim())
+        ? null
+        : 'Saisissez une adresse e-mail valide.';
   }
 
-  /// Validates required field
-  static String? required(String? value, {String? fieldName}) {
-    if (value == null || value.isEmpty) {
-      return '${fieldName ?? 'Ce champ'} est requis';
-    }
-    return null;
+  /// An e-mail the user may leave blank (the consumer profile). Empty passes;
+  /// anything typed must still be a real address.
+  static String? optionalEmail(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    return _emailFormat.hasMatch(value.trim())
+        ? null
+        : 'Saisissez une adresse e-mail valide.';
   }
+
+  static final RegExp _emailFormat =
+      RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+
+  /// The verification code. **Six digits** — the number the field's own label
+  /// (« Code à 6 chiffres »), its `maxLength`, and the golden baseline all
+  /// already said, while three live screens gated on four.
+  static String? otp(String? value) {
+    final code = value?.trim() ?? '';
+    if (code.isEmpty) return 'Saisissez le code reçu.';
+    return RegExp(r'^\d{6}$').hasMatch(code)
+        ? null
+        : 'Le code doit comporter 6 chiffres.';
+  }
+
+  static String? name(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Saisissez un nom.';
+    return text.length < 2
+        ? 'Le nom doit comporter au moins 2 caractères.'
+        : null;
+  }
+
+  // ---- Phone ----------------------------------------------------------------
+
+  /// **E.164** (`+` then 8–15 digits) — what `PhoneNumberField` emits, and what
+  /// the backend stores.
+  static String? phoneNumber(String? value) {
+    final cleaned = (value ?? '').replaceAll(RegExp(r'[\s\-()]'), '');
+    if (cleaned.isEmpty) return 'Saisissez un numéro de téléphone.';
+    return RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(cleaned)
+        ? null
+        : 'Saisissez un numéro de téléphone valide.';
+  }
+
+  /// A number typed as an Ivorian **local** 10-digit one — the Mobile Money
+  /// field and anywhere else the user types digits rather than picking a
+  /// country. (CI moved to 10 digits in 2021; the hint « Ex : 07 07 12 34 56 »
+  /// was already showing ten.)
+  static String? localPhoneNumber(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.isEmpty) return 'Saisissez un numéro de téléphone.';
+    return digits.length == 10
+        ? null
+        : 'Le numéro doit comporter 10 chiffres (ex : 07 07 12 34 56).';
+  }
+
+  // ---- Generic factories ----------------------------------------------------
+
+  /// A required field, naming itself. Replaces the seven inline « … est
+  /// requis » closures.
+  ///
+  /// [what] completes the sentence: `requiredField('le nom du salon')` →
+  /// « Indiquez le nom du salon. »
+  static FieldValidator requiredField(String what) =>
+      (value) => value.trim().isEmpty ? 'Indiquez $what.' : null;
+
+  /// A price or deposit in FCFA — digits only, strictly positive.
+  static FieldValidator amount(String what) => (value) {
+        final text = value.trim();
+        if (text.isEmpty) return 'Indiquez $what.';
+        final parsed = int.tryParse(text.replaceAll(RegExp(r'[^\d]'), ''));
+        if (parsed == null) return 'Indiquez $what en chiffres.';
+        return parsed <= 0 ? 'Indiquez $what supérieur à 0.' : null;
+      };
+
+  /// A duration in whole minutes, strictly positive.
+  static FieldValidator minutes(String what) => (value) {
+        final text = value.trim();
+        if (text.isEmpty) return 'Indiquez $what.';
+        final parsed = int.tryParse(text);
+        if (parsed == null) return 'Indiquez $what en minutes.';
+        return parsed <= 0 ? 'Indiquez $what supérieure à 0.' : null;
+      };
 }

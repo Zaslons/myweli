@@ -7,12 +7,15 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
 import '../../models/artist.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_button.dart';
 import '../common/app_text_field.dart';
+import '../common/inline_feedback.dart';
 import '../common/timed_cached_image.dart';
 import '../provider/image_picker_sheet.dart';
 import '../provider/mock_image_picker_sheet.dart';
@@ -43,6 +46,11 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
   final _textController = TextEditingController();
   final List<String> _photoUrls = [];
   bool _uploadingPhoto = false;
+
+  /// A6: a failure raised while this sheet is open cannot be a snackbar — the
+  /// modal barrier prunes it from the semantics tree and paints it under the
+  /// scrim. It belongs here, inside the sheet that owns the failure.
+  String? _error;
   bool _submitting = false;
 
   @override
@@ -70,19 +78,20 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       if (url != null) _photoUrls.add(url);
     });
     if (url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Échec de l’envoi de la photo'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      setState(() => _error = 'Échec de l’envoi de la photo');
     }
   }
 
   void _removePhoto(int index) => setState(() => _photoUrls.removeAt(index));
 
   Future<void> _submit() async {
-    if (_selectedRating < 1) return;
+    if (_selectedRating < 1) {
+      // The stars are a SELECTION — no field to sit under — so the fault lands
+      // form-level (§14's three-slot boundary). It used to be a dead « Publier »
+      // and a silent `return`: two ways of saying nothing.
+      setState(() => _error = 'Choisissez une note de 1 à 5 étoiles.');
+      return;
+    }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
@@ -115,31 +124,27 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       artistId: _selectedArtistId,
       artistName: artistName,
       photoUrls: List<String>.from(_photoUrls),
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
 
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     final ok = await providerProvider.submitReview(review);
     if (!mounted) return;
     setState(() => _submitting = false);
 
     if (ok) {
       widget.onSubmitted?.call();
+      // The snackbar below is a live region — announcing here as well
+      // double-spoke it on iOS and cleared TalkBack's queue on Android.
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Merci pour votre avis'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Merci pour votre avis',
+          kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(providerProvider.error ?? 'Erreur lors de la publication'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      setState(() =>
+          _error = providerProvider.error ?? 'Erreur lors de la publication');
     }
   }
 
@@ -148,7 +153,9 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
     final artists =
         context.watch<ProviderProvider>().selectedProvider?.artists ??
             const <Artist>[];
-    final canSubmit = _selectedRating >= 1 && !_submitting && !_uploadingPhoto;
+    // §14 rule 5: NOT gated on the rating. `_uploadingPhoto` and `_submitting`
+    // are work in progress, which is the rule's one allowed reason to disable.
+    final canSubmit = !_submitting && !_uploadingPhoto;
     return Padding(
       padding: const EdgeInsets.all(AppTheme.spacingL),
       child: Column(
@@ -166,16 +173,23 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(5, (index) {
               final starIndex = index + 1;
-              return IconButton(
-                onPressed: () {
-                  setState(() => _selectedRating = starIndex);
-                },
-                icon: Icon(
-                  starIndex <= _selectedRating ? Icons.star : Icons.star_border,
-                  size: 40,
-                  color: AppColors.starRating,
+              return Semantics(
+                selected: starIndex <= _selectedRating,
+                child: IconButton(
+                  tooltip: 'Noter $starIndex étoile${starIndex > 1 ? 's' : ''}',
+                  onPressed: () {
+                    setState(() => _selectedRating = starIndex);
+                  },
+                  icon: Icon(
+                    starIndex <= _selectedRating
+                        ? Icons.star
+                        : Icons.star_border,
+                    size: AppTheme.iconL,
+                    color: AppColors.starRating,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingXS),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
               );
             }),
           ),
@@ -233,7 +247,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
               children: [
                 for (var i = 0; i < _photoUrls.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: AppTheme.spacingS),
                     child: _PhotoThumb(
                       url: _photoUrls[i],
                       onRemove: () => _removePhoto(i),
@@ -252,38 +266,44 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
                       child: SizedBox(
                         width: 18,
                         height: 18,
-                        child: BrandLoader(size: 20, fast: true),
+                        child: BrandLoader(size: AppTheme.iconS, fast: true),
                       ),
                     ),
                   ),
                 if (_photoUrls.length < _maxReviewPhotos && !_uploadingPhoto)
-                  GestureDetector(
-                    onTap: _addPhoto,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusMedium),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.camera_alt_outlined,
-                              size: 18, color: AppColors.textSecondary),
-                          Text(
-                            '${_photoUrls.length}/$_maxReviewPhotos',
-                            style: AppTextStyles.labelSmall
-                                .copyWith(color: AppColors.textTertiary),
-                          ),
-                        ],
+                  Semantics(
+                    button: true,
+                    label: 'Ajouter une photo',
+                    child: GestureDetector(
+                      onTap: _addPhoto,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusMedium),
+                          border: Border.all(color: AppColors.borderStrong),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.camera_alt_outlined,
+                                size: AppTheme.iconS,
+                                color: AppColors.textSecondary),
+                            Text(
+                              '${_photoUrls.length}/$_maxReviewPhotos',
+                              style: AppTextStyles.labelSmall
+                                  .copyWith(color: AppColors.textTertiary),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
               ],
             ),
           ),
+          InlineFeedback(_error),
           const SizedBox(height: AppTheme.spacingL),
           Row(
             children: [
@@ -330,15 +350,29 @@ class _PhotoThumb extends StatelessWidget {
           Positioned(
             top: 2,
             right: 2,
-            child: GestureDetector(
-              onTap: onRemove,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
+            child: Semantics(
+              button: true,
+              label: 'Supprimer la photo',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onRemove,
+                child: SizedBox(
+                  // §13.2 48 hit area; Align keeps the badge at the (2,2) corner.
+                  width: 48,
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppTheme.spacingXS),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close,
+                          size: AppTheme.iconXS, color: Colors.white),
+                    ),
+                  ),
                 ),
-                child: const Icon(Icons.close, size: 12, color: Colors.white),
               ),
             ),
           ),

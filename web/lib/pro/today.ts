@@ -7,7 +7,16 @@ export type ProAppointment = {
   status: string;
   appointmentDate: string;
   serviceIds?: string[];
+  /// The name the SALON typed, on a manually-created booking. NULL for every
+  /// app-originated booking.
   clientName?: string | null;
+  /// PROVIDER VIEW (A13): who the booking is FOR, resolved from the salon's own
+  /// client record. Prefer this over `clientName` when rendering — without it
+  /// the web pro surface shows the literal « Client » for every booking made
+  /// through the consumer app, which is the defect SYSTEM.md row 74 closes.
+  /// Absent on off-day bookings for an own-scope Collaborateur (masked with
+  /// `clientPhone`).
+  clientDisplayName?: string | null;
   clientPhone?: string | null;
   totalPrice?: number;
   depositAmount?: number;
@@ -23,26 +32,35 @@ export type ProAppointment = {
   arrivedAt?: string | null;
 };
 
-export function todayKey(now: Date = new Date()): string {
-  return salonDayKey(now);
+export function todayKey(now: Date = new Date(), tz?: string): string {
+  return salonDayKey(now, tz);
+}
+
+/// The SALON day an appointment falls on (multi-pays MP3: the instant's day
+/// in the salon's zone — NOT the ISO string's UTC prefix, which is one day
+/// off past midnight at UTC+1).
+export function apptDayKey(a: ProAppointment, tz?: string): string {
+  return salonDayKey(new Date(a.appointmentDate), tz);
 }
 
 /// Today's bookings (SALON day — lib/time.ts), sorted by time.
 export function todaysAppointments(
   items: ProAppointment[],
   now: Date = new Date(),
+  tz?: string,
 ): ProAppointment[] {
-  const k = todayKey(now);
+  const k = todayKey(now, tz);
   return items
-    .filter((a) => a.appointmentDate.slice(0, 10) === k)
+    .filter((a) => apptDayKey(a, tz) === k)
     .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate));
 }
 
 export function todayCounts(
   items: ProAppointment[],
   now: Date = new Date(),
+  tz?: string,
 ): { total: number; pending: number; confirmed: number } {
-  const t = todaysAppointments(items, now);
+  const t = todaysAppointments(items, now, tz);
   return {
     total: t.length,
     pending: t.filter((a) => a.status === 'pending').length,

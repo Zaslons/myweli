@@ -27,6 +27,20 @@ class Appointment extends Equatable {
   /// Walk-in client details for a manually-entered booking (no app account).
   /// Null for bookings made by an app user.
   final String? clientName;
+
+  /// Who the booking is FOR, as the salon should see it (A13).
+  ///
+  /// **Not the same field as [clientName], deliberately.** `clientName` is the
+  /// name the SALON typed on a manually-created booking — the pro app gates its
+  /// « Réservé par votre salon » badge on it being non-null — and the backend writes
+  /// it as `null` for every app-originated booking. So the pro app rendered the
+  /// literal « Client » for every booking made through the consumer app.
+  ///
+  /// The backend resolves this one from the salon's own client record, which is
+  /// written at booking time and anonymised when the user erases their account.
+  /// **Absent when the salon may not see it**: it is stripped together with
+  /// `clientPhone` on off-day bookings for an own-scope Collaborateur.
+  final String? clientDisplayName;
   final String? clientPhone;
   final String? notes;
 
@@ -66,6 +80,7 @@ class Appointment extends Equatable {
     this.balanceDue = 0,
     this.cancellationWindowHours = 24,
     this.clientName,
+    this.clientDisplayName,
     this.clientPhone,
     this.notes,
     this.depositScreenshotUrl,
@@ -93,6 +108,7 @@ class Appointment extends Equatable {
         balanceDue,
         cancellationWindowHours,
         clientName,
+        clientDisplayName,
         clientPhone,
         notes,
         depositScreenshotUrl,
@@ -119,6 +135,7 @@ class Appointment extends Equatable {
     double? balanceDue,
     int? cancellationWindowHours,
     String? clientName,
+    String? clientDisplayName,
     String? clientPhone,
     String? notes,
     String? depositScreenshotUrl,
@@ -145,6 +162,7 @@ class Appointment extends Equatable {
       cancellationWindowHours:
           cancellationWindowHours ?? this.cancellationWindowHours,
       clientName: clientName ?? this.clientName,
+      clientDisplayName: clientDisplayName ?? this.clientDisplayName,
       clientPhone: clientPhone ?? this.clientPhone,
       notes: notes ?? this.notes,
       depositScreenshotUrl: depositScreenshotUrl ?? this.depositScreenshotUrl,
@@ -173,6 +191,7 @@ class Appointment extends Equatable {
       'balanceDue': balanceDue,
       'cancellationWindowHours': cancellationWindowHours,
       'clientName': clientName,
+      'clientDisplayName': clientDisplayName,
       'clientPhone': clientPhone,
       'notes': notes,
       'depositScreenshotUrl': depositScreenshotUrl,
@@ -204,6 +223,7 @@ class Appointment extends Equatable {
       balanceDue: (json['balanceDue'] as num?)?.toDouble() ?? 0,
       cancellationWindowHours: json['cancellationWindowHours'] as int? ?? 24,
       clientName: json['clientName'] as String?,
+      clientDisplayName: json['clientDisplayName'] as String?,
       clientPhone: json['clientPhone'] as String?,
       notes: json['notes'] as String?,
       depositScreenshotUrl: json['depositScreenshotUrl'] as String?,

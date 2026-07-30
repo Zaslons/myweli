@@ -1,6 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Chip } from '../Chip';
+import { ErrorState } from '../ErrorState';
 import { type ChangeEvent, useEffect, useState } from 'react';
 import { getMyProvider, saveBeforeAfters, saveGallery } from '../../lib/api/pro';
 import {
@@ -12,8 +14,16 @@ import {
 } from '../../lib/pro/medias';
 import { uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
+import { SkeletonGrid } from '../Skeleton';
+import { TextField } from '../TextField';
+import { Tabs } from '../Tabs';
 
 type Tab = 'photos' | 'avant-apres';
+
+const MEDIA_TABS: { key: Tab; label: string }[] = [
+  { key: 'photos', label: 'Photos' },
+  { key: 'avant-apres', label: 'Avant / Après' },
+];
 
 export function MediasClient() {
   const router = useRouter();
@@ -22,6 +32,7 @@ export function MediasClient() {
   const [pairs, setPairs] = useState<BeforeAfterPair[]>([]);
   const [tab, setTab] = useState<Tab>('photos');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -46,38 +57,24 @@ export function MediasClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonGrid count={6} className="mt-l grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" />;
   if (loadError) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Médias" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-textPrimary">Médias</h1>
+      <h1 className="text-headlineSmall font-semibold text-textPrimary">Médias</h1>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(
-          [
-            { key: 'photos', label: 'Photos' },
-            { key: 'avant-apres', label: 'Avant / Après' },
-          ] as { key: Tab; label: string }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`px-m py-s text-sm ${
-              tab === t.key
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Type de média"
+        className="mt-l"
+        value={tab}
+        onChange={setTab}
+        items={MEDIA_TABS}
+      />
 
       {tab === 'photos' ? (
         <PhotosTab
@@ -140,27 +137,27 @@ function PhotosTab({
 
   return (
     <div className="mt-m">
-      <p className="text-sm text-textTertiary">
+      <p className="text-bodyMedium text-textTertiary">
         Ajoutez au moins 3 photos. La première sert de couverture.
       </p>
 
-      <div className="mt-m grid grid-cols-2 gap-m sm:grid-cols-3">
+      <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {photos.map((url, i) => (
           <div
             key={`${url}-${i}`}
             className="overflow-hidden rounded-xl border border-border bg-secondary"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="h-32 w-full object-cover" />
-            <div className="flex items-center justify-between p-s">
+            <img src={url} alt="" className="h-40 w-full object-cover sm:h-32" />
+            <div className="flex flex-wrap items-center justify-between gap-s p-s">
               {i === 0 ? (
-                <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
+                <Chip>
                   Couverture
-                </span>
+                </Chip>
               ) : (
                 <span />
               )}
-              <span className="flex gap-xs">
+              <span className="flex gap-s">
                 <IconBtn
                   label="Monter"
                   onClick={() => setPhotos(moveItem(photos, i, -1))}
@@ -187,27 +184,33 @@ function PhotosTab({
 
       <div className="mt-m flex flex-wrap items-center gap-s">
         {canAddPhoto(photos) ? (
-          <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary hover:bg-surfaceVariant">
+          // Row 22: `hidden` (display:none) made the input unfocusable — a
+          // keyboard user could not upload at all. sr-only keeps it a real
+          // tab stop; §5's ring projects onto the label via focus-within.
+          <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-borderFocus hover:bg-surfaceVariant">
             {uploading ? 'Téléversement…' : 'Ajouter une photo'}
             <input
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
               onChange={onPick}
             />
           </label>
         ) : (
-          <span className="text-sm text-textTertiary">Maximum atteint.</span>
+          <span className="text-bodyMedium text-textTertiary">Maximum atteint.</span>
         )}
         <Button disabled={busy} onClick={save}>
           Enregistrer
         </Button>
       </div>
 
-      {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
-      {saved ? (
-        <p className="mt-s text-sm text-textSecondary">Photos enregistrées.</p>
-      ) : null}
+      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
+      <p
+        role="status"
+        className={saved ? 'mt-s text-bodyMedium text-textSecondary' : 'sr-only'}
+      >
+        {saved ? 'Photos enregistrées.' : ''}
+      </p>
     </div>
   );
 }
@@ -277,10 +280,10 @@ function AvantApresTab({
             className="flex items-center gap-m rounded-xl border border-border bg-secondary p-s"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.before} alt="" className="h-16 w-16 rounded object-cover" />
+            <img src={p.before} alt="" className="h-16 w-16 rounded-sm object-cover" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.after} alt="" className="h-16 w-16 rounded object-cover" />
-            <span className="flex-1 text-sm text-textTertiary">
+            <img src={p.after} alt="" className="h-16 w-16 rounded-sm object-cover" />
+            <span className="flex-1 text-bodyMedium text-textTertiary">
               {p.caption ?? ''}
             </span>
             <IconBtn label="Supprimer" onClick={() => setPairs(removeAt(pairs, i))}>
@@ -292,16 +295,17 @@ function AvantApresTab({
 
       {canAddPair(pairs) ? (
         <div className="mt-m rounded-xl border border-border bg-secondary p-m">
-          <p className="text-sm text-textTertiary">Ajouter une paire</p>
+          <p className="text-bodyMedium text-textTertiary">Ajouter une paire</p>
           <div className="mt-s flex flex-wrap items-center gap-m">
             <FilePick label={before ? 'Avant ✓' : 'Avant'} onChange={(e) => pick(e, setBefore)} />
             <FilePick label={after ? 'Après ✓' : 'Après'} onChange={(e) => pick(e, setAfter)} />
-            <input
+            <TextField
+              label="Légende (optionnelle)"
+              hideLabel
               type="text"
-              placeholder="Légende (optionnel)"
+              placeholder="Légende (optionnelle)"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary"
             />
             <Button
               variant="secondary"
@@ -313,7 +317,7 @@ function AvantApresTab({
           </div>
         </div>
       ) : (
-        <p className="mt-m text-sm text-textTertiary">Maximum atteint (12).</p>
+        <p className="mt-m text-bodyMedium text-textTertiary">Maximum atteint (12).</p>
       )}
 
       <div className="mt-m">
@@ -321,12 +325,13 @@ function AvantApresTab({
           Enregistrer
         </Button>
       </div>
-      {error ? <p className="mt-s text-sm text-error">{error}</p> : null}
-      {saved ? (
-        <p className="mt-s text-sm text-textSecondary">
-          Avant/Après enregistré.
-        </p>
-      ) : null}
+      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
+      <p
+        role="status"
+        className={saved ? 'mt-s text-bodyMedium text-textSecondary' : 'sr-only'}
+      >
+        {saved ? 'Avant/Après enregistré.' : ''}
+      </p>
     </div>
   );
 }
@@ -345,7 +350,9 @@ function IconBtn({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="rounded border border-border bg-surface px-s text-sm text-textPrimary hover:bg-surfaceVariant"
+      // Its children are always a glyph (↑ ↓ ✕) — an icon, not body text.
+      // 14 → 16 by §7 (nearest; ties round up).
+      className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-borderStrong bg-surface text-iconXS text-textPrimary hover:bg-surfaceVariant"
     >
       {children}
     </button>
@@ -360,9 +367,9 @@ function FilePick({
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <label className="cursor-pointer rounded-lg border border-border bg-surface px-m py-s text-sm text-textPrimary hover:bg-surfaceVariant">
+    <label className="cursor-pointer min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-borderFocus hover:bg-surfaceVariant">
       {label}
-      <input type="file" accept="image/*" className="hidden" onChange={onChange} />
+      <input type="file" accept="image/*" className="sr-only" onChange={onChange} />
     </label>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip, chipLinkClasses } from '../Chip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -18,16 +19,23 @@ import {
   getAppointment,
   rescheduleAppointment,
 } from '../../lib/api/account';
+import { countryName } from '../../lib/api/localities';
 import { fetchSlots } from '../../lib/booking/client';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
-import { salonFormatter, salonToday } from '../../lib/time';
+import { salonDayKey, salonFormatter, salonToday } from '../../lib/time';
+import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
+import { TextField } from '../TextField';
 import { SalonTimeHint } from '../SalonTimeHint';
 import { DepositProof } from '../booking/DepositProof';
 import { ReviewForm } from './ReviewForm';
 
 export function AppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
+  // Multi-pays MP3: the SALON's clock/currency ride the appointment's
+  // carriers; the tree only resolves the hint's country label (best-effort).
+  const { tree } = useLocalities();
   const [appt, setAppt] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -81,8 +89,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     setRescheduling(true);
     setReschedError(null);
     setRescheduled(false);
-    const day = a.appointmentDate.slice(0, 10);
-    const today = salonToday();
+    const tz = a.providerTimezone ?? undefined;
+    const day = salonDayKey(new Date(a.appointmentDate), tz);
+    const today = salonToday(new Date(), tz);
     const initial = day > today ? day : today;
     setReschedDate(initial);
     loadSlots(a, initial);
@@ -120,29 +129,56 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     await load();
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (notFound || !appt) {
-    return <p className="text-error">Rendez-vous introuvable.</p>;
+    // A persistent state is a page: it needs the h1 and a way out
+    // (SYSTEM §12 — an error state without one is a dead end).
+    return (
+      <div>
+        <h1 className="text-titleLarge font-semibold text-textPrimary">
+          Rendez-vous introuvable
+        </h1>
+        <p role="alert" className="mt-s text-bodyLarge text-error">
+          Ce rendez-vous n’existe pas ou n’est plus accessible.
+        </p>
+        <p className="mt-m">
+          <Link href="/mon-compte" className="text-bodyMedium underline">
+            ← Mes rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
   }
+
+  // The salon's market (multi-pays): booking-stamped currency first (the
+  // Fresha rule), then the provider carrier; timezone from the carrier.
+  const tz = appt.providerTimezone ?? undefined;
+  const currency = appt.currency ?? appt.providerCurrency ?? undefined;
 
   return (
     <div>
-      <Link href="/mon-compte" className="text-sm text-textTertiary">
+      <Link href="/mon-compte" className="text-bodyMedium text-textTertiary">
         ← Mes rendez-vous
       </Link>
       <section className="mt-m rounded-xl border border-border bg-secondary p-l">
-        <div className="flex items-center justify-between gap-m">
-          <h2 className="text-lg font-semibold text-textPrimary">
+        {/* B11: the fifth and sixth copies of this shape, and the two that
+            matter most — the heading here is a SALON NAME, unbounded user
+            data, sitting beside a status chip with nothing allowed to
+            wrap. The four fixed earlier all hold fixed page titles. The
+            review caught these; the census had listed them under "button
+            clusters" rather than title toolbars. */}
+        <div className="flex flex-wrap items-center justify-between gap-m">
+          <h1 className="text-titleLarge font-semibold text-textPrimary">
             {appt.providerName ?? 'Salon'}
-          </h2>
-          <span className="rounded-full bg-surface px-s py-xs text-xs text-textSecondary">
+          </h1>
+          <Chip>
             {statusLabelFr(appt.status)}
-          </span>
+          </Chip>
         </div>
         {appt.providerSlug ? (
           <Link
             href={`/${appt.providerSlug}`}
-            className="text-sm text-textPrimary underline"
+            className="text-bodyMedium text-textPrimary underline"
           >
             Voir le salon
           </Link>
@@ -155,7 +191,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               href={googleCalendarUrl(appt)}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Ajouter au calendrier (Google)
             </a>
@@ -172,7 +208,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 el.click();
                 URL.revokeObjectURL(url);
               }}
-              className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Fichier .ics
             </button>
@@ -185,7 +221,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             {appt.providerPhone ? (
               <a
                 href={`tel:${appt.providerPhone.replace(/\s/g, '')}`}
-                className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 Appeler
               </a>
@@ -195,7 +231,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg border border-border bg-surface px-m py-xs text-sm text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 WhatsApp
               </a>
@@ -203,8 +239,11 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </div>
         ) : null}
 
-        <dl className="mt-m space-y-xs text-sm">
-          <Row label="Date" value={formatDateTimeFr(appt.appointmentDate)} />
+        <dl className="mt-m space-y-xs text-bodyMedium">
+          <Row
+            label="Date"
+            value={formatDateTimeFr(appt.appointmentDate, tz)}
+          />
           {appt.serviceNames && appt.serviceNames.length > 0 ? (
             <Row label="Prestations" value={appt.serviceNames.join(', ')} />
           ) : null}
@@ -213,19 +252,29 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           ) : null}
           {appt.notes ? <Row label="Notes" value={appt.notes} /> : null}
           {typeof appt.totalPrice === 'number' ? (
-            <Row label="Total" value={formatFcfa(appt.totalPrice)} />
+            <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
           {appt.depositAmount ? (
-            <Row label="Acompte" value={formatFcfa(appt.depositAmount)} />
+            <Row
+              label="Acompte"
+              value={formatFcfa(appt.depositAmount, currency)}
+            />
           ) : null}
           {typeof appt.balanceDue === 'number' ? (
-            <Row label="Reste à payer" value={formatFcfa(appt.balanceDue)} />
+            <Row
+              label="Reste à payer"
+              value={formatFcfa(appt.balanceDue, currency)}
+            />
           ) : null}
         </dl>
-        <SalonTimeHint date={appt.appointmentDate} />
+        <SalonTimeHint
+          date={appt.appointmentDate}
+          tz={appt.providerTimezone}
+          countryLabel={countryName(tree, appt.providerCountryCode)}
+        />
 
         {appt.salonEntered ? (
-          <p className="mt-m text-xs text-textTertiary">
+          <p className="mt-m text-bodySmall text-textTertiary">
             Réservé par votre salon.
           </p>
         ) : null}
@@ -238,11 +287,12 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               amount={appt.depositAmount ?? 0}
               operator={appt.depositMobileMoneyOperator}
               number={appt.depositMobileMoneyNumber}
+              currency={currency}
               onAttached={load}
             />
           </div>
         ) : appt.status === 'pending' && appt.depositScreenshotUrl ? (
-          <p className="mt-m text-sm text-textSecondary">
+          <p className="mt-m text-bodyLarge text-textSecondary">
             Justificatif d’acompte envoyé · en attente de confirmation du
             salon.{' '}
             <a
@@ -257,13 +307,13 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         {cancelError ? (
-          <p className="mt-s text-sm text-error">
+          <p role="alert" className="mt-s text-bodyMedium text-error">
             L’annulation a échoué. Réessayez.
           </p>
         ) : null}
 
         {rescheduled ? (
-          <p className="mt-m text-sm text-textSecondary">
+          <p className="mt-m text-bodyMedium text-textSecondary">
             Rendez-vous reporté ✓
           </p>
         ) : null}
@@ -275,26 +325,25 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               <Button onClick={() => openReschedule(appt)}>Reporter</Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-sm text-textPrimary">
+                <p className="text-bodyLarge text-textPrimary">
                   Choisissez un nouveau créneau
                 </p>
-                <input
+                <TextField
+                  className="mt-s"
+                  label="Nouvelle date"
+                  hideLabel
                   type="date"
-                  aria-label="Nouvelle date"
-                  min={salonToday()}
+                  min={salonToday(new Date(), tz)}
                   value={reschedDate}
                   onChange={(e) => {
                     setReschedDate(e.target.value);
                     if (e.target.value) loadSlots(appt, e.target.value);
                   }}
-                  className="mt-s rounded-lg border border-border bg-secondary px-m py-s text-sm text-textPrimary"
                 />
                 {slotsLoading ? (
-                  <p className="mt-s text-sm text-textSecondary">
-                    Chargement des créneaux…
-                  </p>
+                  <Loading label="Chargement des créneaux…" className="mt-s" />
                 ) : slots.length === 0 ? (
-                  <p className="mt-s text-sm text-textSecondary">
+                  <p className="mt-s text-bodyMedium text-textSecondary">
                     Aucun créneau disponible ce jour.
                   </p>
                 ) : (
@@ -304,22 +353,18 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                         key={iso}
                         type="button"
                         onClick={() => setPickedSlot(iso)}
-                        className={`rounded-full border px-m py-xs text-sm ${
-                          pickedSlot === iso
-                            ? 'border-primary bg-primary text-secondary'
-                            : 'border-border bg-secondary text-textPrimary'
-                        }`}
+                        className={chipLinkClasses(pickedSlot === iso)}
                       >
-                        {salonFormatter({
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }).format(new Date(iso))}
+                        {salonFormatter(
+                          { hour: '2-digit', minute: '2-digit' },
+                          tz,
+                        ).format(new Date(iso))}
                       </button>
                     ))}
                   </div>
                 )}
                 {reschedError ? (
-                  <p className="mt-s text-sm text-error">{reschedError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">{reschedError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button
@@ -348,7 +393,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               </Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-sm text-textSecondary">
+                <p className="text-bodyLarge text-textSecondary">
                   Confirmer l’annulation&nbsp;?
                   {appt.depositAmount
                     ? ' L’acompte peut ne pas être remboursé selon la politique du salon.'
@@ -374,7 +419,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <div className="mt-l">
             <Link
               href={rebookHref(appt)!}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-sm font-medium text-secondary hover:bg-primaryLight"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
             >
               Réserver à nouveau
             </Link>

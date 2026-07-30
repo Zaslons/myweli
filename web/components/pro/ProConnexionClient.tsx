@@ -14,7 +14,7 @@ export function ProConnexionClient() {
       {revoked ? (
         <p
           role="alert"
-          className="rounded-lg border border-error/40 bg-error/10 p-m text-sm text-error"
+          className="rounded-lg border border-error/40 bg-error/10 p-m text-bodyMedium text-error"
         >
           {teamErrorMessage('not_a_member')}
         </p>

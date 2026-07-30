@@ -69,7 +69,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         notifyListeners();
         return true;
       } else {
-        _error = response.error ?? 'Erreur lors de l\'acceptation';
+        _error = response.error ?? 'Erreur lors de l’acceptation';
         notifyListeners();
         return false;
       }

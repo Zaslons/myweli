@@ -1,15 +1,29 @@
-import { categoryList, communes } from './landing';
+import type { LocalityTree } from './api/localities';
+import { allAreas } from './api/localities';
+import { buildTaxonomyPath, categoryList } from './landing';
 import { serviceSlugForQuery } from './service-landing';
 import { normalize, slugify } from './slug';
 
 /// Discovery search routing (pure, unit-tested): map the hero's two fields
-/// (service + commune) to the best destination — an existing SEO landing when
-/// both resolve, else the /recherche results page.
+/// (service + commune/quartier) to the best destination — a nested SEO
+/// landing when both resolve, else the /recherche results page. Geography
+/// comes from the locality tree (multi-pays MP3).
 
-export function resolveCommune(text: string): string | null {
-  const n = normalize(text);
+export type ResolvedArea = { citySlug: string; areaSlug: string; name: string };
+
+/// Accent/case-insensitive area-name match against the tree.
+export function resolveArea(
+  text: string,
+  tree: LocalityTree,
+): ResolvedArea | null {
+  const n = normalize(text).trim();
   if (!n) return null;
-  return communes.find((c) => normalize(c) === n) ?? null;
+  for (const { city, area } of allAreas(tree)) {
+    if (normalize(area.name) === n || area.slug === slugify(text)) {
+      return { citySlug: city.slug, areaSlug: area.slug, name: area.name };
+    }
+  }
+  return null;
 }
 
 export function resolveCategorySlug(text: string): string | null {
@@ -22,16 +36,20 @@ export function resolveCategorySlug(text: string): string | null {
 }
 
 /// service+commune → href:
-///  - category + commune → `/coiffure-cocody` (category landing)
-///  - service  + commune → `/tresses-cocody` (service landing)
-///  - otherwise          → `/recherche?q=&commune=`
-export function resolveSearchHref(service: string, commune: string): string {
-  const com = resolveCommune(commune);
-  if (com) {
+///  - category + area → `/coiffure/abidjan/cocody` (category landing)
+///  - service  + area → `/tresses/abidjan/cocody` (service landing)
+///  - otherwise       → `/recherche?q=&commune=`
+export function resolveSearchHref(
+  service: string,
+  commune: string,
+  tree: LocalityTree,
+): string {
+  const area = resolveArea(commune, tree);
+  if (area) {
     const cat = resolveCategorySlug(service);
-    if (cat) return `/${cat}-${slugify(com)}`;
+    if (cat) return buildTaxonomyPath(cat, area.citySlug, area.areaSlug);
     const svc = serviceSlugForQuery(service);
-    if (svc) return `/${svc}-${slugify(com)}`;
+    if (svc) return buildTaxonomyPath(svc, area.citySlug, area.areaSlug);
   }
   const qs = new URLSearchParams();
   if (service.trim()) qs.set('q', service.trim());

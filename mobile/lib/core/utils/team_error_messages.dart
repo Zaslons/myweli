@@ -3,12 +3,12 @@
 /// can never drift between backends.
 /// Design: docs/design/team-access-r3-app.md §7.
 String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
-      'member_exists' => 'Cette personne est déjà dans l\'équipe.',
+      'member_exists' => 'Cette personne est déjà dans l’équipe.',
       'offer_required' =>
-        'Choisissez d\'abord votre offre pour inviter votre équipe.',
+        'Choisissez d’abord votre offre pour inviter votre équipe.',
       'seat_limit' => 'Toutes les places de votre offre sont occupées.',
       'invite_rate_limited' =>
-        'Trop d\'invitations envoyées aujourd\'hui. Réessayez demain.',
+        'Trop d’invitations envoyées aujourd’hui. Réessayez demain.',
       'owner_protected' => 'Le propriétaire ne peut pas être modifié.',
       'invitation_expired' =>
         'Cette invitation a expiré. Demandez au salon de la renvoyer.',
@@ -21,8 +21,8 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
             'activer votre offre.',
       'not_found' => 'Introuvable. Actualisez et réessayez.',
       // R6 multi-salons (« Ajouter un salon »).
-      'reseau_required' => 'L\'offre Réseau est requise pour ajouter un salon. '
-          'Passez à l\'offre Réseau depuis « Mon abonnement ».',
+      'reseau_required' => 'L’offre Réseau est requise pour ajouter un salon. '
+          'Passez à l’offre Réseau depuis « Mon abonnement ».',
       'salon_limit' =>
         'Limite de salons atteinte. Contactez-nous pour aller plus loin.',
       'not_a_member' => 'Votre accès à ce salon a été retiré.',
