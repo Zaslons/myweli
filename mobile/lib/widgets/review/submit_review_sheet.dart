@@ -7,13 +7,15 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
-import '../../core/utils/helpers.dart';
+import '../../core/utils/app_clock.dart';
 import '../../models/artist.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_button.dart';
 import '../common/app_text_field.dart';
+import '../common/inline_feedback.dart';
 import '../common/timed_cached_image.dart';
 import '../provider/image_picker_sheet.dart';
 import '../provider/mock_image_picker_sheet.dart';
@@ -44,6 +46,11 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
   final _textController = TextEditingController();
   final List<String> _photoUrls = [];
   bool _uploadingPhoto = false;
+
+  /// A6: a failure raised while this sheet is open cannot be a snackbar — the
+  /// modal barrier prunes it from the semantics tree and paints it under the
+  /// scrim. It belongs here, inside the sheet that owns the failure.
+  String? _error;
   bool _submitting = false;
 
   @override
@@ -71,19 +78,20 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       if (url != null) _photoUrls.add(url);
     });
     if (url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Échec de l’envoi de la photo'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      setState(() => _error = 'Échec de l’envoi de la photo');
     }
   }
 
   void _removePhoto(int index) => setState(() => _photoUrls.removeAt(index));
 
   Future<void> _submit() async {
-    if (_selectedRating < 1) return;
+    if (_selectedRating < 1) {
+      // The stars are a SELECTION — no field to sit under — so the fault lands
+      // form-level (§14's three-slot boundary). It used to be a dead « Publier »
+      // and a silent `return`: two ways of saying nothing.
+      setState(() => _error = 'Choisissez une note de 1 à 5 étoiles.');
+      return;
+    }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
@@ -116,32 +124,27 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
       artistId: _selectedArtistId,
       artistName: artistName,
       photoUrls: List<String>.from(_photoUrls),
-      createdAt: DateTime.now(),
+      createdAt: AppClock.now(),
     );
 
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     final ok = await providerProvider.submitReview(review);
     if (!mounted) return;
     setState(() => _submitting = false);
 
     if (ok) {
       widget.onSubmitted?.call();
-      Helpers.announce(context, 'Merci pour votre avis');
+      // The snackbar below is a live region — announcing here as well
+      // double-spoke it on iOS and cleared TalkBack's queue on Android.
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Merci pour votre avis'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.show(context, 'Merci pour votre avis',
+          kind: SnackKind.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(providerProvider.error ?? 'Erreur lors de la publication'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      setState(() =>
+          _error = providerProvider.error ?? 'Erreur lors de la publication');
     }
   }
 
@@ -150,7 +153,9 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
     final artists =
         context.watch<ProviderProvider>().selectedProvider?.artists ??
             const <Artist>[];
-    final canSubmit = _selectedRating >= 1 && !_submitting && !_uploadingPhoto;
+    // §14 rule 5: NOT gated on the rating. `_uploadingPhoto` and `_submitting`
+    // are work in progress, which is the rule's one allowed reason to disable.
+    final canSubmit = !_submitting && !_uploadingPhoto;
     return Padding(
       padding: const EdgeInsets.all(AppTheme.spacingL),
       child: Column(
@@ -298,6 +303,7 @@ class _SubmitReviewSheetState extends State<SubmitReviewSheet> {
               ],
             ),
           ),
+          InlineFeedback(_error),
           const SizedBox(height: AppTheme.spacingL),
           Row(
             children: [

@@ -24,7 +24,7 @@ class _NavGroup {
 // Litiges / Audit as they ship (no dead links).
 const _groups = [
   _NavGroup('Vue', [
-    _NavItem('/admin/dashboard', Icons.dashboard_outlined, "Vue d'ensemble"),
+    _NavItem('/admin/dashboard', Icons.dashboard_outlined, 'Vue d’ensemble'),
   ]),
   _NavGroup('Modération', [
     _NavItem('/admin/kyc', Icons.verified_user_outlined, 'KYC'),

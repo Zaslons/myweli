@@ -3,6 +3,7 @@ import defaultTheme from 'tailwindcss/defaultTheme';
 import {
   colors,
   icon,
+  layout,
   motion,
   radius,
   screens,
@@ -85,13 +86,13 @@ const config: Config = {
       max: 'max-content',
       fit: 'fit-content',
       prose: '65ch',
-      // SYSTEM.md §10's `contentMaxWidth = 720` — the ONE non-icon dimension the
-      // design system names, and it had never been implemented on either surface
-      // (it lives in §10 as prose, and in no code). Naming it here is a
-      // convergence, not an invention. §10: "text and forms never stretch past
-      // it — a 1000px-wide line of French body copy is unreadable." Applying it
-      // to the pages that need it is a layout decision, not a token one (§15).
-      content: '720px',
+      // SYSTEM.md §10's `contentMaxWidth` — the ONE non-icon dimension the design
+      // system names. **Generated since A11 C6**: it was a hard-coded '720px'
+      // here, with a comment admitting it stood in for §10 because §10 lived in
+      // prose and in no code. It now comes from `AppTheme.contentMaxWidth`
+      // through `LAYOUT_KEYS`, like every other token. Applying it to the pages
+      // that need it is still a layout decision, not a token one (§15).
+      ...layout,
     }),
 
     // These derive from `colors`, whose palette we just replaced. Tailwind's own
@@ -142,6 +143,13 @@ const config: Config = {
       maxHeight: defaultTheme.spacing,
       inset: defaultTheme.spacing,
       translate: defaultTheme.spacing,
+      // ─── B7: the desktop two-pane (WEB-SYSTEM §9) ──────────────────────────
+      // NAMED, not arbitrary (`grid-cols-[…]` is banned): the pro dashboard's
+      // main-pane + 320px right rail. One name so every two-pane surface
+      // agrees on the rail width.
+      gridTemplateColumns: {
+        desk: 'minmax(0, 1fr) 20rem',
+      },
       // `size` is NOT here: `size-*` has 74 keys and zero uses — all 17 square
       // elements spell `h-N w-N`. The carve-out was dead weight.
       //

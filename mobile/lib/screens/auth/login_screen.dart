@@ -8,13 +8,17 @@ import 'package:provider/provider.dart';
 
 import '../../core/config/feature_flags.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/forms/field_errors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/google_g_logo.dart';
+import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/phone_number_field.dart';
 
 /// Consumer sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
@@ -39,8 +43,17 @@ class _LoginScreenState extends State<LoginScreen> {
   _LoginStep _step = _LoginStep.options;
   String _phoneNumber = '';
 
-  bool get _emailValid => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-      .hasMatch(_emailController.text.trim());
+  // A7/§14 — one e-mail rule, product-wide. This screen carried its own loose
+  // copy (`[^@\s]+@[^@\s]+\.[^@\s]+`), one of four, which accepted a
+  // single-character TLD the strict rule rejects.
+  late final _errors = FieldErrors({
+    'email': Validators.email,
+    'code': Validators.otp,
+    'phone': Validators.phoneNumber,
+  });
+  final _emailFocus = FocusNode();
+  final _codeFocus = FocusNode();
+  late final _focusNodes = {'email': _emailFocus, 'code': _codeFocus};
 
   bool get _showApple =>
       FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
@@ -50,6 +63,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _cooldownTimer?.cancel();
     _emailController.dispose();
     _codeController.dispose();
+    _emailFocus.dispose();
+    _codeFocus.dispose();
     super.dispose();
   }
 
@@ -101,6 +116,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _sendEmailCode() async {
+    // §14 rule 5: the button is never disabled for validity, so it answers.
+    if (!_errors.validate({'email': _emailController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final ok = await auth.requestEmailOtp(_emailController.text.trim());
     if (!mounted) return;
@@ -114,6 +135,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _verifyEmailCode() async {
+    if (!_errors.validate({'code': _codeController.text})) {
+      setState(() {});
+      focusFirstError(_errors, _focusNodes);
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final ok = await auth.verifyEmailOtp(
       _emailController.text.trim(),
@@ -124,6 +150,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _savePhone() async {
+    // §14 rule 5 cuts both ways: A7 removed the `_phoneNumber.isEmpty` gate
+    // that used to hold this step, and — the review's finding — put nothing
+    // behind it. `'phone'` was declared and bound to an errorText that could
+    // never populate, so one tap saved an EMPTY phone (the backend documents
+    // `''` as "clear it", 200) and landed on /home. This is the app's only
+    // enforcement of the mandatory contact number.
+    if (!_errors.validate({'phone': _phoneNumber})) {
+      setState(() {});
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final ok = await auth.updateUser(phone: _phoneNumber);
     if (!mounted) return;
@@ -152,14 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: AppTheme.spacingL),
               ..._buildStep(auth),
               const SizedBox(height: AppTheme.spacingL),
-              if (_step != _LoginStep.phone)
-                Text(
-                  'En continuant, vous acceptez nos conditions d\'utilisation',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+              if (_step != _LoginStep.phone) const LegalConsentText(),
             ],
           ),
         ),
@@ -229,25 +258,24 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: AppTheme.spacingL),
         AppTextField(
           controller: _emailController,
+          focusNode: _emailFocus,
           label: 'Votre e-mail',
           hint: 'exemple@email.com',
           keyboardType: TextInputType.emailAddress,
-          onChanged: (_) => setState(() {}),
+          errorText: _errors['email'],
+          onChanged: (v) => setState(() => _errors.revalidate('email', v)),
         ),
         const SizedBox(height: AppTheme.spacingM),
         AppButton(
           text: 'Continuer avec e-mail',
-          onPressed: (auth.isLoading || !_emailValid) ? null : _sendEmailCode,
+          // §14 rule 5: disabled ONLY while submitting.
+          onPressed: auth.isLoading ? null : _sendEmailCode,
           isLoading: auth.isLoading,
         ),
-        if (auth.error != null) ...[
-          const SizedBox(height: AppTheme.spacingSM),
-          Text(
-            auth.error!,
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
+        // — and `InlineFeedback` is a live region, which a hand-rolled red Text
+        // never was.
+        InlineFeedback(auth.error),
       ];
 
   List<Widget> _codeStep(AuthProvider auth) => [
@@ -261,10 +289,12 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: AppTheme.spacingL),
         AppTextField(
           controller: _codeController,
+          focusNode: _codeFocus,
           label: 'Code à 6 chiffres',
           keyboardType: TextInputType.number,
           maxLength: 6,
-          onChanged: (_) => setState(() {}),
+          errorText: _errors['code'],
+          onChanged: (v) => setState(() => _errors.revalidate('code', v)),
         ),
         if (auth.emailDevCode != null) ...[
           const SizedBox(height: AppTheme.spacingXS),
@@ -279,9 +309,10 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: AppTheme.spacingM),
         AppButton(
           text: 'Se connecter',
-          onPressed: (auth.isLoading || _codeController.text.trim().length < 4)
-              ? null
-              : _verifyEmailCode,
+          // The gate said 4 on a field labelled « Code à 6 chiffres » with
+          // maxLength 6 — a four-digit code walked through. Rule 5: disabled
+          // only while submitting; the code's own rule answers under the field.
+          onPressed: auth.isLoading ? null : _verifyEmailCode,
           isLoading: auth.isLoading,
         ),
         const SizedBox(height: AppTheme.spacingSM),
@@ -295,20 +326,16 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: AppTheme.spacingXS),
         AppButton(
-          text: 'Changer d\'e-mail',
+          text: 'Changer d’e-mail',
           type: AppButtonType.text,
           onPressed: auth.isLoading
               ? null
               : () => setState(() => _step = _LoginStep.options),
         ),
-        if (auth.error != null) ...[
-          const SizedBox(height: AppTheme.spacingSM),
-          Text(
-            auth.error!,
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
+        // — and `InlineFeedback` is a live region, which a hand-rolled red Text
+        // never was.
+        InlineFeedback(auth.error),
       ];
 
   List<Widget> _phoneStep(AuthProvider auth) => [
@@ -321,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: AppTheme.spacingS),
         Text(
-          'Le salon l\'utilise pour vous contacter au sujet de vos rendez-vous.',
+          'Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.',
           style: AppTextStyles.bodyLarge.copyWith(
             color: AppColors.textSecondary,
           ),
@@ -329,22 +356,26 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: AppTheme.spacingL),
         PhoneNumberField(
-          onChanged: (e164) => setState(() => _phoneNumber = e164),
+          // A7 said this field sat outside any Form so the package's check
+          // "could never run here". That was measured FALSE: IntlPhoneField
+          // defaults to onUserInteraction and needs no Form, so it WAS judging
+          // from the first keystroke and overwriting our message. It is
+          // silenced at the widget now; FieldErrors is the only rule.
+          errorText: _errors['phone'],
+          onChanged: (e164) => setState(() {
+            _phoneNumber = e164;
+            _errors.revalidate('phone', e164);
+          }),
         ),
         const SizedBox(height: AppTheme.spacingM),
         AppButton(
           text: 'Continuer',
-          onPressed:
-              (auth.isLoading || _phoneNumber.isEmpty) ? null : _savePhone,
+          onPressed: auth.isLoading ? null : _savePhone,
           isLoading: auth.isLoading,
         ),
-        if (auth.error != null) ...[
-          const SizedBox(height: AppTheme.spacingSM),
-          Text(
-            auth.error!,
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
+        // — and `InlineFeedback` is a live region, which a hand-rolled red Text
+        // never was.
+        InlineFeedback(auth.error),
       ];
 }

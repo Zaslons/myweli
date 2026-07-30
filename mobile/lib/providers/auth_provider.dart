@@ -73,7 +73,7 @@ class AuthProvider extends ChangeNotifier {
         _otpErrorCode = null;
         return true;
       } else {
-        _error = response.error ?? 'Erreur lors de l\'envoi du code';
+        _error = response.error ?? 'Erreur lors de l’envoi du code';
         _otpErrorCode = response.code;
         return false;
       }

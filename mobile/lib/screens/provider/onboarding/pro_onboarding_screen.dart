@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -41,24 +43,23 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
     // Pricing pivot: the server's `offer` gate points to the picker.
     final offerRequired =
         !ok && onboarding.publishErrorCode == 'offer_required';
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? '🎉 Votre profil est en ligne !'
-              : offerRequired
-                  ? 'Choisissez votre offre avant la mise en ligne.'
-                  : (onboarding.error ?? 'La mise en ligne a échoué'),
-        ),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-        action: offerRequired
-            ? SnackBarAction(
-                label: 'Choisir',
-                textColor: AppColors.surface,
-                onPressed: () => router.push('/pro/subscription'),
-              )
-            : null,
-      ),
+    AppSnackBar.showOn(
+      messenger,
+      ok
+          ? '🎉 Votre profil est en ligne !'
+          : offerRequired
+              ? 'Choisissez votre offre avant la mise en ligne.'
+              : (onboarding.error ?? 'La mise en ligne a échoué'),
+      kind: ok ? SnackKind.success : SnackKind.error,
+      // The product's only pre-A6 action — a NAVIGATION, not an undo. It ran
+      // at Material's 4s default; §15 gives it the 10s it always needed,
+      // because the snackbar is the only route to the offer picker from here.
+      action: offerRequired
+          ? SnackAction(
+              label: 'Choisir',
+              onPressed: () => router.push('/pro/subscription'),
+            )
+          : null,
     );
   }
 
@@ -99,7 +100,9 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
         Text(
-          '${progress.done} étapes sur ${progress.total} terminées',
+          '${Formatters.count(progress.done, 'étape', 'étapes')} sur '
+          '${progress.total} '
+          '${Formatters.plural(progress.done, 'terminée', 'terminées')}',
           style:
               AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
         ),
@@ -180,7 +183,7 @@ class _StepRow extends StatelessWidget {
   String _label(OnboardingStepKey key) {
     switch (key) {
       case OnboardingStepKey.profile:
-        return 'Profil de l\'entreprise';
+        return 'Profil de l’entreprise';
       case OnboardingStepKey.location:
         return 'Position sur la carte';
       case OnboardingStepKey.services:

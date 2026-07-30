@@ -9,6 +9,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 
@@ -216,21 +217,6 @@ class _AppointmentCard extends StatelessWidget {
   Color _getStatusColor(AppointmentStatus status) =>
       appointmentStatusColor(status);
 
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -256,7 +242,11 @@ class _AppointmentCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: AppTheme.spacingXS),
-            Text('${appointment.serviceIds.length} service(s)'),
+            Text(Formatters.count(
+              appointment.serviceIds.length,
+              'service',
+              'services',
+            )),
             Text(Formatters.formatCurrency(
               appointment.totalPrice,
               currency: context.read<ProAuthProvider>().salonCurrency,
@@ -265,7 +255,7 @@ class _AppointmentCard extends StatelessWidget {
         ),
         trailing: Chip(
           label: Text(
-            _getStatusText(appointment.status),
+            StatusLabels.of(appointment.status),
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
           backgroundColor: _getStatusColor(appointment.status),

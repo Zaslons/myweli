@@ -23,6 +23,23 @@ const RING = {
   outlineOffset: '2px',
 };
 
+/// **A snapshot read, and every caller must POLL it.**
+///
+/// `locator.evaluate` resolves once and does not retry — unlike
+/// `expect(locator).toHaveCSS(...)`, which Playwright re-queries until it
+/// matches or the `expect` budget runs out. This file read it bare at all three
+/// call sites, so each assertion was a single sample of a value the browser is
+/// still settling.
+///
+/// It survived for months and then went red **three runs in a row** the moment
+/// B12 turned `trace: 'retain-on-failure'` on: tracing instruments every action,
+/// and the extra latency was enough to move the sample. The trace did not break
+/// the test — **it exposed a test that was always sampling a race**, which is
+/// the job it was added to do.
+///
+/// The four properties have to be read together, in one `evaluate`, because
+/// `toHaveCSS` takes one property at a time and the ring is a set. So the shape
+/// stays; the callers wrap it in `expect.poll`.
 async function outlineOf(locator: import('@playwright/test').Locator) {
   return locator.evaluate((el) => {
     const s = getComputedStyle(el);
@@ -44,7 +61,7 @@ test('the first Tab on a public page is the skip link, wearing the ring', async 
   const skip = page.getByRole('link', { name: 'Aller au contenu' });
   await expect(skip).toBeFocused();
   await expect(skip).toBeVisible(); // sr-only until focused — focus must reveal it
-  expect(await outlineOf(skip)).toEqual(RING);
+  await expect.poll(() => outlineOf(skip)).toEqual(RING);
 
   // Activating it moves the subsequent tab order into the content.
   await page.keyboard.press('Enter');
@@ -66,17 +83,22 @@ test('keyboard focus wears the ring; a clicked button does not', async ({
     if (await search.evaluate((el) => el === document.activeElement)) break;
   }
   await expect(search).toBeFocused();
-  expect(await outlineOf(search)).toEqual(RING);
+  await expect.poll(() => outlineOf(search)).toEqual(RING);
 
   // Mouse: the same button, clicked — :focus-visible must NOT match. (Text
   // fields legitimately DO show the ring on click; buttons must not.)
   await page.mouse.click(5, 400); // drop focus somewhere inert
   const box = await search.boundingBox();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  const clicked = await outlineOf(search);
-  expect(clicked.outlineStyle === 'none' || clicked.outlineWidth === '0px').toBe(
-    true,
-  );
+  await expect
+      .poll(async () => {
+        const o = await outlineOf(search);
+        return o.outlineStyle === 'none' || o.outlineWidth === '0px';
+      }, {
+        message:
+            'a button reached by MOUSE must not wear the :focus-visible ring',
+      })
+      .toBe(true);
 });
 
 test('a focused text field shows BOTH indicators — the border swap and the ring', async ({
@@ -121,4 +143,43 @@ test('an invalid submit ties the error to its field (§6, §14)', async ({
   // The error <p> is one of the describedby targets — the association is real.
   const alertId = await alert.getAttribute('id');
   expect(ids).toContain(alertId);
+});
+
+test('an open Modal traps Tab in a REAL browser and restores on Escape (§8)', async ({
+  page,
+}) => {
+  // jsdom pins the cycling logic (tests/modal.test.tsx); this is the
+  // browser-truth twin — a Tab walk can NEVER land outside the dialog.
+  await page.goto('/pro/connexion');
+  await page.getByLabel('Votre e-mail').fill('salon@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.getByLabel('Code à 6 chiffres').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/pro(\/)?$/);
+
+  await page.goto('/pro/clients');
+  const opener = page.getByRole('button', { name: 'Ajouter un client' });
+  await opener.focus();
+  await opener.press('Enter');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+
+  // Focus moved IN on open.
+  expect(
+    await dialog.evaluate((d) => d.contains(document.activeElement)),
+  ).toBe(true);
+
+  // 12 Tabs (more than the dialog has focusables) never escape the panel.
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press(i % 3 === 2 ? 'Shift+Tab' : 'Tab');
+    expect(
+      await dialog.evaluate((d) => d.contains(document.activeElement)),
+      `Tab #${i + 1} escaped the dialog`,
+    ).toBe(true);
+  }
+
+  // Escape closes and the OPENER gets focus back.
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
 });

@@ -122,19 +122,23 @@ void main() {
     expect(find.text('Salon Excellence'), findsNWidgets(2));
     expect(find.text('Mes salons'), findsOneWidget);
     expect(find.text('Manager'), findsOneWidget);
-    expect(find.text('Nom de l\'entreprise'), findsNothing);
+    expect(find.text('Nom de l’entreprise'), findsNothing);
 
     expect(find.text('Profil du salon'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsNothing);
     expect(find.text('Vérification'), findsNothing);
     expect(find.text('Équipe'), findsNothing);
     expect(find.text('Mon abonnement'), findsNothing);
-    expect(find.text('Paramètres d\'acompte'), findsNothing);
+    expect(find.text('Paramètres d’acompte'), findsNothing);
     await scrollDown(tester);
     expect(find.text('Photos du salon'), findsOneWidget);
     expect(find.text('Avant / Après'), findsOneWidget);
     expect(find.text('Mes données'), findsNothing);
     await scrollDown(tester);
+    // L1: legal is NOT capability-gated — every role, and a signed-out reviewer,
+    // must reach the privacy policy. Placed ABOVE « Déconnexion » so the
+    // existing scroll ladder still reaches it.
+    expect(find.text('À propos'), findsOneWidget);
     expect(find.text('Déconnexion'), findsOneWidget);
   });
 
@@ -155,6 +159,7 @@ void main() {
     expect(find.text('Équipe'), findsNothing);
     expect(find.text('Mon abonnement'), findsNothing);
     await scrollDown(tester);
+    expect(find.text('À propos'), findsOneWidget);
     expect(find.text('Déconnexion'), findsOneWidget);
     expect(find.text('Supprimer mon compte'), findsOneWidget);
   });
@@ -173,11 +178,14 @@ void main() {
     await tester.pumpWidget(app(await readyAuth(tester)));
     await settle(tester);
 
-    expect(find.text('Nom de l\'entreprise'), findsOneWidget);
+    expect(find.text('Nom de l’entreprise'), findsOneWidget);
     expect(find.text('Configurer mon profil'), findsOneWidget);
     expect(find.text('Équipe'), findsOneWidget);
     await scrollDown(tester);
     expect(find.text('Mon abonnement'), findsOneWidget);
-    expect(find.text('Paramètres d\'acompte'), findsOneWidget);
+    expect(find.text('Paramètres d’acompte'), findsOneWidget);
+    await scrollDown(tester);
+    await scrollDown(tester);
+    expect(find.text('À propos'), findsOneWidget);
   });
 }

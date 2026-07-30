@@ -19,7 +19,7 @@ import '../support/wcag.dart';
 /// (3.04:1). The two remaining un-floored rows are decoration, and say so.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('the color tokens', (tester) async {
       await pumpGolden(
@@ -209,7 +209,7 @@ class _SwatchRow extends StatelessWidget {
 }
 
 TextStyle _mono(double size, FontWeight weight) => TextStyle(
-      fontFamily: kGoldenFont,
+      fontFamily: kRealFont,
       fontSize: size,
       fontWeight: weight,
       color: AppColors.textPrimary,

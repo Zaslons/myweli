@@ -245,4 +245,30 @@ class PostgresAppointmentRepository implements AppointmentRepository {
         },
     ];
   }
+
+  @override
+  Future<List<String>> anonymizeUser(String userId) async {
+    // One round-trip, and deliberately so. Postgres has no `RETURNING OLD.*`,
+    // and the deposit keys must be read BEFORE the column is cleared — a CTE
+    // reads the pre-statement snapshot, so "the key I returned" and "the key I
+    // cleared" are the same set by construction rather than by luck.
+    final rows = await _pool.execute(
+      Sql.named('''
+WITH victims AS (
+  SELECT deposit_screenshot_url AS key FROM appointments
+   WHERE user_id = @uid AND deposit_screenshot_url IS NOT NULL
+), cleared AS (
+  UPDATE appointments
+     SET client_name = NULL, client_phone = NULL, notes = NULL,
+         deposit_screenshot_url = NULL
+   WHERE user_id = @uid
+)
+SELECT key FROM victims'''),
+      parameters: {'uid': userId},
+    );
+    return [
+      for (final r in rows)
+        if (r[0] case final String k) k,
+    ];
+  }
 }

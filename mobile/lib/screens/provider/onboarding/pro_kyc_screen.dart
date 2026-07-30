@@ -12,6 +12,7 @@ import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_kyc_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 
@@ -37,13 +38,11 @@ class _ProKycScreenState extends State<ProKycScreen> {
   Future<void> _submit(ProviderUser pro, ProKycProvider kyc) async {
     final ok = await kyc.submit(pro.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? 'Documents soumis pour vérification' : (kyc.error ?? 'Erreur'),
-        ),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ),
+    AppSnackBar.outcome(
+      context,
+      ok: ok,
+      success: 'Documents soumis pour vérification',
+      error: kyc.error ?? 'Erreur',
     );
   }
 
@@ -171,12 +170,8 @@ class _ProKycScreenState extends State<ProKycScreen> {
     }
     final ok = await kyc.addDocument(type, source, contentType);
     if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(kyc.error ?? 'Échec de l’envoi du document'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, kyc.error ?? 'Échec de l’envoi du document',
+          kind: SnackKind.error);
     }
   }
 
@@ -358,13 +353,13 @@ class _DocumentTile extends StatelessWidget {
   String _label(KycDocumentType type) {
     switch (type) {
       case KycDocumentType.idCard:
-        return 'Pièce d\'identité (CNI / passeport)';
+        return 'Pièce d’identité (CNI / passeport)';
       case KycDocumentType.selfie:
         return 'Photo du visage';
       case KycDocumentType.businessRegistration:
         return 'Registre de commerce (RCCM)';
       case KycDocumentType.addressProof:
-        return 'Justificatif d\'adresse';
+        return 'Justificatif d’adresse';
     }
   }
 

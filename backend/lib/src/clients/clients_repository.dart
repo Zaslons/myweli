@@ -1,3 +1,5 @@
+import '../privacy/anonymized_identity.dart';
+
 /// The salon client base (module `clients`, slice C1 —
 /// docs/design/clients-c1.md). Each client is a `Map` in the `SalonClient`
 /// DTO shape (docs/api/openapi.yaml): `{id, providerId, userId?, displayName,
@@ -221,7 +223,7 @@ class InMemoryClientsRepository implements ClientsRepository {
     for (final c in _clients) {
       if (c['userId'] == userId) {
         c['userId'] = null;
-        c['displayName'] = 'Client';
+        c['displayName'] = anonymousClientLabel;
         c['phone'] = null;
       }
     }

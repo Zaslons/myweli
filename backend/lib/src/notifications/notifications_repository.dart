@@ -21,6 +21,10 @@ abstract interface class NotificationsRepository {
 
   /// Mark all the user's notifications read.
   Future<void> markAllRead(String userId);
+  // ---- Privacy (L1 erasure) ------------------------------------------------
+
+  /// The whole feed for this subject. Called on account erasure.
+  Future<void> deleteForUser(String userId);
 }
 
 class InMemoryNotificationsRepository implements NotificationsRepository {
@@ -82,4 +86,8 @@ class InMemoryNotificationsRepository implements NotificationsRepository {
       if (r['userId'] == userId) r['read'] = true;
     }
   }
+
+  @override
+  Future<void> deleteForUser(String userId) async =>
+      _rows.removeWhere((r) => r['userId'] == userId);
 }

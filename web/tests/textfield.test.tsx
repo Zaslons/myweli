@@ -55,6 +55,21 @@ describe('TextField', () => {
     );
   });
 
+  it('the typed text is 16 — the row-17 pin (B8)', () => {
+    // The M3 default: mobile's typed input text is 16px; 16 is also the
+    // threshold below which iOS Safari auto-zooms every focused field. A
+    // future input added at text-bodyMedium regresses both, silently.
+    render(<TextField label="E-mail" />);
+    const input = screen.getByLabelText('E-mail');
+    expect(input.className).toContain('text-bodyLarge');
+    expect(input.className).not.toContain('text-bodyMedium');
+
+    render(<TextField label="Note" multiline />);
+    const area = screen.getByLabelText('Note');
+    expect(area.className).toContain('text-bodyLarge');
+    expect(area.className).not.toContain('text-bodyMedium');
+  });
+
   it('multiline renders a real <textarea> with the same wiring', () => {
     render(<TextField label="Note (optionnelle)" multiline rows={3} />);
     const field = screen.getByLabelText('Note (optionnelle)');

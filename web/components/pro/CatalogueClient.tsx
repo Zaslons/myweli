@@ -1,6 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Card } from '../Card';
+import { DataTable } from '../DataTable';
+import { StatusChip } from '../StatusChip';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type ProProfile,
@@ -34,9 +39,17 @@ import {
   validateService,
 } from '../../lib/pro/catalogue';
 import { uploadGalleryImage } from '../../lib/pro/upload';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
+import { Tabs } from '../Tabs';
 
 type Tab = 'services' | 'equipe';
+
+const CATALOGUE_TABS: { key: Tab; label: string }[] = [
+  { key: 'services', label: 'Services' },
+  { key: 'equipe', label: 'Employés' },
+];
 // `open` = which form shows: null · 'new' · an item id (edit).
 type Open = null | 'new' | string;
 
@@ -67,9 +80,9 @@ export function CatalogueClient() {
     load();
   }, [load]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error || !profile) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Catalogue" onRetry={() => { setError(false); setLoading(true); void load(); }} />;
   }
 
   const providerId = profile.provider.id;
@@ -89,34 +102,26 @@ export function CatalogueClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Catalogue</h1>
         {open !== 'new' ? (
           <Button onClick={() => setOpen('new')}>{addLabel}</Button>
         ) : null}
       </div>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(
-          [
-            { key: 'services', label: 'Services' },
-            { key: 'equipe', label: 'Employés' },
-          ] as { key: Tab; label: string }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => switchTab(t.key)}
-            className={`px-m py-s text-bodyMedium ${
-              tab === t.key
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Catégorie du catalogue"
+        className="mt-l"
+        value={tab}
+        onChange={switchTab}
+        items={CATALOGUE_TABS}
+      />
 
       {open === 'new' ? (
         <div className="mt-m">
@@ -141,32 +146,84 @@ export function CatalogueClient() {
 
       <div className="mt-l space-y-s">
         {tab === 'services'
-          ? renderList(
+          ? renderTable(
               services,
               open,
-              (s) => (
-                <ServiceRow
-                  service={s}
-                  currency={profile?.provider.currency}
-                  onEdit={() => setOpen(s.id)}
-                />
-              ),
-              (s) => (
+              [
+                { label: 'Nom', flex: 3 },
+                { label: 'Durée', flex: 1 },
+                { label: 'Prix', flex: 2 },
+                { label: 'Statut', flex: 1 },
+                { label: 'Actions', flex: 1, align: 'right' },
+              ],
+              (sv) => [
+                // B11: the service name is what the row IS, and the table view
+                // shows it nowhere else — you had to open the inline editor to
+                // read a name the table had cut. It wraps.
+                <span key="n" className="min-w-0 break-words font-medium text-textPrimary">
+                  {sv.name}
+                </span>,
+                <span key="d" className="text-textSecondary">
+                  {sv.durationMinutes != null
+                    ? formatDuration(sv.durationMinutes)
+                    : '—'}
+                </span>,
+                <span key="p" className="text-textSecondary">
+                  {sv.price != null
+                    ? priceRange(sv.price, sv.priceMax, profile.provider.currency ?? undefined)
+                    : '—'}
+                </span>,
+                sv.active === false ? (
+                  <StatusChip key="s" status="inactive" label="Inactif" dense />
+                ) : (
+                  <StatusChip key="s" status="active" dense />
+                ),
+                <Button
+                  key="e"
+                  variant="secondary"
+                  aria-expanded={open === sv.id}
+                  onClick={() => setOpen(sv.id)}
+                >
+                  Modifier
+                </Button>,
+              ],
+              (sv) => (
                 <ServiceFormCard
                   providerId={providerId}
-                  serviceId={s.id}
-                  initial={serviceToForm(s)}
+                  serviceId={sv.id}
+                  initial={serviceToForm(sv)}
                   artists={artists}
                   onCancel={() => setOpen(null)}
                   onSaved={afterSave}
                 />
               ),
-              'Aucun service. Ajoutez votre premier service.',
+              { title: 'Aucun service', description: 'Ajoutez votre premier service.' },
+              (sv) => `Modifier « ${sv.name} »`,
             )
-          : renderList(
+          : renderTable(
               artists,
               open,
-              (a) => <ArtistRow artist={a} onEdit={() => setOpen(a.id)} />,
+              [
+                { label: 'Nom', flex: 2 },
+                { label: 'Spécialité', flex: 2 },
+                { label: 'Actions', flex: 1, align: 'right' },
+              ],
+              (a) => [
+                <span key="n" className="font-medium text-textPrimary">
+                  {a.name}
+                </span>,
+                <span key="s" className="text-textSecondary">
+                  {a.specialization ?? '—'}
+                </span>,
+                <Button
+                  key="e"
+                  variant="secondary"
+                  aria-expanded={open === a.id}
+                  onClick={() => setOpen(a.id)}
+                >
+                  Modifier
+                </Button>,
+              ],
               (a) => (
                 <ArtistFormCard
                   providerId={providerId}
@@ -176,87 +233,66 @@ export function CatalogueClient() {
                   onSaved={afterSave}
                 />
               ),
-              'Aucun employé. Ajoutez vos fiches employés.',
+              { title: 'Aucun employé', description: 'Ajoutez vos fiches employés.' },
+              (a) => `Modifier « ${a.name} »`,
             )}
       </div>
     </div>
   );
 }
 
-function renderList<T extends { id: string }>(
+/// B7's rethreading: the rows moved into a <DataTable> and the inline editor
+/// renders BELOW it (same state machine — `open` picks the edited item; the
+/// « Ajouter » flow is unchanged). Rows carry explicit « Modifier » buttons,
+/// never row-level onClick (the DataTable contract: interactive cells).
+///
+/// The review's three corrections live here: the editor is KEYED by the
+/// edited id (main keyed it per row; an unkeyed switch A→B kept A's form
+/// state and saved it onto B), the edited ROW is highlighted (`current` →
+/// aria-current + surfaceVariant), and the editor announces itself — a
+/// focused heading naming the item (focusOnMount: the editor mounts below
+/// the fold on a long table; focus scrolls to it AND a screen reader hears
+/// which item the form edits).
+function renderTable<T extends { id: string }>(
   items: T[],
   open: Open,
-  row: (item: T) => JSX.Element,
+  columns: { label: string; flex?: number; align?: 'left' | 'right' }[],
+  toCells: (item: T) => JSX.Element[],
   editor: (item: T) => JSX.Element,
-  empty: string,
+  empty: { title: string; description: string },
+  editingTitle: (item: T) => string,
 ) {
-  if (items.length === 0 && open !== 'new') {
-    return (
-      <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-        {empty}
-      </p>
-    );
-  }
-  return items.map((item) => (
-    <div key={item.id}>{open === item.id ? editor(item) : row(item)}</div>
-  ));
-}
-
-function ServiceRow({
-  service,
-  onEdit,
-  currency,
-}: {
-  service: Service;
-  onEdit: () => void;
-  /// The salon's currency (multi-pays MP3).
-  currency?: string | null;
-}) {
+  const editing = items.find((i) => open === i.id);
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m">
-      <div>
-        <p className="font-medium text-textPrimary">
-          {service.name}
-          {service.active === false ? (
-            <span className="ml-s rounded-pill bg-surface px-s py-xs text-bodySmall text-textTertiary">
-              Inactif
-            </span>
-          ) : null}
-        </p>
-        <p className="text-bodyMedium text-textTertiary">
-          {service.durationMinutes != null
-            ? `${formatDuration(service.durationMinutes)} · `
-            : ''}
-          {service.price != null
-            ? priceRange(service.price, service.priceMax, currency ?? undefined)
-            : ''}
-        </p>
-      </div>
-      <Button variant="secondary" onClick={onEdit}>
-        Modifier
-      </Button>
-    </div>
-  );
-}
-
-function ArtistRow({ artist, onEdit }: { artist: Artist; onEdit: () => void }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-secondary p-m">
-      <div>
-        <p className="font-medium text-textPrimary">{artist.name}</p>
-        {artist.specialization ? (
-          <p className="text-bodyMedium text-textTertiary">{artist.specialization}</p>
-        ) : null}
-      </div>
-      <Button variant="secondary" onClick={onEdit}>
-        Modifier
-      </Button>
-    </div>
+    <>
+      <DataTable
+        columns={columns}
+        emptyTitle={empty.title}
+        emptyDescription={empty.description}
+        rows={items.map((item) => ({
+          key: item.id,
+          cells: toCells(item),
+          current: open === item.id || undefined,
+        }))}
+      />
+      {editing ? (
+        <div key={editing.id} className="mt-m">
+          <h2
+            ref={focusOnMount}
+            tabIndex={-1}
+            className="text-titleLarge font-semibold text-textPrimary"
+          >
+            {editingTitle(editing)}
+          </h2>
+          <div className="mt-s">{editor(editing)}</div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
 const inputCls =
-  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 function ServiceFormCard({
   providerId,
@@ -306,7 +342,7 @@ function ServiceFormCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-secondary p-l">
+    <Card>
       <div className="space-y-s">
         <label className="block text-bodyMedium text-textTertiary">
           Nom du service
@@ -445,7 +481,7 @@ function ServiceFormCard({
         ) : null}
       </div>
 
-      {err ? <p className="mt-s text-bodyMedium text-error">{err}</p> : null}
+      {err ? <p role="alert" className="mt-s text-bodyMedium text-error">{err}</p> : null}
 
       <FormActions
         busy={busy}
@@ -457,7 +493,7 @@ function ServiceFormCard({
         onAskDelete={() => setConfirmDelete(true)}
         onDelete={remove}
       />
-    </div>
+    </Card>
   );
 }
 
@@ -511,7 +547,7 @@ function ArtistFormCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-secondary p-l">
+    <Card>
       <div className="space-y-s">
         <label className="block text-bodyMedium text-textTertiary">
           Nom
@@ -576,14 +612,10 @@ function ArtistFormCard({
           />
           <Button
             variant="secondary"
-            disabled={uploading}
+            isLoading={uploading}
             onClick={() => photoRef.current?.click()}
           >
-            {uploading
-              ? 'Envoi…'
-              : form.imageUrl
-                ? 'Changer la photo'
-                : 'Ajouter une photo'}
+            {form.imageUrl ? 'Changer la photo' : 'Ajouter une photo'}
           </Button>
         </div>
 
@@ -624,7 +656,7 @@ function ArtistFormCard({
         ) : null}
       </div>
 
-      {err ? <p className="mt-s text-bodyMedium text-error">{err}</p> : null}
+      {err ? <p role="alert" className="mt-s text-bodyMedium text-error">{err}</p> : null}
 
       <FormActions
         busy={busy}
@@ -636,7 +668,7 @@ function ArtistFormCard({
         onAskDelete={() => setConfirmDelete(true)}
         onDelete={remove}
       />
-    </div>
+    </Card>
   );
 }
 

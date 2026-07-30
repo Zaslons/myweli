@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
 import { useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { publishSalon } from '../../lib/api/pro';
@@ -52,11 +53,11 @@ export function GoLiveCard({
   }
 
   return (
-    <section className="mt-m rounded-xl border border-border bg-secondary p-l">
+    <Card as="section" className="mt-m">
       <p className="font-semibold text-textPrimary">
         Votre salon n’est pas encore en ligne
       </p>
-      <p className="mt-xs text-bodyMedium text-textSecondary">
+      <p className="mt-xs text-bodyLarge text-textSecondary">
         Complétez votre profil pour apparaître dans les recherches et recevoir
         des réservations.
       </p>
@@ -100,7 +101,7 @@ export function GoLiveCard({
             Terminez les étapes ci-dessus pour mettre votre salon en ligne.
           </p>
         ) : null}
-        {error ? <p className="mt-xs text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-xs text-bodyMedium text-error">{error}</p> : null}
         {needsOffer ? (
           <Link
             href="/pro/abonnement"
@@ -110,6 +111,6 @@ export function GoLiveCard({
           </Link>
         ) : null}
       </div>
-    </section>
+    </Card>
   );
 }

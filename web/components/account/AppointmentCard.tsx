@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { StatusChip } from '../StatusChip';
 import {
   type Appointment,
   statusLabelFr,
@@ -35,9 +36,7 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           ) : null}
         </div>
         <div className="text-right">
-          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
-            {statusLabelFr(appt.status)}
-          </span>
+          <StatusChip status={appt.status} />
           {typeof appt.totalPrice === 'number' ? (
             <p className="mt-s text-bodyMedium text-textPrimary">
               {formatFcfa(

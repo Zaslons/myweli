@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { forwardRef } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'text';
 
@@ -24,17 +25,25 @@ type Variant = 'primary' | 'secondary' | 'text';
 /// carries its own `text-*` color class would stay visible through the
 /// spinner. Pass plain (uncolored) children to a button that can load — every
 /// current caller passes a bare string.
-export function Button({
-  variant = 'primary',
-  isLoading = false,
-  className = '',
-  disabled,
-  children,
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
-  isLoading?: boolean;
-}) {
+/// forwardRef (B5): `Modal`'s `initialFocusRef` needs to point at a Button —
+/// SYSTEM §15 focuses the CANCEL path on destructive confirms.
+export const Button = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: Variant;
+    isLoading?: boolean;
+  }
+>(function Button(
+  {
+    variant = 'primary',
+    isLoading = false,
+    className = '',
+    disabled,
+    children,
+    ...props
+  },
+  ref,
+) {
   // labelLarge, not bodyMedium: §4 gives labelLarge (14/20, 500) as "Button
   // labels" — same size and line as bodyMedium, tighter tracking (0.1 vs 0.25).
   const base =
@@ -50,6 +59,7 @@ export function Button({
         : 'px-m text-textPrimary hover:bg-surfaceVariant';
   return (
     <button
+      ref={ref}
       className={`${base} ${styles} ${className}`}
       disabled={disabled || isLoading}
       aria-busy={isLoading || undefined}
@@ -68,4 +78,4 @@ export function Button({
       )}
     </button>
   );
-}
+});

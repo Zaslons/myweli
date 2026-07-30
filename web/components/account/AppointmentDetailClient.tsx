@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip, chipLinkClasses } from '../Chip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -24,6 +25,7 @@ import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { salonDayKey, salonFormatter, salonToday } from '../../lib/time';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 import { TextField } from '../TextField';
 import { SalonTimeHint } from '../SalonTimeHint';
 import { DepositProof } from '../booking/DepositProof';
@@ -127,9 +129,25 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     await load();
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (notFound || !appt) {
-    return <p className="text-error">Rendez-vous introuvable.</p>;
+    // A persistent state is a page: it needs the h1 and a way out
+    // (SYSTEM §12 — an error state without one is a dead end).
+    return (
+      <div>
+        <h1 className="text-titleLarge font-semibold text-textPrimary">
+          Rendez-vous introuvable
+        </h1>
+        <p role="alert" className="mt-s text-bodyLarge text-error">
+          Ce rendez-vous n’existe pas ou n’est plus accessible.
+        </p>
+        <p className="mt-m">
+          <Link href="/mon-compte" className="text-bodyMedium underline">
+            ← Mes rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   // The salon's market (multi-pays): booking-stamped currency first (the
@@ -143,13 +161,19 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ← Mes rendez-vous
       </Link>
       <section className="mt-m rounded-xl border border-border bg-secondary p-l">
-        <div className="flex items-center justify-between gap-m">
-          <h2 className="text-titleLarge font-semibold text-textPrimary">
+        {/* B11: the fifth and sixth copies of this shape, and the two that
+            matter most — the heading here is a SALON NAME, unbounded user
+            data, sitting beside a status chip with nothing allowed to
+            wrap. The four fixed earlier all hold fixed page titles. The
+            review caught these; the census had listed them under "button
+            clusters" rather than title toolbars. */}
+        <div className="flex flex-wrap items-center justify-between gap-m">
+          <h1 className="text-titleLarge font-semibold text-textPrimary">
             {appt.providerName ?? 'Salon'}
-          </h2>
-          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
+          </h1>
+          <Chip>
             {statusLabelFr(appt.status)}
-          </span>
+          </Chip>
         </div>
         {appt.providerSlug ? (
           <Link
@@ -268,7 +292,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             />
           </div>
         ) : appt.status === 'pending' && appt.depositScreenshotUrl ? (
-          <p className="mt-m text-bodyMedium text-textSecondary">
+          <p className="mt-m text-bodyLarge text-textSecondary">
             Justificatif d’acompte envoyé · en attente de confirmation du
             salon.{' '}
             <a
@@ -283,7 +307,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         {cancelError ? (
-          <p className="mt-s text-bodyMedium text-error">
+          <p role="alert" className="mt-s text-bodyMedium text-error">
             L’annulation a échoué. Réessayez.
           </p>
         ) : null}
@@ -301,7 +325,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               <Button onClick={() => openReschedule(appt)}>Reporter</Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-bodyMedium text-textPrimary">
+                <p className="text-bodyLarge text-textPrimary">
                   Choisissez un nouveau créneau
                 </p>
                 <TextField
@@ -317,9 +341,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   }}
                 />
                 {slotsLoading ? (
-                  <p className="mt-s text-bodyMedium text-textSecondary">
-                    Chargement des créneaux…
-                  </p>
+                  <Loading label="Chargement des créneaux…" className="mt-s" />
                 ) : slots.length === 0 ? (
                   <p className="mt-s text-bodyMedium text-textSecondary">
                     Aucun créneau disponible ce jour.
@@ -331,11 +353,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                         key={iso}
                         type="button"
                         onClick={() => setPickedSlot(iso)}
-                        className={`inline-flex min-h-12 items-center rounded-pill border px-m text-bodyMedium ${
-                          pickedSlot === iso
-                            ? 'border-primary bg-primary text-secondary'
-                            : 'border-border bg-secondary text-textPrimary'
-                        }`}
+                        className={chipLinkClasses(pickedSlot === iso)}
                       >
                         {salonFormatter(
                           { hour: '2-digit', minute: '2-digit' },
@@ -346,7 +364,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                   </div>
                 )}
                 {reschedError ? (
-                  <p className="mt-s text-bodyMedium text-error">{reschedError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">{reschedError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button
@@ -375,7 +393,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               </Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
-                <p className="text-bodyMedium text-textSecondary">
+                <p className="text-bodyLarge text-textSecondary">
                   Confirmer l’annulation&nbsp;?
                   {appt.depositAmount
                     ? ' L’acompte peut ne pas être remboursé selon la politique du salon.'

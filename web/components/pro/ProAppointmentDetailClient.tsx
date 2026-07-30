@@ -1,6 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { ErrorState } from '../ErrorState';
+import { Chip } from '../Chip';
+import { StatusChip } from '../StatusChip';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -25,6 +29,7 @@ import { combineDateTime } from '../../lib/pro/manual-booking';
 import type { ProAppointment } from '../../lib/pro/today';
 import { isSameSalonDay, salonDayKey, salonFormatter } from '../../lib/time';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 
 export function ProAppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -32,12 +37,16 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
   const [appt, setAppt] = useState<ProAppointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<LifecycleAction | null>(null);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(false);
+    setNotFound(false);
+    setLoading(true);
     const me = await getMyProvider();
     if (me.status === 401) {
       router.replace('/pro/connexion');
@@ -50,7 +59,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     }
     setProfile(me.profile ?? null);
     if (r.status !== 200 || !r.appt) {
-      setNotFound(true);
+      // The API wrapper DISTINGUISHES: 404 = a loaded list without this id
+      // (terminal); anything else is a transient failure — the review proved
+      // a stub restart told the pro their appointment "n'existe pas".
+      if (r.status === 404) setNotFound(true);
+      else setLoadError(true);
       setLoading(false);
       return;
     }
@@ -113,9 +126,26 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
     await load();
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
+  if (loadError) {
+    return <ErrorState title="Rendez-vous" onRetry={load} />;
+  }
   if (notFound || !appt) {
-    return <p className="text-error">Rendez-vous introuvable.</p>;
+    return (
+      <div>
+        <h1 className="text-headlineSmall font-semibold text-textPrimary">
+          Rendez-vous
+        </h1>
+        <p role="alert" className="mt-m text-bodyMedium text-error">
+          Rendez-vous introuvable.
+        </p>
+        <p className="mt-m">
+          <Link href="/pro/rendez-vous" className="text-bodyMedium underline">
+            ← Rendez-vous
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   // The ACTIVE salon's market (multi-pays MP3).
@@ -141,20 +171,23 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
         Détails du rendez-vous
       </h1>
 
-      <section className="mt-m rounded-xl border border-border bg-secondary p-l">
-        <div className="flex items-center justify-between gap-m">
+      <Card as="section" className="mt-m">
+        {/* B11: the fifth and sixth copies of this shape, and the two that
+            matter most — the heading here is a SALON NAME, unbounded user
+            data, sitting beside a status chip with nothing allowed to
+            wrap. The four fixed earlier all hold fixed page titles. The
+            review caught these; the census had listed them under "button
+            clusters" rather than title toolbars. */}
+        <div className="flex flex-wrap items-center justify-between gap-m">
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientName ?? 'Client'}
+            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
-              <span
-                className={`rounded-pill px-s py-xs text-bodySmall font-normal ${
-                  noShowBadge(appt.clientNoShowCount) === 'red'
-                    ? 'bg-error/10 text-error'
-                    : 'bg-surface text-textSecondary'
-                }`}
+              <Chip
+                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
-              </span>
+              </Chip>
             ) : null}
             {appt.salonClientId && canViewClients ? (
               <Link
@@ -165,9 +198,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
               </Link>
             ) : null}
           </p>
-          <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
-            {statusLabelFr(appt.status)}
-          </span>
+          <StatusChip status={appt.status} />
         </div>
 
         <dl className="mt-m space-y-xs text-bodyMedium">
@@ -214,7 +245,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
           </p>
         ) : null}
 
-        {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
 
         {actions.length > 0 ? (
           <div className="mt-l flex flex-wrap gap-s">
@@ -311,7 +342,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     aria-label="Nouvelle date"
                     value={reprogDate}
                     onChange={(e) => setReprogDate(e.target.value)}
-                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                   <input
                     type="time"
@@ -319,11 +350,11 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
                     step={900}
                     value={reprogTime}
                     onChange={(e) => setReprogTime(e.target.value)}
-                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                 </div>
                 {reprogError ? (
-                  <p className="mt-s text-bodyMedium text-error">{reprogError}</p>
+                  <p role="alert" className="mt-s text-bodyMedium text-error">{reprogError}</p>
                 ) : null}
                 <div className="mt-m flex gap-s">
                   <Button variant="secondary" onClick={() => setReprog(false)}>
@@ -340,7 +371,7 @@ export function ProAppointmentDetailClient({ id }: { id: string }) {
             )}
           </div>
         ) : null}
-      </section>
+      </Card>
     </div>
   );
 }

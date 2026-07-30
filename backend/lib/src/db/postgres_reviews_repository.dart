@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:postgres/postgres.dart';
 
+import '../privacy/anonymized_identity.dart';
+
 import '../reviews_repository.dart';
 
 /// Postgres-backed [ReviewsRepository] (table `reviews`, migration `0007`;
@@ -280,5 +282,39 @@ LIMIT @lim OFFSET @off'''),
   String _reportId() {
     final bytes = List<int>.generate(12, (_) => _rng.nextInt(256));
     return 'report_${base64Url.encode(bytes).replaceAll('=', '')}';
+  }
+
+  @override
+  Future<List<String>> anonymizeUser(String userId) async {
+    // Same CTE shape as the appointments erasure, and for the same reason:
+    // the photo URLs must be read BEFORE the column is emptied, and Postgres
+    // has no `RETURNING OLD.*`.
+    final rows = await _pool.execute(
+      Sql.named('''
+WITH victims AS (
+  SELECT photo_urls FROM reviews WHERE user_id = @uid
+), cleared AS (
+  UPDATE reviews
+     SET user_name = @label, user_id = @tomb, photo_urls = '[]'::jsonb
+   WHERE user_id = @uid
+)
+SELECT photo_urls FROM victims'''),
+      parameters: {
+        'label': anonymousClientLabel,
+        'tomb': deletedUserId,
+        'uid': userId,
+      },
+    );
+    final photos = <String>[];
+    for (final r in rows) {
+      final raw = r[0];
+      final decoded = raw is String ? jsonDecode(raw) : raw;
+      if (decoded is List) photos.addAll(decoded.whereType<String>());
+    }
+    await _pool.execute(
+      Sql.named('DELETE FROM review_reports WHERE reporter_user_id = @uid'),
+      parameters: {'uid': userId},
+    );
+    return photos;
   }
 }

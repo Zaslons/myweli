@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
+import { Skeleton } from '../Skeleton';
 import { ProLogoutButton } from './ProLogoutButton';
 import { TeamRoleChip } from './TeamRoleChip';
 import { useProMembership } from './ProMembershipContext';
@@ -108,7 +109,7 @@ export function ProSidebar({
       {loading ? (
         <div className="mt-l space-y-xs" aria-hidden="true">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="mx-s h-8 rounded-lg bg-surfaceVariant" />
+            <Skeleton key={i} className="mx-s h-8" />
           ))}
         </div>
       ) : (
@@ -128,12 +129,24 @@ export function ProSidebar({
                   }}
                   className="flex min-h-12 w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                 >
+                  {/* clip-ok: chrome in a 240px rail, not content. The button's
+                      accessible name carries the whole string, and the salon's
+                      full name is on `/pro/profil` (the field that sets it) and
+                      on `/pro/apercu`. Checked rather than assumed: it is NOT
+                      the dashboard `h1` — that reads « Aujourd'hui » for an
+                      owner and only names the salon in the staff branch
+                      (`AujourdhuiClient.tsx:109`). */}
                   <span className="truncate">{salonName}</span>
                   <span aria-hidden="true" className="text-textTertiary">
                     ▾
                   </span>
                 </button>
               ) : (
+                // clip-ok: the single-salon variant of the switcher above —
+                // same rail, same name, same recovery path. (A `//` comment,
+                // not `{/* */}`: inside a ternary's parentheses this is an
+                // expression position, and a JSX comment there is a syntax
+                // error.)
                 <p className="truncate rounded-lg border border-border bg-surface px-s py-xs text-bodyMedium text-textSecondary">
                   {salonName}
                 </p>
@@ -151,6 +164,12 @@ export function ProSidebar({
                         className="flex min-h-12 w-full items-center justify-between gap-xs px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant disabled:opacity-60"
                       >
                         <span className="min-w-0">
+                          {/* clip-ok: one row per salon this account owns, in
+                              the same 240px rail. The button's accessible name
+                              is the full string, and picking a salon puts its
+                              name in the rail and its profile one click away.
+                              A chooser among the pro's OWN salons is the case
+                              where a prefix is enough to tell them apart. */}
                           <span className="block truncate">{s.salonName}</span>
                           <span className="block text-bodySmall text-textTertiary">
                             {ROLE_LABELS[s.role as TeamRole]}
@@ -180,7 +199,7 @@ export function ProSidebar({
                 </div>
               ) : null}
               {switchError ? (
-                <p className="mt-xs text-bodySmall text-error">
+                <p role="alert" className="mt-xs text-bodySmall text-error">
                   Changement impossible — votre accès à ce salon a peut-être
                   été retiré.
                 </p>

@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
@@ -18,6 +20,7 @@ import { centerOf } from '../../lib/discovery/map';
 import { hasCap } from '../../lib/pro/team';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
+import { Loading } from '../Loading';
 import { CompteDangerSection } from './CompteDangerSection';
 import { LocalityPicker } from './LocalityPicker';
 import { TeamRoleChip } from './TeamRoleChip';
@@ -30,14 +33,14 @@ const LocationPicker = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-surfaceVariant md:h-80">
-        <p className="text-bodyMedium text-textSecondary">Chargement de la carte…</p>
+        <Loading label="Chargement de la carte…" />
       </div>
     ),
   },
 );
 
 const input =
-  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 export function ProfilClient() {
   const router = useRouter();
@@ -52,6 +55,7 @@ export function ProfilClient() {
   >('pending');
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,11 +84,11 @@ export function ProfilClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <Loading className="mt-l" />;
   if (loadError || !form) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Profil" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   // Team access R5b (amended): members WITHOUT profile.manage get a SLIM
@@ -95,7 +99,7 @@ export function ProfilClient() {
     return (
       <div className="max-w-xl">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
-        <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
+        <Card as="section" className="mt-l space-y-s">
           {profile.account.email ? (
             <p className="break-all text-bodyMedium text-textPrimary">
               {profile.account.email}
@@ -105,7 +109,7 @@ export function ProfilClient() {
           <p className="text-bodyMedium text-textSecondary">
             Salon : {profile.provider.name}
           </p>
-        </section>
+        </Card>
         <CompteDangerSection profile={profile} exportEnabled={false} />
       </div>
     );
@@ -140,7 +144,7 @@ export function ProfilClient() {
     <div className="max-w-2xl">
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Profil</h1>
 
-      <section className="mt-l space-y-s rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l space-y-s">
         <Field label="Nom du salon">
           <input
             className={input}
@@ -217,16 +221,19 @@ export function ProfilClient() {
           />
         </Field>
 
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
-        {saved ? (
-          <p className="text-bodyMedium text-textSecondary">Profil enregistré.</p>
-        ) : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
+        <p
+          role="status"
+          className={saved ? 'text-bodyMedium text-textSecondary' : 'sr-only'}
+        >
+          {saved ? 'Profil enregistré.' : ''}
+        </p>
         <div className="pt-s">
           <Button disabled={busy} onClick={save}>
             Enregistrer
           </Button>
         </div>
-      </section>
+      </Card>
 
       <section className="mt-l space-y-s">
         <SectionLink

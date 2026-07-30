@@ -242,7 +242,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'phone') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Le salon l’utilise pour vous contacter au sujet de vos rendez-vous.
         </p>
         <PhoneField
@@ -257,7 +257,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         <Button disabled={busy} isLoading={busy} onClick={savePhone}>
           Continuer
         </Button>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -266,7 +266,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Entrez le code reçu par e-mail à {email.trim()}.
         </p>
         <TextField
@@ -307,7 +307,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
         >
           Changer d’e-mail
         </Button>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -346,7 +346,7 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
       <Button disabled={busy} isLoading={busy} onClick={sendCode}>
         Continuer avec e-mail
       </Button>
-      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       <p className="text-bodySmall text-textTertiary">
         En continuant, vous acceptez nos conditions d’utilisation.
       </p>

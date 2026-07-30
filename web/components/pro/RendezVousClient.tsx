@@ -1,7 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
+import { SkeletonRows } from '../Skeleton';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
 import {
   type ListTab,
@@ -20,8 +25,17 @@ import { JournalGrid } from './JournalGrid';
 import { ManualBookingDialog } from './ManualBookingDialog';
 import { MonthCalendar } from './MonthCalendar';
 import { ProAppointmentRow } from './ProAppointmentRow';
+import { Tabs } from '../Tabs';
 
 type View = 'journal' | 'calendar' | 'list';
+
+/// The view switcher's labels. Tabled rather than built from a ternary inside
+/// the map, which is what the hand-rolled strip did (B9).
+const VIEW_TABS: { key: View; label: string }[] = [
+  { key: 'journal', label: 'Journée' },
+  { key: 'calendar', label: 'Calendrier' },
+  { key: 'list', label: 'Liste' },
+];
 
 // Midday anchors the key inside its salon day at any wave offset (±11 h).
 const dayLabel = (key: string, tz?: string) =>
@@ -34,12 +48,13 @@ export function RendezVousClient() {
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [items, setItems] = useState<ProAppointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [view, setView] = useState<View>('journal');
   const [journalDay, setJournalDay] = useState<JournalDay | null>(null);
   const [journalDate, setJournalDate] = useState<string>(dateKey(new Date()));
   const [showCancelled, setShowCancelled] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
   const [focused, setFocused] = useState<Date>(new Date());
   const [selected, setSelected] = useState<string>(dateKey(new Date()));
   const [listTab, setListTab] = useState<ListTab>('today');
@@ -72,11 +87,17 @@ export function RendezVousClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
+  // The booking hub's request-id dedupe: a held ←/→ fires several day loads
+  // in flight at once, and without this the SLOWEST response wins — the grid
+  // could show Tuesday under a header saying Thursday.
+  const journalReq = useRef(0);
   const loadJournal = useCallback(async () => {
     if (!profile) return;
+    const req = ++journalReq.current;
     const r = await getJournalDay(profile.provider.id, journalDate);
+    if (req !== journalReq.current) return;
     if (r.status === 200 && r.day) setJournalDay(r.day);
   }, [profile, journalDate]);
 
@@ -84,15 +105,48 @@ export function RendezVousClient() {
     if (view === 'journal') loadJournal();
   }, [view, loadJournal]);
 
+  // §9's journal shortcuts (B7): ← / → = jour précédent/suivant, T =
+  // aujourd'hui. Guarded four ways — no modifier chords, never while typing
+  // (input/textarea/select/contenteditable), never while ANY dialog is open
+  // (the manual-booking + quick-create dialogs and the block panel), and
+  // only on the Journée view. T is a single-character shortcut (WCAG 2.1.4);
+  // the typing guard + view scope are the mitigation, recorded in §9.
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
+    if (view !== 'journal') return;
+    const salonTz = profile?.provider.timezone ?? undefined;
+    const onKey = (e: KeyboardEvent) => {
+      // A held key auto-repeats — one deliberate press, one step.
+      if (e.repeat) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          t.isContentEditable)
+      )
+        return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const delta = e.key === 'ArrowLeft' ? -1 : 1;
+        setJournalDate((d) =>
+          // Midday anchor: ±1 day stays inside the salon day at any offset.
+          dateKey(addDays(new Date(`${d}T12:00:00.000Z`), delta), salonTz),
+        );
+      } else if (e.key === 't' || e.key === 'T') {
+        setJournalDate(dateKey(new Date(), salonTz));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, profile]);
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Rendez-vous" onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const serviceName = (id: string) =>
@@ -126,30 +180,28 @@ export function RendezVousClient() {
         ) : null}
       </div>
 
-      <div className="mt-l flex gap-s border-b border-divider">
-        {(['journal', 'calendar', 'list'] as View[]).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`px-m py-s text-bodyMedium ${
-              view === v
-                ? 'border-b-2 border-primary text-textPrimary'
-                : 'text-textTertiary'
-            }`}
-          >
-            {v === 'journal' ? 'Journée' : v === 'calendar' ? 'Calendrier' : 'Liste'}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Vue de l’agenda"
+        className="mt-l"
+        value={view}
+        onChange={setView}
+        items={VIEW_TABS}
+      />
 
       {view === 'journal' ? (
         <div className="mt-m">
           <div className="flex flex-wrap items-center justify-between gap-s">
-            <div className="flex items-center gap-s">
+            {/* B11: `flex-wrap` is the reflow fix. Four controls — ‹, a 16px
+                `type="date"` field whose intrinsic width the UA owns, ›, and
+                « Aujourd'hui » — measured 312px of the 272 available at 320,
+                pushing the whole page sideways. The parent row already wraps;
+                this one did not, so it spilled instead. Wrapping is the same
+                answer B9 gave the tab strips, one level down. */}
+            <div className="flex flex-wrap items-center gap-s">
               <button
                 type="button"
                 aria-label="Jour précédent"
+                title="Raccourci : ←"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
                   // Midday anchor: ±1 day stays inside the salon day at any
@@ -169,11 +221,12 @@ export function RendezVousClient() {
                 value={journalDate}
                 onChange={(e) => setJournalDate(e.target.value)}
                 aria-label="Date"
-                className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
               <button
                 type="button"
                 aria-label="Jour suivant"
+                title="Raccourci : →"
                 className="rounded-lg border border-border px-s py-xs text-textSecondary"
                 onClick={() =>
                   setJournalDate(
@@ -188,6 +241,7 @@ export function RendezVousClient() {
               </button>
               <button
                 type="button"
+                title="Raccourci : T"
                 className="text-bodyMedium text-textTertiary underline"
                 onClick={() => setJournalDate(dateKey(new Date(), tz))}
               >
@@ -216,11 +270,11 @@ export function RendezVousClient() {
                 profile={profile}
                 readOnly={!canManageAll}
                 onChanged={loadJournal}
-                onToast={setToast}
+                onToast={show}
               />
             </div>
           ) : (
-            <p className="mt-l text-textSecondary">Chargement du planning…</p>
+            <SkeletonRows count={6} className="mt-l" />
           )}
         </div>
       ) : view === 'calendar' ? (
@@ -239,9 +293,7 @@ export function RendezVousClient() {
             </p>
             <div className="mt-s space-y-s">
               {dayList.length === 0 ? (
-                <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-                  Aucun rendez-vous ce jour-là.
-                </p>
+                <EmptyState icon="event" title="Aucun rendez-vous ce jour-là" />
               ) : (
                 dayList.map((a) => (
                   <ProAppointmentRow
@@ -259,27 +311,15 @@ export function RendezVousClient() {
         </div>
       ) : (
         <div className="mt-m">
-          <div className="flex gap-s border-b border-divider">
-            {LIST_TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setListTab(t.key)}
-                className={`px-m py-s text-bodyMedium ${
-                  listTab === t.key
-                    ? 'border-b-2 border-primary text-textPrimary'
-                    : 'text-textTertiary'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            label="Filtrer les rendez-vous"
+            value={listTab}
+            onChange={setListTab}
+            items={LIST_TABS}
+          />
           <div className="mt-m space-y-s">
             {list.length === 0 ? (
-              <p className="rounded-xl border border-border bg-secondary p-l text-center text-textSecondary">
-                Aucun rendez-vous.
-              </p>
+              <EmptyState icon="event" title="Aucun rendez-vous" description="Les réservations de vos clients apparaîtront ici." />
             ) : (
               list.map((a) => (
                 <ProAppointmentRow
@@ -303,19 +343,14 @@ export function RendezVousClient() {
           onClose={() => setCreating(false)}
           onCreated={async () => {
             setCreating(false);
-            setToast('Rendez-vous créé');
+            show('Rendez-vous créé', 'success');
             loadJournal();
             const appts = await listProAppointments();
             if (appts.status === 200) setItems(appts.items);
           }}
-          onToast={setToast}
         />
       ) : null}
-      {toast ? (
-        <div className="fixed bottom-l left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }

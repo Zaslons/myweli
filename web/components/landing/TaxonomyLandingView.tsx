@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { chipLinkClasses } from '../Chip';
+import { EmptyState } from '../EmptyState';
 import type {
   LocalityArea,
   LocalityCity,
@@ -200,9 +202,7 @@ export async function taxonomyMetadata(
 
 // --- the view ----------------------------------------------------------------
 
-const chip =
-  'inline-flex min-h-12 items-center rounded-pill border border-border bg-secondary px-m text-bodyMedium ' +
-  'text-textPrimary hover:bg-surfaceVariant';
+const chip = chipLinkClasses(false);
 
 /// French names for LocalityArea.labelKind (section headings).
 const AREA_KIND_LABEL: Record<string, string> = {
@@ -255,7 +255,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
   const areaSlug = input.level === 'area' ? input.area.slug : undefined;
 
   return (
-    <main className="mx-auto max-w-3xl px-m py-l">
+    <main className="mx-auto max-w-content px-m py-l">
       <JsonLd data={breadcrumbJsonLd(crumbsOf(input))} />
       {providers.length > 0 ? (
         <JsonLd
@@ -274,7 +274,7 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       <h1 className="mt-m text-headlineMedium font-semibold text-textPrimary">
         {h1Of(input)}
       </h1>
-      <p className="mt-m text-textSecondary">
+      <p className="mt-m text-bodyLarge text-textSecondary">
         Les meilleurs salons de {label.toLowerCase()} {place.prefix}{' '}
         {place.name}, réservables en ligne 24/7 — comparez tarifs, avis et
         disponibilités, puis réservez en quelques secondes.
@@ -330,18 +330,25 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       ) : null}
 
       {providers.length > 0 ? (
-        <ul className="mt-l grid gap-m sm:grid-cols-2">
+        <>
+        <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
+          {providers.length} salon{providers.length > 1 ? 's' : ''}
+        </h2>
+        <ul className="mt-m grid gap-m sm:grid-cols-2">
           {providers.map((p) => (
             <li key={p.id}>
               <ProviderCard provider={p} />
             </li>
           ))}
         </ul>
+        </>
       ) : (
-        <p className="mt-l text-textSecondary">
-          Aucun salon de {label.toLowerCase()} {place.prefix} {place.name} pour
-          le moment. Explorez les liens ci-dessous.
-        </p>
+        <EmptyState
+          className="mt-l"
+          icon="search"
+          title={`Aucun salon de ${label.toLowerCase()} ${place.prefix} ${place.name} pour le moment`}
+          description="Explorez les liens ci-dessous."
+        />
       )}
 
       {/* Area level: the same root across the city's other areas. */}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Card } from '../Card';
 import {
   acceptMyInvitation,
   declineMyInvitation,
@@ -59,7 +60,7 @@ export function ProInvitationsCard({
   if (invitations.length === 0) return null;
 
   return (
-    <section className="mt-m rounded-xl border border-border bg-secondary p-l">
+    <Card as="section" className="mt-m">
       <p className="font-semibold text-textPrimary">Invitations d’équipe</p>
       <ul className="mt-m space-y-s">
         {invitations.map((inv) => (
@@ -68,7 +69,7 @@ export function ProInvitationsCard({
             className="flex flex-wrap items-center justify-between gap-s rounded-lg border border-border bg-surface p-m"
           >
             <div>
-              <p className="text-bodyMedium text-textPrimary">
+              <p className="text-bodyLarge text-textPrimary">
                 <span className="font-semibold">{inv.salonName}</span> vous
                 invite comme {inv.roleLabel}
               </p>
@@ -92,7 +93,7 @@ export function ProInvitationsCard({
           </li>
         ))}
       </ul>
-      {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
-    </section>
+      {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
+    </Card>
   );
 }

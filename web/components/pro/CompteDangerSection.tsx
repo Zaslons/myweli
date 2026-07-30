@@ -98,7 +98,7 @@ export function CompteDangerSection({
 
       {exportEnabled ? (
         <div className="mt-s flex items-center justify-between gap-m">
-          <p className="text-bodyMedium text-textSecondary">
+          <p className="text-bodyLarge text-textSecondary">
             Recevoir une copie des données de votre salon (compte, fiche,
             catalogue, rendez-vous, fichier clients, revenus).
           </p>
@@ -109,6 +109,9 @@ export function CompteDangerSection({
             <Button variant="secondary" disabled={exporting} onClick={copy}>
               {copied ? 'Copié ✓' : 'Copier'}
             </Button>
+            <span role="status" className="sr-only">
+              {copied ? 'Données copiées.' : ''}
+            </span>
           </div>
         </div>
       ) : null}
@@ -132,7 +135,7 @@ export function CompteDangerSection({
           </button>
         ) : (
           <div className="rounded-lg bg-surface p-m">
-            <p className="text-bodyMedium text-textSecondary">
+            <p className="text-bodyLarge text-textSecondary">
               {exportEnabled
                 ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
                 : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}
@@ -145,7 +148,7 @@ export function CompteDangerSection({
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder="SUPPRIMER"
             />
-            {error ? <p className="mt-s text-bodyMedium text-error">{error}</p> : null}
+            {error ? <p role="alert" className="mt-s text-bodyMedium text-error">{error}</p> : null}
             <div className="mt-s flex gap-s">
               <Button
                 variant="secondary"

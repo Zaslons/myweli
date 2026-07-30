@@ -21,7 +21,8 @@ Enforced by the **`myweli-web-guardrails`** skill.
 · [3 Type on the web](#3-type-on-the-web) · [4 Semantic HTML](#4-semantic-html)
 · [5 Focus & keyboard](#5-focus--keyboard) · [6 Forms & ARIA](#6-forms--aria)
 · [7 Announcements](#7-announcements-live-regions) · [8 Dialogs](#8-dialogs)
-· [9 Responsive & desktop](#9-responsive--desktop) · [10 Components](#10-components)
+· [9 Responsive & desktop](#9-responsive--desktop) — incl. [text scale & reflow](#text-scale--reflow-wcag-1410)
+· [10 Components](#10-components)
 · [11 Rendering & performance](#11-rendering--performance) · [12 SEO / AEO / GEO](#12-seo--aeo--geo)
 · [13 The app-install push](#13-the-app-install-push) · [14 Enforcement](#14-enforcement)
 · [15 The known-violations register](#15-the-known-violations-register)
@@ -32,6 +33,12 @@ Enforced by the **`myweli-web-guardrails`** skill.
 
 `web/styles/tokens.ts` mirrors `mobile/lib/core/theme/`. Tailwind consumes it in
 `tailwind.config.ts`. **Use the token utility, never a raw hex or px.**
+
+**The mirror is gated since B3** (`tests/tokens.mirror.test.ts`): the Dart
+sources are parsed on every test run and any mismatch — missing, extra, or
+changed, either direction — fails the blocking vitest job. `npm run gen:tokens`
+prints the healing blocks. The six historical drifts (row 19) cannot recur
+silently.
 
 The values, the contrast ratios and the *rules about which token may be used
 where* are in [SYSTEM.md §3–§10](SYSTEM.md#3-color). What follows is only the
@@ -50,7 +57,7 @@ mapping:
 | **`borderStrong`** `#8A8A8A` | `border-borderStrong` | **Every interactive control's boundary** |
 | **`borderFocus`** `#000000` | `outline-borderFocus` | The focus ring (§5) |
 | semantic | `text-success` `bg-error` … | Status only |
-| **`gold`** `#B8860B` | `border-gold` `bg-gold/15` | Non-text accent. **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
+| **`gold`** `#B5830A` | `border-gold` `bg-gold/15` | Non-text accent (3.10:1 on `surfaceVariant`, the worst surface — darkened from `#B8860B`/2.98 in the mirror-debt slice, §15 row 23). **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
 | spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px** | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. |
 | radius | `rounded-lg` … + **`rounded-pill`** | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
 | z-index | `z-sticky` `z-modal` … | The layer, **named** — never a number (§9). |
@@ -98,7 +105,8 @@ className="h-[calc(100dvh-6.5rem)]"
 
 The reason goes **above** the directive (`-next-line` binds to the line that
 follows), and `tokens.theme-pin.test.ts` fails an `eslint-disable` that has no
-`ds-ignore:` reason within 6 lines. An undocumented disable is not a decision, it is
+`ds-ignore:` reason within 10 lines (6 until B11, which hit that limit twice in one
+slice with reasons that were already true). An undocumented disable is not a decision, it is
 a silencer. B2a left **17**.
 
 ### What is closed, and what is not
@@ -123,6 +131,16 @@ sizing scale would be the **fourth** mirror divergence after `gold`, `sm`/`xxxl`
 > default block. Writing `theme.width = {…}` deletes all of them, silently: **112 of
 > the 250 sizing usages (45%)**. Preserve the function form and re-include the
 > literals, or watch half the layout vanish with a green build.
+
+> ⚠️ **And know what unit you are leaving open (B11).** These keys are
+> `defaultTheme.spacing`, which is **`rem`** — while the type scale and the
+> `spacing` scale above are **`px`**. So `min-h-12` is `3rem`, not 48px, at **84
+> call sites** including the §13.2 tap floor, and under a large browser font the
+> boxes grow while the words do not. Nobody chose that: the paragraph above
+> discusses these keys' *literals* at length and never mentions their unit. The
+> consequences and the accepted trade-offs are in
+> [§9 — Text scale & reflow](#text-scale--reflow-wcag-1410); the short version is
+> that **a px offset positioned against one of these boxes is a defect**.
 
 > Measuring beats auditing here: padding/margin/gap turned out to be **already 100%
 > tokenised** — `p-3` and `gap-2` do not appear anywhere. The debt was never rhythm.
@@ -162,7 +180,7 @@ thing it does not carry (see below), so it stays on the element as `font-*`.
 | `text-bodyLarge` / `text-titleMedium` | 16 / 24 | 400 / 500 | `text-base` ×1 |
 | `text-titleLarge` | 22 / 28 | 600 | **`text-lg` ×33 (18px) + `text-xl` ×18 (20px)** |
 | `text-headlineSmall` | 24 / 32 | 600 | `text-2xl` ×27 |
-| `text-headlineMedium` | 28 / 36 | 600 | `text-3xl` ×5 (30px) |
+| `text-headlineMedium` | 28 / 36 | 600 | `text-3xl` ×5 (30px) ⚠️ **C8d: five, not two.** `CatalogueClient.tsx:106`, `MediasClient.tsx:65` and `RendezVousClient.tsx:174` carry the same strip, unprotected. |
 | `text-headlineLarge` | 32 / 40 | 600 | `text-4xl` ×1 (36px) |
 
 **Not a zero-pixel rename — this is what B2b actually did.** The register said it
@@ -225,6 +243,13 @@ button. Snapped by §7's own method (nearest; ties round up).
 are sentences; they track the type scale and were left alone. Only a control whose
 entire content is the glyph takes an icon token.
 
+**SVG icons live in `<Icon>` since B6** — one named Material-path registry,
+sized by this scale, `currentColor`, `aria-hidden` unless labelled. The channel
+doctrine, settled: text-character glyphs stay font-sized (this section's own
+rule); the 44px `.myweli-pin` is marker/tap GEOMETRY hosting an on-scale 20px
+`<Icon>` and the 22px user dot is a dot — neither is an icon size; the ProShell
+hamburger is the one stroke svg, kept in place.
+
 ⚠️ **An icon's size and its tap target are different things** ([SYSTEM.md §7](SYSTEM.md#7-icon-size)):
 `iconM` is 24px of glyph inside a **≥48px** target (§13.2). Never grow the glyph to
 make the target bigger — grow the target. **No web control reaches 48 today** (§15) —
@@ -238,10 +263,20 @@ badge inherits 600 from its `<h1 font-semibold>`; a baked 500 would quietly undo
 and it buys nothing while `fontWeight` itself stays an open key. Omitting it means B2b
 changed **zero** weights.
 
-⚠️ **The web is still one step smaller than the app.** `text-bodyMedium` (14px) is
-**356 of 555** usages and `bodyLarge` (16px) is used **once**; the app reads at 16px.
-That inconsistency survives B2b untouched — the 14 → 16 migration is **B8** (row 17),
-still uncommitted.
+**Where you read, the web now reads at 16** (B8, row 17 —
+[web-b8-reading-text.md](web-b8-reading-text.md)). The old ⚠️ here claimed "356
+× bodyMedium, bodyLarge used once, the app reads at 16px" — measured, all
+three parts were wrong: the base was **308**, `bodyLarge` sat at **zero**, and
+mobile itself is MIXED (its salon descriptions and empty-state bodies read at
+14; its real 16s are the settings ListTiles, auth prompts and **typed input
+text** — the M3 default). Shipped as the owner's HYBRID: reading copy wears
+`text-bodyLarge` (descriptions, FAQ/review text, empty/error bodies,
+dialog/confirmation copy, settings rows, auth prompts), **every field types at
+16** (M3 parity — and iOS Safari stops auto-zooming focused fields; the phone
+widget had been 16 only by inheritance accident, now declared), and density
+surfaces stay `text-bodyMedium` **by doctrine** (tables, meta, controls,
+hints/field-errors — the exclusion list is part of row 17). Mobile's own 14px
+paragraphs are now ITS row (SYSTEM §21 row 27).
 
 ## 4. Semantic HTML
 
@@ -341,7 +376,17 @@ navigation must announce itself:
 - **Async results** ("12 salons trouvés") → a polite live region.
 - The region must exist in the DOM **before** the text lands, or nothing is read.
 
-Today: `aria-live` appears **zero times**, and 4 of 5 toasts are silent.
+**Shipped in B5** — `components/Toast.tsx` + `lib/useToast.ts` is the single
+transient-feedback entry point (SYSTEM §15's kind/duration table: success/info
+3 s, error 6 s; the with-action row is deliberately absent — zero callers
+product-wide). The component **always** renders the `role="status"` region and
+swaps the pill inside it — the region-before-text rule held structurally; every
+pre-B5 toast (including the one that had `role="status"`) mounted the region
+together with its text. Beyond the toasts, B5 swept **56 silent error-outcome
+sites** onto `role="alert"` (insertion-announced — the alert exception), the
+five « Enregistré. » confirmations + the go-live banner onto persistent
+`role="status"` regions whose **text** toggles, and the two « Copié ✓ » label
+swaps onto sr-only status twins. « Chargement… » strings await B6's `Loading`.
 
 ## 8. Dialogs
 
@@ -349,13 +394,21 @@ Six hand-rolled modals, **zero** focus traps. A modal that doesn't trap focus le
 a keyboard user tab out into the page behind it — where they are stuck, invisible,
 interacting with content that is visually covered.
 
-One shared `<Modal>`:
+One shared `<Modal>` — **shipped in B5** (`components/Modal.tsx`), all six
+dialogs converted:
 
-- `role="dialog"` `aria-modal="true"` `aria-labelledby` (its own title).
-- **Focus moves in on open, is trapped inside, and returns to the trigger on
-  close.**
-- **Esc closes.** Background scroll locks.
-- The overlay is a scrim, not a `<div onClick>` masquerading as a button.
+- `role="dialog"` `aria-modal="true"` `aria-labelledby` (Modal renders its own
+  `<h2>` title; `label` replaces it for the title-less Lightbox).
+- **Focus moves in on open** (`initialFocusRef` ?? first focusable — the
+  EquipeClient revoke confirm points it at **Annuler**, SYSTEM §15's
+  cancel-gets-focus), **is trapped inside** (Tab/Shift+Tab cycle), **and
+  returns to the opener on close** (guarded — the opener may have unmounted).
+- **Esc closes** (capture + stopPropagation, so a modal above the pro drawer
+  closes alone). Background scroll locks.
+- The overlay is an `aria-hidden` scrim sibling carrying the dismiss click —
+  never a `<div onClick>` masquerading as a button. Deliberately hand-rolled,
+  not native `<dialog>`: jsdom has no `showModal()` and `z-layers.spec.ts`
+  asserts the token stack.
 
 ## 9. Responsive & desktop
 
@@ -364,8 +417,25 @@ browser. Single column, thumb-friendly, fast.
 
 **Desktop-grade for the pro dashboard.** A salon runs this on a PC all day; it must
 feel like a desktop tool (the Planity bar): multi-pane agenda, dense tables,
-persistent nav, keyboard shortcuts, hover affordances. **It is currently a
-stretched phone column** — `xl:` and `2xl:` appear zero times.
+persistent nav, keyboard shortcuts, hover affordances. **Shipped in B7**
+([web-b7-desktop.md](web-b7-desktop.md)): Aujourd'hui is a two-pane at `xl:` —
+the day's list in the main pane, a 320px right rail (a NAMED grid template,
+`grid-cols-desk`, because `grid-cols-[…]` is banned) — one DOM tree, stacked
+below `xl`; the journal's artist columns grow past their 168px floor and fill
+1280/1536; the list pages run on `<DataTable>`; every pro page owns a width cap
+at the *page* level (tables `max-w-5xl` · reading `max-w-3xl` · forms/detail
+`max-w-content`) so skeleton, error and success share it; the shell breathes
+(`xl:p-xl`); Médias gains its `2xl:` fourth column.
+
+**Keyboard shortcuts (§9, B7).** The journal set: **←/→** = jour
+précédent/suivant, **T** = aujourd'hui — on the Journée view only, guarded four
+ways (no modifier chords · never while typing in
+input/textarea/select/contenteditable · never while any `[role="dialog"]` is
+open · view-scoped), with `title` hints on the matching buttons. **T is a
+single-character shortcut (WCAG 2.1.4)**: the typing guard + view scope are the
+mitigation, recorded here — if a remap/disable setting ever ships, T moves
+behind it. A global shortcut system beyond this set is deliberately out of
+scope until a real second consumer exists.
 
 Breakpoints are Tailwind's `sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1536`, and
 they map onto the same window classes as the apps
@@ -402,6 +472,79 @@ overlap, and `<main>` is `inert` while the drawer is open, so a hit-test returns
 scrim regardless. Only comparing the computed layers sees it
 (`tests/e2e/z-layers.spec.ts`).
 
+### Text scale & reflow (WCAG 1.4.10)
+
+The shared rule is [SYSTEM.md §13.3](SYSTEM.md#133-text-scaling--up-to-200) — *the
+OS/browser text setting is a first-class input, a box that contains text may not
+have a fixed height or width, and the fix is always more room, never a smaller
+font.* This section is only what a **browser** changes about it.
+
+**The standard is 1.4.10 Reflow (AA)**, and it is stated in CSS pixels rather
+than as a font multiplier because **page zoom scales the viewport too** — a
+multiplier could not describe it. Content must work, without loss of information
+or functionality and **without two-dimensional scrolling**, at:
+
+| | requirement | why that number |
+|---|---|---|
+| vertically-scrolling content | **320 CSS px wide** | 1280 / 4 — the 400%-zoom equivalent |
+| horizontally-scrolling content | **256 CSS px tall** | 1024 / 4 |
+
+Our pages scroll vertically, so **320 wide is the requirement that binds them**.
+The gate also runs a 320×256 viewport, which is deliberately beyond the SC: it
+is where sticky and fixed chrome fails, and it costs one array entry.
+
+**320 is below every breakpoint** (`sm: 640px`), so it renders the *same*
+mobile-first layout as 375 with 55px less room. There is no second layout to
+design — there is one layout that has to survive less space.
+
+**Four rules, each earned by something this gate found:**
+
+1. **A row that cannot fit must wrap, not spill.** `flex-wrap` is the answer, as
+   it was for the tab strips in §10. The journal's date navigator — `‹`, a
+   `type="date"` field whose intrinsic width the UA owns, `›`, « Aujourd'hui » —
+   measured 312px of the 272 available and pushed the whole page sideways.
+2. **A `justify-between` row needs a `gap`.** Without one, two items may touch
+   at any width, which is also SYSTEM.md §13.2's ≥8px adjacency floor going
+   unmet. Both identity rows on `/mon-compte` were `justify-between` with no gap.
+3. **Truncation is a loss, and every loss is declared.** A `truncate` removes
+   information; whether that is acceptable depends on whether the string appears
+   anywhere else, which no machine can decide. Each site carries
+   `// clip-ok: <why the clipped text is not the only copy>`, pinned by
+   `tokens.theme-pin.test.ts`. If it *is* the only copy, it is a 1.4.10 failure
+   and gets room instead — the roster's e-mail was cut from 213px to 108 at
+   **every** viewport, and it is the only on-screen identity that row has.
+4. **Content requiring two-dimensional layout is an exception, and exceptions
+   are written down.** The SC carves out data tables and maps. An undeclared
+   exception is indistinguishable from a bug, so the four are named in
+   [web-b11-reflow.md](web-b11-reflow.md) §5: `DataTable`, the pro journal grid,
+   the three map canvases, and `MonthCalendar`.
+
+**The unit contract, stated because it was an accident until B11.** The type
+scale (`styles/tokens.ts`) and the spacing scale are **px**; the sizing keys —
+`width`, `height`, `minWidth`, `minHeight`, `maxHeight`, `inset`, `translate` —
+are **rem**, because §2 leaves them open and Tailwind's default scale is rem. So
+under a large browser font **the boxes grow and the type does not**.
+
+- That the 48px tap floor grows with the root is **accepted**: WCAG 2.5.5 is a
+  minimum, and a user who asked for larger text plausibly wants larger targets.
+  It is now a decision rather than something `defaultTheme.spacing` decided.
+- **A px offset positioned against a rem box is a defect**, because the two
+  drift apart at any root but 16. Four were fixed in B11 — the notifications
+  switch knob (`left-[22px]` inside a rem track: it stopped a third of the way
+  across at a 24px root), the journal's `top: 32` offsets against an `h-8`
+  header, a duplicated `320px`/`20rem` grid rail, and a `48px` claiming to match
+  `min-h-12`.
+
+**The honest limit: this contract does not make a browser font preference
+work.** Text stays px, so Chrome's Appearance → Font size still moves the boxes
+and not the words. Migrating the type and spacing scales to `rem` is §15's own
+row, and it is not free — the Flutter↔web mirror deep-equals raw strings and its
+generator emits px, so the healing path fights the migration.
+
+**There is no screenshot harness on the web.** Mobile found §21 rows 62 and 69
+by *looking at* the 2× goldens; every finding here comes from computed geometry.
+Anything ugly-but-not-clipped is outside what these gates can say.
+
 ## 10. Components
 
 Shared components live in `web/components/`. **The library is currently one
@@ -410,22 +553,30 @@ strings (17 of them byte-identical), 6 hand-rolled modals, 5 hand-rolled toasts 
 7 ad-hoc inputs. A missing primitive doesn't prevent the UI from being built; it
 just guarantees it's built inconsistently, N times.
 
-Existing: `Button` (48-floor, `text` variant, `isLoading` — parity complete, B4)
-· **`TextField`** (B4) · `PhoneField` (label/error shell, B4) · `AppInstallBanner`
-· `OpenInAppButton` · `SalonTimeHint` · `LocalityPicker` · `ProviderCard` ·
-`TeamRoleChip` · `JsonLd` · `Lightbox` · `SiteChrome` / `Header`.
+Existing: `Button` (48-floor, `text` variant, `isLoading` — B4) · **`TextField`**
+(B4) · `PhoneField` (B4) · **`Toast`**/`useToast` + **`Modal`** (B5) ·
+**`Icon`** · **`Loading`** · **`Skeleton`** (+Rows/Grid) · **`EmptyState`** ·
+**`ErrorState`** · **`Rating`** · **`Chip`**/`ChipButton` (all B6) ·
+**`Card`** · **`StatusChip`**/`statusChipKind` · **`DataTable`** (all B7) ·
+**`Tabs`** (B9 — wraps, named `role="group"`, `min-h-12`) ·
+`AppInstallBanner` · `OpenInAppButton` · `SalonTimeHint` · `LocalityPicker` ·
+`ProviderCard` · `TeamRoleChip` (a `Chip` caller since B6) · `JsonLd` ·
+`Lightbox` · `SiteChrome` / `Header`.
 
 To build (specified in [SYSTEM.md §11.3](SYSTEM.md#113-to-build-the-gaps-this-system-creates-work-for)
 where they have an app twin):
 
 | Component | Why |
 |---|---|
-| **`Toast`** | §7 — `aria-live`. |
-| **`Modal`** | §8 — focus trap. |
-| `Loading` / `Skeleton` | Kills the 35 inline "Chargement…" strings. 1 skeleton exists; `animate-pulse` = 0. |
-| `EmptyState` / `ErrorState` | ~15 error paths currently offer **no retry**. |
-| `Rating` | Glyph + numeral ([SYSTEM.md §3.5](SYSTEM.md#35-accents)). |
-| `Card` · `StatusChip` · `DataTable` | The pro/admin density work. |
+| ~~**`Toast`**~~ | §7 — `aria-live`. **Shipped in B5** (+ `useToast`, §15 durations). |
+| ~~**`Modal`**~~ | §8 — focus trap. **Shipped in B5** — all 6 dialogs converted. |
+| ~~`Loading` / `Skeleton`~~ | Kills the 35 inline "Chargement…" strings. **Shipped in B6** — per §12's shape rule (lists → Rows, grids → Grid, unknown → spinner). |
+| ~~`EmptyState` / `ErrorState`~~ | ~15 error paths offered **no retry**. **Shipped in B6** — retry is real, the h1 survives the error state. |
+| ~~`Rating`~~ | Glyph + numeral ([SYSTEM.md §3.5](SYSTEM.md#35-accents)). **Shipped in B6** — with the French comma the old `toFixed(1)` never had. |
+| ~~`Chip`~~ | §11.3's variants; outlined = `borderStrong` (§16). **Shipped in B6** (+ `ChipButton`, the dense tier). `StatusChip.forStatus` mapping stays with the density work. |
+| ~~`Card` · `StatusChip.forStatus` · `DataTable`~~ | The pro/admin density work. **Shipped in B7.** `DataTable` is the `AdminDataTable` twin mirrored from the **code** (header `bodySmall`/`textTertiary`, not the admin doc's labelMedium — the B3 lesson; **no in-widget pagination** — the doc's footer was never built in the reference either, callers own paging); four states, pulsing skeleton (the web upgrade), 48px rows. A **navigation row is a link wrapping its cells** (open-in-new-tab works; the first draft's pointer-events-under-button pattern broke real hit-testing on row text — pro.spec's clients flow caught it). `StatusChip`: **kind, not color, is the API** (`ok \| pending \| danger \| neutral`, mobile's `AdminChipKind` widened to the cross-surface inventory). `Card`: §11.3 verbatim at `p-m`. |
+
+| ~~`Tabs`~~ | **Nothing in this section had ever specified a tab or segmented control** — no `Tabs`, no `SegmentedControl`, and no row here asking for one. The result was **five byte-identical** hand-rolled strips (`grep -rn "flex gap-s border-b border-divider" web/components` returned all five in one line), each carrying the same overflow and the same 38px tap target. **`Tabs` shipped in B9**; a general `SegmentedControl` did NOT — the one other control of that family (`DisponibilitesClient`'s buffer presets) became a `ChipButton`, which is the existing primitive for a selection chip row. It wraps rather than scrolls (a desktop has no swipe affordance), plain buttons inside a named `role="group"` rather than ARIA tabs (which would oblige APG arrow-key navigation), and `min-h-12`. A missing primitive does not stop the UI being built; it guarantees it is built inconsistently, N times — and this is the section's own sentence, proven a second time. |
 
 (`TextField` and Button's `text`/`isLoading` parity landed in B4. The switch
 remains hand-rolled in NotificationsClient — §10 specs no Switch primitive; its
@@ -468,12 +619,17 @@ web converts, the app deepens:
 
 | Rule | Gate |
 |---|---|
-| Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps |
+| Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps, **and (B3) a completeness gate: every `colors` key must carry an assertion** |
+| The Flutter↔web mirror (§1) | **`tokens.mirror.test.ts`** (B3) — parses `mobile/lib/core/theme/` + the §9 doc tables per run; per-family equality both directions; parser self-checks (comments stripped, then every `static const\|final … =` candidate must parse — a `static final` or type-inferred declaration screams; doc tables row-counted; the theme directory manifest-pinned); heal with `npm run gen:tokens` |
 | Tokens only (§2) | **Closed Tailwind theme** (B2a) + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** — **and** `tokens.theme-pin.test.ts`, because the lint has two blind spots (bare `const` class strings; a bare `rounded`, which it passes clean while Tailwind emits nothing). Config lives in **`.eslintrc.js`**, not `.json`: the plugin resolves `tailwindcss` relative to `dirname(settings.tailwindcss.config)`, so a *relative* config path makes it look in `.` and throw — JSON cannot compute an absolute path |
 | Layering (§9) | `tests/e2e/z-layers.spec.ts` — the drawer/scrim/panel stack and the map control, asserted on **computed layers** (a hit-test can't see it: `<main>` is `inert` while the drawer is open, and inert content isn't hit-tested) |
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |
-| The whole of §4–§8, on real pages | **`@axe-core/playwright`** over ~10 routes, inside the **already-blocking** e2e job |
-| Regression | Lighthouse a11y ≥ **0.95**, as an **error** |
+| The whole of §4–§8, on real pages | **`@axe-core/playwright`** over **13 routes + 2 stateful scans** (an open Modal, a visible toast) inside the **already-blocking** e2e job (`tests/e2e/axe.spec.ts`, B5; proof-red at base: 11 violations / 5 rules / 8 routes — 3 rules were new finds) |
+| Regression | Lighthouse a11y ≥ **0.95** as an **error** on `/` + `/connexion` (B5; SEO ≥ 0.9 errors on `/` — `/connexion` is deliberately noindex, so its SEO score gates nothing) |
+| **Reflow — WCAG 1.4.10 (§9)** | **`tests/e2e/type-overflow.spec.ts`** (B11) — every route **in its matrix** (19 today, not every route in the app) at **375×812, 320×512 and 320×256**, one `describe` per viewport (`test.use` is a declaration; it cannot be a loop around `test()`). Five assertions per subject: no document-level sideways scroll **naming the elements that start it**, no element spilling its own box, no `nowrap` flex row overflowing its container, **nothing cut off the bottom of a `hidden`/`clip` box**, and **nothing actually truncating**. `/pro/connexion` runs before every authed row, because `signInPro` drives that UI and a login broken at 320 would misattribute every authed failure |
+| **Truncation is declared (§9)** | **`tokens.theme-pin.test.ts`** (B11) — every `truncate` / `line-clamp-*` / `text-ellipsis` carries `// clip-ok: <why the clipped text is not the only copy>`. Reads the TypeScript AST's string literals, so prose *about* truncation is never flagged. The browser half proves nothing is being cut; this proves every class that could cut was thought about |
+| Type does not overflow (§3) | `tests/e2e/type-overflow.spec.ts` — the same file, and it predates the reflow work (B2b). **Listed here for the first time in B11**: it and the tap-target gate below have existed for several slices and appeared nowhere in this table, which is how an enforcement inventory quietly stops being one |
+| Tap targets ≥ 48 (SYSTEM.md §13.2) | `tests/e2e/tap-targets.spec.ts` — an explicit named list of controls, so it sees nothing it was not told about. Row 26 (`Faq.tsx`'s `<summary>` at ≈35px) is exactly what that costs |
 | Everything | typecheck · lint · `vitest` · `next build` |
 
 Two of these are the point:
@@ -488,9 +644,11 @@ Two of these are the point:
   three of the 16 were `img-redundant-alt` catching the **French** word « Photo »
   — the rule's banned-word list is language-blind, the alts were reworded to say
   what the image shows.
-- **Lighthouse is `continue-on-error: true`, a11y is `warn`, and it audits exactly
-  one URL — the homepage.** A gate that cannot fail and looks at one page is not a
-  gate.
+- **Lighthouse was `continue-on-error: true`, a11y `warn`, one URL** — a gate
+  that cannot fail, looking at one page. B5 promoted it: the job blocks, a11y
+  0.95 + SEO 0.9 are errors (perf/best-practices stay `warn` — the flake-prone
+  pair), and `/connexion` joined via `assertMatrix` (a11y only — it is noindex
+  by design).
 
 ## 15. The known-violations register
 
@@ -513,23 +671,35 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 9 | Labelled inputs (§6) | ~~0~~ → **every control associated** | `<TextField>` (label + `useId`) across the funnels, account, booking, clients, dialogs; label-*wrapped* forms (ProfilClient's `Field`, the label-wrapped dialogs) kept their working implicit association — the metric that matters is *associated*, not *htmlFor specifically*. The funnels' 8 placeholder-only inputs have real labels ("Votre e-mail" replaced its placeholder; "Code à 6 chiffres" became one; "07 00 00 00 00" survives as a format example, the one legitimate placeholder role). Optional fields say « (optionnelle) » in the label (§14 rule 6) | ✅ **B4** |
 | 10 | Errors tied to fields (§6) | ~~0~~ → **wired** | `<TextField>`/`PhoneField` render `aria-invalid` + `aria-describedby` (error id first, hint id second) + `<p role="alert">`; `useFieldErrors` implements §14 rule 2 (validate on submit, re-validate on change once errored, `set()` for server faults — « Code incorrect ou expiré » now renders under the code field). The funnels' `disabled={!emailValid}` gates — rule 5's dead-end anti-pattern — are gone; an invalid submit answers with a field error. E2e-proven: the describedby chain resolves id-by-id. **The first `validate()` replaced the whole error map** — a step-2 submit wiped a still-unfixed step-1 error and the submit fired with the empty value (the review proved it on ProRegister's businessName); it now **merges**, touching only the keys it validated, and ProRegister validates each path's full field subset | ✅ **B4** |
 | 11 | jsx-a11y strict (§14) | ~~off~~ → **on, 0 errors, 0 disables** | branch-base proof-red = **16 errors / 5 rules** (3 were `label-has-associated-control` depth-2 false positives → `{depth: 25}`; 3 were `img-redundant-alt` catching the **French** « Photo » — reworded to say what the image shows; the rest: the 2 raw PhoneInput labels, the dialog backdrops restructured to ProShell's aria-hidden-scrim precedent, the `/recherche` hover-sync wrapper gaining focus parity). The theme-pin rejects an undocumented `eslint-disable jsx-a11y/*` | ✅ **B4** |
-| 12 | Announcements (§7) | `aria-live` = **0** | 4 of 5 toasts silent | **B5** |
-| 13 | Focus-trapped dialogs (§8) | **0 of 6** | | **B5** |
-| 14 | Heading order (§4) | 1 | `/recherche` **h1 → h3** (`ProviderCard.tsx:23`) | **B5** |
-| 15 | axe on real routes (§14) | none | Lighthouse: 1 URL, `warn`, `continue-on-error` | **B5** |
-| 16 | Shared primitives (§10) | library = **1** → growing | 35 inline "Chargement", 6 modals, 5 toasts, 7 inputs. B4 added `TextField`/`Button`/`PhoneField` — and found `OtpLoginForm` has **zero callers** (both funnels inline their own OTP steps): a "shared" component nothing shares. Keep-or-delete is B6's call | *B6* |
+| 12 | Announcements (§7) | ~~0~~ → **wired product-wide** | the count was low three ways: 5 toasts (1 announced — unreliably: its region mounted WITH the text, against §7's own rule — and it was the one toast missing `z-toast`), **plus ~63 silent outcome sites nobody had counted**. Shipped: `<Toast>`/`useToast` (§15 durations; the region always exists, text swaps inside) over the 4 fixed toasts + the map note in place; `role="alert"` on **56** error-outcome sites; persistent `role="status"` on the 5 « Enregistré. » confirmations + the go-live banner; sr-only status twins for the 2 « Copié ✓ » swaps. « Chargement… » → B6's `Loading`. **The review then broke the first "wired product-wide" claim four ways**, all fixed: in-dialog errors announced via the OUTSIDE toast — which `aria-modal` prunes from the a11y tree (ManualBooking's « Ce créneau est déjà pris. » was inaudible with the dialog open) → in-dialog `role="alert"`, the dialog's `onToast` died; three **replaced-form successes** (ReviewForm, DepositProof — the payments flow —, ReviewList's report) were silent AND dropped focus to `<body>` → the confirmation takes focus itself (`lib/focusOnMount.ts`; a focused element is announced, a status region mounted with its text is not); ReviewList's 401 prompt → alert; and the « Copié ✓ » status said « Identifiant copié. » while the button copies the **data export** → « Données copiées. » | ✅ **B5** |
+| 13 | Focus-trapped dialogs (§8) | ~~0 of 6~~ → **6 of 6** | the debt was wider than the trap: focus-in/restore **0/6**, scroll lock **0/6**, Escape **2/6**, three scrim patterns. One `<Modal>` (trap · Escape · restore guarded on `isConnected` · scroll lock · aria-labelledby'd h2) converted all six; the revoke confirm focuses **Annuler** (SYSTEM §15). `Button` gained `forwardRef` for exactly that. **Review corrections**: the Lightbox conversion had broken portrait photos (the panel's content-driven height severed the `max-h-full` chain — clipped, unscrollable) → `panelClassName="contents"` restores the pre-B5 geometry byte-for-byte; the ⋯-menu dialogs restored focus to `<body>` (the menu item — the captured opener — unmounts in the very commit the dialog mounts) → `returnFocusRef` aims at the row's ⋯ trigger; Escape now ignores `isComposing` (an IME cancel must not eat the dialog) | ✅ **B5** |
+| 14 | Heading order (§4) | ~~1~~ → **0** | the count was 1 of **2**: `/recherche`'s h1→h3 (fixed by promoting the tertiary count `<p>` to the visible « N salons » h2 — the card was already correct on home/landing under their h2 sections) — and `/mon-compte/[id]` had **no h1 at all** (the salon-name h2 is promoted; it is the page's only heading). Row 7f's 4 token-less h2s joined `text-titleLarge` here. **The review then found the count was really 5**: AREA taxonomy landings skipped h1→h3 (the two h2 sections above the list are root/city-gated) → the « N salons » count h2, same pattern; `/recherche`'s mobile « Carte » view display:none'd the page's only h1 → an sr-only, `lg:hidden` twin in the map pane; and `/mon-compte/[id]`'s not-found state — the route this slice promoted an h1 on — was a zero-heading dead end → a real error state (h1 + alert + « ← Mes rendez-vous »). The ~15 pro clients' one-line error states remain h1-less inside the shell's landmarks — B6's `ErrorState` owns them (row 16) | ✅ **B5** |
+| 15 | axe on real routes (§14) | ~~none~~ → **13 routes + 2 stateful scans, blocking** | proof-red at base (measured in a worktree, `axe-base.json`): **11 violations / 13 nodes / 5 rules / 8 of 12 routes** — and 3 of the 5 rules were violations **nothing in this register knew**: `region` ×7 routes (the home hero — h1 + search — sat OUTSIDE `<main>`; the install banner was landmark-less chrome everywhere), `nested-interactive` (maplibre stamps `role=button` on its marker wrapper around our named pin — the child now claims the wrapper as presentation before `addTo`), `aria-prohibited-attr` (MapEmbed's aria-label on a role-less div), `empty-table-header` (Équipe's actions column). The row-21 radiogroup never fired at base because the stars' route wasn't in the first matrix — it is now (13th route). Lighthouse promoted to blocking (a11y 0.95 + SEO 0.9 as errors; `/connexion` a11y-only — noindex by design). **Review hardening**: the gate now aborts the CARTO basemap CDN like every other map spec (live tiles + `networkidle` + a 6-route budget = a blocking gate that flakes, and proof-red vs CI scanning different DOMs); the matrix grew to **15** (+ the area landing whose skip it had missed, + `/pro/apercu`); the toast scan asserts the pill **survived** `analyze()` (success auto-dismisses at 3 s — expiry would have made the scan silently vacuous) | ✅ **B5** |
+| 16 | Shared primitives (§10) | ~~1~~ → **the library is real** | the ledger, closed item by item: the 35 « Chargement… » (18 byte-identical) → `Loading`/`Skeleton` per §12's shape rule — the first skeletons with `animate-pulse` in the product (`motion-reduce` stilled); the ~20 empties (ZERO icons product-wide) → `EmptyState` with mobile's anatomy (icon · title · WHY · action — favoris/clients gained real actions; the emptiness LINE keeps sub-section one-liners inline, recorded in the spec); the 12 dead-end errors whose copy said « Réessayez. » with no control → `ErrorState` with REAL retry (named `load()` or a reloadKey re-arming the init effect) + the page h1 (closing B5's ~15 h1-less states); 6 hand-rolled « Envoi… » swaps → `Button isLoading` (the 7th is a file-pick `<label>` — recorded); `OtpLoginForm` **deleted** (zero callers, zero tests); the Toast action row stays deferred — `ErrorState`'s retry is an inline button, still zero action callers. **The review then caught the retries LYING** (all fixed): ClientsClient retried unfiltered under filter UI still marked active; Revenus retried 'all' under a selected « Semaine » chip; ProAppointmentDetail told the pro a 5xx meant « introuvable » (only the true 404 is terminal now); Notifications' prefs failure said « Rechargez la page » with no control; « Effacer la recherche » flashed the onboarding empty-state mid-reload and raced its own debounce; BookingFlow's bimodal session probe wore a list skeleton | ✅ **B6** |
 | 7e | Icons borrow a type role | ~~2~~ → **0** | the count was the *tokenised* ones. Measured, the same `✕` rendered at **12, 14, 22px and three inherited sizes** — the drift was in the 24 nobody counted. §7's scale is ported (`text-iconXS…XL`, **a bare size** — see §3) and 10 standalone glyph controls snapped to it by §7's own method. The inheriting ✕s sat at the 16px body default → `iconXS` is **zero-pixel, box included** (measured: font 16 · line 24 · box 24 on both sides); the rest move by the snap and every one **grows** (♡ 22→24, box 26→28), which is the right direction for row 7h. **The first attempt did not**: baking `lineHeight: 1` shrank 7 boxes by 4–8px, and the review measured it — a font-size token quietly regressing the tap-target metric this very slice added. A glyph *inside a sentence* (`★ 4,8 sur 5`, `← Tableau de bord`) is text, not an icon, and was left alone | ✅ **B2c** |
 | 7g | **The `maxWidth` leak** | ~~5~~ → **0** | `maxWidth` spread `spacing` **first**, so `max-w-s`=8px · `max-w-m`=16px · `max-w-l`=24px · `max-w-xxl`=48px · `max-w-xxxl`=64px — rhythm tokens acting as max-widths — while `max-w-sm`=24rem and `max-w-xl`=36rem, because Tailwind's names win where they collide. `max-w-l` (24px) and `max-w-xl` (576px) sat adjacent in one scheme, **24× apart**. Closed to the named steps; the 7 in use are byte-identical | ✅ **B2c** |
-| 7h | **Tap targets ≥ 48 (§13.2)** | ~~0 of ~10~~ → **0 remaining** | the count was wrong **three** times over: the glyph floor was **16px** (not 18); the census missed HeaderBell (20×20) and the phone country selects; and the first "0 remaining" claim here was **false** — the adversarial review measured a long tail the sweep never reached (the header logo 70×28 and « MyWeli Pro » 112×28 wordmark links, sidebar nav links 207×36 at a 4px stride, the salon switcher ~30, ManualBookingDialog's checkbox/client rows 28 and « Changer » 57×20, ClientCardClient's tag pills + tel links + « Supprimer », DayHoursEditor's « Travaille » rows) — **and** four adjacency violations the sweep itself had *created* with two-sided negative margins (banner ✕/bell/hamburger abutting neighbours at 0–4px; fixed one-sided), plus MediasClient's 3×48 IconBtn row overflowing its 155px grid-cols-2 card at 375 (fixed: 1-col base / `sm:2` / `lg:3` + a wrapping footer). Fixed by A4a's two patterns, ported: bordered boxes/pills grow visibly (`Button` 36→48 = mobile A3's `Size(0, 48)`; chips 28→48; IconBtn; the Lightbox ✕ pill; ReviewForm's stars 24→48 each **+ `gap-s` fixing their 4px adjacency violation**); tight-layout glyphs grow invisibly (padding + **one-sided** negative margin where a neighbour exists, glyph unmoved); the switch keeps its 44×24 track inside a 48 target, labelled by its row title; the photo-✕ badges got 48 wrappers at compensated offsets; text-links became `<Button variant="text">` or floored in place. MonthCalendar cells: **height floored at 48, width grid-bound (~43 at 375px)** — recorded, not hidden. Pinned by `tap-targets.spec.ts` (boundingBox ≥ 48 over the control table, incl. the review's finds; EquipeClient's ⋯ is floored in code but **not pinnable** — the stub seeds no second member, and the first draft's guard passed vacuously) | ✅ **B4** |
-| 7i | No `<Icon>` component | **4 channels** | icon size lives in Tailwind classes (2 of 5 svgs), raw SVG `width`/`height` attrs (3), `globals.css` (the 44px map pin, a 22px dot), and font-size (10 glyphs). B2c governs the last; a real `<Icon>` would govern all four | *B6* |
-| 7j | `contentMaxWidth` unapplied | **1** | §10's `contentMaxWidth = 720` is the only non-icon dimension the system names, and it had never existed in code on either surface. B2c makes it a token (`max-w-content`); **applying** it to the pages that need it is a layout decision | *B7* |
-| 7f | `<h2>` with no type token | **4** | `ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient` carry no size class, so they inherit while their 38 peers are `titleLarge`. Pre-existing — B2b had no `text-*` there to migrate — but it widens the gap to 8px | *B5* |
-| 17 | Reading text = 16px (§3) | **356 × `text-bodyMedium`** | `bodyLarge` (16px) used **once**. B2b renamed the workhorse but did not resize it — the web still reads one step smaller than the app | *B8* |
-| 18 | Desktop-grade pro dashboard (§9) | `xl:`/`2xl:` = **0** | a stretched phone column | *B7* |
-| 19 | Token generator (Flutter → `tokens.ts`) | hand-mirrored | drifted **six times** now (row 4; B4 found `borderFocus` missing — §5's own snippet would not have built — and `warningLight`/`infoLight` still exist on mobile only) | *B3* |
+| 7h | **Tap targets ≥ 48 (§13.2)** | ~~0 of ~10~~ → ~~0 remaining~~ → ~~**5 more, found in B9**~~ → **a sixth, found in B11 (row 26)** | the count was wrong **three** times over: the glyph floor was **16px** (not 18); the census missed HeaderBell (20×20) and the phone country selects; and the first "0 remaining" claim here was **false** — the adversarial review measured a long tail the sweep never reached (the header logo 70×28 and « MyWeli Pro » 112×28 wordmark links, sidebar nav links 207×36 at a 4px stride, the salon switcher ~30, ManualBookingDialog's checkbox/client rows 28 and « Changer » 57×20, ClientCardClient's tag pills + tel links + « Supprimer », DayHoursEditor's « Travaille » rows) — **and** four adjacency violations the sweep itself had *created* with two-sided negative margins (banner ✕/bell/hamburger abutting neighbours at 0–4px; fixed one-sided), plus MediasClient's 3×48 IconBtn row overflowing its 155px grid-cols-2 card at 375 (fixed: 1-col base / `sm:2` / `lg:3` + a wrapping footer). Fixed by A4a's two patterns, ported: bordered boxes/pills grow visibly (`Button` 36→48 = mobile A3's `Size(0, 48)`; chips 28→48; IconBtn; the Lightbox ✕ pill; ReviewForm's stars 24→48 each **+ `gap-s` fixing their 4px adjacency violation**); tight-layout glyphs grow invisibly (padding + **one-sided** negative margin where a neighbour exists, glyph unmoved); the switch keeps its 44×24 track inside a 48 target, labelled by its row title; the photo-✕ badges got 48 wrappers at compensated offsets; text-links became `<Button variant="text">` or floored in place. MonthCalendar cells: **height floored at 48, width grid-bound (~43 at 375px)** — recorded, not hidden. Pinned by `tap-targets.spec.ts` (boundingBox ≥ 48 over the control table, incl. the review's finds; EquipeClient's ⋯ is floored in code but **not pinnable** — the stub seeds no second member, and the first draft's guard passed vacuously). B5 found one more in passing — the map's « Autour de moi » at 40px — floored + `borderStrong`; B6 found another — Revenus' period chips (`px-m py-xs`, no floor) — fixed by `ChipButton` | ✅ **B4** (+B5, B6)  ⚠️ **"0 remaining" was wrong a fourth time (B9).** Every button in all five tab strips measured **38px** — `py-s` on a 20px line, plus the active tab's 2px underline — and `tap-targets.spec.ts` never saw them, because it asserts an explicit list of controls and no entry named a tab. **And the widest strip passed a tap-target check at 56px while being the most broken of the five:** its row needed 340px of 327, so flexbox shrank the items, `min-width: auto` stopped « En attente » at its longest word, the label wrapped to two lines and `align-items: stretch` grew all four buttons to match. Fixing the overflow alone would have turned that green subject red — which is why B9's `<Tabs>` carries `min-h-12` and `flex-wrap` as one change. All five gated now — **and a SIXTH, which the class-string sweep could not reach**: `DisponibilitesClient.tsx`'s five buffer-preset buttons, same family, same 38px, on a route `tap-targets.spec.ts` did not cover at all. It escaped because it already wraps — the overflow was never what it got wrong. Converted to `ChipButton` (which carries the floor, and fixes a §16 `border-border`→`borderStrong` miss in passing). Both the active AND inactive states are measured now: every subject had named the default-active tab, so the 36px inactive button — the commoner state — had never been measured in a browser |
+| 7i | No `<Icon>` component | ~~4 channels~~ → **governed, honestly recounted** | `<Icon>` (a named Material-path registry, §7-token sized, `currentColor`) unifies the SVG channels — the two private inline registries (salon-pin ×4, Notifications ×7) consolidated, the 4 registry sites converted; the hamburger stays the one stroke svg (redrawing it filled = a look change for zero doctrine gain). The recount: the font-size glyph channel is **CORRECT by §3's own doctrine** (a text character's size IS a font-size — B2c governs it, not a violation); the two `globals.css` sizes are **not icon sizes** (the 44px `.myweli-pin` is marker/tap geometry HOSTING an on-scale 20px `<Icon>`; the 22px user dot is a dot) — documented in §3 | ✅ **B6** |
+| 7j | `contentMaxWidth` unapplied | ~~defined, **zero** usages~~ → **applied — the selector is emitted for the first time** | the census found >720px prose at exactly five places, all capped: the taxonomy landing (768→720) · ProviderView's description + FAQ (the 768–1024 band, where prose ran to ~1024; at `lg+` the 3-col grid already held ~650) · Revenus (768→720, the ledger fits) · Disponibilités + ProAppointmentDetail (were unbounded). **The exclusion list is part of the row** (web-b7-desktop.md): maps, the journal, media grids, calendars, card grids, and Abonnement's `md:grid-cols-3` offer CARDS keep their widths — §10 caps *text and forms*, not layouts **A11 C6 gave it an upstream.** The `720px` was hard-coded here, under a comment admitting it stood in for §10 — which lived in prose and in no code on either surface. It is generated now, from `AppTheme.contentMaxWidth` through a fourth token family (`LAYOUT_KEYS` → the `layout` export → `maxWidth`), so the surfaces agree by construction rather than coincidence. §2's objection to a web sizing scale — *"the first with no upstream for B3's generator to track"* — is retired by supplying the upstream, not by ignoring it. And `maxWidth` gained the wiring assertion it never had. | ✅ **B7** |
+| 7f | `<h2>` with no type token | ~~4~~ → **0** | all four (`ClientCardClient` ×2, `JournalPanel`, `ProRegisterClient`) joined their 38 peers on `text-titleLarge` (ProRegister's also traded `font-medium` for the peers' `font-semibold`) | ✅ **B5** |
+| 17 | Reading text = 16px (§3) | ~~356~~ → **0 reading sites at 14** | the row was wrong THREE ways: the base was **308** (not 356), `bodyLarge` had **ZERO** usages (not "once"), and "the app reads at 16px" was false for paragraphs — mobile's salon descriptions + empty-state bodies are bodyMedium(14); its real 16s are the settings ListTiles, auth prompts and TYPED TEXT (M3's default; role counts 227 bodySmall · 159 bodyMedium · 86 titleMedium · 31 bodyLarge). Shipped as the owner's **HYBRID** — the reconciliation is exact: **308 = 72 net-flipped + 236 stay** (three ③ over-flips were reverted in the adversarial review — a caption, a terse tick, a picker placeholder — so they count as stay), plus **8 token-less reading paragraphs declared** (the salon page's intro — the most-read sentence on the most important public page — carried NO type token and read 16 only via the browser default, the phone-input accident in prose form) and the phone widget's typed text made explicit in CSS. Flipped: reading copy (descriptions, FAQ + review text on both surfaces, EmptyState/ErrorState bodies, dialog guidance, replaced-form confirmations, the account + pro settings rows — mobile's ListTile-bodyLarge twins, auth prompts) + **ALL typed input text** (7 shared consts + 21 inline fields, one of which — DepositProof — the census missed and the whole-product tag scan caught; and HomeSearch's two inputs, which typed 16 only by a token-less accident — invisible to the audit grep, caught by the review, now declared). Stays 14 BY DOCTRINE (the exclusion list is part of the row): DataTable cells, meta lines, controls/tabs/menus/sidebar, Toast/Loading/banners, `<dl>` fact-lists, field labels/hints + the 37 `role=alert` field errors (M3 parity), the five terse « Enregistré. » ticks (a toast that didn't float), operator-row primaries. **Found in passing**: type-overflow's salon route had been VACUOUS since the slug scheme changed (`/salon/salon-excellence` scanned the 404 page, which also doesn't overflow) → repointed at the real salon. Emitted CSS: **+1 selector — `.text-bodyLarge`'s first emission ever** (16px/24px/0.5) — and −0. Mobile's own 14px paragraphs → SYSTEM §21 row 27 | ✅ **B8** |
+| 18 | Desktop-grade pro dashboard (§9) | ~~`xl:`/`2xl:` = 0~~ → **13 selectors, every one deliberate** | the stretched phone column, dismantled piece by piece (emitted-CSS diff: +13/−3, the 3 removed died with Équipe's hand-rolled `<table>`): **Aujourd'hui two-pane** at `xl:` (main = the day's list, 320px rail = interrupts→stats→revenue→links; ONE DOM tree, grid placement; the template is a NAMED token `grid-cols-desk` because `grid-cols-[…]` is banned) · **four `DataTable` conversions** (Équipe re-based keeping `Actions pour {email}` + the ⋯ menu; Clients rows = LINKS to the card; Revenus' ledger; Catalogue with the inline editors RETHREADED below the table — same `open` state machine) · **journal columns `flex-1`** past their 168px floor (2×459px @1280, measured; the positional-click pin at pro.spec holds — position is column-relative) · page-level width caps (5xl/3xl/content — every state shares them) · `xl:p-xl` shell · Médias `2xl:grid-cols-4` · **shortcuts ←/→/T** (guarded; §9) · the **kind-tint sweep** (6 real pill sites; KYC + Abonnement are *banners*, honestly excluded) · **19 hand-rolled boxes → `<Card>`** at `p-m` density (the dialog panel + the interactive card-link stay — a Card is not an interactive host). **Corrections the slice itself forced**: the DataTable row-click first shipped as a full-row button UNDER pointer-events-none cells — real hit-testing on row text was broken (caught by pro.spec's clients flow) → navigation rows are links WRAPPING their cells; and the census found web's « À confirmer » counted TODAY only while the app's « Demandes » is `pendingRequests` across ALL dates — a salon with Monday requests read « 0 » on Friday → parity fixed, lockstep-pinned (1-from-stats vs 0-today-only). **The adversarial review then broke four more claims** (4 confirmed by execution + 8 whose refuters died on session limits, hand-verified — an unverified finding is not a rejected one): the DataTable had traded Équipe's REAL `<table>` semantics for an unlabelled div grid (WCAG 1.3.1 — and axe *cannot* see it: it only runs table rules on elements exposed as tables) → the markup is an **ARIA table** (`table → rowgroup → row → columnheader/cell`), the row control moved INTO the first cell with a row-wide stretch (cells stay outside it, so table nav reads clean), and tracks are `minmax(0, Nfr)` so one long email can't misalign its own row; the **Catalogue editor was UNKEYED** — main keyed it per row, so « Modifier » A→B kept A's `useState(initial)` form and **saved A's data onto B** → keyed by the edited id, the row carries `aria-current` + tint, `aria-expanded` on « Modifier », and a **focused heading** names the item (it mounted below the fold with zero feedback — focusOnMount scrolls AND announces); the **shortcuts fired under the open JournalPanel** (a panel, not a dialog — the guard couldn't see it) → the panel is a non-modal `role="dialog"`, plus `e.repeat` ignored and the request-id dedupe (a held → let the SLOWEST day response win); `statusChipLabel` was spelling-sensitive while the kind was not (`NO_SHOW` tinted danger but printed the raw enum) → normalized like the kind; and Revenus' spec'd « Rendez-vous » column has no printable name in the payload (`appointmentId` only) → the row **links** to the appointment instead of faking a column | ✅ **B7** |
+| 19 | Token generator (Flutter → `tokens.ts`) | ~~hand-mirrored, drifted **six times**~~ → **gated** | the six: `gold` dropped (→ the invisible chip, row 4) · `spacingSM`/`XXXL` dropped · tracking nearly dropped (§4's own table omitted it — mirror the CODE) · `warningLight`/`infoLight` mobile-only for five slices (**closed here** — with warningLight's negative pin and the new completeness gate: every `colors` key must carry a contrast assertion) · `borderFocus` missing while §5's snippet consumed it. Now: `tokens.mirror.test.ts` parses the Dart sources + the §9 doc tables per test run — per-family equality both directions, parser self-checks — hardened by the review from opener-counts to comment-stripped CANDIDATE checks (a `static final`, a type-inferred const, a stale shadowing comment, a drifted doc-table row and a new theme file were all proven to slip the first version; every attack is pinned in `tests/dart-tokens.review.test.ts`) — `WEB_ONLY` declarations explicit and consumed, `screens` value-pinned. Proof-red at base was REAL: the gate's first run failed on exactly `warningLight`/`infoLight` and nothing else. Healing = `npm run gen:tokens` (a printer, not a writer — tokens.ts keeps the drift histories as comments). Mutation-proven: a flipped mobile hex and a non-idiom declaration both went red before being trusted | ✅ **B3** |
 | 20 | Role pickers announce selection | ~~visual-only~~ → **`aria-pressed`** | ChangeRoleDialog/InviteMemberDialog's role rows showed the chosen role by border colour alone — a screen reader heard four identical buttons. Two lines each | ✅ **B4** |
-| 21 | ReviewForm stars: toggle semantics | 5 × `aria-pressed` | the stars are five independent toggles where "pick one of five" wants a radiogroup; functional but semantically loose. B5's axe run owns the re-shape | *B5* |
-| 22 | FilePick is keyboard-inaccessible | **3 pickers** | the `<input type="file">` is `hidden` (display:none) — unfocusable, so keyboard users cannot upload in MediasClient at all. B4 removed the dead `focus:` classes that *implied* it worked; the fix is `sr-only` + `focus-within` styling on the label | *B5* |
+| 21 | ReviewForm stars: toggle semantics | ~~5 × `aria-pressed`~~ → **a real radio group** | worse than "loose": `aria-pressed` buttons are **invalid children** of `role="radiogroup"` (axe `aria-required-children`). Now `role="radio"` + `aria-checked` on the chosen value, one roving tab stop, arrows move-and-select **wrapping at the edges** (APG); the ≥48px targets and `rating >= n` fill are untouched. Pinned by the axe matrix's 13th route | ✅ **B5** |
+| 22 | FilePick is keyboard-inaccessible | ~~3~~ → **0** | the count was wrong twice: **5** hidden file inputs exist, but 3 (Verification, Catalogue, ReviewForm) already had focusable proxy `<Button>`s — only **MediasClient's two** label-wrapped pickers were keyboard-dead. Both: `hidden` → `sr-only` (a real tab stop) + §5's ring projected onto the label via `focus-within:outline-*`. DepositProof's sixth input was always visible | ✅ **B5** |
+| 23 | `gold` ≥ 3:1 on EVERY surface | ~~2.98:1 on `surfaceVariant`~~ → **0** | found the moment B3's review made `surfaceVariant` (#F5F5F5 — DARKER than `background`, the true worst case) an assertion surface. Mobile mirrored the same value and never measured it either — its own contrast test stopped at background/surface/card and its comment wrongly called `background` the worst case. Fixed mobile-first (`AppColors.gold` `#B8860B`→**`#B5830A`**, a proportional darkening — hue unchanged — clearing 3:1 on all four surfaces: bg 3.15 · surface 3.24 · card 3.38 · **surfaceVariant 3.10**); the mirror gate carried it into `tokens.ts`, and the web contrast test's gold `on`-scoping + "fix mobile-first" note are both gone. Spec: [mobile-gold-reading.md](mobile-gold-reading.md) | ✅ **mobile A-series** |
+| 24 | **No `<footer>` landmark existed anywhere** (§4) | ~~0 of 1~~ → **0** | §4 has listed `<header> <nav> <main> <footer>` as the landmark set since it was written, and `grep -rn "<footer" web/` returned exactly one hit — a comment in `DataTable.tsx:17` about pagination. **Neither register recorded the rule as unmet**, which is why a store-submission slice found it rather than a design one. `components/SiteFooter.tsx` is a **server** component (unlike `SiteChrome`, which is `'use client'` only to hide itself on `/pro`) rendered from the root layout after `<div id="contenu">` — the only place a site-wide footer can go. **It renders on `/pro` too**: `ProShell` is `min-h-screen lg:flex`, not `h-screen overflow-hidden`, so it scrolls into view and breaks nothing — and a professional needs the CGU *more* than a consumer, being the party that contracts and uploads identity documents. Links are `min-h-12` + `underline`, so `link-in-text-block` never fires. Run against `axe.spec.ts` **before any legal page existed**, so a footer regression could not hide behind a page regression: 8 passed, 11 routes, zero exclusions | ✅ **L1** |
+| 25 | No legal document in any surface (launch blocker) | ~~0 of 4~~ → **0** | Both stores take a privacy-policy URL as a submission field, and Google Play an account-deletion URL since 2023. `web/app` had `[slug]`, `api`, `connexion`, `mon-compte`, `pro`, `recherche` — and nothing legal. Four TSX pages behind `lib/legal.ts` (one `LEGAL_UPDATED_AT`, one `COMPANY` where the RCCM becomes a single edit) and `LegalPage.tsx`, which **carries every `className` in the feature** — the four page files contain zero. That is a defence, not tidiness: the theme is closed and `no-custom-classname` is an error, but **Tailwind emits nothing for an unknown utility rather than failing**, so a typo ships an unstyled legal page with `tsc`, lint and every test green. One file to police beats five. **`/suppression-compte` is a transcription of the backend**, not a summary — its supprimé/anonymisé/conservé sections carry the same table as `openapi.yaml`'s `/me` `delete:` | ✅ **L1** |
+| 26 | `Faq.tsx`'s `<summary>` is under the 48px floor (§13.2) | **1** | `components/provider/Faq.tsx` renders `<summary className="… py-s …">` with no `min-h`, measuring ≈35px — a survivor of row 7h's *"0 remaining"*, which the adversarial review of B4 already had to correct once for a long tail it had missed. Found while deciding how to render `/suppression-compte`'s FAQ; that page renders its questions as `H2`/`P` from the same array that feeds the JSON-LD **rather than inherit the defect**. Not fixed here — it is a shipped component with its own callers, and a store-submission PR is the wrong place to change one. **B11 closes it**: `flex min-h-12 items-center` (a bare `min-h` on a `<summary>` does not centre its marker). It was found by reading, not by a gate — `tap-targets.spec.ts` asserts an **explicit named list** of controls, so it can only ever confirm what someone already thought of, and that is now stated in §14's row for it | ✅ **B11** |
+| 27 | A collected Lighthouse URL asserted on nothing | ~~1~~ → **0** | `lighthouserc.json` matches assertions by `assertMatrix` URL pattern, and adding `/suppression-compte` to `collect.url` would have produced a scored page with **no matching pattern and therefore no assertion** — collected, reported, and unfalsifiable, the same shape as the APK budget §21 row 37 records. It has its own entry: SEO ≥ 0.9 and accessibility ≥ 0.95 as **errors**. Recorded because the trap is invisible: nothing warns that a URL matched no pattern | ✅ **L1** |
+| 28 | Five tab strips can push the page sideways, and the overflow gate was standing on one of them (§9) | ~~2 surfaces~~ → **5 strips · 1 live** | found by A11's mobile census and first recorded in the MOBILE register (SYSTEM.md row 54), which is the wrong register for a web defect — so it was copied here, **and then this copy was never corrected**. It said *two* long after row 54 had been corrected to *five* by C8d's review, and it repeated row 54's stated reason, which B9 measured and found **false**. `type-overflow.spec.ts` did **not** run `PUBLIC_ROUTES` only: it already had a `loginPro` helper and two authed tests, and one of them stood on **`/pro/rendez-vous` — the page carrying the first strip — asserting a computed `line-height` and nothing else.** The gate was there and looked the other way; that is worse than the gap the row described, and it is why the correction matters more than the count. The five (`RendezVousClient.tsx:174` + `:308`, `CatalogueClient.tsx:106`, `MediasClient.tsx:65`, `AccountClient.tsx:269`) were **byte-identical**: one `grep` of the class string returned all five, which the reading-based census could not do. **Measured in a browser rather than computed:** only strip #2 is live, at **340px of 327** — 13px, not the ≈41 the source arithmetic predicted; the other four are latent. The divergence the row cited is also overstated — `RevenusClient.tsx` is a `ChipButton` pill row, not this control, so web never 'solved it with flex-wrap', it built a different widget. **B9 closes it**: one `<Tabs>` that wraps, the authed routes are matrix entries with `setup` steps (strip #2 lives behind a « Liste » click), and a third helper that sums the in-flow children of a `nowrap` flex row — because `overflowingText` walks text elements and a flex item's `min-width: auto` means each button spills its PARENT, never itself | ✅ **B9** |
+| 29 | **The web has no text-scale contract at all, and its `px` scale makes a user's font preference inert** | **0 mentions · 0 gates** | found while measuring row 28 (B9). `WEB.md`, `WEB-SYSTEM.md` and `WEB-DESIGN-STANDARDS.md` contain **zero** occurrences of 200%, reflow, WCAG 1.4.10 or zoom, and no web test scales text or zooms — `type-overflow`, `tap-targets`, `focus`, `z-layers`, `pro-mobile-nav`, `discovery` all pin 375×812 at 1×, and axe has no reflow rule. Mobile's twin is §13.3, gated at **9 subjects × 3 widths × 2 scales**; the web's equivalent does not exist, which is the same 'a range defined and one point measured' finding row 61 records for mobile. **And there is a second half specific to web**: the whole type scale is `px` (`styles/tokens.ts:140-160`), so a browser font-size preference — Chrome's Appearance → Font size, the closest analogue to iOS Dynamic Type — **has no effect on this product whatsoever**. Only page zoom scales it, and zoom scales the viewport too, which is why WCAG specifies reflow as **320 CSS px** rather than as a font multiplier. Two candidate answers, and they are different slices: migrate the type + spacing scale to `rem` so the preference works, or keep `px` and gate reflow at 320. Deliberately NOT folded into B9 — an overflow fix and a new accessibility contract in one diff is unreviewable. — **CORRECTION (B10 scoping, measured).** *"No effect whatsoever"* is **false**, and the truth is worse than the claim. `tailwind.config.ts:139-145` extends `width`/`height`/`minWidth`/`minHeight`/`maxHeight`/`inset`/`translate` from `defaultTheme.spacing`, which is **`rem`**. So under a large browser font the **boxes grow and the type does not** — the product does not ignore the preference, it **distorts** under it. `min-h-12`, the §13.2 48px tap floor at **83 call sites**, is already `3rem`; nobody decided that, `defaultTheme.spacing` did, and §2's ⚠️ block discusses the *literals* at length without mentioning it. One **live defect** follows directly: `components/account/NotificationsClient.tsx:242` pins the notifications switch knob's travel at `left-[22px]` (px) inside a rem track, with a `ds-ignore` whose stated arithmetic — *"44 − 20 − 2 = 22"* — holds only at a 16px root; at 24px the knob under-travels by 11px and stops mid-track. Two further corrections to this row's framing: **adding 320 to the matrix is not a 1.4.10 gate** (the SC also requires **256 CSS px vertically**, and its *"without loss of information"* clause is unmet because `overflowingText:94-95` skips `overflow-x != visible` and `textOverflow: ellipsis`, so all **10** `truncate` sites read clean while clipping); and the `rem` half carries an unflagged regression — `bodyLarge` in rem at Chrome's *"Small"* root drops the typed field below 16px and **re-enables iOS Safari's focus zoom**, which B8 explicitly bought off. The mirror risk is confirmed: `tokens.mirror.test.ts:127,155` deep-equal raw strings and `scripts/dart-tokens.mjs:274,284` hardcodes `px`, so the healing path prints px and actively fights the migration | ✅ **B11, the reflow half** — the `rem` half is now row 31. One more correction B11 owes this row: the *"9 subjects × 3 widths × 2 scales"* it cites for mobile is stale — `layout_test.dart` carries **13–15 subjects** inside that loop |
+| 30 | **The e2e suite is flaky at roughly 2-in-3, and `retries: 1` hides it** | ~~≈2 of 3 runs~~ → **5 red / 29 runs (17.2 %)** → **0** → ⚠️ **not 0** | **B10 measured it, and three of this row's claims were wrong.** (a) The *"~2 in 3"* is real but **local-only**: it needs the stub process to survive between whole suite runs, which `reuseExistingServer: !CI` enables and CI never has — three runs against one kept-alive stub degraded **3 → 14 → 16 failures**, monotonically, with errors that are unambiguously state (a previous run's commune, its média upload, its published salon). In the CI configuration the true figure is **5 red / 29 runs**. (b) The *"missing `await expect(...)`"* diagnosis is **false for both named suspects** — `booking.spec.ts:104` and `_auth.ts:63,75` already await. (c) `proProvider` is **deep-cloned** (`stub-api.mjs:406`), so that interference path does not exist. Only **two** tests were genuinely flaky run-to-run, with different causes: `booking.spec.ts:85` (3/29) is a **product bug** — `BookingFlow.tsx` guarded only `loadSlots` with the app's `slotsRequestId` pattern, while `settle` and `onVariant` also write `s` after a round trip, so a click on « Prestations » landing in that window was reverted and the variant chips unmounted; and `salons.spec.ts:70` (2/29) is a **cross-file write-write** on the stub's single `salonOffers` entry, which `salons.spec.ts` set to Réseau and `team.spec.ts` to Business — the create then 403s and `toHaveURL` polls a *stable* wrong URL fourteen times, which no wait could ever fix. The eight `pro.spec.ts` rows in the table all failed in **one** polluted run, not as eight flaky tests. **B10 closes it**: `BookingFlow` gains **two** generation counters, because a pipeline decides two things whose field sets are disjoint — `selectionReq` drops a verdict computed for a selection the user has since changed, while `navReq` lets navigation win the card and **merges** the server's verdict on the time onto wherever the user now is. **B10's own first attempt used one counter for both and the adversarial review caught it**: dropping the verdict together with the auto-advance kept a time the salon can no longer honour with « Confirmer » still enabled, and on the `onVariant` path the backend accepts it — `createBooking` sends no hair length, so the duration is re-derived from the service default and the chair is under-blocked. That is a *worse* defect than the collapsed card it replaced, and it was shipped before being caught, which is the argument for the review step rather than against it. Also: both offer writers co-located in one file (serial by construction) and that file's ordering declared with `mode: 'serial'` — at the stated cost that one failure now skips the rest; **neither server is ever reused** — the stub because it is stateful with no reset, the Next server because reusing it skips `npm run build` and silently tests the *previous* build (with the port-collision remedy recorded beside the flag, since `npm run dev` shares port 3000); the assertion timeout stated (it was inheriting 5 s while the config advertised 30 s); and **two** assertions that could not fail repaired — including `\(\d+\/3\)` on the go-live gate, where **`\d+` matches `0`** — plus a third whose recorded *reason* was wrong twice over and whose assertion was correct all along. `retries: 0`, measured over **17 full runs on the shipped tree — 16 green, 1 red**, plus the targeted experiment that reproduced the race before, clean on the corrected guard: **84 executions, 1 failure → 0**. **The one red is reported, not rounded away**: `axe.spec.ts:86`, a test this slice does not touch and which never failed in the 29-run baseline, on the single run whose wall-clock was 2.7× the median. Its error text was **not captured**, so the obvious timeout reading stays a hypothesis — recording it as a cause is precisely the habit this row exists to break — and it is left **named rather than retried**, which is row 30's own instruction. Also found and recorded rather than fixed: a **308 served from `.next/cache` loses its `Location` header** (3/3 under a hand-started `npm run start`, 0/29 under `npm run e2e`, which rebuilds) — its own row | ✅ **B10** — **⚠️ REOPENED by B12.** B10's closing figure did not hold: `Web — e2e` has gone red **three times since** (twice on B11, once on A14b), always the same test, always `axe.spec.ts`'s `page.waitForLoadState('networkidle')`. B10 fixed the flakes it measured and did not look for an unbounded *wait*: `networkidle` cannot settle while the Next process is resolving `cdn.stub`, an unreachable host its own `remotePatterns` allow-lists, and which no `page.route` on that host can intercept because the optimizer fetch happens **server-side**. See [web-b12-axe-anchors.md](web-b12-axe-anchors.md) — and note B12 records the diagnosis as **plausible, not proven**, because with `retries: 0` and no `trace` the red run left nothing but a stack. `trace: 'retain-on-failure'` is now on, so the next one is answerable | ✅ **B12** |
+| 31 | **The axe gate had no content anchor on any of its 19 routes** | **19 routes · the whole of §4–§8** | found by B12 while fixing row 30, and it is the more serious of the two. `axe.spec.ts` waited on `networkidle` and scanned whatever DOM had arrived — so a 404, or an `ErrorState`, would have been scanned, found clean, and **passed**. Not hypothetical: **B8 caught exactly this in the overflow gate**, where a slug rename had left a route measuring the 404 page for months (the 404 page does not overflow either). Worse, `ErrorState.tsx:32` renders the page's own `<h1>`, so a heading anchor alone is still not enough — its `role="alert"` is the only discriminator. — **B12 closes it**: every route now waits on an anchor lifted from a spec that already proves it green (plus `lib/legal.ts`'s `h1`), a **second stage** where the page paints its heading before its content (`networkidle` was implicitly waiting for both, so an anchor-only wait would have *regressed* coverage), and a `role="alert"`-empty check with the `.filter(Boolean)` B11 measured as load-bearing. Two anchors were guessed wrong and corrected from the failure's own accessibility-tree dump rather than from a second guess | ✅ **B12** |
+| 30h | *(historical, superseded by row 30)* | | measured in B9 while proving a suspected regression was not one. With `web/` restored to `main` and the suite run three times: **1 failed · 1 failed · 109 passed**, the two failures being *different* tests with different errors (`toHaveURL` on a login redirect; `toHaveAttribute` on a booking variant). B9's own branch flakes at the same rate on a third test. So this is **not** a regression and not new — it is the standing state of the suite, invisible because `playwright.config.ts:17` sets `retries: process.env.CI ? 1 : 0` and a second attempt usually passes. **A gate that reports on the weather is worse than a slow one**: it trains everyone to re-run rather than read, which is exactly how B8 found a route that had been scanning the 404 page for months. The suspects are timing assertions taken immediately after a click on a card that mounts async (`booking.spec.ts:105`) and a post-login `toHaveURL` — both look like missing `await expect(...)` waits rather than product bugs, but that is inferred and the slice that fixes it should measure per-test failure rates first | ✅ **superseded by row 30** — kept verbatim because three of its claims were wrong and the record of *how* they were wrong is the useful part |
+| 31 | **The type and spacing scales are `px`, so a browser font preference still cannot move the words** | **45 type values · 9 spacing values** | row 29's other half, split out by B11 because the reflow contract and a unit migration are different slices with different risks. Today the split is **stated** (§2's second ⚠️, §9) and its victims are fixed, but the incoherence remains: the sizing keys are rem and the words are px, so Chrome's Appearance → Font size grows every box and no text. **The measured obstacle, and it is not the sweep.** Changing `styles/tokens.ts` is a ~60-line diff — the 1,553 call sites reference token *names* and do not move. The cost is that `tests/tokens.mirror.test.ts:127,155` **deep-equals raw strings** and `scripts/dart-tokens.mjs:274,284` hardcodes `px`, so the mirror goes red on all 15 type keys and all 8 spacing keys at once, and the failure message says *"run `npm run gen:tokens`"* — which regenerates **px**. The healing path actively fights the migration, so the generator has to learn that a Flutter logical pixel is `1/16 rem`, which is a doctrinal claim about the mirror and not a refactor. **Two consequences neither candidate answer mentioned.** `letterSpacing` in rem is a **real divergence**: Flutter's tracking is absolute and does not scale with `textScaler`, so `0.5px → 0.03125rem` changes behaviour rather than units. And `bodyLarge` in rem at Chrome's *"Small"* root (12px) drops the typed field below 16px, **re-enabling iOS Safari's focus zoom** — which B8 explicitly bought off (`globals.css:59-64`, `textfield.test.tsx:60`). Icons are the third open question: `iconM` is a port of `AppTheme.iconM`, and Flutter's `Icon(size:)` does **not** scale with text — so rem icons would be a fifth mirror divergence, while px icons desynchronise from the text they sit beside | *new — its own slice, and it needs the mirror decision first* |
+| 32 | **`JournalGrid`'s geometry is px arithmetic around rem text** | **7 inline heights · 2 constants · 1 text-gating literal** | found by B11 while fixing the four `top: 32` offsets (those are done — they now carry the header's own `2rem`). What remains is structural: `lib/pro/journal.ts` sets `PX_PER_MIN = 1` and `MIN_BLOCK_PX = 24`, so a 15-minute appointment is a **24px** box holding two lines of `text-labelSmall`; `JournalGrid.tsx:332` is the **only** `overflow-hidden` in the product that clips text, with its height from `style={{ height: box.height }}`; and `:343` reads **`box.height > 34`** to decide whether the price renders at all. That last one is SYSTEM.md §13.3's named A12 defect reproduced on the web — *"a constant that gates a text-dependent branch has to move with the text"* — and the mobile precedent is exact: `ProviderCard`'s `maxH < 260` against `142 + 68 × scale`, which crossed at ≈1.74×. Here the constant is px and the text is rem, so the crossing is a **root font size**, not a text scale. Declared a 1.4.10 2D exception by B11 (the horizontal axis IS the artist dimension), and that is orthogonal: the exception buys it the right to scroll horizontally, not the right to hide a price. Rebuilding the journal's vertical geometry is its own slice | *new — deferred deliberately; it would have swallowed B11* |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.

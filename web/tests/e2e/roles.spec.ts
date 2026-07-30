@@ -33,7 +33,7 @@ test('manager: filtered sidebar, identity block, counts sans revenus', async ({
   await expect(page.getByText('Manager', { exact: true })).toBeVisible();
 
   // Dashboard: counts yes, the money row NEVER (field-gated server-side).
-  await expect(page.getByText('À confirmer')).toBeVisible();
+  await expect(page.getByText('Demandes en attente')).toBeVisible();
   await expect(page.getByText('Revenus ce mois')).toHaveCount(0);
   // Owner-only cards are absent.
   await expect(page.getByText('Configurer mon profil')).toBeVisible();
@@ -69,7 +69,7 @@ test('staff: own planning, read-only journal, Terminé/Absent only', async ({
     // salon to « Beauté Divine Web » — worker scheduling decides the order.
     page.getByRole('heading', { name: /Beauté Divine( Web)? — votre planning/ }),
   ).toBeVisible();
-  await expect(page.getByText('À confirmer')).toHaveCount(0);
+  await expect(page.getByText('Demandes en attente')).toHaveCount(0);
   await expect(page.getByText('Revenus ce mois')).toHaveCount(0);
   await expect(page.getByText('Configurer mon profil')).toHaveCount(0);
 
@@ -120,7 +120,12 @@ test('staff: the slim personal profil (deletion parity, no export)', async ({
   // No salon editor, no export — deletion stays.
   await expect(page.getByLabel('Nom du salon')).toHaveCount(0);
   await expect(page.getByText('Exporter (JSON)')).toHaveCount(0);
-  await expect(page.getByText('Supprimer mon compte')).toBeVisible();
+  // Role-scoped since L1: the site footer now links « Supprimer mon compte »
+  // on every page including /pro, so a bare text match resolves to two. The
+  // danger-zone BUTTON is what this line has always meant.
+  await expect(
+    page.getByRole('button', { name: 'Supprimer mon compte' }),
+  ).toBeVisible();
 });
 
 test('revoked mid-session: probed out to the connexion banner', async ({

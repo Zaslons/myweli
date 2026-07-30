@@ -82,7 +82,7 @@ test('M8.3: rebook + review on a completed booking; favoris on /mon-compte', asy
   ).toHaveAttribute('href', '/beaute-divine/reserver?services=s1&artist=a1');
 
   // Leave a review — with a photo (parity 2.13).
-  await page.getByRole('button', { name: '5 étoiles' }).click();
+  await page.getByRole('radio', { name: '5 étoiles' }).click();
   await page
     .locator('input[type=file]')
     .setInputFiles({

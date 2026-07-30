@@ -1,5 +1,6 @@
 import type { Provider } from '../../lib/api/providers';
 import { formatFcfa } from '../../lib/format';
+import { Rating } from '../Rating';
 
 /// Compact provider card for lists (landing pages, related, etc.). Client
 /// lists may pass the favorite pair to render a heart (parity 2.15).
@@ -21,6 +22,10 @@ export function ProviderCard({
     >
       <div className="flex items-baseline justify-between gap-m">
         <h3 className="flex items-center gap-xs font-medium text-textPrimary">
+          {/* clip-ok: the whole card is an `<a>` to `/{slug}`, whose `<h1>` is
+              this exact name in full. A search result is a pointer to a page,
+              and the page is one tap away — this is the strongest recovery path
+              of any truncation in the product. */}
           <span className="truncate">{provider.name}</span>
           {provider.verified ? (
             <span
@@ -34,7 +39,7 @@ export function ProviderCard({
         </h3>
         {provider.reviewCount > 0 ? (
           <span className="whitespace-nowrap text-bodyMedium text-textTertiary">
-            ★ {provider.rating.toFixed(1)}
+            <Rating value={provider.rating} />
           </span>
         ) : null}
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { Rating } from '../Rating';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -17,7 +18,7 @@ import {
   boundsFor,
 } from '../../lib/discovery/map';
 import { formatFcfa } from '../../lib/format';
-import { MAP_STYLE, SalonPin } from '../map/salon-pin';
+import { MAP_STYLE, SalonPin, presentationalMarkerRef } from '../map/salon-pin';
 
 const FIT_OPTS = { padding: 40, maxZoom: 15 };
 
@@ -86,7 +87,7 @@ export function ResultsMap({
         })}
         {userPos ? (
           <Marker longitude={userPos[0]} latitude={userPos[1]} anchor="center">
-            <span className="myweli-user-dot" />
+            <span ref={presentationalMarkerRef} className="myweli-user-dot" />
           </Marker>
         ) : null}
         {selected ? (
@@ -130,7 +131,11 @@ function MiniCard({ provider: p }: { provider: MappableProvider }) {
     <div className="min-w-44">
       <p className="font-medium text-textPrimary">{p.name}</p>
       <p className="mt-xs text-bodySmall text-textSecondary">
-        {p.reviewCount > 0 ? `★ ${p.rating.toFixed(1)} · ` : ''}
+        {p.reviewCount > 0 ? (
+          <>
+            <Rating value={p.rating} /> ·{' '}
+          </>
+        ) : null}
         {p.commune ?? ''}
       </p>
       {min != null ? (
@@ -181,15 +186,20 @@ function LocateButton({
       <button
         type="button"
         onClick={locate}
-        className="rounded-lg border border-border bg-secondary px-m py-s text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
+        className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-secondary px-m text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
       >
         Autour de moi
       </button>
-      {note ? (
-        <p className="rounded-lg bg-secondary px-s py-xs text-bodySmall text-textSecondary shadow">
-          {note}
-        </p>
-      ) : null}
+      <p
+        role="status"
+        className={
+          note
+            ? 'rounded-lg bg-secondary px-s py-xs text-bodySmall text-textSecondary shadow'
+            : 'sr-only'
+        }
+      >
+        {note ?? ''}
+      </p>
     </div>
   );
 }

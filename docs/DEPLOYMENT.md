@@ -165,6 +165,18 @@ The admin is a Flutter-Web SPA that calls `api.myweli.com` **directly** (CORS), 
 1. **Android — scaffolded ✅ (#3).** Two Gradle flavors: `consumer`
    (`com.myweli.app`, "Myweli") + `pro` (`com.myweli.pro`, "Myweli Pro"). Realign
    the **iOS** bundle ids to match (`com.myweli.app` / `com.myweli.pro`).
+
+   ⚠️ **Measured 2026-07-28 by building both entrypoints, and it is more than a
+   rename.** iOS has **no flavour mechanism at all**: one scheme (`Runner`), and
+   `PRODUCT_BUNDLE_IDENTIFIER` is **`com.sadreddine.myweli.pro` in all three
+   configurations**. So `flutter build ios --target lib/main.dart` — the
+   **consumer** app — reports *"Building com.sadreddine.myweli.pro"*, the two
+   apps cannot be installed side by side on one device, and the consumer app
+   would ship under a `.pro` identifier. Android solves this with
+   `productFlavors`; iOS needs the equivalent (a scheme + xcconfig per flavour),
+   not a find-and-replace. The test target also still carries Flutter's default
+   `com.example.myweli.RunnerTests`. Two App Store listings need two distinct
+   ids, so this blocks the iOS half of launch.
 2. **Push — real FCM ✅ (2026-07-14).** The `firebase_messaging` adapter,
    foreground display, tap→deep-link (with the pro salon switch), the OS-denied
    re-enable path and the pro notification centre all ship. What remains is

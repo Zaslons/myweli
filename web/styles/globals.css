@@ -55,7 +55,18 @@ body {
 .myweli-phone .PhoneInputInput {
   flex: 1;
   min-width: 0;
-  min-height: 48px; /* §13.2 — the same floor as TextField's min-h-12 */
+  /* §13.2 — the same floor as TextField's `min-h-12`. B11: written in rem
+     because `min-h-12` IS rem (3rem), and this comment claimed to match it
+     while being px. Identical at a 16px root, divergent at every other one —
+     the field would have stopped matching the fields beside it exactly when a
+     user asked for larger text. */
+  min-height: 3rem;
+  /* B8: the typed text is bodyLarge BY DECLARATION — it was 16px only by
+     inheriting the browser default (no font-size anywhere in the chain),
+     and any future base body class would have silently shrunk it. */
+  font-size: theme('fontSize.bodyLarge.0');
+  line-height: theme('fontSize.bodyLarge.1.lineHeight');
+  letter-spacing: theme('fontSize.bodyLarge.1.letterSpacing');
   padding: theme('spacing.m');
   border: 1px solid theme('colors.borderStrong');
   border-radius: theme('borderRadius.lg');
@@ -77,6 +88,11 @@ body {
    place the ring stays hand-written CSS, fixed three ways from its pre-§5 form:
    :focus-visible (was :focus — mouse rings), borderFocus (was primary), offset
    2px (was 1). */
+/* B8 (review): the country SELECT types nothing but iOS zooms on focusing a
+   <select> under 16px too — declare it, like its sibling input. */
+.myweli-phone .PhoneInputCountrySelect {
+  font-size: theme('fontSize.bodyLarge.0');
+}
 .myweli-phone .PhoneInputCountrySelect:focus-visible + .PhoneInputCountryIcon {
   outline: 2px solid theme('colors.borderFocus');
   outline-offset: 2px;

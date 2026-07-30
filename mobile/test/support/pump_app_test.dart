@@ -31,6 +31,10 @@ void main() {
     final border =
         theme.inputDecorationTheme.enabledBorder as OutlineInputBorder;
     expect(border.borderSide.color, AppColors.borderStrong);
+    // A7: a field error gets more than one line. Material's default is 1, which
+    // amputated every French error sentence mid-instruction. (There is no
+    // `errorStyle` to assert — measured byte-identical to the inherited one.)
+    expect(theme.inputDecorationTheme.errorMaxLines, greaterThan(1));
   });
 
   testWidgets('providers are wired and the router branch renders',

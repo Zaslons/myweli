@@ -16,7 +16,7 @@ import '../support/golden.dart';
 /// decoration. Read this sheet in greyscale: nothing should be lost.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('status, chips, cards, rating', (tester) async {
       await pumpGolden(

@@ -245,7 +245,7 @@ class _ArtistSelectionScreenState extends State<ArtistSelectionScreen> {
                           const SizedBox(width: AppTheme.spacingSM),
                           Expanded(
                             child: Text(
-                              'Sélectionnez l\'artiste qui effectuera vos services',
+                              'Sélectionnez l’artiste qui effectuera vos services',
                               style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -376,7 +376,12 @@ class _ArtistCard extends StatelessWidget {
                             width: 60,
                             height: 60,
                             color: AppColors.surface,
-                            child: const Center(child: LoadingIndicator()),
+                            // `fast` is the inline cut, and a 60px avatar
+                            // placeholder is exactly what it documents.
+                            child: const Center(
+                              child:
+                                  BrandLoader(size: AppTheme.iconL, fast: true),
+                            ),
                           ),
                           errorWidget: (context, url, error) => Container(
                             width: 60,

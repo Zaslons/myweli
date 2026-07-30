@@ -5,7 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../models/appointment.dart';
@@ -17,7 +19,10 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/providers/before_after_section.dart';
 import '../../widgets/review/review_tile.dart';
@@ -103,51 +108,30 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   Future<void> _reportReview(String reviewId) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (!auth.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connectez-vous pour signaler un avis.'),
-        ),
-      );
+      AppSnackBar.show(context, 'Connectez-vous pour signaler un avis.');
       return;
     }
-    final reasonController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Signaler cet avis ?'),
-        content: TextField(
-          controller: reasonController,
-          maxLength: 500,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Raison (optionnel)',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Signaler'),
-          ),
-        ],
+    // The reason is optional, so `null` (cancel) is the only stop signal —
+    // and the dialog owns its controller, which this one used to leak.
+    final reason = await showInputDialog(
+      context,
+      title: 'Signaler cet avis ?',
+      confirmLabel: 'Signaler',
+      field: const ConfirmField(
+        hint: 'Raison (optionnel)',
+        isRequired: false,
+        maxLength: 500,
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (reason == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final ok = await Provider.of<ProviderProvider>(context, listen: false)
-        .reportReview(reviewId, reason: reasonController.text);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Merci. Notre équipe va examiner cet avis.'
-              : 'Le signalement a échoué. Réessayez.',
-        ),
-        backgroundColor: ok ? null : AppColors.error,
-      ),
+        .reportReview(reviewId, reason: reason);
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Merci. Notre équipe va examiner cet avis.',
+      error: 'Le signalement a échoué. Réessayez.',
     );
   }
 
@@ -190,7 +174,23 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 160,
+                // §13.3 (A11 C5). `expandedHeight: 160` was a fixed height
+                // around text and the header clipped by **92dp at 200%** — the
+                // same class as `ProviderCard.carouselHeight`, and the same fix.
+                //
+                // The split is derived, not guessed: the overflow is 92dp at
+                // 360, 375 and 390 alike, so the block does not re-wrap and its
+                // growth is linear. `chrome + text = 160` at 1× and
+                // `chrome + 2×text = 252` at 2× gives text = 92, chrome = 68.
+                // `textScaledBound` floors at the 1× value, so nothing moves
+                // below 100%.
+                expandedHeight: AppTheme.textScaledBound(
+                  context,
+                  constant: _headerStacked(context, verified: p.verified)
+                      ? _headerChromeStacked
+                      : _headerChrome,
+                  text: _headerTextBlock,
+                ),
                 pinned: true,
                 actions: [
                   if (!widget.preview)
@@ -213,33 +213,42 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           ),
                           onPressed: () async {
                             if (!authProvider.isAuthenticated) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Connectez-vous pour ajouter aux favoris'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+                              AppSnackBar.show(context,
+                                  'Connectez-vous pour ajouter aux favoris');
                               final currentPath =
                                   GoRouterState.of(context).uri.toString();
                               context.go(
                                   '/login?returnTo=${Uri.encodeComponent(currentPath)}');
                               return;
                             }
-                            await favoritesProvider.toggleFavorite(
+                            final messenger = ScaffoldMessenger.of(context);
+                            // The toggle can fail. Announcing success either
+                            // way is a lie, and « Annuler » on a failed toggle
+                            // would PERFORM the action instead of undoing it.
+                            final ok = await favoritesProvider.toggleFavorite(
                                 userId, widget.providerId);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isFavorite
-                                        ? 'Retiré des favoris'
-                                        : 'Ajouté aux favoris',
-                                  ),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
-                            }
+                            AppSnackBar.outcomeOn(
+                              messenger,
+                              ok: ok,
+                              success: isFavorite
+                                  ? 'Retiré des favoris'
+                                  : 'Ajouté aux favoris',
+                              error: favoritesProvider.error ??
+                                  'Une erreur est survenue. Réessayez.',
+                              action: !ok
+                                  ? null
+                                  : SnackAction(
+                                      label: 'Annuler',
+                                      onPressed: () =>
+                                          favoritesProvider.toggleFavorite(
+                                              userId, widget.providerId),
+                                      // §15 as amended by A6: the heart itself
+                                      // is a one-tap undo, so this keeps the
+                                      // kind's 3s instead of occluding the
+                                      // screen for 10.
+                                      isOnlyRouteBack: false,
+                                    ),
+                            );
                           },
                         );
                       },
@@ -257,12 +266,44 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           AppTheme.spacingL,
                           AppTheme.spacingM,
                         ),
-                        child: Row(
+                        // A13, §21 row 62 — **the salon's name is its
+                        // identity, and « Salon Ex / cellence » is not a name.**
+                        // §13.3 used to name "a salon name" as a permitted
+                        // mid-word break; A13 decides otherwise and amends it.
+                        //
+                        // Beside a hard 72×72 logo the name gets 224dp at 360
+                        // while « Excellence » wants 269.7 at 2×. Shrinking the
+                        // logo cannot reach the contract point — measured at
+                        // 56/48/40dp it still breaks, and **deleting it outright
+                        // only just clears 2×** — so the fix is the one §13.3
+                        // mandates and this file already uses for « Appeler »
+                        // twelve hundred lines down: more width, by stacking.
+                        child: Flex(
+                          direction:
+                              _headerStacked(context, verified: p.verified)
+                                  ? Axis.vertical
+                                  : Axis.horizontal,
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             _SalonLogo(logoUrl: p.logoUrl),
-                            const SizedBox(width: AppTheme.spacingM),
-                            Expanded(
+                            SizedBox(
+                              width:
+                                  _headerStacked(context, verified: p.verified)
+                                      ? 0
+                                      : AppTheme.spacingM,
+                              height:
+                                  _headerStacked(context, verified: p.verified)
+                                      ? AppTheme.spacingS
+                                      : 0,
+                            ),
+                            // Stacked, the Flex is vertical and an `Expanded`
+                            // would fight the `SliverAppBar`'s bounded height;
+                            // beside the logo it is what gives the name the rest
+                            // of the row. So the wrapper differs by axis.
+                            _HeaderTextBlock(
+                              stacked:
+                                  _headerStacked(context, verified: p.verified),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
@@ -449,7 +490,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                                       AppointmentStatus
                                                           .cancelled ||
                                                   a.appointmentDate
-                                                      .isBefore(DateTime.now());
+                                                      .isBefore(AppClock.now());
                                               return SizedBox(
                                                 width: cardWidth,
                                                 child: CompactAppointmentTile(
@@ -515,7 +556,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               () => _servicesExpanded = !_servicesExpanded);
                         },
                         child: AnimatedCrossFade(
-                          duration: const Duration(milliseconds: 200),
+                          duration: AppMotion.base,
                           crossFadeState: _servicesExpanded
                               ? CrossFadeState.showFirst
                               : CrossFadeState.showSecond,
@@ -562,13 +603,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                             InkWell(
                               onTap: () {
                                 if (p.latitude == null || p.longitude == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content:
-                                          Text('Localisation non disponible'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
+                                  AppSnackBar.show(
+                                      context, 'Localisation non disponible',
+                                      kind: SnackKind.error);
                                   return;
                                 }
                                 context.push('/favorites?providerId=${p.id}');
@@ -650,12 +687,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                           size: AppTheme.iconS,
                                           color: AppColors.textTertiary),
                                       const SizedBox(width: AppTheme.spacingSM),
-                                      Text(
-                                        Formatters.formatPhoneNumber(
-                                            p.phoneNumber),
-                                        style:
-                                            AppTextStyles.bodyMedium.copyWith(
-                                          color: AppColors.textPrimary,
+                                      Expanded(
+                                        child: Text(
+                                          Formatters.formatPhoneNumber(
+                                              p.phoneNumber),
+                                          style:
+                                              AppTextStyles.bodyMedium.copyWith(
+                                            color: AppColors.textPrimary,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -693,11 +732,13 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                             color: AppColors.textTertiary),
                                         const SizedBox(
                                             width: AppTheme.spacingSM),
-                                        Text(
-                                          'WhatsApp',
-                                          style:
-                                              AppTextStyles.bodyMedium.copyWith(
-                                            color: AppColors.textPrimary,
+                                        Expanded(
+                                          child: Text(
+                                            'WhatsApp',
+                                            style: AppTextStyles.bodyMedium
+                                                .copyWith(
+                                              color: AppColors.textPrimary,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -931,7 +972,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           title: 'À propos',
                           child: Text(
                             p.description,
-                            style: AppTextStyles.bodyMedium.copyWith(
+                            // §4 (SYSTEM §21 row 27): the salon description is
+                            // reading prose — bodyLarge, "Default reading text",
+                            // not the 14px workhorse.
+                            style: AppTextStyles.bodyLarge.copyWith(
                               color: AppColors.textSecondary,
                             ),
                           ),
@@ -990,48 +1034,74 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         ),
                       ],
                     )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final uri = Uri.parse(
-                                  'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              }
-                            },
-                            icon: const Icon(Icons.phone_outlined,
-                                size: AppTheme.iconS),
-                            label: const Text('Appeler'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: const BorderSide(
-                                  color: AppColors.borderStrong),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingM),
-                            ),
-                          ),
+                  : Builder(builder: (context) {
+                      final call = OutlinedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                              'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri);
+                          }
+                        },
+                        icon: const Icon(Icons.phone_outlined,
+                            size: AppTheme.iconS),
+                        label: const Text('Appeler'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.borderStrong),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM),
                         ),
-                        const SizedBox(width: AppTheme.spacingSM),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton.icon(
-                            onPressed: () =>
-                                context.push('/booking?providerId=${p.id}'),
-                            icon: const Icon(Icons.calendar_today,
-                                size: AppTheme.iconS),
-                            label: const Text('Réserver'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.secondary,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: AppTheme.spacingM),
-                            ),
-                          ),
+                      );
+                      final book = ElevatedButton.icon(
+                        onPressed: () =>
+                            context.push('/booking?providerId=${p.id}'),
+                        icon: const Icon(Icons.calendar_today,
+                            size: AppTheme.iconS),
+                        label: const Text('Réserver'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.secondary,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTheme.spacingM),
                         ),
-                      ],
-                    ),
+                      );
+
+                      // §13.3 (A11 C8): **a control's label may not break inside
+                      // a word.** « Appeler » is one token, and a 1:2 split of a
+                      // 328dp bar leaves it ~81dp while at 200% it wants ~105 —
+                      // so Flutter broke the word and the button read
+                      // « Appel » / « er ». A one-word label cannot wrap its way
+                      // out of that; the only honest fix is more width, so above
+                      // the threshold the bar stacks instead of splitting.
+                      //
+                      // The threshold is measured, not chosen: the break starts
+                      // between 1.3× and 1.5×. Same shape as
+                      // `ProviderCard._textBlockHeight` — a measured constant is
+                      // fine when a gate holds it, and `layout_test`'s
+                      // no-mid-word-break assertion is that gate.
+                      //
+                      // It is a TEXT-SCALE branch, not a width breakpoint (§10
+                      // still has none): what changed is how much room a word
+                      // needs, not how much room the screen has.
+                      if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(width: double.infinity, child: book),
+                            const SizedBox(height: AppTheme.spacingS),
+                            SizedBox(width: double.infinity, child: call),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: call),
+                          const SizedBox(width: AppTheme.spacingSM),
+                          Expanded(flex: 2, child: book),
+                        ],
+                      );
+                    }),
             ),
           );
         },
@@ -1163,6 +1233,83 @@ class PageViewIndicator extends StatelessWidget {
   }
 }
 
+/// The salon header's non-text chrome (logo, paddings) and its text block, at
+/// 1×. Derived from the measured 92dp overflow at 200% — see `expandedHeight`.
+const double _headerChrome = 68;
+const double _headerTextBlock = 92;
+
+/// Above this text scale the header **stacks** the logo above the name (A13,
+/// §21 row 62).
+///
+/// **1.6, not the 1.3 this file already uses twelve hundred lines down.** The
+/// action bar's threshold is 1.3 because « Appeler » crosses there; the salon
+/// NAME crosses at **1.66× / 1.77× / 1.88×** on §10's three widths — the box is
+/// `W − 24 − 72 (logo) − 16 − 24`, so 224dp at 360, and « Excellence » wants
+/// 269.7 at 2×. The crossing therefore moves with the screen, which is the
+/// situation `ProviderCard.minGridCellWidth` says makes a scale constant wrong.
+///
+/// We take the **worst case** rather than computing a width-dependent branch,
+/// and the trade is stated instead of hidden: a 390dp phone stacks about 0.2×
+/// earlier than it strictly must. That is one layout, slightly early, on the
+/// widest supported phone — against a second bespoke width rule on a header
+/// with one call site.
+const double _headerStacksAbove = 1.6;
+
+/// …and the threshold for a **verified** salon, which is lower (A13, found by
+/// the adversarial review).
+///
+/// The verified badge is a SIBLING of the name's `Flexible` in the same `Row`,
+/// and a `RenderFlex` lays its non-flex children out first — so `spacingS` (8)
+/// plus `iconS` (20) come off the name's box before it gets anything.
+/// **196dp at 360, not 224.** « Excellence » is 134.85dp at 1× (`letterSpacing`
+/// is 0 on `headlineMedium`, so the width scales exactly linearly), which puts
+/// the crossing at **1.453× / 1.565× / 1.676×** on §10's three widths.
+///
+/// 1.6 would therefore have left « Salon Ex / cellence » live from 1.45× to
+/// 1.60× on a 360dp phone — the exact string row 62 exists to kill, on the
+/// salons the marketplace most wants to promote. The first version of this
+/// constant took the worst case of the wrong population.
+const double _headerStacksAboveVerified = 1.45;
+
+/// The stacked header's chrome — the logo and its gap move from *beside* the
+/// text to *above* it, so they stop sharing the text's rows.
+///
+/// **Re-measured, not assumed, because there was no room to guess with.** At 2×
+/// the un-stacked header's content is 144 (two name lines) + 8 + 32 + 4 + 32 +
+/// 32 of padding = **252**, and `textScaledBound(68, 92)` at 2× is **252 exactly
+/// — zero slack**. Adding the 72dp logo and its 8dp gap to a header with no
+/// margin is what turns a mid-word break into a `RenderFlex` overflow, which is
+/// why `maxLines: 3` was rejected outright.
+const double _headerChromeStacked = _headerChrome + 72 + AppTheme.spacingS;
+
+/// The header's text column, wrapped for whichever axis the [Flex] is on.
+///
+/// A `Flexible`/`Expanded` is legal in either direction, but it means different
+/// things: horizontally it hands the name the rest of the row (which is the
+/// point); vertically it would make the column fight the `SliverAppBar`'s
+/// bounded height, and the header has **zero slack at 2×**. Stacked, the block
+/// simply takes the full padded width — 312dp at 360 — which is what clears
+/// « Excellence » to 2.31×.
+class _HeaderTextBlock extends StatelessWidget {
+  const _HeaderTextBlock({required this.stacked, required this.child});
+
+  final bool stacked;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => stacked
+      ? SizedBox(width: double.infinity, child: child)
+      : Expanded(child: child);
+}
+
+/// Whether the header stacks at the current OS text scale.
+///
+/// [verified] is not a detail: the badge costs the name 28dp, which moves the
+/// crossing down by ~0.2×.
+bool _headerStacked(BuildContext context, {required bool verified}) =>
+    MediaQuery.textScalerOf(context).scale(1) >
+    (verified ? _headerStacksAboveVerified : _headerStacksAbove);
+
 class _SectionCard extends StatelessWidget {
   final String title;
   final Widget child;
@@ -1191,33 +1338,15 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ConstrainedBox(
-              // §13.2 touch target — only enforced when the header is tappable
-              constraints:
-                  BoxConstraints(minHeight: onHeaderTap != null ? 48 : 0),
-              child: InkWell(
-                onTap: onHeaderTap,
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
-                  child: Row(
-                    children: [
-                      Text(
-                        title,
-                        style: AppTextStyles.titleMedium.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      if (trailing != null) ...[
-                        const Spacer(),
-                        trailing!,
-                      ],
-                    ],
-                  ),
-                ),
-              ),
+            // A11 C5: this was the third copy of the heading row, and the one
+            // outside every gate — `Spacer` instead of `spaceBetween`, and no
+            // `Expanded` on the title, so « Vos rendez-vous ici » + « Voir tout »
+            // overflowed by 112–142dp at 200% text and nothing measured it.
+            SectionHeading(
+              title: title,
+              style: AppTextStyles.titleMedium,
+              action: trailing,
+              onTap: onHeaderTap,
             ),
             const SizedBox(height: AppTheme.spacingS),
             child,

@@ -5,17 +5,22 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/booking_horizons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/myweli_date_picker.dart';
+import '../../../widgets/common/myweli_date_time_picker.dart';
 
 /// « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
@@ -29,14 +34,6 @@ class ProJournalScreen extends StatefulWidget {
 }
 
 class _ProJournalScreenState extends State<ProJournalScreen> {
-  static const _statusFr = {
-    AppointmentStatus.pending: 'En attente',
-    AppointmentStatus.confirmed: 'Confirmé',
-    AppointmentStatus.completed: 'Terminé',
-    AppointmentStatus.cancelled: 'Annulé',
-    AppointmentStatus.noShow: 'Non présenté',
-  };
-
   String get _providerId => context.read<ProAuthProvider>().activeSalonId ?? '';
 
   /// Collaborateur own-mode (access R4b §5.3): « Ma journée » shows the
@@ -122,11 +119,15 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
 
   Future<void> _pickDate() async {
     final journal = context.read<ProJournalProvider>();
-    final picked = await showDatePicker(
+    // A14: the only past-facing picker in the app. The bounds were
+    // `DateTime.utc(2024)`..`utc(2030)` — two magic years, one of which
+    // eventually arrives. A span around the selected day cannot expire.
+    final picked = await showMyweliDatePicker(
       context: context,
       initialDate: journal.selectedDate,
-      firstDate: DateTime.utc(2024),
-      lastDate: DateTime.utc(2030),
+      firstDate: journal.selectedDate.subtract(kJournalPastHorizon),
+      lastDate: journal.selectedDate.add(kBookingHorizon),
+      today: salonToday(tz: context.read<ProAuthProvider>().salonTimezone),
     );
     if (picked != null) {
       journal.setDate(DateTime.utc(picked.year, picked.month, picked.day));
@@ -271,7 +272,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
           child: _TimelineCard(
             appt: a,
             arrived: arrived,
-            statusLabel: arrived ? 'Arrivé' : (_statusFr[a.status] ?? ''),
+            statusLabel: arrived ? 'Arrivé' : StatusLabels.of(a.status),
           ),
         ),
       ),
@@ -418,36 +419,53 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     );
   }
 
+  /// Reschedule, in **one** route (A14b).
+  ///
+  /// **This was two modals, and the second one's Cancel undid the first one's
+  /// answer.** The old shape opened the date picker, then opened
+  /// `showTimePicker` the instant it popped, then hit
+  /// `if (time == null || !mounted) return;` — so a user who chose a day and
+  /// then backed out of the time lost the day too, with no message and no way
+  /// back to it. `MyweliDateTimePicker` makes back a *step*: the date is one
+  /// widget's state instead of one route's return value.
+  ///
+  /// **`minTimeOnToday` is why « Créneau indisponible. » is now a backstop
+  /// rather than the first feedback.** Material's picker could not express *"not
+  /// before now"*, so today-plus-an-earlier-hour was submittable and the server
+  /// round-trip was the validation.
   Future<void> _reschedule(ProJournalProvider journal, Appointment a) async {
     // Picker seeds + result are the ACTIVE SALON's wall-clock
     // (salon_time.dart) — never the device's zone.
     final tz = context.read<ProAuthProvider>().salonTimezone;
-    final date = await showDatePicker(
+    final now = salonNow(tz: tz);
+    final picked = await showMyweliDateTimePicker(
       context: context,
       initialDate: toSalonTime(a.appointmentDate, tz: tz),
-      firstDate: salonToday(tz: tz),
-      lastDate: salonToday(tz: tz).add(const Duration(days: 365)),
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
       initialTime:
           TimeOfDay.fromDateTime(toSalonTime(a.appointmentDate, tz: tz)),
+      firstDate: salonToday(tz: tz),
+      lastDate: salonToday(tz: tz).add(kBookingHorizon),
+      today: salonToday(tz: tz),
+      minTimeOnToday: TimeOfDay(hour: now.hour, minute: now.minute),
+      helpText: 'Reprogrammer',
     );
-    if (time == null || !mounted) return;
+    if (picked == null || !mounted) return;
+    // The control returns the PARTS, not a `DateTime`, so this recombination
+    // through `salonDateTime` stays where the timezone is known (§18). Returning
+    // a composed `DateTime` would have made `DateTime(y, m, d, h, min)` — the
+    // device-local shape §18 forbids — the convenient call.
     final newDt = salonDateTime(
-      date.year,
-      date.month,
-      date.day,
-      hour: time.hour,
-      minute: time.minute,
+      picked.date.year,
+      picked.date.month,
+      picked.date.day,
+      hour: picked.time.hour,
+      minute: picked.time.minute,
       tz: tz,
     );
     final ok = await journal.reschedule(a.id, newDt);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(journal.error ?? 'Créneau indisponible.')),
-      );
+      AppSnackBar.show(context, journal.error ?? 'Créneau indisponible.',
+          kind: SnackKind.error);
     }
   }
 
@@ -455,9 +473,8 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final journal = context.read<ProJournalProvider>();
     final ok = await future;
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(journal.error ?? 'Action impossible.')),
-      );
+      AppSnackBar.show(context, journal.error ?? 'Action impossible.',
+          kind: SnackKind.error);
     }
   }
 }
@@ -498,7 +515,7 @@ class _Header extends StatelessWidget {
                     child: Center(
                       child: Text(
                         isToday
-                            ? "Aujourd'hui"
+                            ? 'Aujourd’hui'
                             : Formatters.formatDate(toSalonTime(
                                 date,
                                 tz: context
@@ -723,7 +740,7 @@ class _TimelineCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        appt.clientName ?? 'Client',
+                        appt.clientDisplayName ?? appt.clientName ?? 'Client',
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodyLarge.copyWith(
                           color: AppColors.textPrimary,
@@ -752,7 +769,11 @@ class _TimelineCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${appt.serviceIds.length} prestation(s)',
+                  Formatters.count(
+                    appt.serviceIds.length,
+                    'prestation',
+                    'prestations',
+                  ),
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),

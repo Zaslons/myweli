@@ -88,4 +88,12 @@ class PostgresNotificationsRepository implements NotificationsRepository {
     'read': m['read'],
     'createdAt': (m['created_at'] as DateTime).toIso8601String(),
   };
+
+  @override
+  Future<void> deleteForUser(String userId) async {
+    await _pool.execute(
+      Sql.named('DELETE FROM notifications WHERE user_id = @u'),
+      parameters: {'u': userId},
+    );
+  }
 }

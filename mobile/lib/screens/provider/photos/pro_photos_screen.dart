@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/a11y/reduce_motion.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_gallery_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
@@ -45,37 +48,52 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     if (source == null) return;
     final ok = await gallery.addPhoto(providerId, source);
     if (!ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(gallery.error ?? 'Échec de l’envoi'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppSnackBar.showOn(messenger, gallery.error ?? 'Échec de l’envoi',
+          kind: SnackKind.error);
     }
   }
 
   Future<void> _removePhoto(
       String providerId, ProGalleryProvider gallery, int index) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer cette photo ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer cette photo ?',
+      message: 'Elle disparaîtra de votre galerie publique.',
+      confirmLabel: 'Supprimer la photo',
+    );
+    if (!confirmed || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    // The removed photo and WHERE it was — undo re-inserts it into whatever
+    // the gallery looks like when « Annuler » is tapped, so an upload or a
+    // reorder during the 10s window survives (the review's catch).
+    final removed = gallery.photos[index];
+    final ok = await gallery.removePhoto(providerId, index);
+    if (!ok) {
+      AppSnackBar.showOn(messenger, gallery.error ?? 'Suppression impossible.',
+          kind: SnackKind.error);
+      return;
+    }
+    // Before A6 the photo simply disappeared: no confirmation, nothing
+    // announced, no way back. The snackbar IS the only route back, so it
+    // carries §15's 10s.
+    AppSnackBar.showOn(
+      messenger,
+      'Photo supprimée',
+      kind: SnackKind.success,
+      action: SnackAction(
+        label: 'Annuler',
+        // A failed undo used to be silent — the Future was discarded.
+        onPressed: () async {
+          final restored =
+              await gallery.restorePhotoAt(providerId, index, removed);
+          if (!restored) {
+            AppSnackBar.showOn(
+                messenger, gallery.error ?? 'Restauration impossible.',
+                kind: SnackKind.error);
+          }
+        },
       ),
     );
-    if (confirmed == true) {
-      await gallery.removePhoto(providerId, index);
-    }
   }
 
   @override
@@ -120,8 +138,8 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
                 crossAxisCount: 3,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
+                mainAxisSpacing: AppTheme.spacingSM,
+                crossAxisSpacing: AppTheme.spacingSM,
                 children: [
                   for (var i = 0; i < gallery.photos.length; i++)
                     _PhotoTile(
@@ -280,7 +298,19 @@ class _UploadingTile extends StatelessWidget {
             height: 28,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              value: progress == 0 ? null : progress,
+              // A track, because the arc at 0 % draws NOTHING:
+              // `progress_indicator.dart:673` sweeps `value * _sweep`
+              // and `:1130` leaves `trackColor` null unless one is
+              // given. Under reduced motion this box holds still at 0,
+              // so "a still arc" had to become true rather than stay
+              // a comment about an empty rectangle.
+              backgroundColor: AppColors.border,
+              // §9/A8: the null fallback is an INDETERMINATE spinner, and
+              // `repeat()` is exactly what the framework scale cannot reach.
+              // Under the flag it holds a still 0 % arc — and the
+              // « Envoi… 0 % » below already carries what the spin was saying.
+              value:
+                  progress == 0 && !reduceMotionOf(context) ? null : progress,
             ),
           ),
           const SizedBox(height: AppTheme.spacingS),

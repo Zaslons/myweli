@@ -110,6 +110,28 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
+  /// A6/§15: put ONE pair back where it was — see [ProGalleryProvider]
+  /// for why this re-inserts into the CURRENT list instead of restoring a
+  /// pre-delete snapshot.
+  Future<bool> restorePairAt(
+    String providerId,
+    int index,
+    BeforeAfterPair pair,
+  ) async {
+    final next = [..._pairs];
+    next.insert(index.clamp(0, next.length), pair);
+    final saved = await _proService.updateBeforeAfters(providerId, next);
+    if (saved.success && saved.data != null) {
+      _pairs = saved.data!;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    _error = saved.error ?? 'Restauration impossible';
+    notifyListeners();
+    return false;
+  }
+
   Future<bool> removePair(String providerId, int index) async {
     if (index < 0 || index >= _pairs.length) return false;
     final next = [..._pairs]..removeAt(index);

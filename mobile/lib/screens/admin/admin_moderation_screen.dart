@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_moderation_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import 'widgets/admin_data_table.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
@@ -44,6 +46,7 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       context,
       title: 'Masquer cet avis ?',
       confirmLabel: 'Masquer',
+      isDestructive: true,
       hint: 'Motif interne (optionnel)',
       reasonRequired: false,
     );
@@ -66,8 +69,11 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await action();
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? okMsg : (p.actionError ?? 'Échec'))),
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: okMsg,
+      error: p.actionError ?? 'Échec',
     );
   }
 
@@ -128,7 +134,11 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: StatusChip(
-                  label: '${r['reportCount'] ?? 1} signalement(s)',
+                  label: Formatters.count(
+                    (r['reportCount'] as int?) ?? 1,
+                    'signalement',
+                    'signalements',
+                  ),
                   kind: ((r['reportCount'] as num?) ?? 1) >= 2
                       ? AdminChipKind.danger
                       : AdminChipKind.pending,
@@ -167,9 +177,14 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
                 text: '${r['text'] ?? ''}',
                 sub: 'par ${r['userName'] ?? 'Client'}',
               ),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: StatusChip(label: 'masqué', kind: AdminChipKind.danger),
+                // A9: was a hardcoded lowercase « masqué » while every other
+                // console table renders « Masqué » through the shared
+                // vocabulary — the same lowercase/capitalised split ④ fixed in
+                // the chip itself. `forStatus` supplies both the word and the
+                // kind, so there is nothing left to keep in sync by hand.
+                child: StatusChip.forStatus('hidden'),
               ),
               _actions([
                 _btn('Restaurer', () => _restore('${r['id']}'), p.acting,
@@ -216,8 +231,8 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
   }
 
   Widget _actions(List<Widget> buttons) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: AppTheme.spacingS,
+        runSpacing: AppTheme.spacingS,
         children: buttons,
       );
 

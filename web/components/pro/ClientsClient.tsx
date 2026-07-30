@@ -1,6 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { DataTable } from '../DataTable';
+import { Chip, ChipButton } from '../Chip';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { addClient, getMyProvider, listClients } from '../../lib/api/pro';
@@ -13,6 +17,8 @@ import {
 } from '../../lib/pro/clients';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
+import { Modal } from '../Modal';
 import { TextField } from '../TextField';
 
 /// Module `clients` C1b — the salon client base at /pro/clients
@@ -32,12 +38,16 @@ export function ClientsClient() {
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
   const [adding, setAdding] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(
     async (pid: string, opts: { query: string; tag: string; page: number }) => {
+      // An explicit load supersedes any pending debounced search — the
+      // review raced a stale filtered response over the cleared list.
+      if (debounce.current) clearTimeout(debounce.current);
       const r = await listClients(pid, {
         query: opts.query || undefined,
         tag: opts.tag || undefined,
@@ -81,7 +91,7 @@ export function ClientsClient() {
       setSalonTz(me.profile.provider.timezone ?? undefined);
       await load(pid, { query: '', tag: '', page: 1 });
     })();
-  }, [router, load]);
+  }, [router, load, reloadKey]);
 
   function search(next: string) {
     setQuery(next);
@@ -98,16 +108,22 @@ export function ClientsClient() {
     if (providerId) load(providerId, { query, tag: value, page: 1 });
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={6} className="mt-l" />;
   if (error) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Clients" onRetry={() => { setError(false); setQuery(''); setTag(''); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const emptyBase = total === 0 && !query && !tag;
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">Clients</h1>
         <Button onClick={() => setAdding(true)}>+ Ajouter un client</Button>
       </div>
@@ -124,24 +140,19 @@ export function ClientsClient() {
 
       <div className="mt-s flex flex-wrap gap-xs">
         {availableTags.map((t) => (
-          <button
+          <ChipButton
             key={t}
-            type="button"
+            selected={tag === t}
             onClick={() => filterTag(t)}
-            className={`inline-flex min-h-12 items-center rounded-pill border px-s text-bodySmall ${
-              tag === t
-                ? 'border-primary bg-primary text-secondary'
-                : 'border-border bg-surface text-textSecondary'
-            }`}
           >
             {t}
-          </button>
+          </ChipButton>
         ))}
       </div>
 
       {emptyBase ? (
         <div className="mt-xl rounded-xl border border-border bg-secondary p-xl text-center">
-          <p className="text-textPrimary">
+          <p className="text-bodyLarge text-textPrimary">
             Vos clients apparaîtront ici automatiquement après leur première
             réservation.
           </p>
@@ -150,69 +161,97 @@ export function ClientsClient() {
           </p>
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-l text-textSecondary">
-          Aucun client pour « {query || tag} ».
-        </p>
+        <EmptyState
+          className="mt-l"
+          icon="people"
+          title={`Aucun client pour « ${query || tag} »`}
+          description="Essayez un autre nom ou effacez le filtre."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setQuery('');
+                setTag('');
+                // setLoading BEFORE the reload: the review caught the base
+                // « aucun client » onboarding card flashing for the whole
+                // request (total was still the filtered 0).
+                setLoading(true);
+                if (providerId) load(providerId, { query: '', tag: '', page: 1 });
+              }}
+            >
+              Effacer la recherche
+            </Button>
+          }
+        />
       ) : (
         <>
-          <ul className="mt-m divide-y divide-border rounded-xl border border-border bg-secondary">
-            {items.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/pro/clients/${c.id}`}
-                  className="flex items-center gap-m p-m hover:bg-surface"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-surface text-labelLarge font-medium text-textPrimary">
-                    {c.displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-xs">
-                      <span className="truncate font-medium text-textPrimary">
-                        {c.displayName}
-                      </span>
-                      {c.linked ? (
-                        <span
-                          className="rounded-pill bg-surface px-xs text-labelSmall uppercase text-textTertiary"
-                        >
-                          MyWeli
-                        </span>
-                      ) : null}
-                      {noShowBadge(c.noShows) !== 'none' ? (
-                        <span
-                          className={`rounded-pill px-xs text-labelSmall ${
-                            noShowBadge(c.noShows) === 'red'
-                              ? 'bg-error/10 text-error'
-                              : 'bg-surface text-textSecondary'
-                          }`}
-                        >
-                          {noShowLabel(c.noShows)}
-                        </span>
-                      ) : null}
+          {/* B7: the roster as a DataTable (Client · Téléphone · Visites ·
+              Dernière visite · Tags). Row activation navigates to the card —
+              the row is the DataTable's named full-row control, so the cells
+              carry no interactive children (the contract). */}
+          <div className="mt-m">
+            <DataTable
+              columns={[
+                { label: 'Client', flex: 3 },
+                { label: 'Téléphone', flex: 2 },
+                { label: 'Visites', flex: 1 },
+                { label: 'Dernière visite', flex: 2 },
+                { label: 'Tags', flex: 2 },
+              ]}
+              emptyTitle="Aucun client"
+              rows={items.map((c) => ({
+                key: c.id,
+                href: `/pro/clients/${c.id}`,
+                rowLabel: `Ouvrir la fiche de ${c.displayName}`,
+                cells: [
+                  <span key="who" className="flex min-w-0 items-center gap-s">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surface text-labelMedium font-medium text-textPrimary">
+                      {c.displayName.slice(0, 1).toUpperCase()}
                     </span>
-                    <span className="mt-xs block text-bodySmall text-textSecondary">
-                      {maskPhone(c.phone)}
-                      {c.visits > 0
-                        ? ` · ${c.visits} visite${c.visits > 1 ? 's' : ''}`
-                        : ''}
-                      {c.lastVisitAt
-                        ? ` · dernière ${formatDateFr(c.lastVisitAt, salonTz)}`
-                        : ''}
+                    {/* B11: measured « Koffi » cut at 28px of 32 — the avatar,
+                        the gap and the « MyWeli » chip had eaten the column, so
+                        even a five-letter name did not fit. A client's name is
+                        what this row is for; it wraps rather than truncates. */}
+                    <span className="min-w-0 break-words font-medium text-textPrimary">
+                      {c.displayName}
                     </span>
-                  </span>
-                  <span className="flex gap-xs">
-                    {c.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-pill border border-border px-xs text-labelSmall text-textSecondary"
+                    {c.linked ? (
+                      <Chip dense className="uppercase text-textTertiary">
+                        MyWeli
+                      </Chip>
+                    ) : null}
+                    {noShowBadge(c.noShows) !== 'none' ? (
+                      <Chip
+                        dense
+                        variant={noShowBadge(c.noShows) === 'red' ? 'tinted' : 'neutral'}
+                        tint="error"
                       >
-                        {t}
-                      </span>
-                    ))}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                        {noShowLabel(c.noShows)}
+                      </Chip>
+                    ) : null}
+                  </span>,
+                  <span key="tel" className="text-textSecondary">
+                    {maskPhone(c.phone)}
+                  </span>,
+                  <span key="visits" className="text-textSecondary">
+                    {c.visits > 0 ? c.visits : '—'}
+                  </span>,
+                  <span key="last" className="text-textSecondary">
+                    {c.lastVisitAt ? formatDateFr(c.lastVisitAt, salonTz) : '—'}
+                  </span>,
+                  <span key="tags" className="flex flex-wrap gap-xs">
+                    {c.tags.length > 0
+                      ? c.tags.map((t) => (
+                          <Chip dense variant="outlined" key={t}>
+                            {t}
+                          </Chip>
+                        ))
+                      : '—'}
+                  </span>,
+                ],
+              }))}
+            />
+          </div>
           {items.length < total ? (
             <div className="mt-m text-center">
               <Button
@@ -281,16 +320,7 @@ function AddClientModal({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Ajouter un client"
-      className="fixed inset-0 z-modal flex items-center justify-center bg-primary/40 p-m"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-secondary p-l">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Ajouter un client
-        </h2>
+    <Modal title="Ajouter un client" onClose={onClose}>
         <TextField
           className="mt-m"
           label="Nom"
@@ -316,7 +346,7 @@ function AddClientModal({
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-        {message ? <p className="mt-s text-bodyMedium text-error">{message}</p> : null}
+        {message ? <p role="alert" className="mt-s text-bodyMedium text-error">{message}</p> : null}
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler
@@ -328,7 +358,6 @@ function AddClientModal({
             Ajouter
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

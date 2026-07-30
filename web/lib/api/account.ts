@@ -121,9 +121,21 @@ export async function updateName(
 }
 
 /// Delete the account (parity 11.1 — definitive; the BFF ends the session).
-export async function deleteAccount(): Promise<{ ok: boolean; status: number }> {
+export async function deleteAccount(): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+}> {
   const res = await fetch('/api/me', { method: 'DELETE' });
-  return { ok: res.ok, status: res.status };
+  if (res.ok) return { ok: true, status: res.status };
+  // L2: 409 `future_bookings` is the one failure here a user can resolve, so
+  // the code has to reach the UI. The pro twin (`lib/pro/account.ts`) has read
+  // the body for exactly this reason since audit 11.5; the consumer one threw
+  // it away and rendered « La suppression a échoué. Réessayez. » — advice that
+  // is wrong, because retrying will fail identically until the booking is
+  // cancelled.
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  return { ok: false, status: res.status, error: body.error };
 }
 
 // --- notifications (parity 5.1/5.2) -----------------------------------------

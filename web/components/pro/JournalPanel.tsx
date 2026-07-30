@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Chip } from '../Chip';
 import { useEffect, useState } from 'react';
 import { statusLabelFr } from '../../lib/account/appointments';
 import {
@@ -9,7 +10,7 @@ import {
   proAction,
   rescheduleAppointment,
 } from '../../lib/api/pro';
-import { formatDateTimeFr, formatFcfa } from '../../lib/format';
+import { countFr, formatDateTimeFr, formatFcfa } from '../../lib/format';
 import type { SalonClientCard } from '../../lib/pro/clients';
 import { maskPhone, noShowBadge, noShowLabel } from '../../lib/pro/clients';
 import { hhmm, minutesOfDay, statusKey } from '../../lib/pro/journal';
@@ -41,7 +42,7 @@ export function JournalPanel({
   serviceName: (id: string) => string | undefined;
   onClose: () => void;
   onChanged: () => void;
-  onToast: (msg: string) => void;
+  onToast: (msg: string, kind?: 'success' | 'info' | 'error') => void;
   /// The active salon's timezone/currency (multi-pays MP3) — wall-clocks and
   /// money render in the SALON's market, never the viewer's.
   tz?: string;
@@ -76,7 +77,7 @@ export function JournalPanel({
     const r = await fn();
     setBusy(false);
     if (r.ok) onChanged();
-    else onToast('Action impossible. Réessayez.');
+    else onToast('Action impossible. Réessayez.', 'error');
   }
 
   const services = (appt.serviceIds ?? [])
@@ -86,6 +87,12 @@ export function JournalPanel({
   return (
     <div
       id="pro-journal-panel"
+      // A NON-modal dialog (role without aria-modal): it has its own close
+      // button and overlays content, but no scrim and no trap. The role also
+      // lets the journal shortcuts' [role="dialog"] guard see it — B7's
+      // review caught ←/→ changing the day UNDER the open panel.
+      role="dialog"
+      aria-label="Détails du rendez-vous"
       // The panel is NOT modal — no scrim, doesn't block the page — so it sits
       // at `dropdown`, under the drawer's scrim (`overlay`) and the drawer
       // itself (`modal`). It used to be `z-40`, tying with the drawer and
@@ -93,7 +100,7 @@ export function JournalPanel({
       className="fixed inset-y-0 right-0 z-dropdown flex w-full max-w-sm flex-col border-l border-border bg-secondary shadow-xl"
     >
       <div className="flex items-center justify-between border-b border-border p-m">
-        <h2 className="font-semibold text-textPrimary">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
           Détails du rendez-vous
         </h2>
         <button
@@ -110,17 +117,14 @@ export function JournalPanel({
         {/* Client */}
         <div>
           <p className="flex items-center gap-s font-medium text-textPrimary">
-            {appt.clientName ?? 'Client'}
+            {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
             {noShowBadge(appt.clientNoShowCount) !== 'none' ? (
-              <span
-                className={`rounded-pill px-s py-xs text-bodySmall ${
-                  noShowBadge(appt.clientNoShowCount) === 'red'
-                    ? 'bg-error/10 text-error'
-                    : 'bg-surface text-textSecondary'
-                }`}
+              <Chip
+                variant={noShowBadge(appt.clientNoShowCount) === 'red' ? 'tinted' : 'neutral'}
+                tint="error"
               >
                 {noShowLabel(appt.clientNoShowCount ?? 0)}
-              </span>
+              </Chip>
             ) : null}
           </p>
           {appt.clientPhone ? (
@@ -132,10 +136,14 @@ export function JournalPanel({
           {card ? (
             <div className="mt-s rounded-lg bg-surface p-s text-bodySmall text-textSecondary">
               <div className="flex justify-between">
-                <span>{card.stats.visits} visites</span>
+                <span>{countFr(card.stats.visits, 'visite', 'visites')}</span>
                 <span>{formatFcfa(card.stats.spentFcfa, currency)}</span>
-                <span>{card.stats.noShows} absences</span>
+                <span>{countFr(card.stats.noShows, 'absence', 'absences')}</span>
               </div>
+              {/* clip-ok: a PREVIEW of the note, in guillemets, with « Voir la
+                  fiche » rendered immediately below it, linking to the client
+                  record where the note is shown in full. One line of prose is
+                  the intended shape; the full text is one click away. */}
               {card.notes[0] ? (
                 <p className="mt-xs truncate text-textTertiary">
                   « {card.notes[0].body} »
@@ -237,7 +245,7 @@ export function JournalPanel({
                   aria-label="Nouvelle date"
                   value={reprogDate}
                   onChange={(e) => setReprogDate(e.target.value)}
-                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <input
                   type="time"
@@ -245,7 +253,7 @@ export function JournalPanel({
                   step={900}
                   value={reprogTime}
                   onChange={(e) => setReprogTime(e.target.value)}
-                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 rounded-lg border border-borderStrong bg-secondary px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
               </div>
               <div className="mt-s flex gap-s">

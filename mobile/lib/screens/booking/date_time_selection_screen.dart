@@ -18,6 +18,7 @@ import '../../providers/locality_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/salon_time_hint.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
@@ -78,6 +79,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       _selectedDate = DateTime(dt.year, dt.month, dt.day);
       _selectedTime = salonDateTime(dt.year, dt.month, dt.day,
           hour: dt.hour, minute: dt.minute, tz: _tz);
+      _selectionError = null;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       unawaited(context.read<LocalityProvider>().ensureLoaded());
@@ -143,13 +145,16 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     _loadAvailableSlots();
   }
 
+  /// A7/§14 — see `service_selection_screen`: a dead snackbar behind a
+  /// disabled button, now a live form-level message behind an open one.
+  String? _selectionError;
+
   void _handleContinue() {
     if (_selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une heure')),
-      );
+      setState(() => _selectionError = 'Choisissez une heure pour continuer.');
       return;
     }
+    setState(() => _selectionError = null);
 
     // The chosen wall-clock IS salon time — serializes with a Z.
     final dateTime = salonDateTime(
@@ -209,6 +214,11 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                   ],
                   // Calendar
                   TableCalendar(
+                    // A9: the package default is `StartingDayOfWeek.sunday`,
+                    // which is a separate defect from the English month name
+                    // above it — `Intl.defaultLocale` fixes the words, not the
+                    // grid. The pro calendar already passes this.
+                    startingDayOfWeek: StartingDayOfWeek.monday,
                     firstDay: _salonTodayNaive(),
                     lastDay: _salonTodayNaive().add(const Duration(days: 90)),
                     focusedDay: _selectedDate,
@@ -266,8 +276,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                     )
                   else
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: AppTheme.spacingS,
+                      runSpacing: AppTheme.spacingS,
                       children: _availableSlots.map((slot) {
                         final isSelected = _selectedTime != null &&
                             _selectedTime!.hour == slot.hour &&
@@ -317,9 +327,15 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
               color: AppColors.secondary,
               boxShadow: AppTheme.elevation3,
             ),
-            child: AppButton(
-              text: 'Continuer',
-              onPressed: _selectedTime == null ? null : _handleContinue,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InlineFeedback(_selectionError),
+                AppButton(
+                  text: 'Continuer',
+                  onPressed: _handleContinue,
+                ),
+              ],
             ),
           ),
         ],

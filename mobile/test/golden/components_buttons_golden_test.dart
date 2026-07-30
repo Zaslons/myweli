@@ -21,7 +21,7 @@ import '../support/golden.dart';
 /// (SYSTEM.md §20). Its behaviour is covered by widget tests instead.
 void main() {
   group('goldens', () {
-    setUpAll(loadGoldenFonts);
+    setUpAll(loadRealFonts);
 
     testWidgets('the buttons', (tester) async {
       await pumpGolden(

@@ -10,7 +10,12 @@ import { apptDayKey, type ProAppointment } from './today';
 export type ListTab = 'today' | 'upcoming' | 'pending' | 'all';
 
 export const LIST_TABS: { key: ListTab; label: string }[] = [
-  { key: 'today', label: "Aujourd'hui" },
+  // §17.1 — the curly apostrophe. This was the ONE rendered « Aujourd'hui » in
+  // web/ spelled with U+0027 while `lib/pro/nav.ts:19`, `AujourdhuiClient` and
+  // the dash page all use U+2019: "the same word, two spellings, one app",
+  // which is the exact sentence §17.1 was written for. Spotted in a browser
+  // while checking B9's own strip.
+  { key: 'today', label: 'Aujourd’hui' },
   { key: 'upcoming', label: 'À venir' },
   { key: 'pending', label: 'En attente' },
   { key: 'all', label: 'Tous' },

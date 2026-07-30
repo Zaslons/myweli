@@ -16,6 +16,7 @@ import {
 } from '../../lib/pro/manual-booking';
 import { salonToday } from '../../lib/time';
 import { Button } from '../Button';
+import { Modal } from '../Modal';
 
 const todayYmd = (tz?: string) => salonToday(new Date(), tz);
 
@@ -33,7 +34,6 @@ export function ManualBookingDialog({
   initialClient,
   onClose,
   onCreated,
-  onToast,
 }: {
   providerId: string;
   profile: ProProfile;
@@ -43,7 +43,6 @@ export function ManualBookingDialog({
   initialClient?: { name: string; phone?: string };
   onClose: () => void;
   onCreated: () => void;
-  onToast: (msg: string) => void;
 }) {
   const services = (profile.provider.services ?? []).filter(
     (s) => s.active !== false,
@@ -94,6 +93,8 @@ export function ManualBookingDialog({
     );
   }
 
+  const [error, setError] = useState<string | null>(null);
+
   const canSubmit = canSubmitManualBooking({
     serviceIds: selected,
     dateTimeIso: dt,
@@ -105,9 +106,10 @@ export function ManualBookingDialog({
     // The app's future-only guard — on the standalone path (a grid cell is
     // the salon's own calendar choice).
     if (!fixed && !isFutureIso(dt)) {
-      onToast('Choisissez une date et une heure à venir');
+      setError('Choisissez une date et une heure à venir');
       return;
     }
+    setError(null);
     setBusy(true);
     const name = picked?.name ?? query.trim();
     const r = await createManualBooking(providerId, {
@@ -122,36 +124,19 @@ export function ManualBookingDialog({
     setBusy(false);
     if (r.ok) onCreated();
     else
-      onToast(
+      setError(
         r.status === 409
           ? 'Ce créneau est déjà pris.'
           : 'Création impossible. Réessayez.',
       );
   }
 
+  // ds-ignore: viewport-relative dialog scroll box.
+  // eslint-disable-next-line tailwindcss/no-arbitrary-value
+  const panelCls = 'max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l';
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Nouveau rendez-vous"
-      className="fixed inset-0 z-modal flex items-center justify-center p-m"
-    >
-      {/* The scrim carries the dismiss click and is decoration to AT —
-          ProShell's own drawer-scrim precedent. The panel is a SIBLING
-          above it, so it needs no stopPropagation. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-primary/40"
-        onClick={onClose}
-      />
-      <div
-        // ds-ignore: viewport-relative dialog scroll box.
-        // eslint-disable-next-line tailwindcss/no-arbitrary-value
-        className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-secondary p-l"
-      >
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Nouveau rendez-vous
-        </h2>
+    <Modal title="Nouveau rendez-vous" onClose={onClose} panelClassName={panelCls}>
         {fixed ? (
           <p className="mt-xs text-bodyMedium text-textSecondary">
             {formatDateTimeFr(dateTimeIso!, tz)}
@@ -163,7 +148,7 @@ export function ManualBookingDialog({
           Prestations
         </p>
         {services.length === 0 ? (
-          <p className="mt-xs text-bodyMedium text-textTertiary">
+          <p className="mt-xs text-bodyLarge text-textTertiary">
             Ajoutez des services à votre profil pour pouvoir créer un
             rendez-vous.
           </p>
@@ -202,7 +187,7 @@ export function ManualBookingDialog({
                 min={todayYmd(tz)}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
               <input
                 type="time"
@@ -210,7 +195,7 @@ export function ManualBookingDialog({
                 step={900}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
             </div>
           </div>
@@ -242,7 +227,7 @@ export function ManualBookingDialog({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Client (nom ou téléphone)…"
               aria-label="Rechercher ou nommer le client"
-              className="w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
             {matches.length > 0 ? (
               <ul className="mt-xs divide-y divide-border rounded-lg border border-border">
@@ -271,7 +256,7 @@ export function ManualBookingDialog({
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="Téléphone (pour retrouver ce client)"
                 aria-label="Téléphone du nouveau client"
-                className="mt-xs w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="mt-xs w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
             ) : null}
           </div>
@@ -307,7 +292,7 @@ export function ManualBookingDialog({
           maxLength={500}
           placeholder="Note (optionnel)"
           aria-label="Note"
-          className="mt-m w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+          className="mt-m w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
         />
 
         {/* Total (the app's running sum; server re-prices) */}
@@ -318,6 +303,11 @@ export function ManualBookingDialog({
           </span>
         </div>
 
+        {error ? (
+          <p role="alert" className="mt-s text-bodyMedium text-error">
+            {error}
+          </p>
+        ) : null}
         <div className="mt-l flex justify-end gap-s">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Annuler
@@ -326,7 +316,6 @@ export function ManualBookingDialog({
             Créer
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

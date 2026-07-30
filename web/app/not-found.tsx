@@ -4,7 +4,7 @@ export default function NotFound() {
       <h1 className="text-headlineMedium font-semibold text-textPrimary">
         Page introuvable
       </h1>
-      <p className="mt-m text-textSecondary">
+      <p className="mt-m text-bodyLarge text-textSecondary">
         Ce salon ou cette page n’existe pas (ou plus).
       </p>
       <a

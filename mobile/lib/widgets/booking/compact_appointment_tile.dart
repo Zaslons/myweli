@@ -5,6 +5,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
+import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../common/timed_cached_image.dart';
 
@@ -39,21 +40,6 @@ class CompactAppointmentTile extends StatelessWidget {
         return AppColors.errorLight;
       case AppointmentStatus.noShow:
         return AppColors.warningLight;
-    }
-  }
-
-  String _statusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
     }
   }
 
@@ -99,10 +85,37 @@ class CompactAppointmentTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
+                    // A12: this was a `Row` with the name `Expanded` and the
+                    // status pill NOT — and it is the same defect A11 C5 fixed
+                    // three widgets away, in `review_tile.dart:80`. There the
+                    // name and an unflexed badge OVERFLOWED by 21dp and the gate
+                    // saw it. Here the name simply gave way: at 360 × 200% it
+                    // was squeezed to **26.8dp — zero characters, an ellipsis
+                    // and nothing else** — and every assertion stayed green,
+                    // because the truncation is declared and nothing overflows.
+                    //
+                    // One shape, two widgets, and only the one that overflowed
+                    // got fixed. `expectNoLegibilityCrush` is what makes the
+                    // other visible; the answer is C5's answer — a pill whose
+                    // own label doubles cannot shrink, so it drops to its own
+                    // line rather than squeezing the name it belongs to.
+                    //
+                    // The `SizedBox` + `spaceBetween` are not decoration: a
+                    // `Wrap` shrink-wraps, so without them the pill stops being
+                    // at the tile's trailing edge and slides up against the
+                    // name at 1× — a silent restyle of every tile at the scale
+                    // almost everyone uses. That is the idiom at all four sites
+                    // (`SectionHeading`, `ReviewTile`, `LabelValueRow`,
+                    // `AppointmentCard`), and this one shipped without it.
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: AppTheme.spacingS,
+                        runSpacing: AppTheme.spacingXS,
+                        children: [
+                          Text(
                             providerName,
                             style: AppTextStyles.titleSmall.copyWith(
                               color: AppColors.textPrimary,
@@ -110,25 +123,25 @@ class CompactAppointmentTile extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppTheme.spacingS,
-                            vertical: AppTheme.spacingXS,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.14),
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusPill),
-                          ),
-                          child: Text(
-                            _statusText(appointment.status),
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: statusColor,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTheme.spacingS,
+                              vertical: AppTheme.spacingXS,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.14),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusPill),
+                            ),
+                            child: Text(
+                              StatusLabels.of(appointment.status),
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: statusColor,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: AppTheme.spacingS),
                     Builder(builder: (context) {

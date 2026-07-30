@@ -320,7 +320,7 @@ class ProAuthProvider extends ChangeNotifier {
         _error = null;
         return true;
       } else {
-        _error = response.error ?? 'Erreur lors de l\'envoi du code';
+        _error = response.error ?? 'Erreur lors de l’envoi du code';
         return false;
       }
     } catch (e) {

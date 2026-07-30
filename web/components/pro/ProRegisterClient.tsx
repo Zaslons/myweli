@@ -187,7 +187,7 @@ export function ProRegisterClient() {
         <select
           value={businessType}
           onChange={(e) => setBusinessType(e.target.value)}
-          className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary"
+          className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
         >
           {BUSINESS_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -221,7 +221,7 @@ export function ProRegisterClient() {
       </div>
 
       {/* Identity */}
-      <h2 className="mt-l font-medium text-textPrimary">
+      <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
         Votre identité de connexion
       </h2>
       <p className="mt-xs text-bodySmall text-textTertiary">
@@ -316,7 +316,7 @@ export function ProRegisterClient() {
         </>
       )}
 
-      {error ? <p className="mt-m text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="mt-m text-bodyMedium text-error">{error}</p> : null}
 
       <p className="mt-l text-center text-bodyMedium text-textSecondary">
         Déjà un compte ?{' '}

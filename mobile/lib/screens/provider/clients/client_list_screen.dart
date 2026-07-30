@@ -4,17 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/validators.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/brand_loader.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
@@ -63,7 +67,11 @@ class _ClientListScreenState extends State<ClientListScreen> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    // A search debounce. It collides numerically with `motionEmphasis` and
+    // has nothing to do with it; tokenising it would tie network chattiness to
+    // a curve. Named so the escape sits on a line the formatter cannot move.
+    const debounce = Duration(milliseconds: 300); // ds-ignore
+    _debounce = Timer(debounce, () {
       if (mounted) {
         context.read<ProClientsProvider>().search(_providerId, value);
       }
@@ -80,12 +88,11 @@ class _ClientListScreenState extends State<ClientListScreen> {
             name: name, phone: phone, note: note),
       ),
     );
+    // A7: the duplicate notice used to be raised HERE — on the list, after the
+    // sheet holding the phone field had already popped, and one frame before
+    // navigating away again. The sheet keeps it now, under the field it is
+    // about; whatever id comes back is a card the user chose to open.
     if (id == null || !mounted) return;
-    if (clients.lastAddWasDuplicate) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ce numéro existe déjà.')),
-      );
-    }
     unawaited(context.push('/pro/clients/$id'));
   }
 
@@ -197,7 +204,10 @@ class _ClientListScreenState extends State<ClientListScreen> {
           if (i >= clients.clients.length) {
             return const Padding(
               padding: EdgeInsets.all(AppTheme.spacingM),
-              child: LoadingIndicator(size: AppTheme.iconM),
+              // `fast` is the inline cut — a list-footer pager is exactly the
+              // case it documents, and it is what keeps A8's reduced-motion
+              // caption out of a 24px row.
+              child: BrandLoader(size: AppTheme.iconM, fast: true),
             );
           }
           return _ClientRow(client: clients.clients[i]);
@@ -322,15 +332,44 @@ class _AddClientSheetState extends State<_AddClientSheet> {
   String _phone = '';
   bool _busy = false;
 
+  // A7/§14 — the sheet owns its faults now instead of shouting them at the
+  // screen behind it.
+  late final _errors = FieldErrors({
+    'name': Validators.requiredField('le nom du client'),
+    'phone': Validators.phoneNumber,
+  });
+  final _nameFocus = FocusNode();
+
+  /// Set when the phone belongs to a client that already exists. The sheet
+  /// STAYS OPEN and offers the existing card, instead of popping and firing a
+  /// bar over two other screens.
+  String? _duplicateId;
+
   @override
   void dispose() {
     _nameController.dispose();
     _noteController.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    // §14 rule 5: the button is no longer disabled on empty fields, so the
+    // press has to answer. The phone rule is new too — this field sits outside
+    // any Form — though not for the reason A7 gave: its "the package's check
+    // could never run here" was measured false. See phone_number_field.dart.
+    final ok = _errors.validate({
+      'name': _nameController.text,
+      'phone': _phone,
+    });
+    setState(() => _duplicateId = null);
+    if (!ok) {
+      focusFirstError(_errors, {'name': _nameFocus});
+      return;
+    }
+
     setState(() => _busy = true);
+    final clients = context.read<ProClientsProvider>();
     final id = await widget.onSubmit(
       _nameController.text.trim(),
       _phone,
@@ -338,9 +377,22 @@ class _AddClientSheetState extends State<_AddClientSheet> {
     );
     if (!mounted) return;
     setState(() => _busy = false);
-    if (id != null) {
-      Navigator.of(context).pop(id);
+    if (id == null) return; // a real failure — `error` renders below
+
+    if (clients.lastAddWasDuplicate) {
+      // The duplicate used to pop the sheet, raise « Ce numéro existe déjà. »
+      // on the LIST screen, and navigate to the client card in the same frame
+      // — a message about the phone field, delivered over two surfaces after
+      // the field was gone. It belongs to the field, so it stays with it; the
+      // existing card is still one tap away, but as a choice rather than a
+      // hijack.
+      setState(() {
+        _duplicateId = id;
+        _errors.set('phone', 'Ce numéro existe déjà.');
+      });
+      return;
     }
+    Navigator.of(context).pop(id);
   }
 
   @override
@@ -353,49 +405,66 @@ class _AddClientSheetState extends State<_AddClientSheet> {
         top: AppTheme.spacingL,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingL,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Ajouter un client',
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          AppTextField(
-            controller: _nameController,
-            label: 'Nom',
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          PhoneNumberField(onChanged: (e164) => _phone = e164),
-          const SizedBox(height: AppTheme.spacingM),
-          AppTextField(
-            controller: _noteController,
-            label: 'Note (optionnelle)',
-            hint: 'Ex : Préfère Awa',
-            maxLength: 500,
-          ),
-          if (error != null) ...[
-            const SizedBox(height: AppTheme.spacingS),
+      // §13.3 — the same defect the invite sheet had: two field errors plus the
+      // duplicate CTA overflow this sheet at raised text scale.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Text(
-              error,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+              'Ajouter un client',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _nameController,
+              label: 'Nom',
+              focusNode: _nameFocus,
+              errorText: _errors['name'],
+              onChanged: (v) => setState(() => _errors.revalidate('name', v)),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            PhoneNumberField(
+              errorText: _errors['phone'],
+              // It also never called setState, so the submit gate read a stale
+              // phone: typing a number alone did not re-enable the button until
+              // some unrelated rebuild happened.
+              onChanged: (e164) => setState(() {
+                _phone = e164;
+                _duplicateId = null;
+                _errors.revalidate('phone', e164);
+              }),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _noteController,
+              label: 'Note (optionnelle)',
+              hint: 'Ex : Préfère Awa',
+              maxLength: 500,
+            ),
+            // The form-level outcome (a real save failure) — A6's in-modal slot,
+            // and a live region, which the red Text it replaces was not.
+            InlineFeedback(error),
+            if (_duplicateId != null) ...[
+              const SizedBox(height: AppTheme.spacingS),
+              AppButton(
+                text: 'Voir la fiche existante',
+                type: AppButtonType.secondary,
+                isFullWidth: true,
+                onPressed: () => Navigator.of(context).pop(_duplicateId),
+              ),
+            ],
+            const SizedBox(height: AppTheme.spacingM),
+            AppButton(
+              text: 'Ajouter',
+              isLoading: _busy,
+              onPressed: _busy ? null : _submit,
             ),
           ],
-          const SizedBox(height: AppTheme.spacingM),
-          AppButton(
-            text: 'Ajouter',
-            isLoading: _busy,
-            onPressed: (_busy ||
-                    _nameController.text.trim().isEmpty ||
-                    _phone.trim().isEmpty)
-                ? null
-                : _submit,
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -70,10 +70,19 @@ class AppColors {
   // ---- Semantic (status only — never `Colors.green`/`Colors.red`) ------------
   static const Color success =
       Color(0xFF2D5016); // 8.63:1 · white on it: 9.25:1
-  static const Color successLight = Color(0xFF4A7C2A); // 4.66:1
+
+  /// ⚠️ A FOREGROUND — 4.66:1 **on white**, not a fill. A6's review found it
+  /// used as a callout background, where it left [success] ink at 1.85:1 and
+  /// [textPrimary] at 3.49:1. The inverse of [warningLight]'s trap, and the
+  /// same lesson: a semantic token states which side of the pair it is.
+  /// A tinted container is [surfaceVariant] + a semantic border.
+  static const Color successLight = Color(0xFF4A7C2A); // 4.66:1 on white
 
   static const Color error = Color(0xFF8B0000); // 9.34:1 · white on it: 10.01:1
-  static const Color errorLight = Color(0xFFDC143C); // 4.66:1
+
+  /// ⚠️ A FOREGROUND — see [successLight]. As a fill it put [error] ink at
+  /// **2.00:1**.
+  static const Color errorLight = Color(0xFFDC143C); // 4.66:1 on white
 
   static const Color warning = Color(0xFF6B5B00); // 6.28:1
 
@@ -101,7 +110,11 @@ class AppColors {
   static const Color favorite =
       Color(0xFFE53935); // 3.94:1 — heart GLYPH; not text
   static const Color gold =
-      Color(0xFFB8860B); // 3.04:1 — gold-as-state; not text
+      // 3.10:1 on surfaceVariant (the worst surface) — gold-as-state, not text.
+      // Darkened from #B8860B, which read 2.98:1 there (WEB-SYSTEM §15 row 23);
+      // the hue holds (42.7°→42.5°) and it clears 3:1 on all four surfaces
+      // (bg 3.15 · surface 3.24 · card 3.38 · surfaceVariant 3.10).
+      Color(0xFFB5830A);
 
   // Service-category accents (map markers + category chips). A deliberate,
   // bounded **exception** to the monochrome identity: muted/earthy hues that aid

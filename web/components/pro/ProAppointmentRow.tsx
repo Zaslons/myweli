@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { StatusChip } from '../StatusChip';
 import { statusLabelFr } from '../../lib/account/appointments';
 import { formatFcfa } from '../../lib/format';
 import type { ProAppointment } from '../../lib/pro/today';
@@ -31,7 +32,7 @@ export function ProAppointmentRow({
       <div>
         <p className="font-medium text-textPrimary">
           {slotTime(appt.appointmentDate, tz ?? undefined)} ·{' '}
-          {appt.clientName ?? 'Client'}
+          {appt.clientDisplayName ?? appt.clientName ?? 'Client'}
         </p>
         <p className="text-bodyMedium text-textTertiary">
           {(appt.serviceIds ?? [])
@@ -41,9 +42,7 @@ export function ProAppointmentRow({
         </p>
       </div>
       <div className="text-right">
-        <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
-          {statusLabelFr(appt.status)}
-        </span>
+        <StatusChip status={appt.status} />
         {typeof appt.totalPrice === 'number' ? (
           <p className="mt-s text-bodyMedium text-textPrimary">
             {formatFcfa(appt.totalPrice, currency ?? undefined)}

@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { EmptyState } from '../EmptyState';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { ICON_PATHS, Icon, type IconName } from '../Icon';
 import {
   type AppNotification,
   type NotificationPrefs,
@@ -18,24 +21,9 @@ import {
 } from '../../lib/api/account';
 import { formatDateTimeFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 
 /// Notification glyphs (Material outline paths), one per contract type.
-const TYPE_PATHS: Record<string, string> = {
-  bookingConfirmed:
-    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.4L6.4 12l1.4-1.4 3 3 5.4-5.4 1.4 1.4-6.8 6.8z',
-  depositReceived:
-    'M21 7H5a1 1 0 0 1 0-2h14V3H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zm-4 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z',
-  reminder:
-    'M12 22a9 9 0 1 1 0-18 9 9 0 0 1 0 18zm.5-13.5h-1.5V14l4 2.4.75-1.23-3.25-1.92V8.5zM5 2 1.5 5l1.3 1.3L6.3 3.3 5 2zm14 0-1.3 1.3 3.5 3L22.5 5 19 2z',
-  reschedule:
-    'M12 6V3L8 7l4 4V8a4 4 0 0 1 3.9 4.9l1.5 1.1A6 6 0 0 0 12 6zm0 10a4 4 0 0 1-3.9-4.9L6.6 10A6 6 0 0 0 12 18v3l4-4-4-4v3z',
-  cancellation:
-    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.3 12.9-1.4 1.4L12 13.4l-2.9 2.9-1.4-1.4 2.9-2.9-2.9-2.9 1.4-1.4 2.9 2.9 2.9-2.9 1.4 1.4-2.9 2.9 2.9 2.9z',
-  reviewRequest:
-    'M12 17.3 6.2 21l1.5-6.6L2.5 9.9l6.7-.6L12 3l2.8 6.3 6.7.6-5.2 4.5L17.8 21z',
-  general:
-    'M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-4.5-5.8V4.5a1.5 1.5 0 0 0-3 0v.7A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z',
-};
 
 const PREF_ROWS: {
   key: keyof NotificationPrefs;
@@ -58,6 +46,14 @@ const PREF_ROWS: {
     subtitle: 'Notifications push sur vos appareils mobiles.',
   },
 ];
+
+/// Per-type glyph — the registry names match the API types; the generic
+/// fallback is the bell (the pre-B6 private TYPE_PATHS, now in <Icon>).
+function typeIcon(type: string): IconName {
+  return type in ICON_PATHS && type !== 'bell'
+    ? (type as IconName)
+    : 'bell';
+}
 
 export function NotificationsClient() {
   const router = useRouter();
@@ -122,16 +118,11 @@ export function NotificationsClient() {
     }
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
     return (
       <div>
-        <p className="text-error">Chargement impossible.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
+        <ErrorState title="Notifications" message="Chargement impossible." onRetry={load} />
       </div>
     );
   }
@@ -143,7 +134,13 @@ export function NotificationsClient() {
       <Link href="/mon-compte" className="text-bodyMedium text-textTertiary">
         ← Mon compte
       </Link>
-      <div className="mt-s flex items-center justify-between gap-m">
+      {/* B11: a heading beside a French button label, with nothing
+          allowed to wrap. Six sibling toolbars in this product already
+          wrap; these four did not. Latent at 320 with the seeded copy —
+          fixed anyway, because B9 shipped five identical tab strips of
+          which only one was live and the other four were one string
+          away. */}
+      <div className="mt-s flex flex-wrap items-center justify-between gap-m">
         <h1 className="text-headlineSmall font-semibold text-textPrimary">
           Notifications
         </h1>
@@ -155,12 +152,12 @@ export function NotificationsClient() {
       </div>
 
       {items.length === 0 ? (
-        <div className="mt-l rounded-xl border border-border bg-secondary p-l text-center">
-          <p className="font-medium text-textPrimary">Aucune notification</p>
-          <p className="mt-xs text-bodyMedium text-textSecondary">
-            Vos confirmations de rendez-vous et nouveautés apparaîtront ici.
-          </p>
-        </div>
+        <EmptyState
+          className="mt-l"
+          icon="bell"
+          title="Aucune notification"
+          description="Vos confirmations de rendez-vous et nouveautés apparaîtront ici."
+        />
       ) : (
         <ul className="mt-l space-y-s">
           {items.map((n) => (
@@ -171,14 +168,7 @@ export function NotificationsClient() {
                 className="flex w-full items-start gap-m rounded-xl border border-border bg-secondary p-m text-left hover:bg-surfaceVariant"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-textPrimary">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    aria-hidden
-                  >
-                    <path d={TYPE_PATHS[n.type] ?? TYPE_PATHS.general} />
-                  </svg>
+                  <Icon name={typeIcon(n.type)} size="iconS" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-s">
@@ -225,7 +215,7 @@ export function NotificationsClient() {
               <div>
                 <p
                   id={`pref-${row.key}-title`}
-                  className="text-bodyMedium text-textPrimary"
+                  className="text-bodyLarge text-textPrimary"
                 >
                   {row.title}
                 </p>
@@ -250,12 +240,18 @@ export function NotificationsClient() {
                   }`}
                 >
                   <span
-                    // ds-ignore: the knob's travel is exact geometry, not spacing: track w-11 (44) − knob
-                    // w-5 (20) − left-0.5 (2) = 22. Any token snap misplaces it. (The switch stays
-                    // hand-rolled — §10 specs no Switch primitive; B4 fixed its target + label in place.)
+                    // ds-ignore: the knob's travel is exact geometry, not spacing — and B11 had to
+                    // fix the ARITHMETIC, not just the unit. It read "track w-11 (44) − knob w-5 (20)
+                    // − left-0.5 (2) = 22" and wrote `left-[22px]`, but all three of those operands
+                    // are REM (`tailwind.config.ts` sources the sizing keys from Tailwind's default
+                    // scale). The sum is only 22px at a 16px root; at Chrome's "Very large" (24px)
+                    // the correct travel is 33 and the knob stopped a third of the way across a
+                    // track that had grown around it. In rem the identity holds at every root:
+                    // 2.75 − 1.25 − 0.125 = 1.375rem. (The switch stays hand-rolled — §10 specs no
+                    // Switch primitive; B4 fixed its target + label in place.)
                     // eslint-disable-next-line tailwindcss/no-arbitrary-value
                     className={`absolute top-0.5 h-5 w-5 rounded-pill bg-secondary shadow transition-all ${
-                      prefs[row.key] ? 'left-[22px]' : 'left-0.5'
+                      prefs[row.key] ? 'left-[1.375rem]' : 'left-0.5'
                     }`}
                   />
                 </span>
@@ -264,12 +260,13 @@ export function NotificationsClient() {
           ))}
         </div>
       ) : (
-        <p className="mt-m text-bodyMedium text-textSecondary">
-          Préférences indisponibles. Rechargez la page.
-        </p>
+        <ErrorState
+          message="Préférences indisponibles."
+          onRetry={load}
+        />
       )}
       {prefError ? (
-        <p className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           Impossible d’enregistrer. Réessayez.
         </p>
       ) : null}

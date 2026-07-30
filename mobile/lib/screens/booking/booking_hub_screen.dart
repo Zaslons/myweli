@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/a11y/reduce_motion.dart';
+import '../../core/constants/booking_horizons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
@@ -15,6 +18,10 @@ import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/label_value_row.dart';
+import '../../widgets/common/myweli_date_picker.dart';
 
 class BookingDraft {
   final String providerId;
@@ -204,11 +211,15 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Future<void> _scrollTo(GlobalKey key) async {
     final ctx = key.currentContext;
     if (ctx == null) return;
+    // §9/A8: the app moves the page here, not the user — the involuntary case
+    // reduced motion exists for. `Duration.zero` makes `ensureVisible` jump
+    // instead of glide; the section still ends up on screen, which is the whole
+    // point of the call.
     await Scrollable.ensureVisible(
       ctx,
       alignment: 0.08,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
+      duration: reduceMotionOf(context) ? Duration.zero : AppMotion.emphasis,
+      curve: AppMotion.emphasisCurve,
     );
   }
 
@@ -251,7 +262,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Future<void> _advance(models.Provider p) async {
     final next = _nextSection(p);
     _activateSection(next);
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    // One frame's yield, not an animation: nothing moves.
+    await Future<void>.delayed(const Duration(milliseconds: 1)); // ds-ignore
     if (!mounted) return;
     if (next == _HubSection.services) {
       await _scrollTo(_servicesKey);
@@ -342,19 +354,27 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     return null;
   }
 
+  /// A7/§14: two SELECTION faults with no field to own them, so they land
+  /// form-level. Both were snackbars, and both were DEAD — `canConfirm` was the
+  /// exact conjunction of their negations, so neither could ever fire.
+  /// §14 rule 2 applies to selection faults too: cleared the moment the user
+  /// changes the selection, not on the next submit. The review found the stale
+  /// message surviving on six screens, which reads as a form that has stopped
+  /// listening.
+  String? _selectionError;
+
   Future<void> _confirm(models.Provider p) async {
     if (_draft.serviceIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choisissez au moins un service')),
-      );
+      setState(() =>
+          _selectionError = 'Choisissez au moins un service pour continuer.');
       return;
     }
     if (_draft.dateTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choisissez une date et une heure')),
-      );
+      setState(() =>
+          _selectionError = 'Choisissez une date et une heure pour continuer.');
       return;
     }
+    setState(() => _selectionError = null);
 
     final qs = <String, String>{
       'providerId': widget.providerId,
@@ -370,9 +390,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir la confirmation')),
-      );
+      AppSnackBar.show(context, 'Impossible d’ouvrir la confirmation',
+          kind: SnackKind.error);
     }
   }
 
@@ -403,8 +422,6 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
 
           final totalPrice = _totalPrice(p);
           final totalDuration = _totalDurationMinutes(p);
-          final canConfirm =
-              _draft.serviceIds.isNotEmpty && _draft.dateTime != null;
 
           return Padding(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -484,6 +501,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                     // new selection.
                                     final selected = _selectedServices(p);
                                     if (!bookingHasVariants(selected)) {
+                                      _selectionError = null;
                                       _draft = _draft.copyWith(
                                           clearLengthVariant: true);
                                     } else if (_draft.lengthVariant == null ||
@@ -556,6 +574,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                 durationFor: (length) => totalBookingDuration(
                                     _selectedServices(p), length),
                                 onChanged: (length) async {
+                                  _selectionError = null;
                                   setState(() => _draft =
                                       _draft.copyWith(lengthVariant: length));
                                   await _validateSelectedDateTime(
@@ -724,12 +743,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                                   _selectedDate.month,
                                   _selectedDate.day,
                                 );
-                                final picked = await showDatePicker(
+                                final picked = await showMyweliDatePicker(
                                   context: context,
                                   initialDate: initial,
                                   firstDate: salonToday(tz: _tz),
-                                  lastDate: salonToday(tz: _tz)
-                                      .add(const Duration(days: 365)),
+                                  lastDate:
+                                      salonToday(tz: _tz).add(kBookingHorizon),
+                                  today: salonToday(tz: _tz),
                                 );
                                 if (!mounted || picked == null) return;
                                 setState(() => _selectedDate = picked);
@@ -758,8 +778,8 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                               )
                             else
                               Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
+                                spacing: AppTheme.spacingS,
+                                runSpacing: AppTheme.spacingS,
                                 children:
                                     _availableSlotsForSelectedDate.map((slot) {
                                   final selected = _draft.dateTime != null &&
@@ -825,17 +845,13 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Total', style: AppTextStyles.titleMedium),
-                          Text(
-                            Formatters.formatCurrency(totalPrice,
-                                currency: p.currency),
-                            style: AppTextStyles.titleLarge
-                                .copyWith(color: AppColors.primary),
-                          ),
-                        ],
+                      LabelValueRow(
+                        label: 'Total',
+                        value: Formatters.formatCurrency(totalPrice,
+                            currency: p.currency),
+                        labelStyle: AppTextStyles.titleMedium,
+                        valueStyle: AppTextStyles.titleLarge
+                            .copyWith(color: AppColors.primary),
                       ),
                       if (totalDuration > 0) ...[
                         const SizedBox(height: AppTheme.spacingXS),
@@ -859,11 +875,14 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                           ),
                         ),
                       ],
+                      InlineFeedback(_selectionError),
                       const SizedBox(height: AppTheme.spacingM),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: canConfirm ? () => _confirm(p) : null,
+                          // §14 rule 5 — and what makes the two messages above
+                          // reachable for the first time.
+                          onPressed: () => _confirm(p),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.secondary,
@@ -963,8 +982,8 @@ class _HubSectionCard extends StatelessWidget {
                       ),
                       AnimatedRotation(
                         turns: expanded ? 0.25 : 0.0,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
+                        duration: AppMotion.base,
+                        curve: AppMotion.baseCurve,
                         child: const Icon(Icons.chevron_right,
                             color: AppColors.textTertiary),
                       ),
@@ -975,8 +994,8 @@ class _HubSectionCard extends StatelessWidget {
             ),
           ),
           AnimatedSize(
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeInOut,
+            duration: AppMotion.base,
+            curve: AppMotion.baseCurve,
             child: expanded
                 ? Padding(
                     padding: const EdgeInsets.only(top: AppTheme.spacingM),

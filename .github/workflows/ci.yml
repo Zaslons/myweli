@@ -277,11 +277,10 @@ jobs:
         run: npm run e2e
 
   web-lighthouse:
-    name: Web — Lighthouse (report-only)
+    name: Web — Lighthouse
     runs-on: ubuntu-latest
-    # Surfaced but not yet blocking (CWV/SEO budgets in lighthouserc.json);
-    # promote to blocking once stable.
-    continue-on-error: true
+    # BLOCKING since B5 (§14): a11y ≥ 0.95 and SEO ≥ 0.9 are errors;
+    # performance/best-practices stay warn (the flake-prone pair).
     defaults:
       run:
         working-directory: web
@@ -302,8 +301,74 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Lighthouse budgets (home)
+      - name: Lighthouse budgets (home + connexion)
         run: npm run lhci
+
+  # A9-fix: NFR-PERF-002 sets <30 MB and PR-0 shipped it with no measured
+  # number anywhere and no job checking it — unfalsifiable for the whole life
+  # of the budget. First measurement: **22.68 MB** (arm64, consumer, release),
+  # so the threshold below lands with 7.3 MB of headroom rather than being
+  # guessed.
+  #
+  # **`--flavor consumer` is load-bearing.** This project has product flavors
+  # (android/app/build.gradle.kts:49-61), so Gradle emits
+  # `app-consumer-release.apk`; a flavourless `flutter build apk` looks for
+  # `app-release.apk` and fails with "Gradle build failed to produce an .apk
+  # file" AFTER a successful ~500s build. A9's first attempt read that as a
+  # broken release build and recorded it in the register as one. It was a wrong
+  # command, not a broken build.
+  #
+  # Separate job so it never slows the analyze/test feedback loop.
+  apk-size:
+    name: Mobile — APK size
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Pinned rather than inherited: AGP 8.11.1 (settings.gradle.kts:22)
+      # requires JDK 17+, and a job whose product is a comparable NUMBER must
+      # not take its toolchain from whatever the image ships this month.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.6
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # arm64 only: it is what the reference low-end Android actually runs, and
+      # a universal APK's number is not the one a user downloads.
+      - name: Build release APK (consumer, arm64)
+        run: flutter build apk --release --flavor consumer --target-platform android-arm64
+
+      - name: Enforce the <30 MB budget (NFR-PERF-002)
+        run: |
+          APK=build/app/outputs/flutter-apk/app-consumer-release.apk
+          BYTES=$(stat -c%s "$APK")
+          MB=$(awk "BEGIN {printf \"%.2f\", $BYTES/1048576}")
+          echo "### APK: ${MB} MB / 30 MB budget" >> "$GITHUB_STEP_SUMMARY"
+          echo "arm64 · consumer · release — ROADMAP Part 6, NFR-PERF-002" >> "$GITHUB_STEP_SUMMARY"
+          echo "APK size: ${MB} MB (budget 30 MB)"
+          # Blocking, because the number is now known and under budget. A
+          # threshold guessed BEFORE the first measurement would have failed
+          # PRs on a pre-existing condition; one set after it is a real gate.
+          awk "BEGIN {exit !($BYTES > 30*1048576)}" && {
+            echo "::error::APK is ${MB} MB, over the 30 MB budget (NFR-PERF-002)"
+            exit 1
+          }
+          echo "Within budget."
 
   security:
     name: Security — secrets & dependencies

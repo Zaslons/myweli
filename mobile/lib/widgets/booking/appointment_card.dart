@@ -8,11 +8,14 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/salon_time.dart';
+import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/provider_provider.dart';
+import '../../widgets/common/app_snack_bar.dart';
+import '../common/label_value_row.dart';
 import '../common/timed_cached_image.dart';
 
 class AppointmentCard extends StatelessWidget {
@@ -37,21 +40,6 @@ class AppointmentCard extends StatelessWidget {
         return AppColors.error;
       case AppointmentStatus.noShow:
         return AppColors.warning;
-    }
-  }
-
-  String _getStatusText(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return 'En attente';
-      case AppointmentStatus.confirmed:
-        return 'Confirmé';
-      case AppointmentStatus.completed:
-        return 'Terminé';
-      case AppointmentStatus.cancelled:
-        return 'Annulé';
-      case AppointmentStatus.noShow:
-        return 'Absent';
     }
   }
 
@@ -117,38 +105,60 @@ class AppointmentCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
+                          // A12 — **the crush, third widget.** This is the same
+                          // shape `ReviewTile` fixed in A11 C5 and
+                          // `CompactAppointmentTile` fixed earlier in A12: a
+                          // name flexed against an unflexed status pill. The
+                          // earlier commit called it "one shape, two widgets";
+                          // it is three, and this one is on « Mes rendez-vous ».
+                          //
+                          // It was **not** a prediction — the repo's own
+                          // committed reference picture,
+                          // `consumer_my_bookings_w360_x2.png`, shows « Salo… »
+                          // and « Bea… ». The name box measures 88.8dp and
+                          // 79.2dp at 360×2×: four characters and three, of the
+                          // only thing that says which booking this is.
+                          //
+                          // `Wrap`, so the pill drops to its own line rather
+                          // than eating the name. The `SizedBox` is
+                          // load-bearing at all three call sites — a `Wrap`
+                          // shrink-wraps, so `spaceBetween` inside one has no
+                          // free space to distribute.
+                          SizedBox(
+                            width: double.infinity,
+                            child: Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: AppTheme.spacingS,
+                              runSpacing: AppTheme.spacingXS,
+                              children: [
+                                Text(
                                   provider?.name ?? 'Salon',
                                   style: AppTextStyles.titleMedium.copyWith(
                                     color: AppColors.textPrimary,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppTheme.spacingS,
-                                  vertical: AppTheme.spacingXS,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(appointment.status)
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(
-                                      AppTheme.radiusSmall),
-                                ),
-                                child: Text(
-                                  _getStatusText(appointment.status),
-                                  style: AppTextStyles.labelSmall.copyWith(
-                                    color: _getStatusColor(appointment.status),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppTheme.spacingS,
+                                    vertical: AppTheme.spacingXS,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(appointment.status)
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(
+                                        AppTheme.radiusSmall),
+                                  ),
+                                  child: Text(
+                                    StatusLabels.of(appointment.status),
+                                    style: AppTextStyles.labelSmall.copyWith(
+                                      color:
+                                          _getStatusColor(appointment.status),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           if (provider != null && provider.city != null) ...[
                             const SizedBox(height: AppTheme.spacingXS),
@@ -164,13 +174,10 @@ class AppointmentCard extends StatelessWidget {
                                     if (provider == null ||
                                         provider.latitude == null ||
                                         provider.longitude == null) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Localisation non disponible pour ce salon'),
-                                          duration: Duration(seconds: 2),
-                                        ),
+                                      AppSnackBar.show(
+                                        context,
+                                        'Localisation non disponible pour ce salon',
+                                        kind: SnackKind.error,
                                       );
                                       return;
                                     }
@@ -292,8 +299,8 @@ class AppointmentCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppTheme.spacingXS),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                    spacing: AppTheme.spacingS,
+                    runSpacing: AppTheme.spacingS,
                     children: services.take(3).map((service) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
@@ -318,7 +325,7 @@ class AppointmentCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                       child: Text(
-                        '+ ${services.length - 3} autre(s)',
+                        '+ ${Formatters.count(services.length - 3, 'autre', 'autres')}',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textTertiary,
                         ),
@@ -360,71 +367,72 @@ class AppointmentCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppTheme.spacingSM),
                 ],
-                // Date, Time, and Price
-                Row(
+                // Date and time.
+                //
+                // **A `Wrap`, not a `Row` of two `Expanded`s** (A11 C8, §13.3).
+                // Halving the width forced the date into ~half a card, and at
+                // 200% text `13/03/2026` did not fit — so Flutter broke it
+                // INSIDE the token and rendered « 13/03/20 » / « 26 ». That is
+                // not a wrap, it is a date cut in half, and nothing caught it:
+                // the truncation walk permits wrapping by design and no overflow
+                // fires, because wrapping is how the layout succeeds. Found by
+                // C7's first 2× golden.
+                //
+                // Each half now takes its intrinsic width and the pair wraps as
+                // two whole tokens when they stop fitting side by side.
+                Wrap(
+                  spacing: AppTheme.spacingM,
+                  runSpacing: AppTheme.spacingS,
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textTertiary),
-                          const SizedBox(width: AppTheme.spacingS),
-                          Flexible(
-                            child: Text(
-                              Formatters.formatDateShort(toSalonTime(
-                                  appointment.appointmentDate,
-                                  tz: appointment.providerTimezone)),
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textTertiary),
+                        const SizedBox(width: AppTheme.spacingS),
+                        Text(
+                          Formatters.formatDateShort(toSalonTime(
+                              appointment.appointmentDate,
+                              tz: appointment.providerTimezone)),
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.access_time,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textTertiary),
-                          const SizedBox(width: AppTheme.spacingS),
-                          Flexible(
-                            child: Text(
-                              Formatters.formatTime(toSalonTime(
-                                  appointment.appointmentDate,
-                                  tz: appointment.providerTimezone)),
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.access_time,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textTertiary),
+                        const SizedBox(width: AppTheme.spacingS),
+                        Text(
+                          Formatters.formatTime(toSalonTime(
+                              appointment.appointmentDate,
+                              tz: appointment.providerTimezone)),
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 const SizedBox(height: AppTheme.spacingS),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total:',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      Formatters.formatCurrency(appointment.totalPrice,
-                          currency: appointment.currency ??
-                              appointment.providerCurrency ??
-                              'XOF'),
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
+                LabelValueRow(
+                  label: 'Total:',
+                  value: Formatters.formatCurrency(appointment.totalPrice,
+                      currency: appointment.currency ??
+                          appointment.providerCurrency ??
+                          'XOF'),
+                  labelStyle: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  valueStyle: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),

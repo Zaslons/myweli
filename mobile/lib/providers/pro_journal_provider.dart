@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/app_clock.dart';
 import '../core/utils/salon_time.dart';
 import '../models/api_response.dart';
 import '../models/appointment.dart';
@@ -77,7 +78,7 @@ class ProJournalProvider extends ChangeNotifier implements SalonScoped {
   String keyOf(DateTime d) => salonDayKey(d, tz: _tz);
 
   /// Today's salon day key (the « Aujourd'hui » header check).
-  String get todayKey => keyOf(DateTime.now());
+  String get todayKey => keyOf(AppClock.now());
 
   /// The visible (filtered) bookings, time-ascending; cancelled hidden unless
   /// [showCancelled].

@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState } from '../ErrorState';
+import { Loading } from '../Loading';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Provider } from '../../lib/api/providers';
 import { getMyProvider } from '../../lib/api/pro';
 import { ProviderView } from '../provider/ProviderView';
-import { Button } from '../Button';
 
 /// « Aperçu de ma page » (docs/design/pro-salon-lifecycle.md B4): the owner
 /// sees their salon EXACTLY as a client will — the real consumer page
@@ -42,18 +43,21 @@ export function SalonPreviewClient() {
   }, [load]);
 
   if (loading) {
-    return <p className="p-l text-textSecondary">Chargement de l’aperçu…</p>;
+    return (
+      <main className="p-l">
+        <Loading label="Chargement de l’aperçu…" />
+      </main>
+    );
   }
   if (error || !provider) {
     return (
-      <div className="p-l">
-        <p className="text-error">Impossible de charger l’aperçu.</p>
-        <div className="mt-s">
-          <Button variant="secondary" onClick={load}>
-            Réessayer
-          </Button>
-        </div>
-      </div>
+      <main className="p-l">
+        <ErrorState
+          title="Aperçu du salon"
+          message="Impossible de charger l’aperçu."
+          onRetry={load}
+        />
+      </main>
     );
   }
 
@@ -61,8 +65,12 @@ export function SalonPreviewClient() {
 
   return (
     <div>
-      {/* The preview banner — the only element a client will NOT see. */}
-      <div className="border-b border-border bg-primary px-m py-s text-bodyMedium text-secondary">
+      {/* The preview banner — the only element a client will NOT see. A
+          landmark (axe `region`): every element belongs to one. */}
+      <aside
+        aria-label="Aperçu du salon"
+        className="border-b border-border bg-primary px-m py-s text-bodyMedium text-secondary"
+      >
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-s">
           <span>
             {draft
@@ -80,7 +88,7 @@ export function SalonPreviewClient() {
             </Link>
           </span>
         </div>
-      </div>
+      </aside>
       <ProviderView
         provider={provider}
         slug={provider.slug ?? ''}

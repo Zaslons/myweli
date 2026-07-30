@@ -1,8 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '../Card';
+import { Chip, chipLinkClasses } from '../Chip';
+import { StatusChip } from '../StatusChip';
+import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
 import { statusLabelFr } from '../../lib/account/appointments';
 import {
   type ProProfile,
@@ -24,6 +30,7 @@ import {
   waHref,
 } from '../../lib/pro/clients';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
 import { TextField } from '../TextField';
 import { ManualBookingDialog } from './ManualBookingDialog';
 
@@ -37,7 +44,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [providerId, setProviderId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProProfile | null>(null);
   const [booking, setBooking] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show } = useToast();
   const [card, setCard] = useState<SalonClientCard | null>(null);
   const [visits, setVisits] = useState<ProAppointment[]>([]);
   const [visitsTotal, setVisitsTotal] = useState(0);
@@ -87,29 +94,24 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   // The ACTIVE salon's market (multi-pays MP3).
   const tz = profile?.provider.timezone ?? undefined;
   const currency = profile?.provider.currency ?? undefined;
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (notFound) {
     return (
       <div>
         <Link href="/pro/clients" className="text-bodyMedium text-textTertiary">
           ← Clients
         </Link>
-        <p className="mt-m text-textSecondary">Client introuvable.</p>
+        <p className="mt-m text-bodyLarge text-textSecondary">Client introuvable.</p>
       </div>
     );
   }
   if (error || !card || !providerId) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Fiche client" onRetry={() => { setError(false); setLoading(true); void load(); }} />;
   }
 
   async function saveTags(next: string[]) {
@@ -162,20 +164,24 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
       <div className="mt-m grid gap-l lg:grid-cols-2">
         {/* Identity + notes */}
         <div>
-          <div className="rounded-xl border border-border bg-secondary p-l">
+          <Card>
             <div className="flex items-center gap-m">
               <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-surface text-titleLarge font-medium text-textPrimary">
                 {card.displayName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0">
                 <h1 className="flex items-center gap-xs text-titleLarge font-semibold text-textPrimary">
+                  {/* clip-ok: this is the page's own `<h1>`, so the bar is
+                      higher — and it clears it because the record identifies
+                      itself again immediately below, by phone number and visit
+                      history, and the name is the document title. Recorded as
+                      the weakest of the six: if this page ever loses the phone
+                      row, the declaration stops being true. */}
                   <span className="truncate">{card.displayName}</span>
                   {card.linked ? (
-                    <span
-                      className="rounded-pill bg-surface px-xs text-labelSmall uppercase text-textTertiary"
-                    >
+                    <Chip dense className="uppercase text-textTertiary">
                       MyWeli
-                    </span>
+                    </Chip>
                   ) : null}
                 </h1>
                 {card.phone ? (
@@ -220,21 +226,14 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                       const next = toggleTag(card.tags, t);
                       if (next) saveTags(next);
                     }}
-                    className={`inline-flex min-h-12 items-center rounded-pill border px-s text-bodySmall ${
-                      active
-                        ? 'border-primary bg-primary text-secondary'
-                        : 'border-border bg-surface text-textSecondary'
-                    }`}
+                    className={chipLinkClasses(active)}
                   >
                     {t}
                   </button>
                 ) : (
-                  <span
-                    key={t}
-                    className="rounded-pill border border-border px-s py-xs text-bodySmall text-textSecondary"
-                  >
+                  <Chip variant="outlined" key={t}>
                     {t}
-                  </span>
+                  </Chip>
                 );
               })}
               <button
@@ -270,10 +269,10 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 </Button>
               </form>
             ) : null}
-          </div>
+          </Card>
 
-          <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-            <h2 className="font-semibold text-textPrimary">Notes</h2>
+          <Card as="section" className="mt-l">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">Notes</h2>
             <p className="mt-xs text-bodySmall text-textTertiary">
               Visible uniquement par votre équipe.
             </p>
@@ -325,7 +324,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 ))}
               </ul>
             )}
-          </section>
+          </Card>
         </div>
 
         {/* Stats + history */}
@@ -364,8 +363,8 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             </Link>
           ) : null}
 
-          <section className="mt-l rounded-xl border border-border bg-secondary p-l">
-            <h2 className="font-semibold text-textPrimary">
+          <Card as="section" className="mt-l">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">
               Historique des visites
             </h2>
             {visits.length === 0 ? (
@@ -388,9 +387,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                           {formatFcfa(v.totalPrice, currency)}
                         </span>
                       ) : null}
-                      <span className="rounded-pill bg-surface px-s py-xs text-bodySmall text-textSecondary">
-                        {statusLabelFr(v.status)}
-                      </span>
+                      <StatusChip status={v.status} />
                     </span>
                   </li>
                 ))}
@@ -403,7 +400,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 </Button>
               </div>
             ) : null}
-          </section>
+          </Card>
         </div>
       </div>
 
@@ -418,17 +415,12 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
           onClose={() => setBooking(false)}
           onCreated={() => {
             setBooking(false);
-            setToast('Rendez-vous créé');
+            show('Rendez-vous créé', 'success');
             load();
           }}
-          onToast={setToast}
         />
       ) : null}
-      {toast ? (
-        <div className="fixed bottom-l left-1/2 z-toast -translate-x-1/2 rounded-lg bg-primary px-l py-s text-bodyMedium text-secondary shadow-lg">
-          {toast}
-        </div>
-      ) : null}
+      <Toast toast={toast} />
     </div>
   );
 }

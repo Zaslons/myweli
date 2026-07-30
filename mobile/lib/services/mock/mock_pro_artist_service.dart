@@ -1,4 +1,5 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_clock.dart';
 import '../../models/api_response.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart';
@@ -40,7 +41,7 @@ class MockProArtistService implements ProArtistServiceInterface {
   ) async {
     await Future.delayed(AppConstants.mockDelay);
     final artists = _getOrInit(providerId);
-    final id = 'artist_${DateTime.now().millisecondsSinceEpoch}';
+    final id = 'artist_${AppClock.now().millisecondsSinceEpoch}';
     final artist = Artist(
       id: id,
       name: data['name'] as String,

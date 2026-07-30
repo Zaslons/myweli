@@ -1,6 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Card } from '../Card';
+import { ErrorState } from '../ErrorState';
 import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
 import { DayHoursEditor } from './DayHoursEditor';
@@ -16,6 +18,8 @@ import {
 } from '../../lib/pro/availability';
 import { formatDateFr } from '../../lib/format';
 import { Button } from '../Button';
+import { SkeletonRows } from '../Skeleton';
+import { ChipButton } from '../Chip';
 
 export function DisponibilitesClient() {
   const router = useRouter();
@@ -29,6 +33,7 @@ export function DisponibilitesClient() {
   const [blocked, setBlocked] = useState<string[]>([]);
   const [newDate, setNewDate] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +71,7 @@ export function DisponibilitesClient() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   function patchBreak(i: number, patch: Partial<DayForm>) {
     setBreakDays((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -102,26 +107,26 @@ export function DisponibilitesClient() {
     setSaved(true);
   }
 
-  if (loading) return <p className="text-textSecondary">Chargement…</p>;
+  if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (loadError) {
-    return <p className="text-error">Une erreur est survenue. Réessayez.</p>;
+    return <ErrorState title="Disponibilités" onRetry={() => { setLoadError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
   }
 
   const inputCls =
-    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
   return (
     <div>
       <h1 className="text-headlineSmall font-semibold text-textPrimary">Disponibilités</h1>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Horaires</h2>
         <div className="mt-m space-y-s">
           <DayHoursEditor days={days} onPatch={patchDay} />
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Pauses</h2>
         <p className="mt-xs text-bodyMedium text-textSecondary">
           Une pause récurrente par jour (ex. déjeuner). Elle bloque les
@@ -135,34 +140,40 @@ export function DisponibilitesClient() {
             onPatch={patchBreak}
           />
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">
           Tampon entre rendez-vous
         </h2>
+        {/* B9's adversarial review found this: a five-item, mutually-exclusive
+            selection row — the same control family as the tab strips — at
+            **38px**, ten under §13.2's floor, on a route B9's own overflow
+            matrix now visits. It escaped the class-string sweep only because it
+            already wraps, which is why row 7h's "0 remaining" was wrong a fifth
+            time. `ChipButton` is the primitive for exactly this (its docstring:
+            "an INTERACTIVE chip: selection, filter, toggle"), it carries the
+            floor, and `RevenusClient.tsx:95` already uses it in this identical
+            `flex flex-wrap gap-s` shape. The hand-rolled version also used
+            `border-border` where §16 requires `borderStrong` on an outlined
+            chip. */}
         <div className="mt-m flex flex-wrap gap-s">
           {BUFFER_PRESETS.map((m) => (
-            <button
+            <ChipButton
               key={m}
-              type="button"
+              selected={buffer === m}
               onClick={() => {
                 setBuffer(m);
                 setSaved(false);
               }}
-              className={`rounded-lg border px-m py-s text-bodyMedium ${
-                buffer === m
-                  ? 'border-primary bg-primary text-secondary'
-                  : 'border-border bg-surface text-textPrimary'
-              }`}
             >
               {m} min
-            </button>
+            </ChipButton>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className="mt-l rounded-xl border border-border bg-secondary p-l">
+      <Card as="section" className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Dates bloquées</h2>
         <div className="mt-m flex flex-wrap items-center gap-s">
           <input
@@ -212,14 +223,15 @@ export function DisponibilitesClient() {
         ) : (
           <p className="mt-s text-bodyMedium text-textTertiary">Aucune date bloquée.</p>
         )}
-      </section>
+      </Card>
 
-      {error ? <p className="mt-m text-bodyMedium text-error">{error}</p> : null}
-      {saved ? (
-        <p className="mt-m text-bodyMedium text-textSecondary">
-          Disponibilités enregistrées.
-        </p>
-      ) : null}
+      {error ? <p role="alert" className="mt-m text-bodyMedium text-error">{error}</p> : null}
+      <p
+        role="status"
+        className={saved ? 'mt-m text-bodyMedium text-textSecondary' : 'sr-only'}
+      >
+        {saved ? 'Disponibilités enregistrées.' : ''}
+      </p>
 
       <div className="mt-l">
         <Button disabled={busy} onClick={save}>

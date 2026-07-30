@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { focusOnMount } from '../../lib/focusOnMount';
 import { attachDepositProof, uploadDepositProof } from '../../lib/booking/deposit';
 import { formatFcfa } from '../../lib/format';
 import {
@@ -58,11 +59,11 @@ export function DepositProof({
 
   if (sent) {
     return (
-      <div className="rounded-lg bg-surface p-m">
+      <div ref={focusOnMount} tabIndex={-1} className="rounded-lg bg-surface p-m">
         <p className="font-medium text-textPrimary">
           Acompte envoyé · en attente de confirmation du salon
         </p>
-        <p className="mt-xs text-bodyMedium text-textSecondary">
+        <p className="mt-xs text-bodyLarge text-textSecondary">
           Le salon confirme votre rendez-vous dès réception.
         </p>
       </div>
@@ -80,7 +81,7 @@ export function DepositProof({
       <p className="font-medium text-textPrimary">
         Acompte à régler : {formatFcfa(amount, currency ?? undefined)}
       </p>
-      <p className="mt-xs text-bodyMedium text-textSecondary">
+      <p className="mt-xs text-bodyLarge text-textSecondary">
         Payez directement au salon
         {number ? ` (${opLabel ?? 'Mobile Money'} : ${number})` : ''}, puis
         joignez la capture du paiement. MyWeli ne prélève rien.
@@ -101,14 +102,14 @@ export function DepositProof({
           type="file"
           accept="image/*"
           aria-label="Capture du paiement"
-          className="text-bodyMedium text-textSecondary"
+          className="text-bodyLarge text-textSecondary"
         />
-        <Button disabled={busy} onClick={send}>
-          {busy ? 'Envoi…' : 'Envoyer la preuve'}
+        <Button isLoading={busy} onClick={send}>
+          Envoyer la preuve
         </Button>
       </div>
       {error ? (
-        <p className="mt-s text-bodyMedium text-error">
+        <p role="alert" className="mt-s text-bodyMedium text-error">
           L’envoi a échoué. Vérifiez l’image et réessayez.
         </p>
       ) : null}

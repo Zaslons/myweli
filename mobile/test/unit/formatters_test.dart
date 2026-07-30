@@ -1,7 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/utils/formatters.dart';
 
 void main() {
+  // The date helpers ask `intl` for French month and weekday names, and a bare
+  // unit test has no locale data — the app roots load it at startup. Without
+  // this every assertion below throws `UninitializedLocaleData`, which is one of
+  // the reasons these six went untested for as long as they did.
+  setUpAll(() => initializeDateFormatting('fr_FR', null));
+
   group('Formatters.formatDuration', () {
     test('under an hour shows minutes', () {
       expect(Formatters.formatDuration(30), '30 min');
@@ -20,14 +27,14 @@ void main() {
   });
 
   group('Formatters.formatPhoneNumber', () {
-    test('formats a current 10-digit Côte d\'Ivoire number', () {
+    test('formats a current 10-digit Côte d’Ivoire number', () {
       expect(
         Formatters.formatPhoneNumber('+2250712345678'),
         '+225 07 12 34 56 78',
       );
     });
 
-    test('still formats a legacy 8-digit Côte d\'Ivoire number', () {
+    test('still formats a legacy 8-digit Côte d’Ivoire number', () {
       expect(Formatters.formatPhoneNumber('+22507123456'), '+225 07 12 34 56');
     });
 
@@ -141,6 +148,124 @@ void main() {
         Formatters.formatPriceRange(15000, 15000),
         isNot(contains('–')),
       );
+    });
+  });
+
+  // ── A14b, debt 1: the six date/time helpers that had NO test.
+  //
+  // This file had six groups and none of them was these, which A14a's §6
+  // recorded as a promise it did not keep. A14a then made four of them
+  // load-bearing:
+  //
+  //   · `formatDate` is **every day cell's accessibility label** — it is what a
+  //     screen reader says when the user lands on a day in the calendar;
+  //   · `formatMonthYear` is the month bar *and* its `Semantics.label`;
+  //   · `weekdayInitials` is the « L M M J V S D » row;
+  //   · `formatDateShort` labels the manual-booking date field and A14b's
+  //     combined-picker date chip.
+  //
+  // So the four strings a blind user hears from the house calendar were, until
+  // now, asserted by nothing at all.
+
+  group('Formatters.formatDate', () {
+    // Lowercase « mercredi », not « Mercredi » — French does not capitalise
+    // weekday names, and the docstring on `formatDate` says "Lundi 15 janvier"
+    // while the function has always produced "lundi 15 janvier". The assertion
+    // follows the code, which is right; the docstring is the thing that is wrong.
+    test('« mercredi 11 mars 2026 » — French, full weekday and month', () {
+      expect(Formatters.formatDate(DateTime(2026, 3, 11)),
+          'mercredi 11 mars 2026');
+    });
+
+    test('a single-digit day is NOT zero-padded', () {
+      // « 5 mars » reads as French; « 05 mars » does not. `DateFormat('d')`
+      // rather than `dd` is doing that, and it is easy to "fix" the wrong way.
+      expect(Formatters.formatDate(DateTime(2026, 3, 5)), 'jeudi 5 mars 2026');
+    });
+
+    test('an accented month keeps its accent', () {
+      // février / août — the two that reveal a locale silently resolved to en_US
+      // (which would render « February » and never look like an accent bug).
+      expect(Formatters.formatDate(DateTime(2026, 2, 1)), contains('février'));
+      expect(Formatters.formatDate(DateTime(2026, 8, 1)), contains('août'));
+    });
+  });
+
+  group('Formatters.formatDateShort', () {
+    test('« 11/03/2026 » — day first, zero-padded', () {
+      // Day-first is the whole point: `03/11/2026` is a different date to a
+      // French reader, and §21 row 29 was about exactly this confusion on input.
+      expect(Formatters.formatDateShort(DateTime(2026, 3, 11)), '11/03/2026');
+    });
+
+    test('both parts are padded to two digits', () {
+      expect(Formatters.formatDateShort(DateTime(2026, 1, 5)), '05/01/2026');
+    });
+  });
+
+  group('Formatters.formatMonthYear', () {
+    test('« mars 2026 » — lowercase, as the picker renders it', () {
+      // Lowercase is deliberate and is what the date-picker golden shows. Web's
+      // MonthCalendar capitalises via CSS, which is a recorded divergence rather
+      // than an accident — so this assertion is also what would catch someone
+      // "aligning" them here instead of there.
+      expect(Formatters.formatMonthYear(DateTime(2026, 3, 11)), 'mars 2026');
+    });
+
+    test('the day is not in the output', () {
+      expect(Formatters.formatMonthYear(DateTime(2026, 3, 11)),
+          Formatters.formatMonthYear(DateTime(2026, 3, 28)));
+    });
+  });
+
+  group('Formatters.weekdayInitials', () {
+    test('« L M M J V S D » — seven, Monday first', () {
+      expect(Formatters.weekdayInitials(), ['L', 'M', 'M', 'J', 'V', 'S', 'D']);
+    });
+
+    test('it does not start on Sunday', () {
+      // The defect this replaced: Material rendered « S M T W T F S » with the
+      // grid starting on Sunday. `french_test.dart` asserted
+      // `firstDayOfWeekIndex == 1` to catch it — but the house calendar no
+      // longer consults `MaterialLocalizations`, so that assertion no longer
+      // guards this. This does.
+      expect(Formatters.weekdayInitials().first, 'L');
+      expect(Formatters.weekdayInitials().last, 'D');
+    });
+  });
+
+  group('Formatters.formatTime and formatDateTime', () {
+    test('« 14:30 » — 24-hour, no AM/PM', () {
+      expect(Formatters.formatTime(DateTime(2026, 3, 11, 14, 30)), '14:30');
+      expect(Formatters.formatTime(DateTime(2026, 3, 11, 9, 5)), '09:05');
+    });
+
+    test('« … à 14:30 » joins the two halves', () {
+      expect(Formatters.formatDateTime(DateTime(2026, 3, 11, 14, 30)),
+          'mercredi 11 mars 2026 à 14:30');
+    });
+  });
+
+  group('Formatters.formatHourMinute', () {
+    // A14b's addition, and the reason it exists: `weekly_hours_editor` had a
+    // private `_fmt` doing this with two `padLeft`s, so the repo had a third
+    // spelling of « 14:30 » before anyone wrote a fourth.
+    test('pads both halves and never invents a date', () {
+      expect(Formatters.formatHourMinute(14, 30), '14:30');
+      expect(Formatters.formatHourMinute(9, 5), '09:05');
+      expect(Formatters.formatHourMinute(0, 0), '00:00');
+    });
+
+    test('agrees with formatTime, which is the point of having one of them',
+        () {
+      for (final (h, m) in const [(0, 0), (9, 5), (14, 30), (23, 55)]) {
+        expect(
+          Formatters.formatHourMinute(h, m),
+          Formatters.formatTime(DateTime(2026, 3, 11, h, m)),
+          reason: 'two spellings of one job that disagree at some value is '
+              'exactly what A13 found in the plural rule',
+        );
+      }
     });
   });
 }

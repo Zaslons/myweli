@@ -1,7 +1,9 @@
-// Shared design tokens — the web mirror of the Flutter `AppColors`
-// (mobile/lib/core/theme/colors.dart). Kept hand-synced with it and with
-// docs/design/SYSTEM.md §3; the values, ratios and usage rules live there.
-// (A Flutter→web generator + a CI drift gate is slice B3; until then, hand-synced.)
+// Shared design tokens — the web mirror of the Flutter theme
+// (mobile/lib/core/theme/). Hand-WRITTEN but no longer hand-TRUSTED: since B3,
+// `tests/tokens.mirror.test.ts` parses the Dart sources (and the §9 doc tables
+// for the web-only families) on every test run and fails on ANY mismatch,
+// either direction. Healing: `npm run gen:tokens` prints the fresh blocks —
+// paste the values, keep these comments (they carry the six drift histories).
 // `tests/tokens.contrast.test.ts` asserts every floor below is met.
 
 export const colors = {
@@ -38,11 +40,18 @@ export const colors = {
   error: '#8B0000',
   errorLight: '#DC143C',
   warning: '#6B5B00',
+  // Drifts #4/#5 (§15 row 19), closed by B3's mirror gate: both existed on
+  // mobile since PR-0 and never reached the web until the gate demanded them.
+  // warningLight is starRating's hex under a DIFFERENT ROLE (mobile records
+  // the same pair) — a tint fill for warning surfaces, ink-on-tint only: the
+  // contrast suite pins it BELOW 3:1 as a foreground, like starRating.
+  warningLight: '#FFB800',
   info: '#1A1A2E',
-  // Accents. `gold` (3.04:1) is gold-as-STATE. `starRating` (1.62:1) is the fill
+  infoLight: '#2D3561', // legible-as-text (7.55:1) — the info tint's darker step
+  // Accents. `gold` (3.10:1 on surfaceVariant, the worst) is gold-as-STATE. `starRating` (1.62:1) is the fill
   // of a rating-star glyph and nothing else — currently unused on web, which
   // renders `★` in ink/neutral (an amber-star parity pass would revive it).
-  gold: '#B8860B', // 3.04:1 — the owner chip, unseen-story ring, etc.
+  gold: '#B5830A', // 3.10:1 on surfaceVariant (worst) — owner chip, story ring; mirrored from AppColors.gold (§15 row 23)
   starRating: '#FFB800',
   favorite: '#E53935',
   // Category accents (a sanctioned exception to monochrome), via markerColor().
@@ -184,6 +193,19 @@ export const icon = {
   iconXL: '64px', // the empty-state illustration
 } satisfies Record<string, string>;
 
+// Layout (SYSTEM.md §10) — the one dimension the design system names that is
+// neither spacing, radius nor an icon size, and the reason `LAYOUT_KEYS` exists.
+//
+// §10: "text and forms never stretch past it. A 1000px-wide line of French body
+// copy is unreadable." It lived here as a hard-coded '720px' in
+// tailwind.config.ts until A11 C6 gave it an upstream in `AppTheme`; the value
+// did not change, its provenance did. WEB-SYSTEM §2's objection to a web sizing
+// scale — "the first with no upstream for B3's generator to track" — is what
+// that retires.
+export const layout = {
+  content: '720px', // AppTheme.contentMaxWidth
+} satisfies Record<string, string>;
+
 // Layering (WEB-SYSTEM.md §9). The scale is the LAYER, named — never a number.
 // Ties are resolved by DOM order, so if two things at the same layer can coexist,
 // one of them is at the wrong layer.
@@ -202,7 +224,10 @@ export const zIndex = {
 } as const;
 
 // Motion (SYSTEM.md §9). Durations only — the easing curves have no Tailwind
-// equivalent and land with the motion slice (A9).
+// equivalent, so they are MOBILE-ONLY: A8 landed them in
+// `mobile/lib/core/theme/motion.dart` as `AppMotion.*Curve`, and the mirror
+// test pins the duration↔curve pairing there rather than mirroring it here.
+// A declared divergence, not a gap.
 export const motion = {
   // Load-bearing: every bare `transition`/`transition-colors` reads
   // `transitionDuration.DEFAULT`. Drop it and they all become INSTANT — silently.

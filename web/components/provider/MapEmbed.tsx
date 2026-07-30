@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Loading } from '../Loading';
 import { useEffect, useRef, useState } from 'react';
 import { directionsUrl } from '../../lib/provider-summary';
 
@@ -13,7 +14,7 @@ const SalonLocationMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center bg-surfaceVariant">
-        <p className="text-bodyMedium text-textSecondary">Chargement de la carte…</p>
+        <Loading label="Chargement de la carte…" />
       </div>
     ),
   },
@@ -68,6 +69,7 @@ export function MapEmbed({
         <>
           <div
             ref={holder}
+            role="region"
             aria-label={`Carte — ${address ?? name}`}
             className="mt-m h-64 w-full overflow-hidden rounded-lg border border-border md:h-80"
           >

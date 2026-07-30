@@ -183,7 +183,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
     return (
       <div className="flex flex-col gap-s" data-testid="pro-login-invitations">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Invitations</h2>
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Un salon vous a invité à rejoindre son équipe.
         </p>
         <ul className="flex flex-col gap-s">
@@ -192,7 +192,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
               key={inv.id}
               className="flex flex-col gap-s rounded-lg border border-border bg-surface p-m"
             >
-              <p className="text-bodyMedium text-textPrimary">
+              <p className="text-bodyLarge text-textPrimary">
                 <span className="font-semibold">{inv.salonName}</span> vous
                 invite comme {inv.roleLabel}
               </p>
@@ -214,7 +214,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
             </li>
           ))}
         </ul>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       </div>
     );
   }
@@ -222,7 +222,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   if (step === 'code') {
     return (
       <div className="flex flex-col gap-s">
-        <p className="text-bodyMedium text-textSecondary">
+        <p className="text-bodyLarge text-textSecondary">
           Entrez le code reçu par e-mail à {email.trim()}.
         </p>
         <TextField
@@ -258,7 +258,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
         >
           Changer d’e-mail
         </Button>
-        {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+        {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
         {error === notFoundMessage ? (
           <Link href="/pro/inscription" className="text-bodyMedium underline">
             Créer mon compte
@@ -296,7 +296,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
       <Button disabled={busy} isLoading={busy} onClick={sendCode}>
         Continuer avec e-mail
       </Button>
-      {error ? <p className="text-bodyMedium text-error">{error}</p> : null}
+      {error ? <p role="alert" className="text-bodyMedium text-error">{error}</p> : null}
       {error === notFoundMessage ? (
         <Link href="/pro/inscription" className="text-bodyMedium underline">
           Créer mon compte

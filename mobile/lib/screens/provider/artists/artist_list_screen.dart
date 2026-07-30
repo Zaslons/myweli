@@ -80,7 +80,7 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
                     ),
                     const SizedBox(height: AppTheme.spacingS),
                     Text(
-                      'Ajoutez vos employés pour qu\'ils apparaissent dans le flux de réservation.',
+                      'Ajoutez vos employés pour qu’ils apparaissent dans le flux de réservation.',
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.textTertiary,
                       ),

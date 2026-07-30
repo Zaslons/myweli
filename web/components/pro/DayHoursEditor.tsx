@@ -3,7 +3,7 @@
 import type { DayForm } from '../../lib/pro/availability';
 
 const inputCls =
-  'min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyMedium text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 /// One weekly-schedule editor for the three places that edit day ranges:
 /// salon hours, breaks (« Pauses ») and per-artist hours (audit 3.4/3.8).
@@ -34,7 +34,17 @@ export function DayHoursEditor({
             {onLabel}
           </label>
           {d.open ? (
-            <span className="flex items-center gap-s">
+            // B11: two `type="time"` inputs and « à » in a row that could not
+            // wrap. Measured 332px of the 291 available at 320 — **on CI, not
+            // locally**: a UA time input's intrinsic width is font- and
+            // platform-dependent, and Linux renders it wider than macOS, so the
+            // local suite reported green on a page that scrolls sideways. The
+            // parent row already wraps; this one now does too.
+            //
+            // (A `//` comment, not `{/* */}` — inside a ternary's parentheses
+            // this is an expression position and a JSX comment is a syntax
+            // error. Third time in this slice.)
+            <span className="flex flex-wrap items-center gap-s">
               <input
                 type="time"
                 aria-label={`${d.label} début`}
