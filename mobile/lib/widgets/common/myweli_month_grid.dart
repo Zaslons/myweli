@@ -425,14 +425,17 @@ const TextStyle _dayStyle = AppTextStyles.bodyLarge;
 /// The cell's height: the scaled line plus breathing room, floored at §13.2's
 /// 48. `_WeekStrip`'s formula, with the floor raised from 32 to 48 because here
 /// the cell **is** the target rather than a pill inside a taller slot.
-double _cellHeight(BuildContext context) {
-  const style = _dayStyle;
-  final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
-  return math.max(
-    AppTheme.spacingXXL,
-    MediaQuery.textScalerOf(context).scale(line) + AppTheme.spacingS,
-  );
-}
+///
+/// **The line comes from `AppTheme.scaledLine` now, and that is a fix rather
+/// than a tidy-up.** A14a inlined `scale(fontSize × height)`, which is only the
+/// right answer under a linear scaler — and every gate here uses one. A14c
+/// §16.1 measured the cell at **65.6dp holding a 72dp line** under a non-linear
+/// curve: the day number painting over the weeks above and below, with the 4dp
+/// of breathing room this docstring promises silently gone.
+double _cellHeight(BuildContext context) => math.max(
+  AppTheme.spacingXXL,
+  AppTheme.scaledLine(context, _dayStyle) + AppTheme.spacingS,
+);
 
 class _DayCell extends StatelessWidget {
   const _DayCell({

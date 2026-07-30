@@ -827,14 +827,14 @@ class _ColumnHeadings extends StatelessWidget {
 /// `_WeekStrip`'s pill, for the same reason — a box whose height is a constant
 /// is a box that clips at 200%, and that is the entire complaint against
 /// Material's `hourMinuteSize` of `Size(96, 80)`.
-double _rowHeight(BuildContext context) {
-  const style = AppTextStyles.titleMedium;
-  final line = (style.fontSize ?? 14) * (style.height ?? 1.4);
-  return math.max(
-    AppTheme.spacingXXL,
-    MediaQuery.textScalerOf(context).scale(line) + AppTheme.spacingS,
-  );
-}
+/// A14c §16.1 corrected the scaling order here too: this file inherited
+/// `scale(fontSize × height)` from the day cell, which inherited it from
+/// `_WeekStrip`. Same defect, same invisibility — a linear scaler cannot tell
+/// the two apart, and every gate uses one.
+double _rowHeight(BuildContext context) => math.max(
+  AppTheme.spacingXXL,
+  AppTheme.scaledLine(context, AppTextStyles.titleMedium) + AppTheme.spacingS,
+);
 
 /// A row plus the gap around it — what one list item actually occupies, and the
 /// unit the opening scroll offset is counted in.
