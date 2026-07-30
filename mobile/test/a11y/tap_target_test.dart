@@ -6,10 +6,14 @@ import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/admin/widgets/admin_segmented_control.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
+import 'package:myweli/widgets/common/myweli_date_picker.dart';
+import 'package:myweli/widgets/common/myweli_date_time_picker.dart';
+import 'package:myweli/widgets/common/myweli_time_picker.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/review/review_tile.dart';
 import 'package:provider/provider.dart';
 
+import '../support/fonts.dart';
 import '_a11y.dart';
 import '_fixtures.dart';
 
@@ -20,9 +24,13 @@ import '_fixtures.dart';
 /// precise) — the screen-embedded fixes (contact rows, journal, photo controls)
 /// are covered by the goldens + the same pattern.
 void main() {
-  setUpAll(() {
-    initializeDateFormatting('fr_FR', null);
+  setUpAll(() async {
+    await initializeDateFormatting('fr_FR', null);
     setupDependencyInjection();
+    // The picker subjects below use `pumpAtWidth`, which refuses to run without
+    // a real font — it measures text, and the placeholder glyph is up to 79%
+    // wider than Roboto.
+    await loadRealFonts();
   });
 
   testWidgets('CommunePill — the location pill', (tester) async {
@@ -143,4 +151,108 @@ void main() {
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     handle.dispose();
   });
+
+  // ── A14b: the picker family, which had NO subject in any `meetsGuideline`
+  // gate — not here, not in `label_test`, not in `contrast_test`.
+  //
+  // `time_picker_test.dart` asserts that text FITS; it says nothing about
+  // targets. That gap is how A14a's month bar shipped a **40dp** year toggle
+  // (`spacingS` twice around a 24dp line) and nobody noticed for a slice and a
+  // half: the `Row` around it is 48 because of the chevrons, so it looks right
+  // and measures short.
+  //
+  // The two TIME controls take Flutter's guideline whole. The two DATE-bearing
+  // ones cannot, and that is recorded rather than skipped — see below.
+
+  testWidgets('MyweliTimePickerScreen — every control meets the floor',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpAtWidth(
+      tester,
+      width: 360,
+      scale: 1,
+      home: const MyweliTimePickerScreen(
+        initialTime: TimeOfDay(hour: 14, minute: 30),
+      ),
+    );
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('MyweliTimeRangePickerScreen — every control meets the floor',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpAtWidth(
+      tester,
+      width: 360,
+      scale: 1,
+      home: const MyweliTimeRangePickerScreen(
+        initialStart: TimeOfDay(hour: 9, minute: 0),
+        initialEnd: TimeOfDay(hour: 17, minute: 0),
+      ),
+    );
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    handle.dispose();
+  });
+
+  // **A month grid cannot pass `androidTapTargetGuideline`, on any phone.**
+  // Measured here: the day cell is **Size(46.9, 56.0)** at 360dp. Seven 48dp
+  // targets need 336dp plus padding, which no 360dp screen has — so §13.2's
+  // floor is unreachable on the horizontal axis for *any* 7-column calendar.
+  // A14a's §2.4 recorded that trade, `_WeekStrip` took it first, and
+  // WEB-SYSTEM row 7h states it for the web twin.
+  //
+  // Asserting the guideline here and skipping the test would hide the one thing
+  // that CAN regress: the height, and everything that is not a day cell. So the
+  // exception is narrowed to exactly the day cells and the rest is measured.
+  for (final subject in <String, Widget>{
+    'MyweliDatePickerScreen': MyweliDatePickerScreen(
+      initialDate: DateTime(2026, 3, 11),
+      firstDate: DateTime(2026, 3),
+      lastDate: DateTime(2027, 3, 11),
+      today: DateTime(2026, 3, 11),
+    ),
+    'MyweliDateTimePickerScreen': MyweliDateTimePickerScreen(
+      initialDate: DateTime(2026, 3, 11),
+      initialTime: const TimeOfDay(hour: 14, minute: 30),
+      firstDate: DateTime(2026, 3),
+      lastDate: DateTime(2027, 3, 11),
+      today: DateTime(2026, 3, 11),
+    ),
+  }.entries) {
+    testWidgets(
+        '${subject.key} — 48 tall everywhere, width grid-bound only '
+        'in the day cells', (tester) async {
+      await pumpAtWidth(tester, width: 360, scale: 1, home: subject.value);
+
+      // Every day cell: at least 48 TALL, and narrower only by the grid.
+      //
+      // Found through the day NUMBER, not by `w is GestureDetector` — the
+      // broad predicate matched a 40×40 framework internal and reported it as a
+      // failing day cell, which is a gate lying about which widget is wrong.
+      for (final day in const ['1', '11', '28']) {
+        final cell = find
+            .ancestor(
+                of: find.text(day), matching: find.byType(GestureDetector))
+            .first;
+        final size = tester.getSize(cell);
+        expect(size.height, greaterThanOrEqualTo(48.0),
+            reason: '§13.2 on the axis a month grid CAN satisfy — day « $day » '
+                'measured ${size.width} × ${size.height}');
+        expect(size.width, greaterThan(40.0),
+            reason: 'grid-bound, but the column is (360 − 2×16)/7 ≈ 46.9 and a '
+                'much smaller number would mean the grid, not the floor, broke');
+      }
+
+      // The month bar's year toggle — the 40dp target this gate exists for.
+      final toggle = find.ancestor(
+        of: find.text('mars 2026'),
+        matching: find.byType(InkWell),
+      );
+      expect(tester.getSize(toggle.first).height, greaterThanOrEqualTo(48.0),
+          reason: 'A14a shipped this at 40 — `spacingS` twice around a 24dp '
+              'line — and the Row around it is 48 because of the chevrons, so '
+              'it looked right and measured short');
+    });
+  }
 }

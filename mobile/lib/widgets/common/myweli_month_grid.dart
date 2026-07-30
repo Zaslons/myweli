@@ -26,14 +26,17 @@ import '../../core/utils/formatters.dart';
 /// Same calendar day, ignoring time.
 ///
 /// **Public because `table_calendar`'s `isSameDay` is about to stop existing**
-/// (A14c). `appointment_calendar_view` calls it twice, and a house calendar
-/// that leaves its callers importing a retired package for one predicate has
-/// not retired it.
+/// (A14c). Its consumer today is `myweli_date_time_picker.dart`;
+/// `appointment_calendar_view` still calls **table_calendar's** at `:94` and
+/// `:121`, and A14c is what repoints it. An earlier draft of this comment said
+/// that file "calls it twice" as though it already meant this one — it does
+/// not, and a house calendar that leaves callers importing a retired package
+/// for one predicate has not retired it.
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
-/// Midnight on [d]'s calendar day.
-DateTime dayOf(DateTime d) => DateTime(d.year, d.month, d.day);
+/// Midnight on [d]'s calendar day. Private: no caller outside this file yet.
+DateTime _dayOf(DateTime d) => DateTime(d.year, d.month, d.day);
 
 /// « mars 2026 » between two chevrons, with the label toggling a year list.
 class MyweliMonthBar extends StatelessWidget {
@@ -82,7 +85,17 @@ class MyweliMonthBar extends StatelessWidget {
                       '${Formatters.formatMonthYear(month)}',
               child: InkWell(
                 onTap: onToggleYear,
-                child: Padding(
+                // **A 48dp floor, because this was 40.** `spacingS` twice
+                // around a 24dp `titleMedium` line is 40dp, under §13.2 — and
+                // the Row's own 48 comes from the flanking `IconButton`s, so the
+                // label's hit area really was short. A14a shipped it; A14b's
+                // review found it when the extraction made it a SECOND screen's
+                // control. A minimum, not a height: the box still grows with the
+                // text (§13.3).
+                child: Container(
+                  constraints:
+                      const BoxConstraints(minHeight: AppTheme.spacingXXL),
+                  alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(
                     vertical: AppTheme.spacingS,
                   ),
@@ -228,8 +241,8 @@ class MyweliMonthGrid extends StatelessWidget {
   final DateTime? lastDate;
 
   bool _enabled(DateTime day) {
-    if (firstDate != null && day.isBefore(dayOf(firstDate!))) return false;
-    if (lastDate != null && day.isAfter(dayOf(lastDate!))) return false;
+    if (firstDate != null && day.isBefore(_dayOf(firstDate!))) return false;
+    if (lastDate != null && day.isAfter(_dayOf(lastDate!))) return false;
     return true;
   }
 

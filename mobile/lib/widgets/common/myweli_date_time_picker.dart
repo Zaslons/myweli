@@ -62,6 +62,10 @@ Future<({DateTime date, TimeOfDay time})?> showMyweliDateTimePicker({
     'lastDate ($lastDate) is before firstDate ($firstDate) — the picker would '
     'show a range with no selectable day in it',
   );
+  assert(
+      minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
+      'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
+      'grid arithmetic and never terminates the minutes loop');
   return Navigator.of(context).push<({DateTime date, TimeOfDay time})>(
     MaterialPageRoute<({DateTime date, TimeOfDay time})>(
       fullscreenDialog: true,
@@ -168,7 +172,14 @@ class _MyweliDateTimePickerScreenState
 
   bool _hourEnabled(int hour) {
     if (!_floorApplies) return true;
-    return (hour + 1) * TimeOfDay.minutesPerHour > _floorMinutes;
+    // Against the LAST MINUTE the column offers, not the next hour — see the
+    // range picker's twin of this. With a floor of 10:56 the old form marked
+    // hour 10 enabled while every grid minute in it was disabled, so tapping 10
+    // lifted straight to 11:00. Reachable ~7% of the time, since the floor is
+    // the salon's wall clock.
+    return hour * TimeOfDay.minutesPerHour +
+            lastMinuteInHour(widget.minuteStep) >=
+        _floorMinutes;
   }
 
   bool _minuteEnabled(int minute) {

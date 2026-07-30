@@ -111,6 +111,10 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   });
   final _phoneFocus = FocusNode();
 
+  /// The minute grid the time picker offers, so this screen's own lift lands on
+  /// a value the picker would have shown.
+  static const int _kMinuteStep = 5;
+
   /// The salon's now, as a wall-clock time, for the past-time floor.
   TimeOfDay get _floorNow {
     final now = salonNow(tz: _tz);
@@ -143,8 +147,15 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       final t = _time;
       if (t != null && _isToday(picked)) {
         final floor = _floorNow;
-        if (t.hour * 60 + t.minute < floor.hour * 60 + floor.minute) {
-          _time = floor;
+        final floorMinutes = floor.hour * 60 + floor.minute;
+        if (t.hour * 60 + t.minute < floorMinutes) {
+          // **Snapped onto the picker's grid, not set to the raw clock.** The
+          // first version assigned `_floorNow` directly, so moving the date to
+          // today at 14:07 put « 14:07 » in the field — a value the 5-minute
+          // picker would never have offered, and one the user never chose. The
+          // picker's own lift snaps; this one has to agree with it.
+          final lifted = snapUpToStep(floorMinutes, _kMinuteStep);
+          _time = TimeOfDay(hour: lifted ~/ 60, minute: lifted % 60);
         }
       }
     });
@@ -157,6 +168,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       initialTime: _time ?? _floorNow,
       // Bounded only when the chosen day is today. With no date chosen yet there
       // is nothing to bound against, and `_pickDate` covers that order.
+      minuteStep: _kMinuteStep,
       minTime: d != null && _isToday(d) ? _floorNow : null,
     );
     if (picked != null) setState(() => _time = picked);

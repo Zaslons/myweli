@@ -24,13 +24,24 @@ import 'app_button.dart';
 /// 2. **It caps its own container at 1.1×** (`:2544-2552`), with Flutter's own
 ///    comment admitting why, and applies the cap to height only — the portrait
 ///    width stays the literal `310`.
-/// 3. **Its dial numbers do scale, to 2×, on rings that do not.**
-///    `_kTimePickerInnerDialOffset` is a const `28`, and `dialTextStyle` is
-///    `bodyLarge` — *our* `bodyLarge`, 16sp on a 24dp line
-///    (`app_theme.dart:212`). At 2× that is a **48dp line box on 28dp of radial
-///    gap**, so the 0–11 ring and the 12–23 ring overlap by **20dp** at every
-///    clock position. The 20 is the line-box figure and is exact; the painted
-///    ink overlaps by nearer 4dp, which is an estimate and is marked as one.
+/// 3. **Its dial numbers do scale, to 2×, inside a ring geometry that does
+///    not.** `_kTimePickerInnerDialOffset` is a const `28`, so the two rings'
+///    label centres sit a fixed 28dp apart, and `dialTextStyle` is `bodyLarge`
+///    — *our* `bodyLarge`, wired at `app_theme.dart:212` — which at 2× is a
+///    **48dp line box**. Labels are painted centred on the ring point
+///    (`time_picker.dart:1082`), so along the radius two 48dp boxes sit 28dp
+///    apart: at 12 and 6 o'clock they overlap by **20dp**.
+///
+///    **Two earlier drafts of this overstated it and the review caught both.**
+///    *"20dp at every clock position"* treats a radial constant as if it were
+///    vertical everywhere — away from the vertical the governing dimension is
+///    glyph *width*, not line height. And *"~4dp of painted ink"* read a 32sp
+///    font size as 32dp of ink; a Roboto digit's cap height is ≈0.71 em, so that
+///    figure was unsound. Whether the glyphs actually touch was **not measured**.
+///    What is derivable is enough: **the dial reserves 28dp of radial room for
+///    text that occupies 48**, and Flutter's own 1.1× cap exists for exactly
+///    that class of problem.
+///
 /// 4. **And no assertion in this repo can fail on any of it.** The dial is a
 ///    `CustomPaint` inside `ExcludeSemantics` with `excludeFromSemantics: true`.
 ///    Every helper in `test/a11y/_a11y.dart` walks `RenderParagraph`s; the dial
@@ -59,6 +70,10 @@ Future<TimeOfDay?> showMyweliTimePicker({
   int minuteStep = 5,
   String? helpText,
 }) {
+  assert(
+      minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
+      'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
+      'grid arithmetic and never terminates the minutes loop');
   return Navigator.of(context).push<TimeOfDay>(
     MaterialPageRoute<TimeOfDay>(
       fullscreenDialog: true,
@@ -72,43 +87,43 @@ Future<TimeOfDay?> showMyweliTimePicker({
   );
 }
 
-/// Minutes in a day — the unit all three controls do their arithmetic in.
+/// The grid all three controls select on: **`step` minutes within each hour**,
+/// which is what the minutes column renders — `for (m = 0; m < 60; m += step)`.
 ///
-/// **They did not, at first, and it cost a crash.** The leaf picker and the
-/// combined picker each lifted a below-floor selection by ceiling the *minute
-/// component* and carrying into the hour:
+/// **Two defects paid for these four functions, and both were boundary
+/// arithmetic done on an hour-and-minute PAIR instead of one integer.**
 ///
-/// ```dart
-/// _minute = _ceilToStep(min.minute);
-/// if (_minute >= TimeOfDay.minutesPerHour) { _hour += 1; _minute = 0; }
-/// ```
+/// 1. **Hour 24.** The leaf and combined pickers lifted a below-floor selection
+///    by ceiling the minute component and carrying:
 ///
-/// With `minTime` at **23:58** and a 5-minute step that yields `_hour = 24` —
-/// an hour no column contains, and one `TimeOfDay`'s own assertion rejects. It
-/// is reachable: `pro_manual_booking` passes the salon's `now` as the floor when
-/// the chosen day is today, so a receptionist taking a walk-in at 23:58 hit it.
+///    ```dart
+///    _minute = _ceilToStep(min.minute);                 // 60
+///    if (_minute >= 60) { _hour += 1; _minute = 0; }    // 24
+///    ```
 ///
-/// Hour-and-minute pairs invite that mistake at every boundary. One integer
-/// does not.
-const int kMinutesPerDay = TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;
-
-/// The grid is **`step` minutes within each hour**, not `step` minutes across
-/// the day — because that is what the minutes column renders:
-/// `for (m = 0; m < 60; m += step)`.
+///    With `minTime` at 23:58 and a 5-minute step that is `hour: 24`.
+///    **`TimeOfDay` does not assert on it** — `time.dart:55` is
+///    `const TimeOfDay({required this.hour, required this.minute})`, with no
+///    range check — so an earlier draft of this comment claiming "TimeOfDay's
+///    own assertion rejects it" was wrong, and the truth is worse than the
+///    claim. Nothing throws: `_selectionBelowMin` reads 1440 ≥ 1438 and goes
+///    **false**, so « Confirmer » stays enabled, the headline reads « 24:00 »,
+///    and `salonDateTime(y, m, d, hour: 24)` normalises to **the next day at
+///    00:00** — a reschedule silently booking a different day than the one on
+///    screen. Reachable whenever the salon clock's minute is past `60 - step`.
 ///
-/// The distinction only bites when `step` does not divide 60, and the first
-/// version got it wrong: `(total ~/ step) * step` snapped 09:30 at a step of 7
-/// to **09:27**, a row the column does not contain, so nothing was highlighted
-/// and « Confirmer » would have returned a time the user never saw. Every real
-/// call site uses 5, which divides 60 — which is exactly why this would have
-/// sat undetected until the first caller passed something else.
-int _lastMinuteInHour(int step) =>
+/// 2. **Off-grid times.** `(total ~/ step) * step` stepped across the whole day
+///    rather than within the hour, so at a step of 7 an initial 09:30 snapped to
+///    **09:27** — a row the column never renders, highlighting nothing. Every
+///    real caller uses 5, which divides 60, which is exactly why it would have
+///    sat there until the first caller passed something else.
+int lastMinuteInHour(int step) =>
     ((TimeOfDay.minutesPerHour - 1) ~/ step) * step;
 
 /// The last time a [step]-minute grid can represent — 23:55 at a step of 5.
 int lastGridMinute(int step) =>
     (TimeOfDay.hoursPerDay - 1) * TimeOfDay.minutesPerHour +
-    _lastMinuteInHour(step);
+    lastMinuteInHour(step);
 
 /// [total] snapped **down** onto the grid, so it lands on a row that exists.
 int snapDownToStep(int total, int step) =>
@@ -303,7 +318,7 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
 /// **And it deletes two error states by construction, not by restyling them.**
 /// The end column cannot offer a time at or before the start, so:
 ///
-/// - `availability_screen.dart:670-678`'s « L'heure de fin doit être après
+/// - `availability_screen.dart:673-681`'s « L'heure de fin doit être après
 ///   l'heure de début » — a snackbar that also threw away both answers — has
 ///   nothing left to catch;
 /// - `weekly_hours_editor.dart:75`'s `if (end <= start) return;` — a **bare
@@ -311,7 +326,7 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
 ///   nothing left to swallow.
 ///
 /// Returns null on cancel and calls back **once**, on confirm. That is not a
-/// detail: `availability_screen.dart:113` wires `WeeklyHoursEditor.onChanged`
+/// detail: `availability_screen.dart:114` wires `WeeklyHoursEditor.onChanged`
 /// straight to `provider.updateAvailability`, so a control that emitted per edit
 /// would write to the server on every tap.
 Future<({TimeOfDay start, TimeOfDay end})?> showMyweliTimeRangePicker({
@@ -323,6 +338,10 @@ Future<({TimeOfDay start, TimeOfDay end})?> showMyweliTimeRangePicker({
   String endLabel = 'Fin',
   String? helpText,
 }) {
+  assert(
+      minuteStep > 0 && minuteStep <= TimeOfDay.minutesPerHour,
+      'minuteStep ($minuteStep) must be in 1..60 — 0 divides by zero in the '
+      'grid arithmetic and never terminates the minutes loop');
   return Navigator.of(context).push<({TimeOfDay start, TimeOfDay end})>(
     MaterialPageRoute<({TimeOfDay start, TimeOfDay end})>(
       fullscreenDialog: true,
@@ -396,7 +415,7 @@ class _MyweliTimeRangePickerScreenState
   /// Where the end goes when the start has invalidated it: one hour later,
   /// capped at the end of the grid.
   ///
-  /// This is the behaviour `availability_screen.dart:642` faked with
+  /// This is the behaviour `availability_screen.dart:643` faked with
   /// `TimeOfDay(hour: pickedStart.hour + 1, …)` — arithmetic standing in for
   /// two dialogs being unable to see each other. Here the two halves are on one
   /// screen, so it is just a default the user can immediately change.
@@ -435,8 +454,15 @@ class _MyweliTimeRangePickerScreenState
     if (_endMinutes <= _startMinutes) _endMinutes = _afterStart(_startMinutes);
   }
 
-  int _clampEnd(int value) =>
-      value <= _startMinutes ? _startMinutes + widget.minuteStep : value;
+  /// The end, forced strictly after the start and back onto the grid.
+  ///
+  /// `_startMinutes + step` alone crosses the hour boundary without re-snapping:
+  /// at a step of 7 a start of 10:56 produced **11:03**, and 3 is not a row the
+  /// minutes column renders — so nothing highlighted and « Confirmer » returned
+  /// a time the control never offered.
+  int _clampEnd(int value) => value <= _startMinutes
+      ? snapUpToStep(_startMinutes + 1, widget.minuteStep)
+      : value;
 
   int get _active => _editingEnd ? _endMinutes : _startMinutes;
 
@@ -445,7 +471,14 @@ class _MyweliTimeRangePickerScreenState
       // A start with no room after it cannot begin a range.
       return hour * TimeOfDay.minutesPerHour <= _lastStartMinute;
     }
-    return (hour + 1) * TimeOfDay.minutesPerHour > _startMinutes;
+    // **Against the LAST MINUTE the column actually offers, not against the
+    // next hour.** `(hour + 1) * 60 > start` asks whether the hour *ends* after
+    // the start, but the largest minute on the grid is `60 - step`. With a start
+    // of 10:55 that marked hour 10 enabled while every one of its minutes was
+    // disabled: tapping 10 ran `_clampEnd` and landed the user on **11**.
+    return hour * TimeOfDay.minutesPerHour +
+            lastMinuteInHour(widget.minuteStep) >
+        _startMinutes;
   }
 
   bool _minuteEnabled(int minute) {
@@ -471,7 +504,7 @@ class _MyweliTimeRangePickerScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _PickerChipPair(
+            MyweliPickerChipPair(
               leftLabel: widget.startLabel,
               leftValue: Formatters.formatHourMinute(
                 _startMinutes ~/ TimeOfDay.minutesPerHour,
@@ -541,8 +574,9 @@ TimeOfDay _toTimeOfDay(int minutes) => TimeOfDay(
 /// when both no longer fit — *wrap, not scroll*, the same answer B9 and B11
 /// took. It also removes a second defect the pictures showed: with `Expanded`,
 /// a label that wrapped made one chip taller than its neighbour.
-class _PickerChipPair extends StatelessWidget {
-  const _PickerChipPair({
+class MyweliPickerChipPair extends StatelessWidget {
+  const MyweliPickerChipPair({
+    super.key,
     required this.leftLabel,
     required this.leftValue,
     required this.rightLabel,
@@ -650,40 +684,6 @@ class _PickerChip extends StatelessWidget {
   }
 }
 
-/// The chip pair, for the combined picker in the sibling file.
-///
-/// A thin public alias rather than making `_PickerChipPair` public directly:
-/// the two callers pass different things (times vs a date and a time), and the
-/// shared widget takes strings so neither has to know about the other's types.
-class MyweliPickerChipPair extends StatelessWidget {
-  const MyweliPickerChipPair({
-    super.key,
-    required this.leftLabel,
-    required this.leftValue,
-    required this.rightLabel,
-    required this.rightValue,
-    required this.rightActive,
-    required this.onPick,
-  });
-
-  final String leftLabel;
-  final String leftValue;
-  final String rightLabel;
-  final String rightValue;
-  final bool rightActive;
-  final ValueChanged<bool> onPick;
-
-  @override
-  Widget build(BuildContext context) => _PickerChipPair(
-        leftLabel: leftLabel,
-        leftValue: leftValue,
-        rightLabel: rightLabel,
-        rightValue: rightValue,
-        rightActive: rightActive,
-        onPick: onPick,
-      );
-}
-
 /// « 14:30 », so the value is legible without decoding two highlighted rows.
 class _TimeHeadline extends StatelessWidget {
   const _TimeHeadline({required this.hour, required this.minute});
@@ -762,7 +762,12 @@ class MyweliTimeWheels extends StatelessWidget {
                   ],
                   selected: minute,
                   isEnabled: isMinuteEnabled ?? (_) => true,
-                  semanticLabel: (m) => '$m minutes',
+                  // `Formatters.count`, not '\$m minutes' — French puts 0 in
+                  // the SINGULAR, the minutes column always renders a row for
+                  // 0, and a screen reader was announcing « 0 minutes ». §17.1,
+                  // and the exact idiom A13 swept four spellings of.
+                  semanticLabel: (m) =>
+                      Formatters.count(m, 'minute', 'minutes'),
                   onPick: onMinute,
                 ),
               ),
@@ -803,7 +808,7 @@ class _ColumnHeadings extends StatelessWidget {
 
 /// A row's height: the scaled line plus breathing room, floored at §13.2's 48.
 ///
-/// The same formula as A14a's day cell (`myweli_date_picker.dart:457-464`) and
+/// The same formula as A14a's day cell (`myweli_month_grid.dart`) and
 /// `_WeekStrip`'s pill, for the same reason — a box whose height is a constant
 /// is a box that clips at 200%, and that is the entire complaint against
 /// Material's `hourMinuteSize` of `Size(96, 80)`.

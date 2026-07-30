@@ -92,13 +92,18 @@ class Formatters {
 
   /// Format date: « lundi 15 janvier 2024 ».
   ///
-  /// **Lowercase**, and this docstring said « Lundi » for three years while the
-  /// function produced « lundi ». French does not capitalise weekday or month
-  /// names, so the code was right and the comment was wrong — found by A14b
-  /// writing the first test this helper has ever had, which is the argument for
-  /// having written it. It is now **every day cell's accessibility label** in the
-  /// house calendar (`myweli_month_grid.dart`), so what it returns is what a
-  /// screen-reader user hears.
+  /// **Lowercase.** French does not capitalise weekday or month names, so the
+  /// code was right and this docstring — which said « Lundi » — was wrong, for
+  /// the helper's whole life. Found by A14b writing the first test it has ever
+  /// had, which is the argument for having written it.
+  ///
+  /// *(An earlier draft of this note said "for three years". `formatters.dart`
+  /// entered the repo at `75a28d8`, about five and a half weeks earlier — the
+  /// number was invented, in a correction about an invented claim.)*
+  ///
+  /// It is now **every day cell's accessibility label** in the house calendar
+  /// (`myweli_month_grid.dart`), so what it returns is what a screen-reader user
+  /// hears.
   static String formatDate(DateTime date) {
     return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date);
   }
@@ -161,7 +166,10 @@ class Formatters {
   static String formatHourMinute(int hour, int minute) =>
       '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 
-  /// Format date and time: "Lundi 15 janvier 2024 à 14:30"
+  /// Format date and time: « lundi 15 janvier 2024 à 14:30 » — lowercase, for
+  /// [formatDate]'s reason. The first pass at that correction fixed the
+  /// docstring 69 lines above and left this one saying « Lundi », which is the
+  /// same defect surviving in the same file.
   static String formatDateTime(DateTime dateTime) {
     return '${formatDate(dateTime)} à ${formatTime(dateTime)}';
   }

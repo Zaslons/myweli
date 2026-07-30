@@ -72,15 +72,23 @@ void main() {
   const widths = <double>[360, 375, 390];
   const scales = <double>[1, 2];
 
-  /// Two-digit tokens from the top of each column, which is what the columns
-  /// scroll to when the picker opens at 00:00. Both are zero-padded, so « 00 »
-  /// is present in the hours **and** the minutes and the assertion covers both.
+  /// **Per subject, because the columns open scrolled to their own value.**
+  ///
+  /// One shared `['00','01','02']` list was wrong and the review caught it: the
+  /// leaf picker opens at 00:00 so all three are on screen, but the range picker
+  /// opens at **09:00** and its hours column shows 09–17 — « 01 » and « 02 » are
+  /// nowhere on it. The old vacuity guard accumulated one counter across the
+  /// whole list, so two absent tokens were masked by the third and six of
+  /// eighteen runs measured a single paragraph while the comment claimed both
+  /// columns. `expectTokensWhole` now guards **per token**, which is what turned
+  /// this from an opinion into a failure.
   ///
   /// `expectTokensWhole` is A14a's `expectDayNumbersWhole`, renamed in this
   /// slice because the mechanism was never about days: an hour is the same
   /// thing — a single unbreakable token with no second line for a digit to move
   /// to.
-  const namedTokens = <String>['00', '01', '02'];
+  const leafTokens = <String>['00', '01', '02'];
+  const rangeTokens = <String>['09', '10', '00'];
 
   /// **All three controls, not just the leaf.** The first version of this file
   /// pumped `MyweliTimePickerScreen` alone, and the two it skipped were the two
@@ -139,7 +147,8 @@ void main() {
             expect(find.text('Heures'), findsOneWidget,
                 reason: 'C: $name is not on screen at $at, so every assertion '
                     'below would be about nothing');
-            expectTokensWhole(tester, namedTokens, at);
+            expectTokensWhole(tester,
+                name == 'the range picker' ? rangeTokens : leafTokens, at);
           }
 
           if (name == 'the range picker') {

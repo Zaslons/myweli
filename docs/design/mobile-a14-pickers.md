@@ -5,10 +5,10 @@
 | **Status** | A14a built · **A14b in build** · A14c, A14d planned |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-07-29 |
-| **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · row 75 (A14c) · row 76 (A14d) |
+| **Register row** | [SYSTEM.md](SYSTEM.md) §21 row 73 (A14a) · **row 77 (A14b)** · row 75 (A14c) · row 76 (A14d) |
 | **Skills checked** | `myweli-dev-guardrails` |
 | **Preceded by** | [A12 — the fixed-box sweep](mobile-a12-fixed-boxes.md) · [A13 — copy & breaks](mobile-a13-copy-and-breaks.md) |
-| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** (this PR) — the time picker family (§8–§13) · **A14c** — retire `table_calendar` · **A14d** — the per-salon booking horizon |
+| **Scope** | **A14a** — the date picker (§1–§7) · **A14b** (this PR) — the time picker family (§8–§14) · **A14c** — retire `table_calendar` · **A14d** — the per-salon booking horizon |
 
 ---
 
@@ -394,7 +394,7 @@ final double textScaleFactor =
 `:2589` applies it to **height only**; in portrait the width stays `310`, a
 literal, at every scale.
 
-### 9.3 The dial's numbers scale to 2× inside rings that do not
+### 9.3 The dial's numbers scale to 2× inside a ring geometry that does not
 
 The dial labels get `clamp(maxScaleFactor: 2.0)` (`:1515`) — they *do* grow. The
 rings they sit on do not:
@@ -407,20 +407,30 @@ const double _kTimePickerDialPadding = 28;
 
 `_DialPainter.paint` (`:1050-1059`) computes `labelRadius = dialRadius − 28` and
 `innerLabelRadius = labelRadius − 28`, so the 24-hour double ring has its two
-label centres a fixed **28dp apart**.
+label centres a fixed **28dp apart**. `dialTextStyle` is `_textTheme.bodyLarge!`
+(`:3775-3777`) = our `AppTextStyles.bodyLarge` = 16sp on a **24dp line**
+(`text_styles.dart:72-77`, wired at `app_theme.dart:212`). At 2× that is a
+**48dp line box**, and labels are painted **centred on the ring point**
+(`:1082`). Along the radius, two 48dp boxes 28dp apart overlap by **20dp** — at
+12 and 6 o'clock, where the radius is vertical.
 
-`dialTextStyle` is `_textTheme.bodyLarge!` (`:3775-3777`) = our
-`AppTextStyles.bodyLarge` = 16sp on a **24dp line** (`text_styles.dart:72-77`,
-wired at `app_theme.dart:212`). At 2× that is a **48dp line box on 28dp of
-radial gap**, so the outer ring (0–11) and the inner ring (12–23) **overlap by
-20dp** at every clock position.
+#### ⚠️ Two earlier drafts of this overstated it, and both were caught
 
-**The precise version, because the loose version overstates it.** 20dp is the
-**line-box** overlap, and that figure is exact — two constants and one style.
-The *ink* overlap is smaller: a 32sp glyph occupies roughly 32dp of the 48dp
-box, so the painted digits collide by something closer to **4dp**. Either number
-means the two rings touch; only the first is arithmetic. Stated separately so
-the second is not read as measured.
+- *"the rings overlap by 20dp **at every clock position**"* treats a **radial**
+  constant as though it were vertical everywhere. Away from the vertical the
+  governing dimension is the label's **width**, not its line height: at 3 and 9
+  o'clock the outer label is one digit and the inner is two, so their half-widths
+  sum to roughly 27 against 28dp of separation and the boxes do **not** meet.
+- *"the painted ink overlaps by nearer 4dp"* read a 32sp font size as 32dp of
+  ink. A Roboto digit's cap height is ≈0.71 em ≈ 22.7dp at 32sp, which yields no
+  ink overlap even at 12 o'clock. **Whether the glyphs actually touch was never
+  measured**, and the estimate should not have been written as if it had been.
+
+What *is* derivable from the two constants and the one style is enough, and it is
+the honest version: **the dial reserves 28dp of radial room for text that
+occupies a 48dp line box.** Flutter's own 1.1× container cap (§9.2) exists for
+precisely that class of problem, and §9.4 is why nothing here can measure the
+result either way.
 
 ### 9.4 No assertion in this repo can fail on any of it
 
@@ -449,17 +459,22 @@ protects. **The time picker is worse in both directions:**
 | `hourMinuteTextStyle` | Reachable (`:372-375`) — **and useless.** `TextScaler.noScaling` at `:387` is a literal, so the field cannot be made to respond to the user's setting at any font size. |
 | `dialTextStyle` | Reachable (`:1622`) and it does scale — but shrinking it to stop the overprint is the §13.3-forbidden remedy, and the radii it must fit are private. |
 
-So: you can shrink the font, and you can never grow the box. `AppTheme.timePickerTheme`
-(`app_theme.dart:538-544`) sets three of twenty-three fields —
+So: you can shrink the font, and you can never grow the box. `AppTheme.timePickerTheme` **set** three of twenty-three fields —
 `backgroundColor`, `elevation`, `shape` — and none of the typography, so
-everything above is what the app ships today.
+everything above is what the app shipped right up until this slice. §13 debt 4
+deletes the block: with zero Material pickers left in `lib/`, `app_theme.dart:525`
+now carries only a note saying both picker themes were there and why they went.
 
 ---
 
 ## 10. The six sites and the three chains — UX before the widget
 
-Six syntactic call sites, **seven (widget, route) pairs**: `WeeklyHoursEditor` is
-mounted from two screens.
+Six syntactic call sites. `WeeklyHoursEditor` holds **two** of them and is
+mounted from **two** screens (`availability_screen.dart:114` for breaks,
+`artist_form_screen.dart:253` for artist hours), so the reachable
+(site, route) pairs are `4 + 2×2 = **8**`, spread over **five** routes. An
+earlier draft said *"seven (widget, route) pairs"*, which is what you get by
+adding one for the extra mount and forgetting the widget contains two sites.
 
 | # | site | the user's job | required? | cancel behaviour today |
 |---|---|---|---|---|
@@ -483,7 +498,7 @@ state **unreachable** rather than restyling the message.
 | where | what it says | outcome |
 |---|---|---|
 | `weekly_hours_editor.dart:75` | **nothing** — `if (end <= start) return;`, a bare silent `return`. Two modals, then the row simply does not change: an invalid answer indistinguishable from a cancel. | **Deleted.** The range picker will not offer an end at or before the start. The highest-value deletion in A14b. |
-| `availability_screen.dart:670-678` | « L'heure de fin doit être après l'heure de début » + a snackbar, losing both answers, because dialog 2 could not be given a lower bound of `pickedStart` | **Deleted**, same constraint. |
+| `availability_screen.dart:673-681` | « L'heure de fin doit être après l'heure de début » + a snackbar, losing both answers, because dialog 2 could not be given a lower bound of `pickedStart` | **Deleted**, same constraint. |
 | `pro_manual_booking_screen.dart:142-149` | « Choisissez une date et une heure à venir. » | **Kept, and demoted** — see below. |
 
 #### ⚠️ The third one does not die, and this spec said it would
@@ -522,7 +537,7 @@ not a blindness artefact.
   reintroduce `DateTime(y, m, d, h, m)` on that path.
 - **One `onChanged`, on confirm only.** `WeeklyHoursEditor` is a
   `StatelessWidget` that calls `onChanged` exactly once, on success
-  (`:76`). `availability_screen.dart:113` wires that straight to
+  (`:76`). `availability_screen.dart:114` wires that straight to
   `provider.updateAvailability` — **a server write**. A control that emitted per
   edit would write per keystroke.
 - **`defaultStart`/`defaultEnd`/`offLabel` stay on the editor**, not the picker:
@@ -551,7 +566,7 @@ the thing that makes `date_picker_test.dart` and its golden possible.
 - **Two scrollable columns**, Heures (00–23) and Minutes (`minuteStep`, default
   5). Each entry is a **text row**, so its height comes from the text and grows
   with the scale — the opposite of a 96×80 box and a fixed-radius ring. Height
-  uses `_cellHeight`'s formula (`myweli_date_picker.dart:457-464`): the house
+  uses `_cellHeight`'s formula (`myweli_month_grid.dart`): the house
   already has one answer to *"a row that must grow"* and should not gain a
   second.
 - **A header showing the running « 14:30 »**, formatted by `Formatters`, so the
@@ -571,12 +586,12 @@ disappears with the second modal.
 - **The end is after the start by construction** — the constraint is enforced in
   the control, so §10.1's first two error states have nothing left to catch.
 - **Moving the start past the end drags the end forward**, preserving the
-  behaviour `availability_screen.dart:642`'s `pickedStart.hour + 1` currently
+  behaviour `availability_screen.dart:643`'s `pickedStart.hour + 1` currently
   fakes with arithmetic because the two dialogs cannot see each other.
 - **`startLabel` / `endLabel`** — chain C's « Heure de début » / « Heure de fin »
   become field labels rather than two modal titles.
 
-### 11.3 `MyweliDateTimePicker` → `Future<DateTime?>`
+### 11.3 `MyweliDateTimePicker` → `Future<({DateTime date, TimeOfDay time})?>`
 
 Chain A. One route, two steps, a header carrying both. **Back preserves the
 chosen date** — the defect being fixed. When the chosen day is today, the time
@@ -648,9 +663,10 @@ this repo, not carried over from a note.
 
 | # | debt | verification |
 |---|---|---|
-| 1 | **`formatDate`, `formatDateShort`, `formatMonthYear`, `weekdayInitials`, `formatTime`, `formatDateTime` have no unit test.** `test/unit/formatters_test.dart` has six groups and none of them is these. A14a made four load-bearing: `formatDate` is now **every day cell's accessibility label** (`myweli_date_picker.dart:494-495`), `formatMonthYear` is the month bar *and its `Semantics.label`*, `weekdayInitials` is the « L M M J V S D » row. | §6 promised them and A14a said so when it did not deliver |
+| 1 | **`formatDate`, `formatDateShort`, `formatMonthYear`, `weekdayInitials`, `formatTime`, `formatDateTime` have no unit test.** `test/unit/formatters_test.dart` has six groups and none of them is these. A14a made four load-bearing: `formatDate` is now **every day cell's accessibility label** (`myweli_date_picker.dart:494-495`), `formatMonthYear` is the month bar *and its `Semantics.label`*, `weekdayInitials` is the « L M M J V S D » row, and `formatDateShort` labels
+the manual-booking date field and the combined picker's date chip — **four**. | §6 promised them and A14a said so when it did not deliver |
 | 2 | **Five of fifteen `layout_test.dart` subjects lack `expectNoVerticalClip`** — consumer OTP `:151`, pro appointment tabs `:233`, consumer bookings `:265`, **booking hub `:588`**, booking confirmation `:613`. §6.1 said *four*; counting `testWidgets(` against the helper in file order gives five. The booking hub is the screen row 73 was found on, and booking confirmation is the screen after it — the two consumer screens immediately before payment. | counted, not recalled |
-| 3 | **`french_test.dart:83-88` still pumps a live `showDatePicker`.** Its comment at `:74-77` cites `booking_hub_screen.dart:743` and `pro_manual_booking_screen.dart:111` — both have moved — and claims *"Both leave `initialEntryMode` at its default, so keyboard entry is one tap away."* **That is now false in a way no line-number fix repairs:** `showMyweliDatePicker` has no `initialEntryMode` and `MyweliDatePickerScreen` has no text-entry mode at all, so the `mm/dd/yyyy` parse defect is unreachable from `lib/`. `:31-33`'s *"5 `showDatePicker` … sites"* is now zero. `:128-136`'s three `reason:` strings describe a dialog the app no longer shows. | read |
+| 3 | **`french_test.dart:83-88` still pumps a live `showDatePicker`.** Its comment at `:74-77` cites `booking_hub_screen.dart:743` and `pro_manual_booking_screen.dart:111` — both have moved — and claims *"Both leave `initialEntryMode` at its default, so keyboard entry is one tap away."* **That is now false in a way no line-number fix repairs:** `showMyweliDatePicker` has no `initialEntryMode` and `MyweliDatePickerScreen` has no text-entry mode at all, so the `mm/dd/yyyy` parse defect is unreachable from `lib/`. `:31-33`'s *"5 `showDatePicker` … sites"* is now zero. `:129-138`'s three `reason:` strings describe a dialog the app no longer shows. | read |
 | 4 | **`AppTheme.datePickerTheme` is dead product code.** There is no `showDatePicker`, `DatePickerDialog`, `CalendarDatePicker`, `showDateRangePicker` or `InputDatePickerFormField` anywhere in `lib/`. Its only remaining consumer is debt 3's test, via `pump_app.dart`'s `AppTheme.lightTheme`. Its comment (*"The 11 date/time pickers were the worst purple offenders"*) is stale twice: there are six, and they are all time. | grepped |
 
 **Debts 3 and 4 are one change, not two.** Deleting the theme block while leaving
@@ -662,6 +678,44 @@ together.
 still exactly true and is **A14b's inherited guarantee** (§10.2) — a house time
 picker renders its own hours and inherits nothing from `MaterialLocalizations`,
 so if that assertion goes, nothing holds the app to `HH:mm`.
+
+---
+
+## 13.0 What the adversarial review found, after the goldens
+
+The gates were green, the device run was clean, and every picture had been
+looked at. Three read-only reviewers then found **nine more things**, and the
+pattern is worth stating: *the pictures caught what the gates could not, and the
+review caught what neither could — boundary values nobody would tap, and prose
+nobody would re-derive.*
+
+**Five defects in the code.** Each is now covered by a test named for it.
+
+| | what |
+|---|---|
+| `hour: 24` | Lifting a below-floor selection by ceiling the *minute component* and carrying gave `hour: 24` for a floor of 23:58. **`TimeOfDay` has no assert** (`time.dart:55`), so nothing threw: « Confirmer » stayed enabled and `salonDateTime(hour: 24)` normalised to the **next day at 00:00** — a reschedule silently booking a different day than the one on screen. Reachable whenever the salon clock's minute is past `60 − step`. |
+| two closed-form predicates | `(hour + 1) * 60 > start` asks whether an hour *ends* after the bound, but the largest minute the column offers is `60 − step`. With a start of 10:55, hour 10 read as enabled while all of its minutes were disabled, and tapping it landed the user on **11**. The same shape sat in the combined picker against the floor. Notably the **one** predicate written by enumerating the grid was correct; both written as closed forms were wrong at the same boundary. |
+| an off-grid start | The range start was clamped to `_lastGridMinute − 1` = **23:54**, which a 5-minute column never renders. |
+| an off-grid repair | `_clampEnd` did `start + step`, crossing the hour without re-snapping: at a step of 7, 10:56 → **11:03**. |
+| an unsnapped lift | `pro_manual_booking._pickDate` assigned the raw wall clock, so moving the date to today at 14:07 put **14:07** in a field the 5-minute picker would never have offered. |
+
+**Two holes in the gates.** `expectTokensWhole` accumulated one vacuity counter
+across its whole token list, so six of eighteen runs measured a single paragraph
+while the comment claimed both columns — it guards **per token** now. And no
+picker was a subject of any `meetsGuideline` gate, which is how A14a's month bar
+shipped a **40dp** year toggle: the `Row` around it is 48 because of the
+chevrons, so it looked right and measured short.
+
+Three behaviour tests were also **unfalsifiable** — one passed on a silent swap,
+one asserted a clause its own `reason` admitted it could not distinguish, and one
+was a tautology the type system already guaranteed.
+
+**And a page of prose that was wrong**, corrected in place rather than quietly:
+the "20dp overlap at every clock position" (radial constant treated as vertical),
+the "~4dp of painted ink" (a font size read as ink), "seven (widget, route)
+pairs" (it is eight, over five routes), a return type, a widget name, three line
+citations this slice's own commits had moved, and a "for three years" invented in
+a correction about an invented claim.
 
 ---
 
