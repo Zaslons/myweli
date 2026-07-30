@@ -1,0 +1,25 @@
+# Commits that touched a lot of lines without changing any behaviour.
+#
+# `git blame` walks through these instead of stopping at them, so a line's blame
+# still points at the change that wrote it rather than at a formatting sweep.
+#
+# GitHub reads this file automatically. Locally, once per clone:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Only add a commit here if it is PURELY mechanical — machine-generated output
+# with no hand edits mixed in. A commit that reformats *and* fixes something is
+# not eligible; split it first, which is why the SDK-floor slice below is two
+# commits rather than one.
+
+# style(mobile): reformat under the tall formatter — 392 of 480 files.
+#
+# Forced by raising mobile's SDK floor to `^3.10.0`: `dart format`'s style
+# follows the language version (short style below 3.7, tall style at 3.7+), and
+# ci.yml:44 runs `--set-exit-if-changed`. Proven caused by the floor alone —
+# the same tree passes the format check at `>=3.0.0` and rewrites 392 files at
+# `^3.10.0`.
+#
+# Verified inert: of the 392 files, 65 are identical ignoring all whitespace and
+# 327 ignoring whitespace plus commas. Zero differ in anything else.
+c6524616a2f75c44e957bb17576ddbb7ed1aea3f
