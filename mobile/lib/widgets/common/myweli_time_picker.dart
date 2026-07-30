@@ -72,6 +72,64 @@ Future<TimeOfDay?> showMyweliTimePicker({
   );
 }
 
+/// Minutes in a day — the unit all three controls do their arithmetic in.
+///
+/// **They did not, at first, and it cost a crash.** The leaf picker and the
+/// combined picker each lifted a below-floor selection by ceiling the *minute
+/// component* and carrying into the hour:
+///
+/// ```dart
+/// _minute = _ceilToStep(min.minute);
+/// if (_minute >= TimeOfDay.minutesPerHour) { _hour += 1; _minute = 0; }
+/// ```
+///
+/// With `minTime` at **23:58** and a 5-minute step that yields `_hour = 24` —
+/// an hour no column contains, and one `TimeOfDay`'s own assertion rejects. It
+/// is reachable: `pro_manual_booking` passes the salon's `now` as the floor when
+/// the chosen day is today, so a receptionist taking a walk-in at 23:58 hit it.
+///
+/// Hour-and-minute pairs invite that mistake at every boundary. One integer
+/// does not.
+const int kMinutesPerDay = TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;
+
+/// The grid is **`step` minutes within each hour**, not `step` minutes across
+/// the day — because that is what the minutes column renders:
+/// `for (m = 0; m < 60; m += step)`.
+///
+/// The distinction only bites when `step` does not divide 60, and the first
+/// version got it wrong: `(total ~/ step) * step` snapped 09:30 at a step of 7
+/// to **09:27**, a row the column does not contain, so nothing was highlighted
+/// and « Confirmer » would have returned a time the user never saw. Every real
+/// call site uses 5, which divides 60 — which is exactly why this would have
+/// sat undetected until the first caller passed something else.
+int _lastMinuteInHour(int step) =>
+    ((TimeOfDay.minutesPerHour - 1) ~/ step) * step;
+
+/// The last time a [step]-minute grid can represent — 23:55 at a step of 5.
+int lastGridMinute(int step) =>
+    (TimeOfDay.hoursPerDay - 1) * TimeOfDay.minutesPerHour +
+    _lastMinuteInHour(step);
+
+/// [total] snapped **down** onto the grid, so it lands on a row that exists.
+int snapDownToStep(int total, int step) =>
+    (total ~/ TimeOfDay.minutesPerHour) * TimeOfDay.minutesPerHour +
+    ((total % TimeOfDay.minutesPerHour) ~/ step) * step;
+
+/// [total] snapped **up** onto the grid, and **capped at the end of the day**.
+///
+/// The cap is the fix for the 23:58 crash above: a floor past the last grid time
+/// leaves the selection at 23:55, which is still below the floor — so
+/// « Confirmer » stays disabled and the control shows its documented empty state
+/// instead of inventing an hour 24.
+int snapUpToStep(int total, int step) {
+  final hour = total ~/ TimeOfDay.minutesPerHour;
+  final up = (((total % TimeOfDay.minutesPerHour) + step - 1) ~/ step) * step;
+  final snapped = up >= TimeOfDay.minutesPerHour
+      ? (hour + 1) * TimeOfDay.minutesPerHour
+      : hour * TimeOfDay.minutesPerHour + up;
+  return math.min(snapped, lastGridMinute(step));
+}
+
 /// The picker's screen. Public for the same reason [MyweliDatePickerScreen] is:
 /// a test can pump it directly, without a `Navigator` and a route transition
 /// standing between the gate and the layout it is measuring.
@@ -119,26 +177,30 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
   @override
   void initState() {
     super.initState();
-    _hour = widget.initialTime.hour;
-    // Snapped to the grid the columns actually offer. An `initialTime` of 09:07
-    // with a step of 5 would otherwise highlight no row at all, and « Confirmer »
-    // would return a value the user never saw.
-    _minute =
-        (widget.initialTime.minute ~/ widget.minuteStep) * widget.minuteStep;
-    if (_selectionBelowMin) {
-      final min = widget.minTime!;
-      _hour = min.hour;
-      _minute = _ceilToStep(min.minute);
-      if (_minute >= TimeOfDay.minutesPerHour) {
-        _hour += 1;
-        _minute = 0;
-      }
+    // Snapped DOWN onto the grid the columns actually offer. An `initialTime` of
+    // 09:07 with a step of 5 would otherwise highlight no row at all, and
+    // « Confirmer » would return a value the user never saw.
+    var total = snapDownToStep(
+      widget.initialTime.hour * TimeOfDay.minutesPerHour +
+          widget.initialTime.minute,
+      widget.minuteStep,
+    );
+    final floor = _floorMinutes;
+    if (floor != null && total < floor) {
+      // Snapped UP, and capped at the end of the day — see [snapUpToStep]. The
+      // version that carried a ceiling minute into the hour produced hour 24 for
+      // a floor of 23:58.
+      total = snapUpToStep(floor, widget.minuteStep);
     }
+    _hour = total ~/ TimeOfDay.minutesPerHour;
+    _minute = total % TimeOfDay.minutesPerHour;
   }
 
-  int _ceilToStep(int minute) =>
-      ((minute + widget.minuteStep - 1) ~/ widget.minuteStep) *
-      widget.minuteStep;
+  int? get _floorMinutes {
+    final min = widget.minTime;
+    if (min == null) return null;
+    return min.hour * TimeOfDay.minutesPerHour + min.minute;
+  }
 
   bool get _selectionBelowMin => _isBelowMin(_hour, _minute);
 
@@ -170,7 +232,15 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
           // Dragging it up is the behaviour the two-dialog chain faked with
           // `pickedStart.hour + 1` arithmetic, and getting it wrong is what the
           // deleted error states used to catch.
-          _minute = _ceilToStep(widget.minTime!.minute);
+          //
+          // In total minutes, not by ceiling `minTime.minute` on its own: that
+          // form only happens to be right when the new hour equals the floor's
+          // hour, which is the one case the enabled set allows — a correctness
+          // argument that depends on another method's predicate is the kind that
+          // stops being true when someone widens the predicate.
+          final total = snapUpToStep(_floorMinutes!, widget.minuteStep);
+          _hour = total ~/ TimeOfDay.minutesPerHour;
+          _minute = total % TimeOfDay.minutesPerHour;
         }
       });
 
@@ -301,21 +371,24 @@ class _MyweliTimeRangePickerScreenState
   /// the chips, which is the whole reason this is one screen and not two.
   bool _editingEnd = false;
 
-  static const int _minutesPerDay =
-      TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;
-
   /// The last time the grid can represent — 23:55 at a step of 5.
-  int get _lastGridMinute => _minutesPerDay - widget.minuteStep;
+  int get _lastGridMinute => lastGridMinute(widget.minuteStep);
 
-  int _snap(TimeOfDay t) {
-    final raw = t.hour * TimeOfDay.minutesPerHour + t.minute;
-    return (raw ~/ widget.minuteStep) * widget.minuteStep;
-  }
+  /// The latest a **start** may be: one step before the last grid time, so there
+  /// is always at least one selectable end after it.
+  ///
+  /// The first version clamped to `_lastGridMinute - 1`, which is not on the grid
+  /// — an `initialStart` of 23:55 became 23:54, a row no column contains and no
+  /// tap could have produced.
+  int get _lastStartMinute => _lastGridMinute - widget.minuteStep;
+
+  int _snap(TimeOfDay t) => snapDownToStep(
+      t.hour * TimeOfDay.minutesPerHour + t.minute, widget.minuteStep);
 
   @override
   void initState() {
     super.initState();
-    _startMinutes = _snap(widget.initialStart).clamp(0, _lastGridMinute - 1);
+    _startMinutes = _snap(widget.initialStart).clamp(0, _lastStartMinute);
     _endMinutes = _snap(widget.initialEnd);
     if (_endMinutes <= _startMinutes) _endMinutes = _afterStart(_startMinutes);
   }
@@ -355,7 +428,7 @@ class _MyweliTimeRangePickerScreenState
       });
 
   void _setStart(int value) {
-    _startMinutes = value.clamp(0, _lastGridMinute - 1);
+    _startMinutes = value.clamp(0, _lastStartMinute);
     // Moving the start past the end drags the end with it rather than refusing
     // the tap — refusing would make the start column's disabled rows depend on
     // the end, which is the kind of mutual constraint a user cannot see.
@@ -370,7 +443,7 @@ class _MyweliTimeRangePickerScreenState
   bool _hourEnabled(int hour) {
     if (!_editingEnd) {
       // A start with no room after it cannot begin a range.
-      return hour * TimeOfDay.minutesPerHour < _lastGridMinute;
+      return hour * TimeOfDay.minutesPerHour <= _lastStartMinute;
     }
     return (hour + 1) * TimeOfDay.minutesPerHour > _startMinutes;
   }
@@ -380,7 +453,7 @@ class _MyweliTimeRangePickerScreenState
     final candidate = hour * TimeOfDay.minutesPerHour + minute;
     return _editingEnd
         ? candidate > _startMinutes
-        : candidate < _lastGridMinute;
+        : candidate <= _lastStartMinute;
   }
 
   @override

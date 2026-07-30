@@ -142,6 +142,63 @@ void main() {
           reason: 'an initialTime below the floor must be lifted TO the floor, '
               'not left selected-but-invalid');
     });
+
+    testWidgets('a floor of 23:58 does not invent an hour 24', (tester) async {
+      // **The crash this file was written too late to prevent, and the reason
+      // the controls now do their arithmetic in total minutes.** The first
+      // version lifted a below-floor selection by ceiling the MINUTE component
+      // and carrying:
+      //
+      //   _minute = _ceilToStep(58);        // 60
+      //   if (_minute >= 60) { _hour += 1; } // 24
+      //
+      // `TimeOfDay` asserts `hour < 24`, no column has a row 24, and the path is
+      // reachable — `pro_manual_booking` passes the salon's `now` as the floor
+      // when the chosen day is today, so a walk-in taken at 23:58 hit it.
+      //
+      // The floor is now past the last time a 5-minute grid can represent, so
+      // the correct behaviour is the documented EMPTY state: the columns render,
+      // the selection sits at 23:55, and « Confirmer » is disabled because that
+      // is still below the floor.
+      final r = await openFrom<TimeOfDay>(
+        tester,
+        (context) => showMyweliTimePicker(
+          context: context,
+          initialTime: const TimeOfDay(hour: 8, minute: 0),
+          minTime: const TimeOfDay(hour: 23, minute: 58),
+        ),
+      );
+
+      expect(tester.takeException(), isNull,
+          reason: 'hour 24 would have tripped TimeOfDay’s own assertion');
+      expect(find.text('23:55'), findsOneWidget,
+          reason: 'capped at the last time the grid can represent');
+
+      await tester.tap(find.text('Confirmer'));
+      await settleMocks(tester);
+      expect(r.popped, isFalse,
+          reason: 'no time on the grid satisfies the floor, so Confirmer is '
+              'disabled — the empty state §11.4 specifies, not a value the '
+              'caller would then have to re-validate');
+    });
+
+    testWidgets('a minuteStep that does not divide 60 still lands on the grid',
+        (tester) async {
+      // Not used by any call site today — the default is 5 and every caller
+      // takes it — but the parameter is public, and 7 is the cheapest way to
+      // show the arithmetic is not quietly assuming a divisor of 60.
+      await openFrom<TimeOfDay>(
+        tester,
+        (context) => showMyweliTimePicker(
+          context: context,
+          initialTime: const TimeOfDay(hour: 9, minute: 30),
+          minuteStep: 7,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      // 30 snaps DOWN to 28 (4 × 7), which is a row the column actually offers.
+      expect(find.text('09:28'), findsOneWidget);
+    });
   });
 
   group('MyweliTimeRangePicker', () {

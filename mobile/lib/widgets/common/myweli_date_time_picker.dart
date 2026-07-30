@@ -156,11 +156,14 @@ class _MyweliDateTimePickerScreenState
   /// error state this control deletes.
   void _liftAboveFloor() {
     if (!_belowFloor) return;
-    final ceil =
-        ((_floorMinutes + widget.minuteStep - 1) ~/ widget.minuteStep) *
-            widget.minuteStep;
-    _hour = ceil ~/ TimeOfDay.minutesPerHour;
-    _minute = ceil % TimeOfDay.minutesPerHour;
+    // `snapUpToStep` caps at the end of the day. The version this replaced
+    // ceiled the minute component and carried into the hour, which produced
+    // **hour 24** for a floor of 23:58 — an hour no column contains and one
+    // `TimeOfDay` asserts on. Reachable: `pro_journal._reschedule` passes the
+    // salon's `now` as the floor whenever the chosen day is today.
+    final total = snapUpToStep(_floorMinutes, widget.minuteStep);
+    _hour = total ~/ TimeOfDay.minutesPerHour;
+    _minute = total % TimeOfDay.minutesPerHour;
   }
 
   bool _hourEnabled(int hour) {

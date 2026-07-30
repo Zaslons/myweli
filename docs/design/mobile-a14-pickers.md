@@ -665,6 +665,35 @@ so if that assertion goes, nothing holds the app to `HH:mm`.
 
 ---
 
+## 13.1 The device run — chain C, on the hardware A12 uses
+
+Same device as A14a's (`A11 360dp`, iPhone 13 mini, 360×780pt), same setting
+(`content_size accessibility-large`, ≈1.95×). Route: pro app → « Disponibilité »
+→ the « Pauses » editor → tap Mardi's « 13:00 – 14:00 ».
+
+| | before A14b | measured after |
+|---|---|---|
+| what opens | **two `showTimePicker` dialogs in a row**, with no `helpText` on the availability pair and nothing on screen saying which one you are in | **one screen**, titled « Mardi — horaires » |
+| both values | only ever one at a time | « Heure de début 13:00 » **and** « Heure de fin 14:00 », both on screen |
+| at 1.95× | Material's hour field is the same size it is at 100% | the chips **wrapped onto two rows** and the wheel rows grew |
+| an end before the start | two modals, then `if (end <= start) return;` — the row silently did not change | **hours 07, 08, 09, 10 render in `textTertiary` and do not respond**, because they precede the 13:00 start |
+
+The last row is the one worth photographing. The invalid state is not *caught*
+any more; it is **unreachable**, and the disabled greys are what that looks like
+to a user who tries.
+
+Also confirmed on the same screens, none of which a computed gate asserts:
+« Heures » / « Minutes » in French, every two-digit hour and minute whole at
+1.95×, the chip highlight moving between the two halves, and the hours column
+re-anchoring to the value of whichever half is being edited.
+
+**What this run did not cover.** Chain A (the combined picker, reached from a
+journal reschedule) needs an appointment on the day, and the seeded salon had
+none. Its 1× and 2× goldens exist and were reviewed; the device evidence here is
+for chain C only, and saying otherwise would overclaim it.
+
+---
+
 ## 14. Open questions (A14b)
 
 - **`minuteStep` defaults to 5.** Salon slots are 15 or 30 in practice, but a
